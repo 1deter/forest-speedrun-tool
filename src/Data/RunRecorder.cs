@@ -181,7 +181,7 @@ namespace ForestOverlay.Data
         public enum RunState { Idle, Armed, Running }
 
         /// Distance from the anchor that counts as "you have started".
-        public float StartRadius = 1.5f;
+        public float StartRadius = 0.5f;
 
         /// Sampling rate. 30 Hz is enough to draw a smooth line and to
         /// place a ghost without storing a point per frame.

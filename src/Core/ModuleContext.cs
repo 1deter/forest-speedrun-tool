@@ -16,5 +16,13 @@ namespace ForestOverlay.Core
         public PlayerRef Player;
         public PracticeState Practice;
         public string ConfigDirectory;
+
+        /// The plugin behaviour, for modules that need to start a
+        /// coroutine (the update check is the only one so far).
+        public UnityEngine.MonoBehaviour Runner;
+
+        /// Absolute path of the loaded ForestOverlay.dll, used to stage an
+        /// update beside it.
+        public string PluginPath;
     }
 }

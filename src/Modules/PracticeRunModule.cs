@@ -31,6 +31,11 @@ namespace ForestOverlay.Modules
         public override string DisplayName { get { return "Practice runs"; } }
         public override bool HasPanel { get { return true; } }
 
+        /// Practice mode is off until asked for. It was previously always
+        /// live, which made the HUD line appear unbidden and meant every
+        /// teleport armed a run whether or not you wanted one.
+        public bool Enabled;
+
         private readonly RunRecorder _recorder = new RunRecorder();
         private readonly List<Attempt> _attempts = new List<Attempt>();
         private AttemptStore _store;
@@ -72,16 +77,34 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
+            map.Add("run.toggleMode", KeyCode.F9, "Practice mode on / off", ToggleMode);
             map.Add("run.finish", KeyCode.F12, "Finish practice run", FinishRun);
             // No separate restart key: PracticeModule's "return to anchor"
             // (F7) already raises OnPlacedAtAnchor, which re-arms a run.
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
-            map.Add("panel.runs", KeyCode.F1, "Practice runs panel", TogglePanel);
+            map.Add("panel.runs", KeyCode.F8, "Practice runs panel", TogglePanel);
         }
 
         // ------------------------------------------------------------------
+        private void ToggleMode()
+        {
+            Enabled = !Enabled;
+
+            if (!Enabled)
+            {
+                _recorder.Abort();
+                _hasDelta = false;
+                _status = "practice mode off";
+            }
+            else
+            {
+                _status = "practice mode on - teleport or set an anchor";
+            }
+        }
+
         private void OnPlacedAtAnchor()
         {
+            if (!Enabled) return;
             if (_practice == null || !_practice.HasAnchor) return;
 
             // Switching anchor switches "track": load that anchor's saved
@@ -174,7 +197,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
-            if (!Ctx.Player.Found) return;
+            if (!Enabled || !Ctx.Player.Found) return;
 
             Vector3 pos = Ctx.Player.Transform.position;
             _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime);
@@ -189,6 +212,8 @@ namespace ForestOverlay.Modules
 
         public override void ContributeHud(HudBuilder hud)
         {
+            if (!Enabled) return;
+
             switch (_recorder.State)
             {
                 case RunRecorder.RunState.Armed:
@@ -235,7 +260,10 @@ namespace ForestOverlay.Modules
 
             float w = _windowRect.width;
 
-            GUI.Label(new Rect(12, 26, w - 24, 20),
+            bool on = GUI.Toggle(new Rect(12, 26, 150, 20), Enabled, " Practice mode");
+            if (on != Enabled) ToggleMode();
+
+            GUI.Label(new Rect(168, 26, w - 180, 20),
                       "Anchor: " + (_practice != null && _practice.HasAnchor
                                         ? _practice.AnchorLabel : "none set (F3 panel)"));
 
@@ -253,7 +281,10 @@ namespace ForestOverlay.Modules
 
             GUI.Label(new Rect(12, 104, w - 24, 20), _status);
 
-            DrawAttemptList(new Rect(8, 128, w - 16, _windowRect.height - 138));
+            GUI.Label(new Rect(12, 126, w - 24, 18),
+                      "attempt   time   max = top horizontal speed reached", _rowStyle);
+
+            DrawAttemptList(new Rect(8, 146, w - 16, _windowRect.height - 156));
 
             GUI.DragWindow(new Rect(0, 0, w, 22));
         }
@@ -274,8 +305,7 @@ namespace ForestOverlay.Modules
                 if (y + rowH < _scroll.y || y > _scroll.y + listRect.height) continue;
 
                 string row = "#" + (i + 1) + "   " + Format(a.Duration) +
-                             "   top " + a.TopSpeed.ToString("F1") +
-                             "   " + a.Count + " pts" +
+                             "   max " + a.TopSpeed.ToString("F1") + " u/s" +
                              (ReferenceEquals(a, best) ? "   BEST" : "") +
                              (ReferenceEquals(a, _reference) ? "   [ref]" : "");
 

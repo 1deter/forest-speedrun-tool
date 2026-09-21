@@ -31,6 +31,8 @@ namespace ForestOverlay.Modules
 
         private GUIStyle _labelStyle;
         private GUIStyle _warnStyle;
+        private GUIStyle _promptStyle;
+        private readonly GUIContent _prompt = new GUIContent();
         private string _message = "";
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -65,6 +67,12 @@ namespace ForestOverlay.Modules
 
             _warnStyle = new GUIStyle(_labelStyle);
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
+
+            // The prompt is long and was clipping to one line. Wrapping it
+            // and measuring the height keeps it readable at any width.
+            _promptStyle = new GUIStyle(_warnStyle);
+            _promptStyle.wordWrap = true;
+            _promptStyle.alignment = TextAnchor.UpperLeft;
         }
 
         private void DrawContents(int id)
@@ -86,14 +94,22 @@ namespace ForestOverlay.Modules
                 _message = "Keys reset to defaults.";
             }
 
-            GUI.Label(new Rect(12, 54, w - 24, 20),
-                      map.AwaitingRebind != null
-                          ? "Press a key for '" + map.AwaitingRebind.Description +
-                            "'   (Esc cancels, Backspace unbinds)"
-                          : _message,
-                      map.AwaitingRebind != null ? _warnStyle : _labelStyle);
+            bool rebinding = map.AwaitingRebind != null;
+            _prompt.text = rebinding
+                ? "Press a key for: " + map.AwaitingRebind.Description +
+                  "      Esc cancels, Backspace unbinds"
+                : _message;
 
-            DrawBindList(new Rect(8, 78, w - 16, _windowRect.height - 88), map);
+            GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
+            float promptW = w - 24f;
+            float promptH = _prompt.text.Length == 0
+                ? 0f
+                : Mathf.Max(20f, promptStyle.CalcHeight(_prompt, promptW));
+
+            GUI.Label(new Rect(12, 54, promptW, promptH), _prompt, promptStyle);
+
+            float listY = 58f + promptH;
+            DrawBindList(new Rect(8, listY, w - 16, _windowRect.height - listY - 10f), map);
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
@@ -157,6 +173,7 @@ namespace ForestOverlay.Modules
             {
                 target.Key = KeyCode.None;
                 map.AwaitingRebind = null;
+                map.Swallow(KeyCode.Backspace);
                 _message = target.Description + " unbound.";
                 e.Use();
                 return;
@@ -168,6 +185,10 @@ namespace ForestOverlay.Modules
 
             target.Key = e.keyCode;
             map.AwaitingRebind = null;
+
+            // Stop this same press from also firing the action we just
+            // bound it to.
+            map.Swallow(e.keyCode);
 
             // Bind it anyway and say so, rather than refusing. Two actions
             // on one key is occasionally deliberate, and silently dropping

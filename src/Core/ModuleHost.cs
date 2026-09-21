@@ -198,15 +198,26 @@ namespace ForestOverlay.Core
         // ------------------------------------------------------------------
         private void ApplyPlayerLock()
         {
-            if (!LockPlayerWhilePanelOpen || _playerLockApplied) return;
+            if (!LockPlayerWhilePanelOpen) return;
             if (_ctx.Bridge == null) return;
+
+            // Re-assert if the game cleared it behind us. Opening and
+            // closing the ESC menu calls UnLockView, which silently freed
+            // the player while one of our panels was still open. Checking
+            // the flag is a cheap field read; SetPlayerLocked is only
+            // called when it has actually been lost, so LockView's
+            // rigidbody work does not run every frame.
+            if (_playerLockApplied && _ctx.Bridge.IsPlayerLocked()) return;
 
             _ctx.Bridge.ResolvePlayerController(_ctx.Player.Transform);
             _ctx.Bridge.SetPlayerLocked(true);
-            _playerLockApplied = true;
 
-            // Holding the player writes to the game, so it counts.
-            _ctx.Practice.Mark("player lock");
+            if (!_playerLockApplied)
+            {
+                _playerLockApplied = true;
+                // Holding the player writes to the game, so it counts.
+                _ctx.Practice.Mark("player lock");
+            }
         }
 
         private void ReleasePlayerLock()

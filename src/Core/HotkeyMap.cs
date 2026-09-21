@@ -48,6 +48,21 @@ namespace ForestOverlay.Core
         /// fire the action it is being bound to.
         public Binding AwaitingRebind;
 
+        // The key a rebind just consumed. IMGUI delivers the KeyDown event
+        // during OnGUI, which runs AFTER Update - so without this, the very
+        // key you bound could still be seen by Input.GetKeyDown and fire
+        // the action it was bound to. Binding the settings panel to F2 then
+        // immediately closed the panel.
+        //
+        // Held until the key is physically released, which is correct
+        // regardless of how the event and polling happen to interleave.
+        private KeyCode _swallowed = KeyCode.None;
+
+        public void Swallow(KeyCode key)
+        {
+            _swallowed = key;
+        }
+
         public HotkeyMap(ConfigFile config)
         {
             _config = config;
@@ -71,12 +86,16 @@ namespace ForestOverlay.Core
 
         public void Dispatch()
         {
+            if (_swallowed != KeyCode.None && !Input.GetKey(_swallowed))
+                _swallowed = KeyCode.None;
+
             if (AwaitingRebind != null) return;
 
             for (int i = 0; i < _bindings.Count; i++)
             {
                 Binding b = _bindings[i];
                 if (b.Key == KeyCode.None) continue;
+                if (b.Key == _swallowed) continue;
                 if (!Input.GetKeyDown(b.Key)) continue;
                 b.Action();
             }

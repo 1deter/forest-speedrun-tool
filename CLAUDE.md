@@ -104,18 +104,21 @@ BepInEx `ConfigEntry`.
 
 | Default | Action |
 |---|---|
-| `F1` | Practice runs panel |
+| *(F1 left free)* | the game's own dev console uses it when enabled |
 | `F2` | Settings / keybinds |
 | `F3` | Practice panel (anchor, teleports) |
 | `F4` | Inventory panel |
 | `F5` | Toggle HUD |
 | `F6` | Set anchor here |
 | `F7` | Return to anchor (also restarts a practice run) |
-| `F8` / `F9` | Free timer start-stop / reset |
+| `F8` | Practice runs panel |
+| `F9` | Practice mode on / off |
 | `F10` | Type explorer |
 | `F11` | Write dumps |
 | `F12` | Finish practice run |
-| `\` | Split (free timer) |
+| `Insert` | Debug views panel |
+| `End` | Updates panel |
+| `Keypad *` | Toggle freecam |
 | `[` | Abort practice run |
 
 Modules register their own keys with a stable id, so the settings panel, the
@@ -189,36 +192,49 @@ badly with other plugins.
 
 ## Current status
 
-Working: module host, rebindable hotkeys, HUD, velocity, free timer, per-item
-inventory with pinnable counters, type explorer, dumps, anchor-based practice
-teleports with a community-extensible location library, timed practice runs
-with live ghost deltas and persisted attempts, offline IL scanner.
+Working: module host, rebindable hotkeys, HUD, velocity, per-item inventory,
+type explorer, dumps, anchor-based practice teleports with a community
+location library, practice runs with ghost deltas and persisted attempts,
+debug views (freecam / colliders / triggers / wireframe), update checking,
+offline IL scanner.
+
+`TimerModule` is written but **deliberately not registered** - its manual
+start/stop/split clashed with the practice run keys and has no purpose until
+automatic, configuration-driven splits are designed. The file is kept so that
+work has somewhere to land.
 
 ### Practice runs
 
-The Momentum/KSF shape: being placed at the anchor **arms** a run, the clock
-starts when you actually move (so lining up is free), `F12` finishes it. The
-delta is "at the point you are standing, the reference run had taken N
-seconds". Attempts persist per anchor under
-`BepInEx/config/ForestOverlay/runs/<anchor>/`, one text file each, so a folder
-is a shareable "track".
+Being placed at the anchor **arms** a run; the clock starts when you actually
+move (start radius 0.5m), `F12` finishes. Practice mode is **off by default**
+and toggled with `F9`. The delta reads "at the point you are standing, the
+reference run had taken N seconds". Attempts persist per anchor under
+`BepInEx/config/ForestOverlay/runs/<anchor>/`, one plain text file each, so a
+folder is a shareable track.
 
-`Data/RunRecorder.cs` holds the state machine and `RunCompare` the comparison
-maths - deliberately almost Unity-free so it can be unit tested.
+### Updates
+
+`Core/UpdateChecker.cs` queries the GitHub releases API on startup and stages a
+download beside the plugin as `ForestOverlay.dll.pending`.
+
+**It cannot apply the update itself** - Windows will not let a loaded assembly
+be overwritten, and ours is loaded by definition. Applying it needs code that
+runs *before* plugins load, i.e. a BepInEx **preloader patcher** in
+`BepInEx/patchers/`. That piece is not written yet; until it is, the staged
+file sits there and a restart does nothing with it.
+
+UnityWebRequest is used rather than `HttpWebRequest` because Unity 5.6's Mono
+predates TLS 1.2 and GitHub requires it; UnityWebRequest uses the OS stack. It
+is reached by reflection so the CI stub build still compiles.
 
 ### Next up
 
-1. **Test project** (`tests/`) over the pure logic - `RunCompare`,
-   `LocationLibrary` parsing, `AttemptStore` round-trip - wired into CI. This
-   is the prerequisite the user set for expanding practice mode further.
-2. **Run line + ghost rendering.** The paths are already recorded; what is
-   missing is drawing them. `GL` lines in `OnRenderObject` is the net35-safe
-   route, no shaders needed.
-3. **Debug menu** on top of `TheForest.DebugConsole` (see game-notes) -
-   godmode, capsule mode, timescale come free by reflection. Freecam,
-   wireframe, trigger and collider views have to be built.
-4. **Autosplit triggers** - `TfEvent+Endgame.Completed`.
-5. Seed `locations/` with verified spots.
-
-Longer term the user wants offline 3D path analysis; the recorded `.run`
-format is deliberately plain text so an external tool can read it.
+1. **Preloader patcher** to apply staged updates - the missing half of
+   auto-update.
+2. **Test project** (`tests/`) over `RunCompare`, `LocationLibrary` parsing and
+   `AttemptStore` round-trip, wired into CI.
+3. **Run line + ghost rendering.** Paths are already recorded; `DebugDraw`
+   already has the GL line machinery to draw them.
+4. **Configuration-driven splits** for practice mode, modelled on the author's
+   LiveSplit autosplitter (item pickup, cave enter/exit, endgame events).
+5. Autosplit triggers - `TfEvent+Endgame.Completed`.

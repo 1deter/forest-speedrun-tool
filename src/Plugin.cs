@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using BepInEx;
 using ForestOverlay.Core;
@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.6.0";
+        public const string PluginVersion = "0.7.0";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -76,6 +76,8 @@ namespace ForestOverlay
                 ctx.Inventory = _inventory;
                 ctx.Practice = _practice;
                 ctx.ConfigDirectory = configDir;
+                ctx.Runner = this;
+                ctx.PluginPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
 
                 _host = new ModuleHost(ctx);
                 BuildModules(_host);
@@ -99,12 +101,19 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private static void BuildModules(ModuleHost host)
         {
+            host.Register(new UpdateModule());       // info-only
             host.Register(new SettingsModule());     // info-only
             host.Register(new RunInfoModule());      // info-only
-            host.Register(new TimerModule());        // info-only
+            // TimerModule is deliberately NOT registered. Its manual
+            // start/stop/split clashed with the practice run keys and has
+            // no purpose until we decide how timing should work - the
+            // direction is automatic splits driven by configuration, the
+            // way the author's LiveSplit autosplitter does it. The file is
+            // kept so that work has somewhere to land.
             host.Register(new InventoryModule());    // info-only
             host.Register(new DumpModule());         // info-only
             host.Register(new ExplorerModule());     // info-only
+            host.Register(new DebugViewModule());     // view-only, but holds the player
             host.Register(new PracticeModule());     // PRACTICE ONLY
             host.Register(new PracticeRunModule());  // info-only (times what practice sets up)
         }
@@ -117,7 +126,11 @@ namespace ForestOverlay
             try
             {
                 _player.Tick();
-                if (_player.Found) _bridge.ResolvePlayerController(_player.Transform);
+                if (_player.Found)
+                {
+                    _bridge.ResolvePlayerController(_player.Transform);
+                    _bridge.ResolveRotators(_player.Transform);
+                }
 
                 _host.Tick();
             }

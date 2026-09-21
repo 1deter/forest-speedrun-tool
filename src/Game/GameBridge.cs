@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Logging;
 using UnityEngine;
@@ -63,6 +64,8 @@ namespace ForestOverlay.Game
             _movementLockedField = null;
             _lockView = null;
             _unlockView = null;
+            _rotators = null;
+            _rotatorsResolved = false;
             _nextResolveTime = 0f;
             _loggedFailure = false;
             LockStatus = "not resolved";
@@ -191,6 +194,86 @@ namespace ForestOverlay.Game
             {
                 LockStatus = "lock call failed";
                 _log.LogWarning("Could not set player lock: " + ex.Message);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Look-angle sync.
+        //
+        // SimpleMouseRotator keeps its OWN angle state (targetAngles and
+        // followAngles) and drives the transform toward it. Teleporting by
+        // writing transform.rotation therefore does not stick: the rotator
+        // still holds the pre-teleport angles and snaps the view back to
+        // them the moment input resumes.
+        //
+        // After any teleport, push the new yaw into every rotator on the
+        // player so its state agrees with where we actually put the player.
+        // The pitch rotator (cameraRotator) is left alone - only yaw is
+        // meaningful for a saved spot.
+        // ------------------------------------------------------------------
+        private Component[] _rotators;
+        private FieldInfo _targetAngles;
+        private FieldInfo _followAngles;
+        private FieldInfo _isCameraRotator;
+        private bool _rotatorsResolved;
+
+        public void ResolveRotators(Transform playerRoot)
+        {
+            if (_rotatorsResolved || playerRoot == null) return;
+
+            Component[] comps;
+            try { comps = playerRoot.GetComponentsInChildren(typeof(Component), true); }
+            catch (Exception) { return; }
+
+            List<Component> found = new List<Component>();
+            Type rotatorType = null;
+
+            for (int i = 0; i < comps.Length; i++)
+            {
+                if (comps[i] == null) continue;
+                Type t = comps[i].GetType();
+                if (t.Name != "SimpleMouseRotator") continue;
+                rotatorType = t;
+                found.Add(comps[i]);
+            }
+
+            if (rotatorType == null) return;
+
+            _rotatorsResolved = true;
+            _rotators = found.ToArray();
+
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            _targetAngles = rotatorType.GetField("targetAngles", flags);
+            _followAngles = rotatorType.GetField("followAngles", flags);
+            _isCameraRotator = rotatorType.GetField("cameraRotator", flags);
+
+            _log.LogInfo("SimpleMouseRotator x" + _rotators.Length +
+                         " target:" + (_targetAngles != null) +
+                         " follow:" + (_followAngles != null));
+        }
+
+        public void SyncLookAngles(float yaw)
+        {
+            if (_rotators == null || _targetAngles == null || _followAngles == null) return;
+
+            for (int i = 0; i < _rotators.Length; i++)
+            {
+                Component r = _rotators[i];
+                if (r == null) continue;
+
+                try
+                {
+                    // Only the yaw rotator; the camera one owns pitch and
+                    // rewriting it would fight the player's own aim.
+                    if (_isCameraRotator != null && (bool)_isCameraRotator.GetValue(r)) continue;
+
+                    Vector3 angles = ((Component)r).transform.localEulerAngles;
+                    angles.y = yaw;
+
+                    _targetAngles.SetValue(r, angles);
+                    _followAngles.SetValue(r, angles);
+                }
+                catch (Exception) { }
             }
         }
 
