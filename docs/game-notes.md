@@ -139,6 +139,49 @@ Also present: `EndGameStats` (MonoBehaviour), `PlayerStats.EndgameWakeUp`
 Nothing here is wired up yet. Any autosplit hook must be a read-only Harmony
 `Postfix` so it stays info-only.
 
+## Player lock - use LockView, not the raw field
+
+`FirstPersonCharacter` exposes its own pair, and they do more than set a flag:
+
+```
+LockView(bool):                       UnLockView():
+  if !BoltNetwork.isRunning             Locked   = false
+     && arg && Grounded:                CanJump  = true
+       rb.Sleep()                       Input.LockMouse()
+       rb.isKinematic = true            rb.isKinematic = false
+       rb.useGravity  = false           rb.useGravity  = true
+  Locked  = true                        rb.WakeUp()
+  CanJump = false
+  Input.UnLockMouse()
+```
+
+Writing `Locked` by hand skips the rigidbody handling (you sag through the
+floor), `CanJump`, and the cursor. Use the methods.
+
+Note both also drive `Input.IsMouseLocked`, so player-lock and cursor code
+interact - apply the player lock **before** asserting the cursor in a frame.
+
+`Locked` is read by `FirstPersonCharacter.Update` / `.FixedUpdate` /
+`.HandleHeightAdjustments` / `.DetermineVelocityChange`, `FirstPersonHeadBob`
+and - importantly - **`SimpleMouseRotator.Update`**, so it stops camera look as
+well as movement. It is not re-asserted per frame; all writers are event-driven.
+
+## Inventory gotchas - confirmed in game 2026-09-21
+
+- **Do not cache the inventory component.** A `FindObjectOfType` result goes
+  stale across a save load and the counters silently freeze at load-time
+  values. Read the static `TheForest.Utils.LocalPlayer.Inventory` each time.
+- **`_possessedItemsCount` does not track reliably.** Derive totals from
+  `_possessedItems`.
+- **`_possessedItems` contains entries that are not real inventory contents.**
+  The author's LiveSplit autosplitter filters them as
+  `id < 29 || id > 311 || id == 302`; 302 is a dev/ghost item. Observed
+  phantoms include 302 (never in inventory) and 122 (multiplayer radio, listed
+  in singleplayer but not present).
+- **An equipped item reads `_amount = 0`** while held - e.g. the lighter (48)
+  shows x0 when in hand. Cross-reference `_equipmentSlotsIds` (int[]) to tell
+  "equipped" apart from "gone".
+
 ## Things still unknown
 
 - Which concrete method to patch for a run-start trigger

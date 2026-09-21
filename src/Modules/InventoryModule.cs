@@ -29,6 +29,7 @@ namespace ForestOverlay.Modules
 
         private float _nextRefresh;
         private int _total = -1;
+        private int _stackCount;
 
         // Item names the HUD should always show, lowercased for matching.
         private readonly List<string> _watch = new List<string>();
@@ -64,15 +65,16 @@ namespace ForestOverlay.Modules
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
             Ctx.Inventory.Resolve();
-            _total = Ctx.Inventory.TotalCount();
 
-            // Only pay for the full list when someone can see it.
-            if (PanelOpen || _watch.Count > 0)
-            {
-                Ctx.Inventory.Refresh();
-                RebuildRowLabels();
-            }
+            // Always refresh: the HUD total is derived from the live list
+            // now, because _possessedItemsCount does not track reliably.
+            Ctx.Inventory.Refresh();
+            _total = Ctx.Inventory.TotalItems;
+            _stackCount = Ctx.Inventory.TotalStacks;
 
+            if (PanelOpen) RebuildRowLabels();
+
+            RefreshTitle();
             RebuildWatchLines();
         }
 
@@ -83,7 +85,8 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < stacks.Count; i++)
             {
                 string text = stacks[i].Name + "   x" + stacks[i].Amount +
-                              "   (id " + stacks[i].Id + ")";
+                              "   (id " + stacks[i].Id + ")" +
+                              (stacks[i].Equipped ? "   [equipped]" : "");
 
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
@@ -116,7 +119,10 @@ namespace ForestOverlay.Modules
 
         public override void ContributeHud(HudBuilder hud)
         {
-            hud.Pair("Items", _total >= 0 ? _total.ToString() : "(inventory not resolved)");
+            if (Ctx.Inventory.Available)
+                hud.Pair("Items", _total + "   (" + _stackCount + " stacks)");
+            else
+                hud.Pair("Items", "(inventory not resolved)");
 
             for (int i = 0; i < _watchLines.Count; i++)
                 hud.Pair("", "  " + _watchLines[i]);
@@ -131,8 +137,18 @@ namespace ForestOverlay.Modules
                 _windowPlaced = true;
             }
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents,
-                "Inventory  -  " + (_total >= 0 ? _total + " items" : "not resolved"));
+            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _windowTitle);
+        }
+
+        // Rebuilt on the throttle, not in OnGUI.
+        private readonly GUIContent _windowTitle = new GUIContent("Inventory");
+
+        private void RefreshTitle()
+        {
+            _windowTitle.text = Ctx.Inventory.Available
+                ? "Inventory  -  " + _total + " items in " + _stackCount + " stacks" +
+                  (Ctx.Inventory.FilteredOut > 0 ? "  (" + Ctx.Inventory.FilteredOut + " filtered)" : "")
+                : "Inventory  -  not resolved";
         }
 
         private void DrawContents(int id)
@@ -154,8 +170,29 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            GUI.Label(new Rect(10, 52, 380, 20),
-                "Click an item to pin it to the HUD.  Pinned: " + _watch.Count);
+            // Exploration toggles: the filter hides ids the autosplitter
+            // proved are not real inventory contents (dev id 302 and
+            // anything outside 29-311), but seeing the raw list is exactly
+            // the kind of thing this tool exists for.
+            bool filter = GUI.Toggle(new Rect(10, 52, 130, 20),
+                                     Ctx.Inventory.FilterPhantomItems, " hide phantoms");
+            if (filter != Ctx.Inventory.FilterPhantomItems)
+            {
+                Ctx.Inventory.FilterPhantomItems = filter;
+                Ctx.Inventory.Refresh();
+                RebuildRowLabels();
+            }
+
+            bool zeros = GUI.Toggle(new Rect(146, 52, 120, 20),
+                                    Ctx.Inventory.ShowZeroAmounts, " show x0");
+            if (zeros != Ctx.Inventory.ShowZeroAmounts)
+            {
+                Ctx.Inventory.ShowZeroAmounts = zeros;
+                Ctx.Inventory.Refresh();
+                RebuildRowLabels();
+            }
+
+            GUI.Label(new Rect(272, 52, 120, 20), "pinned: " + _watch.Count);
 
             Rect listRect = new Rect(8, 76, _windowRect.width - 16, _windowRect.height - 86);
             DrawList(listRect);

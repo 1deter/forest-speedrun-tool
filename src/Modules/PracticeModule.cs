@@ -22,6 +22,9 @@ namespace ForestOverlay.Modules
     public sealed class PracticeModule : OverlayModule
     {
         private const float RowHeight = 21f;
+        // Char code rather than an escape so the literal survives tooling
+        // that rewrites this file.
+        private static readonly string NL = ((char)10).ToString();
         private const float HeaderHeight = 22f;
 
         public override string Id { get { return "practice"; } }
@@ -228,11 +231,40 @@ namespace ForestOverlay.Modules
 
             GUI.EndScrollView();
 
-            if (all.Count == 0)
+            if (all.Count == 0) DrawEmptyState(listRect);
+        }
+
+        // The help text wraps - the config path is long - so its height must
+        // be measured rather than assumed. A fixed 60px box clipped the last
+        // line. GUIContent and style are cached because this runs in OnGUI.
+        private GUIContent _emptyHelp;
+        private GUIStyle _wrapStyle;
+
+        private void DrawEmptyState(Rect listRect)
+        {
+            if (_wrapStyle == null)
             {
-                GUI.Label(new Rect(listRect.x + 8, listRect.y + 8, listRect.width - 16, 60),
-                    "No locations yet.\nDrop a .txt file in:\n" + _library.Folder);
+                _wrapStyle = new GUIStyle(GUI.skin.label);
+                _wrapStyle.wordWrap = true;
+                _wrapStyle.alignment = TextAnchor.UpperLeft;
             }
+
+            if (_emptyHelp == null)
+            {
+                _emptyHelp = new GUIContent(
+                    "No locations yet." + NL + NL +
+                    "Stand where you want a spot, set a category and name above, " +
+                    "then press \"Add here\". It is appended to " +
+                    Data.LocationLibrary.UserFileName + " and shows up in this list." + NL + NL +
+                    "Loaded from:" + NL + _library.Folder + NL + NL +
+                    "Any .txt file in that folder is merged in, so a shared set can " +
+                    "be dropped straight in.");
+            }
+
+            float w = listRect.width - 20f;
+            float h = _wrapStyle.CalcHeight(_emptyHelp, w);
+
+            GUI.Label(new Rect(listRect.x + 8f, listRect.y + 6f, w, h), _emptyHelp, _wrapStyle);
         }
 
         private float MeasureContent(IList<Location> all, string filter)

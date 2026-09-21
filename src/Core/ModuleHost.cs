@@ -104,15 +104,22 @@ namespace ForestOverlay.Core
             // between two LateUpdates is undefined.
             if (AnyPanelOpen())
             {
-                _cursor.Acquire();
-
+                // Player lock FIRST, cursor second. The game's LockView /
+                // UnLockView also call Input.LockMouse/UnLockMouse, so if
+                // the cursor were asserted first, releasing the player lock
+                // in the same tick would re-lock the pointer behind us.
                 if (AnyPanelWantsPlayerLock()) ApplyPlayerLock();
                 else ReleasePlayerLock();
+
+                _cursor.Acquire();
             }
             else
             {
-                _cursor.Release();
+                // On close the order is reversed: let the lock release
+                // restore the game's own cursor state, then put back
+                // whatever we saved.
                 ReleasePlayerLock();
+                _cursor.Release();
             }
 
             RefreshHudIfDue();

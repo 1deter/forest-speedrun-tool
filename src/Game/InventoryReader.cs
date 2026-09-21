@@ -12,42 +12,68 @@ namespace ForestOverlay.Game
         public int Id;
         public int Amount;
         public string Name;
+        public bool Equipped;
     }
 
     // ------------------------------------------------------------------
-    // Reads the player's inventory. INFO-ONLY - nothing here writes.
+    // Reads the player's inventory. INFO-ONLY.
     //
-    // Field layout confirmed from an F11 filtered dump, not guessed:
+    // Field layout confirmed from an F11 filtered dump:
     //
     //   TheForest.Items.Inventory.PlayerInventory
     //     ._possessedItems      List<InventoryItem>
     //     ._possessedItemsCount int
     //     ._itemDatabase        ItemDatabase
+    //     ._equipmentSlotsIds   int[]   - ids currently equipped
     //
     //   TheForest.Items.Inventory.InventoryItem
-    //     ._itemId    int
-    //     ._amount    int
-    //     ._maxAmount int
+    //     ._itemId int / ._amount int / ._maxAmount int
     //
     //   TheForest.Items.ItemDatabase
-    //     .ItemById(int) -> TheForest.Items.Item, whose ._name is the
-    //     display name. Names are cached by id because ItemById walks a
-    //     dictionary and this runs on every refresh.
+    //     .ItemById(int) -> Item, whose ._name is the display name.
     //
-    // The list is read through the non-generic IList interface. That
-    // avoids having to construct a List<InventoryItem> generic type by
-    // reflection, which is exactly the kind of thing that upsets the old
-    // Mono runtime.
+    // THE INVENTORY HANDLE MUST NOT BE CACHED ACROSS A LOAD.
+    // An earlier version cached a FindObjectOfType result, which goes
+    // stale when a save is loaded - the counter then froze at whatever it
+    // read at load time. The canonical handle is the static
+    // TheForest.Utils.LocalPlayer.Inventory, which is what the game's own
+    // code (and the author's LiveSplit autosplitter) reads, so that is
+    // re-read on every refresh.
+    //
+    // The list is read through the non-generic IList interface, which
+    // avoids constructing a List<InventoryItem> generic type by
+    // reflection - the kind of thing that upsets the old Mono runtime.
     // ------------------------------------------------------------------
     public sealed class InventoryReader
     {
+        // ------------------------------------------------------------------
+        // Phantom item filtering.
+        //
+        // _possessedItems contains entries that are not real inventory
+        // contents: dev/ghost ids, and multiplayer-only items that are
+        // listed but unreachable in singleplayer. These bounds come from
+        // the author's own LiveSplit autosplitter for this game
+        // (github.com/1deter/auto-splitters), where they are already
+        // proven against real runs:
+        //
+        //     if (itemId > 311 || itemId < 29 || itemId == 302) continue;
+        //
+        // Kept as named constants rather than inlined so the provenance
+        // stays attached to the numbers.
+        // ------------------------------------------------------------------
+        public const int MinValidItemId = 29;
+        public const int MaxValidItemId = 311;
+        public const int GhostItemId = 302;
+
         private readonly ManualLogSource _log;
 
         private Component _inventory;
+        private Type _inventoryType;
+
         private FieldInfo _possessedCountField;
         private FieldInfo _possessedItemsField;
         private FieldInfo _itemDatabaseField;
-        private bool _resolved;
+        private FieldInfo _equipmentSlotIdsField;
 
         private FieldInfo _itemIdField;
         private FieldInfo _amountField;
@@ -56,13 +82,28 @@ namespace ForestOverlay.Game
         private object _itemDatabase;
         private MethodInfo _itemByIdMethod;
         private FieldInfo _itemNameField;
-        private bool _databaseResolved;
 
         private readonly Dictionary<int, string> _nameCache = new Dictionary<int, string>();
         private readonly List<ItemStack> _stacks = new List<ItemStack>();
+        private readonly List<int> _equipped = new List<int>();
+
+        /// When false, entries outside the valid id range are shown too.
+        /// Useful while exploring what the game actually exposes.
+        public bool FilterPhantomItems = true;
+
+        /// When false, stacks with amount 0 are hidden. They are shown by
+        /// default because an equipped item legitimately reads 0 while
+        /// held, and hiding it looks like the item vanished.
+        public bool ShowZeroAmounts = true;
 
         public bool Available { get { return _inventory != null && _possessedItemsField != null; } }
         public IList<ItemStack> Stacks { get { return _stacks; } }
+
+        /// Total across visible stacks. Derived from the live list rather
+        /// than _possessedItemsCount, which does not track reliably.
+        public int TotalItems { get; private set; }
+        public int TotalStacks { get; private set; }
+        public int FilteredOut { get; private set; }
 
         public InventoryReader(ManualLogSource log)
         {
@@ -72,56 +113,84 @@ namespace ForestOverlay.Game
         public void Reset()
         {
             _inventory = null;
-            _possessedCountField = null;
-            _possessedItemsField = null;
-            _itemDatabaseField = null;
-            _resolved = false;
+            _inventoryType = null;
             _itemFieldsResolved = false;
-            _databaseResolved = false;
             _itemDatabase = null;
+            _itemByIdMethod = null;
             _nameCache.Clear();
             _stacks.Clear();
         }
 
+        // ------------------------------------------------------------------
         public void Resolve()
         {
-            if (_resolved) return;
+            // Re-read the static every time. Cheap, and it is what makes
+            // the counters survive a save load.
+            object live = GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Inventory");
+            Component comp = live as Component;
 
-            Type invType = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
-            if (invType == null) return;
+            if (comp == null)
+            {
+                // Fallback for a build where the static is missing or the
+                // player has not spawned yet.
+                Type invType = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
+                if (invType == null) return;
 
-            UnityEngine.Object found;
-            try { found = UnityEngine.Object.FindObjectOfType(invType); }
-            catch (Exception) { return; }
+                try { comp = UnityEngine.Object.FindObjectOfType(invType) as Component; }
+                catch (Exception) { return; }
 
-            if (found == null) return;   // not spawned yet - retry next frame
+                if (comp == null) return;
+            }
 
-            _resolved = true;
-            _inventory = found as Component;
+            if (ReferenceEquals(comp, _inventory) && _inventory != null) return;
 
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            _possessedCountField = invType.GetField("_possessedItemsCount", flags);
-            _possessedItemsField = invType.GetField("_possessedItems", flags);
-            _itemDatabaseField = invType.GetField("_itemDatabase", flags);
-
-            _log.LogInfo("PlayerInventory resolved. count:" + (_possessedCountField != null) +
-                         " items:" + (_possessedItemsField != null) +
-                         " db:" + (_itemDatabaseField != null));
+            _inventory = comp;
+            _inventoryType = comp.GetType();
+            BindFields();
         }
 
-        public int TotalCount()
+        private void BindFields()
+        {
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            _possessedCountField = _inventoryType.GetField("_possessedItemsCount", flags);
+            _possessedItemsField = _inventoryType.GetField("_possessedItems", flags);
+            _itemDatabaseField = _inventoryType.GetField("_itemDatabase", flags);
+            _equipmentSlotIdsField = _inventoryType.GetField("_equipmentSlotsIds", flags);
+
+            // The database hangs off this inventory instance, so it has to
+            // be re-resolved whenever the inventory is rebound.
+            _itemDatabase = null;
+            _itemByIdMethod = null;
+
+            _log.LogInfo("PlayerInventory bound. items:" + (_possessedItemsField != null) +
+                         " count:" + (_possessedCountField != null) +
+                         " db:" + (_itemDatabaseField != null) +
+                         " equipIds:" + (_equipmentSlotIdsField != null));
+        }
+
+        /// The game's own count field. Kept for comparison only - it is
+        /// not what the HUD shows.
+        public int ReportedCount()
         {
             if (_inventory == null || _possessedCountField == null) return -1;
             try { return (int)_possessedCountField.GetValue(_inventory); }
             catch (Exception) { return -1; }
         }
 
-        /// Refills Stacks with the current inventory contents. Call from
-        /// Tick on a throttle, never from OnGUI.
+        // ------------------------------------------------------------------
+        /// Refills Stacks from the live inventory. Call from Tick on a
+        /// throttle, never from OnGUI.
         public void Refresh()
         {
             _stacks.Clear();
+            TotalItems = 0;
+            TotalStacks = 0;
+            FilteredOut = 0;
+
             if (_inventory == null || _possessedItemsField == null) return;
+
+            RefreshEquipped();
 
             IList list;
             try { list = _possessedItemsField.GetValue(_inventory) as IList; }
@@ -136,19 +205,55 @@ namespace ForestOverlay.Game
                 if (!_itemFieldsResolved) ResolveItemFields(item.GetType());
                 if (_itemIdField == null || _amountField == null) return;
 
-                ItemStack stack;
+                int id, amount;
                 try
                 {
-                    stack.Id = (int)_itemIdField.GetValue(item);
-                    stack.Amount = (int)_amountField.GetValue(item);
+                    id = (int)_itemIdField.GetValue(item);
+                    amount = (int)_amountField.GetValue(item);
                 }
                 catch (Exception) { continue; }
 
-                stack.Name = NameFor(stack.Id);
+                if (FilterPhantomItems && !IsRealItem(id)) { FilteredOut++; continue; }
+                if (!ShowZeroAmounts && amount <= 0) continue;
+
+                ItemStack stack;
+                stack.Id = id;
+                stack.Amount = amount;
+                stack.Name = NameFor(id);
+                stack.Equipped = _equipped.Contains(id);
+
                 _stacks.Add(stack);
+                TotalStacks++;
+                if (amount > 0) TotalItems += amount;
             }
 
             _stacks.Sort(CompareStacks);
+        }
+
+        public static bool IsRealItem(int id)
+        {
+            if (id < MinValidItemId || id > MaxValidItemId) return false;
+            if (id == GhostItemId) return false;
+            return true;
+        }
+
+        // Equipped ids explain the "x0" entries: an item that is currently
+        // held reads amount 0 in _possessedItems, which looks like a ghost
+        // until you can see it is in a slot.
+        private void RefreshEquipped()
+        {
+            _equipped.Clear();
+            if (_equipmentSlotIdsField == null) return;
+
+            try
+            {
+                int[] ids = _equipmentSlotIdsField.GetValue(_inventory) as int[];
+                if (ids == null) return;
+
+                for (int i = 0; i < ids.Length; i++)
+                    if (ids[i] > 0 && !_equipped.Contains(ids[i])) _equipped.Add(ids[i]);
+            }
+            catch (Exception) { }
         }
 
         private static int CompareStacks(ItemStack a, ItemStack b)
@@ -174,7 +279,7 @@ namespace ForestOverlay.Game
             if (_nameCache.TryGetValue(id, out cached)) return cached;
 
             string name = ResolveName(id);
-            if (name == null) name = "item " + id;
+            if (string.IsNullOrEmpty(name)) name = "item " + id;
 
             _nameCache[id] = name;
             return name;
@@ -182,7 +287,7 @@ namespace ForestOverlay.Game
 
         private string ResolveName(int id)
         {
-            if (!_databaseResolved) ResolveDatabase();
+            if (_itemDatabase == null) ResolveDatabase();
             if (_itemDatabase == null || _itemByIdMethod == null) return null;
 
             try
@@ -207,7 +312,6 @@ namespace ForestOverlay.Game
 
         private void ResolveDatabase()
         {
-            _databaseResolved = true;
             if (_inventory == null || _itemDatabaseField == null) return;
 
             try { _itemDatabase = _itemDatabaseField.GetValue(_inventory); }

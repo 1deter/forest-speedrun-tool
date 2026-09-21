@@ -38,6 +38,12 @@ namespace ForestOverlay.Modules
             {
                 hud.Pair("Pos", "player not found yet");
             }
+
+            // Lock state is reported because a failure here used to be
+            // invisible - the explorer toggle simply looked dead when the
+            // controller had not been bound.
+            if (Ctx.Bridge != null && !Ctx.Bridge.PlayerLockAvailable)
+                hud.Pair("Lock", "unavailable (" + Ctx.Bridge.LockStatus + ")");
         }
 
         // Tiny read-only view so the formatting above stays readable.
