@@ -1,0 +1,47 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # No game files are present in CI. The project falls back to BepInEx's
+      # stubbed UnityEngine 5.6 package automatically when it can't find a
+      # local install, so this builds clean on a bare runner.
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Upload plugin DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: ForestOverlay-${{ github.sha }}
+          path: bin/Release/net35/ForestOverlay.dll
+          if-no-files-found: error
+
+      # Tagging a commit v0.4.0 (etc.) publishes a downloadable release,
+      # so a working DLL is always one click away without building.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/Release/net35/ForestOverlay.dll
+          generate_release_notes: true

@@ -1,0 +1,26 @@
+# Build output
+bin/
+obj/
+
+# Game dumps (can be large, and are machine-specific)
+ForestOverlayDumps/
+dumps/
+
+# Never commit game assemblies - they are copyrighted
+*.dll
+!packages/**/*.dll
+lib/
+Managed/
+
+# Decompiled game source, if you generate any
+decompiled/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store

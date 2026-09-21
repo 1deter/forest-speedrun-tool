@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      The Forest runs Unity 5.6 on the old Mono runtime (CLR 2.0.50727),
+      which is .NET Framework 3.5. Targeting anything newer produces a DLL
+      the game cannot load ("ReflectionTypeLoadException: The classes in
+      the module cannot be loaded").
+    -->
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>ForestOverlay</AssemblyName>
+    <RootNamespace>ForestOverlay</RootNamespace>
+    <Description>Speedrun information overlay for The Forest (BepInEx plugin)</Description>
+    <LangVersion>latest</LangVersion>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+    =====================================================================
+    Unity reference: local game install if available, stub package if not.
+
+    Game DLLs are copyrighted and must never be committed, so CI has no
+    access to them. BepInEx publishes a stubbed UnityEngine 5.6 assembly
+    that is API-compatible for compilation, which lets GitHub Actions
+    build this plugin with no game files present.
+
+    Local dev  -> real UnityEngine.dll from your install (exact match)
+    CI / clean -> UnityEngine 5.6.1 stub from the BepInEx feed
+    =====================================================================
+  -->
+  <PropertyGroup>
+    <ForestManagedPath Condition="'$(ForestManagedPath)' == '' AND '$(FOREST_MANAGED_PATH)' != ''">$(FOREST_MANAGED_PATH)</ForestManagedPath>
+    <HasLocalUnity Condition="Exists('$(ForestManagedPath)\UnityEngine.dll')">true</HasLocalUnity>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(HasLocalUnity)' == 'true'">
+    <Reference Include="UnityEngine">
+      <HintPath>$(ForestManagedPath)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(HasLocalUnity)' != 'true'">
+    <PackageReference Include="UnityEngine" Version="5.6.1" />
+  </ItemGroup>
+
+  <!--
+    NOTE: Assembly-CSharp.dll is deliberately NOT referenced.
+
+    Every game type is reached through reflection instead, which means:
+      * the build works without the game installed (so CI works)
+      * nothing copyrighted is needed to compile
+      * game updates that rename things fail gracefully at runtime
+        instead of breaking the build
+
+    If you ever need compile-time access to game types, add the reference
+    behind the same HasLocalUnity condition and keep the reflection path
+    as the CI fallback.
+  -->
+
+  <Target Name="ReportUnitySource" BeforeTargets="Build">
+    <Message Importance="high" Condition="'$(HasLocalUnity)' == 'true'"
+             Text="UnityEngine: local install ($(ForestManagedPath))" />
+    <Message Importance="high" Condition="'$(HasLocalUnity)' != 'true'"
+             Text="UnityEngine: BepInEx stub package (no local install found)" />
+  </Target>
+
+</Project>
