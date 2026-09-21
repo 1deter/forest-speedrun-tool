@@ -3,7 +3,7 @@ using System.Reflection;
 using BepInEx.Logging;
 using UnityEngine;
 
-namespace ForestOverlay
+namespace ForestOverlay.Game
 {
     // ------------------------------------------------------------------
     // Reflection bridge to The Forest's own types.
@@ -18,9 +18,9 @@ namespace ForestOverlay
     //     .Locked          (bool)     - game's own full input lock
     //     .MovementLocked  (bool)     - movement-only lock
     //     .walkSpeed 6.5 / .runSpeed 13.5 / .maximumVelocity 55
-    //   TheForest.Items.Inventory.PlayerInventory
-    //     ._possessedItemsCount (int)
-    //     ._possessedItems      (List<InventoryItem>)
+    //
+    // Inventory reflection lives in InventoryReader, cursor reflection in
+    // Core/CursorController - each keeps its own game names together.
     // ------------------------------------------------------------------
     public class GameBridge
     {
@@ -31,12 +31,7 @@ namespace ForestOverlay
         private FieldInfo _movementLockedField;
         private bool _fpcResolved;
 
-        private Component _inventory;
-        private FieldInfo _possessedCountField;
-        private bool _inventoryResolved;
-
         public bool PlayerLockAvailable { get { return _lockedField != null || _movementLockedField != null; } }
-        public bool InventoryAvailable { get { return _possessedCountField != null && _inventory != null; } }
 
         public GameBridge(ManualLogSource log)
         {
@@ -49,10 +44,6 @@ namespace ForestOverlay
             _lockedField = null;
             _movementLockedField = null;
             _fpcResolved = false;
-
-            _inventory = null;
-            _possessedCountField = null;
-            _inventoryResolved = false;
         }
 
         // ------------------------------------------------------------------
@@ -113,42 +104,6 @@ namespace ForestOverlay
             if (_fpc == null || _lockedField == null) return false;
             try { return (bool)_lockedField.GetValue(_fpc); }
             catch (Exception) { return false; }
-        }
-
-        // ------------------------------------------------------------------
-        // Inventory - first real read of game data.
-        //
-        // Only the total count is wired up so far. Per-item breakdown needs
-        // InventoryItem's field layout, which the explorer can reveal:
-        // filter for "InventoryItem" and inspect it.
-        // ------------------------------------------------------------------
-        public void ResolveInventory()
-        {
-            if (_inventoryResolved) return;
-
-            Type invType = FindGameType("TheForest.Items.Inventory.PlayerInventory");
-            if (invType == null) return;
-
-            UnityEngine.Object found;
-            try { found = UnityEngine.Object.FindObjectOfType(invType); }
-            catch (Exception) { return; }
-
-            if (found == null) return;   // not spawned yet - retry later
-
-            _inventoryResolved = true;
-            _inventory = found as Component;
-
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            _possessedCountField = invType.GetField("_possessedItemsCount", flags);
-
-            _log.LogInfo("PlayerInventory resolved. _possessedItemsCount:" + (_possessedCountField != null));
-        }
-
-        public int GetPossessedItemCount()
-        {
-            if (_inventory == null || _possessedCountField == null) return -1;
-            try { return (int)_possessedCountField.GetValue(_inventory); }
-            catch (Exception) { return -1; }
         }
 
         // ------------------------------------------------------------------

@@ -1,22 +1,29 @@
 using System;
+using System.IO;
 using BepInEx;
+using ForestOverlay.Core;
+using ForestOverlay.Game;
+using ForestOverlay.Modules;
 using UnityEngine;
 
 namespace ForestOverlay
 {
     // ------------------------------------------------------------------
-    // v0.4.0
+    // v0.5.0
     //
-    // Changes:
-    //   * Time.timeScale freeze REMOVED - it did nothing, because The
-    //     Forest re-asserts timeScale every frame. Replaced with the
-    //     game's own FirstPersonCharacter.Locked / MovementLocked flags,
-    //     which is what the game itself uses when opening its menus.
-    //   * Cursor is now re-asserted in OnGUI as well as LateUpdate. OnGUI
-    //     runs after LateUpdate, so this is the last word in the frame and
-    //     should stop the on/off jitter.
-    //   * First real game data on the HUD: inventory item count, read from
-    //     TheForest.Items.Inventory.PlayerInventory via reflection.
+    //   * Restructured into modules. Plugin now only does lifecycle and
+    //     composition; every feature is a self-contained OverlayModule
+    //     and adding one is a class plus a line in BuildModules().
+    //   * Cursor unlock actually works. v0.4.0 fought Cursor.lockState and
+    //     lost, because TheForest.UI.VirtualCursor.LateUpdate re-locks it
+    //     (which warps the pointer to screen centre) whenever
+    //     TheForest.Utils.Input.IsMouseLocked is true. We now flip that
+    //     flag instead, which is what the ESC menu does. See
+    //     Core/CursorController.
+    //   * Per-item inventory breakdown, with pinnable HUD counters.
+    //   * Teleport library loaded from text files, so spots can be
+    //     contributed without touching code.
+    //   * Sticky PRACTICE marker whenever a state-altering tool is used.
     // ------------------------------------------------------------------
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
@@ -24,90 +31,90 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.5.0";
 
-        private const KeyCode ToggleOverlayKey = KeyCode.F5;
-        private const KeyCode SavePositionKey = KeyCode.F6;
-        private const KeyCode LoadPositionKey = KeyCode.F7;
-        private const KeyCode StartStopTimerKey = KeyCode.F8;
-        private const KeyCode ResetTimerKey = KeyCode.F9;
-        private const KeyCode ToggleExplorerKey = KeyCode.F10;
-        private const KeyCode WriteDumpsKey = KeyCode.F11;
+        private const KeyCode ToggleHudKey = KeyCode.F5;
 
-        private bool _overlayVisible = true;
-        private bool _explorerVisible;
-
-        private bool _timerRunning;
-        private float _timerElapsed;
-
-        private bool _hasSavedPosition;
-        private Vector3 _savedPosition;
-        private Quaternion _savedRotation;
-        private string _saveStatusMessage = "";
-
-        private Transform _playerTransform;
-        private Rigidbody _playerRigidbody;
-        private CharacterController _playerController;
-        private Vector3 _lastPosition;
-        private Vector3 _computedVelocity;
-        private string _playerSourceDescription = "searching...";
-        private float _nextPlayerSearchTime;
-
-        private bool _cursorOverridden;
-        private CursorLockMode _prevLockState = CursorLockMode.Locked;
-        private bool _prevCursorVisible;
-        private bool _playerLockApplied;
-
-        private string _hudTimerLine = "";
-        private string _hudSpeedLine = "";
-        private string _hudVelLine = "";
-        private string _hudPlayerLine = "";
-        private string _hudInventoryLine = "";
-        private float _nextHudRefreshTime;
-
-        private TypeExplorer _explorer;
+        private ModuleHost _host;
+        private PlayerRef _player;
         private GameBridge _bridge;
-        private string _dumpStatus = "";
+        private InventoryReader _inventory;
+        private PracticeState _practice;
 
+        private GUIStyle _hudLabelStyle;
+        private GUIStyle _warnStyle;
+
+        // Built once. Concatenating the title inside OnGUI would allocate
+        // on every pass, several times per frame.
+        private static readonly GUIContent HudTitle =
+            new GUIContent("Forest Overlay v" + PluginVersion);
+
+        // ------------------------------------------------------------------
         private void Awake()
         {
-            Logger.LogInfo(PluginName + " v" + PluginVersion + " loaded (net35 / Unity 5.6).");
-            Logger.LogInfo("F5 hud | F6/F7 save-load pos | F8/F9 timer | F10 explorer | F11 dumps");
-
-            _bridge = new GameBridge(Logger);
-
+            // Every lifecycle method is individually guarded. A throwing
+            // Awake kills the plugin silently while BepInEx still reports
+            // it as loaded - that has already cost this project a debugging
+            // session once.
             try
             {
-                _explorer = new TypeExplorer(Logger);
-                _explorer.OnLockPlayerChanged = OnLockPlayerToggled;
-                _explorer.Rescan();
+                Logger.LogInfo(PluginName + " v" + PluginVersion + " loading (net35 / Unity 5.6).");
+
+                string configDir = Path.Combine(Paths.ConfigPath, PluginName);
+                if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
+
+                _bridge = new GameBridge(Logger);
+                _player = new PlayerRef(Logger);
+                _inventory = new InventoryReader(Logger);
+                _practice = new PracticeState();
+
+                ModuleContext ctx = new ModuleContext();
+                ctx.Log = Logger;
+                ctx.Bridge = _bridge;
+                ctx.Player = _player;
+                ctx.Inventory = _inventory;
+                ctx.Practice = _practice;
+                ctx.ConfigDirectory = configDir;
+
+                _host = new ModuleHost(ctx);
+                BuildModules(_host);
+                _host.InitialiseAll();
+
+                Logger.LogInfo(_host.Count + " modules registered.");
+                Logger.LogInfo("F5 hud | " + _host.Hotkeys.Describe());
             }
             catch (Exception ex)
             {
-                Logger.LogWarning("Type explorer init failed: " + ex);
+                Logger.LogError("Awake() threw - overlay will be inert: " + ex);
             }
         }
 
-        private void OnDestroy()
+        // ------------------------------------------------------------------
+        // The whole registration surface. Adding a feature is one line.
+        // ------------------------------------------------------------------
+        private static void BuildModules(ModuleHost host)
         {
-            RestoreCursor();
-            ReleasePlayerLock();
+            host.Register(new RunInfoModule());      // info-only
+            host.Register(new TimerModule());        // info-only
+            host.Register(new InventoryModule());    // info-only
+            host.Register(new DumpModule());         // info-only
+            host.Register(new ExplorerModule());     // info-only
+            host.Register(new PracticeModule());     // PRACTICE ONLY
         }
 
+        // ------------------------------------------------------------------
         private void Update()
         {
+            if (_host == null) return;
+
             try
             {
-                HandleHotkeys();
-                TryAcquirePlayerReferences();
-                UpdateVelocity();
+                if (Input.GetKeyDown(ToggleHudKey)) _host.HudVisible = !_host.HudVisible;
 
-                if (_bridge != null) _bridge.ResolveInventory();
+                _player.Tick();
+                if (_player.Found) _bridge.ResolvePlayerController(_player.Transform);
 
-                if (_timerRunning)
-                    _timerElapsed += Time.unscaledDeltaTime;
-
-                RefreshHudTextIfDue();
+                _host.Tick();
             }
             catch (Exception ex)
             {
@@ -115,290 +122,66 @@ namespace ForestOverlay
             }
         }
 
-        private void LateUpdate()
+        private void OnDestroy()
         {
-            try
-            {
-                if (_explorerVisible) ApplyCursorOverride();
-                else if (_cursorOverridden) RestoreCursor();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("LateUpdate() threw: " + ex);
-            }
-        }
-
-        private void HandleHotkeys()
-        {
-            if (Input.GetKeyDown(ToggleOverlayKey))
-                _overlayVisible = !_overlayVisible;
-
-            if (Input.GetKeyDown(ToggleExplorerKey))
-            {
-                _explorerVisible = !_explorerVisible;
-                Logger.LogInfo("Explorer -> " + _explorerVisible);
-
-                if (_explorerVisible)
-                {
-                    if (_explorer != null && _explorer.LockPlayer) ApplyPlayerLock();
-                }
-                else
-                {
-                    RestoreCursor();
-                    ReleasePlayerLock();
-                }
-            }
-
-            if (Input.GetKeyDown(StartStopTimerKey)) _timerRunning = !_timerRunning;
-
-            if (Input.GetKeyDown(ResetTimerKey))
-            {
-                _timerRunning = false;
-                _timerElapsed = 0f;
-            }
-
-            if (Input.GetKeyDown(SavePositionKey)) SavePracticePosition();
-            if (Input.GetKeyDown(LoadPositionKey)) LoadPracticePosition();
-            if (Input.GetKeyDown(WriteDumpsKey)) WriteStandardDumps();
+            try { if (_host != null) _host.Shutdown(); }
+            catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
         }
 
         // ------------------------------------------------------------------
-        // Cursor + player lock
-        // ------------------------------------------------------------------
-        private void ApplyCursorOverride()
-        {
-            if (!_cursorOverridden)
-            {
-                _prevLockState = Cursor.lockState;
-                _prevCursorVisible = Cursor.visible;
-                _cursorOverridden = true;
-            }
-
-            if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
-            if (!Cursor.visible) Cursor.visible = true;
-        }
-
-        private void RestoreCursor()
-        {
-            if (!_cursorOverridden) return;
-            Cursor.lockState = _prevLockState;
-            Cursor.visible = _prevCursorVisible;
-            _cursorOverridden = false;
-        }
-
-        private void ApplyPlayerLock()
-        {
-            if (_bridge == null || _playerLockApplied) return;
-            _bridge.ResolvePlayerController(_playerTransform);
-            _bridge.SetPlayerLocked(true);
-            _playerLockApplied = true;
-        }
-
-        private void ReleasePlayerLock()
-        {
-            if (_bridge == null || !_playerLockApplied) return;
-            _bridge.SetPlayerLocked(false);
-            _playerLockApplied = false;
-        }
-
-        private void OnLockPlayerToggled(bool enabled)
-        {
-            if (enabled && _explorerVisible) ApplyPlayerLock();
-            else ReleasePlayerLock();
-        }
-
-        // ------------------------------------------------------------------
-        // Player
-        // ------------------------------------------------------------------
-        private void TryAcquirePlayerReferences()
-        {
-            if (_playerTransform != null) return;
-            if (Time.unscaledTime < _nextPlayerSearchTime) return;
-            _nextPlayerSearchTime = Time.unscaledTime + 0.5f;
-
-            GameObject found = null;
-            string source = null;
-
-            try
-            {
-                found = GameObject.FindGameObjectWithTag("Player");
-                if (found != null) source = "tag:Player";
-            }
-            catch (Exception) { }
-
-            if (found == null && Camera.main != null)
-            {
-                found = Camera.main.transform.root.gameObject;
-                source = "camRoot:" + found.name;
-            }
-
-            if (found == null)
-            {
-                CharacterController cc = FindObjectOfType(typeof(CharacterController)) as CharacterController;
-                if (cc != null)
-                {
-                    found = cc.gameObject;
-                    source = "charCtrl:" + found.name;
-                }
-            }
-
-            if (found == null) return;
-
-            _playerTransform = found.transform;
-            _playerRigidbody = found.GetComponentInChildren<Rigidbody>();
-            _playerController = found.GetComponentInChildren<CharacterController>();
-            _lastPosition = _playerTransform.position;
-            _playerSourceDescription = source;
-
-            Logger.LogInfo("Player acquired via " + source);
-
-            if (_bridge != null) _bridge.ResolvePlayerController(_playerTransform);
-        }
-
-        private void UpdateVelocity()
-        {
-            if (_playerTransform == null)
-            {
-                _computedVelocity = Vector3.zero;
-                return;
-            }
-
-            if (_playerRigidbody != null) _computedVelocity = _playerRigidbody.velocity;
-            else if (_playerController != null) _computedVelocity = _playerController.velocity;
-            else
-            {
-                if (Time.deltaTime > 0f)
-                    _computedVelocity = (_playerTransform.position - _lastPosition) / Time.deltaTime;
-                _lastPosition = _playerTransform.position;
-            }
-        }
-
-        // ------------------------------------------------------------------
-        // Practice save/restore - position + rotation only, NOT a savestate.
-        // ------------------------------------------------------------------
-        private void SavePracticePosition()
-        {
-            if (_playerTransform == null)
-            {
-                _saveStatusMessage = "No player ref.";
-                return;
-            }
-
-            _savedPosition = _playerTransform.position;
-            _savedRotation = _playerTransform.rotation;
-            _hasSavedPosition = true;
-            _saveStatusMessage = "Saved " + DateTime.Now.ToString("HH:mm:ss");
-        }
-
-        private void LoadPracticePosition()
-        {
-            if (_playerTransform == null || !_hasSavedPosition)
-            {
-                _saveStatusMessage = "Nothing saved yet.";
-                return;
-            }
-
-            if (_playerRigidbody != null)
-            {
-                _playerRigidbody.velocity = Vector3.zero;
-                _playerRigidbody.position = _savedPosition;
-                _playerRigidbody.rotation = _savedRotation;
-            }
-            else if (_playerController != null)
-            {
-                _playerController.enabled = false;
-                _playerTransform.position = _savedPosition;
-                _playerTransform.rotation = _savedRotation;
-                _playerController.enabled = true;
-            }
-            else
-            {
-                _playerTransform.position = _savedPosition;
-                _playerTransform.rotation = _savedRotation;
-            }
-
-            _saveStatusMessage = "Restored.";
-        }
-
-        private void WriteStandardDumps()
-        {
-            _dumpStatus = "dumping...";
-            try
-            {
-                GameDumper.WriteTypeIndex(Logger);
-                GameDumper.WriteSceneHierarchy(Logger);
-                GameDumper.WritePlayerSnapshot(Logger, _playerTransform);
-                _dumpStatus = "dumps -> " + GameDumper.DumpDirectory;
-            }
-            catch (Exception ex)
-            {
-                _dumpStatus = "dump failed - see log";
-                Logger.LogError("Dump failed: " + ex);
-            }
-        }
-
-        // ------------------------------------------------------------------
-        // HUD
-        // ------------------------------------------------------------------
-        private void RefreshHudTextIfDue()
-        {
-            if (Time.unscaledTime < _nextHudRefreshTime) return;
-            _nextHudRefreshTime = Time.unscaledTime + 0.1f;
-
-            _hudTimerLine = "Timer  " + FormatTime(_timerElapsed) + (_timerRunning ? "  [RUN]" : "  [STOP]");
-            _hudSpeedLine = "Speed  " + _computedVelocity.magnitude.ToString("F2") + " u/s";
-            _hudVelLine = "Vel    " + _computedVelocity.x.ToString("F1") + ", " +
-                                      _computedVelocity.y.ToString("F1") + ", " +
-                                      _computedVelocity.z.ToString("F1");
-            _hudPlayerLine = "Player " + (_playerTransform != null ? _playerSourceDescription : "searching...");
-
-            int items = _bridge != null ? _bridge.GetPossessedItemCount() : -1;
-            _hudInventoryLine = "Items  " + (items >= 0 ? items.ToString() : "(inventory not resolved)");
-        }
-
         private void OnGUI()
         {
+            if (_host == null) return;
+
             try
             {
-                // OnGUI runs after LateUpdate, so this is the last chance in the
-                // frame to win the cursor fight against the game's own code.
-                if (_explorerVisible) ApplyCursorOverride();
-
-                if (_overlayVisible) DrawHudOverlay();
-                if (_explorerVisible && _explorer != null) _explorer.Draw(60001);
+                EnsureStyles();
+                if (_host.HudVisible) DrawHud();
+                _host.DrawPanels();
             }
             catch (Exception ex)
             {
-                _overlayVisible = false;
-                _explorerVisible = false;
-                Logger.LogError("OnGUI() threw, overlay disabled: " + ex);
+                // Disable rather than throw every frame; an exception here
+                // repeats several times per frame and floods the log.
+                _host.HudVisible = false;
+                Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
             }
         }
 
-        private void DrawHudOverlay()
+        private void EnsureStyles()
         {
-            const int w = 300;
-            const int h = 168;
-            GUI.Box(new Rect(10, 10, w, h), "Forest Overlay v" + PluginVersion);
+            if (_hudLabelStyle != null) return;
 
-            int y = 30;
-            const int lh = 18;
+            _hudLabelStyle = new GUIStyle(GUI.skin.label);
+            _hudLabelStyle.padding = new RectOffset(0, 0, 0, 0);
 
-            GUI.Label(new Rect(20, y, w - 24, lh), _hudTimerLine); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _hudSpeedLine); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _hudVelLine); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _hudInventoryLine); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _hudPlayerLine); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _saveStatusMessage); y += lh;
-            GUI.Label(new Rect(20, y, w - 24, lh), _dumpStatus);
+            _warnStyle = new GUIStyle(_hudLabelStyle);
+            _warnStyle.fontStyle = FontStyle.Bold;
+            _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
         }
 
-        private static string FormatTime(float seconds)
+        private void DrawHud()
         {
-            TimeSpan ts = TimeSpan.FromSeconds(seconds);
-            return ((int)ts.TotalMinutes).ToString("00") + ":" +
-                   ts.Seconds.ToString("00") + "." +
-                   ts.Milliseconds.ToString("000");
+            const int w = 330;
+            const int lineHeight = 18;
+
+            int lines = _host.Hud.Count;
+            int h = 34 + (lines + 1) * lineHeight;
+
+            GUI.Box(new Rect(10, 10, w, h), HudTitle);
+
+            int y = 30;
+            for (int i = 0; i < lines; i++)
+            {
+                GUI.Label(new Rect(20, y, w - 24, lineHeight), _host.Hud.At(i), _hudLabelStyle);
+                y += lineHeight;
+            }
+
+            // Sticky and last, so it is the line the eye lands on. A run
+            // recording must make it obvious that a practice tool was used.
+            GUI.Label(new Rect(20, y, w - 24, lineHeight),
+                      _practice.Label,
+                      _practice.Used ? _warnStyle : _hudLabelStyle);
         }
     }
 }

@@ -40,6 +40,27 @@ try {
 
     Copy-Item $dll $pluginDir -Force
     Write-Host "Deployed -> $pluginDir" -ForegroundColor Green
+
+    # Contributed location sets live in the repo; the plugin reads them
+    # from the BepInEx config folder. Copy them across so a merged pull
+    # request actually appears in game.
+    #
+    # my-spots.txt is the player's own captured spots and is deliberately
+    # never in the repo, so this loop cannot overwrite it.
+    $repoLocations = Join-Path $root "locations"
+    if (Test-Path $repoLocations) {
+        $configLocations = Join-Path $GameRoot "BepInEx\config\ForestOverlay\locations"
+        New-Item -ItemType Directory -Force -Path $configLocations | Out-Null
+
+        $copied = 0
+        Get-ChildItem $repoLocations -Filter *.txt -File | ForEach-Object {
+            if ($_.Name -ne "my-spots.txt") {
+                Copy-Item $_.FullName $configLocations -Force
+                $copied++
+            }
+        }
+        Write-Host "Location sets synced: $copied file(s) -> $configLocations" -ForegroundColor Green
+    }
 }
 finally {
     Pop-Location

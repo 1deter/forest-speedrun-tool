@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev-time only. NOT part of the plugin build and never shipped.
+
+    Reads the game's Assembly-CSharp.dll with Mono.Cecil and answers
+    questions the in-game F11 dump cannot, because the dump only sees
+    reflection metadata (names/types) while this sees the actual IL:
+
+      * which method assigns a given field or property
+      * which methods call a given member
+      * what a method's body actually does
+
+    That is how "what re-locks the cursor every frame" gets answered
+    without guesswork.
+
+    Cecil comes from the local BepInEx install, so this needs no network
+    and no extra packages.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ilscan</AssemblyName>
+    <RootNamespace>ForestOverlay.ILScan</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ForestManagedPath Condition="'$(ForestManagedPath)' == '' AND '$(FOREST_MANAGED_PATH)' != ''">$(FOREST_MANAGED_PATH)</ForestManagedPath>
+    <CecilPath Condition="'$(CecilPath)' == '' AND '$(FOREST_ROOT)' != ''">$(FOREST_ROOT)\BepInEx\core\Mono.Cecil.dll</CecilPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(CecilPath)')">
+    <Reference Include="Mono.Cecil">
+      <HintPath>$(CecilPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Fallback for a machine with no BepInEx install (e.g. CI). -->
+  <ItemGroup Condition="!Exists('$(CecilPath)')">
+    <PackageReference Include="Mono.Cecil" Version="0.11.5" />
+  </ItemGroup>
+
+</Project>

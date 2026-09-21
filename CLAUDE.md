@@ -58,17 +58,54 @@ compile break.
 
 ## Architecture
 
-| File | Responsibility |
+The plugin is a **module host**. `Plugin.cs` does lifecycle and composition
+only; every feature is a self-contained `OverlayModule`.
+
+| Path | Responsibility |
 |---|---|
-| `src/Plugin.cs` | Lifecycle, hotkeys, HUD rendering, cursor/player lock, practice save-restore |
-| `src/GameBridge.cs` | All reflection into The Forest's own types. **Game-specific names live here and nowhere else.** |
-| `src/TypeExplorer.cs` | In-game browser for the game's classes and live field values |
+| `src/Plugin.cs` | BepInEx lifecycle, HUD frame, module registration |
+| `src/Core/` | Module contract and host, hotkeys, HUD builder, cursor, practice marker |
+| `src/Game/` | **All reflection into The Forest.** Game-specific names live here and nowhere else |
+| `src/Data/` | File-backed content (practice locations) |
+| `src/Modules/` | One file per feature |
+| `src/TypeExplorer.cs` | In-game class/field browser (wrapped by `ExplorerModule`) |
 | `src/GameDumper.cs` | Writes analysis files to `<game root>/ForestOverlayDumps/` |
+| `tools/ILScan/` | Dev-time offline IL query tool. Never shipped |
+| `locations/` | Community-contributed practice spots, synced by `deploy.ps1` |
+
+### Adding a feature
+
+1. Add a class in `src/Modules/` deriving from `OverlayModule`.
+2. Override only what you need: `Tick`, `ContributeHud`, `RegisterHotkeys`,
+   `DrawPanel`.
+3. Add one line to `BuildModules()` in `Plugin.cs`.
+
+Nothing else in the codebase needs to know it exists. Modules never reach for
+globals or for each other - shared services arrive via `ModuleContext`.
+
+Every module is individually try/caught at every lifecycle hook. A module that
+throws is disabled and logged; the rest keep running.
+
+### Rules for modules
+
+- **Never allocate in `DrawPanel`/`OnGUI`.** Build strings in `Tick` (or on a
+  throttle) and cache `GUIContent`. Long lists must be virtualised.
+- **Declare `IsPracticeOnly`** if the module writes game state, and call
+  `Ctx.Practice.Mark(...)` at each entry point that does.
+- **Declare `WantsPlayerLock`** only if the panel genuinely needs the player
+  held still. The lock writes `FirstPersonCharacter.Locked`, so it is
+  state-altering and taking it marks the session as practice.
 
 ### Hotkeys
-`F5` HUD · `F6`/`F7` save/load position · `F8`/`F9` timer · `F10` explorer · `F11` dumps
 
----
+`F3` practice · `F4` inventory · `F5` HUD · `F6`/`F7` save/restore position ·
+`F8`/`F9` timer start-stop/reset · `F10` explorer · `F11` dumps · `F12` split
+
+The table is declarative (`Core/HotkeyMap.cs`) and the startup log line is
+generated from it, so the list can never drift from the handlers.
+
+Note: `F12` is Steam's screenshot key by default. Rebind one of them if you
+use the Steam overlay.
 
 ## Gotchas learned the hard way
 
@@ -82,9 +119,20 @@ compile break.
 3. **A throwing `Awake` silently kills the plugin.** An early `Harmony.PatchAll()`
    failure meant the overlay never rendered while still logging "loaded". Every
    lifecycle method is individually try/caught for this reason.
-4. **Don't trust assumed class names.** Everything in `GameBridge` was confirmed
-   from an F11 dump. If something isn't in `docs/game-notes.md`, dump it and look
-   rather than guessing.
+4. **Don't trust assumed class names.** Everything in `src/Game/` was confirmed
+   from a dump or from IL. If something isn't in `docs/game-notes.md`, go and
+   look rather than guessing - `docs/game-notes.md` already contains one note
+   that was a guess and was wrong (`VirtualCursor` was filed as
+   "gamepad-related"; it is in fact the cursor owner, and that wrong guess is
+   what cost v0.4.0 its cursor fix).
+
+5. **The F11 dump only sees reflection metadata.** When the question is
+   *behavioural* - what writes this field, what runs every frame, which method
+   to hook - use `tools/ILScan`, which reads the real IL offline:
+
+   ```bash
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll writes "UnityEngine.Cursor"
+   ```
 
 ---
 
@@ -105,11 +153,21 @@ not yet been asked for a ruling — that conversation is still pending.
 
 ## Current status
 
-Working: injection, HUD, velocity, timer, type explorer, dump system,
-inventory item count, position save/restore.
+Working: injection, module host, HUD, velocity (horizontal + total), timer with
+splits, per-item inventory with pinnable HUD counters, type explorer, dump
+system, position save/restore, file-backed teleport library, sticky practice
+marker, offline IL scanner.
+
+Recently solved (see `docs/game-notes.md`):
+- `InventoryItem` field layout - `_itemId` / `_amount`
+- Cursor re-lock - `VirtualCursor.LateUpdate` gated on `Input.IsMouseLocked`
+- `timeScale` re-assertion - `InventoryItemView.Update`
 
 Next up:
-- Per-item inventory breakdown — needs `InventoryItem`'s field layout
-  (filter the explorer for `InventoryItem` and inspect it)
-- Verify the cursor fix actually holds; if not, find what re-locks it
-- Autosplit triggers via Harmony once a suitable method is identified
+- Autosplit triggers. Lead: `TheForest.Tools.TfEvent+Endgame.Completed`. Needs
+  a read-only Harmony `Postfix` to stay info-only, and a confirmed run-start
+  trigger, which is still unidentified.
+- Seed `locations/` with verified spots - the format and UI are done, the data
+  is empty.
+- Ask the speedrun.com moderators for a ruling on the info-only feature set.
+  That conversation has still not happened.

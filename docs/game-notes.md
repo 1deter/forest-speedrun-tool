@@ -83,14 +83,87 @@ Special-item controllers follow the pattern
 
 ---
 
+## Cursor locking - SOLVED 2026-09-21
+
+`TheForest.UI.VirtualCursor.LateUpdate` is the cursor owner. (An earlier note
+in this file guessed it was gamepad-related. It is not.) Its first branch is:
+
+```
+if (TheForest.Utils.Input.IsMouseLocked) {
+    if (Cursor.lockState != Locked) Cursor.lockState = Locked;
+    if (Cursor.visible)             Cursor.visible   = false;
+}
+```
+
+`Cursor.lockState = Locked` **warps the pointer to screen centre**, which is
+why v0.4.0's "win the frame in OnGUI" approach produced a cursor that was
+visible but pinned in place and flickering: OnGUI could restore visibility
+after LateUpdate, but could not un-warp a pointer that had already been
+recentred that frame.
+
+The switch is `TheForest.Utils.Input.IsMouseLocked` (backing field
+`<IsMouseLocked>k__BackingField`, helpers `LockMouse()` / `UnLockMouse()`,
+both confirmed to be plain one-line flag setters with no side effects). With
+it false, `VirtualCursor` takes its other branch and sets
+`lockState = None; visible = true` itself, every frame. That is what the ESC
+menu does.
+
+Implemented in `src/Core/CursorController.cs`. The flag is asserted from
+`Update()`, not `LateUpdate()`, because Unity runs every `Update` before any
+`LateUpdate` - ordering between two `LateUpdate`s is undefined.
+
+## timeScale re-assertion - SOLVED 2026-09-21
+
+`Time.timeScale` is written from 22 places. The one that beats an external
+write every frame is **`TheForest.Items.Inventory.InventoryItemView.Update`**.
+Others worth knowing: `HudGui.TogglePauseMenu` (the ESC menu),
+`PlayerInventory.PauseTimeInInventory` / `.Close`, `MenuMain.OnLoad` /
+`.OnExitMenu`, and `LoadSave`.
+
+This confirms the existing rule: do not try to freeze the game with
+`timeScale`. Use `FirstPersonCharacter.Locked` / `.MovementLocked`.
+
+## Autosplit candidates - lead, not yet confirmed
+
+`TheForest.Tools.TfEvent+Endgame` holds static event objects:
+
+| Field | Likely meaning |
+|---|---|
+| `Completed` | run end - the obvious split trigger |
+| `FireDetected` | |
+| `Shutdown2ndArtifact` | |
+
+Also present: `EndGameStats` (MonoBehaviour), `PlayerStats.EndgameWakeUp`
+(coroutine), `TheForest.Tools.PlayerInEndgameTester`.
+
+Nothing here is wired up yet. Any autosplit hook must be a read-only Harmony
+`Postfix` so it stays info-only.
+
 ## Things still unknown
 
-- What re-locks the mouse cursor each frame (no obvious `CursorManager` type;
-  `TheForest.UI.VirtualCursor` appears to be gamepad-related)
-- `InventoryItem` field layout (item id + quantity)
-- Which method to hook for run start/end autosplitting
-- Where `Time.timeScale` is re-asserted
+- Which concrete method to patch for a run-start trigger
+- Whether `TfEvent.Endgame.Completed` fires on every ending variant
 
-To extend this file: press `F11` in game, then inspect the generated files in
-`<game root>/ForestOverlayDumps/`. The `types_detail_*` dump (via the explorer's
-"Dump filtered" button) gives full method signatures for a filtered subset.
+## How to extend this file
+
+Two complementary tools:
+
+1. **In-game dump (`F11`)** - reflection metadata: type names, field names and
+   types, live values. Use the explorer's "Dump filtered" button for
+   `types_detail_*`, which gives full method signatures for a filtered subset.
+   Dumps land in `<game root>/ForestOverlayDumps/`.
+
+2. **`tools/ILScan`** - reads `Assembly-CSharp.dll` with Mono.Cecil offline and
+   sees the actual IL, which the dump cannot. This is how the cursor and
+   `timeScale` questions above were answered rather than guessed.
+
+   ```bash
+   dotnet build tools/ILScan/ILScan.csproj -c Release
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll writes "UnityEngine.Cursor"
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll refs  "IsMouseLocked"
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll body  "VirtualCursor::LateUpdate"
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll type  "TheForest.Items.Item"
+   ```
+
+   `writes` is the useful one when the question is "what keeps changing this
+   every frame".

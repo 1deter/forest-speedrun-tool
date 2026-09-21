@@ -1,0 +1,17 @@
+# ForestOverlay - community practice spots
+#
+# Shared set. Add lines here (or add another .txt file in this folder) and
+# open a pull request. Everything in the folder is loaded and merged, so a
+# new file needs no registration anywhere.
+#
+#   category | name | x | y | z | yaw | notes
+#
+# yaw and notes are optional. Use a dot for decimals, never a comma.
+#
+# Example of the expected shape (commented out - these are NOT real
+# coordinates, capture your own with F3 -> Add here):
+#
+# Start | Plane crash | -1000.50 | 90.20 | 550.10 | 180 | opening spawn
+# Caves | Cave 2 entrance | 123.00 | 45.00 | 678.00 | 90 | drop down on the left
+#
+# No verified spots have been added yet. Capture some in game and send them in.

@@ -25,10 +25,10 @@ jobs:
       # stubbed UnityEngine 5.6 package automatically when it can't find a
       # local install, so this builds clean on a bare runner.
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore ForestOverlay.csproj
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        run: dotnet build ForestOverlay.csproj -c Release --no-restore
 
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
