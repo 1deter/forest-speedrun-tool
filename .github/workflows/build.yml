@@ -30,6 +30,12 @@ jobs:
       - name: Build
         run: dotnet build ForestOverlay.csproj -c Release --no-restore
 
+      # Tests cover the pure logic (run comparison, the recorder state
+      # machine) by linking those sources against a tiny UnityEngine shim,
+      # so they need no game files and no Unity.
+      - name: Test
+        run: dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj -c Release --nologo
+
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:

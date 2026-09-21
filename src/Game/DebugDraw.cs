@@ -259,4 +259,115 @@ namespace ForestOverlay.Game
             End();
         }
     }
+
+    // ------------------------------------------------------------------
+    // Run lines and the ghost marker.
+    //
+    // Draws the recorded path of a reference attempt and of the run in
+    // progress, plus a marker showing where the reference WAS at the
+    // current elapsed time - that marker is the ghost you are racing.
+    //
+    // Positions are handed in as plain point lists rather than Attempts so
+    // this stays a dumb renderer with no knowledge of the run model.
+    // ------------------------------------------------------------------
+    public sealed class RunLineBehaviour : MonoBehaviour
+    {
+        public bool Show = true;
+
+        public Vector3[] ReferenceLine;
+        public int ReferenceCount;
+
+        public Vector3[] CurrentLine;
+        public int CurrentCount;
+
+        public bool HasGhost;
+        public Vector3 GhostPosition;
+
+        private Material _material;
+
+        private static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
+        private static readonly Color CurrentColour = new Color(1f, 0.95f, 0.35f, 0.9f);
+        private static readonly Color GhostColour = new Color(1f, 0.35f, 0.75f, 1f);
+
+        private void EnsureMaterial()
+        {
+            if (_material != null) return;
+
+            Shader shader = Shader.Find("Hidden/Internal-Colored");
+            if (shader == null) return;
+
+            _material = new Material(shader);
+            _material.hideFlags = HideFlags.HideAndDontSave;
+            _material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            _material.SetInt("_ZWrite", 0);
+        }
+
+        private void OnRenderObject()
+        {
+            if (!Show) return;
+            if (ReferenceCount < 2 && CurrentCount < 2 && !HasGhost) return;
+
+            EnsureMaterial();
+            if (_material == null) return;
+
+            _material.SetPass(0);
+            GL.PushMatrix();
+            GL.Begin(GL.LINES);
+
+            DrawStrip(ReferenceLine, ReferenceCount, ReferenceColour);
+            DrawStrip(CurrentLine, CurrentCount, CurrentColour);
+
+            if (HasGhost)
+            {
+                GL.Color(GhostColour);
+                // A small upright marker reads better than a dot at
+                // distance, and shows height difference at a glance.
+                DrawMarker(GhostPosition, 0.45f, 1.8f);
+            }
+
+            GL.End();
+            GL.PopMatrix();
+        }
+
+        private static void DrawStrip(Vector3[] points, int count, Color colour)
+        {
+            if (points == null || count < 2) return;
+
+            GL.Color(colour);
+            int n = Mathf.Min(count, points.Length);
+
+            for (int i = 1; i < n; i++)
+            {
+                GL.Vertex(points[i - 1]);
+                GL.Vertex(points[i]);
+            }
+        }
+
+        private static void DrawMarker(Vector3 p, float halfWidth, float height)
+        {
+            Vector3 top = new Vector3(p.x, p.y + height, p.z);
+
+            // Vertical post.
+            GL.Vertex(p); GL.Vertex(top);
+
+            // Cross at the base so it is visible from above.
+            GL.Vertex(new Vector3(p.x - halfWidth, p.y, p.z));
+            GL.Vertex(new Vector3(p.x + halfWidth, p.y, p.z));
+            GL.Vertex(new Vector3(p.x, p.y, p.z - halfWidth));
+            GL.Vertex(new Vector3(p.x, p.y, p.z + halfWidth));
+
+            // Cross at the top.
+            GL.Vertex(new Vector3(top.x - halfWidth, top.y, top.z));
+            GL.Vertex(new Vector3(top.x + halfWidth, top.y, top.z));
+            GL.Vertex(new Vector3(top.x, top.y, top.z - halfWidth));
+            GL.Vertex(new Vector3(top.x, top.y, top.z + halfWidth));
+        }
+
+        private void OnDestroy()
+        {
+            if (_material != null) UnityEngine.Object.Destroy(_material);
+        }
+    }
 }

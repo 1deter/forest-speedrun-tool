@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
+using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -40,6 +41,15 @@ namespace ForestOverlay.Modules
         private readonly List<Attempt> _attempts = new List<Attempt>();
         private AttemptStore _store;
 
+        // Run line rendering. Point buffers are reused and only rebuilt
+        // when the underlying attempt changes, because OnRenderObject
+        // walks them every frame.
+        private GameObject _lineHost;
+        private RunLineBehaviour _lines;
+        private bool _showLines = true;
+        private Attempt _lineSource;
+        private int _currentLineCount;
+
         private Attempt _reference;
         private Reference _referenceKind = Reference.Best;
         private int _deltaHint;
@@ -56,6 +66,11 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _store = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
+
+            _lineHost = new GameObject("ForestOverlay_RunLines");
+            _lineHost.hideFlags = HideFlags.HideAndDontSave;
+            Object.DontDestroyOnLoad(_lineHost);
+            _lines = _lineHost.AddComponent<RunLineBehaviour>();
 
             // Hook the anchor so placing the player arms a run. Done by
             // event rather than by reaching into PracticeModule, so either
@@ -208,6 +223,88 @@ namespace ForestOverlay.Modules
                                              ref _deltaHint, out _delta);
             }
             else _hasDelta = false;
+
+            UpdateLines();
+        }
+
+        // ------------------------------------------------------------------
+        private void UpdateLines()
+        {
+            if (_lines == null) return;
+
+            _lines.Show = _showLines && Enabled;
+            if (!_lines.Show) return;
+
+            // Reference path: rebuild only when the chosen attempt changes.
+            if (!ReferenceEquals(_lineSource, _reference))
+            {
+                _lineSource = _reference;
+
+                if (_reference == null)
+                {
+                    _lines.ReferenceCount = 0;
+                }
+                else
+                {
+                    _lines.ReferenceLine = ToPoints(_reference);
+                    _lines.ReferenceCount = _lines.ReferenceLine.Length;
+                }
+            }
+
+            // Live path: grown in place as samples arrive.
+            Attempt current = _recorder.Current;
+            if (current == null)
+            {
+                _lines.CurrentCount = 0;
+                _currentLineCount = 0;
+            }
+            else if (current.Samples.Count != _currentLineCount)
+            {
+                _currentLineCount = current.Samples.Count;
+                _lines.CurrentLine = ToPoints(current);
+                _lines.CurrentCount = _lines.CurrentLine.Length;
+            }
+
+            // Ghost: where the reference was at this elapsed time.
+            _lines.HasGhost = false;
+            if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
+            {
+                Vector3 ghost;
+                if (SampleAtTime(_reference, _recorder.Elapsed, out ghost))
+                {
+                    _lines.GhostPosition = ghost;
+                    _lines.HasGhost = true;
+                }
+            }
+        }
+
+        private static Vector3[] ToPoints(Attempt a)
+        {
+            Vector3[] pts = new Vector3[a.Samples.Count];
+            for (int i = 0; i < pts.Length; i++) pts[i] = a.Samples[i].P;
+            return pts;
+        }
+
+        /// Position of the reference at time t, linearly interpolated.
+        /// Returns false once the reference has finished.
+        private static bool SampleAtTime(Attempt a, float t, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (a == null || a.Samples.Count == 0) return false;
+            if (t > a.Duration) return false;
+
+            for (int i = 1; i < a.Samples.Count; i++)
+            {
+                if (a.Samples[i].T < t) continue;
+
+                float span = a.Samples[i].T - a.Samples[i - 1].T;
+                float f = span <= 0f ? 0f : (t - a.Samples[i - 1].T) / span;
+                position = Vector3.Lerp(a.Samples[i - 1].P, a.Samples[i].P, f);
+                return true;
+            }
+
+            position = a.Samples[a.Samples.Count - 1].P;
+            return true;
         }
 
         public override void ContributeHud(HudBuilder hud)
@@ -279,6 +376,9 @@ namespace ForestOverlay.Modules
             if (GUI.Toggle(new Rect(224, 80, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
             if (kind != _referenceKind) { _referenceKind = kind; SelectReference(); }
 
+            bool lines = GUI.Toggle(new Rect(320, 80, 110, 20), _showLines, " run lines");
+            if (lines != _showLines) _showLines = lines;
+
             GUI.Label(new Rect(12, 104, w - 24, 20), _status);
 
             GUI.Label(new Rect(12, 126, w - 24, 18),
@@ -313,6 +413,11 @@ namespace ForestOverlay.Modules
             }
 
             GUI.EndScrollView();
+        }
+
+        public override void Shutdown()
+        {
+            if (_lineHost != null) Object.Destroy(_lineHost);
         }
 
         // ------------------------------------------------------------------

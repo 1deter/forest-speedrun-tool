@@ -56,15 +56,12 @@ namespace ForestOverlay.Modules
 
         public override void ContributeHud(HudBuilder hud)
         {
-            switch (_checker.State)
-            {
-                case UpdateChecker.Status.UpdateAvailable:
-                case UpdateChecker.Status.Downloading:
-                case UpdateChecker.Status.Staged:
-                case UpdateChecker.Status.Failed:
-                    hud.Pair("Update", _checker.Message);
-                    break;
-            }
+            // Always shown, including "up to date". The check is the only
+            // evidence that the network call worked at all - Unity 5.6's
+            // Mono predates TLS 1.2, so a silent absence here is
+            // indistinguishable from a handshake failure. Seeing
+            // "up to date (v0.7.0)" is what confirms it.
+            hud.Pair("Update", _checker.Message + "   [End]");
         }
 
         public override void DrawPanel(int windowId)

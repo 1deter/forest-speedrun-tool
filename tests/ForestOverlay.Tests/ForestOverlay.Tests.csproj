@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests for the plugin's pure logic.
+
+    The plugin itself targets net35 and cannot be referenced from a modern
+    test runner, so the files under test are LINKED IN and compiled against
+    a tiny UnityEngine shim (see UnityShim.cs for why). That keeps the
+    tests running on any machine with no game files and no Unity.
+
+    Only genuinely pure files belong here. If a file needs MonoBehaviour,
+    Transform or reflection into the game, it is not testable this way and
+    should not be added - see CLAUDE.md.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>ForestOverlay.Tests</AssemblyName>
+    <RootNamespace>ForestOverlay.Tests</RootNamespace>
+    <!-- The linked sources are net35-era C#; don't fail them on modern rules. -->
+    <NoWarn>$(NoWarn);CS0618;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!-- Logic under test, compiled from the real source. -->
+  <ItemGroup>
+    <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+  </ItemGroup>
+
+</Project>

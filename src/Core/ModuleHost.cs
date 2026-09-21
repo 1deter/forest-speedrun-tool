@@ -224,6 +224,11 @@ namespace ForestOverlay.Core
         {
             if (!_playerLockApplied || _ctx.Bridge == null) return;
             _ctx.Bridge.SetPlayerLocked(false);
+
+            // Rebase before input resumes, so the view stays where the
+            // player is actually looking rather than snapping back to
+            // whatever the rotator held when the panel opened.
+            _ctx.Bridge.RebaseLookAngles();
             _playerLockApplied = false;
         }
 

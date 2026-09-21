@@ -27,6 +27,29 @@ Read this file first when picking the project back up.
 
 ---
 
+## Tests
+
+```bash
+dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj
+```
+
+The plugin targets net35 and cannot be referenced from a modern test runner,
+so the files under test are **linked into** the test project and compiled
+against a tiny `UnityEngine` shim (`tests/.../UnityShim.cs`). No game files and
+no Unity needed; CI runs them on every push.
+
+The shim only implements `Vector3`, `Vector2` and `Mathf` - arithmetic with one
+unambiguous definition each. **If it ever needs `Quaternion`, `Transform` or
+anything with Unity-specific semantics, that is a signal the logic under test
+is not pure and should be refactored - not that the shim should grow.**
+
+BepInEx's UnityEngine stub is deliberately *not* used here: its method bodies
+are empty, so `Vector3.Distance` would return 0 rather than compute, which is
+worse than no test.
+
+Only genuinely pure files belong in the linked set. Anything touching
+MonoBehaviour, reflection into the game, or the filesystem does not.
+
 ## Build
 
 BepInEx packages are **not** on nuget.org — they live on BepInEx's own feed,

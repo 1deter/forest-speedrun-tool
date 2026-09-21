@@ -111,7 +111,7 @@ namespace ForestOverlay.Modules
 
             if (Ctx.Player.MoveTo(_anchorPosition, _anchorRotation))
             {
-                Ctx.Bridge.SyncLookAngles(_anchorRotation.eulerAngles.y);
+                Ctx.Bridge.RebaseLookAngles();
                 Ctx.Practice.Mark("return to anchor");
                 _status = "-> anchor (" + _anchorLabel + ")";
                 if (OnPlacedAtAnchor != null) OnPlacedAtAnchor();
@@ -127,7 +127,7 @@ namespace ForestOverlay.Modules
 
             if (Ctx.Player.MoveTo(loc.Position, rot))
             {
-                Ctx.Bridge.SyncLookAngles(loc.Yaw);
+                Ctx.Bridge.RebaseLookAngles();
                 SetAnchor(loc.Position, rot, loc.Name);
                 Ctx.Practice.Mark("teleport: " + loc.Name);
                 _status = "-> " + loc.Name;

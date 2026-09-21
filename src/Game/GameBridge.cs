@@ -66,6 +66,7 @@ namespace ForestOverlay.Game
             _unlockView = null;
             _rotators = null;
             _rotatorsResolved = false;
+            _resetOriginalRotation = null;
             _nextResolveTime = 0f;
             _loggedFailure = false;
             LockStatus = "not resolved";
@@ -198,23 +199,39 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
-        // Look-angle sync.
+        // Look-angle rebase.
         //
-        // SimpleMouseRotator keeps its OWN angle state (targetAngles and
-        // followAngles) and drives the transform toward it. Teleporting by
-        // writing transform.rotation therefore does not stick: the rotator
-        // still holds the pre-teleport angles and snaps the view back to
-        // them the moment input resumes.
+        // SimpleMouseRotator does not read the transform - it RECOMPOSES
+        // it every frame as originalRotation * Euler(targetAngles). So
+        // writing transform.rotation during a teleport never sticks: the
+        // moment input resumes the rotator rebuilds the old orientation
+        // and the view snaps back to wherever you were looking when the
+        // rotator last ran.
         //
-        // After any teleport, push the new yaw into every rotator on the
-        // player so its state agrees with where we actually put the player.
-        // The pitch rotator (cameraRotator) is left alone - only yaw is
-        // meaningful for a saved spot.
+        // Writing targetAngles by hand does not fix it either, because
+        // they are relative to originalRotation, which is still stale.
+        //
+        // The game already has the right operation. CheckResetOriginalRotation:
+        //
+        //     if (resetOriginalRotation) {
+        //         originalRotation = useRigidbody ? rb.rotation
+        //                                         : transform.localRotation;
+        //         targetAngles.x = targetAngles.y = 0;
+        //         followAngles   = Vector2.zero;
+        //         resetOriginalRotation = false;
+        //     }
+        //
+        // - "adopt the current orientation as the new base". Setting that
+        // one flag is all that is needed, and it lets the game decide what
+        // that means for the pitch rotator versus the yaw one.
+        //
+        // It is consumed inside UpdateRotation, which only runs while the
+        // player is NOT locked - so setting it during a locked teleport
+        // applies on the first unlocked frame, which is exactly when the
+        // snap used to happen.
         // ------------------------------------------------------------------
         private Component[] _rotators;
-        private FieldInfo _targetAngles;
-        private FieldInfo _followAngles;
-        private FieldInfo _isCameraRotator;
+        private FieldInfo _resetOriginalRotation;
         private bool _rotatorsResolved;
 
         public void ResolveRotators(Transform playerRoot)
@@ -242,37 +259,23 @@ namespace ForestOverlay.Game
             _rotatorsResolved = true;
             _rotators = found.ToArray();
 
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            _targetAngles = rotatorType.GetField("targetAngles", flags);
-            _followAngles = rotatorType.GetField("followAngles", flags);
-            _isCameraRotator = rotatorType.GetField("cameraRotator", flags);
+            _resetOriginalRotation = rotatorType.GetField("resetOriginalRotation",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             _log.LogInfo("SimpleMouseRotator x" + _rotators.Length +
-                         " target:" + (_targetAngles != null) +
-                         " follow:" + (_followAngles != null));
+                         " resetOriginalRotation:" + (_resetOriginalRotation != null));
         }
 
-        public void SyncLookAngles(float yaw)
+        /// Tell every rotator to rebase on the player's current orientation.
+        /// Call after any teleport, and whenever the player lock is released.
+        public void RebaseLookAngles()
         {
-            if (_rotators == null || _targetAngles == null || _followAngles == null) return;
+            if (_rotators == null || _resetOriginalRotation == null) return;
 
             for (int i = 0; i < _rotators.Length; i++)
             {
-                Component r = _rotators[i];
-                if (r == null) continue;
-
-                try
-                {
-                    // Only the yaw rotator; the camera one owns pitch and
-                    // rewriting it would fight the player's own aim.
-                    if (_isCameraRotator != null && (bool)_isCameraRotator.GetValue(r)) continue;
-
-                    Vector3 angles = ((Component)r).transform.localEulerAngles;
-                    angles.y = yaw;
-
-                    _targetAngles.SetValue(r, angles);
-                    _followAngles.SetValue(r, angles);
-                }
+                if (_rotators[i] == null) continue;
+                try { _resetOriginalRotation.SetValue(_rotators[i], true); }
                 catch (Exception) { }
             }
         }
