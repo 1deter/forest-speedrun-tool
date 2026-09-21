@@ -31,9 +31,9 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.5.1";
+        public const string PluginVersion = "0.6.0";
 
-        private const KeyCode ToggleHudKey = KeyCode.F5;
+        private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
         private ModuleHost _host;
         private PlayerRef _player;
@@ -70,6 +70,7 @@ namespace ForestOverlay
 
                 ModuleContext ctx = new ModuleContext();
                 ctx.Log = Logger;
+                ctx.Config = Config;
                 ctx.Bridge = _bridge;
                 ctx.Player = _player;
                 ctx.Inventory = _inventory;
@@ -80,8 +81,12 @@ namespace ForestOverlay
                 BuildModules(_host);
                 _host.InitialiseAll();
 
+                // Registered through the same table as every module key so
+                // it is rebindable and shows up in the settings panel.
+                _host.Hotkeys.Add("hud.toggle", ToggleHudKeyDefault, "Toggle HUD", ToggleHud);
+
                 Logger.LogInfo(_host.Count + " modules registered.");
-                Logger.LogInfo("F5 hud | " + _host.Hotkeys.Describe());
+                Logger.LogInfo("Keys: " + _host.Hotkeys.Describe());
             }
             catch (Exception ex)
             {
@@ -94,12 +99,14 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private static void BuildModules(ModuleHost host)
         {
+            host.Register(new SettingsModule());     // info-only
             host.Register(new RunInfoModule());      // info-only
             host.Register(new TimerModule());        // info-only
             host.Register(new InventoryModule());    // info-only
             host.Register(new DumpModule());         // info-only
             host.Register(new ExplorerModule());     // info-only
             host.Register(new PracticeModule());     // PRACTICE ONLY
+            host.Register(new PracticeRunModule());  // info-only (times what practice sets up)
         }
 
         // ------------------------------------------------------------------
@@ -109,8 +116,6 @@ namespace ForestOverlay
 
             try
             {
-                if (Input.GetKeyDown(ToggleHudKey)) _host.HudVisible = !_host.HudVisible;
-
                 _player.Tick();
                 if (_player.Found) _bridge.ResolvePlayerController(_player.Transform);
 
@@ -120,6 +125,11 @@ namespace ForestOverlay
             {
                 Logger.LogError("Update() threw: " + ex);
             }
+        }
+
+        private void ToggleHud()
+        {
+            _host.HudVisible = !_host.HudVisible;
         }
 
         private void OnDestroy()

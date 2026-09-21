@@ -28,12 +28,16 @@ namespace ForestOverlay.Core
         /// in a submitted run. Surfaced to the user by the HUD.
         public virtual bool IsPracticeOnly { get { return false; } }
 
-        /// True if this panel wants the player held still while it is open.
-        /// Holding the player writes FirstPersonCharacter.Locked, which is
-        /// state-altering, so it is opt-in per module rather than applied
-        /// to every panel - otherwise opening a read-only panel would
-        /// quietly make the session practice-only.
-        public virtual bool WantsPlayerLock { get { return false; } }
+        /// True if this panel wants the player held still while it is
+        /// open. Defaults to "any panel", because clicking around a window
+        /// while the camera drifts is unusable - the lock also stops
+        /// camera look, since SimpleMouseRotator.Update reads
+        /// FirstPersonCharacter.Locked.
+        ///
+        /// This does write game state, so it is reported by the practice
+        /// marker; ModuleHost.LockPlayerWhilePanelOpen is the master
+        /// switch if you want panels that leave you free to move.
+        public virtual bool WantsPlayerLock { get { return HasPanel; } }
 
         public bool PanelOpen;
 

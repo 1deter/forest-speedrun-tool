@@ -23,7 +23,7 @@ namespace ForestOverlay.Core
         private readonly List<OverlayModule> _modules = new List<OverlayModule>();
         private readonly List<OverlayModule> _failed = new List<OverlayModule>();
         private readonly ModuleContext _ctx;
-        private readonly HotkeyMap _hotkeys = new HotkeyMap();
+        private readonly HotkeyMap _hotkeys;
         private readonly HudBuilder _hud = new HudBuilder();
         private readonly CursorController _cursor;
 
@@ -44,6 +44,7 @@ namespace ForestOverlay.Core
         {
             _ctx = ctx;
             _cursor = new CursorController(ctx.Log);
+            _hotkeys = new HotkeyMap(ctx.Config);
         }
 
         public void Register(OverlayModule module)
@@ -53,6 +54,20 @@ namespace ForestOverlay.Core
         }
 
         public int Count { get { return _modules.Count; } }
+
+        /// Locate a sibling module. Used sparingly - modules are meant to
+        /// be independent - but a couple of them genuinely collaborate
+        /// (practice runs need to know where the anchor is), and an
+        /// explicit lookup beats a static.
+        public T Find<T>() where T : OverlayModule
+        {
+            for (int i = 0; i < _modules.Count; i++)
+            {
+                T typed = _modules[i] as T;
+                if (typed != null) return typed;
+            }
+            return null;
+        }
 
         public IList<OverlayModule> Modules { get { return _modules; } }
 

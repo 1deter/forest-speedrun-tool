@@ -98,14 +98,29 @@ throws is disabled and logged; the rest keep running.
 
 ### Hotkeys
 
-`F3` practice · `F4` inventory · `F5` HUD · `F6`/`F7` save/restore position ·
-`F8`/`F9` timer start-stop/reset · `F10` explorer · `F11` dumps · `F12` split
+All keys are **rebindable** - in game via the settings panel (`F2`), or by
+editing `BepInEx/config/com.deter.forestoverlay.cfg`. Both write the same
+BepInEx `ConfigEntry`.
 
-The table is declarative (`Core/HotkeyMap.cs`) and the startup log line is
-generated from it, so the list can never drift from the handlers.
+| Default | Action |
+|---|---|
+| `F1` | Practice runs panel |
+| `F2` | Settings / keybinds |
+| `F3` | Practice panel (anchor, teleports) |
+| `F4` | Inventory panel |
+| `F5` | Toggle HUD |
+| `F6` | Set anchor here |
+| `F7` | Return to anchor (also restarts a practice run) |
+| `F8` / `F9` | Free timer start-stop / reset |
+| `F10` | Type explorer |
+| `F11` | Write dumps |
+| `F12` | Finish practice run |
+| `\` | Split (free timer) |
+| `[` | Abort practice run |
 
-Note: `F12` is Steam's screenshot key by default. Rebind one of them if you
-use the Steam overlay.
+Modules register their own keys with a stable id, so the settings panel, the
+config file and the startup log line are all generated from one table and
+cannot drift from the handlers. Adding a key is one `map.Add(...)` call.
 
 ## Gotchas learned the hard way
 
@@ -174,21 +189,36 @@ badly with other plugins.
 
 ## Current status
 
-Working: injection, module host, HUD, velocity (horizontal + total), timer with
-splits, per-item inventory with pinnable HUD counters, type explorer, dump
-system, position save/restore, file-backed teleport library, sticky practice
-marker, offline IL scanner.
+Working: module host, rebindable hotkeys, HUD, velocity, free timer, per-item
+inventory with pinnable counters, type explorer, dumps, anchor-based practice
+teleports with a community-extensible location library, timed practice runs
+with live ghost deltas and persisted attempts, offline IL scanner.
 
-Recently solved (see `docs/game-notes.md`):
-- `InventoryItem` field layout - `_itemId` / `_amount`
-- Cursor re-lock - `VirtualCursor.LateUpdate` gated on `Input.IsMouseLocked`
-- `timeScale` re-assertion - `InventoryItemView.Update`
+### Practice runs
 
-Next up:
-- Autosplit triggers. Lead: `TheForest.Tools.TfEvent+Endgame.Completed`. Needs
-  a read-only Harmony `Postfix` to stay info-only, and a confirmed run-start
-  trigger, which is still unidentified.
-- Seed `locations/` with verified spots - the format and UI are done, the data
-  is empty.
-- Ask the speedrun.com moderators for a ruling on the info-only feature set.
-  That conversation has still not happened.
+The Momentum/KSF shape: being placed at the anchor **arms** a run, the clock
+starts when you actually move (so lining up is free), `F12` finishes it. The
+delta is "at the point you are standing, the reference run had taken N
+seconds". Attempts persist per anchor under
+`BepInEx/config/ForestOverlay/runs/<anchor>/`, one text file each, so a folder
+is a shareable "track".
+
+`Data/RunRecorder.cs` holds the state machine and `RunCompare` the comparison
+maths - deliberately almost Unity-free so it can be unit tested.
+
+### Next up
+
+1. **Test project** (`tests/`) over the pure logic - `RunCompare`,
+   `LocationLibrary` parsing, `AttemptStore` round-trip - wired into CI. This
+   is the prerequisite the user set for expanding practice mode further.
+2. **Run line + ghost rendering.** The paths are already recorded; what is
+   missing is drawing them. `GL` lines in `OnRenderObject` is the net35-safe
+   route, no shaders needed.
+3. **Debug menu** on top of `TheForest.DebugConsole` (see game-notes) -
+   godmode, capsule mode, timescale come free by reflection. Freecam,
+   wireframe, trigger and collider views have to be built.
+4. **Autosplit triggers** - `TfEvent+Endgame.Completed`.
+5. Seed `locations/` with verified spots.
+
+Longer term the user wants offline 3D path analysis; the recorded `.run`
+format is deliberately plain text so an external tool can read it.

@@ -182,6 +182,40 @@ well as movement. It is not re-asserted per frame; all writers are event-driven.
   shows x0 when in hand. Cross-reference `_equipmentSlotsIds` (int[]) to tell
   "equipped" apart from "gone".
 
+## The game ships a debug console - 256 methods
+
+`TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`
+dictionary) is a full developer console still present in the retail build.
+Methods are instance methods named `_<command>` taking a `String` or `Object`,
+so they can be invoked by reflection without going through the console UI.
+
+Directly relevant to a debug/theory-testing menu:
+
+| Command | Use |
+|---|---|
+| `_capsulemode(onoff)` | closest thing to a hitbox view |
+| `_diagRenderers(param)` | renderer diagnostics |
+| `_godmode`, `_invisible` | survive while testing a line |
+| `_speedyrun(onoff)`, `_timescale`, `_gametimescale` | movement experiments |
+| `GotoPosition(Vector3)` | teleport, typed - no string parsing |
+| `_goto(arg)`, `_gototag(arg)`, `GotoArea`, `GotoCave` | jump to named places |
+| `_follow(arg)` / `FollowTarget(go, delay)` | camera follow |
+| `_eval(sCSCode)` | evaluate C# at runtime |
+| `_terrainRender`, `_toggleOcclusionCulling`, `_toggleCullingGrid` | rendering |
+| `_additem`, `_spawnitem`, `_removeitem`, `_addAllItems` | inventory setup |
+| `_toggleFPSDisplay`, `_togglePlayerStats`, `_toggleOverlay` | built-in overlays |
+| `_setDrawDistance`, `_setShadowLevel`, `_targetFrameRate` | perf |
+
+There is a `CheatsAllowedSet` gate on the console UI. Invoking the methods
+directly by reflection sidesteps the UI but has not been tested against that
+gate yet - verify before building a menu on top of it.
+
+**No built-in wireframe, trigger or collider visualisation** beyond
+`_capsulemode`. Those would have to be drawn by the plugin: walk colliders and
+draw with `GL` lines in `OnRenderObject`, or a replacement shader for
+wireframe. Freecam likewise is not provided - `_follow` follows a target, it
+does not detach the camera.
+
 ## Things still unknown
 
 - Which concrete method to patch for a run-start trigger

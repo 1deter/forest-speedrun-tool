@@ -21,7 +21,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add(KeyCode.F11, "write dumps", WriteDumps);
+            map.Add("dump.write", KeyCode.F11, "Write dump files", WriteDumps);
         }
 
         private void WriteDumps()

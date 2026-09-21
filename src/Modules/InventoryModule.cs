@@ -51,7 +51,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add(KeyCode.F4, "inventory panel", Toggle);
+            map.Add("panel.inventory", KeyCode.F4, "Inventory panel", Toggle);
         }
 
         private void Toggle()

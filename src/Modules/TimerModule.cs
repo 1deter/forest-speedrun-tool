@@ -29,9 +29,9 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add(KeyCode.F8, "timer start/stop", ToggleRunning);
-            map.Add(KeyCode.F9, "timer reset", Reset);
-            map.Add(KeyCode.F12, "split", Split);
+            map.Add("timer.toggle", KeyCode.F8, "Start / stop timer", ToggleRunning);
+            map.Add("timer.reset", KeyCode.F9, "Reset timer", Reset);
+            map.Add("timer.split", KeyCode.Backslash, "Split (free timer)", Split);
         }
 
         private void ToggleRunning()

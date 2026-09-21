@@ -1,3 +1,4 @@
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using ForestOverlay.Game;
 
@@ -9,6 +10,7 @@ namespace ForestOverlay.Core
     public sealed class ModuleContext
     {
         public ManualLogSource Log;
+        public ConfigFile Config;
         public GameBridge Bridge;
         public InventoryReader Inventory;
         public PlayerRef Player;

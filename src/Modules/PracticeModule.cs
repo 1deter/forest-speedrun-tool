@@ -6,38 +6,57 @@ using UnityEngine;
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // Practice tools: position save/restore and the teleport library.
+    // Practice tools: the anchor, and the teleport library.
     //
-    // STATE-ALTERING - PRACTICE ONLY. Everything here writes to the game,
-    // so every entry point marks PracticeState, which puts a sticky
-    // warning on the HUD. That marker is the whole reason this module is
-    // kept separate from the info-only ones: a runner must never be able
-    // to use a teleport and then forget it happened while recording.
+    // THE ANCHOR
+    // There is one "where a practice attempt starts from" position, and
+    // anything that places you sets it: pressing the set key, or clicking
+    // a spot in the library. Return-to-anchor then always takes you back
+    // to wherever you last started from, which is what you actually mean
+    // after running a line and wanting another go.
+    //
+    // The previous design kept the manual save and the teleport list as
+    // two unrelated positions, so teleporting somewhere and then pressing
+    // restore threw you back to a stale manual save instead of to the spot
+    // you were practising.
+    //
+    // PracticeRunModule watches this anchor to time attempts.
     //
     // The location list is data, not code (see LocationLibrary). Adding
     // spots is dropping a text file in the locations folder - no rebuild,
-    // no registration - which is what lets a community-contributed set
-    // grow the panel on its own.
+    // no registration.
     // ------------------------------------------------------------------
     public sealed class PracticeModule : OverlayModule
     {
         private const float RowHeight = 21f;
+        private const float HeaderHeight = 22f;
+
         // Char code rather than an escape so the literal survives tooling
         // that rewrites this file.
         private static readonly string NL = ((char)10).ToString();
-        private const float HeaderHeight = 22f;
 
         public override string Id { get { return "practice"; } }
         public override string DisplayName { get { return "Practice"; } }
         public override bool HasPanel { get { return true; } }
-        public override bool WantsPlayerLock { get { return true; } }
         public override bool IsPracticeOnly { get { return true; } }
 
         private LocationLibrary _library;
 
-        private bool _hasSaved;
-        private Vector3 _savedPosition;
-        private Quaternion _savedRotation;
+        // --- anchor -------------------------------------------------------
+        private bool _hasAnchor;
+        private Vector3 _anchorPosition;
+        private Quaternion _anchorRotation;
+        private string _anchorLabel = "";
+
+        public bool HasAnchor { get { return _hasAnchor; } }
+        public Vector3 AnchorPosition { get { return _anchorPosition; } }
+        public string AnchorLabel { get { return _anchorLabel; } }
+
+        /// Raised whenever the player is placed at the anchor, so a
+        /// practice attempt can be armed without this module knowing the
+        /// timer exists.
+        public System.Action OnPlacedAtAnchor;
+
         private string _status = "";
 
         private Rect _windowRect;
@@ -45,8 +64,8 @@ namespace ForestOverlay.Modules
         private Vector2 _scroll;
         private string _filter = "";
 
-        // Category name -> collapsed. Collapsing matters once a contributed
-        // set pushes the list past a screenful.
+        // Category name -> collapsed. Matters once a contributed set
+        // pushes the list past a screenful.
         private readonly Dictionary<string, bool> _collapsed = new Dictionary<string, bool>();
 
         private string _captureName = "new spot";
@@ -64,41 +83,53 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add(KeyCode.F6, "save position", SavePosition);
-            map.Add(KeyCode.F7, "restore position", RestorePosition);
-            map.Add(KeyCode.F3, "practice panel", TogglePanel);
+            map.Add("practice.setAnchor", KeyCode.F6, "Set anchor here", SetAnchorHere);
+            map.Add("practice.toAnchor", KeyCode.F7, "Return to anchor", ReturnToAnchor);
+            map.Add("panel.practice", KeyCode.F3, "Practice panel", TogglePanel);
         }
 
         // ------------------------------------------------------------------
-        private void SavePosition()
+        private void SetAnchor(Vector3 pos, Quaternion rot, string label)
+        {
+            _anchorPosition = pos;
+            _anchorRotation = rot;
+            _anchorLabel = label;
+            _hasAnchor = true;
+        }
+
+        private void SetAnchorHere()
         {
             if (!Ctx.Player.Found) { _status = "No player ref."; return; }
 
-            _savedPosition = Ctx.Player.Transform.position;
-            _savedRotation = Ctx.Player.Transform.rotation;
-            _hasSaved = true;
-            _status = "Saved.";
+            SetAnchor(Ctx.Player.Transform.position, Ctx.Player.Transform.rotation, "manual");
+            _status = "Anchor set here.";
         }
 
-        private void RestorePosition()
+        public void ReturnToAnchor()
         {
-            if (!_hasSaved) { _status = "Nothing saved yet."; return; }
+            if (!_hasAnchor) { _status = "No anchor set."; return; }
 
-            if (Ctx.Player.MoveTo(_savedPosition, _savedRotation))
+            if (Ctx.Player.MoveTo(_anchorPosition, _anchorRotation))
             {
-                Ctx.Practice.Mark("position restore");
-                _status = "Restored.";
+                Ctx.Practice.Mark("return to anchor");
+                _status = "-> anchor (" + _anchorLabel + ")";
+                if (OnPlacedAtAnchor != null) OnPlacedAtAnchor();
             }
             else _status = "No player ref.";
         }
 
+        // Teleporting somewhere makes that the new anchor: it is where the
+        // next attempt starts from.
         private void TeleportTo(Location loc)
         {
             Quaternion rot = Quaternion.Euler(0f, loc.Yaw, 0f);
+
             if (Ctx.Player.MoveTo(loc.Position, rot))
             {
+                SetAnchor(loc.Position, rot, loc.Name);
                 Ctx.Practice.Mark("teleport: " + loc.Name);
                 _status = "-> " + loc.Name;
+                if (OnPlacedAtAnchor != null) OnPlacedAtAnchor();
             }
             else _status = "No player ref.";
         }
@@ -121,6 +152,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
+            if (_hasAnchor) hud.Pair("Anchor", _anchorLabel);
             if (_status.Length > 0) hud.Pair("Prac", _status);
         }
 
@@ -128,12 +160,19 @@ namespace ForestOverlay.Modules
         {
             if (!_windowPlaced)
             {
-                _windowRect = new Rect(30f, 200f, 420f, 500f);
+                _windowRect = new Rect(30f, 200f, 420f, 520f);
                 _windowPlaced = true;
             }
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents,
-                "Practice  -  " + _library.Status);
+            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _title);
+        }
+
+        private readonly GUIContent _title = new GUIContent("Practice");
+
+        public override void Tick()
+        {
+            _title.text = "Practice  -  " + _library.Status +
+                          (_hasAnchor ? "  |  anchor: " + _anchorLabel : "  |  no anchor");
         }
 
         private void EnsureStyles()
@@ -156,14 +195,14 @@ namespace ForestOverlay.Modules
 
             float w = _windowRect.width;
 
-            // --- position save/restore -------------------------------------
-            if (GUI.Button(new Rect(10, 26, 120, 24), "Save pos  (F6)")) SavePosition();
+            // --- anchor ----------------------------------------------------
+            if (GUI.Button(new Rect(10, 26, 130, 24), "Set anchor here")) SetAnchorHere();
 
-            GUI.enabled = _hasSaved;
-            if (GUI.Button(new Rect(136, 26, 130, 24), "Restore pos  (F7)")) RestorePosition();
+            GUI.enabled = _hasAnchor;
+            if (GUI.Button(new Rect(146, 26, 130, 24), "Return to anchor")) ReturnToAnchor();
             GUI.enabled = true;
 
-            if (GUI.Button(new Rect(272, 26, w - 282, 24), "Reload files")) _library.Reload();
+            if (GUI.Button(new Rect(282, 26, w - 292, 24), "Reload files")) _library.Reload();
 
             // --- capture ---------------------------------------------------
             GUI.Label(new Rect(10, 58, 60, 22), "Capture");
@@ -235,8 +274,7 @@ namespace ForestOverlay.Modules
         }
 
         // The help text wraps - the config path is long - so its height must
-        // be measured rather than assumed. A fixed 60px box clipped the last
-        // line. GUIContent and style are cached because this runs in OnGUI.
+        // be measured rather than assumed. A fixed box clipped the last line.
         private GUIContent _emptyHelp;
         private GUIStyle _wrapStyle;
 
@@ -254,8 +292,8 @@ namespace ForestOverlay.Modules
                 _emptyHelp = new GUIContent(
                     "No locations yet." + NL + NL +
                     "Stand where you want a spot, set a category and name above, " +
-                    "then press \"Add here\". It is appended to " +
-                    Data.LocationLibrary.UserFileName + " and shows up in this list." + NL + NL +
+                    "then press Add here. It is appended to " +
+                    LocationLibrary.UserFileName + " and shows up in this list." + NL + NL +
                     "Loaded from:" + NL + _library.Folder + NL + NL +
                     "Any .txt file in that folder is merged in, so a shared set can " +
                     "be dropped straight in.");

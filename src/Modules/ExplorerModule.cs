@@ -46,7 +46,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add(KeyCode.F10, "type explorer", TogglePanel);
+            map.Add("panel.explorer", KeyCode.F10, "Type explorer panel", TogglePanel);
         }
 
         public override void OnPanelToggled(bool open)
