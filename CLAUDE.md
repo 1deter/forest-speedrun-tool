@@ -138,18 +138,39 @@ use the Steam overlay.
 
 ## Project intent
 
-The run-legality distinction matters and shapes the architecture:
+### Current phase: explore the capability envelope
 
-- **Info-only features** (velocity, timer, item counts) read state and never
-  write it. These are plausibly legal for verified runs, like an autosplitter.
-- **State-altering features** (position restore, player lock) write to the game
-  and are practice-only.
+**As of 2026-09-21, legality enforcement is explicitly NOT the priority.** The
+speedrun.com moderators have not been asked yet, and the plan is to hand them a
+working tool so they can judge concretely what should be allowed. Guessing at
+their ruling and pre-emptively restricting the tool would defeat that.
 
-Keep these separated. Harmony patches should be read-only `Postfix` observers
-unless a feature is explicitly practice-only. The speedrun.com moderators have
-not yet been asked for a ruling — that conversation is still pending.
+So, for now:
 
----
+- Build the feature and find out what is possible. Do not gate, disable or
+  refuse to implement something because it *might* be ruled illegal.
+- Do not add new enforcement machinery, confirmation gates or lockouts.
+- **Do** keep labelling things honestly - `IsPracticeOnly`, the sticky HUD
+  marker and the info-only/state-altering split in the docs all stay. They cost
+  nothing, and they are what makes the eventual conversation with the
+  moderators concrete rather than hand-wavy.
+
+The distinction below is therefore **descriptive, not a restriction**:
+
+- **Info-only** (velocity, timer, item counts): reads state, never writes.
+  Plausibly legal for verified runs, like an autosplitter.
+- **State-altering** (teleport, position restore, player lock): writes to the
+  game.
+
+Once there is a ruling, circle back and enforce it properly - that is when the
+labels become load-bearing. Until then they are just accurate reporting.
+
+### Harmony patches
+
+Prefer read-only `Postfix` observers. This is still worth following, but for
+engineering reasons rather than legality ones: a `Prefix` that skips or
+replaces game logic is far more likely to break on a game update or interact
+badly with other plugins.
 
 ## Current status
 
