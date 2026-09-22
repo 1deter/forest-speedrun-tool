@@ -250,14 +250,57 @@ UnityWebRequest is used rather than `HttpWebRequest` because Unity 5.6's Mono
 predates TLS 1.2 and GitHub requires it; UnityWebRequest uses the OS stack. It
 is reached by reflection so the CI stub build still compiles.
 
+### Segments and triggers (the spine)
+
+Almost every remaining feature needed the same missing concept: **a named
+thing that happens**. Splits, segment start/end, checkpoints and leaderboard
+keys are all "a trigger fired", so it is defined once in `Data/Segments.cs`
+rather than reinvented per feature.
+
+Trigger kinds: `zone` (sphere), `item` (inventory comparison), `event` (a
+named in-process game event), `manual`.
+
+**Triggers are edge-based, and the first evaluation primes rather than
+fires.** That is deliberate and unit-tested: teleporting *into* a start zone
+must not start the run before you have moved.
+
+Segments live in `BepInEx/config/ForestOverlay/segments/*.txt` as `key = value`
+blocks under `[segment]` headers - a block format rather than the pipe format
+locations use, because a segment has a variable number of checkpoints.
+
+`Segment` is pure data with **no `GUIContent`**: it is linked into the test
+project, which has no Unity. Label caching belongs to the panel that draws it.
+`TriggerParser` is likewise split out of `SegmentLibrary` so the parsing can be
+tested without dragging in BepInEx and the filesystem.
+
+### Decisions taken 2026-09-22
+
+- **Leaderboards are comparative, not competitive.** Lines and ghosts for
+  practice, no verified ranking - so client-submitted times need no
+  anti-cheat story.
+- **The in-game timer aims to replace LiveSplit**, not complement it. That
+  makes reading existing LiveSplit split files and HUD/layout customisation
+  real requirements.
+- **Record everything about the player per sample**, not a chosen subset, and
+  let the runner filter later. Samples are cheap; re-recording history is not.
+- **Web viewer wants real 3D terrain** as a heavier secondary option, because
+  2D maps fall apart in caves. Plus annotations for concept lines, and a
+  scrub bar for replay - Momentum-style.
+- Flower/plant coordinate display is **out of scope by the author's own
+  call**: it pushes what the category should allow.
+
 ### Next up
 
-1. **Preloader patcher** to apply staged updates - the missing half of
-   auto-update.
-2. **Test project** (`tests/`) over `RunCompare`, `LocationLibrary` parsing and
-   `AttemptStore` round-trip, wired into CI.
-3. **Run line + ghost rendering.** Paths are already recorded; `DebugDraw`
-   already has the GL line machinery to draw them.
-4. **Configuration-driven splits** for practice mode, modelled on the author's
-   LiveSplit autosplitter (item pickup, cave enter/exit, endgame events).
-5. Autosplit triggers - `TfEvent+Endgame.Completed`.
+1. **Wire segments into practice runs** - select a segment, auto start/stop on
+   its triggers, split on checkpoints. The data layer is done; the module is
+   not.
+2. **Separated endgame splits** via Harmony `Postfix` on the individual action
+   classes (see game-notes). This is the thing an external autosplitter
+   cannot do.
+3. **Full player state per sample** - health, stamina, all stats, inventory.
+   Extend `RunSample` and the `.run` format.
+4. **Nature guide + todo panel** - `SurvivalBookBestiary` / 
+   `SerializableSurvivalBookTodo`, both read-only.
+5. **LiveSplit split file import** (`.lss` / `.lsl`).
+6. **Preloader patcher** to apply staged updates.
+7. **Web viewer** - local-first, export always; cloud later.

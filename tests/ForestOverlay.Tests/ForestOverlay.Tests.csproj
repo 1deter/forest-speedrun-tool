@@ -32,6 +32,7 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
   </ItemGroup>
 
 </Project>
