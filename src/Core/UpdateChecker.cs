@@ -22,11 +22,9 @@ namespace ForestOverlay.Core
     // WHY THIS ONLY STAGES THE FILE
     // Windows will not let a loaded assembly be overwritten, and our own
     // DLL is loaded by definition. So the download lands beside the
-    // plugin as a .pending file and something that runs BEFORE plugins
-    // load has to move it into place. See docs - that part is a BepInEx
-    // preloader patcher and is deliberately separate, because a
-    // self-replacing updater that goes wrong leaves a runner with a
-    // broken install and no way to fix it.
+    // plugin as a .pending file, and the preloader patcher
+    // (patcher/UpdaterPatcher.cs, installed by Core/UpdaterInstaller)
+    // moves it into place on the next launch, before plugins load.
     // ------------------------------------------------------------------
     public sealed class UpdateChecker
     {
@@ -136,11 +134,13 @@ namespace ForestOverlay.Core
             {
                 File.WriteAllBytes(pluginDllPath + PendingSuffix, data);
                 State = Status.Staged;
-                // Nothing installs a staged file yet (the preloader patcher
-                // is still to be written), so say what to do by hand -
-                // "restart to apply" left runners on the old version.
-                Message = "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
-                          "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
+                // Only promise "restart" when the patcher that does the
+                // install is really there - an unconditional "restart to
+                // apply" once left runners on the old version.
+                Message = UpdaterInstaller.Installed
+                    ? "v" + LatestVersion + " downloaded - restart the game to install it"
+                    : "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
+                      "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
                 _log.LogInfo(Message);
             }
             catch (Exception ex)

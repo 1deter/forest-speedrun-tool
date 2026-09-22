@@ -26,12 +26,16 @@ namespace ForestOverlay.Modules
         private Rect _windowRect;
         private bool _windowPlaced;
         private bool _autoOpened;
+        private string _autoInstallLabel = "";
 
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
 
             _checker = new UpdateChecker(ctx.Log, OverlayPlugin.PluginVersion);
+
+            // Fixed for the session: the installer ran before any module.
+            _autoInstallLabel = "Auto-install: " + UpdaterInstaller.Status;
 
             if (ctx.Runner != null)
                 ctx.Runner.StartCoroutine(_checker.Check());
@@ -82,31 +86,32 @@ namespace ForestOverlay.Modules
 
             GUI.Label(new Rect(12, 28, w - 24, 20), "Installed: v" + OverlayPlugin.PluginVersion);
             GUI.Label(new Rect(12, 48, w - 24, 20), "Status: " + _checker.Message);
+            GUI.Label(new Rect(12, 68, w - 24, 20), _autoInstallLabel);
 
             bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable;
 
             GUI.enabled = canDownload;
-            if (GUI.Button(new Rect(12, 76, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
+            if (GUI.Button(new Rect(12, 96, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
             {
                 if (Ctx.Runner != null)
                     Ctx.Runner.StartCoroutine(_checker.Download(Ctx.PluginPath));
             }
             GUI.enabled = true;
 
-            if (GUI.Button(new Rect(210, 76, 130, 26), "Check again"))
+            if (GUI.Button(new Rect(210, 96, 130, 26), "Check again"))
             {
                 if (Ctx.Runner != null) Ctx.Runner.StartCoroutine(_checker.Check());
             }
 
             if (_checker.State == UpdateChecker.Status.Staged)
             {
-                GUI.Label(new Rect(12, 110, w - 24, 40),
-                          "Downloaded. Restart the game to finish updating.");
+                GUI.Label(new Rect(12, 130, w - 24, 40), _checker.Message);
             }
             else
             {
-                GUI.Label(new Rect(12, 110, w - 24, 40),
-                          "Updates install on the next game start.");
+                GUI.Label(new Rect(12, 130, w - 24, 40),
+                          UpdaterInstaller.Installed ? "Downloaded updates install on the next game start."
+                                                     : "Auto-install is unavailable - downloads must be swapped in by hand.");
             }
 
         }

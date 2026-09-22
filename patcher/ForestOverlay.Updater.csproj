@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Preloader patcher that installs staged plugin updates. It is embedded
+    in ForestOverlay.dll and written to BepInEx/patchers by the plugin, so
+    it is never shipped or installed on its own.
+
+    net35 for the same reason as the plugin: the game's Mono is CLR 2.0.
+    BepInEx.Core brings BepInEx.dll and Mono.Cecil; both are already in
+    the game's BepInEx/core, so nothing is copied.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>ForestOverlay.Updater</AssemblyName>
+    <RootNamespace>ForestOverlay.Updater</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

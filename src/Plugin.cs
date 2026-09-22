@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.15.1";
+        public const string PluginVersion = "0.16.0";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -66,6 +66,9 @@ namespace ForestOverlay
 
                 // Before any module loads, so they read the shipped lists.
                 Data.ShippedData.Install(configDir, Logger);
+
+                // Arms the next update: the patcher is what installs it.
+                UpdaterInstaller.Install(Logger);
 
                 _bridge = new GameBridge(Logger);
                 _player = new PlayerRef(Logger);

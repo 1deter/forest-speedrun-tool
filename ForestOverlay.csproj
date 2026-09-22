@@ -13,9 +13,9 @@
     <Description>Speedrun information overlay for The Forest (BepInEx plugin)</Description>
     <LangVersion>latest</LangVersion>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.15.1</Version>
-    <AssemblyVersion>0.15.1.0</AssemblyVersion>
-    <FileVersion>0.15.1.0</FileVersion>
+    <Version>0.16.0</Version>
+    <AssemblyVersion>0.16.0.0</AssemblyVersion>
+    <FileVersion>0.16.0.0</FileVersion>
   </PropertyGroup>
 
   <!--
@@ -25,9 +25,19 @@
     they would be compiled into the net35 assembly and fail.
   -->
   <ItemGroup>
-    <Compile Remove="tools/**;tests/**" />
-    <None Remove="tools/**;tests/**" />
-    <EmbeddedResource Remove="tools/**;tests/**" />
+    <Compile Remove="tools/**;tests/**;patcher/**" />
+    <None Remove="tools/**;tests/**;patcher/**" />
+    <EmbeddedResource Remove="tools/**;tests/**;patcher/**" />
+  </ItemGroup>
+
+  <!--
+    The update-installing preloader patcher is built first and embedded,
+    then written to BepInEx/patchers by Core/UpdaterInstaller - the
+    plugin DLL stays the whole install.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="patcher/ForestOverlay.Updater.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <EmbeddedResource Include="patcher/bin/$(Configuration)/net35/ForestOverlay.Updater.dll" LogicalName="patcher/ForestOverlay.Updater.dll" />
   </ItemGroup>
 
   <!--
