@@ -1,4 +1,4 @@
-﻿# ForestOverlay
+# ForestOverlay
 
 A speedrun and practice tool for **The Forest**, built as a
 [BepInEx](https://github.com/BepInEx/BepInEx) plugin.
@@ -7,21 +7,21 @@ A speedrun and practice tool for **The Forest**, built as a
 
 ## Features
 
-**Information only** â€” reads game state, never writes it:
+**Information only** — reads game state, never writes it:
 
-- **Velocity** â€” horizontal and total speed, per-axis, position
-- **Per-item inventory** â€” live counts, pin the items you care about to the HUD
-- **100% tracking** â€” the unique-item checklist, the nature guide (grouped by
+- **Velocity** — horizontal and total speed, per-axis, position
+- **Per-item inventory** — live counts, pin the items you care about to the HUD
+- **100% tracking** — the unique-item checklist, the nature guide (grouped by
   book page) and the in-game To Do List
-- **Timed practice runs** â€” splits, ghost deltas against your best, run lines
-- **Type explorer & dumps** â€” browse the game's classes and live field values
+- **Timed practice runs** — splits, ghost deltas against your best, run lines
+- **Type explorer & dumps** — browse the game's classes and live field values
 
-**Practice only** â€” writes game state, and flags the session when used:
+**Practice only** — writes game state, and flags the session when used:
 
-- **Practice spots** â€” teleport anywhere you have saved
-- **Segments** â€” a spot with a start, an end and checkpoints, timed and
+- **Practice spots** — teleport anywhere you have saved
+- **Segments** — a spot with a start, an end and checkpoints, timed and
   compared against your previous attempts
-- **Debug views** â€” freecam, collider and trigger volumes, wireframe
+- **Debug views** — freecam, collider and trigger volumes, wireframe
 
 ## Using it
 
@@ -41,20 +41,20 @@ A speedrun and practice tool for **The Forest**, built as a
 
 All keys are rebindable in the **Settings** tab, or in
 `BepInEx/config/com.deter.forestoverlay.cfg`. Most per-tab keys are unbound by
-default â€” one key for the window is usually enough.
+default — one key for the window is usually enough.
 
 ### Making a timed segment
 
-1. **Practice** tab â†’ stand where the run starts â†’ **New**
+1. **Practice** tab → stand where the run starts → **New**
 2. Tick **Timed segment**, then set the **End** trigger where it should finish
-3. Optionally **Add checkpoint here** along the route â†’ **Save**
-4. **Runs** tab â†’ tick **Practice mode** â†’ back to Practice â†’ **Go**
+3. Optionally **Add checkpoint here** along the route → **Save**
+4. **Runs** tab → tick **Practice mode** → back to Practice → **Go**
 
 You are now armed. Cross the start zone and the clock begins; checkpoints
 split, the end zone finishes and saves the attempt. Run again to race your own
 ghost.
 
-Zones are drawn in the world while editing â€” green start, amber checkpoints,
+Zones are drawn in the world while editing — green start, amber checkpoints,
 red end.
 
 ## Install
@@ -70,7 +70,7 @@ It cannot yet install them itself.
 
 Practice spots, segments and the 100% checklist are **plain text files** in
 `BepInEx/config/ForestOverlay/`, so a set can be shared as a file and reviewed
-as a diff. Everything is also editable in game â€” the files exist for sharing,
+as a diff. Everything is also editable in game — the files exist for sharing,
 not as the interface.
 
 Shared spots live in [`locations/`](locations/) and the 100% list in
@@ -92,7 +92,7 @@ Or `./scripts/deploy.ps1` to build and install in one step.
 
 Builds without the game installed (CI does exactly that) using a stubbed
 UnityEngine assembly. No game files are in this repository, and
-`Assembly-CSharp.dll` is never referenced â€” all game types are reached by
+`Assembly-CSharp.dll` is never referenced — all game types are reached by
 reflection.
 
 ## Run legality
@@ -107,8 +107,8 @@ assume any of it is permitted in submitted runs until they have.
 
 ## Development
 
-[`CLAUDE.md`](CLAUDE.md) â€” architecture, conventions and the current task list.
-[`docs/game-notes.md`](docs/game-notes.md) â€” confirmed game internals.
+[`CLAUDE.md`](CLAUDE.md) — architecture, conventions and the current task list.
+[`docs/game-notes.md`](docs/game-notes.md) — confirmed game internals.
 
 `tools/ILScan` is an offline IL query tool over the game assembly; it answers
 behavioural questions ("what writes this every frame?") that the in-game
