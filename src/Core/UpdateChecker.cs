@@ -136,7 +136,11 @@ namespace ForestOverlay.Core
             {
                 File.WriteAllBytes(pluginDllPath + PendingSuffix, data);
                 State = Status.Staged;
-                Message = "v" + LatestVersion + " staged - restart the game to apply";
+                // Nothing installs a staged file yet (the preloader patcher
+                // is still to be written), so say what to do by hand -
+                // "restart to apply" left runners on the old version.
+                Message = "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
+                          "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
                 _log.LogInfo(Message);
             }
             catch (Exception ex)
