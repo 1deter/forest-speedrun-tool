@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.8.0";
+        public const string PluginVersion = "0.8.1";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -39,6 +39,7 @@ namespace ForestOverlay
         private PlayerRef _player;
         private GameBridge _bridge;
         private InventoryReader _inventory;
+        private PlayerStateReader _playerState;
         private PracticeState _practice;
 
         private GUIStyle _hudLabelStyle;
@@ -66,6 +67,7 @@ namespace ForestOverlay
                 _bridge = new GameBridge(Logger);
                 _player = new PlayerRef(Logger);
                 _inventory = new InventoryReader(Logger);
+                _playerState = new PlayerStateReader(Logger);
                 _practice = new PracticeState();
 
                 ModuleContext ctx = new ModuleContext();
@@ -74,6 +76,7 @@ namespace ForestOverlay
                 ctx.Bridge = _bridge;
                 ctx.Player = _player;
                 ctx.Inventory = _inventory;
+                ctx.PlayerState = _playerState;
                 ctx.Practice = _practice;
                 ctx.ConfigDirectory = configDir;
                 ctx.Runner = this;

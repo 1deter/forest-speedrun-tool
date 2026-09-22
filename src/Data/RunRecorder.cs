@@ -11,6 +11,23 @@ namespace ForestOverlay.Data
         public float Speed;      // horizontal speed at this sample
     }
 
+    /// One snapshot of the player's full numeric state.
+    ///
+    /// Kept on a SEPARATE track from the position samples, at a lower
+    /// rate. Position needs 30 Hz for the line to look smooth; health and
+    /// stamina do not change meaningfully per frame, and storing ~60
+    /// channels at 30 Hz would inflate a two-minute run by an order of
+    /// magnitude for no analytical gain.
+    ///
+    /// Values are indexed against Attempt.Channels. A flat float[] rather
+    /// than a named dictionary so a sample is cheap to store, cheap to
+    /// write, and trivial for the viewer to filter.
+    public struct StateSample
+    {
+        public float T;
+        public float[] Values;
+    }
+
     // ------------------------------------------------------------------
     // One recorded attempt: the path taken and how long it took.
     //
@@ -27,6 +44,41 @@ namespace ForestOverlay.Data
         public float Duration;
         public bool Completed;
         public readonly List<RunSample> Samples = new List<RunSample>();
+
+        /// Names of the state channels, index-aligned with every
+        /// StateSample.Values. Empty when state was not captured.
+        public string[] Channels = new string[0];
+        public readonly List<StateSample> States = new List<StateSample>();
+
+        public int ChannelIndex(string name)
+        {
+            for (int i = 0; i < Channels.Length; i++)
+                if (string.Equals(Channels[i], name, StringComparison.OrdinalIgnoreCase)) return i;
+            return -1;
+        }
+
+        /// Value of a channel at time t, using the most recent snapshot at
+        /// or before t. Step rather than interpolated: several channels are
+        /// booleans, and interpolating those would invent states that never
+        /// happened.
+        public bool TryStateAt(int channel, float t, out float value)
+        {
+            value = 0f;
+            if (channel < 0 || States.Count == 0) return false;
+
+            int best = -1;
+            for (int i = 0; i < States.Count; i++)
+            {
+                if (States[i].T > t) break;
+                best = i;
+            }
+
+            if (best < 0) return false;
+            if (States[best].Values == null || channel >= States[best].Values.Length) return false;
+
+            value = States[best].Values[channel];
+            return true;
+        }
 
         public int Count { get { return Samples.Count; } }
 
@@ -183,9 +235,12 @@ namespace ForestOverlay.Data
         /// Distance from the anchor that counts as "you have started".
         public float StartRadius = 0.5f;
 
-        /// Sampling rate. 30 Hz is enough to draw a smooth line and to
-        /// place a ghost without storing a point per frame.
+        /// Position sampling rate. 30 Hz is enough to draw a smooth line
+        /// and to place a ghost without storing a point per frame.
         public float SampleInterval = 1f / 30f;
+
+        /// State sampling rate. Deliberately slower - see StateSample.
+        public float StateInterval = 0.2f;
 
         public RunState State { get; private set; }
         public float Elapsed { get; private set; }
@@ -194,6 +249,10 @@ namespace ForestOverlay.Data
         private Vector3 _anchor;
         private string _anchorLabel = "";
         private float _nextSampleTime;
+        private float _nextStateTime;
+
+        /// Channel names for the run being recorded. Set before Arm.
+        public string[] StateChannels = new string[0];
 
         public void Arm(Vector3 anchor, string label)
         {
@@ -214,7 +273,11 @@ namespace ForestOverlay.Data
         /// Advance. `dt` should be unscaled: the game changes timeScale
         /// during its own sequences and a practice timer must not drift
         /// with it.
-        public void Tick(Vector3 position, float horizontalSpeed, float dt)
+        ///
+        /// `state` is the current channel values, or null when state
+        /// capture is unavailable. It is COPIED when sampled, because the
+        /// reader reuses its buffer.
+        public void Tick(Vector3 position, float horizontalSpeed, float dt, float[] state)
         {
             if (State == RunState.Armed)
             {
@@ -234,6 +297,30 @@ namespace ForestOverlay.Data
             s.P = position;
             s.Speed = horizontalSpeed;
             Current.Samples.Add(s);
+
+            SampleState(state);
+        }
+
+        private void SampleState(float[] state)
+        {
+            if (state == null || state.Length == 0) return;
+            if (Elapsed < _nextStateTime) return;
+            _nextStateTime = Elapsed + StateInterval;
+
+            StateSample ss;
+            ss.T = Elapsed;
+
+            // Copy: the reader hands back a reused buffer.
+            ss.Values = new float[state.Length];
+            Array.Copy(state, ss.Values, state.Length);
+
+            Current.States.Add(ss);
+        }
+
+        /// Overload for callers with no state source (and for tests).
+        public void Tick(Vector3 position, float horizontalSpeed, float dt)
+        {
+            Tick(position, horizontalSpeed, dt, null);
         }
 
         private void BeginRun()
@@ -241,10 +328,12 @@ namespace ForestOverlay.Data
             State = RunState.Running;
             Elapsed = 0f;
             _nextSampleTime = 0f;
+            _nextStateTime = 0f;
 
             Current = new Attempt();
             Current.AnchorLabel = _anchorLabel;
             Current.RecordedUtc = DateTime.UtcNow;
+            Current.Channels = StateChannels ?? new string[0];
 
             RunSample s;
             s.T = 0f;

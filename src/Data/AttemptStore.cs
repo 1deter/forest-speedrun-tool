@@ -21,13 +21,19 @@ namespace ForestOverlay.Data
     //   anchor|<label>
     //   recorded|<utc iso>
     //   duration|<seconds>
-    //   s|<t>|<x>|<y>|<z>|<speed>
+    //   channels|Health|Stamina|Energy|...
+    //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
+    //   v|<t>|<v0>|<v1>|...                state,    5 Hz
     //
     // Coordinates use InvariantCulture for the same reason location files
     // do: a comma-decimal machine would otherwise silently reject them.
     // ------------------------------------------------------------------
     public sealed class AttemptStore
     {
+        // Char code rather than a backslash-n escape: tooling that
+        // rewrites this file has mangled those literals more than once.
+        private static readonly char NL = (char)10;
+
         private readonly ManualLogSource _log;
         private readonly string _root;
 
@@ -67,6 +73,18 @@ namespace ForestOverlay.Data
                     sb.Append("s|").Append(F(s.T)).Append('|')
                       .Append(F(s.P.x)).Append('|').Append(F(s.P.y)).Append('|').Append(F(s.P.z))
                       .Append('|').Append(F(s.Speed)).Append('\n');
+                }
+
+                for (int i = 0; i < attempt.States.Count; i++)
+                {
+                    StateSample v = attempt.States[i];
+                    sb.Append("v|").Append(F(v.T));
+
+                    if (v.Values != null)
+                        for (int c = 0; c < v.Values.Length; c++)
+                            sb.Append('|').Append(F(v.Values[c]));
+
+                    sb.Append(NL);
                 }
 
                 File.WriteAllText(Path.Combine(dir, name), sb.ToString(), Encoding.UTF8);
@@ -133,6 +151,20 @@ namespace ForestOverlay.Data
                             a.RecordedUtc = dt;
                     }
                     else if (p[0] == "duration" && p.Length > 1) a.Duration = P(p[1]);
+                    else if (p[0] == "channels" && p.Length > 1)
+                    {
+                        string[] names = new string[p.Length - 1];
+                        for (int c = 1; c < p.Length; c++) names[c - 1] = p[c];
+                        a.Channels = names;
+                    }
+                    else if (p[0] == "v" && p.Length >= 2)
+                    {
+                        StateSample v;
+                        v.T = P(p[1]);
+                        v.Values = new float[p.Length - 2];
+                        for (int c = 2; c < p.Length; c++) v.Values[c - 2] = P(p[c]);
+                        a.States.Add(v);
+                    }
                     else if (p[0] == "s" && p.Length >= 6)
                     {
                         RunSample s;

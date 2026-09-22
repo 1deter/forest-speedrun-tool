@@ -13,6 +13,7 @@ namespace ForestOverlay.Core
         public ConfigFile Config;
         public GameBridge Bridge;
         public InventoryReader Inventory;
+        public PlayerStateReader PlayerState;
         public PlayerRef Player;
         public PracticeState Practice;
         public string ConfigDirectory;

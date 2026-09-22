@@ -78,7 +78,7 @@ namespace ForestOverlay.Modules
             PracticeModule practice = Host.Find<PracticeModule>();
             if (practice != null)
             {
-                practice.OnPlacedAtAnchor = OnPlacedAtAnchor;
+                practice.OnPlacedAtSpot = OnPlacedAtSpot;
                 _practice = practice;
             }
             else
@@ -118,23 +118,23 @@ namespace ForestOverlay.Modules
             }
         }
 
-        private void OnPlacedAtAnchor()
+        private void OnPlacedAtSpot()
         {
             if (!Enabled) return;
-            if (_practice == null || !_practice.HasAnchor) return;
+            if (_practice == null || !_practice.HasSpot) return;
 
             // Switching anchor switches "track": load that anchor's saved
             // attempts so a best time survives a restart and so someone
             // else's shared run folder can be raced straight away.
-            if (_practice.AnchorLabel != _loadedAnchor)
+            if (_practice.SpotLabel != _loadedAnchor)
             {
-                _loadedAnchor = _practice.AnchorLabel;
+                _loadedAnchor = _practice.SpotLabel;
                 _attempts.Clear();
                 _attempts.AddRange(_store.LoadAll(_loadedAnchor));
                 Ctx.Log.LogInfo("Loaded " + _attempts.Count + " saved attempt(s) for '" + _loadedAnchor + "'");
             }
 
-            _recorder.Arm(_practice.AnchorPosition, _practice.AnchorLabel);
+            _recorder.Arm(_practice.SpotPosition, _practice.SpotLabel);
             _deltaHint = 0;
             _hasDelta = false;
             SelectReference();
@@ -146,7 +146,7 @@ namespace ForestOverlay.Modules
         private void RestartRun()
         {
             if (_practice == null) { _status = "No practice module."; return; }
-            _practice.ReturnToAnchor();   // raises OnPlacedAtAnchor
+            _practice.ReturnToSpot();   // raises OnPlacedAtAnchor
         }
 
         private void FinishRun()
@@ -221,7 +221,13 @@ namespace ForestOverlay.Modules
             if (!Ctx.Player.Found) return;
 
             Vector3 pos = Ctx.Player.Transform.position;
-            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime);
+            // Full player state goes in alongside the position track; the
+            // recorder copies it on its own slower throttle.
+            Ctx.PlayerState.Resolve();
+            _recorder.StateChannels = Ctx.PlayerState.Channels;
+
+            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime,
+                           Ctx.PlayerState.Read());
 
             if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
             {
@@ -382,8 +388,8 @@ namespace ForestOverlay.Modules
             if (on != Enabled) ToggleMode();
 
             GUI.Label(new Rect(168, 26, w - 180, 20),
-                      "Anchor: " + (_practice != null && _practice.HasAnchor
-                                        ? _practice.AnchorLabel : "none set (F3 panel)"));
+                      "Spot: " + (_practice != null && _practice.HasSpot
+                                        ? _practice.SpotLabel : "none selected (F3 panel)"));
 
             if (GUI.Button(new Rect(12, 50, 120, 24), "Restart run")) RestartRun();
             if (GUI.Button(new Rect(138, 50, 110, 24), "Finish")) FinishRun();

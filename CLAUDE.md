@@ -273,6 +273,54 @@ project, which has no Unity. Label caching belongs to the panel that draws it.
 `TriggerParser` is likewise split out of `SegmentLibrary` so the parsing can be
 tested without dragging in BepInEx and the filesystem.
 
+### Spots, not anchors
+
+There is **no separate "anchor" concept**. An earlier version had a manually
+set anchor *and* a teleport library, which overlapped confusingly: if you can
+save a spot, setting a nameless anchor as well is redundant.
+
+So the spot you last teleported to **is** where the next attempt starts from,
+`F6` saves where you stand as a real named spot (and selects it), and `F7`
+returns to the selected one. A spot is also what a segment grows out of -
+attach start/end triggers to one and it becomes timed and splittable.
+
+**Everything must eventually be editable in the GUI.** Runners should never
+have to open a config file; the text formats exist so sets can be shared and
+diffed, not as the primary interface.
+
+### Segment id convention
+
+Lowercase kebab-case, dot-separated from broad to narrow:
+
+    route.plane-to-cave5
+    cave5.sinkhole-drop
+    practice.rope-skip
+
+Momentum keys zones off map plus stage index, KSF off `map_stage`. Neither
+translates here because The Forest is one continuous world with no map names,
+so the first token names the *route or area* instead.
+
+Ids are the comparison key, so **renaming one orphans every time recorded
+against it**. Choose before sharing a set.
+
+### Player state capture
+
+`Game/PlayerStateReader.cs` discovers every numeric and boolean field on
+`PlayerStats` by reflection and records them as **named channels** - Health,
+Stamina, Energy, Fullness, Thirst, BodyTemp, Armor, Cold, PedometerSteps and
+~50 more. Hand-picking fields would decide today what matters and leave
+everything else unbackfillable.
+
+Two tracks at different rates, on purpose: position at 30 Hz so the line is
+smooth, state at 5 Hz because stats do not change meaningfully per frame and
+~60 channels at 30 Hz would inflate a run by an order of magnitude.
+
+`TryStateAt` is a **step** lookup, not interpolated - several channels are
+booleans and interpolating those would invent states that never happened.
+
+`RunRecorder` stays free of reflection so it can be linked into the tests; the
+module feeds it the channel array.
+
 ### Decisions taken 2026-09-22
 
 - **Leaderboards are comparative, not competitive.** Lines and ghosts for
@@ -291,14 +339,16 @@ tested without dragging in BepInEx and the filesystem.
 
 ### Next up
 
-1. **Wire segments into practice runs** - select a segment, auto start/stop on
-   its triggers, split on checkpoints. The data layer is done; the module is
-   not.
-2. **Separated endgame splits** via Harmony `Postfix` on the individual action
+1. **GUI editor for spots and segments** - create, edit, and attach triggers
+   without touching a file. This is the blocker on segments being testable at
+   all, and the author has been clear that config-file editing is not an
+   acceptable interface for runners.
+2. **Wire segments into practice runs** - select a segment, auto start/stop on
+   its triggers, split on checkpoints. The data layer is done and tested; the
+   module still uses the spot flow.
+3. **Separated endgame splits** via Harmony `Postfix` on the individual action
    classes (see game-notes). This is the thing an external autosplitter
    cannot do.
-3. **Full player state per sample** - health, stamina, all stats, inventory.
-   Extend `RunSample` and the `.run` format.
 4. **Nature guide + todo panel** - `SurvivalBookBestiary` / 
    `SerializableSurvivalBookTodo`, both read-only.
 5. **LiveSplit split file import** (`.lss` / `.lsl`).
