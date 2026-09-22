@@ -15,7 +15,7 @@ A speedrun and practice tool for **The Forest**, built as a
   book page) and the in-game To Do List
 - **Timed practice runs** — splits, ghost deltas against your best, run lines
 - **Separate endgame splits** — each endgame cutscene (keycard doors, Timmy,
-  Megan, game end) is its own `event` trigger, splitting on the same frame
+  Megan, red elevator, game end) is its own `event` trigger, splitting on the same frame
   as the LiveSplit autosplitter
 - **Type explorer & dumps** — browse the game's classes and live field values
 

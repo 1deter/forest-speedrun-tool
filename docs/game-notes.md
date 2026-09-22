@@ -183,13 +183,16 @@ Keycard (Automatic Door), Gold Keycard (Red Elevator), Game End.
 a method on the player, started by an `activate*` trigger with
 `SendMessage("<routine>")` (`ilscan strings`):
 
+Confirmed against a real endgame run (2026-09-22, author) unless marked.
+
 | Split | Method (event name) | Flag set |
 |---|---|---|
-| Vault door, gold keycard doors, red elevator | `playerOpenKeypadDoorAction.openKeypadDoor` (`keycard-door`, `keycard-door-<itemId>`) | after the walk-up, in its `lockPlayerParams` |
+| Vault door *(unconfirmed)*, gold keycard automatic door | `playerOpenKeypadDoorAction.openDoorRoutine` via `openKeypadDoor` (`keycard-door`, `keycard-door-<itemId>`) | after the walk-up, in its `lockPlayerParams` |
+| Gold keycard: red elevator | the same `openDoorRoutine`, sent directly by `ElevatorSystem.Goto` (`red-elevator`) | same |
 | Finding Timmy | `PlayerPickupTimmyAction.pickupTimmyRoutine` (`timmy-pickup`) | before first yield |
-| Approaching Megan | `PlayerGirlPickupAction.girlToMachineRoutine` (`megan-to-machine`) | after first yield |
-| Megan into artifact | `PlayerGirlTransformAction.doGirlTransformRoutine` (`megan-transform`) | after first yield |
-| Game end | `PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` (`end-crash` / `end-shutdown`, both `game-end`) | after first yield |
+| Approaching Megan (she transforms) | `PlayerGirlTransformAction.doGirlTransformRoutine` (`megan-transform`) | after first yield |
+| Putting Megan in the artifact | `PlayerGirlPickupAction.girlToMachineRoutine` (`megan-to-machine`) | after first yield |
+| Game end | `PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` (`end-crash` / `end-shutdown`, both `game-end`) | after first yield (`end-crash` confirmed) |
 | Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` (`timmy-goodbye`) | before first yield |
 | Raft out of world | `RaftPush.outOfWorldRoutine` (`raft-out-of-world`) | before first yield |
 | — | `PlayerGirlPickupAction.pickupGirlRoutine` (`megan-pickup`) | never — fires at routine start |
@@ -204,13 +207,23 @@ which cutscene it is (`Game/GameEvents.cs`). That keeps split times identical
 to the autosplitter's. `endgame-cutscene` fires on every rising edge, exactly
 as the autosplitter did.
 
-**Keypad doors all share one action.** `activateKeypadDoor.DoActorAnimation`
-sends `setKeycardId(_keycardId)`, `setShortSequence(shortSequence)`,
-`setDoorAnimator` and then `openKeypadDoor(playerPos)`. So the vault, the
-automatic door and the red elevator differ only by keycard item id,
-`shortSequence` and the door object. The event log line carries all three
-(`door '<path>', keycard <id>`). **Which door is which is not yet confirmed**
-— one endgame run's log settles it; then give each its own event name.
+**Keypad doors and the red elevator share one action.**
+`activateKeypadDoor.DoActorAnimation` sends `setKeycardId(_keycardId)`,
+`setShortSequence(shortSequence)`, `setDoorAnimator`, then
+`openKeypadDoor(playerPos)`, which calls `openDoorRoutine`. The red elevator
+(`TheForest.World.ElevatorSystem.Goto`, when `_playKeycardAnim`) sends
+`setKeycardId`, `setShortSequence(true)` and **`openDoorRoutine(_playerPos)`
+directly**, skipping `openKeypadDoor`. So the plugin hooks `openDoorRoutine`
+and marks calls made from inside `openKeypadDoor`; unmarked means elevator.
+
+In the test run the gold keycard automatic door logged
+`door 'ElevatorCardReader/Trigger/playerPos', keycard 242, short sequence`
+(it is the door *to* the elevator, hence the name). The vault door has not
+been logged yet — if it is also a keypad door with its own keycard id, give
+it an event of its own.
+
+Lesson: search `strings` for **every** method of an action, not just its
+entry point — `openDoorRoutine` was sent by name from a second place.
 
 Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
 `FireDetected`, `Shutdown2ndArtifact`.

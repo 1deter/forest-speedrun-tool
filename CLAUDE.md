@@ -332,15 +332,15 @@ the interpretation given here was checked with the author.
      `Perf (30 s):` line (fps, worst frame, hitches, GC count, overlay tick,
      GL cost and passes) — ask for one with lines showing and read it before
      changing anything else. *(runner)*
-2. **Separated endgame splits — shipped in v0.18.0, awaiting an in-game
-   run.** `Game/GameEvents.cs`: Harmony postfixes note which cutscene is
-   starting; the split fires on the `endGameCutScene` rising edge, so times
-   match the autosplitter. `event` triggers now fire, with a picker in the
-   segment editor. **Still open:** the vault door, automatic door and red
-   elevator are one keypad action — the log line `Game event: keycard-door
-   (door '...', keycard N)` from one endgame run says which is which; then
-   give them their own event names (`vault-door`, …). Check also that
-   `Game events: 9/9 hooks` shows in the Runs tab. *(author)*
+2. **Separated endgame splits — v0.18.0, confirmed by a real endgame run;
+   red elevator fixed in v0.18.1.** `Game/GameEvents.cs`: Harmony postfixes
+   note which cutscene is starting; the split fires on the `endGameCutScene`
+   rising edge, so times match the autosplitter. `event` triggers fire, with
+   a picker in the segment editor. The run showed the Megan labels had been
+   swapped (fixed) and that the red elevator bypasses `openKeypadDoor`
+   (now `red-elevator`). **Still open:** the vault door — the author's save
+   had it open. One log with it opened says whether it is a keypad door and
+   which keycard; then give it its own event (`vault-door`). *(author)*
 3. **Deaths and caves.**
    - **Quick-load on death** — skip the death animation and load straight
      back into the save instead of waiting to quit to menu. The author rules

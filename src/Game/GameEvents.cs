@@ -33,7 +33,16 @@ namespace ForestOverlay.Game
     //   <the pending hook's event>    e.g. timmy-pickup, megan-transform
     //   keycard-door-<itemId>         for keypad doors, plus the door's
     //                                 name in the log and the Runs tab
+    //   red-elevator                  the keycard elevator (see below)
     //   game-end                      for either ending
+    //
+    // KEYCARD DOORS AND THE RED ELEVATOR share one player action. A keypad
+    // door calls openKeypadDoor, which calls openDoorRoutine; the red
+    // elevator (ElevatorSystem.Goto) sends "openDoorRoutine" directly. So
+    // the postfix sits on openDoorRoutine, and a prefix on openKeypadDoor
+    // marks the frame - no mark means the elevator. Confirmed in a real run:
+    // the elevator set the flag with nothing pending when only
+    // openKeypadDoor was hooked.
     //
     // If the flag cannot be read (a game update renamed it) hooks fire at
     // routine start instead, so events degrade to early rather than never.
@@ -62,20 +71,23 @@ namespace ForestOverlay.Game
         public const string AnyCutscene = "endgame-cutscene";
         public const string GameEnd = "game-end";
         public const string KeycardDoor = "keycard-door";
+        public const string RedElevator = "red-elevator";
 
-        // In route order. Table in docs/game-notes.md.
+        // In route order. Table in docs/game-notes.md. The Megan labels
+        // were confirmed against a real endgame run - an earlier guess had
+        // the two swapped.
         public static readonly Hook[] Hooks =
         {
-            new Hook(KeycardDoor, "Keycard door (vault, automatic door, red elevator)",
-                     "playerOpenKeypadDoorAction", "openKeypadDoor", false),
+            new Hook(KeycardDoor, "Keycard door (vault, gold automatic door)",
+                     "playerOpenKeypadDoorAction", "openDoorRoutine", false),
             new Hook("timmy-pickup", "Finding Timmy (artifact)",
                      "TheForest.Player.Actions.PlayerPickupTimmyAction", "pickupTimmyRoutine", false),
-            new Hook("megan-pickup", "Picking Megan up (no cutscene flag)",
-                     "TheForest.Player.Actions.PlayerGirlPickupAction", "pickupGirlRoutine", true),
-            new Hook("megan-to-machine", "Approaching Megan",
-                     "TheForest.Player.Actions.PlayerGirlPickupAction", "girlToMachineRoutine", false),
-            new Hook("megan-transform", "Putting Megan in the artifact",
+            new Hook("megan-transform", "Approaching Megan (she transforms)",
                      "TheForest.Player.Actions.PlayerGirlTransformAction", "doGirlTransformRoutine", false),
+            new Hook("megan-pickup", "Picking Megan up after the fight (no cutscene flag)",
+                     "TheForest.Player.Actions.PlayerGirlPickupAction", "pickupGirlRoutine", true),
+            new Hook("megan-to-machine", "Putting Megan in the artifact",
+                     "TheForest.Player.Actions.PlayerGirlPickupAction", "girlToMachineRoutine", false),
             new Hook("end-crash", "Game end: plane crash",
                      "TheForest.Player.Actions.PlayerEndCrashAction", "doEndPlaneCrashRoutine", false),
             new Hook("end-shutdown", "Game end: artifact shut down",
@@ -87,7 +99,7 @@ namespace ForestOverlay.Game
         };
 
         /// Events that are not a hook of their own, for the editor's list.
-        public static readonly string[] Derived = { AnyCutscene, GameEnd };
+        public static readonly string[] Derived = { RedElevator, GameEnd, AnyCutscene };
 
         // A cutscene that has started but whose flag has not risen yet
         // expires after this long, so a stale identity is never pinned on
@@ -104,7 +116,7 @@ namespace ForestOverlay.Game
         private static readonly List<string> Stamps = new List<string>();
         private static ManualLogSource _log;
 
-        private static int _pendingHook = -1;
+        private static string _pendingEvent;
         private static string _pendingDetail;
         private static int _pendingKeycard;
         private static float _pendingAt;
@@ -112,6 +124,11 @@ namespace ForestOverlay.Game
 
         private static FieldInfo _keycardIdField;
         private static FieldInfo _shortSequenceField;
+
+        // Frame in which openKeypadDoor was entered, and whether it is
+        // still on the stack - see KeypadPrefix.
+        private static int _keypadFrame = -1;
+        private static bool _inKeypad;
 
         private Harmony _harmony;
 
@@ -151,6 +168,8 @@ namespace ForestOverlay.Game
                 return "Any endgame cutscene (what the autosplitter used)";
             if (string.Equals(evt, GameEnd, StringComparison.OrdinalIgnoreCase))
                 return "Game end (either ending)";
+            if (string.Equals(evt, RedElevator, StringComparison.OrdinalIgnoreCase))
+                return "Gold keycard: red elevator";
             if (evt != null && evt.StartsWith(KeycardDoor + "-", StringComparison.OrdinalIgnoreCase))
                 return "Keycard door opened with item " + evt.Substring(KeycardDoor.Length + 1);
             return null;
@@ -205,6 +224,7 @@ namespace ForestOverlay.Game
                 {
                     _keycardIdField = t.GetField("_keycardId", flags);
                     _shortSequenceField = t.GetField("shortSequence", flags);
+                    PatchKeypadMarker(t, flags);
                 }
 
                 try
@@ -222,6 +242,42 @@ namespace ForestOverlay.Game
             Status = Installed + "/" + Hooks.Length + " hooks" +
                      (_flagAvailable ? "" : ", NO cutscene flag - splitting at routine start");
             _log.LogInfo("GameEvents: " + Status + " installed.");
+        }
+
+        // A keypad door enters through openKeypadDoor; the red elevator does
+        // not. Mark the call so the openDoorRoutine postfix can tell them
+        // apart. Without the marker every keypad reads as the elevator, so
+        // failure is logged loudly.
+        private void PatchKeypadMarker(Type t, BindingFlags flags)
+        {
+            MethodInfo entry = t.GetMethod("openKeypadDoor", flags);
+            if (entry == null)
+            {
+                _log.LogWarning("GameEvents: openKeypadDoor not found - keycard doors cannot be told from the red elevator.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(entry,
+                    new HarmonyMethod(typeof(GameEvents).GetMethod("KeypadPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                    new HarmonyMethod(typeof(GameEvents).GetMethod("KeypadPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("GameEvents: could not mark openKeypadDoor: " + ex.Message);
+            }
+        }
+
+        private static void KeypadPrefix()
+        {
+            _inKeypad = true;
+            _keypadFrame = Time.frameCount;
+        }
+
+        private static void KeypadPostfix()
+        {
+            _inKeypad = false;
         }
 
         private void ResolveFlag()
@@ -264,12 +320,12 @@ namespace ForestOverlay.Game
 
             Record(AnyCutscene, null);
 
-            if (_pendingHook >= 0 && Time.unscaledTime - _pendingAt <= PendingTimeout)
-                FireHook(_pendingHook, _pendingDetail, _pendingKeycard);
+            if (_pendingEvent != null && Time.unscaledTime - _pendingAt <= PendingTimeout)
+                Fire(_pendingEvent, _pendingDetail, _pendingKeycard);
             else
                 _log.LogInfo("Game event: endgame cutscene with no known routine pending.");
 
-            _pendingHook = -1;
+            _pendingEvent = null;
             _pendingDetail = null;
         }
 
@@ -281,11 +337,19 @@ namespace ForestOverlay.Game
                 int hook;
                 if (__originalMethod == null || !ByMethod.TryGetValue(Key(__originalMethod), out hook)) return;
 
+                string evt = Hooks[hook].Event;
                 string detail = null;
                 int keycard = 0;
 
-                if (Hooks[hook].Event == KeycardDoor)
+                if (evt == KeycardDoor)
                 {
+                    // In the same frame and still inside openKeypadDoor:
+                    // a door. Otherwise the elevator sent it directly. The
+                    // frame check stops a marker left set by an exception
+                    // from misfiling a later elevator.
+                    bool viaKeypad = _inKeypad && _keypadFrame == Time.frameCount;
+                    if (!viaKeypad) evt = RedElevator;
+
                     if (_keycardIdField != null && __instance != null)
                         keycard = (int)_keycardIdField.GetValue(__instance);
 
@@ -294,18 +358,18 @@ namespace ForestOverlay.Game
                         shortSeq = (bool)_shortSequenceField.GetValue(__instance);
 
                     Transform pos = __args != null && __args.Length > 0 ? __args[0] as Transform : null;
-                    detail = "door '" + PathOf(pos) + "', keycard " + keycard +
+                    detail = (viaKeypad ? "door '" : "elevator '") + PathOf(pos) + "', keycard " + keycard +
                              (shortSeq ? ", short sequence" : "");
                     LastDoor = detail;
                 }
 
                 if (Hooks[hook].Immediate || !_flagAvailable)
                 {
-                    FireHook(hook, detail, keycard);
+                    Fire(evt, detail, keycard);
                     return;
                 }
 
-                _pendingHook = hook;
+                _pendingEvent = evt;
                 _pendingDetail = detail;
                 _pendingKeycard = keycard;
                 _pendingAt = Time.unscaledTime;
@@ -313,9 +377,8 @@ namespace ForestOverlay.Game
             catch (Exception) { }
         }
 
-        private static void FireHook(int hook, string detail, int keycard)
+        private static void Fire(string evt, string detail, int keycard)
         {
-            string evt = Hooks[hook].Event;
             Record(evt, detail);
 
             if (evt == KeycardDoor && keycard > 0) Record(KeycardDoor + "-" + keycard, null);

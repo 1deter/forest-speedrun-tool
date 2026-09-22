@@ -318,7 +318,7 @@ namespace ForestOverlay.Modules
                                  : ", last '" + last + "' at " + Ctx.Events.StampAt(n - 1)) +
                          // Which keypad: the vault, automatic door and red
                          // elevator all share one action.
-                         (last != null && last.StartsWith(GameEvents.KeycardDoor) && GameEvents.LastDoor != null
+                         (last != null && (last.StartsWith(GameEvents.KeycardDoor) || last == GameEvents.RedElevator) && GameEvents.LastDoor != null
                              ? " - " + GameEvents.LastDoor : "");
         }
 
