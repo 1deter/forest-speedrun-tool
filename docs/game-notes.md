@@ -75,6 +75,19 @@ The switch is **`TheForest.Utils.Input.IsMouseLocked`** (`LockMouse()` /
 `VirtualCursor` unlocks the cursor itself, every frame. Assert it from
 `Update()`, not `LateUpdate()` — all Updates run before any LateUpdate.
 
+### Input states — blocking game input while a UI is open
+
+`TheForest.Utils.Input` keeps `static Dictionary<InputState,bool> States`.
+`SetState(InputState, bool)` stores one state and recomputes which Rewired
+maps are active from all of them, so states stack. Every game overlay uses
+it — `HudGui.TogglePauseMenu`, `SurvivalBook.OnEnable/OnDisable`,
+`PlayerInventory.Open/Close`, `ChatBox`, `DebugConsole.ShowConsole`.
+
+`InputState`: `Locked`, `Menu`, `World`, `Inventory`, `Chat`, `Book`,
+`RadialWorld`, `SavingMaps` (0..7). The dev console passes `4` (`Chat`); the
+pause menu `Menu`. This is the flag for stopping overlay clicks from reaching
+the game (e.g. swinging a held axe) — **not yet used by the plugin**.
+
 ---
 
 ## `timeScale`

@@ -306,6 +306,23 @@ the interpretation given here was checked with the author.
      by huge volumes (area and cave-load boxes) that hide the small ones that
      matter. Add a size cap and/or an exclude list so important hitboxes read
      clearly. *(runner)*
+   - **Clicks in the overlay reach the game** — clicking a button while
+     holding the plane axe swings it. Lead (IL, see game-notes *Input
+     states*): every game overlay calls
+     `TheForest.Utils.Input.SetState(InputState.X, true)` on open and `false`
+     on close — the pause menu uses `Menu`, the dev console `Chat` — which
+     switches the Rewired maps. Do the same while the window is open. It is a
+     flag, not a per-frame fight (gotcha 1). Verify in game that a click no
+     longer swings. *(author)*
+   - **Look direction is wrong after closing the window.** Yaw/pitch (and
+     roll) saved with a spot do not end up applied once the overlay is closed,
+     e.g. after Go / `F7` from the Practice tab. A fix was attempted
+     (`GameBridge.ApplyLook` + `resetOriginalRotation`, game-notes *Camera*)
+     and it still fails, so **reproduce in game before changing code** —
+     suspects: the unlock path (`UnLockView`) running after the rebase was
+     consumed, and the rebase adopting a rotation that is then recomposed.
+     Roll is not captured or reset at all; a tilt left over from a fall or a
+     ragdoll would persist. *(author)*
    - **Replay / practice-run performance.** Runners report slowdown while
      ghost lines play or a run records. Suspects: `RunRecorder` sampling
      (30 Hz position, 5 Hz reflection over ~80 state channels) and line
