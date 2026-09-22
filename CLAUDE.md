@@ -41,10 +41,13 @@ dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj
 ```
 
 ```powershell
-./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build + install (data ships inside the DLL)
+./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build + copy the DLL into the game
 ```
 
-Deploy fails with "user-mapped section open" if the game is running.
+Deploy fails with "user-mapped section open" if the game is running. **Do not
+deploy into the author's install unasked** — it now updates through the real
+release path (see *Releases and updates*), and a hand-copied DLL hides whether
+that path works.
 
 BepInEx packages are on BepInEx's own feed (`nuget.config`), not nuget.org.
 With no local install the build falls back to BepInEx's stubbed UnityEngine —
@@ -59,7 +62,9 @@ its method bodies are empty, so `Vector3.Distance` would return 0.
 The shim implements `Vector3`, `Vector2`, `Mathf` only. **If it ever needs
 `Quaternion` or `Transform`, that means the code under test is not pure and
 should be refactored — not that the shim should grow.** Only pure files can be
-linked; anything touching MonoBehaviour, reflection or the filesystem cannot.
+linked; anything touching MonoBehaviour or reflection cannot. The one
+filesystem exception is `patcher/PendingSwap.cs`, tested against real temp
+folders because it is the code that can break an install.
 
 ---
 
@@ -71,10 +76,11 @@ linked; anything touching MonoBehaviour, reflection or the filesystem cannot.
 
 | Path | Responsibility |
 |---|---|
-| `src/Core/` | Module contract and host, hotkeys, HUD builder, cursor, practice marker, update checker |
+| `src/Core/` | Module contract and host, hotkeys, HUD builder, cursor, practice marker, update checker, updater installer |
 | `src/Game/` | **All reflection into The Forest.** Game names live here and nowhere else |
-| `src/Data/` | Pure data + file formats (segments, triggers, runs, checklists) |
+| `src/Data/` | Pure data + file formats (segments, triggers, runs, checklists, release JSON, page grouping, shipped data) |
 | `src/Modules/` | One file per feature |
+| `patcher/` | `ForestOverlay.Updater` preloader patcher. Embedded in the plugin, never shipped alone |
 | `tools/ILScan/` | Offline IL query tool. Dev-time only, never shipped |
 | `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
 
@@ -121,6 +127,34 @@ dev tool, not runner-facing.
 All keys are rebindable in **Settings**, or in
 `BepInEx/config/com.deter.forestoverlay.cfg`.
 
+### Releases and updates
+
+**The plugin DLL is the whole install.** It carries the shipped data files
+and the update patcher as embedded resources and writes both out on startup.
+
+```
+tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
+  -> in game: startup check, Updates tab -> Download
+  -> ForestOverlay.dll.pending beside the plugin
+  -> next launch: ForestOverlay.Updater (BepInEx/patchers) runs before plugins,
+     moves .pending into place, keeps the old DLL as .bak
+```
+
+- **Version lives in two places** — `ForestOverlay.csproj` and
+  `Plugin.PluginVersion`. They must match; the updater compares against the
+  latter.
+- **A tag publishes before its DLL is attached.** Wait for the asset, not the
+  release, before telling anyone to update. The plugin reads a release with no
+  DLL as "still being published" and re-checks every minute.
+- **Rollback:** close the game, delete `ForestOverlay.dll`, rename
+  `ForestOverlay.dll.bak` to `ForestOverlay.dll`. A download that is not the
+  ForestOverlay assembly is renamed `.rejected` and never installed.
+- **The patcher updates less reliably than the plugin** — it is loaded while
+  the game runs, so `Core/UpdaterInstaller` swaps it by renaming the loaded
+  copy aside. Keep `patcher/` small and its behaviour stable.
+- **Manual test without a release:** save any ForestOverlay.dll as
+  `BepInEx/plugins/ForestOverlay.dll.pending` and launch.
+
 ---
 
 ## Gotchas learned the hard way
@@ -155,6 +189,19 @@ All keys are rebindable in **Settings**, or in
 7. **Edge semantics matter.** A start zone fires on *crossing* (you spawn
    inside it); checkpoints and ends fire on *entry*. Getting this wrong made
    the clock never start.
+
+8. **Test against real payloads, not remembered ones.** GitHub's API
+   pretty-prints (`"name": "x"`); the asset lookup matched only the compact
+   form, so no update ever downloaded while the version check looked
+   healthy. `tests/.../ReleaseJsonTests.cs` holds a trimmed real response.
+
+9. **Never round-trip text through Windows PowerShell 5.1**
+   (`Get-Content | Set-Content`). It reads BOM-less UTF-8 as cp1252 and turns
+   every `—` into `â€”`. Edit with the editor tools, Python with an explicit
+   encoding, or `sed`. Check: `git grep -n -I -P 'â€|Ã|Â' -- ':!CLAUDE.md'`.
+
+10. **Anything that only reaches a machine via `deploy.ps1` is missing for
+    runners.** The 100% list did exactly that. Ship data inside the DLL.
 
 ---
 
@@ -201,7 +248,8 @@ per-item inventory, 100% checklist + nature guide + To Do list, type explorer, d
 unified practice spots/segments with an in-game editor and zone preview,
 segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
-wireframe), update checking, offline IL scanner. 106 tests.
+wireframe), self-installing updates (download in game, applied by a preloader
+patcher on restart), offline IL scanner. 125 tests.
 
 ### Key concepts
 
@@ -216,6 +264,17 @@ wireframe), update checking, offline IL scanner. 106 tests.
   Attempts persist per segment id and carry a **route fingerprint**, so moving
   a zone retires old times instead of letting them compete.
 
+### Open threads
+
+- **Nature guide page names are unverified.** Pages are derived from the tick
+  marks' hierarchy (`Data/PageGrouping.cs`) and named after the page
+  GameObjects, which may read as "Page 3" rather than "Birds". The runner who
+  asked for it (maks) should send a `natureguide_*.txt` from the 100% tab's
+  **Write dumps**; use it to check the grouping and name the pages.
+- **The runner's own install** predates the download fix. Anything below
+  v0.16.2 cannot download updates, so they need one manual install of a
+  current release; after that updates are automatic.
+
 ### Next up
 
 1. **Separated endgame splits** — Harmony `Postfix` on each action class
@@ -227,14 +286,11 @@ wireframe), update checking, offline IL scanner. 106 tests.
    and saves but currently never fires.
 2. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
    LiveSplit rather than sit beside it. Plus HUD/layout customisation.
-3. **Preloader patcher** in `BepInEx/patchers/` to apply staged updates.
-   Auto-update currently downloads but cannot install: Windows will not let a
-   loaded assembly be overwritten.
-4. **Web viewer** — local-first, export always; cloud later. 3D terrain is
+3. **Web viewer** — local-first, export always; cloud later. 3D terrain is
    tractable above ground (Unity `Terrain` heightmap); caves are mesh geometry
    that streams in on entry, so a full map needs a visit pass plus a
    "dump loaded geometry" button. Wants a scrub bar and annotations.
-5. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
+4. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
    health and inventory are restored rather than reconstructed badly.
-6. Runs tab layout (deferred), Timmy-drawing sub-pieces
+5. Runs tab layout (deferred), Timmy-drawing sub-pieces
    (`DrawingsInventoryItemView._ids`), freeform zone shapes.

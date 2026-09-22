@@ -63,8 +63,22 @@ red end.
 2. Download `ForestOverlay.dll` from [Releases](../../releases).
 3. Drop it into `<game>\BepInEx\plugins\`.
 
-The plugin checks for updates on startup and tells you when one exists.
-It cannot yet install them itself.
+That one file is the whole install. On first launch it writes the 100%
+checklist and shared spots into `BepInEx/config/ForestOverlay/`, and a small
+update installer into `BepInEx/patchers/`.
+
+### Updates
+
+The plugin checks for a new release on startup and opens the **Updates** tab
+when there is one. Click **Download**, then restart the game — the update is
+installed before the plugin loads, and the previous version is kept as
+`ForestOverlay.dll.bak`.
+
+To roll back, close the game, delete `ForestOverlay.dll` and rename
+`ForestOverlay.dll.bak` to `ForestOverlay.dll`.
+
+Versions before **v0.16.2** cannot download updates; install a current release
+by hand once and it is automatic from then on.
 
 ## Contributing data
 
