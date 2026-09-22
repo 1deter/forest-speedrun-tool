@@ -36,6 +36,7 @@
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
+    <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
   </ItemGroup>
 
 </Project>

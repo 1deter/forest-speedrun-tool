@@ -1,4 +1,5 @@
 using System;
+using ForestOverlay.Data;
 using System.Collections;
 using System.IO;
 using BepInEx.Logging;
@@ -32,7 +33,7 @@ namespace ForestOverlay.Core
         private const string LatestUrl = "https://api.github.com/repos/" + Repo + "/releases/latest";
         public const string PendingSuffix = ".pending";
 
-        public enum Status { Idle, Checking, UpToDate, UpdateAvailable, Downloading, Staged, Failed }
+        public enum Status { Idle, Checking, UpToDate, UpdateAvailable, Publishing, Downloading, Staged, Failed }
 
         private readonly ManualLogSource _log;
         private readonly string _currentVersion;
@@ -65,7 +66,7 @@ namespace ForestOverlay.Core
                 yield break;
             }
 
-            string tag = ExtractJsonString(json, "tag_name");
+            string tag = ReleaseJson.ExtractString(json, "tag_name");
             if (string.IsNullOrEmpty(tag))
             {
                 State = Status.Failed;
@@ -74,9 +75,9 @@ namespace ForestOverlay.Core
             }
 
             LatestVersion = tag.TrimStart('v', 'V');
-            DownloadUrl = ExtractAssetUrl(json, "ForestOverlay.dll");
+            DownloadUrl = ReleaseJson.ExtractAssetUrl(json, "ForestOverlay.dll");
 
-            int cmp = CompareVersions(LatestVersion, _currentVersion);
+            int cmp = ReleaseJson.CompareVersions(LatestVersion, _currentVersion);
 
             if (cmp <= 0)
             {
@@ -85,8 +86,11 @@ namespace ForestOverlay.Core
             }
             else if (string.IsNullOrEmpty(DownloadUrl))
             {
-                State = Status.Failed;
-                Message = "v" + LatestVersion + " exists but has no ForestOverlay.dll asset";
+                // GitHub publishes the release before CI attaches the DLL,
+                // and caches the API answer for about a minute, so a check
+                // just after a release sees it empty. UpdateModule retries.
+                State = Status.Publishing;
+                Message = "v" + LatestVersion + " is still being published - checking again shortly";
             }
             else
             {
@@ -238,80 +242,6 @@ namespace ForestOverlay.Core
                 Message = "response unreadable: " + ex.Message;
                 _log.LogWarning(Message);
             }
-        }
-
-        // ------------------------------------------------------------------
-        // Minimal JSON scraping. A real parser is not worth a dependency on
-        // net35 for two fields, and the shape of the GitHub release payload
-        // is stable.
-        public static string ExtractJsonString(string json, string key)
-        {
-            if (string.IsNullOrEmpty(json)) return null;
-
-            string needle = "\"" + key + "\"";
-            int i = json.IndexOf(needle, StringComparison.Ordinal);
-            if (i < 0) return null;
-
-            i = json.IndexOf(':', i + needle.Length);
-            if (i < 0) return null;
-
-            int start = json.IndexOf('"', i + 1);
-            if (start < 0) return null;
-
-            int end = start + 1;
-            while (end < json.Length && json[end] != '"')
-            {
-                if (json[end] == '\\') end++;   // skip escaped char
-                end++;
-            }
-            if (end >= json.Length) return null;
-
-            return json.Substring(start + 1, end - start - 1);
-        }
-
-        /// Finds browser_download_url for the asset with the given name.
-        public static string ExtractAssetUrl(string json, string assetName)
-        {
-            if (string.IsNullOrEmpty(json)) return null;
-
-            int i = json.IndexOf("\"name\":\"" + assetName + "\"", StringComparison.Ordinal);
-            if (i < 0) return null;
-
-            int u = json.IndexOf("browser_download_url", i, StringComparison.Ordinal);
-            if (u < 0) return null;
-
-            return ExtractJsonString(json.Substring(u - 1), "browser_download_url");
-        }
-
-        /// Returns >0 when `a` is newer than `b`. Numeric, dot-separated,
-        /// tolerant of differing part counts and of trailing suffixes.
-        public static int CompareVersions(string a, string b)
-        {
-            if (a == null) a = "";
-            if (b == null) b = "";
-
-            string[] pa = a.Split('.');
-            string[] pb = b.Split('.');
-            int n = Math.Max(pa.Length, pb.Length);
-
-            for (int i = 0; i < n; i++)
-            {
-                int va = i < pa.Length ? ParseLeadingInt(pa[i]) : 0;
-                int vb = i < pb.Length ? ParseLeadingInt(pb[i]) : 0;
-                if (va != vb) return va > vb ? 1 : -1;
-            }
-            return 0;
-        }
-
-        private static int ParseLeadingInt(string s)
-        {
-            int value = 0;
-            for (int i = 0; i < s.Length; i++)
-            {
-                if (s[i] < '0' || s[i] > '9') break;
-                value = value * 10 + (s[i] - '0');
-            }
-            return value;
         }
     }
 }

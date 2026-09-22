@@ -48,8 +48,27 @@ namespace ForestOverlay.Modules
             map.Add("tab.update", KeyCode.None, "Open Updates tab", OpenMyTab);
         }
 
+        private const float PublishRetrySeconds = 60f;
+        private const int PublishRetryLimit = 15;
+        private float _nextPublishRetry;
+        private int _publishRetries;
+
         public override void Tick()
         {
+            // A release caught mid-publish has no DLL yet; ask again rather
+            // than leaving the runner to guess that "Check again" will work.
+            if (_checker.State == UpdateChecker.Status.Publishing && Ctx.Runner != null &&
+                _publishRetries < PublishRetryLimit)
+            {
+                if (_nextPublishRetry == 0f) _nextPublishRetry = Time.unscaledTime + PublishRetrySeconds;
+                else if (Time.unscaledTime >= _nextPublishRetry)
+                {
+                    _nextPublishRetry = 0f;
+                    _publishRetries++;
+                    Ctx.Runner.StartCoroutine(_checker.Check());
+                }
+            }
+
             // Open the panel once, unprompted, when an update exists. This
             // is the whole point: a runner who never opens a menu should
             // still find out.
