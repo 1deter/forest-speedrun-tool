@@ -394,6 +394,88 @@ namespace ForestOverlay.Game
             }
         }
 
+        // ------------------------------------------------------------------
+        // Cave state on teleport.
+        //
+        // Walking into a cave, CaveTriggers/CaveDoor send "InACave" to the
+        // player: the lighting switches to cave mode (Clock.IsCave),
+        // PlayerStats.SetInCave(true), and - the one that matters - the
+        // player stops colliding with the terrain, because caves lie under
+        // it. A teleport skips all of that, so arriving in a cave left you
+        // under the terrain with the cave in its outdoor state: "lands in
+        // nothing".
+        //
+        // The game's own teleport, LocalPlayer.Goto(Vector3), solves it
+        // (IL): a target more than 6 m below the terrain surface (3 m if
+        // already in a cave) is a cave; it calls GotoCave(inCave), which
+        // sends InACave / NotInACave only when the state changes, then
+        // zeroes velocity and moves. The same message is all a save load
+        // uses to restore an in-cave player. Same rule, same call here.
+        // ------------------------------------------------------------------
+        private Type _localPlayerType;
+        private Component _localPlayer;
+        private MethodInfo _gotoCave;
+        private PropertyInfo _isInCaves;
+        private bool _caveResolved;
+
+        /// Current cave state as the game sees it.
+        public bool IsInCaves()
+        {
+            ResolveCave();
+            try { return _isInCaves != null && (bool)_isInCaves.GetValue(null, null); }
+            catch (Exception) { return false; }
+        }
+
+        /// Call BEFORE moving the player to `destination`. Returns what was
+        /// done, for the status line.
+        public string SyncCaveState(Vector3 destination)
+        {
+            ResolveCave();
+            if (_gotoCave == null) return "cave switch unavailable";
+
+            Terrain terrain = Terrain.activeTerrain;
+            if (terrain == null) return "";
+
+            bool inCaves = IsInCaves();
+            bool destInCave = terrain.SampleHeight(destination) - destination.y > (inCaves ? 3f : 6f);
+            if (destInCave == inCaves) return "";
+
+            // LocalPlayer is a component; find it once, re-find only after a
+            // save load has destroyed it (fake-null).
+            if (_localPlayer == null)
+            {
+                try { _localPlayer = UnityEngine.Object.FindObjectOfType(_localPlayerType) as Component; }
+                catch (Exception) { _localPlayer = null; }
+            }
+            if (_localPlayer == null) return "cave switch: LocalPlayer not found";
+
+            try
+            {
+                _gotoCave.Invoke(_localPlayer, new object[] { destInCave });
+                return destInCave ? "entered cave" : "left cave";
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("GotoCave failed: " + ex.Message);
+                return "cave switch failed";
+            }
+        }
+
+        private void ResolveCave()
+        {
+            if (_caveResolved) return;
+            _caveResolved = true;
+
+            _localPlayerType = FindGameType("TheForest.Utils.LocalPlayer");
+            if (_localPlayerType == null) return;
+
+            BindingFlags any = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            _gotoCave = _localPlayerType.GetMethod("GotoCave", any, null, new Type[] { typeof(bool) }, null);
+            _isInCaves = _localPlayerType.GetProperty("IsInCaves", any);
+
+            _log.LogInfo("Cave switch: GotoCave:" + (_gotoCave != null) + " IsInCaves:" + (_isInCaves != null));
+        }
+
         public bool IsPlayerLocked()
         {
             if (!Live() || _lockedField == null) return false;

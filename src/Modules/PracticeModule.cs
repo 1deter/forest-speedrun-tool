@@ -329,13 +329,18 @@ namespace ForestOverlay.Modules
 
             Quaternion rot = Quaternion.Euler(0f, s.SpawnYaw, 0f);
 
+            // Before moving, as the game's own Goto does: a spot inside a
+            // cave needs the cave state (no terrain collision, cave
+            // lighting), or you arrive under the terrain in the dark.
+            string cave = Ctx.Player.Found ? Ctx.Bridge.SyncCaveState(s.SpawnPosition) : "";
+
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 
             Ctx.Bridge.ApplyLook(Ctx.Player.Transform, s.SpawnYaw, s.SpawnPitch);
             Ctx.Practice.Mark("teleport: " + s.Name);
 
             _current = s;
-            _status = "-> " + s.Name;
+            _status = "-> " + s.Name + (cave.Length > 0 ? " (" + cave + ")" : "");
 
             if (OnPlacedAtSpot != null) OnPlacedAtSpot();
         }

@@ -327,6 +327,28 @@ The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
 `Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the
 death sequence has run when they act.
 
+## Caves
+
+Entering a cave on foot, `CaveTriggers` / `CaveDoor` send
+**`SendMessage("InACave")`** (leaving: `"NotInACave"`) to
+`LocalPlayer.GameObject`. Receivers: `PlayerStats.InACave` —
+`Clock.IsCave()` (cave lighting), `SetInCave(true)`, cave audio, and
+**`IgnoreCollisionWithTerrain(true)`** (caves are under the terrain) — and
+`playerAiInfo.InACave`. A save made in a cave restores the same way: `Clock`
+and `ActiveAreaInfo.OnDeserialized` send `InACave`.
+
+State: static `LocalPlayer.IsInCaves` (→ `ActiveAreaInfo.IsInCaves`).
+
+**The game's own teleport**, `LocalPlayer.Goto(Vector3)` (instance method;
+`LocalPlayer` is a component, no static instance): a target where
+`Terrain.activeTerrain.SampleHeight(pos) - pos.y > (IsInCaves ? 3 : 6)` is in
+a cave → `GotoCave(inCave)`, which sends `InACave` / `NotInACave` only when the
+state changes → velocity zeroed → position set. The plugin's practice
+teleport does the same (`GameBridge.SyncCaveState`), before moving.
+
+`StreamCaveIn.LoadIn` additively loads `CaveProps_Streaming`; nothing in IL
+calls it.
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a

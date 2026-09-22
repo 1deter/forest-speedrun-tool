@@ -356,10 +356,13 @@ the interpretation given here was checked with the author.
      practice. Check: die normally → straight into the save; die in
      practice mode → back at the spot, no blood; the Deaths tab shows
      `2/2 death hooks` and the last death. *(runner / author)*
-   - **Teleporting into a cave loads the cave.** Cave geometry streams in on
-     entry, so a teleport to an unloaded cave lands in nothing. Find the
-     game's cave load trigger with ILScan and invoke it before the teleport.
-     *(runner)*
+   - **Teleporting into a cave — fixed in v0.19.1, awaiting an in-game
+     check.** Not streaming: walking in sends `InACave`, which (among other
+     things) turns off terrain collision; a teleport skipped it, so you
+     arrived under the terrain. Practice teleports now apply the game's own
+     `LocalPlayer.Goto` rule and `GotoCave` first (game-notes *Caves*).
+     Check: Go to a cave spot from outside and back out; the Practice status
+     says `(entered cave)` / `(left cave)`. *(runner)*
 4. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
    health and inventory are restored rather than reconstructed badly. This is
    the foundation for several runner requests:
