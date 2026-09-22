@@ -124,36 +124,68 @@ namespace ForestOverlay.Game
 
         public IList<ItemInfo> Catalog { get { return _catalog; } }
 
+        /// Human-readable state, shown in the UI. A catalogue that
+        /// silently yields nothing is indistinguishable from "no matches",
+        /// which is exactly how the first version failed.
+        public string CatalogStatus { get; private set; }
+
         public void BuildCatalog()
         {
             if (_catalogBuilt) return;
 
-            if (_itemDatabase == null) ResolveDatabase();
-            if (_itemDatabase == null) return;
+            object db = FindItemDatabase();
+            if (db == null)
+            {
+                CatalogStatus = "item database not found yet";
+                return;
+            }
 
             try
             {
-                PropertyInfo itemsProp = _itemDatabase.GetType().GetProperty("Items",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (itemsProp == null) return;
+                BindingFlags flags = BindingFlags.Instance | BindingFlags.Public |
+                                     BindingFlags.NonPublic;
 
-                IEnumerable items = itemsProp.GetValue(_itemDatabase, null) as IEnumerable;
-                if (items == null) return;
+                // Property first, then the backing field. The property is
+                // the documented surface but goes through a getter that can
+                // be lazy; the field is what actually holds the array.
+                IEnumerable items = null;
+
+                PropertyInfo itemsProp = db.GetType().GetProperty("Items", flags);
+                if (itemsProp != null) items = itemsProp.GetValue(db, null) as IEnumerable;
+
+                if (items == null)
+                {
+                    FieldInfo itemsField = db.GetType().GetField("_items", flags);
+                    if (itemsField != null) items = itemsField.GetValue(db) as IEnumerable;
+                }
+
+                if (items == null)
+                {
+                    CatalogStatus = "item database has no readable Items";
+                    _log.LogWarning(CatalogStatus);
+                    return;
+                }
 
                 FieldInfo idField = null;
                 FieldInfo nameField = null;
+                int seen = 0;
 
                 foreach (object item in items)
                 {
                     if (item == null) continue;
+                    seen++;
 
                     if (idField == null)
                     {
-                        BindingFlags f = BindingFlags.Instance | BindingFlags.Public |
-                                         BindingFlags.NonPublic;
-                        idField = item.GetType().GetField("_id", f);
-                        nameField = item.GetType().GetField("_name", f);
-                        if (idField == null || nameField == null) return;
+                        idField = item.GetType().GetField("_id", flags);
+                        nameField = item.GetType().GetField("_name", flags);
+
+                        if (idField == null || nameField == null)
+                        {
+                            CatalogStatus = "item type has no _id/_name";
+                            _log.LogWarning(CatalogStatus + " (" + item.GetType().Name + ")");
+                            return;
+                        }
                     }
 
                     ItemInfo info;
@@ -161,19 +193,69 @@ namespace ForestOverlay.Game
                     info.Name = nameField.GetValue(item) as string;
 
                     if (string.IsNullOrEmpty(info.Name)) continue;
-                    if (!IsRealItem(info.Id)) continue;
 
+                    // NOT filtered by the phantom-id range here. That range
+                    // describes what can appear in _possessedItems, not what
+                    // exists in the database, and applying it hid real items
+                    // from the search.
                     _catalog.Add(info);
+                }
+
+                if (_catalog.Count == 0)
+                {
+                    // Do not latch: the database may simply not be populated
+                    // yet, and latching would leave search permanently dead.
+                    CatalogStatus = "database held " + seen + " entries, none usable";
+                    _log.LogWarning(CatalogStatus);
+                    return;
                 }
 
                 _catalog.Sort(CompareCatalog);
                 _catalogBuilt = true;
-                _log.LogInfo("Item catalogue: " + _catalog.Count + " items.");
+                CatalogStatus = _catalog.Count + " items";
+                _log.LogInfo("Item catalogue: " + CatalogStatus);
             }
             catch (Exception ex)
             {
-                _log.LogWarning("Could not build item catalogue: " + ex.Message);
+                CatalogStatus = "catalogue failed: " + ex.Message;
+                _log.LogWarning(CatalogStatus);
             }
+        }
+
+        // ------------------------------------------------------------------
+        // The database is found independently of the player.
+        //
+        // Hanging it off PlayerInventory._itemDatabase meant the whole
+        // search depended on the inventory having resolved, so editing a
+        // trigger before the player existed - or after any link in that
+        // chain failed - returned an empty list that looked exactly like
+        // "no matches".
+        // ------------------------------------------------------------------
+        private object FindItemDatabase()
+        {
+            if (_itemDatabase != null) return _itemDatabase;
+
+            // The type keeps its own static instance.
+            object viaStatic = GameBridge.ReadStaticField("TheForest.Items.ItemDatabase", "_instance");
+            if (viaStatic != null) { _itemDatabase = viaStatic; return _itemDatabase; }
+
+            // Otherwise whatever the inventory is holding.
+            ResolveDatabase();
+            if (_itemDatabase != null) return _itemDatabase;
+
+            // Last resort: it is a ScriptableObject, so it will not be found
+            // by FindObjectOfType but IS in the loaded object set.
+            Type t = GameBridge.FindGameType("TheForest.Items.ItemDatabase");
+            if (t == null) return null;
+
+            try
+            {
+                UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+                if (all != null && all.Length > 0) _itemDatabase = all[0];
+            }
+            catch (Exception) { }
+
+            return _itemDatabase;
         }
 
         private static int CompareCatalog(ItemInfo a, ItemInfo b)

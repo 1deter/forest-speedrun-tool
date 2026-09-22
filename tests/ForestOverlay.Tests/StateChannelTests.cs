@@ -109,11 +109,11 @@ namespace ForestOverlay.Tests
             // recorder must copy. Aliasing would make every stored sample
             // show the newest values.
             RunRecorder r = new RunRecorder();
-            r.StartRadius = 0.5f;
             r.SampleInterval = 0f;
             r.StateInterval = 0f;
             r.StateChannels = new string[] { "Health" };
             r.Arm(Vector3.zero, "test");
+            r.ForceStart(Vector3.zero);
 
             float[] shared = new float[] { 100f };
 
@@ -132,10 +132,10 @@ namespace ForestOverlay.Tests
         public void ChannelsAreCarriedOntoTheAttempt()
         {
             RunRecorder r = new RunRecorder();
-            r.StartRadius = 0.5f;
             r.SampleInterval = 0f;
             r.StateChannels = new string[] { "Health", "Stamina" };
             r.Arm(Vector3.zero, "test");
+            r.ForceStart(Vector3.zero);
 
             r.Tick(new Vector3(2f, 0f, 0f), 1f, 0.1f, new float[] { 1f, 2f });
 
@@ -146,9 +146,9 @@ namespace ForestOverlay.Tests
         public void NoStateSourceIsHarmless()
         {
             RunRecorder r = new RunRecorder();
-            r.StartRadius = 0.5f;
             r.SampleInterval = 0f;
             r.Arm(Vector3.zero, "test");
+            r.ForceStart(Vector3.zero);
 
             r.Tick(new Vector3(2f, 0f, 0f), 1f, 0.1f, null);
             Attempt done = r.Finish();

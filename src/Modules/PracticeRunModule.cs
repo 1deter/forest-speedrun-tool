@@ -7,22 +7,20 @@ using UnityEngine;
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // Practice runs: timed attempts between an anchor and a finish, with
-    // a live delta against a reference attempt.
+    // Timed practice runs, driven by a segment's triggers.
     //
-    // Shaped after Momentum / KSF surf practice timers:
-    //   * being placed at the anchor ARMS the run
-    //   * the clock starts when you actually move, so lining up is free
-    //   * finishing records the attempt and compares it
-    //   * the delta is "at the point you are standing, the reference had
-    //     taken N seconds", which is what a ghost tells you
+    // Teleporting to a timed segment ARMS a run. The clock starts when the
+    // segment's start trigger fires - usually walking out of the start
+    // zone - so lining up costs nothing. Checkpoints split, the end
+    // trigger finishes, and the attempt is compared against the best for
+    // that segment.
     //
-    // This is INFO-ONLY in itself - it reads position and time. The
-    // teleporting that sets the anchor is what writes state, and that is
-    // PracticeModule's business, not this one's.
+    // Attempts are keyed on the SEGMENT ID, not on a position or a name,
+    // because that is what makes two people's runs of the same route
+    // comparable.
     //
-    // Run-line and ghost RENDERING are not here yet; this records and
-    // stores the paths they need. See docs for the plan.
+    // A segment with no triggers is just a teleport; this module ignores
+    // it rather than inventing a run around it.
     // ------------------------------------------------------------------
     public sealed class PracticeRunModule : OverlayModule
     {
@@ -34,24 +32,30 @@ namespace ForestOverlay.Modules
         public override string TabTitle { get { return "Runs"; } }
         public override int TabOrder { get { return 30; } }
 
-        /// Practice mode is off until asked for. It was previously always
-        /// live, which made the HUD line appear unbidden and meant every
-        /// teleport armed a run whether or not you wanted one.
+        /// Off until asked for: otherwise every teleport arms a run whether
+        /// or not one was wanted.
         public bool Enabled;
 
         private readonly RunRecorder _recorder = new RunRecorder();
         private readonly List<Attempt> _attempts = new List<Attempt>();
         private AttemptStore _store;
+        private PracticeModule _practice;
 
-        // Run line rendering. Point buffers are reused and only rebuilt
-        // when the underlying attempt changes, because OnRenderObject
-        // walks them every frame.
-        private GameObject _lineHost;
-        private RunLineBehaviour _lines;
-        private bool _showLines = true;
-        private Attempt _lineSource;
-        private int _currentLineCount;
+        // --- the segment being run ----------------------------------------
+        private Segment _segment;
+        private string _loadedSegmentId;
 
+        private TriggerState _startState;
+        private TriggerState _endState;
+        private TriggerState[] _checkStates = new TriggerState[0];
+        private int _nextCheckpoint;
+
+        private LiveItemCounts _live;
+        private readonly ItemSnapshot _baseline = new ItemSnapshot();
+        private readonly List<int> _referencedItemIds = new List<int>();
+        private readonly List<float> _splits = new List<float>();
+
+        // --- comparison ----------------------------------------------------
         private Attempt _reference;
         private Reference _referenceKind = Reference.Best;
         private int _deltaHint;
@@ -59,47 +63,47 @@ namespace ForestOverlay.Modules
         private bool _hasDelta;
 
         private string _status = "";
-        private Rect _windowRect;
-        private bool _windowPlaced;
+        private float _tabW;
+        private float _tabH;
         private Vector2 _scroll;
         private GUIStyle _rowStyle;
 
+        // Run line rendering.
+        private GameObject _lineHost;
+        private RunLineBehaviour _lines;
+        private bool _showLines = true;
+        private Attempt _lineSource;
+        private int _currentLineCount;
+
+        // ------------------------------------------------------------------
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
+
             _store = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
+            _live = new LiveItemCounts(ctx.Inventory);
+
+            _practice = Host.Find<PracticeModule>();
+            if (_practice != null) _practice.OnPlacedAtSpot = OnPlacedAtSpot;
+            else ctx.Log.LogWarning("PracticeRunModule: no PracticeModule found.");
 
             _lineHost = new GameObject("ForestOverlay_RunLines");
             _lineHost.hideFlags = HideFlags.HideAndDontSave;
             Object.DontDestroyOnLoad(_lineHost);
             _lines = _lineHost.AddComponent<RunLineBehaviour>();
-
-            // Hook the anchor so placing the player arms a run. Done by
-            // event rather than by reaching into PracticeModule, so either
-            // module can be removed without breaking the other.
-            PracticeModule practice = Host.Find<PracticeModule>();
-            if (practice != null)
-            {
-                practice.OnPlacedAtSpot = OnPlacedAtSpot;
-                _practice = practice;
-            }
-            else
-            {
-                ctx.Log.LogWarning("PracticeRunModule: no PracticeModule found, runs must be armed manually.");
-            }
         }
-
-        private PracticeModule _practice;
-        private string _loadedAnchor;
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("run.toggleMode", KeyCode.F9, "Practice mode on / off", ToggleMode);
-            map.Add("run.finish", KeyCode.F12, "Finish practice run", FinishRun);
-            // No separate restart key: PracticeModule's "return to anchor"
-            // (F7) already raises OnPlacedAtAnchor, which re-arms a run.
+            map.Add("run.manualSplit", KeyCode.F12, "Manual split / finish", ManualAdvance);
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
+        }
+
+        public override void Shutdown()
+        {
+            if (_lineHost != null) Object.Destroy(_lineHost);
         }
 
         // ------------------------------------------------------------------
@@ -112,49 +116,191 @@ namespace ForestOverlay.Modules
                 _recorder.Abort();
                 _hasDelta = false;
                 ClearLines();
+                ClearRunPreview();
                 _status = "practice mode off";
+                return;
             }
-            else
-            {
-                _status = "practice mode on - teleport or set an anchor";
-            }
+
+            _status = "on - go to a timed segment in Practice";
+            OnPlacedAtSpot();
         }
 
+        /// Called when the player is placed at the current entry.
         private void OnPlacedAtSpot()
         {
-            if (!Enabled) return;
-            if (_practice == null || !_practice.HasSpot) return;
+            if (!Enabled || _practice == null) return;
 
-            // Switching anchor switches "track": load that anchor's saved
-            // attempts so a best time survives a restart and so someone
-            // else's shared run folder can be raced straight away.
-            if (_practice.SpotLabel != _loadedAnchor)
+            Segment s = _practice.CurrentSegment;
+
+            if (s == null || !s.IsTimed)
             {
-                _loadedAnchor = _practice.SpotLabel;
-                _attempts.Clear();
-                _attempts.AddRange(_store.LoadAll(_loadedAnchor));
-                Ctx.Log.LogInfo("Loaded " + _attempts.Count + " saved attempt(s) for '" + _loadedAnchor + "'");
+                // A plain spot is a teleport, not a run.
+                _segment = null;
+                _recorder.Abort();
+                ClearRunPreview();
+                _status = s == null
+                    ? "no entry selected"
+                    : "'" + s.Name + "' is a spot, not a timed segment";
+                return;
             }
 
-            _recorder.Arm(_practice.SpotPosition, _practice.SpotLabel);
-            _deltaHint = 0;
-            _hasDelta = false;
-            SelectReference();
-            _status = "armed - move to start";
+            _segment = s;
+            LoadAttemptsFor(s);
+            ArmRun();
         }
 
-        /// Return to the anchor and arm a fresh attempt. This is the
-        /// "another go" key.
-        private void RestartRun()
+        private void ArmRun()
         {
-            if (_practice == null) { _status = "No practice module."; return; }
-            _practice.ReturnToSpot();   // raises OnPlacedAtAnchor
+            // Priming (rather than firing) on the first evaluation is what
+            // stops the start trigger going off while you are still standing
+            // in the start zone after teleporting in.
+            TriggerEvaluator.Reset(ref _startState);
+            TriggerEvaluator.Reset(ref _endState);
+
+            if (_checkStates.Length != _segment.Checkpoints.Count)
+                _checkStates = new TriggerState[_segment.Checkpoints.Count];
+
+            for (int i = 0; i < _checkStates.Length; i++)
+                TriggerEvaluator.Reset(ref _checkStates[i]);
+
+            _nextCheckpoint = 0;
+            _splits.Clear();
+            _deltaHint = 0;
+            _hasDelta = false;
+
+            CollectReferencedItemIds(_segment);
+            if (_referencedItemIds.Count > 0)
+            {
+                Ctx.Inventory.Resolve();
+                Ctx.Inventory.Refresh();
+            }
+            _baseline.Capture(_live, _referencedItemIds);
+
+            _recorder.StateChannels = Ctx.PlayerState.Channels;
+            _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
+
+            SelectReference();
+            _status = "armed: " + _segment.Name;
+        }
+
+        private void CollectReferencedItemIds(Segment s)
+        {
+            _referencedItemIds.Clear();
+
+            AddItemId(s.Start);
+            AddItemId(s.End);
+            for (int i = 0; i < s.Checkpoints.Count; i++) AddItemId(s.Checkpoints[i]);
+        }
+
+        private void AddItemId(Trigger t)
+        {
+            if (t.Kind != TriggerKind.Item) return;
+            if (_referencedItemIds.Contains(t.ItemId)) return;
+            _referencedItemIds.Add(t.ItemId);
+        }
+
+        private Vector3 PlayerPosition()
+        {
+            return Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
+        }
+
+        // ------------------------------------------------------------------
+        public override void Tick()
+        {
+            if (!Enabled) { ClearLines(); return; }
+            if (!Ctx.Player.Found || _segment == null) return;
+
+            Vector3 pos = Ctx.Player.Transform.position;
+
+            // Item triggers read the live inventory, so it has to be fresh.
+            if (_referencedItemIds.Count > 0)
+            {
+                Ctx.Inventory.Resolve();
+                Ctx.Inventory.Refresh();
+            }
+
+            Ctx.PlayerState.Resolve();
+
+            if (_recorder.State == RunRecorder.RunState.Armed)
+            {
+                if (TriggerEvaluator.Fired(_segment.Start, ref _startState, pos, _live, null, _baseline))
+                {
+                    _recorder.ForceStart(pos);
+                    _status = "running";
+                }
+            }
+            else if (_recorder.State == RunRecorder.RunState.Running)
+            {
+                EvaluateCheckpoints(pos);
+
+                if (TriggerEvaluator.Fired(_segment.End, ref _endState, pos, _live, null, _baseline))
+                    FinishRun();
+            }
+
+            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime,
+                           Ctx.PlayerState.Read());
+
+            if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
+            {
+                _hasDelta = RunCompare.Delta(_reference.Samples, pos, _recorder.Elapsed,
+                                             ref _deltaHint, out _delta);
+            }
+            else _hasDelta = false;
+
+            UpdateLines();
+            UpdateRunPreview();
+        }
+
+        private void EvaluateCheckpoints(Vector3 pos)
+        {
+            // Checkpoints fire IN ORDER. Letting a later one fire early
+            // would let a route that happens to pass near it skip a split
+            // and silently produce an incomparable run.
+            if (_nextCheckpoint >= _segment.Checkpoints.Count) return;
+
+            if (!TriggerEvaluator.Fired(_segment.Checkpoints[_nextCheckpoint],
+                                        ref _checkStates[_nextCheckpoint], pos, _live, null, _baseline))
+                return;
+
+            _splits.Add(_recorder.Elapsed);
+            _nextCheckpoint++;
+
+            _status = "split " + _splits.Count + "/" + _segment.Checkpoints.Count +
+                      "  " + Format(_recorder.Elapsed);
+        }
+
+        /// Manual split, or finish when all checkpoints are done. Lets a
+        /// segment be driven by hand while its triggers are still being
+        /// worked out.
+        private void ManualAdvance()
+        {
+            if (_recorder.State == RunRecorder.RunState.Armed)
+            {
+                if (Ctx.Player.Found)
+                {
+                    _recorder.ForceStart(Ctx.Player.Transform.position);
+                    _status = "running (manual start)";
+                }
+                return;
+            }
+
+            if (_recorder.State != RunRecorder.RunState.Running) { _status = "no run armed"; return; }
+
+            if (_segment != null && _nextCheckpoint < _segment.Checkpoints.Count)
+            {
+                _splits.Add(_recorder.Elapsed);
+                _nextCheckpoint++;
+                _status = "split " + _splits.Count + " (manual)";
+                return;
+            }
+
+            FinishRun();
         }
 
         private void FinishRun()
         {
             Attempt done = _recorder.Finish();
-            if (done == null) { _status = "No run in progress."; return; }
+            if (done == null) { _status = "no run in progress"; return; }
 
             _attempts.Add(done);
             _store.Save(done);
@@ -164,13 +310,29 @@ namespace ForestOverlay.Modules
 
             _status = "finished " + Format(done.Duration) + (isPb ? "   NEW BEST" : "");
             SelectReference();
+            ClearRunPreview();
         }
 
         private void AbortRun()
         {
             _recorder.Abort();
             _hasDelta = false;
+            ClearRunPreview();
             _status = "aborted";
+
+            if (_segment != null) ArmRun();
+        }
+
+        private void LoadAttemptsFor(Segment s)
+        {
+            if (s.Id == _loadedSegmentId) return;
+
+            _loadedSegmentId = s.Id;
+            _attempts.Clear();
+            _attempts.AddRange(_store.LoadAll(s.Id));
+            _lineSource = null;
+
+            Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id);
         }
 
         private void SelectReference()
@@ -180,14 +342,10 @@ namespace ForestOverlay.Modules
                 case Reference.Best:
                     _reference = RunCompare.Best(_attempts);
                     break;
-
                 case Reference.Last:
                     _reference = _attempts.Count > 0 ? _attempts[_attempts.Count - 1] : null;
                     break;
-
                 case Reference.Average:
-                    // There is no "average path", so the closest honest
-                    // thing is the attempt nearest the mean duration.
                     _reference = NearestToAverage();
                     break;
             }
@@ -213,47 +371,28 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        public override void Tick()
+        // Only the NEXT objective is shown while running. Drawing every
+        // zone at once turns a route into a field of overlapping spheres
+        // with no indication of where to actually go.
+        private void UpdateRunPreview()
         {
-            // Clear the renderer BEFORE the early return. Previously Tick
-            // bailed out when practice mode was off, so UpdateLines never
-            // ran and RunLineBehaviour kept drawing its last buffers -
-            // the line stayed on screen until something re-toggled it.
-            if (!Enabled) { ClearLines(); return; }
-            if (!Ctx.Player.Found) return;
+            if (_practice == null) return;
 
-            Vector3 pos = Ctx.Player.Transform.position;
-            // Full player state goes in alongside the position track; the
-            // recorder copies it on its own slower throttle.
-            Ctx.PlayerState.Resolve();
-            _recorder.StateChannels = Ctx.PlayerState.Channels;
-
-            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime,
-                           Ctx.PlayerState.Read());
-
-            if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
+            if (_recorder.State != RunRecorder.RunState.Running || _segment == null)
             {
-                _hasDelta = RunCompare.Delta(_reference.Samples, pos, _recorder.Elapsed,
-                                             ref _deltaHint, out _delta);
+                ClearRunPreview();
+                return;
             }
-            else _hasDelta = false;
 
-            UpdateLines();
+            bool isEnd = _nextCheckpoint >= _segment.Checkpoints.Count;
+            Trigger next = isEnd ? _segment.End : _segment.Checkpoints[_nextCheckpoint];
+
+            _practice.SetRunPreview(next, isEnd ? 2 : 1);
         }
 
-        private void ClearLines()
+        private void ClearRunPreview()
         {
-            if (_lines == null) return;
-
-            _lines.Show = false;
-            _lines.ReferenceCount = 0;
-            _lines.CurrentCount = 0;
-            _lines.HasGhost = false;
-
-            // Drop the cached source so re-enabling rebuilds rather than
-            // reusing buffers that may belong to a cleared attempt list.
-            _lineSource = null;
-            _currentLineCount = 0;
+            if (_practice != null) _practice.ClearRunPreview();
         }
 
         // ------------------------------------------------------------------
@@ -264,15 +403,11 @@ namespace ForestOverlay.Modules
             _lines.Show = _showLines && Enabled;
             if (!_lines.Show) return;
 
-            // Reference path: rebuild only when the chosen attempt changes.
             if (!ReferenceEquals(_lineSource, _reference))
             {
                 _lineSource = _reference;
 
-                if (_reference == null)
-                {
-                    _lines.ReferenceCount = 0;
-                }
+                if (_reference == null) _lines.ReferenceCount = 0;
                 else
                 {
                     _lines.ReferenceLine = ToPoints(_reference);
@@ -280,7 +415,6 @@ namespace ForestOverlay.Modules
                 }
             }
 
-            // Live path: grown in place as samples arrive.
             Attempt current = _recorder.Current;
             if (current == null)
             {
@@ -294,7 +428,6 @@ namespace ForestOverlay.Modules
                 _lines.CurrentCount = _lines.CurrentLine.Length;
             }
 
-            // Ghost: where the reference was at this elapsed time.
             _lines.HasGhost = false;
             if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
             {
@@ -307,6 +440,18 @@ namespace ForestOverlay.Modules
             }
         }
 
+        private void ClearLines()
+        {
+            if (_lines == null) return;
+
+            _lines.Show = false;
+            _lines.ReferenceCount = 0;
+            _lines.CurrentCount = 0;
+            _lines.HasGhost = false;
+            _lineSource = null;
+            _currentLineCount = 0;
+        }
+
         private static Vector3[] ToPoints(Attempt a)
         {
             Vector3[] pts = new Vector3[a.Samples.Count];
@@ -314,8 +459,6 @@ namespace ForestOverlay.Modules
             return pts;
         }
 
-        /// Position of the reference at time t, linearly interpolated.
-        /// Returns false once the reference has finished.
         private static bool SampleAtTime(Attempt a, float t, out Vector3 position)
         {
             position = Vector3.zero;
@@ -336,47 +479,44 @@ namespace ForestOverlay.Modules
             return true;
         }
 
+        // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
             if (!Enabled) return;
 
-            switch (_recorder.State)
+            if (_segment == null)
             {
-                case RunRecorder.RunState.Armed:
-                    hud.Pair("Run", "armed - move to start");
-                    break;
+                hud.Pair("Run", "no timed segment selected");
+                return;
+            }
 
-                case RunRecorder.RunState.Running:
-                    hud.Pair("Run", Format(_recorder.Elapsed) +
-                                    (_hasDelta ? "   " + SignedDelta(_delta) : ""));
-                    break;
+            if (_recorder.State == RunRecorder.RunState.Armed)
+            {
+                hud.Pair("Run", "armed - " + _segment.Name);
+            }
+            else if (_recorder.State == RunRecorder.RunState.Running)
+            {
+                hud.Pair("Run", Format(_recorder.Elapsed) +
+                                (_hasDelta ? "   " + SignedDelta(_delta) : ""));
 
-                default:
-                    if (_attempts.Count > 0)
-                    {
-                        Attempt best = RunCompare.Best(_attempts);
-                        hud.Pair("Run", _attempts.Count + " attempts" +
-                                        (best != null ? "   best " + Format(best.Duration) : ""));
-                    }
-                    break;
+                hud.Pair("Next", _nextCheckpoint < _segment.Checkpoints.Count
+                    ? "checkpoint " + (_nextCheckpoint + 1) + "/" + _segment.Checkpoints.Count
+                    : "finish");
+            }
+            else
+            {
+                Attempt best = RunCompare.Best(_attempts);
+                hud.Pair("Run", _attempts.Count + " attempts" +
+                                (best != null ? "   best " + Format(best.Duration) : ""));
             }
         }
 
         // ------------------------------------------------------------------
-        private float _tabW;
-        private float _tabH;
-
         public override void DrawTab(Rect area)
         {
             _tabW = area.width;
             _tabH = area.height;
-            DrawContents(0);
-        }
 
-        private readonly GUIContent _title = new GUIContent("Practice runs");
-
-        private void DrawContents(int id)
-        {
             if (_rowStyle == null)
             {
                 _rowStyle = new GUIStyle(GUI.skin.label);
@@ -385,47 +525,59 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            bool on = GUI.Toggle(new Rect(12, 26, 150, 20), Enabled, " Practice mode");
+            bool on = GUI.Toggle(new Rect(0, 2, 140, 20), Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
 
-            GUI.Label(new Rect(168, 26, w - 180, 20),
-                      "Spot: " + (_practice != null && _practice.HasSpot
-                                        ? _practice.SpotLabel : "none selected (F3 panel)"));
+            GUI.Label(new Rect(150, 2, w - 160, 20),
+                      _segment != null ? "Segment: " + _segment.Name
+                                       : "Pick a timed segment in the Practice tab");
 
-            if (GUI.Button(new Rect(12, 50, 120, 24), "Restart run")) RestartRun();
-            if (GUI.Button(new Rect(138, 50, 110, 24), "Finish")) FinishRun();
-            if (GUI.Button(new Rect(254, 50, 90, 24), "Abort")) AbortRun();
-            if (GUI.Button(new Rect(350, 50, w - 362, 24), "Clear"))
-            {
-                _attempts.Clear();
-                SelectReference();
-                ClearLines();
-            }
+            if (GUI.Button(new Rect(0, 28, 120, 24), "Restart")) Restart();
+            if (GUI.Button(new Rect(126, 28, 120, 24), "Split / finish")) ManualAdvance();
+            if (GUI.Button(new Rect(252, 28, 90, 24), "Abort")) AbortRun();
+            if (GUI.Button(new Rect(w - 100, 28, 100, 24), "Clear times")) ClearTimes();
 
-            GUI.Label(new Rect(12, 80, 80, 20), "Compare to");
+            GUI.Label(new Rect(0, 58, 80, 20), "Compare to");
             Reference kind = _referenceKind;
-            if (GUI.Toggle(new Rect(96, 80, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
-            if (GUI.Toggle(new Rect(160, 80, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
-            if (GUI.Toggle(new Rect(224, 80, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
+            if (GUI.Toggle(new Rect(84, 58, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
+            if (GUI.Toggle(new Rect(148, 58, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
+            if (GUI.Toggle(new Rect(212, 58, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
             if (kind != _referenceKind) { _referenceKind = kind; SelectReference(); }
 
-            bool lines = GUI.Toggle(new Rect(320, 80, 110, 20), _showLines, " run lines");
+            bool lines = GUI.Toggle(new Rect(300, 58, 110, 20), _showLines, " run lines");
             if (lines != _showLines) _showLines = lines;
 
-            GUI.Label(new Rect(12, 104, w - 24, 20), _status);
+            GUI.Label(new Rect(0, 82, w, 20), _status);
 
-            GUI.Label(new Rect(12, 126, w - 24, 18),
-                      "attempt   time   max = top horizontal speed reached", _rowStyle);
+            if (_splits.Count > 0)
+            {
+                string line = "splits:";
+                for (int i = 0; i < _splits.Count; i++) line += "  " + Format(_splits[i]);
+                GUI.Label(new Rect(0, 102, w, 20), line);
+            }
 
-            DrawAttemptList(new Rect(8, 146, w - 16, _tabH - 156));
+            DrawAttemptList(new Rect(0, 126, w, _tabH - 130));
+        }
 
+        private void Restart()
+        {
+            if (_practice == null) { _status = "no practice module"; return; }
+            _practice.ReturnToSpot();
+        }
+
+        private void ClearTimes()
+        {
+            _attempts.Clear();
+            SelectReference();
+            ClearLines();
+            _status = "times cleared from view (files kept)";
         }
 
         private void DrawAttemptList(Rect listRect)
         {
             const float rowH = 20f;
 
-            Rect content = new Rect(0, 0, listRect.width - 20f, _attempts.Count * rowH);
+            Rect content = new Rect(0, 0, listRect.width - 20f, _attempts.Count * rowH + 4f);
             _scroll = GUI.BeginScrollView(listRect, _scroll, content);
 
             Attempt best = RunCompare.Best(_attempts);
@@ -445,11 +597,12 @@ namespace ForestOverlay.Modules
             }
 
             GUI.EndScrollView();
-        }
 
-        public override void Shutdown()
-        {
-            if (_lineHost != null) Object.Destroy(_lineHost);
+            if (_attempts.Count == 0)
+            {
+                GUI.Label(new Rect(listRect.x + 4, listRect.y + 4, listRect.width - 8, 40),
+                          "No attempts yet for this segment.", _rowStyle);
+            }
         }
 
         // ------------------------------------------------------------------

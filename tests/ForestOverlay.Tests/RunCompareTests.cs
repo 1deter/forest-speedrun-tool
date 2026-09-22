@@ -257,9 +257,17 @@ namespace ForestOverlay.Tests
     // ------------------------------------------------------------------
     public class RunRecorderTests
     {
+        // Auto-start is opt-in now: a segment starts when its own start
+        // trigger fires, not merely because the player left a radius.
+        // These tests cover the fallback path, so they ask for it.
         private static RunRecorder Armed(float radius = 0.5f)
         {
-            var r = new RunRecorder { StartRadius = radius, SampleInterval = 0f };
+            var r = new RunRecorder
+            {
+                StartRadius = radius,
+                SampleInterval = 0f,
+                AutoStartOnLeavingRadius = true,
+            };
             r.Arm(Vector3.zero, "test");
             return r;
         }
@@ -268,6 +276,44 @@ namespace ForestOverlay.Tests
         public void StartsIdle()
         {
             Assert.Equal(RunRecorder.RunState.Idle, new RunRecorder().State);
+        }
+
+        [Fact]
+        public void WithoutAutoStartLeavingTheRadiusDoesNothing()
+        {
+            // The default: segments are started by their trigger, so simply
+            // walking away must not start the clock.
+            var r = new RunRecorder { StartRadius = 0.5f, SampleInterval = 0f };
+            r.Arm(Vector3.zero, "test");
+
+            r.Tick(new Vector3(50f, 0f, 0f), 1f, 1f);
+
+            Assert.Equal(RunRecorder.RunState.Armed, r.State);
+            Assert.Equal(0f, r.Elapsed);
+        }
+
+        [Fact]
+        public void ForceStartBeginsTheRunFromThatPosition()
+        {
+            var r = new RunRecorder { StartRadius = 0.5f, SampleInterval = 0f };
+            r.Arm(Vector3.zero, "test");
+
+            r.ForceStart(new Vector3(10f, 0f, 0f));
+            Assert.Equal(RunRecorder.RunState.Running, r.State);
+
+            r.Tick(new Vector3(11f, 0f, 0f), 1f, 0.5f);
+            Assert.Equal(0.5f, r.Elapsed, 3);
+
+            // The first sample is where the run actually began.
+            Assert.Equal(new Vector3(10f, 0f, 0f), r.Current.Samples[0].P);
+        }
+
+        [Fact]
+        public void ForceStartIsIgnoredUnlessArmed()
+        {
+            var r = new RunRecorder();
+            r.ForceStart(Vector3.zero);
+            Assert.Equal(RunRecorder.RunState.Idle, r.State);
         }
 
         [Fact]

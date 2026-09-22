@@ -232,8 +232,14 @@ namespace ForestOverlay.Data
     {
         public enum RunState { Idle, Armed, Running }
 
-        /// Distance from the anchor that counts as "you have started".
+        /// Distance from the anchor that counts as "you have started",
+        /// used only when AutoStartOnLeavingRadius is set.
         public float StartRadius = 0.5f;
+
+        /// When false the run waits for ForceStart. Segments drive the
+        /// clock from their own start trigger, so leaving a radius is
+        /// not the right signal for them.
+        public bool AutoStartOnLeavingRadius;
 
         /// Position sampling rate. 30 Hz is enough to draw a smooth line
         /// and to place a ghost without storing a point per frame.
@@ -279,8 +285,12 @@ namespace ForestOverlay.Data
         /// reader reuses its buffer.
         public void Tick(Vector3 position, float horizontalSpeed, float dt, float[] state)
         {
+            // The radius rule is only a FALLBACK, for a run with no
+            // start trigger. A segment starts when its trigger fires,
+            // which the caller signals with ForceStart.
             if (State == RunState.Armed)
             {
+                if (!AutoStartOnLeavingRadius) return;
                 if ((position - _anchor).sqrMagnitude < StartRadius * StartRadius) return;
                 BeginRun();
             }
@@ -321,6 +331,16 @@ namespace ForestOverlay.Data
         public void Tick(Vector3 position, float horizontalSpeed, float dt)
         {
             Tick(position, horizontalSpeed, dt, null);
+        }
+
+        /// Start the clock now, from `position`. Used when a start
+        /// trigger fires.
+        public void ForceStart(Vector3 position)
+        {
+            if (State != RunState.Armed) return;
+
+            _anchor = position;
+            BeginRun();
         }
 
         private void BeginRun()

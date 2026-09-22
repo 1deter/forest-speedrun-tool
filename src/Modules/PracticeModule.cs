@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
@@ -72,6 +72,14 @@ namespace ForestOverlay.Modules
         private GameObject _previewHost;
         private ZonePreviewBehaviour _preview;
         private bool _showPreview = true;
+
+        // While a run is in progress the run module takes over the
+        // preview and shows only the NEXT objective - the whole route
+        // drawn at once is a field of overlapping spheres with no
+        // indication of where to go.
+        private bool _runPreviewActive;
+        private Trigger _runPreviewTrigger;
+        private int _runPreviewKind;
 
         // Item search state. The target identifies which trigger is being
         // searched for: -2 start, -3 end, >= 0 a checkpoint index.
@@ -149,9 +157,39 @@ namespace ForestOverlay.Modules
             }
         }
 
+        /// Show a single trigger, overriding the editing preview.
+        public void SetRunPreview(Trigger t, int kind)
+        {
+            _runPreviewActive = true;
+            _runPreviewTrigger = t;
+            _runPreviewKind = kind;
+        }
+
+        public void ClearRunPreview()
+        {
+            _runPreviewActive = false;
+        }
+
         private void UpdatePreview()
         {
             if (_preview == null) return;
+
+            if (_runPreviewActive)
+            {
+                if (!_showPreview || _runPreviewTrigger.Kind != TriggerKind.Zone)
+                {
+                    _preview.Show = false;
+                    _preview.Count = 0;
+                    return;
+                }
+
+                if (_preview.Zones == null || _preview.Zones.Length < 1)
+                    _preview.Zones = new PreviewZone[8];
+
+                _preview.Count = AddZone(_runPreviewTrigger, _runPreviewKind, 0);
+                _preview.Show = _preview.Count > 0;
+                return;
+            }
 
             if (!_showPreview || _selected == null || !_selected.IsTimed)
             {
@@ -634,7 +672,10 @@ namespace ForestOverlay.Modules
 
             if (_itemQuery.Length > 0 && _itemResults.Count == 0)
             {
-                GUI.Label(new Rect(x0 + 10f, y, w - x0 - 20f, 20f), "no matches", _dimStyle);
+                // Distinguishes "nothing matched" from "the catalogue never
+                // loaded", which previously looked identical.
+                GUI.Label(new Rect(x0 + 10f, y, w - x0 - 20f, 20f),
+                          "no matches  (" + Ctx.Inventory.CatalogStatus + ")", _dimStyle);
                 y += 21f;
             }
 
