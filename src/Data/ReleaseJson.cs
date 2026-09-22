@@ -47,6 +47,23 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        /// Why a response carried no release, in words a runner can act on.
+        /// GitHub answers errors with {"message": "..."}; the common one is
+        /// the anonymous limit of 60 API calls per hour per IP address,
+        /// which a shared network (or a developer polling releases) hits.
+        public static string DescribeError(string json)
+        {
+            string message = ExtractString(json, "message");
+
+            if (message != null && message.IndexOf("rate limit", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "GitHub's hourly limit for update checks was reached on this network - try again later";
+
+            if (message == "Not Found")
+                return "no release published yet";
+
+            return message != null ? "GitHub said: " + message : "could not read latest release";
+        }
+
         /// Returns >0 when `a` is newer than `b`. Numeric, dot-separated,
         /// tolerant of differing part counts and of trailing suffixes.
         public static int CompareVersions(string a, string b)

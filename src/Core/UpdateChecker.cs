@@ -70,7 +70,8 @@ namespace ForestOverlay.Core
             if (string.IsNullOrEmpty(tag))
             {
                 State = Status.Failed;
-                Message = "could not read latest release";
+                Message = ReleaseJson.DescribeError(json);
+                _log.LogWarning("Update check: " + Message);
                 yield break;
             }
 

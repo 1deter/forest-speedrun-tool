@@ -146,6 +146,12 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 - **A tag publishes before its DLL is attached.** Wait for the asset, not the
   release, before telling anyone to update. The plugin reads a release with no
   DLL as "still being published" and re-checks every minute.
+- **Never poll `api.github.com` to watch a release.** Anonymous API calls are
+  limited to 60 an hour *per IP*, shared with the author's own game — polling
+  once locked their in-game update check out for an hour. Poll the asset
+  instead; downloads are not API calls:
+  `curl -s -o /dev/null -w '%{http_code}' -L https://github.com/1deter/forest-speedrun-tool/releases/download/vX.Y.Z/ForestOverlay.dll`
+  (200 = attached).
 - **Rollback:** close the game, delete `ForestOverlay.dll`, rename
   `ForestOverlay.dll.bak` to `ForestOverlay.dll`. A download that is not the
   ForestOverlay assembly is renamed `.rejected` and never installed.

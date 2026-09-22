@@ -77,6 +77,24 @@ namespace ForestOverlay.Tests
             Assert.Null(ReleaseJson.ExtractString(Pretty, "id"));
         }
 
+        [Fact]
+        public void ExplainsARateLimit()
+        {
+            // Verbatim shape of the 403 body GitHub sends.
+            string json = "{\"message\":\"API rate limit exceeded for 1.2.3.4. (But here's the good news: " +
+                          "Authenticated requests get a higher rate limit.)\",\"documentation_url\":\"https://docs.github.com\"}";
+
+            Assert.Contains("hourly limit", ReleaseJson.DescribeError(json));
+        }
+
+        [Fact]
+        public void ExplainsOtherErrors()
+        {
+            Assert.Equal("no release published yet", ReleaseJson.DescribeError("{\"message\": \"Not Found\"}"));
+            Assert.Equal("GitHub said: Server Error", ReleaseJson.DescribeError("{\"message\": \"Server Error\"}"));
+            Assert.Equal("could not read latest release", ReleaseJson.DescribeError("<html>captive portal</html>"));
+        }
+
         [Theory]
         [InlineData("0.16.1", "0.16.0", 1)]
         [InlineData("0.16.0", "0.16.1", -1)]
