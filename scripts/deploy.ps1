@@ -61,6 +61,20 @@ try {
         }
         Write-Host "Location sets synced: $copied file(s) -> $configLocations" -ForegroundColor Green
     }
+
+    # The 100% checklist is admin-decided data and ships with the repo.
+    $repoCollectibles = Join-Path $root "collectibles"
+    if (Test-Path $repoCollectibles) {
+        $configCollectibles = Join-Path $GameRoot "BepInEx\config\ForestOverlay\collectibles"
+        New-Item -ItemType Directory -Force -Path $configCollectibles | Out-Null
+
+        $n = 0
+        Get-ChildItem $repoCollectibles -Filter *.txt -File | ForEach-Object {
+            Copy-Item $_.FullName $configCollectibles -Force
+            $n++
+        }
+        Write-Host "Checklists synced: $n file(s) -> $configCollectibles" -ForegroundColor Green
+    }
 }
 finally {
     Pop-Location

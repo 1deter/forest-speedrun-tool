@@ -1,22 +1,34 @@
 using System.Collections.Generic;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // 100% tracking: the nature guide and the todo list. INFO-ONLY.
+    // 100% tracking. INFO-ONLY.
     //
-    // Asked for by the 100% runners, in their own words: entries listed
-    // individually but grouped by book page, plus a plain "23/40" counter
-    // for the todo list. So the layout follows that rather than inventing
-    // a different one.
+    // Two things count, per the category admins:
+    //   1. the survival book's To Do List
+    //   2. a unique-item collection (weapons, story documents, drawings,
+    //      tapes, toy pieces, keycards...)
     //
-    // Flower and plant COORDINATES are deliberately not here. The author
-    // judged that over the line for the category, and that call stands.
-    // This shows what you have and have not found - the same information
-    // the in-game book already gives you, without paging through it.
+    // The collection list is DATA (config/ForestOverlay/collectibles), not
+    // code, because what counts is an admin decision that will change
+    // without the plugin changing.
+    //
+    // An earlier version showed the in-game bestiary instead. That was
+    // wrong - it is not part of the requirement, and the game carries two
+    // bestiary components so it also rendered twice.
+    //
+    // Collection state LATCHES: once an item has been seen in the
+    // inventory it stays ticked. Story items persist, but latching means
+    // the checklist cannot un-tick itself if something is dropped, and it
+    // survives an item being consumed mid-run.
+    //
+    // Flower and plant COORDINATES are deliberately absent - the author
+    // judged that over the line for the category.
     // ------------------------------------------------------------------
     public sealed class CollectiblesModule : OverlayModule
     {
@@ -30,7 +42,9 @@ namespace ForestOverlay.Modules
         public override int TabOrder { get { return 45; } }
 
         private SurvivalBookReader _book;
+        private CollectionList _list;
         private float _nextRefresh;
+        private bool _resolved;
 
         private float _tabW;
         private float _tabH;
@@ -44,17 +58,20 @@ namespace ForestOverlay.Modules
         private GUIStyle _headerStyle;
         private GUIStyle _doneStyle;
         private GUIStyle _missingStyle;
+        private GUIStyle _warnStyle;
 
-        // Rows are cached; this list can be a few hundred entries and OnGUI
-        // runs several times a frame.
         private readonly List<GUIContent> _labels = new List<GUIContent>();
-        private readonly List<bool> _isHeader = new List<bool>();
-        private readonly List<bool> _isDone = new List<bool>();
+        private readonly List<int> _kinds = new List<int>();   // 0 header, 1 done, 2 missing, 3 warn
+        private int _rowCount;
 
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
+
             _book = new SurvivalBookReader(ctx.Log);
+            _list = new CollectionList(ctx.Log, ctx.ConfigDirectory);
+            _list.WriteReadmeIfMissing();
+            _list.Reload();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -68,17 +85,75 @@ namespace ForestOverlay.Modules
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
             _book.Refresh();
+
+            // Names resolve once the item catalogue exists, which needs the
+            // game loaded - so keep trying until it takes.
+            if (!_resolved)
+            {
+                Ctx.Inventory.BuildCatalog();
+                if (Ctx.Inventory.Catalog.Count > 0)
+                {
+                    _list.Resolve(FindItemId);
+                    _resolved = true;
+                }
+            }
+
+            UpdateSeen();
             RebuildRows();
+        }
+
+        /// Exact name match first, then a unique substring. Deliberately
+        /// refuses an ambiguous match rather than guessing, so a wrong tick
+        /// never appears.
+        private int FindItemId(string name)
+        {
+            IList<ItemInfo> catalog = Ctx.Inventory.Catalog;
+            string lower = name.ToLowerInvariant();
+
+            for (int i = 0; i < catalog.Count; i++)
+                if (catalog[i].Name.ToLowerInvariant() == lower) return catalog[i].Id;
+
+            int found = -1;
+
+            for (int i = 0; i < catalog.Count; i++)
+            {
+                if (catalog[i].Name.ToLowerInvariant().IndexOf(lower, System.StringComparison.Ordinal) < 0)
+                    continue;
+
+                if (found >= 0) return -1;   // ambiguous
+                found = catalog[i].Id;
+            }
+
+            return found;
+        }
+
+        private void UpdateSeen()
+        {
+            Ctx.Inventory.Resolve();
+            Ctx.Inventory.Refresh();
+
+            IList<ItemStack> stacks = Ctx.Inventory.Stacks;
+            IList<CollectionEntry> entries = _list.Entries;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].Seen || entries[i].ItemId < 0) continue;
+
+                for (int s = 0; s < stacks.Count; s++)
+                {
+                    if (stacks[s].Id != entries[i].ItemId) continue;
+                    entries[i].Seen = true;
+                    break;
+                }
+            }
         }
 
         public override void ContributeHud(HudBuilder hud)
         {
-            // Opt-in: most runs do not care, and the HUD is not free space.
             if (!_pinSummary) return;
-            if (_book.TotalEntries == 0 && _book.Todo.Count == 0) return;
 
-            hud.Pair("Guide", _book.TotalDone + "/" + _book.TotalEntries);
-            hud.Pair("Tasks", _book.TodoDone + "/" + _book.Todo.Count);
+            if (_list.Total > 0) hud.Pair("Items", _list.SeenCount + "/" + _list.Total);
+            if (_book.Todo.Count > 0) hud.Pair("Tasks", _book.TodoDone + "/" + _book.Todo.Count);
         }
 
         // ------------------------------------------------------------------
@@ -86,33 +161,44 @@ namespace ForestOverlay.Modules
         {
             int n = 0;
 
-            n = AddRow(n, "NATURE GUIDE   " + _book.TotalDone + "/" + _book.TotalEntries, true, false);
+            // --- collection ------------------------------------------------
+            n = Add(n, "UNIQUE COLLECTION   " + _list.SeenCount + "/" + _list.Total, 0);
 
-            for (int p = 0; p < _book.Pages.Count; p++)
+            if (_list.Unresolved > 0)
             {
-                BookPage page = _book.Pages[p];
+                n = Add(n, "  " + _list.Unresolved +
+                           " name(s) did not match an item - shown below as (?)", 3);
+            }
 
-                n = AddRow(n, "  " + page.Title + "   " + page.DoneCount + "/" + page.Entries.Count,
-                           true, false);
+            IList<string> categories = _list.Categories;
+            IList<CollectionEntry> entries = _list.Entries;
 
-                for (int e = 0; e < page.Entries.Count; e++)
+            for (int c = 0; c < categories.Count; c++)
+            {
+                string category = categories[c];
+                n = Add(n, "  " + category + "   " + _list.SeenIn(category) + "/" + _list.TotalIn(category), 0);
+
+                for (int i = 0; i < entries.Count; i++)
                 {
-                    BookEntry entry = page.Entries[e];
+                    CollectionEntry e = entries[i];
+                    if (e.Category != category) continue;
 
-                    if (entry.Done && !_showFound) continue;
-                    if (!entry.Done && !_showMissing) continue;
+                    if (e.Seen && !_showFound) continue;
+                    if (!e.Seen && !_showMissing) continue;
 
-                    string mark = entry.Done ? "found" : "not found";
-                    if (!entry.Done && entry.UnlockLevel > 0) mark = "partial (" + entry.UnlockLevel + ")";
-
-                    n = AddRow(n, "      " + entry.Name + "   -   " + mark, false, entry.Done);
+                    if (e.ItemId < 0)
+                        n = Add(n, "      " + e.Name + "   -   (?) name not recognised", 3);
+                    else
+                        n = Add(n, "      " + e.Name + "   -   " + (e.Seen ? "collected" : "missing"),
+                                e.Seen ? 1 : 2);
                 }
             }
 
+            // --- todo ------------------------------------------------------
             if (_book.Todo.Count > 0)
             {
-                n = AddRow(n, "", true, false);
-                n = AddRow(n, "TODO LIST   " + _book.TodoDone + "/" + _book.Todo.Count, true, false);
+                n = Add(n, "", 0);
+                n = Add(n, "TO DO LIST   " + _book.TodoDone + "/" + _book.Todo.Count, 0);
 
                 for (int i = 0; i < _book.Todo.Count; i++)
                 {
@@ -121,31 +207,25 @@ namespace ForestOverlay.Modules
                     if (task.Done && !_showFound) continue;
                     if (!task.Done && !_showMissing) continue;
 
-                    n = AddRow(n, "      " + task.Name + "   -   " + (task.Done ? "done" : "to do"),
-                               false, task.Done);
+                    n = Add(n, "      " + task.Name + "   -   " + (task.Done ? "done" : "to do"),
+                            task.Done ? 1 : 2);
                 }
             }
 
-            // Trim without reallocating: extra cached rows are simply not
-            // drawn.
             _rowCount = n;
         }
 
-        private int _rowCount;
-
-        private int AddRow(int index, string text, bool header, bool done)
+        private int Add(int index, string text, int kind)
         {
             if (index < _labels.Count)
             {
                 _labels[index].text = text;
-                _isHeader[index] = header;
-                _isDone[index] = done;
+                _kinds[index] = kind;
             }
             else
             {
                 _labels.Add(new GUIContent(text));
-                _isHeader.Add(header);
-                _isDone.Add(done);
+                _kinds.Add(kind);
             }
 
             return index + 1;
@@ -160,20 +240,28 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            GUI.Label(new Rect(0, 2, w - 200, 20), _book.Status);
+            GUI.Label(new Rect(0, 2, w - 200, 20),
+                      _list.Status + "   |   " + _book.Status, _rowStyle);
 
             bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) _pinSummary = pin;
 
-            bool found = GUI.Toggle(new Rect(0, 26, 110, 20), _showFound, " found");
+            bool found = GUI.Toggle(new Rect(0, 26, 110, 20), _showFound, " collected");
             if (found != _showFound) { _showFound = found; RebuildRows(); }
 
-            bool missing = GUI.Toggle(new Rect(116, 26, 120, 20), _showMissing, " not found");
+            bool missing = GUI.Toggle(new Rect(116, 26, 110, 20), _showMissing, " missing");
             if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
+
+            if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
+            {
+                _list.Reload();
+                _resolved = false;
+            }
 
             if (GUI.Button(new Rect(w - 90, 26, 90, 22), "Refresh"))
             {
                 _book.Refresh();
+                UpdateSeen();
                 RebuildRows();
             }
 
@@ -191,13 +279,16 @@ namespace ForestOverlay.Modules
             _headerStyle = new GUIStyle(_rowStyle);
             _headerStyle.fontStyle = FontStyle.Bold;
 
-            // Muted green / amber rather than saturated, for the same
-            // reason the zone colours were toned down.
+            // Muted rather than saturated, for the same reason the zone
+            // colours were toned down.
             _doneStyle = new GUIStyle(_rowStyle);
             _doneStyle.normal.textColor = new Color(0.45f, 0.82f, 0.50f);
 
             _missingStyle = new GUIStyle(_rowStyle);
             _missingStyle.normal.textColor = new Color(0.92f, 0.72f, 0.32f);
+
+            _warnStyle = new GUIStyle(_rowStyle);
+            _warnStyle.normal.textColor = new Color(0.90f, 0.45f, 0.45f);
         }
 
         private void DrawList(Rect area)
@@ -207,14 +298,19 @@ namespace ForestOverlay.Modules
             Rect content = new Rect(0, 0, area.width - 20f, _rowCount * RowHeight + 4f);
             _scroll = GUI.BeginScrollView(area, _scroll, content);
 
-            // Virtualised, same as every other long list here.
             for (int i = 0; i < _rowCount && i < _labels.Count; i++)
             {
                 float y = 2f + i * RowHeight;
                 if (y + RowHeight < _scroll.y || y > _scroll.y + area.height) continue;
 
-                GUIStyle style = _isHeader[i] ? _headerStyle
-                                              : (_isDone[i] ? _doneStyle : _missingStyle);
+                GUIStyle style;
+                switch (_kinds[i])
+                {
+                    case 0: style = _headerStyle; break;
+                    case 1: style = _doneStyle; break;
+                    case 3: style = _warnStyle; break;
+                    default: style = _missingStyle; break;
+                }
 
                 GUI.Label(new Rect(4f, y, content.width - 8f, RowHeight), _labels[i], style);
             }
@@ -224,7 +320,7 @@ namespace ForestOverlay.Modules
             if (_rowCount == 0)
             {
                 GUI.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 60),
-                          "Nothing to show yet.\n\n" + _book.Status, _rowStyle);
+                          "Nothing to show yet.\n\n" + _list.Status, _rowStyle);
             }
         }
     }
