@@ -2,37 +2,35 @@ using System;
 using System.Collections.Generic;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
+using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // Practice spots: teleport somewhere and practise from it.
+    // Practice spots and segments - ONE list.
     //
-    // THERE IS NO SEPARATE "ANCHOR".
-    // An earlier version had two competing ideas - a manually set anchor
-    // and a teleport library - and they overlapped confusingly: if you can
-    // save a spot, setting a nameless anchor as well is redundant. So the
-    // spot you last went to IS where the next attempt starts from, and
-    // "save spot here" is the only way to make a new one.
+    // A spot and a segment used to be separate features with separate
+    // lists, files and editors, which was duplication for a single idea:
+    // somewhere to stand, optionally with a start and an end attached.
+    // Every entry here is a place you can teleport to; tick "Timed
+    // segment" and it additionally becomes a run with triggers and splits.
     //
-    // A spot is also what a segment grows out of: attach start/end
-    // triggers to one later and it becomes a timed, splittable segment
-    // (see Data/Segments.cs). Same position, more configuration.
+    // That also removed the old "anchor": the entry you last went to IS
+    // where the next attempt starts from.
     //
-    // PracticeRunModule watches CurrentSpot to time attempts.
+    // Everything positional is captured from where the player is standing
+    // via Here buttons, and zones are previewed in the world while
+    // editing, because typing a radius and hoping is guesswork.
     //
-    // The list is data, not code (see LocationLibrary): every .txt in the
-    // locations folder is merged, so a shared set is a file you drop in.
+    // Edits live in memory until Save, so a half-made entry costs nothing
+    // and a bad edit cannot corrupt a shared file.
     // ------------------------------------------------------------------
     public sealed class PracticeModule : OverlayModule
     {
-        private const float RowHeight = 21f;
-        private const float HeaderHeight = 22f;
-
-        // Char code rather than an escape so the literal survives tooling
-        // that rewrites this file.
-        private static readonly string NL = ((char)10).ToString();
+        private const float RowHeight = 22f;
+        private const float DefaultRadius = 3f;
+        private const float ListWidth = 250f;
 
         public override string Id { get { return "practice"; } }
         public override string DisplayName { get { return "Practice"; } }
@@ -41,159 +39,261 @@ namespace ForestOverlay.Modules
         public override int TabOrder { get { return 10; } }
         public override bool IsPracticeOnly { get { return true; } }
 
-        private LocationLibrary _library;
-
-        // --- current spot -------------------------------------------------
-        private bool _hasSpot;
-        private Vector3 _spotPosition;
-        private float _spotYaw;
-        private float _spotPitch;
-        private string _spotLabel = "";
-
-        public bool HasSpot { get { return _hasSpot; } }
-        public Vector3 SpotPosition { get { return _spotPosition; } }
-        public string SpotLabel { get { return _spotLabel; } }
-
-        /// Raised whenever the player is placed at the current spot, so a
-        /// practice attempt can be armed without this module knowing the
-        /// timer exists.
-        public System.Action OnPlacedAtSpot;
-
+        private SegmentLibrary _library;
+        private Segment _selected;
+        private bool _dirty;
         private string _status = "";
-
-        private Rect _windowRect;
-        private bool _windowPlaced;
-        private Vector2 _scroll;
         private string _filter = "";
 
-        // Category name -> collapsed. Matters once a contributed set
-        // pushes the list past a screenful.
-        private readonly Dictionary<string, bool> _collapsed = new Dictionary<string, bool>();
+        // --- current entry (what a practice attempt starts from) ----------
+        private Segment _current;
+        public bool HasSpot { get { return _current != null && _current.HasSpawn; } }
+        public Vector3 SpotPosition { get { return _current != null ? _current.SpawnPosition : Vector3.zero; } }
+        public string SpotLabel { get { return _current != null ? _current.Name : ""; } }
+        public Segment CurrentSegment { get { return _current; } }
 
-        private string _captureName = "new spot";
-        private string _captureCategory = "My spots";
+        /// Raised when the player is placed at the current entry, so a run
+        /// can arm without this module knowing the timer exists.
+        public Action OnPlacedAtSpot;
+
+        private float _tabW;
+        private float _tabH;
+        private Vector2 _listScroll;
+        private Vector2 _editScroll;
 
         private GUIStyle _rowStyle;
-        private GUIStyle _headerStyle;
+        private GUIStyle _selectedRowStyle;
+        private GUIStyle _dimStyle;
 
+        private readonly List<Segment> _visible = new List<Segment>();
+        private readonly List<GUIContent> _rowLabels = new List<GUIContent>();
+
+        // Zone preview.
+        private GameObject _previewHost;
+        private ZonePreviewBehaviour _preview;
+        private bool _showPreview = true;
+
+        // Item search state. The target identifies which trigger is being
+        // searched for: -2 start, -3 end, >= 0 a checkpoint index.
+        private string _itemQuery = "";
+        private readonly List<ItemInfo> _itemResults = new List<ItemInfo>();
+        private int _itemSearchTarget = -1;
+
+        public SegmentLibrary Library { get { return _library; } }
+
+        // ------------------------------------------------------------------
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
-            _library = new LocationLibrary(ctx.Log, ctx.ConfigDirectory);
-            _library.Reload();
+
+            _library = new SegmentLibrary(ctx.Log, ctx.ConfigDirectory);
+            Reload();
+
+            _previewHost = new GameObject("ForestOverlay_ZonePreview");
+            _previewHost.hideFlags = HideFlags.HideAndDontSave;
+            UnityEngine.Object.DontDestroyOnLoad(_previewHost);
+            _preview = _previewHost.AddComponent<ZonePreviewBehaviour>();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("practice.saveSpot", KeyCode.F6, "Save spot here", QuickSaveSpot);
-            map.Add("practice.toSpot", KeyCode.F7, "Return to current spot", ReturnToSpot);
+            map.Add("practice.goToSpot", KeyCode.F7, "Return to current spot", ReturnToSpot);
             map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
         }
 
-        // ------------------------------------------------------------------
-        private void SetSpot(Vector3 pos, float yaw, float pitch, string label)
+        private void Reload()
         {
-            _spotPosition = pos;
-            _spotYaw = yaw;
-            _spotPitch = pitch;
-            _spotLabel = label;
-            _hasSpot = true;
+            _library.Reload();
+            _selected = null;
+            _dirty = false;
+            RebuildVisible();
         }
 
-        /// Saves where you are standing as a real, named spot and makes it
-        /// current. There is no unnamed "just remember this" state any
-        /// more: a saved spot is the only kind, so it survives a restart
-        /// and can be shared or promoted to a segment later.
-        private void QuickSaveSpot()
+        public override void Tick()
         {
-            if (!Ctx.Player.Found) { _status = "No player ref."; return; }
+            UpdatePreview();
+        }
 
-            Vector3 p = Ctx.Player.Transform.position;
-            float yaw = Ctx.Player.Transform.eulerAngles.y;
-            float pitch = Ctx.Bridge.GetLookPitch();
+        public override void Shutdown()
+        {
+            if (_previewHost != null) UnityEngine.Object.Destroy(_previewHost);
+        }
 
-            string name = _captureName;
-            if (name.Length == 0 || name == "new spot")
-                name = "spot " + DateTime.Now.ToString("HH:mm:ss");
+        // ------------------------------------------------------------------
+        private void RebuildVisible()
+        {
+            _visible.Clear();
 
-            if (_library.Append(_captureCategory, name, p, yaw, "", pitch))
+            string f = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
+            IList<Segment> all = _library.All;
+
+            for (int i = 0; i < all.Count; i++)
             {
-                _library.Reload();
-                SetSpot(p, yaw, pitch, name);
-                _status = "Saved and selected '" + name + "'";
+                if (f != null &&
+                    all[i].Name.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0 &&
+                    all[i].Category.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
+                    continue;
+
+                _visible.Add(all[i]);
             }
-            else _status = "Save failed - see log.";
+
+            // Name only. The row used to read "Name [id]" and the id pushed
+            // the name off the edge - the id is editable in the detail pane
+            // and does not need to be in the list.
+            for (int i = 0; i < _visible.Count; i++)
+            {
+                string text = (_visible[i].IsTimed ? "* " : "   ") + _visible[i].Name;
+                if (i < _rowLabels.Count) _rowLabels[i].text = text;
+                else _rowLabels.Add(new GUIContent(text));
+            }
+        }
+
+        private void UpdatePreview()
+        {
+            if (_preview == null) return;
+
+            if (!_showPreview || _selected == null || !_selected.IsTimed)
+            {
+                _preview.Show = false;
+                _preview.Count = 0;
+                return;
+            }
+
+            int needed = 2 + _selected.Checkpoints.Count;
+            if (_preview.Zones == null || _preview.Zones.Length < needed)
+                _preview.Zones = new PreviewZone[needed + 8];
+
+            int n = 0;
+            n = AddZone(_selected.Start, 0, n);
+
+            for (int i = 0; i < _selected.Checkpoints.Count; i++)
+                n = AddZone(_selected.Checkpoints[i], 1, n);
+
+            n = AddZone(_selected.End, 2, n);
+
+            _preview.Count = n;
+            _preview.Show = n > 0;
+        }
+
+        private int AddZone(Trigger t, int kind, int n)
+        {
+            if (t.Kind != TriggerKind.Zone) return n;
+
+            PreviewZone z;
+            z.Center = t.Position;
+            z.Radius = t.Radius;
+            z.Extents = t.Extents;
+            z.IsBox = t.Shape == ZoneShape.Box;
+            z.Kind = kind;
+
+            _preview.Zones[n] = z;
+            return n + 1;
+        }
+
+        // ------------------------------------------------------------------
+        // Teleporting
+        // ------------------------------------------------------------------
+        private void GoTo(Segment s)
+        {
+            if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
+
+            Quaternion rot = Quaternion.Euler(0f, s.SpawnYaw, 0f);
+
+            if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
+
+            Ctx.Bridge.ApplyLook(Ctx.Player.Transform, s.SpawnYaw, s.SpawnPitch);
+            Ctx.Practice.Mark("teleport: " + s.Name);
+
+            _current = s;
+            _status = "-> " + s.Name;
+
+            if (OnPlacedAtSpot != null) OnPlacedAtSpot();
         }
 
         public void ReturnToSpot()
         {
-            if (!_hasSpot) { _status = "No spot selected - click one below."; return; }
-
-            if (Ctx.Player.MoveTo(_spotPosition, Quaternion.Euler(0f, _spotYaw, 0f)))
-            {
-                Ctx.Bridge.ApplyLook(Ctx.Player.Transform, _spotYaw, _spotPitch);
-                Ctx.Practice.Mark("return to spot");
-                _status = "-> " + _spotLabel;
-                if (OnPlacedAtSpot != null) OnPlacedAtSpot();
-            }
-            else _status = "No player ref.";
+            if (_current == null) { _status = "No entry selected."; return; }
+            GoTo(_current);
         }
 
-        // Teleporting somewhere makes that the new anchor: it is where the
-        // next attempt starts from.
-        private void TeleportTo(Location loc)
+        /// Saves where you stand as a new entry and selects it.
+        private void QuickSaveSpot()
         {
-            Quaternion rot = Quaternion.Euler(0f, loc.Yaw, 0f);
+            Segment s = NewFromHere("spot " + DateTime.Now.ToString("HH:mm:ss"));
+            if (s == null) return;
 
-            if (Ctx.Player.MoveTo(loc.Position, rot))
-            {
-                Ctx.Bridge.ApplyLook(Ctx.Player.Transform, loc.Yaw, loc.Pitch);
-                SetSpot(loc.Position, loc.Yaw, loc.Pitch, loc.Name);
-                Ctx.Practice.Mark("teleport: " + loc.Name);
-                _status = "-> " + loc.Name;
-                if (OnPlacedAtSpot != null) OnPlacedAtSpot();
-            }
-            else _status = "No player ref.";
+            _library.Add(s);
+            _selected = s;
+            _current = s;
+
+            RebuildVisible();
+
+            // Written straight through: a quick-save that only lived in
+            // memory would vanish on the next reload.
+            if (_library.SaveFile(s.SourceFile)) _status = "Saved '" + s.Name + "'";
+            else _status = "Save failed - see log.";
         }
 
-        private void CaptureHere()
+        private Segment NewFromHere(string name)
         {
-            if (!Ctx.Player.Found) { _status = "No player ref."; return; }
+            if (!Ctx.Player.Found) { _status = "No player ref."; return null; }
 
-            Vector3 p = Ctx.Player.Transform.position;
-            float yaw = Ctx.Player.Transform.eulerAngles.y;
+            Segment s = new Segment();
+            s.Name = name;
+            s.Category = "My spots";
+            s.Id = NextFreeId("spot.my." + Slug(name));
+            s.SourceFile = SegmentLibrary.UserFileName;
 
-            if (_library.Append(_captureCategory, _captureName, p, yaw, "", Ctx.Bridge.GetLookPitch()))
-            {
-                _library.Reload();
-                _status = "Captured '" + _captureName + "'";
-            }
-            else _status = "Capture failed - see log.";
+            s.SpawnPosition = Ctx.Player.Transform.position;
+            s.SpawnYaw = Ctx.Player.Transform.eulerAngles.y;
+            s.SpawnPitch = Ctx.Bridge.GetLookPitch();
+            s.HasSpawn = true;
+
+            return s;
         }
 
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
-            if (_hasSpot) hud.Pair("Spot", _spotLabel);
+            if (_current != null) hud.Pair("Spot", _current.Name);
             if (_status.Length > 0) hud.Pair("Prac", _status);
         }
-
-        private float _tabW;
-        private float _tabH;
 
         public override void DrawTab(Rect area)
         {
             _tabW = area.width;
             _tabH = area.height;
-            DrawContents(0);
-        }
+            EnsureStyles();
 
-        private readonly GUIContent _title = new GUIContent("Practice");
+            float w = _tabW;
 
-        public override void Tick()
-        {
-            _title.text = "Practice  -  " + _library.Status +
-                          (_hasSpot ? "  |  spot: " + _spotLabel : "  |  no spot selected");
+            // --- toolbar ---------------------------------------------------
+            if (GUI.Button(new Rect(0, 0, 70, 24), "New")) CreateNew();
+
+            GUI.enabled = _selected != null;
+            if (GUI.Button(new Rect(74, 0, 80, 24), "Duplicate")) Duplicate();
+            if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
+            GUI.enabled = true;
+
+            GUI.enabled = _dirty;
+            if (GUI.Button(new Rect(w - 160, 0, 70, 24), "Save")) Save();
+            GUI.enabled = true;
+            if (GUI.Button(new Rect(w - 86, 0, 86, 24), "Reload")) Reload();
+
+            // --- filter ----------------------------------------------------
+            GUI.Label(new Rect(0, 30, 36, 20), "Find");
+            string filter = GUI.TextField(new Rect(38, 28, ListWidth - 80, 22), _filter);
+            if (filter != _filter) { _filter = filter; RebuildVisible(); }
+            if (GUI.Button(new Rect(ListWidth - 38, 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
+
+            bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
+            if (preview != _showPreview) _showPreview = preview;
+
+            GUI.Label(new Rect(ListWidth + 140, 30, w - ListWidth - 140, 20), _status, _dimStyle);
+
+            DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
+            DrawEditor(new Rect(ListWidth + 14, 56, w - ListWidth - 14, _tabH - 60));
         }
 
         private void EnsureStyles()
@@ -202,168 +302,533 @@ namespace ForestOverlay.Modules
 
             _rowStyle = new GUIStyle(GUI.skin.button);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
-            _rowStyle.padding = new RectOffset(8, 4, 0, 0);
+            _rowStyle.padding = new RectOffset(6, 4, 0, 0);
 
-            _headerStyle = new GUIStyle(GUI.skin.box);
-            _headerStyle.alignment = TextAnchor.MiddleLeft;
-            _headerStyle.padding = new RectOffset(8, 4, 0, 0);
-            _headerStyle.fontStyle = FontStyle.Bold;
+            _selectedRowStyle = new GUIStyle(_rowStyle);
+            _selectedRowStyle.fontStyle = FontStyle.Bold;
+
+            _dimStyle = new GUIStyle(GUI.skin.label);
+            _dimStyle.alignment = TextAnchor.MiddleLeft;
         }
 
-        private void DrawContents(int id)
+        private void DrawList(Rect area)
         {
-            EnsureStyles();
+            GUI.Box(area, GUIContent.none);
 
-            float w = _tabW;
+            Rect content = new Rect(0, 0, area.width - 20f, _visible.Count * RowHeight + 4f);
+            _listScroll = GUI.BeginScrollView(area, _listScroll, content);
 
-            // --- anchor ----------------------------------------------------
-            if (GUI.Button(new Rect(10, 26, 130, 24), "Save spot here")) QuickSaveSpot();
-
-            GUI.enabled = _hasSpot;
-            if (GUI.Button(new Rect(146, 26, 130, 24), "Return to spot")) ReturnToSpot();
-            GUI.enabled = true;
-
-            if (GUI.Button(new Rect(282, 26, w - 292, 24), "Reload files")) _library.Reload();
-
-            // --- capture ---------------------------------------------------
-            GUI.Label(new Rect(10, 58, 60, 22), "Capture");
-            _captureCategory = GUI.TextField(new Rect(72, 58, 110, 22), _captureCategory);
-            _captureName = GUI.TextField(new Rect(188, 58, 130, 22), _captureName);
-            if (GUI.Button(new Rect(324, 58, w - 334, 22), "Add here")) CaptureHere();
-
-            // --- filter ----------------------------------------------------
-            GUI.Label(new Rect(10, 86, 40, 22), "Find");
-            _filter = GUI.TextField(new Rect(52, 86, 200, 22), _filter);
-            if (GUI.Button(new Rect(258, 86, 56, 22), "Clear")) _filter = "";
-
-            GUI.Label(new Rect(10, 112, w - 20, 20), _status);
-
-            DrawLocationList(new Rect(8, 134, w - 16, _tabH - 144));
-
-        }
-
-        // Grouped by category, collapsible, virtualised the same way the
-        // type explorer is - a contributed set could be thousands of rows
-        // and OnGUI runs several times a frame.
-        private void DrawLocationList(Rect listRect)
-        {
-            IList<Location> all = _library.All;
-            string filter = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
-
-            float y = 0f;
-            float contentHeight = MeasureContent(all, filter);
-
-            Rect content = new Rect(0, 0, listRect.width - 20f, contentHeight);
-            _scroll = GUI.BeginScrollView(listRect, _scroll, content);
-
-            string currentCategory = null;
-            bool categoryCollapsed = false;
-
-            for (int i = 0; i < all.Count; i++)
+            for (int i = 0; i < _visible.Count; i++)
             {
-                Location loc = all[i];
-                if (!MatchesFilter(loc, filter)) continue;
+                if (i >= _rowLabels.Count) break;
 
-                if (loc.Category != currentCategory)
+                float rowY = 2f + i * RowHeight;
+                Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
+                if (r.yMax < _listScroll.y || r.y > _listScroll.y + area.height) continue;
+
+                bool isSelected = ReferenceEquals(_visible[i], _selected);
+
+                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
                 {
-                    currentCategory = loc.Category;
-                    categoryCollapsed = IsCollapsed(currentCategory);
-
-                    Rect hr = new Rect(0, y, content.width, HeaderHeight);
-                    if (IsVisible(hr, listRect))
-                    {
-                        if (GUI.Button(hr, (categoryCollapsed ? "+ " : "- ") + currentCategory, _headerStyle))
-                            _collapsed[currentCategory] = !categoryCollapsed;
-                    }
-                    y += HeaderHeight;
+                    if (_dirty) _status = "Unsaved changes - Save or Reload first.";
+                    else { _selected = _visible[i]; _status = ""; }
                 }
 
-                if (categoryCollapsed) continue;
-
-                Rect r = new Rect(12f, y, content.width - 12f, RowHeight);
-                if (IsVisible(r, listRect))
-                {
-                    if (GUI.Button(r, loc.Label, _rowStyle)) TeleportTo(loc);
-                }
-                y += RowHeight;
+                GUI.enabled = _visible[i].HasSpawn;
+                if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
+                    GoTo(_visible[i]);
+                GUI.enabled = true;
             }
 
             GUI.EndScrollView();
 
-            if (all.Count == 0) DrawEmptyState(listRect);
+            if (_visible.Count == 0)
+            {
+                GUI.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 80),
+                          _library.All.Count == 0
+                              ? "Nothing yet.\n\nStand somewhere and\npress New (or F6)."
+                              : "No matches for that filter.");
+            }
         }
 
-        // The help text wraps - the config path is long - so its height must
-        // be measured rather than assumed. A fixed box clipped the last line.
-        private GUIContent _emptyHelp;
-        private GUIStyle _wrapStyle;
-
-        private void DrawEmptyState(Rect listRect)
+        // ------------------------------------------------------------------
+        private void DrawEditor(Rect area)
         {
-            if (_wrapStyle == null)
+            if (_selected == null)
             {
-                _wrapStyle = new GUIStyle(GUI.skin.label);
-                _wrapStyle.wordWrap = true;
-                _wrapStyle.alignment = TextAnchor.UpperLeft;
+                GUI.Label(new Rect(area.x, area.y + 8, area.width, 80),
+                          "Select an entry on the left, or press New.\n\n" +
+                          "Every entry is somewhere you can teleport to.\n" +
+                          "Tick 'Timed segment' to make it a timed run.");
+                return;
             }
 
-            if (_emptyHelp == null)
+            Segment s = _selected;
+            float w = area.width;
+
+            float height = 260f;
+            if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
+                height = 620f + s.Checkpoints.Count * 110f;
+
+            Rect content = new Rect(0, 0, w - 20f, height);
+            _editScroll = GUI.BeginScrollView(area, _editScroll, content);
+
+            float y = 0f;
+            float cw = content.width;
+
+            y = Field(y, cw, "Name", ref s.Name);
+            y = Field(y, cw, "Category", ref s.Category);
+            y = Field(y, cw, "Id", ref s.Id);
+
+            if (!_library.IsIdAvailable(s.Id, s))
             {
-                _emptyHelp = new GUIContent(
-                    "No locations yet." + NL + NL +
-                    "Stand where you want a spot, set a category and name above, " +
-                    "then press Add here. It is appended to " +
-                    LocationLibrary.UserFileName + " and shows up in this list." + NL + NL +
-                    "Loaded from:" + NL + _library.Folder + NL + NL +
-                    "Any .txt file in that folder is merged in, so a shared set can " +
-                    "be dropped straight in.");
+                GUI.Label(new Rect(80, y, cw - 90, 18), "id already used - pick another");
+                y += 18f;
             }
 
-            float w = listRect.width - 20f;
-            float h = _wrapStyle.CalcHeight(_emptyHelp, w);
+            y = Field(y, cw, "Notes", ref s.Notes);
+            y += 6f;
 
-            GUI.Label(new Rect(listRect.x + 8f, listRect.y + 6f, w, h), _emptyHelp, _wrapStyle);
-        }
+            // --- spawn -----------------------------------------------------
+            GUI.Label(new Rect(0, y, 74, 20), "Spawn");
+            GUI.Label(new Rect(80, y, cw - 220, 20),
+                      s.HasSpawn ? Coords(s.SpawnPosition) : "(none - cannot teleport here)");
 
-        private float MeasureContent(IList<Location> all, string filter)
-        {
-            float h = 0f;
-            string current = null;
-            bool collapsed = false;
+            if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
 
-            for (int i = 0; i < all.Count; i++)
+            GUI.enabled = s.HasSpawn;
+            if (GUI.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) GoTo(s);
+            GUI.enabled = true;
+            y += 30f;
+
+            // --- timed toggle ----------------------------------------------
+            bool timed = GUI.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
+            if (timed != s.IsTimed) ToggleTimed(s, timed);
+
+            GUI.Label(new Rect(156, y, cw - 166, 20),
+                      timed ? "runs start -> end, splitting at checkpoints"
+                            : "teleport only - tick to add a start and end",
+                      _dimStyle);
+            y += 28f;
+
+            if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
             {
-                if (!MatchesFilter(all[i], filter)) continue;
+                y = DrawTrigger(y, cw, "Start", ref s.Start, -2);
 
-                if (all[i].Category != current)
+                for (int i = 0; i < s.Checkpoints.Count; i++)
                 {
-                    current = all[i].Category;
-                    collapsed = IsCollapsed(current);
-                    h += HeaderHeight;
+                    Trigger t = s.Checkpoints[i];
+                    float before = y;
+                    y = DrawTrigger(y, cw, "Check " + (i + 1), ref t, i);
+                    s.Checkpoints[i] = t;
+
+                    if (GUI.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
+                    {
+                        s.Checkpoints.RemoveAt(i);
+                        Touch();
+                        break;
+                    }
                 }
 
-                if (!collapsed) h += RowHeight;
+                if (GUI.Button(new Rect(0, y, 160, 22), "Add checkpoint here"))
+                {
+                    s.Checkpoints.Add(ZoneHere());
+                    Touch();
+                }
+                y += 28f;
+
+                y = DrawTrigger(y, cw, "End", ref s.End, -3);
             }
-            return h;
+
+            GUI.EndScrollView();
         }
 
-        private bool IsCollapsed(string category)
+        private void ToggleTimed(Segment s, bool on)
         {
-            bool v;
-            return _collapsed.TryGetValue(category, out v) && v;
+            if (on)
+            {
+                // Both ends default to where you stand, so a fresh segment is
+                // immediately coherent rather than pointing at world origin.
+                if (!s.Start.IsSet) s.Start = ZoneHere();
+                if (!s.End.IsSet) s.End = ZoneHere();
+            }
+            else
+            {
+                s.Start = new Trigger();
+                s.End = new Trigger();
+                s.Checkpoints.Clear();
+            }
+
+            Touch();
+            RebuildVisible();
         }
 
-        private bool IsVisible(Rect row, Rect viewport)
+        // ------------------------------------------------------------------
+        private float DrawTrigger(float y, float w, string label, ref Trigger t, int slot)
         {
-            return row.yMax >= _scroll.y - RowHeight &&
-                   row.y <= _scroll.y + viewport.height + RowHeight;
+            const float labelW = 74f;
+            float x0 = labelW + 6f;
+
+            GUI.Label(new Rect(0, y, labelW, 20), label);
+
+            float x = x0;
+            x = KindButton(x, y, "zone", TriggerKind.Zone, ZoneShape.Sphere, ref t);
+            x = KindButton(x, y, "box", TriggerKind.Zone, ZoneShape.Box, ref t);
+            x = KindButton(x, y, "item", TriggerKind.Item, ZoneShape.Sphere, ref t);
+            x = KindButton(x, y, "event", TriggerKind.Event, ZoneShape.Sphere, ref t);
+            x = KindButton(x, y, "manual", TriggerKind.Manual, ZoneShape.Sphere, ref t);
+
+            y += 26f;
+
+            switch (t.Kind)
+            {
+                case TriggerKind.Zone:
+                    {
+                        GUI.Label(new Rect(x0, y, w - x0 - 70f, 20), Coords(t.Position));
+
+                        if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
+                        {
+                            Vector3 p;
+                            if (TryPlayerPosition(out p)) { t.Position = p; Touch(); }
+                        }
+                        y += 24f;
+
+                        if (t.Shape == ZoneShape.Box) y = BoxFields(y, w, x0, ref t);
+                        else y = SphereFields(y, w, x0, ref t);
+                        break;
+                    }
+
+                case TriggerKind.Item:
+                    y = ItemFields(y, w, x0, ref t, slot);
+                    break;
+
+                case TriggerKind.Event:
+                    {
+                        string name = GUI.TextField(new Rect(x0, y - 2f, w - x0 - 6f, 22f), t.EventName ?? "");
+                        if (name != t.EventName) { t.EventName = name; Touch(); }
+                        y += 24f;
+
+                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "a named game event", _dimStyle);
+                        y += 22f;
+                        break;
+                    }
+
+                case TriggerKind.Manual:
+                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "only fires on the hotkey", _dimStyle);
+                    y += 22f;
+                    break;
+
+                default:
+                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "not set - pick a kind above", _dimStyle);
+                    y += 22f;
+                    break;
+            }
+
+            return y + 6f;
         }
 
-        private static bool MatchesFilter(Location loc, string lowerFilter)
+        private float SphereFields(float y, float w, float x0, ref Trigger t)
         {
-            if (lowerFilter == null) return true;
-            return loc.Name.ToLowerInvariant().Contains(lowerFilter) ||
-                   loc.Category.ToLowerInvariant().Contains(lowerFilter);
+            GUI.Label(new Rect(x0, y, 110f, 20), "radius " + t.Radius.ToString("F1") + "m");
+
+            float sliderX = x0 + 114f;
+            float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
+                                           t.Radius <= 0f ? DefaultRadius : t.Radius, 0.5f, 25f);
+            if (!Mathf.Approximately(r, t.Radius)) { t.Radius = r; Touch(); }
+
+            return y + 26f;
+        }
+
+        private float BoxFields(float y, float w, float x0, ref Trigger t)
+        {
+            Vector3 e = t.Extents;
+            if (e.x <= 0f && e.y <= 0f && e.z <= 0f) e = new Vector3(3f, 3f, 3f);
+
+            // Shown as full size because "width 6m" is what a player can
+            // pace out; extents are the half-size the maths wants.
+            e.x = ExtentSlider(y, w, x0, "width", e.x);
+            y += 24f;
+            e.y = ExtentSlider(y, w, x0, "height", e.y);
+            y += 24f;
+            e.z = ExtentSlider(y, w, x0, "depth", e.z);
+            y += 26f;
+
+            if (e != t.Extents) { t.Extents = e; Touch(); }
+            return y;
+        }
+
+        private float ExtentSlider(float y, float w, float x0, string label, float value)
+        {
+            GUI.Label(new Rect(x0, y, 110f, 20), label + " " + (value * 2f).ToString("F1") + "m");
+
+            float sliderX = x0 + 114f;
+            return GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
+                                        value, 0.5f, 30f);
+        }
+
+        // Item triggers search by NAME, because nobody knows item ids.
+        private float ItemFields(float y, float w, float x0, ref Trigger t, int slot)
+        {
+            string current = Ctx.Inventory.NameForId(t.ItemId);
+
+            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20),
+                      "item " + t.ItemId + (current != null ? "  -  " + current : ""));
+            y += 24f;
+
+            bool searching = _itemSearchTarget == slot;
+
+            if (GUI.Button(new Rect(x0, y - 2f, 70f, 22f), searching ? "close" : "find"))
+            {
+                _itemSearchTarget = searching ? -1 : slot;
+                _itemQuery = "";
+                _itemResults.Clear();
+            }
+
+            if (GUI.Button(new Rect(x0 + 76f, y - 2f, 44f, 22f), Trigger.OpText(t.Compare)))
+            {
+                t.Compare = (Comparison)(((int)t.Compare + 1) % 3);
+                Touch();
+            }
+
+            string amtText = GUI.TextField(new Rect(x0 + 126f, y - 2f, 50f, 22f), t.Amount.ToString());
+            int parsedAmt;
+            if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
+
+            bool rel = GUI.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
+            if (rel != t.Relative) { t.Relative = rel; Touch(); }
+            y += 24f;
+
+            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20),
+                      t.Relative
+                          ? "fires after gaining this many MORE than at the start"
+                          : "fires when the total held crosses this",
+                      _dimStyle);
+            y += 22f;
+
+            if (!searching) return y;
+
+            // --- search ----------------------------------------------------
+            GUI.Label(new Rect(x0, y, 46f, 20), "name");
+            string q = GUI.TextField(new Rect(x0 + 48f, y - 2f, w - x0 - 58f, 22f), _itemQuery);
+
+            if (q != _itemQuery)
+            {
+                _itemQuery = q;
+                Ctx.Inventory.SearchItems(q, _itemResults, 8);
+            }
+            y += 26f;
+
+            for (int i = 0; i < _itemResults.Count; i++)
+            {
+                if (GUI.Button(new Rect(x0 + 10f, y, w - x0 - 20f, 20f),
+                               _itemResults[i].Name + "   (" + _itemResults[i].Id + ")", _rowStyle))
+                {
+                    t.ItemId = _itemResults[i].Id;
+                    _itemSearchTarget = -1;
+                    _itemResults.Clear();
+                    Touch();
+                    break;
+                }
+                y += 21f;
+            }
+
+            if (_itemQuery.Length > 0 && _itemResults.Count == 0)
+            {
+                GUI.Label(new Rect(x0 + 10f, y, w - x0 - 20f, 20f), "no matches", _dimStyle);
+                y += 21f;
+            }
+
+            return y + 4f;
+        }
+
+        private float KindButton(float x, float y, string text, TriggerKind kind,
+                                 ZoneShape shape, ref Trigger t)
+        {
+            bool on = t.Kind == kind && (kind != TriggerKind.Zone || t.Shape == shape);
+
+            if (GUI.Button(new Rect(x, y - 2f, 54f, 22f), text, on ? _selectedRowStyle : _rowStyle))
+            {
+                if (!on)
+                {
+                    t.Kind = kind;
+
+                    if (kind == TriggerKind.Zone)
+                    {
+                        t.Shape = shape;
+
+                        Vector3 p;
+                        if (TryPlayerPosition(out p)) t.Position = p;
+
+                        if (shape == ZoneShape.Sphere && t.Radius <= 0f) t.Radius = DefaultRadius;
+                        if (shape == ZoneShape.Box && t.Extents.x <= 0f)
+                            t.Extents = new Vector3(3f, 3f, 3f);
+                    }
+
+                    Touch();
+                }
+            }
+
+            return x + 58f;
+        }
+
+        // ------------------------------------------------------------------
+        private void CreateNew()
+        {
+            Segment s = NewFromHere("New spot");
+            if (s == null) return;
+
+            _library.Add(s);
+            _selected = s;
+            RebuildVisible();
+            Touch();
+            _status = "New entry - tick 'Timed segment' to make it a run.";
+        }
+
+        private void Duplicate()
+        {
+            Segment src = _selected;
+            Segment s = new Segment();
+
+            s.Id = NextFreeId(src.Id);
+            s.Name = src.Name + " (copy)";
+            s.Category = src.Category;
+            s.Notes = src.Notes;
+            s.HasSpawn = src.HasSpawn;
+            s.SpawnPosition = src.SpawnPosition;
+            s.SpawnYaw = src.SpawnYaw;
+            s.SpawnPitch = src.SpawnPitch;
+            s.Start = src.Start;
+            s.End = src.End;
+            s.Checkpoints.AddRange(src.Checkpoints);
+
+            // Copies land in the user's own file, never back in a shared set.
+            s.SourceFile = SegmentLibrary.UserFileName;
+
+            _library.Add(s);
+            _selected = s;
+            RebuildVisible();
+            Touch();
+        }
+
+        private void Delete()
+        {
+            string file = _selected.SourceFile;
+
+            if (ReferenceEquals(_current, _selected)) _current = null;
+
+            _library.Remove(_selected);
+            _selected = null;
+            RebuildVisible();
+
+            // Written straight through: a delete that only existed in memory
+            // would reappear on reload and look like a bug.
+            _library.SaveFile(file);
+            _dirty = false;
+            _status = "Deleted.";
+        }
+
+        private void Save()
+        {
+            if (_selected != null && !_library.IsIdAvailable(_selected.Id, _selected))
+            {
+                _status = "Cannot save: id '" + _selected.Id + "' is already used.";
+                return;
+            }
+
+            if (_selected != null && !_selected.IsValid)
+            {
+                _status = "Cannot save: needs an id, and a spawn or a start and end.";
+                return;
+            }
+
+            string file = _selected != null ? _selected.SourceFile : SegmentLibrary.UserFileName;
+
+            if (_library.SaveFile(file))
+            {
+                _dirty = false;
+                RebuildVisible();
+                _status = "Saved to " + file;
+            }
+            else _status = "Save failed - see log.";
+        }
+
+        private string NextFreeId(string basis)
+        {
+            if (_library.IsIdAvailable(basis, null)) return basis;
+
+            for (int i = 2; i < 500; i++)
+            {
+                string candidate = basis + "-" + i;
+                if (_library.IsIdAvailable(candidate, null)) return candidate;
+            }
+            return basis + "-" + UnityEngine.Random.Range(1000, 9999);
+        }
+
+        private static string Slug(string text)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(text.Length);
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = char.ToLowerInvariant(text[i]);
+
+                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) sb.Append(c);
+                else if (sb.Length > 0 && sb[sb.Length - 1] != '-') sb.Append('-');
+            }
+
+            string slug = sb.ToString().Trim('-');
+            return slug.Length == 0 ? "unnamed" : slug;
+        }
+
+        private void Touch()
+        {
+            _dirty = true;
+        }
+
+        private void SetSpawnHere(Segment s)
+        {
+            Vector3 p;
+            if (!TryPlayerPosition(out p)) { _status = "No player ref."; return; }
+
+            s.SpawnPosition = p;
+            s.SpawnYaw = Ctx.Player.Transform.eulerAngles.y;
+            s.SpawnPitch = Ctx.Bridge.GetLookPitch();
+            s.HasSpawn = true;
+            Touch();
+        }
+
+        private Trigger ZoneHere()
+        {
+            Trigger t = new Trigger();
+            t.Kind = TriggerKind.Zone;
+            t.Shape = ZoneShape.Sphere;
+            t.Radius = DefaultRadius;
+
+            Vector3 p;
+            if (TryPlayerPosition(out p)) t.Position = p;
+            return t;
+        }
+
+        private bool TryPlayerPosition(out Vector3 p)
+        {
+            if (Ctx.Player.Found) { p = Ctx.Player.Transform.position; return true; }
+            p = Vector3.zero;
+            return false;
+        }
+
+        private static string Coords(Vector3 v)
+        {
+            return v.x.ToString("F1") + ", " + v.y.ToString("F1") + ", " + v.z.ToString("F1");
+        }
+
+        private float Field(float y, float w, string label, ref string value)
+        {
+            GUI.Label(new Rect(0, y, 74, 20), label);
+
+            string edited = GUI.TextField(new Rect(80, y - 2, w - 90, 22), value ?? "");
+            if (edited != value) { value = edited; Touch(); }
+
+            return y + 26f;
         }
     }
 }

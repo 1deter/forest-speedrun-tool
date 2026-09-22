@@ -5,8 +5,10 @@ namespace ForestOverlay.Game
     public struct PreviewZone
     {
         public Vector3 Center;
-        public float Radius;
-        public int Kind;      // 0 start, 1 checkpoint, 2 end
+        public float Radius;      // sphere
+        public Vector3 Extents;   // box half-size
+        public bool IsBox;
+        public int Kind;          // 0 start, 1 checkpoint, 2 end
     }
 
     // ------------------------------------------------------------------
@@ -32,9 +34,18 @@ namespace ForestOverlay.Game
 
         private Material _material;
 
-        private static readonly Color StartColour = new Color(0.30f, 1f, 0.45f, 0.95f);
-        private static readonly Color CheckColour = new Color(0.40f, 0.75f, 1f, 0.95f);
-        private static readonly Color EndColour = new Color(1f, 0.40f, 0.40f, 0.95f);
+        // Traffic-light hues, deliberately DESATURATED.
+        //
+        // The first version used near-full-saturation neon, which is
+        // hard to tell apart on an OLED: at that intensity the display
+        // is pushing primaries close to their limits and adjacent hues
+        // stop separating. Pulling saturation down and spreading the
+        // hues (green / amber / red rather than green / blue / red)
+        // keeps them distinguishable, and green-amber-red already reads
+        // as start-middle-end without a legend.
+        private static readonly Color StartColour = new Color(0.38f, 0.78f, 0.45f, 0.85f);
+        private static readonly Color CheckColour = new Color(0.95f, 0.72f, 0.26f, 0.85f);
+        private static readonly Color EndColour = new Color(0.88f, 0.34f, 0.34f, 0.85f);
 
         private void EnsureMaterial()
         {
@@ -66,14 +77,44 @@ namespace ForestOverlay.Game
             for (int i = 0; i < n; i++)
             {
                 PreviewZone z = Zones[i];
-                if (z.Radius <= 0f) continue;
+                if (!z.IsBox && z.Radius <= 0f) continue;
 
                 GL.Color(z.Kind == 0 ? StartColour : (z.Kind == 2 ? EndColour : CheckColour));
-                WireSphere(z.Center, z.Radius);
+
+                if (z.IsBox) WireBox(z.Center, z.Extents);
+                else WireSphere(z.Center, z.Radius);
+
+                // A post through the centre makes a zone findable when
+                // you are outside it and the outline is edge-on.
+                float height = z.IsBox ? z.Extents.y : z.Radius;
+                GL.Vertex(new Vector3(z.Center.x, z.Center.y - height, z.Center.z));
+                GL.Vertex(new Vector3(z.Center.x, z.Center.y + height, z.Center.z));
             }
 
             GL.End();
             GL.PopMatrix();
+        }
+
+        private static void WireBox(Vector3 c, Vector3 e)
+        {
+            Vector3 p000 = new Vector3(c.x - e.x, c.y - e.y, c.z - e.z);
+            Vector3 p001 = new Vector3(c.x - e.x, c.y - e.y, c.z + e.z);
+            Vector3 p010 = new Vector3(c.x - e.x, c.y + e.y, c.z - e.z);
+            Vector3 p011 = new Vector3(c.x - e.x, c.y + e.y, c.z + e.z);
+            Vector3 p100 = new Vector3(c.x + e.x, c.y - e.y, c.z - e.z);
+            Vector3 p101 = new Vector3(c.x + e.x, c.y - e.y, c.z + e.z);
+            Vector3 p110 = new Vector3(c.x + e.x, c.y + e.y, c.z - e.z);
+            Vector3 p111 = new Vector3(c.x + e.x, c.y + e.y, c.z + e.z);
+
+            Edge(p000, p001); Edge(p001, p011); Edge(p011, p010); Edge(p010, p000);
+            Edge(p100, p101); Edge(p101, p111); Edge(p111, p110); Edge(p110, p100);
+            Edge(p000, p100); Edge(p001, p101); Edge(p011, p111); Edge(p010, p110);
+        }
+
+        private static void Edge(Vector3 a, Vector3 b)
+        {
+            GL.Vertex(a);
+            GL.Vertex(b);
         }
 
         private static void WireSphere(Vector3 c, float r)

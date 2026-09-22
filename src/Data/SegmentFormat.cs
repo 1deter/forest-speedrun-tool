@@ -80,12 +80,22 @@ namespace ForestOverlay.Data
                   .Append(TriggerParser.Num(s.SpawnPitch)).Append(nl);
             }
 
-            sb.Append("start    = ").Append(TriggerParser.Write(s.Start)).Append(nl);
+            // Unset triggers are OMITTED, not written.
+            //
+            // TriggerParser.Write falls through to "manual" for an unset
+            // trigger, so emitting them unconditionally turned every
+            // spawn-only entry into a timed segment with manual start and
+            // end the moment it was saved and reloaded. A spot must stay a
+            // spot across a round trip.
+            if (s.Start.IsSet) sb.Append("start    = ").Append(TriggerParser.Write(s.Start)).Append(nl);
 
             for (int i = 0; i < s.Checkpoints.Count; i++)
+            {
+                if (!s.Checkpoints[i].IsSet) continue;
                 sb.Append("check    = ").Append(TriggerParser.Write(s.Checkpoints[i])).Append(nl);
+            }
 
-            sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
+            if (s.End.IsSet) sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
 
             if (!string.IsNullOrEmpty(s.Notes)) sb.Append("notes    = ").Append(s.Notes).Append(nl);
         }

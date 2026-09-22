@@ -166,7 +166,7 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
-        public void SegmentNeedsIdStartAndEndToBeValid()
+        public void ATimedSegmentNeedsIdStartAndEnd()
         {
             Segment s = new Segment();
             Assert.False(s.IsValid);
@@ -176,9 +176,47 @@ namespace ForestOverlay.Tests
 
             TriggerParser.Parse("manual", out s.Start);
             Assert.False(s.IsValid);
+            Assert.False(s.IsTimed);
 
             TriggerParser.Parse("manual", out s.End);
+            Assert.True(s.IsTimed);
             Assert.True(s.IsValid);
+        }
+
+        [Fact]
+        public void ASpawnOnlyEntryIsValidButNotTimed()
+        {
+            // The unification: a spot is a segment with somewhere to stand
+            // and no triggers. It must be storable and loadable on its own.
+            Segment s = new Segment();
+            s.Id = "spot.my.ledge";
+            s.Name = "Ledge";
+            s.HasSpawn = true;
+            s.SpawnPosition = new Vector3(1f, 2f, 3f);
+
+            Assert.True(s.IsValid);
+            Assert.False(s.IsTimed);
+        }
+
+        [Fact]
+        public void ASpawnOnlyEntryRoundTrips()
+        {
+            Segment s = new Segment();
+            s.Id = "spot.my.ledge";
+            s.Name = "Ledge";
+            s.Category = "My spots";
+            s.HasSpawn = true;
+            s.SpawnPosition = new Vector3(1.25f, 2.5f, 3.75f);
+            s.SpawnYaw = 90f;
+            s.SpawnPitch = -5f;
+
+            System.Collections.Generic.List<Segment> back = Parse(Write(s));
+
+            Assert.Single(back);
+            Assert.True(back[0].HasSpawn);
+            Assert.False(back[0].IsTimed);
+            Assert.Equal(1.25f, back[0].SpawnPosition.x, 2);
+            Assert.Equal(-5f, back[0].SpawnPitch, 2);
         }
 
         [Fact]

@@ -7,6 +7,13 @@ using UnityEngine;
 
 namespace ForestOverlay.Game
 {
+    /// One entry from the game item database, for name lookup and search.
+    public struct ItemInfo
+    {
+        public int Id;
+        public string Name;
+    }
+
     public struct ItemStack
     {
         public int Id;
@@ -104,6 +111,112 @@ namespace ForestOverlay.Game
         public int TotalItems { get; private set; }
         public int TotalStacks { get; private set; }
         public int FilteredOut { get; private set; }
+
+        // ------------------------------------------------------------------
+        // Item catalogue.
+        //
+        // The whole database, not just what is held - trigger editing
+        // needs to find "rope" before you own any. Built once from
+        // ItemDatabase.Items and cached, because it does not change.
+        // ------------------------------------------------------------------
+        private readonly List<ItemInfo> _catalog = new List<ItemInfo>();
+        private bool _catalogBuilt;
+
+        public IList<ItemInfo> Catalog { get { return _catalog; } }
+
+        public void BuildCatalog()
+        {
+            if (_catalogBuilt) return;
+
+            if (_itemDatabase == null) ResolveDatabase();
+            if (_itemDatabase == null) return;
+
+            try
+            {
+                PropertyInfo itemsProp = _itemDatabase.GetType().GetProperty("Items",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (itemsProp == null) return;
+
+                IEnumerable items = itemsProp.GetValue(_itemDatabase, null) as IEnumerable;
+                if (items == null) return;
+
+                FieldInfo idField = null;
+                FieldInfo nameField = null;
+
+                foreach (object item in items)
+                {
+                    if (item == null) continue;
+
+                    if (idField == null)
+                    {
+                        BindingFlags f = BindingFlags.Instance | BindingFlags.Public |
+                                         BindingFlags.NonPublic;
+                        idField = item.GetType().GetField("_id", f);
+                        nameField = item.GetType().GetField("_name", f);
+                        if (idField == null || nameField == null) return;
+                    }
+
+                    ItemInfo info;
+                    info.Id = (int)idField.GetValue(item);
+                    info.Name = nameField.GetValue(item) as string;
+
+                    if (string.IsNullOrEmpty(info.Name)) continue;
+                    if (!IsRealItem(info.Id)) continue;
+
+                    _catalog.Add(info);
+                }
+
+                _catalog.Sort(CompareCatalog);
+                _catalogBuilt = true;
+                _log.LogInfo("Item catalogue: " + _catalog.Count + " items.");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not build item catalogue: " + ex.Message);
+            }
+        }
+
+        private static int CompareCatalog(ItemInfo a, ItemInfo b)
+        {
+            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public string NameForId(int id)
+        {
+            BuildCatalog();
+
+            for (int i = 0; i < _catalog.Count; i++)
+                if (_catalog[i].Id == id) return _catalog[i].Name;
+
+            return null;
+        }
+
+        /// Substring match, ranked so that a name STARTING with the query
+        /// beats one merely containing it - typing "rope" should offer
+        /// Rope before Rope Bridge Kit.
+        public void SearchItems(string query, List<ItemInfo> results, int limit)
+        {
+            results.Clear();
+            BuildCatalog();
+
+            if (string.IsNullOrEmpty(query)) return;
+            string q = query.ToLowerInvariant();
+
+            for (int pass = 0; pass < 2 && results.Count < limit; pass++)
+            {
+                for (int i = 0; i < _catalog.Count && results.Count < limit; i++)
+                {
+                    string name = _catalog[i].Name.ToLowerInvariant();
+                    int at = name.IndexOf(q, StringComparison.Ordinal);
+
+                    if (at < 0) continue;
+                    if (pass == 0 && at != 0) continue;
+                    if (pass == 1 && at == 0) continue;
+
+                    results.Add(_catalog[i]);
+                }
+            }
+        }
 
         public InventoryReader(ManualLogSource log)
         {

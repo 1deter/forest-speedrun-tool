@@ -16,6 +16,11 @@ namespace ForestOverlay.Data
 
     public enum Comparison { AtLeast, AtMost, Exactly }
 
+    /// A zone is a sphere by default. Boxes exist because doorways,
+    /// ledges and corridors are not round, and forcing a sphere onto
+    /// one either over-covers the approach or misses the edges.
+    public enum ZoneShape { Sphere, Box }
+
     // ------------------------------------------------------------------
     // A named condition that can fire.
     //
@@ -33,12 +38,21 @@ namespace ForestOverlay.Data
 
         // Zone
         public Vector3 Position;
-        public float Radius;
+        public float Radius;          // sphere
+        public ZoneShape Shape;
+        public Vector3 Extents;       // box half-size
 
         // Item
         public int ItemId;
         public Comparison Compare;
         public int Amount;
+
+        /// When true, Amount is measured FROM the count held when the
+        /// run started rather than as an absolute total - "pick up 3
+        /// more rope" rather than "hold 5 rope". Absolute triggers are
+        /// wrong for practice: starting a segment with some already in
+        /// the bag would fire the split immediately.
+        public bool Relative;
 
         // Event
         public string EventName;
@@ -50,11 +64,13 @@ namespace ForestOverlay.Data
             switch (Kind)
             {
                 case TriggerKind.Zone:
-                    return "zone (" + Position.x.ToString("F0") + ", " +
-                                      Position.y.ToString("F0") + ", " +
-                                      Position.z.ToString("F0") + ") r" + Radius.ToString("F1");
+                    return (Shape == ZoneShape.Box ? "box (" : "zone (") +
+                           Position.x.ToString("F0") + ", " +
+                           Position.y.ToString("F0") + ", " +
+                           Position.z.ToString("F0") + ")";
                 case TriggerKind.Item:
-                    return "item " + ItemId + " " + OpText(Compare) + " " + Amount;
+                    return "item " + ItemId + " " + OpText(Compare) +
+                           (Relative ? " +" : " ") + Amount;
                 case TriggerKind.Event:
                     return "event " + EventName;
                 case TriggerKind.Manual:
@@ -97,20 +113,39 @@ namespace ForestOverlay.Data
     public static class TriggerEvaluator
     {
         /// True while the condition holds (level, not edge).
+        ///
+        /// `baseline` supplies the counts held when the run started, for
+        /// relative item triggers. Null means no baseline is known, in
+        /// which case a relative trigger treats the baseline as zero.
         public static bool IsSatisfied(Trigger t, Vector3 position, IItemCounts items,
-                                       string firedEvent)
+                                       string firedEvent, IItemCounts baseline)
         {
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
+                    if (t.Shape == ZoneShape.Box)
+                    {
+                        Vector3 d = position - t.Position;
+                        return Mathf.Abs(d.x) <= t.Extents.x &&
+                               Mathf.Abs(d.y) <= t.Extents.y &&
+                               Mathf.Abs(d.z) <= t.Extents.z;
+                    }
                     return (position - t.Position).sqrMagnitude <= t.Radius * t.Radius;
 
                 case TriggerKind.Item:
-                    if (items == null) return false;
-                    int have = items.AmountOf(t.ItemId);
-                    if (t.Compare == Comparison.AtLeast) return have >= t.Amount;
-                    if (t.Compare == Comparison.AtMost) return have <= t.Amount;
-                    return have == t.Amount;
+                    {
+                        if (items == null) return false;
+
+                        int have = items.AmountOf(t.ItemId);
+                        int target = t.Amount;
+
+                        if (t.Relative)
+                            target += (baseline != null ? baseline.AmountOf(t.ItemId) : 0);
+
+                        if (t.Compare == Comparison.AtLeast) return have >= target;
+                        if (t.Compare == Comparison.AtMost) return have <= target;
+                        return have == target;
+                    }
 
                 case TriggerKind.Event:
                     return firedEvent != null &&
@@ -130,9 +165,9 @@ namespace ForestOverlay.Data
         /// matters: teleporting INTO a start zone would otherwise fire the
         /// start trigger immediately, before you have moved.
         public static bool Fired(Trigger t, ref TriggerState state, Vector3 position,
-                                 IItemCounts items, string firedEvent)
+                                 IItemCounts items, string firedEvent, IItemCounts baseline)
         {
-            bool now = IsSatisfied(t, position, items, firedEvent);
+            bool now = IsSatisfied(t, position, items, firedEvent, baseline);
 
             if (!state.Primed)
             {
@@ -144,6 +179,19 @@ namespace ForestOverlay.Data
             bool rising = now && !state.Satisfied;
             state.Satisfied = now;
             return rising;
+        }
+
+        /// Convenience overloads for callers with no relative triggers.
+        public static bool IsSatisfied(Trigger t, Vector3 position, IItemCounts items,
+                                       string firedEvent)
+        {
+            return IsSatisfied(t, position, items, firedEvent, null);
+        }
+
+        public static bool Fired(Trigger t, ref TriggerState state, Vector3 position,
+                                 IItemCounts items, string firedEvent)
+        {
+            return Fired(t, ref state, position, items, firedEvent, null);
         }
 
         public static void Reset(ref TriggerState state)
@@ -183,7 +231,17 @@ namespace ForestOverlay.Data
         // No cached GUIContent here on purpose. Segment is pure data and
         // is linked into the test project, which has no Unity - the label
         // cache is a GUI concern and lives with the panel that draws it.
-        public bool IsValid { get { return Id.Length > 0 && Start.IsSet && End.IsSet; } }
+
+        /// True when this can be TIMED. Without both ends it is still a
+        /// perfectly good place to teleport to, just not a run.
+        public bool IsTimed { get { return Start.IsSet && End.IsSet; } }
+
+        /// A spot and a segment are the same thing at different levels of
+        /// configuration: somewhere to stand, optionally with a start and
+        /// an end attached. Keeping them as separate types produced two
+        /// lists, two files and two editors for one idea, so an entry is
+        /// valid if it can do EITHER job.
+        public bool IsValid { get { return Id.Length > 0 && (HasSpawn || IsTimed); } }
     }
 
     // ------------------------------------------------------------------
@@ -229,8 +287,24 @@ namespace ForestOverlay.Data
                 if (r <= 0f) return false;
 
                 t.Kind = TriggerKind.Zone;
+                t.Shape = ZoneShape.Sphere;
                 t.Position = new Vector3(x, y, z);
                 t.Radius = r;
+                return true;
+            }
+
+            if (kind == "box")
+            {
+                float x, y, z, ex, ey, ez;
+                if (p.Length < 7) return false;
+                if (!F(p[1], out x) || !F(p[2], out y) || !F(p[3], out z)) return false;
+                if (!F(p[4], out ex) || !F(p[5], out ey) || !F(p[6], out ez)) return false;
+                if (ex <= 0f || ey <= 0f || ez <= 0f) return false;
+
+                t.Kind = TriggerKind.Zone;
+                t.Shape = ZoneShape.Box;
+                t.Position = new Vector3(x, y, z);
+                t.Extents = new Vector3(ex, ey, ez);
                 return true;
             }
 
@@ -240,7 +314,14 @@ namespace ForestOverlay.Data
 
                 int id, amount;
                 if (!I(p[1], out id)) return false;
-                if (!I(p[3], out amount)) return false;
+
+                // A leading + marks a relative amount: "3 more than at
+                // the start" rather than "a total of 3".
+                string amountText = p[3];
+                bool relative = amountText.Length > 1 && amountText[0] == (char)43;
+                if (relative) amountText = amountText.Substring(1);
+
+                if (!I(amountText, out amount)) return false;
 
                 Comparison c;
                 if (p[2] == ">=") c = Comparison.AtLeast;
@@ -252,6 +333,7 @@ namespace ForestOverlay.Data
                 t.ItemId = id;
                 t.Compare = c;
                 t.Amount = amount;
+                t.Relative = relative;
                 return true;
             }
 
@@ -264,10 +346,16 @@ namespace ForestOverlay.Data
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
+                    if (t.Shape == ZoneShape.Box)
+                        return "box " + Num(t.Position.x) + " " + Num(t.Position.y) + " " +
+                               Num(t.Position.z) + " " + Num(t.Extents.x) + " " +
+                               Num(t.Extents.y) + " " + Num(t.Extents.z);
+
                     return "zone " + Num(t.Position.x) + " " + Num(t.Position.y) + " " +
                            Num(t.Position.z) + " " + Num(t.Radius);
                 case TriggerKind.Item:
-                    return "item " + t.ItemId + " " + Trigger.OpText(t.Compare) + " " + t.Amount;
+                    return "item " + t.ItemId + " " + Trigger.OpText(t.Compare) + " " +
+                           (t.Relative ? "+" : "") + t.Amount;
                 case TriggerKind.Event:
                     return "event " + t.EventName;
                 default:

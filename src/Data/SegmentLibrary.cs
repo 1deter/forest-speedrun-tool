@@ -72,6 +72,8 @@ namespace ForestOverlay.Data
                 for (int i = 0; i < files.Length; i++)
                     if (LoadFile(files[i])) fileCount++;
 
+                fileCount += ImportLegacySpots();
+
                 _all.Sort(Compare);
 
                 Status = _all.Count + " segments / " + fileCount + " file(s)";
@@ -82,6 +84,96 @@ namespace ForestOverlay.Data
                 Status = "load failed - see log";
                 _log.LogWarning("Segment load failed: " + ex.Message);
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Legacy import.
+        //
+        // Spots used to live in their own folder and format before spots
+        // and segments were recognised as the same thing. Those files are
+        // still read, as spawn-only entries, so contributed sets and
+        // personal captures are not silently lost. They are marked
+        // read-only-ish by keeping their source file, so saving writes
+        // back where they came from.
+        private int ImportLegacySpots()
+        {
+            string legacy = Path.Combine(Path.GetDirectoryName(_folder), "locations");
+            if (!Directory.Exists(legacy)) return 0;
+
+            int files = 0;
+
+            foreach (string path in Directory.GetFiles(legacy, "*.txt"))
+            {
+                string name = Path.GetFileName(path);
+                if (string.Equals(name, "README.txt", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string[] lines;
+                try { lines = File.ReadAllLines(path); }
+                catch (Exception) { continue; }
+
+                int added = 0;
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i].Trim();
+                    if (line.Length == 0 || line[0] == (char)35) continue;
+
+                    Segment s = ParseLegacySpot(line);
+                    if (s == null) continue;
+
+                    s.SourceFile = name;
+                    if (Commit(s, name)) added++;
+                }
+
+                if (added > 0) files++;
+            }
+
+            return files;
+        }
+
+        /// category | name | x | y | z | yaw | notes | pitch
+        private static Segment ParseLegacySpot(string line)
+        {
+            string[] p = line.Split((char)124);
+            if (p.Length < 5) return null;
+
+            float x, y, z;
+            if (!TriggerParser.F(p[2], out x)) return null;
+            if (!TriggerParser.F(p[3], out y)) return null;
+            if (!TriggerParser.F(p[4], out z)) return null;
+
+            Segment s = new Segment();
+            s.Category = p[0].Trim();
+            s.Name = p[1].Trim();
+            if (s.Name.Length == 0) return null;
+            if (s.Category.Length == 0) s.Category = "Spots";
+
+            s.SpawnPosition = new Vector3(x, y, z);
+            s.HasSpawn = true;
+            if (p.Length > 5) TriggerParser.F(p[5], out s.SpawnYaw);
+            if (p.Length > 6) s.Notes = p[6].Trim();
+            if (p.Length > 7) TriggerParser.F(p[7], out s.SpawnPitch);
+
+            // Legacy spots had no id; derive a stable one from the name so
+            // times recorded against it survive a reload.
+            s.Id = "spot." + Slug(s.Category) + "." + Slug(s.Name);
+            return s;
+        }
+
+        private static string Slug(string text)
+        {
+            StringBuilder sb = new StringBuilder(text.Length);
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = char.ToLowerInvariant(text[i]);
+
+                if ((c >= (char)97 && c <= (char)122) || (c >= (char)48 && c <= (char)57)) sb.Append(c);
+                else if (sb.Length > 0 && sb[sb.Length - 1] != (char)45) sb.Append((char)45);
+            }
+
+            string slug = sb.ToString().Trim((char)45);
+            return slug.Length == 0 ? "unnamed" : slug;
         }
 
         private static int Compare(Segment a, Segment b)
