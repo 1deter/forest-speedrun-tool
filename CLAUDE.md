@@ -293,20 +293,72 @@ patcher on restart), offline IL scanner. 125 tests.
 
 ### Next up
 
-1. **Separated endgame splits** — Harmony `Postfix` on each action class
+Ordered by what runners feel soonest for the effort. Items marked *(runner)*
+came from runners' own requests (2026-09-22 idea dump), often in few words;
+the interpretation given here was checked with the author.
+
+1. **Practice quality-of-life** — small, and runners are practising now.
+   - **Freecam holds the player still.** It currently moves the view but the
+     body still takes movement input. And trigger/collider/wireframe drawing
+     is centred on the player, so it should follow the freecam camera
+     instead. *(runner)*
+   - **Filter large debug volumes.** Collider *and* trigger views are swamped
+     by huge volumes (area and cave-load boxes) that hide the small ones that
+     matter. Add a size cap and/or an exclude list so important hitboxes read
+     clearly. *(runner)*
+   - **Replay / practice-run performance.** Runners report slowdown while
+     ghost lines play or a run records. Suspects: `RunRecorder` sampling
+     (30 Hz position, 5 Hz reflection over ~80 state channels) and line
+     drawing. **Measure first** — `ModuleHost` logs `Slow tick:` over 5 ms.
+     *(runner)*
+2. **Separated endgame splits** — Harmony `Postfix` on each action class
    (`PlayerPickupTimmyAction`, `PlayerGirlPickupAction`, etc; table in
    game-notes). The shared `endGameCutScene` flag is why the author's
    autosplitter could not separate them, and the call sites carry the identity
    the flag does not. **The clearest thing a plugin can do that an external
    autosplitter cannot.** Wire these to the `event` trigger kind, which parses
    and saves but currently never fires.
-2. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
-   LiveSplit rather than sit beside it. Plus HUD/layout customisation.
-3. **Web viewer** — local-first, export always; cloud later. 3D terrain is
-   tractable above ground (Unity `Terrain` heightmap); caves are mesh geometry
-   that streams in on entry, so a full map needs a visit pass plus a
-   "dump loaded geometry" button. Wants a scrub bar and annotations.
+3. **Deaths and caves.**
+   - **Quick-load on death** — skip the death animation and load straight
+     back into the save instead of waiting to quit to menu. The author rules
+     this **allowed in normal runs** (not practice-only): it goes through the
+     game's own load, so it saves real time without altering game state. Use
+     the same load path the menu uses so the result is identical. *(runner)*
+   - **Practice-only death recovery** — for risky tricks (sinkhole jump,
+     cave 5 drop): respawn at the practice spot without a full reload, and
+     clear the blood overlay that builds up after repeated fall damage and
+     never fades. Writes state → `IsPracticeOnly`. *(runner)*
+   - **Teleporting into a cave loads the cave.** Cave geometry streams in on
+     entry, so a teleport to an unloaded cave lands in nothing. Find the
+     game's cave load trigger with ILScan and invoke it before the teleport.
+     *(runner)*
 4. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
-   health and inventory are restored rather than reconstructed badly.
-5. Runs tab layout (deferred), Timmy-drawing sub-pieces
+   health and inventory are restored rather than reconstructed badly. This is
+   the foundation for several runner requests:
+   - restarting a segment respawns dropped/used world items (e.g. the
+     keycard, item 210) — or a plain restart when nothing needs respawning;
+   - resetting to the **exact** start state: built walls and structures
+     removed, picked-up items back in place (probably needs a fast reload);
+   - some segments need game state *preserved* across a restart instead —
+     make it a per-segment choice. *(runner)*
+5. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+   LiveSplit rather than sit beside it. Plus HUD/layout customisation.
+6. **forest.deter.cloud — shared runs and a web viewer.** Local-first,
+   export always; the cloud holds players' best runs so they can be compared
+   without clogging the GitHub repo. *(runner)*
+   - Already true locally: runs are segment-based (a start → end "stage" such
+     as plane spawn → cave 5, not free-form), attempts save per segment id in
+     the config folder, and segments carry a category. Cloud comparison keys
+     on the segment id + route fingerprint, which is why ids never embed a
+     SteamID or timestamp.
+   - Web panel: everyone's runs vs your own, with data visualisation — look
+     at how Momentum Mod does replays and comparison for the model.
+   - 3D terrain is tractable above ground (Unity `Terrain` heightmap); caves
+     are mesh geometry that streams in on entry, so a full map needs a visit
+     pass plus a "dump loaded geometry" button. Wants a scrub bar and
+     annotations.
+7. **TAS** — exploratory only. Builds on savestates and the recorder.
+8. Runs tab layout (deferred), Timmy-drawing sub-pieces
    (`DrawingsInventoryItemView._ids`), freeform zone shapes.
+
+Nature guide in the 100% tab was also requested and **shipped in v0.15.0**.
