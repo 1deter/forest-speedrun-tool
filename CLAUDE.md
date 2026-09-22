@@ -290,18 +290,43 @@ diffed, not as the primary interface.
 
 ### Segment id convention
 
-Lowercase kebab-case, dot-separated from broad to narrow:
+Author namespace, then dot-separated broad to narrow:
 
-    route.plane-to-cave5
-    cave5.sinkhole-drop
-    practice.rope-skip
+    deter/route.plane-to-cave5
+    maks/cave5.sinkhole-drop
 
-Momentum keys zones off map plus stage index, KSF off `map_stage`. Neither
-translates here because The Forest is one continuous world with no map names,
-so the first token names the *route or area* instead.
+The namespace avoids collisions between authors; the rest names the route
+or area, because The Forest is one continuous world with no map names
+(Momentum keys zones off map + stage, KSF off map_stage - neither ports).
 
-Ids are the comparison key, so **renaming one orphans every time recorded
-against it**. Choose before sharing a set.
+**No SteamID and no timestamp in a segment id.** A segment id is *what is
+being run* and has to be identical across players, or two people running the
+same route produce ids that can never be compared - which defeats comparative
+leaderboards entirely. Who ran it and when belong to the *attempt*, and are
+already in the `.run` file.
+
+Ids are the comparison key, so renaming one orphans every time recorded
+against it. Choose before sharing a set.
+
+### Editing is GUI-first
+
+`SegmentEditorModule` (`Home`) creates and edits segments in game: id, name,
+category, spawn, start/end triggers and checkpoints, all set from where the
+player is standing via "Here" buttons rather than typed coordinates.
+
+**The text formats exist so sets can be shared and diffed, not as the
+interface.** Runners should never have to open a config file. Any new
+data-driven feature needs an editor alongside it, or it is not finished.
+
+Edits live in memory until Save, so a half-made segment costs nothing and a
+bad edit cannot corrupt a shared file. Deletes write through immediately -
+a delete that only existed in memory would reappear on reload and look like a
+bug. New segments and duplicates always land in `my-segments.txt`, never back
+into a contributed set.
+
+`SegmentFormat` is pure and linked into the tests, for the same reason
+`TriggerParser` is: it is the code that can silently corrupt a shared route
+file, so the write/parse round trip is pinned rather than trusted.
 
 ### Player state capture
 
@@ -339,11 +364,7 @@ module feeds it the channel array.
 
 ### Next up
 
-1. **GUI editor for spots and segments** - create, edit, and attach triggers
-   without touching a file. This is the blocker on segments being testable at
-   all, and the author has been clear that config-file editing is not an
-   acceptable interface for runners.
-2. **Wire segments into practice runs** - select a segment, auto start/stop on
+1. **Wire segments into practice runs** - select a segment, auto start/stop on
    its triggers, split on checkpoints. The data layer is done and tested; the
    module still uses the spot flow.
 3. **Separated endgame splits** via Harmony `Postfix` on the individual action

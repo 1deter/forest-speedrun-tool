@@ -110,56 +110,35 @@ namespace ForestOverlay.Data
             }
 
             string fileName = Path.GetFileName(path);
-            Segment current = null;
+
+            List<Segment> parsed = SegmentFormat.ParseAll(lines,
+                delegate(int line, string message) { Warn(fileName, line, message); });
+
             int added = 0;
-
-            for (int i = 0; i < lines.Length; i++)
+            for (int i = 0; i < parsed.Count; i++)
             {
-                string line = lines[i].Trim();
-                if (line.Length == 0 || line[0] == '#') continue;
-
-                if (line[0] == '[')
-                {
-                    if (Commit(current, fileName, i)) added++;
-                    current = new Segment();
-                    current.SourceFile = fileName;
-                    continue;
-                }
-
-                if (current == null) continue;   // stray line before any header
-
-                int eq = line.IndexOf('=');
-                if (eq < 0)
-                {
-                    _log.LogWarning(fileName + ":" + (i + 1) + " ignored (no '='): " + line);
-                    continue;
-                }
-
-                string key = line.Substring(0, eq).Trim().ToLowerInvariant();
-                string value = line.Substring(eq + 1).Trim();
-
-                Apply(current, key, value, fileName, i + 1);
+                parsed[i].SourceFile = fileName;
+                if (Commit(parsed[i], fileName)) added++;
             }
 
-            if (Commit(current, fileName, lines.Length)) added++;
             return added > 0;
         }
 
-        private bool Commit(Segment s, string fileName, int line)
+        private bool Commit(Segment s, string fileName)
         {
             if (s == null) return false;
 
             if (!s.IsValid)
             {
-                _log.LogWarning(fileName + ": segment '" +
-                                (s.Id.Length > 0 ? s.Id : "(no id)") +
-                                "' skipped - needs id, start and end.");
+                _log.LogWarning(fileName + ": segment (" +
+                                (s.Id.Length > 0 ? s.Id : "no id") +
+                                ") skipped - needs id, start and end.");
                 return false;
             }
 
             if (ById(s.Id) != null)
             {
-                _log.LogWarning(fileName + ": duplicate segment id '" + s.Id + "' skipped.");
+                _log.LogWarning(fileName + ": duplicate segment id " + s.Id + " skipped.");
                 return false;
             }
 
@@ -168,96 +147,87 @@ namespace ForestOverlay.Data
             return true;
         }
 
-        private void Apply(Segment s, string key, string value, string file, int line)
-        {
-            switch (key)
-            {
-                case "id": s.Id = value; return;
-                case "name": s.Name = value; return;
-                case "category": s.Category = value.Length > 0 ? value : "Segments"; return;
-                case "notes": s.Notes = value; return;
-
-                case "spawn":
-                    {
-                        string[] p = TriggerParser.Split(value);
-                        float x, y, z;
-                        if (p.Length >= 3 && TriggerParser.F(p[0], out x) && TriggerParser.F(p[1], out y) && TriggerParser.F(p[2], out z))
-                        {
-                            s.SpawnPosition = new Vector3(x, y, z);
-                            s.HasSpawn = true;
-                            if (p.Length > 3) TriggerParser.F(p[3], out s.SpawnYaw);
-                            if (p.Length > 4) TriggerParser.F(p[4], out s.SpawnPitch);
-                        }
-                        else Warn(file, line, "bad spawn: " + value);
-                        return;
-                    }
-
-                case "start":
-                    if (!TriggerParser.Parse(value, out s.Start)) Warn(file, line, "bad start: " + value);
-                    return;
-
-                case "end":
-                    if (!TriggerParser.Parse(value, out s.End)) Warn(file, line, "bad end: " + value);
-                    return;
-
-                case "check":
-                case "checkpoint":
-                    {
-                        Trigger t;
-                        if (TriggerParser.Parse(value, out t)) s.Checkpoints.Add(t);
-                        else Warn(file, line, "bad checkpoint: " + value);
-                        return;
-                    }
-
-                default:
-                    Warn(file, line, "unknown key '" + key + "'");
-                    return;
-            }
-        }
-
         private void Warn(string file, int line, string message)
         {
             _log.LogWarning(file + ":" + line + " " + message);
         }
 
         // ------------------------------------------------------------------
-        /// Writes a segment captured in game. Appended to the user's own
-        /// file, kept apart from contributed route sets for the same
-        /// reason personal spots are.
-        public bool Append(Segment s)
+        // Editing.
+        //
+        // The editor works on the in-memory list and then rewrites whole
+        // files, rather than appending. Appending cannot express an edit or
+        // a delete, and a half-updated route file is worse than none.
+        //
+        // A segment remembers the file it came from, so editing a
+        // contributed set writes back to that set; anything new lands in
+        // the user's own file and is never mixed into a shared one.
+        // ------------------------------------------------------------------
+        public const string UserFileName = "my-segments.txt";
+
+        public void Add(Segment s)
         {
+            if (s == null) return;
+            if (s.SourceFile == null || s.SourceFile.Length == 0) s.SourceFile = UserFileName;
+            _all.Add(s);
+        }
+
+        public void Remove(Segment s)
+        {
+            if (s != null) _all.Remove(s);
+        }
+
+        /// True when the id is free (or already belongs to `owner`).
+        public bool IsIdAvailable(string id, Segment owner)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+
+            for (int i = 0; i < _all.Count; i++)
+            {
+                if (ReferenceEquals(_all[i], owner)) continue;
+                if (string.Equals(_all[i].Id, id, StringComparison.OrdinalIgnoreCase)) return false;
+            }
+            return true;
+        }
+
+        /// Rewrites one file from whatever is currently in memory for it.
+        /// Passing a file with no segments left deletes it, which is how a
+        /// delete of the last segment tidies up after itself.
+        public bool SaveFile(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) fileName = UserFileName;
+
             try
             {
                 if (!Directory.Exists(_folder)) Directory.CreateDirectory(_folder);
-                string path = Path.Combine(_folder, "my-segments.txt");
+                string path = Path.Combine(_folder, fileName);
 
-                StringBuilder sb = new StringBuilder();
-                sb.Append(Environment.NewLine).Append("[segment]").Append(Environment.NewLine);
-                sb.Append("id       = ").Append(s.Id).Append(Environment.NewLine);
-                sb.Append("name     = ").Append(s.Name).Append(Environment.NewLine);
-                sb.Append("category = ").Append(s.Category).Append(Environment.NewLine);
+                List<Segment> mine = new List<Segment>();
+                for (int i = 0; i < _all.Count; i++)
+                    if (string.Equals(_all[i].SourceFile, fileName, StringComparison.OrdinalIgnoreCase))
+                        mine.Add(_all[i]);
 
-                if (s.HasSpawn)
+                if (mine.Count == 0)
                 {
-                    sb.Append("spawn    = ")
-                      .Append(TriggerParser.Num(s.SpawnPosition.x)).Append(' ')
-                      .Append(TriggerParser.Num(s.SpawnPosition.y)).Append(' ')
-                      .Append(TriggerParser.Num(s.SpawnPosition.z)).Append(' ')
-                      .Append(TriggerParser.Num(s.SpawnYaw)).Append(' ')
-                      .Append(TriggerParser.Num(s.SpawnPitch)).Append(Environment.NewLine);
+                    if (File.Exists(path)) File.Delete(path);
+                    return true;
                 }
 
-                sb.Append("start    = ").Append(TriggerParser.Write(s.Start)).Append(Environment.NewLine);
-                for (int i = 0; i < s.Checkpoints.Count; i++)
-                    sb.Append("check    = ").Append(TriggerParser.Write(s.Checkpoints[i])).Append(Environment.NewLine);
-                sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(Environment.NewLine);
+                StringBuilder sb = new StringBuilder();
+                sb.Append("# ForestOverlay segments").Append(Environment.NewLine);
+                sb.Append("# Written by the in-game editor. Hand-editing is fine;").Append(Environment.NewLine);
+                sb.Append("# see README.txt for the format.").Append(Environment.NewLine);
 
-                File.AppendAllText(path, sb.ToString(), Encoding.UTF8);
+                for (int i = 0; i < mine.Count; i++)
+                    SegmentFormat.WriteSegment(sb, mine[i], Environment.NewLine);
+
+                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+                _log.LogInfo("Wrote " + mine.Count + " segment(s) to " + fileName);
                 return true;
             }
             catch (Exception ex)
             {
-                _log.LogWarning("Could not append segment: " + ex.Message);
+                _log.LogWarning("Could not save segments: " + ex.Message);
                 return false;
             }
         }
