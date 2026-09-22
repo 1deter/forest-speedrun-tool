@@ -119,30 +119,40 @@ throws is disabled and logged; the rest keep running.
   held still. The lock writes `FirstPersonCharacter.Locked`, so it is
   state-altering and taking it marks the session as practice.
 
-### Hotkeys
+### One window, tabs, few keys
 
-All keys are **rebindable** - in game via the settings panel (`F2`), or by
-editing `BepInEx/config/com.deter.forestoverlay.cfg`. Both write the same
-BepInEx `ConfigEntry`.
+**`F2` opens the ForestOverlay window.** Everything lives in a tab there:
+Practice, Segments, Runs, Inventory, Debug views, Settings, Updates.
+
+A hotkey per panel does not scale - past a handful of features the user is
+memorising keys to find things, and on a keyboard without a numpad there are
+not enough comfortable keys. So per-feature hotkeys still exist and still
+appear in Settings, but they **open the window on that tab** and are
+**unbound by default**.
+
+Adding a tab is a module with `HasTab` returning true; the window collects
+them, so no edit there is needed.
+
+The type explorer keeps its own floating window (`F10`) because it genuinely
+needs the space and is a dev tool, not a runner-facing feature.
 
 | Default | Action |
 |---|---|
-| *(F1 left free)* | the game's own dev console uses it when enabled |
-| `F2` | Settings / keybinds |
-| `F3` | Practice panel (anchor, teleports) |
-| `F4` | Inventory panel |
-| `F5` | Toggle HUD |
-| `F6` | Set anchor here |
-| `F7` | Return to anchor (also restarts a practice run) |
-| `F8` | Practice runs panel |
+| `F2` | Open the ForestOverlay window |
+| `F5` | Show / hide **all** overlay UI |
+| *(unbound)* | Show / hide the info box only |
+| `F6` | Save spot here |
+| `F7` | Return to current spot |
 | `F9` | Practice mode on / off |
-| `F10` | Type explorer |
+| `F10` | Type explorer (own window) |
 | `F11` | Write dumps |
 | `F12` | Finish practice run |
-| `Insert` | Debug views panel |
-| `End` | Updates panel |
-| `Keypad *` | Toggle freecam |
 | `[` | Abort practice run |
+| `Keypad *` | Toggle freecam |
+| *(unbound)* | Open a specific tab |
+
+`F5` is a master switch, not "hide one box". A runner clearing the screen for
+a recording means all of it; the info box has its own separate toggle.
 
 Modules register their own keys with a stable id, so the settings panel, the
 config file and the startup log line are all generated from one table and
@@ -317,6 +327,15 @@ player is standing via "Here" buttons rather than typed coordinates.
 **The text formats exist so sets can be shared and diffed, not as the
 interface.** Runners should never have to open a config file. Any new
 data-driven feature needs an editor alongside it, or it is not finished.
+
+Zones are **previewed in the world** while editing (`Game/ZonePreview.cs`):
+start green, checkpoints blue, end red. Typing a radius and hoping is
+guesswork - 3m and 12m look identical on a number field and are completely
+different to run into.
+
+Trigger rows lay out **vertically**. The first version packed them across one
+row at fixed x offsets that ran off a narrow pane, so half the controls were
+invisible.
 
 Edits live in memory until Save, so a half-made segment costs nothing and a
 bad edit cannot corrupt a shared file. Deletes write through immediately -

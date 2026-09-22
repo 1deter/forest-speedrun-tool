@@ -23,7 +23,9 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "settings"; } }
         public override string DisplayName { get { return "Settings"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Settings"; } }
+        public override int TabOrder { get { return 60; } }
 
         private Rect _windowRect;
         private bool _windowPlaced;
@@ -37,7 +39,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add("panel.settings", KeyCode.F2, "Settings / keybinds panel", TogglePanel);
+            map.Add("tab.settings", KeyCode.None, "Open Settings tab", OpenMyTab);
         }
 
         public override void OnPanelToggled(bool open)
@@ -47,15 +49,14 @@ namespace ForestOverlay.Modules
             if (!open && Host != null) Host.Hotkeys.AwaitingRebind = null;
         }
 
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(Screen.width * 0.5f - 230f, 90f, 460f, 470f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, "Settings");
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private void EnsureStyles()
@@ -80,7 +81,7 @@ namespace ForestOverlay.Modules
             EnsureStyles();
             HotkeyMap map = Host.Hotkeys;
 
-            float w = _windowRect.width;
+            float w = _tabW;
 
             // --- global toggles --------------------------------------------
             bool lockPlayer = GUI.Toggle(new Rect(12, 28, 220, 22),
@@ -109,13 +110,12 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(12, 54, promptW, promptH), _prompt, promptStyle);
 
             float listY = 58f + promptH;
-            DrawBindList(new Rect(8, listY, w - 16, _windowRect.height - listY - 10f), map);
+            DrawBindList(new Rect(8, listY, w - 16, _tabH - listY - 10f), map);
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
             if (map.AwaitingRebind != null) CaptureKey(map);
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
 
         private void DrawBindList(Rect listRect, HotkeyMap map)

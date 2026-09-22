@@ -21,7 +21,9 @@ namespace ForestOverlay.Modules
     {
         public override string Id { get { return "debugview"; } }
         public override string DisplayName { get { return "Debug views"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Debug views"; } }
+        public override int TabOrder { get { return 50; } }
 
         // Freecam drives itself from raw input, so the panel must not hold
         // the player-lock/cursor state that other panels want.
@@ -59,7 +61,7 @@ namespace ForestOverlay.Modules
             // F1 is deliberately left unbound - it opens the game's own
             // developer console when that is enabled, and a runner who has
             // not rebound yet would get both.
-            map.Add("panel.debugview", KeyCode.Insert, "Debug views panel", TogglePanel);
+            map.Add("tab.debugview", KeyCode.None, "Open Debug views tab", OpenMyTab);
             map.Add("debug.freecam", KeyCode.KeypadMultiply, "Toggle freecam", ToggleFreeCam);
         }
 
@@ -138,20 +140,19 @@ namespace ForestOverlay.Modules
             if (_freeCamOn) hud.Pair("Cam", "FREECAM");
         }
 
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(Screen.width - 430f, 540f, 400f, 260f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, "Debug views");
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private void DrawContents(int id)
         {
-            float w = _windowRect.width;
+            float w = _tabW;
 
             bool freecam = GUI.Toggle(new Rect(12, 28, 180, 22), _freeCamOn, " Freecam");
             if (freecam != _freeCamOn) ToggleFreeCam();
@@ -180,7 +181,6 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(12, 204, w - 24, 20),
                       "Wireframe covers everything the camera draws.");
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
 
         public override void Shutdown()

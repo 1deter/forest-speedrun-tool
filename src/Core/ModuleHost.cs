@@ -32,7 +32,14 @@ namespace ForestOverlay.Core
         public HotkeyMap Hotkeys { get { return _hotkeys; } }
         public HudBuilder Hud { get { return _hud; } }
         public ModuleContext Context { get { return _ctx; } }
+        /// The info box in the corner.
         public bool HudVisible = true;
+
+        /// Master switch: hides EVERYTHING this plugin draws, including
+        /// windows and overlays. "Hide HUD" meaning "hide one box" was
+        /// surprising - if a runner wants the screen clean for a recording
+        /// they mean all of it.
+        public bool UiVisible = true;
 
         /// Practice-only. Uses the game's own FirstPersonCharacter.Locked,
         /// because Time.timeScale is re-asserted by the game every frame
@@ -59,6 +66,24 @@ namespace ForestOverlay.Core
         /// be independent - but a couple of them genuinely collaborate
         /// (practice runs need to know where the anchor is), and an
         /// explicit lookup beats a static.
+        /// Modules contributing tabs, in display order.
+        public List<OverlayModule> Tabs()
+        {
+            List<OverlayModule> tabs = new List<OverlayModule>();
+
+            for (int i = 0; i < _modules.Count; i++)
+                if (_modules[i].HasTab && IsLive(_modules[i])) tabs.Add(_modules[i]);
+
+            tabs.Sort(CompareTabs);
+            return tabs;
+        }
+
+        private static int CompareTabs(OverlayModule a, OverlayModule b)
+        {
+            if (a.TabOrder != b.TabOrder) return a.TabOrder.CompareTo(b.TabOrder);
+            return string.Compare(a.TabTitle, b.TabTitle, StringComparison.OrdinalIgnoreCase);
+        }
+
         public T Find<T>() where T : OverlayModule
         {
             for (int i = 0; i < _modules.Count; i++)

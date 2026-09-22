@@ -25,7 +25,9 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "inventory"; } }
         public override string DisplayName { get { return "Inventory"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Inventory"; } }
+        public override int TabOrder { get { return 40; } }
 
         private float _nextRefresh;
         private int _total = -1;
@@ -51,7 +53,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add("panel.inventory", KeyCode.F4, "Inventory panel", Toggle);
+            map.Add("tab.inventory", KeyCode.None, "Open Inventory tab", OpenMyTab);
         }
 
         private void Toggle()
@@ -129,15 +131,14 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(Screen.width - 430f, 60f, 400f, 460f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _windowTitle);
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         // Rebuilt on the throttle, not in OnGUI.
@@ -194,10 +195,9 @@ namespace ForestOverlay.Modules
 
             GUI.Label(new Rect(272, 52, 120, 20), "pinned: " + _watch.Count);
 
-            Rect listRect = new Rect(8, 76, _windowRect.width - 16, _windowRect.height - 86);
+            Rect listRect = new Rect(8, 76, _tabW - 16, _tabH - 86);
             DrawList(listRect);
 
-            GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
         }
 
         private void DrawList(Rect listRect)

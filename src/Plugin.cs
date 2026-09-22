@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.9.0";
+        public const string PluginVersion = "0.10.0";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -88,7 +88,13 @@ namespace ForestOverlay
 
                 // Registered through the same table as every module key so
                 // it is rebindable and shows up in the settings panel.
-                _host.Hotkeys.Add("hud.toggle", ToggleHudKeyDefault, "Toggle HUD", ToggleHud);
+                // Two separate switches. "Hide HUD" meaning "hide one box"
+                // was surprising: a runner clearing the screen for a
+                // recording means all of it.
+                _host.Hotkeys.Add("ui.toggleAll", ToggleHudKeyDefault,
+                                  "Show / hide ALL overlay UI", ToggleAllUi);
+                _host.Hotkeys.Add("ui.toggleInfo", KeyCode.None,
+                                  "Show / hide the info box", ToggleInfoBox);
 
                 Logger.LogInfo(_host.Count + " modules registered.");
                 Logger.LogInfo("Keys: " + _host.Hotkeys.Describe());
@@ -104,6 +110,7 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private static void BuildModules(ModuleHost host)
         {
+            host.Register(new MainWindowModule());   // the shell every tab lives in
             host.Register(new UpdateModule());       // info-only
             host.Register(new SettingsModule());     // info-only
             host.Register(new RunInfoModule());      // info-only
@@ -144,7 +151,12 @@ namespace ForestOverlay
             }
         }
 
-        private void ToggleHud()
+        private void ToggleAllUi()
+        {
+            _host.UiVisible = !_host.UiVisible;
+        }
+
+        private void ToggleInfoBox()
         {
             _host.HudVisible = !_host.HudVisible;
         }
@@ -162,6 +174,8 @@ namespace ForestOverlay
 
             try
             {
+                if (!_host.UiVisible) return;
+
                 EnsureStyles();
                 if (_host.HudVisible) DrawHud();
                 _host.DrawPanels();

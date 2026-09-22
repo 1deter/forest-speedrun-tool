@@ -30,7 +30,9 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "practicerun"; } }
         public override string DisplayName { get { return "Practice runs"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Runs"; } }
+        public override int TabOrder { get { return 30; } }
 
         /// Practice mode is off until asked for. It was previously always
         /// live, which made the HUD line appear unbidden and meant every
@@ -97,7 +99,7 @@ namespace ForestOverlay.Modules
             // No separate restart key: PracticeModule's "return to anchor"
             // (F7) already raises OnPlacedAtAnchor, which re-arms a run.
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
-            map.Add("panel.runs", KeyCode.F8, "Practice runs panel", TogglePanel);
+            map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
         }
 
         // ------------------------------------------------------------------
@@ -361,15 +363,14 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(30f, 60f, 420f, 340f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _title);
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private readonly GUIContent _title = new GUIContent("Practice runs");
@@ -382,7 +383,7 @@ namespace ForestOverlay.Modules
                 _rowStyle.alignment = TextAnchor.MiddleLeft;
             }
 
-            float w = _windowRect.width;
+            float w = _tabW;
 
             bool on = GUI.Toggle(new Rect(12, 26, 150, 20), Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
@@ -416,9 +417,8 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(12, 126, w - 24, 18),
                       "attempt   time   max = top horizontal speed reached", _rowStyle);
 
-            DrawAttemptList(new Rect(8, 146, w - 16, _windowRect.height - 156));
+            DrawAttemptList(new Rect(8, 146, w - 16, _tabH - 156));
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
 
         private void DrawAttemptList(Rect listRect)

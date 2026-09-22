@@ -18,7 +18,9 @@ namespace ForestOverlay.Modules
     {
         public override string Id { get { return "update"; } }
         public override string DisplayName { get { return "Updates"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Updates"; } }
+        public override int TabOrder { get { return 70; } }
 
         private UpdateChecker _checker;
         private Rect _windowRect;
@@ -39,7 +41,7 @@ namespace ForestOverlay.Modules
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add("panel.update", KeyCode.End, "Updates panel", TogglePanel);
+            map.Add("tab.update", KeyCode.None, "Open Updates tab", OpenMyTab);
         }
 
         public override void Tick()
@@ -51,7 +53,7 @@ namespace ForestOverlay.Modules
             if (_checker.State != UpdateChecker.Status.UpdateAvailable) return;
 
             _autoOpened = true;
-            if (!PanelOpen) TogglePanel();
+            OpenMyTab();
         }
 
         public override void ContributeHud(HudBuilder hud)
@@ -64,20 +66,19 @@ namespace ForestOverlay.Modules
             hud.Pair("Update", _checker.Message + "   [End]");
         }
 
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(Screen.width * 0.5f - 210f, 60f, 420f, 190f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, "ForestOverlay updates");
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private void DrawContents(int id)
         {
-            float w = _windowRect.width;
+            float w = _tabW;
 
             GUI.Label(new Rect(12, 28, w - 24, 20), "Installed: v" + OverlayPlugin.PluginVersion);
             GUI.Label(new Rect(12, 48, w - 24, 20), "Status: " + _checker.Message);
@@ -108,7 +109,6 @@ namespace ForestOverlay.Modules
                           "Updates install on the next game start.");
             }
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
     }
 }

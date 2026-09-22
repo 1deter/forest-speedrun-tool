@@ -36,7 +36,9 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "practice"; } }
         public override string DisplayName { get { return "Practice"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Practice"; } }
+        public override int TabOrder { get { return 10; } }
         public override bool IsPracticeOnly { get { return true; } }
 
         private LocationLibrary _library;
@@ -85,7 +87,7 @@ namespace ForestOverlay.Modules
         {
             map.Add("practice.saveSpot", KeyCode.F6, "Save spot here", QuickSaveSpot);
             map.Add("practice.toSpot", KeyCode.F7, "Return to current spot", ReturnToSpot);
-            map.Add("panel.practice", KeyCode.F3, "Practice panel", TogglePanel);
+            map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
         }
 
         // ------------------------------------------------------------------
@@ -176,15 +178,14 @@ namespace ForestOverlay.Modules
             if (_status.Length > 0) hud.Pair("Prac", _status);
         }
 
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(30f, 200f, 420f, 520f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _title);
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private readonly GUIContent _title = new GUIContent("Practice");
@@ -213,7 +214,7 @@ namespace ForestOverlay.Modules
         {
             EnsureStyles();
 
-            float w = _windowRect.width;
+            float w = _tabW;
 
             // --- anchor ----------------------------------------------------
             if (GUI.Button(new Rect(10, 26, 130, 24), "Save spot here")) QuickSaveSpot();
@@ -237,9 +238,8 @@ namespace ForestOverlay.Modules
 
             GUI.Label(new Rect(10, 112, w - 20, 20), _status);
 
-            DrawLocationList(new Rect(8, 134, w - 16, _windowRect.height - 144));
+            DrawLocationList(new Rect(8, 134, w - 16, _tabH - 144));
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
 
         // Grouped by category, collapsible, virtualised the same way the

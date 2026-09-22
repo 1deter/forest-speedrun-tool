@@ -1,3 +1,4 @@
+using UnityEngine;
 namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
@@ -20,9 +21,26 @@ namespace ForestOverlay.Core
 
         public abstract string DisplayName { get; }
 
-        /// True if this module owns a window. Panels get a cursor and a
-        /// window id automatically.
+        /// True if this module owns its OWN floating window. Reserved for
+        /// things that genuinely need the space (the type explorer); most
+        /// features should be a tab instead.
         public virtual bool HasPanel { get { return false; } }
+
+        /// True if this module contributes a tab to the main window.
+        ///
+        /// Tabs exist because a hotkey per panel does not scale: past a
+        /// handful of features the user is memorising keys to find things,
+        /// which is worse than one window they can navigate.
+        public virtual bool HasTab { get { return false; } }
+
+        public virtual string TabTitle { get { return DisplayName; } }
+
+        /// Lower sorts first in the tab strip.
+        public virtual int TabOrder { get { return 100; } }
+
+        /// Draw the tab body. `area` is already a local coordinate space -
+        /// the host has opened a GUI group - so draw from 0,0.
+        public virtual void DrawTab(Rect area) { }
 
         /// True when this module writes game state and so must not be used
         /// in a submitted run. Surfaced to the user by the HUD.
@@ -48,6 +66,17 @@ namespace ForestOverlay.Core
         protected void TogglePanel()
         {
             if (Host != null) Host.TogglePanel(this);
+        }
+
+        /// Opens the main window focused on this module's tab. Used by the
+        /// optional per-feature hotkeys, which are unbound by default -
+        /// one key for the window is enough for most people.
+        protected void OpenMyTab()
+        {
+            if (Host == null) return;
+
+            Modules.MainWindowModule main = Host.Find<Modules.MainWindowModule>();
+            if (main != null) main.OpenAt(this);
         }
 
         public virtual void Initialise(ModuleContext ctx) { Ctx = ctx; }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
+using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -29,7 +30,9 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "segmenteditor"; } }
         public override string DisplayName { get { return "Segment editor"; } }
-        public override bool HasPanel { get { return true; } }
+        public override bool HasTab { get { return true; } }
+        public override string TabTitle { get { return "Segments"; } }
+        public override int TabOrder { get { return 20; } }
         public override bool IsPracticeOnly { get { return true; } }
 
         private SegmentLibrary _library;
@@ -53,16 +56,26 @@ namespace ForestOverlay.Modules
 
         public SegmentLibrary Library { get { return _library; } }
 
+        // Live preview of the zones being edited, drawn in the world.
+        private GameObject _previewHost;
+        private ZonePreviewBehaviour _preview;
+        private bool _showPreview = true;
+
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
             _library = new SegmentLibrary(ctx.Log, ctx.ConfigDirectory);
             Reload();
+
+            _previewHost = new GameObject("ForestOverlay_ZonePreview");
+            _previewHost.hideFlags = HideFlags.HideAndDontSave;
+            Object.DontDestroyOnLoad(_previewHost);
+            _preview = _previewHost.AddComponent<ZonePreviewBehaviour>();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
         {
-            map.Add("panel.segments", KeyCode.Home, "Segment editor", TogglePanel);
+            map.Add("tab.segments", KeyCode.None, "Open Segments tab", OpenMyTab);
         }
 
         private void Reload()
@@ -86,15 +99,14 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        public override void DrawPanel(int windowId)
-        {
-            if (!_windowPlaced)
-            {
-                _windowRect = new Rect(60f, 80f, 700f, 560f);
-                _windowPlaced = true;
-            }
+        private float _tabW;
+        private float _tabH;
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _title);
+        public override void DrawTab(Rect area)
+        {
+            _tabW = area.width;
+            _tabH = area.height;
+            DrawContents(0);
         }
 
         private readonly GUIContent _title = new GUIContent("Segment editor");
@@ -102,6 +114,57 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             _title.text = "Segment editor  -  " + _library.Status + (_dirty ? "   *unsaved*" : "");
+            UpdatePreview();
+        }
+
+        // Rebuilt every tick rather than only on edit: the values change
+        // while a slider is dragged, and a stale preview would be worse
+        // than none. It is a handful of spheres, so the cost is nothing.
+        private void UpdatePreview()
+        {
+            if (_preview == null) return;
+
+            if (!_showPreview || _selected == null)
+            {
+                _preview.Show = false;
+                _preview.Count = 0;
+                return;
+            }
+
+            int needed = 2 + _selected.Checkpoints.Count;
+            if (_preview.Zones == null || _preview.Zones.Length < needed)
+                _preview.Zones = new PreviewZone[needed + 8];
+
+            int n = 0;
+            n = AddZone(_selected.Start, 0, n);
+
+            for (int i = 0; i < _selected.Checkpoints.Count; i++)
+                n = AddZone(_selected.Checkpoints[i], 1, n);
+
+            n = AddZone(_selected.End, 2, n);
+
+            _preview.Count = n;
+            _preview.Show = n > 0;
+        }
+
+        private int AddZone(Trigger t, int kind, int n)
+        {
+            // Only zones have a position; item and event triggers have
+            // nothing meaningful to draw.
+            if (t.Kind != TriggerKind.Zone || t.Radius <= 0f) return n;
+
+            PreviewZone z;
+            z.Center = t.Position;
+            z.Radius = t.Radius;
+            z.Kind = kind;
+
+            _preview.Zones[n] = z;
+            return n + 1;
+        }
+
+        public override void Shutdown()
+        {
+            if (_previewHost != null) Object.Destroy(_previewHost);
         }
 
         private void EnsureStyles()
@@ -125,8 +188,8 @@ namespace ForestOverlay.Modules
         {
             EnsureStyles();
 
-            float w = _windowRect.width;
-            float h = _windowRect.height;
+            float w = _tabW;
+            float h = _tabH;
             const float listW = 250f;
 
             // --- toolbar ---------------------------------------------------
@@ -143,12 +206,14 @@ namespace ForestOverlay.Modules
 
             if (GUI.Button(new Rect(w - 104, 26, 94, 24), "Reload")) Reload();
 
+            bool preview = GUI.Toggle(new Rect(292, 28, 130, 20), _showPreview, " show zones");
+            if (preview != _showPreview) _showPreview = preview;
+
             GUI.Label(new Rect(10, 54, w - 20, 20), _status);
 
             DrawList(new Rect(10, 78, listW, h - 90));
             DrawEditor(new Rect(listW + 20, 78, w - listW - 30, h - 90));
 
-            GUI.DragWindow(new Rect(0, 0, w, 22));
         }
 
         // ------------------------------------------------------------------
@@ -199,7 +264,7 @@ namespace ForestOverlay.Modules
             Segment s = _selected;
             float w = area.width;
 
-            Rect content = new Rect(0, 0, w - 20f, 420f + s.Checkpoints.Count * 54f);
+            Rect content = new Rect(0, 0, w - 20f, 470f + s.Checkpoints.Count * 78f);
             _editScroll = GUI.BeginScrollView(area, _editScroll, content);
 
             float y = 0f;
@@ -243,7 +308,7 @@ namespace ForestOverlay.Modules
                 y = DrawTrigger(y, w, "Check " + (i + 1), ref t);
                 s.Checkpoints[i] = t;
 
-                if (GUI.Button(new Rect(w - 46, before - 2, 36, 22), "X"))
+                if (GUI.Button(new Rect(w - 30f, before - 2f, 24f, 22f), "x"))
                 {
                     s.Checkpoints.RemoveAt(i);
                     Touch();
@@ -264,11 +329,20 @@ namespace ForestOverlay.Modules
         }
 
         // One trigger: kind buttons, then the fields that kind needs.
+        //
+        // Laid out VERTICALLY rather than packed across one row. The first
+        // version put the radius label and slider at fixed x offsets that
+        // ran off the edge of a narrow pane, so half the controls were
+        // invisible. Flowing downward cannot clip horizontally however
+        // narrow the window gets.
         private float DrawTrigger(float y, float w, string label, ref Trigger t)
         {
-            GUI.Label(new Rect(0, y, 80, 20), label);
+            float labelW = 74f;
+            float x0 = labelW + 6f;
 
-            float x = 86f;
+            GUI.Label(new Rect(0, y, labelW, 20), label);
+
+            float x = x0;
             x = KindButton(x, y, "zone", TriggerKind.Zone, ref t);
             x = KindButton(x, y, "item", TriggerKind.Item, ref t);
             x = KindButton(x, y, "event", TriggerKind.Event, ref t);
@@ -279,66 +353,86 @@ namespace ForestOverlay.Modules
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
-                    GUI.Label(new Rect(86, y, 200, 20), Coords(t.Position));
-
-                    if (GUI.Button(new Rect(292, y - 2, 56, 22), "Here"))
                     {
-                        Vector3 p;
-                        if (TryPlayerPosition(out p)) { t.Position = p; Touch(); }
-                    }
+                        GUI.Label(new Rect(x0, y, w - x0 - 70f, 20), Coords(t.Position));
 
-                    GUI.Label(new Rect(356, y, 50, 20), "r " + t.Radius.ToString("F1"));
-                    float r = GUI.HorizontalSlider(new Rect(406, y + 6, w - 430, 18),
-                                                   t.Radius <= 0f ? DefaultRadius : t.Radius, 0.5f, 25f);
-                    if (!Mathf.Approximately(r, t.Radius)) { t.Radius = r; Touch(); }
-                    y += 26f;
-                    break;
+                        if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
+                        {
+                            Vector3 p;
+                            if (TryPlayerPosition(out p)) { t.Position = p; Touch(); }
+                        }
+                        y += 24f;
+
+                        GUI.Label(new Rect(x0, y, 110f, 20), "radius " + t.Radius.ToString("F1") + "m");
+
+                        float sliderX = x0 + 114f;
+                        float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
+                                                       t.Radius <= 0f ? DefaultRadius : t.Radius,
+                                                       0.5f, 25f);
+                        if (!Mathf.Approximately(r, t.Radius)) { t.Radius = r; Touch(); }
+                        y += 26f;
+                        break;
+                    }
 
                 case TriggerKind.Item:
                     {
-                        GUI.Label(new Rect(86, y, 26, 20), "id");
-                        string idText = GUI.TextField(new Rect(112, y - 2, 60, 22), t.ItemId.ToString());
-                        int parsedId;
-                        if (int.TryParse(idText, out parsedId) && parsedId != t.ItemId) { t.ItemId = parsedId; Touch(); }
+                        GUI.Label(new Rect(x0, y, 20f, 20), "id");
 
-                        if (GUI.Button(new Rect(180, y - 2, 46, 22), Trigger.OpText(t.Compare)))
+                        string idText = GUI.TextField(new Rect(x0 + 22f, y - 2f, 56f, 22f),
+                                                      t.ItemId.ToString());
+                        int parsedId;
+                        if (int.TryParse(idText, out parsedId) && parsedId != t.ItemId)
+                        {
+                            t.ItemId = parsedId;
+                            Touch();
+                        }
+
+                        if (GUI.Button(new Rect(x0 + 84f, y - 2f, 44f, 22f), Trigger.OpText(t.Compare)))
                         {
                             t.Compare = (Comparison)(((int)t.Compare + 1) % 3);
                             Touch();
                         }
 
-                        string amtText = GUI.TextField(new Rect(232, y - 2, 60, 22), t.Amount.ToString());
+                        string amtText = GUI.TextField(new Rect(x0 + 134f, y - 2f, 56f, 22f),
+                                                       t.Amount.ToString());
                         int parsedAmt;
-                        if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
+                        if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount)
+                        {
+                            t.Amount = parsedAmt;
+                            Touch();
+                        }
+                        y += 24f;
 
-                        GUI.Label(new Rect(300, y, w - 310, 20), "fires when the count crosses this");
-                        y += 26f;
+                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20),
+                                  "fires when the held count crosses this");
+                        y += 22f;
                         break;
                     }
 
                 case TriggerKind.Event:
                     {
-                        GUI.Label(new Rect(86, y, 46, 20), "name");
-                        string name = GUI.TextField(new Rect(132, y - 2, 220, 22), t.EventName ?? "");
+                        string name = GUI.TextField(new Rect(x0, y - 2f, w - x0 - 6f, 22f),
+                                                    t.EventName ?? "");
                         if (name != t.EventName) { t.EventName = name; Touch(); }
+                        y += 24f;
 
-                        GUI.Label(new Rect(360, y, w - 370, 20), "e.g. endgame.timmy");
-                        y += 26f;
+                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "a named game event");
+                        y += 22f;
                         break;
                     }
 
                 case TriggerKind.Manual:
-                    GUI.Label(new Rect(86, y, w - 96, 20), "only fires on the hotkey");
-                    y += 26f;
+                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "only fires on the hotkey");
+                    y += 22f;
                     break;
 
                 default:
-                    GUI.Label(new Rect(86, y, w - 96, 20), "not set - pick a kind above");
-                    y += 26f;
+                    GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "not set - pick a kind above");
+                    y += 22f;
                     break;
             }
 
-            return y + 4f;
+            return y + 6f;
         }
 
         private float KindButton(float x, float y, string text, TriggerKind kind, ref Trigger t)
