@@ -103,6 +103,7 @@ namespace ForestOverlay.Data
     {
         public bool Satisfied;
         public bool Primed;      // false until the first evaluation
+        public bool InitialValue; // what it read when primed
     }
 
     // ------------------------------------------------------------------
@@ -173,12 +174,43 @@ namespace ForestOverlay.Data
             {
                 state.Primed = true;
                 state.Satisfied = now;
+                state.InitialValue = now;
                 return false;
             }
 
             bool rising = now && !state.Satisfied;
             state.Satisfied = now;
             return rising;
+        }
+
+        /// True the first time the condition CHANGES from however it
+        /// read when primed - in either direction.
+        ///
+        /// This is what a start trigger needs, and getting it wrong is
+        /// why the clock never started: you teleport to a spawn that
+        /// sits inside the start zone, so the trigger primes as
+        /// "satisfied", and walking out is a FALLING edge that a
+        /// rising-edge check ignores forever.
+        ///
+        /// Crossing handles both authoring styles without a setting:
+        /// spawn inside the zone and it fires when you leave; approach
+        /// from outside and it fires when you enter.
+        public static bool Crossed(Trigger t, ref TriggerState state, Vector3 position,
+                                   IItemCounts items, string firedEvent, IItemCounts baseline)
+        {
+            bool now = IsSatisfied(t, position, items, firedEvent, baseline);
+
+            if (!state.Primed)
+            {
+                state.Primed = true;
+                state.Satisfied = now;
+                state.InitialValue = now;
+                return false;
+            }
+
+            bool changed = now != state.InitialValue;
+            state.Satisfied = now;
+            return changed;
         }
 
         /// Convenience overloads for callers with no relative triggers.
@@ -198,6 +230,7 @@ namespace ForestOverlay.Data
         {
             state.Satisfied = false;
             state.Primed = false;
+            state.InitialValue = false;
         }
     }
 

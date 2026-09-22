@@ -223,7 +223,9 @@ namespace ForestOverlay.Modules
 
             if (_recorder.State == RunRecorder.RunState.Armed)
             {
-                if (TriggerEvaluator.Fired(_segment.Start, ref _startState, pos, _live, null, _baseline))
+                // Crossing, not entering: the spawn usually sits inside
+                // the start zone, so the run begins when you leave it.
+                if (TriggerEvaluator.Crossed(_segment.Start, ref _startState, pos, _live, null, _baseline))
                 {
                     _recorder.ForceStart(pos);
                     _status = "running";
@@ -548,15 +550,41 @@ namespace ForestOverlay.Modules
             if (lines != _showLines) _showLines = lines;
 
             GUI.Label(new Rect(0, 82, w, 20), _status);
+            GUI.Label(new Rect(0, 102, w, 20), Diagnose(), _rowStyle);
 
             if (_splits.Count > 0)
             {
                 string line = "splits:";
                 for (int i = 0; i < _splits.Count; i++) line += "  " + Format(_splits[i]);
-                GUI.Label(new Rect(0, 102, w, 20), line);
+                GUI.Label(new Rect(0, 122, w, 20), line);
             }
 
-            DrawAttemptList(new Rect(0, 126, w, _tabH - 130));
+            DrawAttemptList(new Rect(0, 146, w, _tabH - 150));
+        }
+
+        /// Says WHY a run is not progressing. A silent "nothing
+        /// happens" is the hardest thing to report and the hardest to
+        /// debug, so the state is on screen.
+        private string Diagnose()
+        {
+            if (!Enabled) return "practice mode is off";
+            if (!Ctx.Player.Found) return "player not found";
+            if (_segment == null) return "no timed segment - Go to one in the Practice tab";
+
+            if (_recorder.State == RunRecorder.RunState.Armed)
+            {
+                Vector3 p = Ctx.Player.Transform.position;
+                bool inside = TriggerEvaluator.IsSatisfied(_segment.Start, p, _live, null, _baseline);
+
+                return "armed - start is " + _segment.Start.Describe() +
+                       (inside ? ", you are INSIDE it (leave to start)"
+                               : ", you are outside it (enter to start)");
+            }
+
+            if (_recorder.State == RunRecorder.RunState.Running)
+                return "running - end is " + _segment.End.Describe();
+
+            return "idle - Restart to arm";
         }
 
         private void Restart()
