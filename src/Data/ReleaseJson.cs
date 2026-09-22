@@ -24,7 +24,9 @@ namespace ForestOverlay.Data
             return i < 0 ? null : StringValueAfterKey(json, i + needle.Length);
         }
 
-        /// browser_download_url of the asset named `assetName`, or null.
+        /// browser_download_url of the asset named `assetName`, or null -
+        /// also null while the asset's "state" is anything but "uploaded"
+        /// (GitHub lists an asset mid-upload as "starter").
         public static string ExtractAssetUrl(string json, string assetName)
         {
             if (string.IsNullOrEmpty(json)) return null;
@@ -41,7 +43,15 @@ namespace ForestOverlay.Data
 
                 const string urlKey = "\"browser_download_url\"";
                 int u = json.IndexOf(urlKey, i, StringComparison.Ordinal);
-                return u < 0 ? null : StringValueAfterKey(json, u + urlKey.Length);
+                if (u < 0) return null;
+
+                // "state" sits between the asset's name and its url. The
+                // uploader object in between has no "state" of its own.
+                const string stateKey = "\"state\"";
+                int st = json.IndexOf(stateKey, i, u - i, StringComparison.Ordinal);
+                if (st >= 0 && StringValueAfterKey(json, st + stateKey.Length) != "uploaded") return null;
+
+                return StringValueAfterKey(json, u + urlKey.Length);
             }
 
             return null;

@@ -53,6 +53,13 @@ namespace ForestOverlay.Modules
         private float _nextPublishRetry;
         private int _publishRetries;
 
+        // The DLL is listed but still 404s for a short while after a
+        // release; the download retries itself rather than dead-ending.
+        private const float DownloadRetrySeconds = 30f;
+        private const int DownloadRetryLimit = 10;
+        private float _nextDownloadRetry;
+        private int _downloadRetries;
+
         public override void Tick()
         {
             // A release caught mid-publish has no DLL yet; ask again rather
@@ -66,6 +73,22 @@ namespace ForestOverlay.Modules
                     _nextPublishRetry = 0f;
                     _publishRetries++;
                     Ctx.Runner.StartCoroutine(_checker.Check());
+                }
+            }
+
+            if (_checker.State == UpdateChecker.Status.DownloadRetry && Ctx.Runner != null)
+            {
+                if (_downloadRetries >= DownloadRetryLimit)
+                {
+                    // Leave it clickable: Download again is always allowed.
+                    _checker.GiveUpRetrying("GitHub still is not serving the file - try Download again later");
+                }
+                else if (_nextDownloadRetry == 0f) _nextDownloadRetry = Time.unscaledTime + DownloadRetrySeconds;
+                else if (Time.unscaledTime >= _nextDownloadRetry)
+                {
+                    _nextDownloadRetry = 0f;
+                    _downloadRetries++;
+                    Ctx.Runner.StartCoroutine(_checker.Download(Ctx.PluginPath));
                 }
             }
 
@@ -107,13 +130,18 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(12, 48, w - 24, 20), "Status: " + _checker.Message);
             GUI.Label(new Rect(12, 68, w - 24, 20), _autoInstallLabel);
 
-            bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable;
+            bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable ||
+                               _checker.State == UpdateChecker.Status.DownloadRetry;
 
             GUI.enabled = canDownload;
             if (GUI.Button(new Rect(12, 96, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
             {
                 if (Ctx.Runner != null)
+                {
+                    _downloadRetries = 0;
+                    _nextDownloadRetry = 0f;
                     Ctx.Runner.StartCoroutine(_checker.Download(Ctx.PluginPath));
+                }
             }
             GUI.enabled = true;
 

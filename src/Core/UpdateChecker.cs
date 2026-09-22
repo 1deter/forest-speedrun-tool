@@ -33,7 +33,9 @@ namespace ForestOverlay.Core
         private const string LatestUrl = "https://api.github.com/repos/" + Repo + "/releases/latest";
         public const string PendingSuffix = ".pending";
 
-        public enum Status { Idle, Checking, UpToDate, UpdateAvailable, Publishing, Downloading, Staged, Failed }
+        // DownloadRetry: the release lists the DLL but it is not downloadable
+        // yet (404 for a short while after publishing) - UpdateModule retries.
+        public enum Status { Idle, Checking, UpToDate, UpdateAvailable, Publishing, Downloading, DownloadRetry, Staged, Failed }
 
         private readonly ManualLogSource _log;
         private readonly string _currentVersion;
@@ -102,6 +104,15 @@ namespace ForestOverlay.Core
             _log.LogInfo("Update check: " + Message);
         }
 
+        /// Stop the automatic download retries, leaving the update
+        /// available to try again by hand.
+        public void GiveUpRetrying(string message)
+        {
+            State = Status.UpdateAvailable;
+            Message = message;
+            _log.LogWarning("Update download: " + message);
+        }
+
         public IEnumerator Download(string pluginDllPath)
         {
             if (string.IsNullOrEmpty(DownloadUrl))
@@ -118,20 +129,32 @@ namespace ForestOverlay.Core
             IEnumerator fetch = FetchBytes(DownloadUrl, delegate(byte[] body) { data = body; });
             while (fetch.MoveNext()) yield return fetch.Current;
 
-            if (data == null || data.Length == 0)
+            if (State == Status.Failed) yield break;
+
+            // NOT PUBLISHED YET. Right after a release, the API can list the
+            // DLL while the download URL still answers 404 with the 9-byte
+            // body "Not Found" - Unity 5.6's UnityWebRequest does not treat
+            // a 404 as an error. That used to surface as "not a DLL" and
+            // stop; it is a wait, so say so and let UpdateModule retry.
+            if (_lastResponseCode == 404 || data == null || data.Length == 0 ||
+                (!IsDll(data) && data.Length < 4096))
             {
-                State = Status.Failed;
+                State = Status.DownloadRetry;
+                Message = "v" + LatestVersion + " is not downloadable yet (GitHub answered " +
+                          (_lastResponseCode > 0 ? _lastResponseCode.ToString() : "empty") +
+                          ") - retrying shortly";
+                _log.LogInfo("Update download: " + Message);
                 yield break;
             }
 
             // Sanity check before writing anything: a managed DLL starts
             // with "MZ". Writing whatever came back would otherwise turn a
             // captive-portal HTML page into a corrupt plugin.
-            if (data.Length < 2 || data[0] != 0x4D || data[1] != 0x5A)
+            if (!IsDll(data))
             {
                 State = Status.Failed;
                 Message = "downloaded file is not a DLL - ignoring";
-                _log.LogWarning(Message + " (" + data.Length + " bytes)");
+                _log.LogWarning(Message + " (" + data.Length + " bytes, HTTP " + _lastResponseCode + ")");
                 yield break;
             }
 
@@ -155,6 +178,14 @@ namespace ForestOverlay.Core
                 _log.LogWarning(Message);
             }
         }
+
+        private static bool IsDll(byte[] data)
+        {
+            return data.Length >= 2 && data[0] == 0x4D && data[1] == 0x5A;
+        }
+
+        // HTTP status of the last FetchBytes, or 0 when unknown.
+        private long _lastResponseCode;
 
         // ------------------------------------------------------------------
         private IEnumerator Fetch(string url, Action<string> onDone)
@@ -182,6 +213,7 @@ namespace ForestOverlay.Core
             }
 
             object request = null;
+            _lastResponseCode = 0;
             try
             {
                 System.Reflection.MethodInfo get = requestType.GetMethod(
@@ -232,6 +264,9 @@ namespace ForestOverlay.Core
                     _log.LogWarning(Message + "  (" + url + ")");
                     yield break;
                 }
+
+                System.Reflection.PropertyInfo codeProp = requestType.GetProperty("responseCode");
+                if (codeProp != null) _lastResponseCode = Convert.ToInt64(codeProp.GetValue(request, null));
 
                 object handler = requestType.GetProperty("downloadHandler").GetValue(request, null);
                 byte[] data = handler.GetType().GetProperty("data").GetValue(handler, null) as byte[];

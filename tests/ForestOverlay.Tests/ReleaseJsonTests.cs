@@ -36,6 +36,30 @@ namespace ForestOverlay.Tests
             Assert.Equal(Url, ReleaseJson.ExtractAssetUrl(Pretty, "ForestOverlay.dll"));
         }
 
+        // The asset from a real v0.19.1 response (compact, as the API sends
+        // it), field order intact: the uploader object sits between the
+        // name and "state", and "state" comes before the url.
+        private const string RealAsset =
+            "{\"tag_name\":\"v0.19.1\",\"assets\":[{\"url\":\"https://api.github.com/repos/1deter/forest-speedrun-tool/releases/assets/582428867\"," +
+            "\"id\":582428867,\"node_id\":\"RA_kwDOUkfAHs4ityjD\",\"name\":\"ForestOverlay.dll\",\"label\":\"\"," +
+            "\"uploader\":{\"login\":\"github-actions[bot]\",\"id\":41898282,\"type\":\"Bot\",\"site_admin\":false}," +
+            "\"content_type\":\"application/x-msdownload\",\"state\":\"STATE\",\"size\":199680," +
+            "\"download_count\":0,\"browser_download_url\":\"https://github.com/1deter/forest-speedrun-tool/releases/download/v0.19.1/ForestOverlay.dll\"}]," +
+            "\"name\":\"v0.19.1\"}";
+
+        [Fact]
+        public void AnUploadedAssetIsDownloadable()
+        {
+            Assert.Equal("https://github.com/1deter/forest-speedrun-tool/releases/download/v0.19.1/ForestOverlay.dll",
+                         ReleaseJson.ExtractAssetUrl(RealAsset.Replace("STATE", "uploaded"), "ForestOverlay.dll"));
+        }
+
+        [Fact]
+        public void AnAssetStillUploadingIsNotDownloadable()
+        {
+            Assert.Null(ReleaseJson.ExtractAssetUrl(RealAsset.Replace("STATE", "starter"), "ForestOverlay.dll"));
+        }
+
         [Fact]
         public void FindsTheAssetInCompactJson()
         {

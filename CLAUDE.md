@@ -146,6 +146,12 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 - **A tag publishes before its DLL is attached.** Wait for the asset, not the
   release, before telling anyone to update. The plugin reads a release with no
   DLL as "still being published" and re-checks every minute.
+- **An attached DLL can still 404 for a while.** On v0.19.1 the API listed the
+  asset as `uploaded` while the runner's download got GitHub's 9-byte
+  `Not Found` (Unity 5.6's `UnityWebRequest` does not flag a 404), even though
+  a curl from here already got 200. Since v0.19.2 the updater treats a 404 or
+  a tiny non-DLL body as "not downloadable yet" and retries every 30 s. Anyone
+  on 0.19.1 or older who hits it just clicks Download again later.
 - **Never poll `api.github.com` to watch a release.** Anonymous API calls are
   limited to 60 an hour *per IP*, shared with the author's own game — polling
   once locked their in-game update check out for an hour. Poll the asset
@@ -272,7 +278,7 @@ segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
 wireframe, with size and name filters), game input blocked while the window is
 open, self-installing updates (download in game, applied by a preloader
-patcher on restart), offline IL scanner. 146 tests.
+patcher on restart), offline IL scanner. 148 tests.
 
 ### Key concepts
 
