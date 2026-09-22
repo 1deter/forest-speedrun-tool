@@ -72,8 +72,9 @@ Practice spots, segments and the 100% checklist are **plain text files** in
 as a diff. Everything is also editable in game — the files exist for sharing,
 not as the interface.
 
-Spots and segments live in [`locations/`](locations/) and are synced by
-`scripts/deploy.ps1`; the 100% list is [`collectibles/`](collectibles/).
+Shared spots live in [`locations/`](locations/) and the 100% list in
+[`collectibles/`](collectibles/). Both are embedded in the DLL and written to
+the config folder on startup, so the plugin file is the whole install.
 
 Segment ids are the comparison key, so they are author-namespaced and stable:
 `deter/route.plane-to-cave5`. Renaming one orphans every time recorded against

@@ -173,6 +173,14 @@ namespace ForestOverlay.Modules
                            " name(s) did not match an item - shown below as (?)", 3);
             }
 
+            // An empty list once rendered as a bare "0/0" header, which a
+            // runner reported as "everything is missing".
+            if (_list.Total == 0)
+            {
+                n = Add(n, "  No checklist loaded - expected a .txt file in", 3);
+                n = Add(n, "  " + _list.Folder, 3);
+            }
+
             IList<string> categories = _list.Categories;
             IList<CollectionEntry> entries = _list.Entries;
 

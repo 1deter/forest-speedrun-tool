@@ -1,12 +1,15 @@
-# Practice locations
+# Shared practice spots
 
-Every `.txt` file in this folder is a set of practice spots. They are copied
-into `BepInEx/config/ForestOverlay/locations/` by `scripts/deploy.ps1`, and the
-plugin loads and merges **all** of them at startup.
+Every `.txt` file in this folder is a set of practice spots. The files are
+**embedded in `ForestOverlay.dll`** and written into
+`BepInEx/config/ForestOverlay/locations/` on startup, so a plain drop-in
+install gets them — no script, no registration step. The plugin loads and
+merges **all** of them into the Practice tab.
 
-That means contributing spots needs no code change, no rebuild, and no
-registration step — add a file, or add lines to an existing one, and the
-practice panel (`F3`) grows to match.
+Spots and segments are one thing now. This folder is the simple,
+position-only format for sharing spots; timed segments with triggers live in
+`BepInEx/config/ForestOverlay/segments/` (format in the `README.txt` the
+plugin writes there).
 
 ## Format
 
@@ -29,20 +32,18 @@ Caves | Cave 2 entrance | 123.00 | 45.00 | 678.00 | 90 | drop down on the left
 
 ## Contributing
 
-1. Stand where you want the spot to be.
-2. Open the practice panel (`F3`), type a category and a name, press **Add here**.
-3. The line is appended to `my-spots.txt` in your *config* folder. That file is
-   personal and is never committed.
-4. To share, copy the lines you want into a file in *this* folder — grouped by
-   route or category, e.g. `cave-routes.txt` — and open a pull request.
+1. In game, stand where you want the spot: `F2` → **Practice** → **New** →
+   **Save**. It is written to `segments/my-segments.txt` in your config
+   folder, which is personal and never overwritten.
+2. To share, copy the position into a line in a file in *this* folder —
+   grouped by route or category, e.g. `cave-routes.txt` — and open a pull
+   request.
 
-Keeping personal captures (`my-spots.txt`) separate from contributed sets is
-deliberate: pulling an update can never clobber your own spots, and your
-scratch spots never end up in a pull request.
+Shipped files are rewritten whenever they differ from the copy in the DLL, so
+never edit them in your config folder; your own files are left alone.
 
 ## A note on run legality
 
-Teleporting writes to the game, so it is **practice only**. Using any spot from
-this list sets the sticky `PRACTICE` marker on the HUD for the rest of the
-session. That is intentional — it must not be possible to teleport and then
-forget it happened while recording.
+Teleporting writes to the game, so it is **practice only**. Using any spot sets
+the sticky `PRACTICE` marker on the HUD for the rest of the session — it must
+not be possible to teleport and then forget it happened while recording.

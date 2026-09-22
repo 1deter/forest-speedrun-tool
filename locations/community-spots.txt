@@ -8,8 +8,11 @@
 #
 # yaw and notes are optional. Use a dot for decimals, never a comma.
 #
+# Ships inside ForestOverlay.dll and is rewritten on startup; keep
+# personal spots in your own files.
+#
 # Example of the expected shape (commented out - these are NOT real
-# coordinates, capture your own with F3 -> Add here):
+# coordinates, capture your own in game: F2 -> Practice -> New):
 #
 # Start | Plane crash | -1000.50 | 90.20 | 550.10 | 180 | opening spawn
 # Caves | Cave 2 entrance | 123.00 | 45.00 | 678.00 | 90 | drop down on the left

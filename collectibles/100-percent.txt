@@ -12,6 +12,11 @@
 # was never going to work.
 #
 # The To Do List is tracked separately, read from the survival book.
+#
+# This file ships inside ForestOverlay.dll and is rewritten on startup
+# whenever it differs, so edits here are lost on the next launch. To add
+# your own entries, put them in another .txt file in this folder - every
+# file is loaded and merged.
 
 [Unique tools and weapons]
 Plane Axe = 80

@@ -70,7 +70,11 @@ namespace ForestOverlay.Data
                 int fileCount = 0;
 
                 for (int i = 0; i < files.Length; i++)
+                {
+                    // Our own README sits in this folder and is not data.
+                    if (string.Equals(Path.GetFileName(files[i]), "README.txt", StringComparison.OrdinalIgnoreCase)) continue;
                     if (LoadFile(files[i])) fileCount++;
+                }
 
                 fileCount += ImportLegacySpots();
 

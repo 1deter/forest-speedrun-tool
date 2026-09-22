@@ -41,7 +41,7 @@ dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj
 ```
 
 ```powershell
-./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build, install, sync data files
+./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build + install (data ships inside the DLL)
 ```
 
 Deploy fails with "user-mapped section open" if the game is running.
@@ -76,7 +76,7 @@ linked; anything touching MonoBehaviour, reflection or the filesystem cannot.
 | `src/Data/` | Pure data + file formats (segments, triggers, runs, checklists) |
 | `src/Modules/` | One file per feature |
 | `tools/ILScan/` | Offline IL query tool. Dev-time only, never shipped |
-| `locations/`, `collectibles/` | Shipped data, synced by `deploy.ps1` |
+| `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
 
 Modules never reach for globals or each other — shared services arrive via
 `ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.
