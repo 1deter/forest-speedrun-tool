@@ -64,9 +64,23 @@ namespace ForestOverlay.Modules
         private GUIStyle _rowStyle;
         private GUIStyle _selectedRowStyle;
         private GUIStyle _dimStyle;
+        private GUIStyle _headerStyle;
 
-        private readonly List<Segment> _visible = new List<Segment>();
+        // The list is grouped by category with collapsible headers.
+        // Merging spots and segments flattened this by accident, and a
+        // flat list stops being navigable the moment someone has more
+        // than a screenful of spots.
+        private struct Row
+        {
+            public bool IsHeader;
+            public string Category;
+            public Segment Entry;
+        }
+
+        private readonly List<Row> _rows = new List<Row>();
         private readonly List<GUIContent> _rowLabels = new List<GUIContent>();
+        private readonly Dictionary<string, bool> _collapsed = new Dictionary<string, bool>();
+        private int _entryCount;
 
         // Zone preview.
         private GameObject _previewHost;
@@ -141,33 +155,100 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         private void RebuildVisible()
         {
-            _visible.Clear();
+            _rows.Clear();
+            _entryCount = 0;
 
             string f = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
             IList<Segment> all = _library.All;
 
+            // The library sorts by category then name, so a single pass
+            // emits a header whenever the category changes.
+            string current = null;
+            bool collapsed = false;
+
             for (int i = 0; i < all.Count; i++)
             {
+                Segment e = all[i];
+
                 if (f != null &&
-                    all[i].Name.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0 &&
-                    all[i].Category.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
+                    e.Name.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0 &&
+                    e.Category.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
                     continue;
 
-                _visible.Add(all[i]);
+                if (e.Category != current)
+                {
+                    current = e.Category;
+                    collapsed = IsCollapsed(current);
+
+                    Row header;
+                    header.IsHeader = true;
+                    header.Category = current;
+                    header.Entry = null;
+                    _rows.Add(header);
+                }
+
+                _entryCount++;
+                if (collapsed) continue;
+
+                Row row;
+                row.IsHeader = false;
+                row.Category = current;
+                row.Entry = e;
+                _rows.Add(row);
             }
 
-            // Name only. The row used to read "Name [id]" and the id pushed
-            // the name off the edge - the id is editable in the detail pane
-            // and does not need to be in the list.
-            for (int i = 0; i < _visible.Count; i++)
+            RebuildLabels();
+        }
+
+        private void RebuildLabels()
+        {
+            for (int i = 0; i < _rows.Count; i++)
             {
-                string text = (_visible[i].IsTimed ? "* " : "   ") + _visible[i].Name;
+                string text;
+
+                if (_rows[i].IsHeader)
+                {
+                    int count = CountIn(_rows[i].Category);
+                    text = (IsCollapsed(_rows[i].Category) ? "+ " : "- ") +
+                           _rows[i].Category + "   (" + count + ")";
+                }
+                else
+                {
+                    // A star marks a timed segment; plain entries are just
+                    // somewhere to teleport.
+                    text = (_rows[i].Entry.IsTimed ? "  * " : "     ") + _rows[i].Entry.Name;
+                }
+
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
             }
         }
 
-        /// Show a single trigger, overriding the editing preview.
+        private int CountIn(string category)
+        {
+            IList<Segment> all = _library.All;
+            int n = 0;
+
+            for (int i = 0; i < all.Count; i++)
+                if (all[i].Category == category) n++;
+
+            return n;
+        }
+
+        private bool IsCollapsed(string category)
+        {
+            bool v;
+            return _collapsed.TryGetValue(category, out v) && v;
+        }
+
+        private void ToggleCategory(string category)
+        {
+            _collapsed[category] = !IsCollapsed(category);
+            RebuildVisible();
+        }
+
+        /// Show a single trigger, overriding the editing preview. Used by
+        /// the run module to show only the next objective.
         public void SetRunPreview(Trigger t, int kind)
         {
             _runPreviewActive = true;
@@ -357,40 +438,57 @@ namespace ForestOverlay.Modules
 
             _dimStyle = new GUIStyle(GUI.skin.label);
             _dimStyle.alignment = TextAnchor.MiddleLeft;
+
+            _headerStyle = new GUIStyle(GUI.skin.box);
+            _headerStyle.alignment = TextAnchor.MiddleLeft;
+            _headerStyle.padding = new RectOffset(6, 4, 0, 0);
+            _headerStyle.fontStyle = FontStyle.Bold;
         }
 
         private void DrawList(Rect area)
         {
             GUI.Box(area, GUIContent.none);
 
-            Rect content = new Rect(0, 0, area.width - 20f, _visible.Count * RowHeight + 4f);
+            Rect content = new Rect(0, 0, area.width - 20f, _rows.Count * RowHeight + 4f);
             _listScroll = GUI.BeginScrollView(area, _listScroll, content);
 
-            for (int i = 0; i < _visible.Count; i++)
+            for (int i = 0; i < _rows.Count; i++)
             {
                 if (i >= _rowLabels.Count) break;
 
                 float rowY = 2f + i * RowHeight;
-                Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
-                if (r.yMax < _listScroll.y || r.y > _listScroll.y + area.height) continue;
+                if (rowY + RowHeight < _listScroll.y || rowY > _listScroll.y + area.height) continue;
 
-                bool isSelected = ReferenceEquals(_visible[i], _selected);
+                if (_rows[i].IsHeader)
+                {
+                    if (GUI.Button(new Rect(2f, rowY, content.width - 4f, RowHeight - 2f),
+                                   _rowLabels[i], _headerStyle))
+                    {
+                        ToggleCategory(_rows[i].Category);
+                        break;   // _rows was rebuilt underneath us
+                    }
+                    continue;
+                }
+
+                Segment entry = _rows[i].Entry;
+                Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
+                bool isSelected = ReferenceEquals(entry, _selected);
 
                 if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
                 {
                     if (_dirty) _status = "Unsaved changes - Save or Reload first.";
-                    else { _selected = _visible[i]; _status = ""; }
+                    else { _selected = entry; _status = ""; }
                 }
 
-                GUI.enabled = _visible[i].HasSpawn;
+                GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
-                    GoTo(_visible[i]);
+                    GoTo(entry);
                 GUI.enabled = true;
             }
 
             GUI.EndScrollView();
 
-            if (_visible.Count == 0)
+            if (_entryCount == 0)
             {
                 GUI.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 80),
                           _library.All.Count == 0

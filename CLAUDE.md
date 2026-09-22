@@ -381,16 +381,41 @@ module feeds it the channel array.
 - Flower/plant coordinate display is **out of scope by the author's own
   call**: it pushes what the category should allow.
 
+### 100% tracking
+
+`Game/SurvivalBookReader.cs` reads the nature guide and todo list,
+read-only.
+
+One `SurvivalBookBestiary` component per book page (`_tab` is
+per-instance), each holding `FoundEnemyInfo[]`. Those inherit `ACondition`,
+so `_id` and `_done` come from several levels up the chain - hence the
+field lookup walks the hierarchy rather than assuming a declaring type.
+
+Entry names come from the `EnemyType` **enum** on
+`_availableConditionStorage`, not from the NGUI labels in
+`_foundEnemyInfosGOs`: the enum is stable and locale-independent, the
+labels are translated and would read differently per language.
+
+Todo tasks are found **by shape** - any field whose type carries `_done` -
+rather than by a hardcoded list of names, so a game update that adds an
+objective picks it up for free.
+
+**Flower and plant coordinates are deliberately out of scope**, by the
+author's own judgement that they push what the category should allow.
+
 ### Next up
 
-1. **Wire segments into practice runs** - select a segment, auto start/stop on
-   its triggers, split on checkpoints. The data layer is done and tested; the
-   module still uses the spot flow.
-3. **Separated endgame splits** via Harmony `Postfix` on the individual action
-   classes (see game-notes). This is the thing an external autosplitter
-   cannot do.
-4. **Nature guide + todo panel** - `SurvivalBookBestiary` / 
-   `SerializableSurvivalBookTodo`, both read-only.
-5. **LiveSplit split file import** (`.lss` / `.lsl`).
-6. **Preloader patcher** to apply staged updates.
-7. **Web viewer** - local-first, export always; cloud later.
+1. **Separated endgame splits** via Harmony `Postfix` on the individual
+   action classes (see game-notes). The single shared `endGameCutScene`
+   flag is why the author's autosplitter could not separate them, and the
+   call sites carry the identity the flag does not. This is the clearest
+   thing a plugin can do that an external autosplitter cannot.
+2. **LiveSplit split file import** (`.lss` / `.lsl`) - needed for the
+   in-game timer to replace LiveSplit rather than sit beside it.
+3. **Preloader patcher** to apply staged updates - auto-update's missing
+   half.
+4. **Web viewer** - local-first, export always; cloud later. Terrain
+   export is tractable above ground (Unity `Terrain` heightmap); caves are
+   mesh geometry and stream in on entry, so a full map needs a visit pass
+   rather than one export.
+5. Savestates via the game's own `LoadSave`/`LevelSerializer`.
