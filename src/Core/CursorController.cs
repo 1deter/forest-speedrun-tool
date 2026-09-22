@@ -134,6 +134,17 @@ namespace ForestOverlay.Core
             if (!Cursor.visible) Cursor.visible = true;
         }
 
+        /// Keeps the pointer captured while the player is held with no
+        /// window open (freecam). LockView frees the mouse as a side effect,
+        /// which would leave a loose cursor over a view you steer with it.
+        /// Called every frame, but only writes when the game has lost it.
+        public void EnsureLocked()
+        {
+            Resolve();
+            if (_isMouseLockedProp == null) return;
+            if (!ReadGameLocked()) WriteGameLocked(true);
+        }
+
         public void Release()
         {
             if (!_active) return;

@@ -85,8 +85,20 @@ it — `HudGui.TogglePauseMenu`, `SurvivalBook.OnEnable/OnDisable`,
 
 `InputState`: `Locked`, `Menu`, `World`, `Inventory`, `Chat`, `Book`,
 `RadialWorld`, `SavingMaps` (0..7). The dev console passes `4` (`Chat`); the
-pause menu `Menu`. This is the flag for stopping overlay clicks from reaching
-the game (e.g. swinging a held axe) — **not yet used by the plugin**.
+pause menu `Menu`.
+
+`SetState` returns early if the value is unchanged, otherwise stores it,
+sets `World` on when no other state is on, **`Debug.Log`s every state**, and
+calls `ForceRefreshState`. That picks one map by priority —
+`Locked` > `Chat` > `Menu` > `RadialWorld` > `Book` > `Inventory` > `World` —
+and enables it exclusively (`SetMappingExclusive`). The only readers of
+`States` are `SetState`, `ForceRefreshState` and two VR display helpers, so
+holding a state switches the key map and nothing else.
+
+The plugin holds `Menu` while its window is open or freecam is on
+(`Game/GameInput.cs`), calling `SetState` only on a transition because of the
+log line. The game clears `Menu` itself when the pause menu closes, so the
+plugin re-checks with `GetState` each frame.
 
 ---
 

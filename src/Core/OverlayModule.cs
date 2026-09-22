@@ -57,6 +57,14 @@ namespace ForestOverlay.Core
         /// switch if you want panels that leave you free to move.
         public virtual bool WantsPlayerLock { get { return HasPanel; } }
 
+        /// True while this module needs the player held still whether or
+        /// not any window is open - freecam, which steers a detached view
+        /// with keys the body would otherwise also act on. The host holds
+        /// the lock and blocks game input for as long as any module says
+        /// so. Unlike WantsPlayerLock it ignores the "hold player while a
+        /// panel is open" setting: that is about windows, this is not.
+        public virtual bool HoldsPlayer { get { return false; } }
+
         public bool PanelOpen;
 
         /// Set by ModuleHost at registration so a module can open or close

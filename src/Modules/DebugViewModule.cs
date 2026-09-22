@@ -1,4 +1,6 @@
+using BepInEx.Configuration;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using ForestOverlay.Game;
 using UnityEngine;
 
@@ -16,18 +18,30 @@ namespace ForestOverlay.Modules
     // Freecam moves the VIEW, not the player, so it does not write game
     // state. It still holds the player still while active, which does, so
     // it is reported as practice.
+    //
+    // HOLDING THE PLAYER. Freecam used to lock the player itself, and the
+    // host released that lock the moment the window closed - so the body
+    // walked off with the freecam's WASD. It now declares HoldsPlayer and
+    // the host keeps the lock (and blocks game input) for as long as
+    // freecam is on, window or no window.
+    //
+    // Volume drawing centres on the freecam camera while it is on: the
+    // point of flying the camera somewhere is to look at what is there.
     // ------------------------------------------------------------------
     public sealed class DebugViewModule : OverlayModule
     {
+        private const float Row = 24f;
+        private const float MinSizeLimit = 1f;
+        private const float MaxSizeLimit = 200f;
+        private const float SaveDelay = 1f;
+
         public override string Id { get { return "debugview"; } }
         public override string DisplayName { get { return "Debug views"; } }
         public override bool HasTab { get { return true; } }
         public override string TabTitle { get { return "Debug views"; } }
         public override int TabOrder { get { return 50; } }
 
-        // Freecam drives itself from raw input, so the panel must not hold
-        // the player-lock/cursor state that other panels want.
-        public override bool WantsPlayerLock { get { return !_freeCamOn; } }
+        public override bool HoldsPlayer { get { return _freeCamOn; } }
 
         private GameObject _host;
         private DebugDrawBehaviour _draw;
@@ -37,10 +51,31 @@ namespace ForestOverlay.Modules
         private bool _freeCamOn;
         private bool _wireOn;
         private float _radius = 30f;
-
-        private Rect _windowRect;
-        private bool _windowPlaced;
         private string _status = "";
+
+        // Filters, persisted. Written on a short delay rather than on every
+        // slider step - a ConfigEntry write saves the whole file.
+        private ConfigEntry<bool> _limitSizeCfg;
+        private ConfigEntry<float> _maxSizeCfg;
+        private ConfigEntry<string> _excludeCfg;
+        private bool _limitSize;
+        private float _maxSize;
+        private string _excludeText;
+        private float _saveAt = -1f;
+
+        // Labels are built in Tick; OnGUI runs several times a frame.
+        private string _radiusLabel = "";
+        private string _sizeLabel = "";
+        private string _hiddenLabel = "";
+        private readonly string[] _largestLabels = new string[5];
+        private readonly string[] _largestNames = new string[5];
+        private int _largestCount;
+        private float _nextLabelBuild;
+        private int _builtRadius = -1;
+        private int _builtSize = -1;
+
+        private Vector2 _scroll;
+        private float _contentHeight = 600f;
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -54,6 +89,18 @@ namespace ForestOverlay.Modules
 
             _draw = _host.AddComponent<DebugDrawBehaviour>();
             _freeCam = _host.AddComponent<FreeCamBehaviour>();
+
+            _limitSizeCfg = Ctx.Config.Bind("DebugViews", "LimitVolumeSize", true,
+                "Hide collider/trigger volumes whose largest side exceeds MaxVolumeSize.");
+            _maxSizeCfg = Ctx.Config.Bind("DebugViews", "MaxVolumeSize", 40f,
+                "Largest volume drawn, in metres, when LimitVolumeSize is on.");
+            _excludeCfg = Ctx.Config.Bind("DebugViews", "ExcludeNames", "",
+                "Comma-separated name fragments; volumes whose GameObject name contains one are not drawn.");
+
+            _limitSize = _limitSizeCfg.Value;
+            _maxSize = Mathf.Clamp(_maxSizeCfg.Value, MinSizeLimit, MaxSizeLimit);
+            _excludeText = _excludeCfg.Value ?? "";
+            ApplyFilters();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -67,15 +114,31 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
+            // Freecam ends itself when the game tears its camera down (a
+            // level load); stop holding the player when it does.
+            if (_freeCamOn && !_freeCam.Active)
+            {
+                _freeCamOn = false;
+                _status = "freecam ended (camera changed)";
+            }
+
+            // With the window open the mouse is on buttons and the keys are
+            // typing into fields; the view should not fly around meanwhile.
+            _freeCam.InputEnabled = Host == null || !Host.AnyPanelOpen();
+
             if (_draw != null)
             {
-                _draw.Origin = Ctx.Player.Transform;
+                _draw.Origin = _freeCam.Active ? _freeCam.Camera.transform : Ctx.Player.Transform;
                 _draw.Radius = _radius;
             }
 
             // The wireframe hook has to live on whichever camera is
             // actually rendering, and that changes when freecam starts.
             if (_wireOn) AttachWireframe();
+
+            if (_saveAt >= 0f && Time.unscaledTime >= _saveAt) SaveFilters();
+
+            BuildLabels();
         }
 
         // ------------------------------------------------------------------
@@ -97,21 +160,21 @@ namespace ForestOverlay.Modules
                 _freeCam.Begin(cam);
                 _freeCamOn = true;
 
-                // Hold the player so the body does not wander off while the
-                // view is detached. This writes game state.
-                if (Ctx.Bridge != null)
-                {
-                    Ctx.Bridge.SetPlayerLocked(true);
-                    Ctx.Practice.Mark("freecam");
-                }
-
-                _status = "freecam on - WASD, QE up/down, Shift fast, Ctrl slow";
+                // The host holds the player (HoldsPlayer), which writes
+                // game state.
+                Ctx.Practice.Mark("freecam");
+                _status = "freecam on - close the window to fly";
             }
+        }
+
+        private Camera RenderingCamera()
+        {
+            return _freeCam.Active ? _freeCam.Camera : Camera.main;
         }
 
         private void AttachWireframe()
         {
-            Camera cam = Camera.main;
+            Camera cam = RenderingCamera();
             if (cam == null) return;
 
             if (_wireframe != null && _wireframe.gameObject == cam.gameObject)
@@ -135,57 +198,175 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
+        private void ApplyFilters()
+        {
+            _draw.MaxSize = _limitSize ? _maxSize : 0f;
+            _draw.Exclude = VolumeFilter.ParseExclude(_excludeText);
+            _draw.RefreshSoon();
+        }
+
+        private void FiltersChanged()
+        {
+            ApplyFilters();
+            _saveAt = Time.unscaledTime + SaveDelay;
+            _nextLabelBuild = 0f;
+        }
+
+        private void SaveFilters()
+        {
+            _saveAt = -1f;
+            _limitSizeCfg.Value = _limitSize;
+            _maxSizeCfg.Value = _maxSize;
+            _excludeCfg.Value = _excludeText;
+        }
+
+        private void BuildLabels()
+        {
+            int r = Mathf.RoundToInt(_radius);
+            if (r != _builtRadius)
+            {
+                _builtRadius = r;
+                _radiusLabel = "Radius " + r + " m" + (_freeCamOn ? " around the freecam" : " around you");
+            }
+
+            int s = Mathf.RoundToInt(_maxSize);
+            if (s != _builtSize)
+            {
+                _builtSize = s;
+                _sizeLabel = " Hide volumes larger than " + s + " m";
+            }
+
+            if (Time.unscaledTime < _nextLabelBuild) return;
+            _nextLabelBuild = Time.unscaledTime + 0.5f;
+
+            // Rebuilt on the draw's own refresh rate; the radius label also
+            // depends on freecam, so refresh it here too.
+            _builtRadius = -1;
+
+            if (!_draw.ShowColliders && !_draw.ShowTriggers)
+            {
+                _hiddenLabel = "";
+                _largestCount = 0;
+                return;
+            }
+
+            _hiddenLabel = "Hidden: " + _draw.HiddenBySize + " by size, " +
+                           _draw.HiddenByName + " by name";
+
+            LargestList l = _draw.Largest;
+            _largestCount = Mathf.Min(l.Count, _largestLabels.Length);
+            for (int i = 0; i < _largestCount; i++)
+            {
+                _largestNames[i] = l.Names[i];
+                _largestLabels[i] = l.Names[i] + "  (" + l.Sizes[i].ToString("F0") + " m)";
+            }
+        }
+
+        // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
             if (_freeCamOn) hud.Pair("Cam", "FREECAM");
         }
 
-        private float _tabW;
-        private float _tabH;
-
         public override void DrawTab(Rect area)
         {
-            _tabW = area.width;
-            _tabH = area.height;
-            DrawContents(0);
-        }
+            float w = area.width - 20f;
+            Rect content = new Rect(0, 0, w, _contentHeight);
+            _scroll = GUI.BeginScrollView(area, _scroll, content);
 
-        private void DrawContents(int id)
-        {
-            float w = _tabW;
+            float y = 4f;
 
-            bool freecam = GUI.Toggle(new Rect(12, 28, 180, 22), _freeCamOn, " Freecam");
+            // --- views ------------------------------------------------------
+            bool freecam = GUI.Toggle(new Rect(12, y, w - 24, 22), _freeCamOn, " Freecam");
             if (freecam != _freeCamOn) ToggleFreeCam();
+            y += Row;
 
-            bool wire = GUI.Toggle(new Rect(200, 28, 180, 22), _wireOn, " Wireframe");
+            bool wire = GUI.Toggle(new Rect(12, y, w - 24, 22), _wireOn, " Wireframe");
             if (wire != _wireOn) SetWireframe(wire);
+            y += Row;
 
-            bool cols = GUI.Toggle(new Rect(12, 54, 180, 22), _draw.ShowColliders, " Colliders");
-            if (cols != _draw.ShowColliders) _draw.ShowColliders = cols;
+            bool cols = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowColliders, " Colliders (green)");
+            if (cols != _draw.ShowColliders) { _draw.ShowColliders = cols; _draw.RefreshSoon(); }
+            y += Row;
 
-            bool trigs = GUI.Toggle(new Rect(200, 54, 180, 22), _draw.ShowTriggers, " Triggers");
-            if (trigs != _draw.ShowTriggers) _draw.ShowTriggers = trigs;
+            bool trigs = GUI.Toggle(new Rect(12, y, w - 24, 22), _draw.ShowTriggers, " Triggers (orange)");
+            if (trigs != _draw.ShowTriggers) { _draw.ShowTriggers = trigs; _draw.RefreshSoon(); }
+            y += Row + 6f;
 
-            GUI.Label(new Rect(12, 82, 120, 20), "Radius " + _radius.ToString("F0") + "m");
-            _radius = GUI.HorizontalSlider(new Rect(130, 88, w - 150, 20), _radius, 5f, 120f);
+            GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
+            y += 20f;
+            _radius = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
+            y += Row + 6f;
 
-            GUI.Label(new Rect(12, 110, w - 24, 20),
-                      "Green = solid collider, orange = trigger volume.");
-            GUI.Label(new Rect(12, 130, w - 24, 20),
-                      "Volumes are world-space bounds, not exact mesh shapes.");
+            // --- filters ----------------------------------------------------
+            bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
+            if (limit != _limitSize) { _limitSize = limit; FiltersChanged(); }
+            y += Row;
 
-            GUI.Label(new Rect(12, 158, w - 24, 20), _status);
+            if (_limitSize)
+            {
+                float size = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _maxSize,
+                                                  MinSizeLimit, MaxSizeLimit);
+                if (!Mathf.Approximately(size, _maxSize)) { _maxSize = size; FiltersChanged(); }
+                y += Row;
+            }
 
-            GUI.Label(new Rect(12, 184, w - 24, 20),
+            GUI.Label(new Rect(12, y, w - 24, 20), "Hide names containing (comma-separated):");
+            y += 20f;
+            string text = GUI.TextField(new Rect(12, y, w - 24, 22), _excludeText);
+            if (text != _excludeText) { _excludeText = text; FiltersChanged(); }
+            y += Row + 2f;
+
+            if (_hiddenLabel.Length > 0)
+            {
+                GUI.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);
+                y += 22f;
+            }
+
+            if (_largestCount > 0)
+            {
+                GUI.Label(new Rect(12, y, w - 24, 20), "Largest drawn - Hide adds the name to the list:");
+                y += 22f;
+
+                for (int i = 0; i < _largestCount; i++)
+                {
+                    if (GUI.Button(new Rect(12, y, 56, 20), "Hide"))
+                    {
+                        _excludeText = VolumeFilter.AddToExclude(_excludeText, _largestNames[i]);
+                        FiltersChanged();
+                    }
+                    GUI.Label(new Rect(74, y, w - 86, 20), _largestLabels[i]);
+                    y += 22f;
+                }
+            }
+            y += 8f;
+
+            // --- notes ------------------------------------------------------
+            if (_status.Length > 0)
+            {
+                GUI.Label(new Rect(12, y, w - 24, 20), _status);
+                y += 22f;
+            }
+
+            GUI.Label(new Rect(12, y, w - 24, 20),
                       "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
-            GUI.Label(new Rect(12, 204, w - 24, 20),
-                      "Wireframe covers everything the camera draws.");
+            y += 20f;
+            GUI.Label(new Rect(12, y, w - 24, 20),
+                      "The body is held still while it is on.");
+            y += 20f;
+            GUI.Label(new Rect(12, y, w - 24, 20),
+                      "Volumes are world-space bounds, not exact mesh shapes.");
+            y += 24f;
 
+            _contentHeight = y;
+            GUI.EndScrollView();
         }
 
         public override void Shutdown()
         {
+            if (_saveAt >= 0f) SaveFilters();
             if (_freeCam != null) _freeCam.End();
+            _freeCamOn = false;
             if (_wireframe != null) _wireframe.Enabled = false;
             if (_host != null) Object.Destroy(_host);
         }

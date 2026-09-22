@@ -21,7 +21,8 @@ A speedrun and practice tool for **The Forest**, built as a
 - **Practice spots** — teleport anywhere you have saved
 - **Segments** — a spot with a start, an end and checkpoints, timed and
   compared against your previous attempts
-- **Debug views** — freecam, collider and trigger volumes, wireframe
+- **Debug views** — freecam (the body is held still), collider and trigger
+  volumes with a size cap and a name filter, wireframe
 
 ## Using it
 

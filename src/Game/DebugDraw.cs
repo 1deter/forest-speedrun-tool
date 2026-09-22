@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -27,6 +28,19 @@ namespace ForestOverlay.Game
         public float RefreshInterval = 0.5f;
         public Transform Origin;
 
+        // Filters - see Data/VolumeFilter. MaxSize caps a volume's largest
+        // side (0 = no limit); Exclude drops names containing a fragment.
+        public float MaxSize;
+        public string[] Exclude = new string[0];
+
+        /// What the last refresh hid, so the tab can say why a volume is
+        /// not drawn instead of it silently vanishing.
+        public int HiddenBySize { get; private set; }
+        public int HiddenByName { get; private set; }
+
+        /// The biggest volumes still drawn. Rebuilt on the refresh throttle.
+        public readonly LargestList Largest = new LargestList(5);
+
         private Material _material;
         private readonly List<Collider> _found = new List<Collider>();
         private float _nextRefresh;
@@ -49,22 +63,48 @@ namespace ForestOverlay.Game
             _material.SetInt("_ZWrite", 0);
         }
 
+        /// Forces the next Update to re-gather, so a filter change shows
+        /// at once rather than on the next throttle tick.
+        public void RefreshSoon()
+        {
+            _nextRefresh = 0f;
+        }
+
         private void Refresh()
         {
             _found.Clear();
+            Largest.Clear();
+            HiddenBySize = 0;
+            HiddenByName = 0;
             if (Origin == null) return;
 
             Collider[] hits;
             try { hits = Physics.OverlapSphere(Origin.position, Radius); }
             catch (Exception) { return; }
 
+            bool byName = Exclude != null && Exclude.Length > 0;
+
             for (int i = 0; i < hits.Length; i++)
             {
-                if (hits[i] == null) continue;
-                bool trig = hits[i].isTrigger;
+                Collider c = hits[i];
+                if (c == null) continue;
+                bool trig = c.isTrigger;
                 if (trig && !ShowTriggers) continue;
                 if (!trig && !ShowColliders) continue;
-                _found.Add(hits[i]);
+
+                Vector3 size = c.bounds.size;
+                float largest = Mathf.Max(size.x, Mathf.Max(size.y, size.z));
+                if (MaxSize > 0f && largest > MaxSize) { HiddenBySize++; continue; }
+
+                // Reading a Unity name allocates, so only when it is needed.
+                bool ranks = Largest.WouldRank(largest);
+                if (!byName && !ranks) { _found.Add(c); continue; }
+
+                string name = c.name;
+                if (byName && VolumeFilter.IsExcluded(name, Exclude)) { HiddenByName++; continue; }
+
+                _found.Add(c);
+                if (ranks) Largest.Add(name, largest);
             }
         }
 
@@ -186,7 +226,15 @@ namespace ForestOverlay.Game
         private float _yaw;
         private float _pitch;
 
+        /// False while the overlay window is open: the mouse is then
+        /// pointing at buttons and the keys are typing into fields.
+        public bool InputEnabled = true;
+
         public bool Active { get { return _camera != null; } }
+
+        /// The detached camera, or null when freecam is off. Debug drawing
+        /// centres on this while it is active.
+        public Camera Camera { get { return _camera; } }
 
         public void Begin(Camera source)
         {
@@ -231,6 +279,7 @@ namespace ForestOverlay.Game
             // If the game tore down its camera (level load), stop rather
             // than leaving an orphan view the player cannot escape.
             if (_suppressed == null) { End(); return; }
+            if (!InputEnabled) return;
 
             _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
             _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
+using ForestOverlay.Game;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -26,6 +27,7 @@ namespace ForestOverlay.Core
         private readonly HotkeyMap _hotkeys;
         private readonly HudBuilder _hud = new HudBuilder();
         private readonly CursorController _cursor;
+        private readonly GameInput _input;
 
         private float _nextHudRefresh;
 
@@ -39,6 +41,9 @@ namespace ForestOverlay.Core
         public HotkeyMap Hotkeys { get { return _hotkeys; } }
         public HudBuilder Hud { get { return _hud; } }
         public ModuleContext Context { get { return _ctx; } }
+
+        /// Whether game input is being blocked, for the Settings tab.
+        public string InputStatus { get { return _input.Status; } }
         /// The info box in the corner.
         public bool HudVisible = true;
 
@@ -50,7 +55,9 @@ namespace ForestOverlay.Core
 
         /// Practice-only. Uses the game's own FirstPersonCharacter.Locked,
         /// because Time.timeScale is re-asserted by the game every frame
-        /// and an external write to it does nothing.
+        /// and an external write to it does nothing. Also switches the
+        /// game's key map to Menu (Game/GameInput), so clicks in the window
+        /// stop reaching the game.
         public bool LockPlayerWhilePanelOpen = true;
         private bool _playerLockApplied;
 
@@ -58,6 +65,7 @@ namespace ForestOverlay.Core
         {
             _ctx = ctx;
             _cursor = new CursorController(ctx.Log);
+            _input = new GameInput(ctx.Log);
             _hotkeys = new HotkeyMap(ctx.Config);
         }
 
@@ -161,31 +169,50 @@ namespace ForestOverlay.Core
                 if (ms >= SlowTickMs) ReportSlowTick(m, ms);
             }
 
+            // What the window (or freecam) needs from the game this frame.
+            // Only while a player exists: at the title screen there is no
+            // one to hold, and the menu owns the input states itself.
+            bool panel = AnyPanelOpen();
+            bool hold = _ctx.Player.Found &&
+                        ((panel && LockPlayerWhilePanelOpen && AnyPanelWantsPlayerLock()) ||
+                         AnyModuleHoldsPlayer());
+
+            // Player lock FIRST, cursor second. The game's LockView /
+            // UnLockView also call Input.LockMouse/UnLockMouse, so if the
+            // cursor were asserted first, changing the player lock in the
+            // same tick would undo it behind us.
+            if (hold) ApplyPlayerLock();
+            else ReleasePlayerLock();
+
             // Cursor is asserted from Update (not LateUpdate) so that
             // VirtualCursor.LateUpdate is guaranteed to observe it - Unity
             // runs all Updates before any LateUpdate, while the order
             // between two LateUpdates is undefined.
-            if (AnyPanelOpen())
+            if (panel)
             {
-                // Player lock FIRST, cursor second. The game's LockView /
-                // UnLockView also call Input.LockMouse/UnLockMouse, so if
-                // the cursor were asserted first, releasing the player lock
-                // in the same tick would re-lock the pointer behind us.
-                if (AnyPanelWantsPlayerLock()) ApplyPlayerLock();
-                else ReleasePlayerLock();
-
                 _cursor.Acquire();
             }
             else
             {
-                // On close the order is reversed: let the lock release
-                // restore the game's own cursor state, then put back
-                // whatever we saved.
-                ReleasePlayerLock();
                 _cursor.Release();
+                // Freecam with the window closed: LockView freed the mouse,
+                // but the view is steered with it.
+                if (hold) _cursor.EnsureLocked();
             }
 
+            // Clicks and keys go to the overlay, not the game - otherwise a
+            // click on a button swings whatever the player is holding.
+            if (hold) _input.Hold();
+            else _input.Release();
+
             RefreshHudIfDue();
+        }
+
+        private bool AnyModuleHoldsPlayer()
+        {
+            for (int i = 0; i < _modules.Count; i++)
+                if (IsLive(_modules[i]) && _modules[i].HoldsPlayer) return true;
+            return false;
         }
 
         private bool AnyPanelWantsPlayerLock()
@@ -246,7 +273,6 @@ namespace ForestOverlay.Core
         // ------------------------------------------------------------------
         private void ApplyPlayerLock()
         {
-            if (!LockPlayerWhilePanelOpen) return;
             if (_ctx.Bridge == null) return;
 
             // Re-assert if the game cleared it behind us. Opening and
@@ -280,15 +306,15 @@ namespace ForestOverlay.Core
             _playerLockApplied = false;
         }
 
+        /// Tick reconciles the lock and the input block on the next frame.
         public void SetLockPlayer(bool enabled)
         {
             LockPlayerWhilePanelOpen = enabled;
-            if (!enabled) ReleasePlayerLock();
-            else if (AnyPanelOpen() && AnyPanelWantsPlayerLock()) ApplyPlayerLock();
         }
 
         public void Shutdown()
         {
+            _input.Release();
             _cursor.Release();
             ReleasePlayerLock();
 

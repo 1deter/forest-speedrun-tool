@@ -84,9 +84,9 @@ namespace ForestOverlay.Modules
             float w = _tabW;
 
             // --- global toggles --------------------------------------------
-            bool lockPlayer = GUI.Toggle(new Rect(12, 28, 220, 22),
+            bool lockPlayer = GUI.Toggle(new Rect(12, 28, w - 160, 22),
                                          Host.LockPlayerWhilePanelOpen,
-                                         " Hold player while a panel is open");
+                                         " Hold player and block game input while open");
             if (lockPlayer != Host.LockPlayerWhilePanelOpen) Host.SetLockPlayer(lockPlayer);
 
             if (GUI.Button(new Rect(w - 130, 28, 118, 22), "Reset all keys"))
@@ -99,7 +99,7 @@ namespace ForestOverlay.Modules
             _prompt.text = rebinding
                 ? "Press a key for: " + map.AwaitingRebind.Description +
                   "      Esc cancels, Backspace unbinds"
-                : _message;
+                : (_message.Length > 0 ? _message : StatusLine());
 
             GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
             float promptW = w - 24f;
@@ -116,6 +116,21 @@ namespace ForestOverlay.Modules
             // the key event we are waiting for.
             if (map.AwaitingRebind != null) CaptureKey(map);
 
+        }
+
+        // Rebuilt only when the status text changes, not on every OnGUI pass.
+        private string _statusSource;
+        private string _statusLine = "";
+
+        private string StatusLine()
+        {
+            string s = Host.InputStatus;
+            if (!ReferenceEquals(s, _statusSource))
+            {
+                _statusSource = s;
+                _statusLine = "Game input: " + s;
+            }
+            return _statusLine;
         }
 
         private void DrawBindList(Rect listRect, HotkeyMap map)

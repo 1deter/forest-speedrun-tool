@@ -264,8 +264,9 @@ per-item inventory, 100% checklist + nature guide + To Do list, type explorer, d
 unified practice spots/segments with an in-game editor and zone preview,
 segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
-wireframe), self-installing updates (download in game, applied by a preloader
-patcher on restart), offline IL scanner. 125 tests.
+wireframe, with size and name filters), game input blocked while the window is
+open, self-installing updates (download in game, applied by a preloader
+patcher on restart), offline IL scanner. 133 tests.
 
 ### Key concepts
 
@@ -298,22 +299,15 @@ came from runners' own requests (2026-09-22 idea dump), often in few words;
 the interpretation given here was checked with the author.
 
 1. **Practice quality-of-life** — small, and runners are practising now.
-   - **Freecam holds the player still.** It currently moves the view but the
-     body still takes movement input. And trigger/collider/wireframe drawing
-     is centred on the player, so it should follow the freecam camera
-     instead. *(runner)*
-   - **Filter large debug volumes.** Collider *and* trigger views are swamped
-     by huge volumes (area and cave-load boxes) that hide the small ones that
-     matter. Add a size cap and/or an exclude list so important hitboxes read
-     clearly. *(runner)*
-   - **Clicks in the overlay reach the game** — clicking a button while
-     holding the plane axe swings it. Lead (IL, see game-notes *Input
-     states*): every game overlay calls
-     `TheForest.Utils.Input.SetState(InputState.X, true)` on open and `false`
-     on close — the pause menu uses `Menu`, the dev console `Chat` — which
-     switches the Rewired maps. Do the same while the window is open. It is a
-     flag, not a per-frame fight (gotcha 1). Verify in game that a click no
-     longer swings. *(author)*
+   - **Shipped in v0.17.0, awaiting an in-game check** — freecam holds the
+     player (via `HoldsPlayer`, so closing the window no longer frees the
+     body) and debug drawing centres on the freecam camera; collider/trigger
+     views have a size cap and a name exclude list with one-click **Hide** on
+     the largest volumes; the window and freecam hold `InputState.Menu`
+     (`Game/GameInput.cs`) so clicks no longer reach the game. Check: a click
+     with the axe held does not swing; the body stays put while flying;
+     Settings shows *Game input: blocked* while open; ESC still pauses with
+     the window open. *(runner / author)*
    - **Look direction is wrong after closing the window.** Yaw/pitch (and
      roll) saved with a spot do not end up applied once the overlay is closed,
      e.g. after Go / `F7` from the Practice tab. A fix was attempted
