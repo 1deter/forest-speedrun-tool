@@ -1,189 +1,160 @@
 # ForestOverlay — project context
 
-A BepInEx plugin for **The Forest** that displays speedrun-relevant information
-(velocity, timer, inventory counts) and includes a runtime type explorer for
-discovering the game's internals.
+A BepInEx plugin for **The Forest**: speedrun information, practice tooling,
+and a segment/run system with ghosts and deltas.
 
-Read this file first when picking the project back up.
+Read this first when picking the project back up.
+Game internals live in [`docs/game-notes.md`](docs/game-notes.md) — everything
+there is confirmed from a dump or from IL, never guessed.
 
 ---
 
-## Hard runtime facts (confirmed, do not re-derive)
+## Hard runtime facts (do not re-derive)
 
 | Fact | Value | Why it matters |
 |---|---|---|
-| Unity version | **5.6.5** | Predates engine module splitting |
-| Scripting runtime | Mono, **CLR 2.0.50727** | Means **.NET Framework 3.5** |
-| Target framework | **net35** | Anything newer fails to load with `ReflectionTypeLoadException: The classes in the module cannot be loaded` |
-| Unity assemblies | Single monolithic `UnityEngine.dll` | There are **no** `UnityEngine.*Module.dll` files — do not reference them |
+| Unity | **5.6.5** | Predates engine module splitting |
+| Runtime | Mono, CLR 2.0.50727 | Means **.NET Framework 3.5** |
+| Target | **net35** | Anything newer fails to load (`ReflectionTypeLoadException`) |
+| Unity assemblies | One monolithic `UnityEngine.dll` | There are **no** `UnityEngine.*Module.dll` files |
 | BepInEx | 5.4.23.5 installed, built against 5.4.21 | |
-| Input system | **Rewired** | Plain `Input.*` reads won't reflect game bindings |
+| Input | **Rewired** | Plain `Input.*` won't reflect game bindings — hence F-keys |
 
-### net35 consequences
-- No `Array.Empty<T>()`, no `ValueTuple`, no `string` interpolation helpers beyond basics.
-- LINQ technically works but is avoided in hot paths (closure classes are an
-  extra type-load risk on old Mono, and allocations feed GC spikes).
-- `Logger` in a `BaseUnityPlugin` is `BepInEx.Logging.ManualLogSource`.
+**net35 consequences:** no `Array.Empty<T>()`, no `ValueTuple`. LINQ works but is
+avoided in hot paths (closure classes are a type-load risk on old Mono).
+`Logger` is `BepInEx.Logging.ManualLogSource`.
+
+**`Assembly-CSharp.dll` is never referenced.** All game types are reached by
+reflection, so CI builds with no game files and a game update degrades to a
+logged warning instead of a compile break.
 
 ---
 
-## Tests
+## Commands
 
 ```bash
+# Build against the real install (FOREST_MANAGED_PATH is User-scope; shells
+# spawned by tooling do NOT inherit it - read it explicitly and pass it)
+dotnet build -c Release -p:ForestManagedPath="<path>\TheForest_Data\Managed"
+
 dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj
 ```
 
-The plugin targets net35 and cannot be referenced from a modern test runner,
-so the files under test are **linked into** the test project and compiled
-against a tiny `UnityEngine` shim (`tests/.../UnityShim.cs`). No game files and
-no Unity needed; CI runs them on every push.
-
-The shim only implements `Vector3`, `Vector2` and `Mathf` - arithmetic with one
-unambiguous definition each. **If it ever needs `Quaternion`, `Transform` or
-anything with Unity-specific semantics, that is a signal the logic under test
-is not pure and should be refactored - not that the shim should grow.**
-
-BepInEx's UnityEngine stub is deliberately *not* used here: its method bodies
-are empty, so `Vector3.Distance` would return 0 rather than compute, which is
-worse than no test.
-
-Only genuinely pure files belong in the linked set. Anything touching
-MonoBehaviour, reflection into the game, or the filesystem does not.
-
-## Build
-
-BepInEx packages are **not** on nuget.org — they live on BepInEx's own feed,
-which `nuget.config` already points at. Without it you get `NU1101`.
-
-```bash
-# Local build against the real game install (preferred)
-dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed"
-
-# Or set FOREST_MANAGED_PATH once as an environment variable and just:
-dotnet build -c Release
-```
-
-If no local install is found, the project silently falls back to BepInEx's
-stubbed `UnityEngine 5.6.1` package. That is how CI builds with no game files.
-The build prints which source it used.
-
-**`Assembly-CSharp.dll` is deliberately never referenced.** All game types are
-reached by reflection (see `src/GameBridge.cs`). This keeps the build legal to
-run in CI, and makes a game update degrade to a logged warning rather than a
-compile break.
-
-### Deploy
 ```powershell
-./scripts/deploy.ps1          # builds and copies the DLL into BepInEx/plugins
+./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build, install, sync data files
 ```
+
+Deploy fails with "user-mapped section open" if the game is running.
+
+BepInEx packages are on BepInEx's own feed (`nuget.config`), not nuget.org.
+With no local install the build falls back to BepInEx's stubbed UnityEngine —
+that is how CI works. The build prints which source it used.
+
+### Tests
+
+Files under test are **linked into** the test project and compiled against a
+tiny `UnityEngine` shim (`tests/.../UnityShim.cs`). BepInEx's stub is not used:
+its method bodies are empty, so `Vector3.Distance` would return 0.
+
+The shim implements `Vector3`, `Vector2`, `Mathf` only. **If it ever needs
+`Quaternion` or `Transform`, that means the code under test is not pure and
+should be refactored — not that the shim should grow.** Only pure files can be
+linked; anything touching MonoBehaviour, reflection or the filesystem cannot.
 
 ---
 
 ## Architecture
 
-The plugin is a **module host**. `Plugin.cs` does lifecycle and composition
-only; every feature is a self-contained `OverlayModule`.
+`Plugin.cs` does lifecycle and composition only. Every feature is an
+`OverlayModule`; adding one is a class in `src/Modules/` plus one line in
+`BuildModules()`.
 
 | Path | Responsibility |
 |---|---|
-| `src/Plugin.cs` | BepInEx lifecycle, HUD frame, module registration |
-| `src/Core/` | Module contract and host, hotkeys, HUD builder, cursor, practice marker |
-| `src/Game/` | **All reflection into The Forest.** Game-specific names live here and nowhere else |
-| `src/Data/` | File-backed content (practice locations) |
+| `src/Core/` | Module contract and host, hotkeys, HUD builder, cursor, practice marker, update checker |
+| `src/Game/` | **All reflection into The Forest.** Game names live here and nowhere else |
+| `src/Data/` | Pure data + file formats (segments, triggers, runs, checklists) |
 | `src/Modules/` | One file per feature |
-| `src/TypeExplorer.cs` | In-game class/field browser (wrapped by `ExplorerModule`) |
-| `src/GameDumper.cs` | Writes analysis files to `<game root>/ForestOverlayDumps/` |
-| `tools/ILScan/` | Dev-time offline IL query tool. Never shipped |
-| `locations/` | Community-contributed practice spots, synced by `deploy.ps1` |
+| `tools/ILScan/` | Offline IL query tool. Dev-time only, never shipped |
+| `locations/`, `collectibles/` | Shipped data, synced by `deploy.ps1` |
 
-### Adding a feature
-
-1. Add a class in `src/Modules/` deriving from `OverlayModule`.
-2. Override only what you need: `Tick`, `ContributeHud`, `RegisterHotkeys`,
-   `DrawPanel`.
-3. Add one line to `BuildModules()` in `Plugin.cs`.
-
-Nothing else in the codebase needs to know it exists. Modules never reach for
-globals or for each other - shared services arrive via `ModuleContext`.
-
-Every module is individually try/caught at every lifecycle hook. A module that
-throws is disabled and logged; the rest keep running.
+Modules never reach for globals or each other — shared services arrive via
+`ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.
+Every module is individually try/caught at every hook: one that throws is
+disabled and logged, the rest keep running.
 
 ### Rules for modules
 
-- **Never allocate in `DrawPanel`/`OnGUI`.** Build strings in `Tick` (or on a
-  throttle) and cache `GUIContent`. Long lists must be virtualised.
-- **Declare `IsPracticeOnly`** if the module writes game state, and call
+- **Never allocate in `DrawTab`/`OnGUI`.** Build strings in `Tick` (throttled)
+  and cache `GUIContent`. Long lists must be virtualised.
+- **Declare `IsPracticeOnly`** if it writes game state, and call
   `Ctx.Practice.Mark(...)` at each entry point that does.
-- **Declare `WantsPlayerLock`** only if the panel genuinely needs the player
-  held still. The lock writes `FirstPersonCharacter.Locked`, so it is
-  state-altering and taking it marks the session as practice.
+- **Lay panels out vertically**, not packed across a row at fixed offsets —
+  that clips on narrow widths.
+- **If it can fail invisibly, show why on screen.** A dead toggle, an empty
+  search and a timer that never starts were all reported as "nothing happens".
 
-### One window, tabs, few keys
+### UI
 
-**`F2` opens the ForestOverlay window.** Everything lives in a tab there:
-Practice, Segments, Runs, Inventory, Debug views, Settings, Updates.
+**`F2` opens one window; everything is a tab.** A hotkey per panel does not
+scale. Per-feature keys still exist and are rebindable, but they open the
+window on that tab and are **unbound by default**.
 
-A hotkey per panel does not scale - past a handful of features the user is
-memorising keys to find things, and on a keyboard without a numpad there are
-not enough comfortable keys. So per-feature hotkeys still exist and still
-appear in Settings, but they **open the window on that tab** and are
-**unbound by default**.
-
-Adding a tab is a module with `HasTab` returning true; the window collects
-them, so no edit there is needed.
-
-The type explorer keeps its own floating window (`F10`) because it genuinely
-needs the space and is a dev tool, not a runner-facing feature.
+The type explorer keeps its own window (`F10`) — it needs the space and is a
+dev tool, not runner-facing.
 
 | Default | Action |
 |---|---|
 | `F2` | Open the ForestOverlay window |
 | `F5` | Show / hide **all** overlay UI |
-| *(unbound)* | Show / hide the info box only |
 | `F6` | Save spot here |
 | `F7` | Return to current spot |
 | `F9` | Practice mode on / off |
-| `F10` | Type explorer (own window) |
+| `F10` | Type explorer |
 | `F11` | Write dumps |
-| `F12` | Finish practice run |
-| `[` | Abort practice run |
-| `Keypad *` | Toggle freecam |
-| *(unbound)* | Open a specific tab |
+| `F12` | Manual split / finish |
+| `[` | Abort run |
+| `Keypad *` | Freecam |
+| *(unbound)* | info box only; each tab; `\` free-timer split |
 
-`F5` is a master switch, not "hide one box". A runner clearing the screen for
-a recording means all of it; the info box has its own separate toggle.
+`F1` is deliberately free — the game's own dev console uses it.
+All keys are rebindable in **Settings**, or in
+`BepInEx/config/com.deter.forestoverlay.cfg`.
 
-Modules register their own keys with a stable id, so the settings panel, the
-config file and the startup log line are all generated from one table and
-cannot drift from the handlers. Adding a key is one `map.Add(...)` call.
+---
 
 ## Gotchas learned the hard way
 
-1. **The game re-asserts state every frame.** `Time.timeScale = 0` does nothing —
-   the game overwrites it. Same for the cursor. Either win late in the frame
-   (`OnGUI` runs after `LateUpdate`) or, better, use the game's own flags
-   (`FirstPersonCharacter.Locked` / `.MovementLocked`).
-2. **`OnGUI` runs several times per frame.** Never allocate in it. Building a
-   `GUIContent` per list row per pass caused a GC spike roughly once a second.
-   The type list is virtualized and all labels are cached — keep it that way.
-3. **A throwing `Awake` silently kills the plugin.** An early `Harmony.PatchAll()`
-   failure meant the overlay never rendered while still logging "loaded". Every
-   lifecycle method is individually try/caught for this reason.
-4. **Don't trust assumed class names.** Everything in `src/Game/` was confirmed
-   from a dump or from IL. If something isn't in `docs/game-notes.md`, go and
-   look rather than guessing - `docs/game-notes.md` already contains one note
-   that was a guess and was wrong (`VirtualCursor` was filed as
-   "gamepad-related"; it is in fact the cursor owner, and that wrong guess is
-   what cost v0.4.0 its cursor fix).
+1. **The game re-asserts state every frame — use its flags, don't fight it.**
+   `timeScale` is overwritten by `InventoryItemView.Update`. The cursor is
+   overwritten by `VirtualCursor.LateUpdate`, which *warps the pointer to
+   screen centre*, so no later write can fix it. Both are solved by setting
+   the game's own flag (`Input.IsMouseLocked`, `FirstPersonCharacter.LockView`).
+   "Win the frame" is not a strategy; find the flag.
 
-5. **The F11 dump only sees reflection metadata.** When the question is
-   *behavioural* - what writes this field, what runs every frame, which method
-   to hook - use `tools/ILScan`, which reads the real IL offline:
+2. **`OnGUI` runs several times per frame.** Never allocate in it.
 
+3. **A throwing `Awake` silently kills the plugin** while BepInEx still logs
+   "loaded". Every lifecycle method is individually try/caught.
+
+4. **Don't trust assumed names.** Everything in `src/Game/` was confirmed from
+   a dump or IL. `docs/game-notes.md` once contained a guess that was wrong
+   (`VirtualCursor` filed as "gamepad-related"), and that guess cost a release.
+
+5. **The F11 dump only sees reflection metadata.** For behavioural questions —
+   what writes this field, what runs every frame, which method to hook — use
+   `tools/ILScan`, which reads real IL offline:
    ```bash
    dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll writes "UnityEngine.Cursor"
    ```
+
+6. **Cached component references go stale across a save load.** Unity's
+   fake-null makes them look merely absent. Re-resolve, and prefer the game's
+   statics (`LocalPlayer.Inventory`) over `FindObjectOfType`.
+
+7. **Edge semantics matter.** A start zone fires on *crossing* (you spawn
+   inside it); checkpoints and ends fire on *entry*. Getting this wrong made
+   the clock never start.
 
 ---
 
@@ -191,231 +162,79 @@ cannot drift from the handlers. Adding a key is one `map.Add(...)` call.
 
 ### Current phase: explore the capability envelope
 
-**As of 2026-09-21, legality enforcement is explicitly NOT the priority.** The
-speedrun.com moderators have not been asked yet, and the plan is to hand them a
-working tool so they can judge concretely what should be allowed. Guessing at
-their ruling and pre-emptively restricting the tool would defeat that.
+**Legality enforcement is explicitly not the priority.** The speedrun.com
+moderators have not been asked; the plan is to hand them a working tool so they
+can judge concretely. Do not gate, disable or refuse a feature because it
+*might* be ruled illegal.
 
-So, for now:
+Keep the honest **labelling** though — `IsPracticeOnly`, the sticky HUD marker,
+the info-only/state-altering split. It costs nothing and makes that
+conversation concrete. Once there is a ruling, circle back and enforce it.
 
-- Build the feature and find out what is possible. Do not gate, disable or
-  refuse to implement something because it *might* be ruled illegal.
-- Do not add new enforcement machinery, confirmation gates or lockouts.
-- **Do** keep labelling things honestly - `IsPracticeOnly`, the sticky HUD
-  marker and the info-only/state-altering split in the docs all stay. They cost
-  nothing, and they are what makes the eventual conversation with the
-  moderators concrete rather than hand-wavy.
+Flower/plant coordinate display is **out of scope by the author's own call**.
 
-The distinction below is therefore **descriptive, not a restriction**:
+Prefer read-only Harmony `Postfix` observers — for update resilience and plugin
+interop, not legality.
 
-- **Info-only** (velocity, timer, item counts): reads state, never writes.
-  Plausibly legal for verified runs, like an autosplitter.
-- **State-altering** (teleport, position restore, player lock): writes to the
-  game.
+### Conventions
 
-Once there is a ruling, circle back and enforce it properly - that is when the
-labels become load-bearing. Until then they are just accurate reporting.
+- **Data, not code.** Locations, segments and the 100% checklist are text files
+  so they can be shared, diffed and edited by non-programmers. Anything
+  admin-decided or community-contributed belongs in a file.
+- **Everything must be editable in the GUI.** The text formats exist for
+  sharing, not as the interface. A data-driven feature without an editor is
+  not finished.
+- **Segment ids** are author-namespaced, dot-separated:
+  `deter/route.plane-to-cave5`. They are the comparison key — **no SteamID and
+  no timestamp**, or two people running the same route could never be compared.
+  Renaming one orphans every time recorded against it.
+- **Leaderboards are comparative, not competitive** — lines and ghosts, no
+  verified ranking, so client-submitted times need no anti-cheat story.
+- **The in-game timer aims to replace LiveSplit**, not sit beside it.
 
-### Harmony patches
-
-Prefer read-only `Postfix` observers. This is still worth following, but for
-engineering reasons rather than legality ones: a `Prefix` that skips or
-replaces game logic is far more likely to break on a game update or interact
-badly with other plugins.
+---
 
 ## Current status
 
-Working: module host, rebindable hotkeys, HUD, velocity, per-item inventory,
-type explorer, dumps, anchor-based practice teleports with a community
-location library, practice runs with ghost deltas and persisted attempts,
-debug views (freecam / colliders / triggers / wireframe), update checking,
-offline IL scanner.
+Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
+per-item inventory, 100% checklist + To Do list, type explorer, dumps,
+unified practice spots/segments with an in-game editor and zone preview,
+segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
+full player-state capture, debug views (freecam / colliders / triggers /
+wireframe), update checking, offline IL scanner. 100 tests.
 
-`TimerModule` is written but **deliberately not registered** - its manual
-start/stop/split clashed with the practice run keys and has no purpose until
-automatic, configuration-driven splits are designed. The file is kept so that
-work has somewhere to land.
+### Key concepts
 
-### Practice runs
-
-Being placed at the anchor **arms** a run; the clock starts when you actually
-move (start radius 0.5m), `F12` finishes. Practice mode is **off by default**
-and toggled with `F9`. The delta reads "at the point you are standing, the
-reference run had taken N seconds". Attempts persist per anchor under
-`BepInEx/config/ForestOverlay/runs/<anchor>/`, one plain text file each, so a
-folder is a shareable track.
-
-### Updates
-
-`Core/UpdateChecker.cs` queries the GitHub releases API on startup and stages a
-download beside the plugin as `ForestOverlay.dll.pending`.
-
-**It cannot apply the update itself** - Windows will not let a loaded assembly
-be overwritten, and ours is loaded by definition. Applying it needs code that
-runs *before* plugins load, i.e. a BepInEx **preloader patcher** in
-`BepInEx/patchers/`. That piece is not written yet; until it is, the staged
-file sits there and a restart does nothing with it.
-
-UnityWebRequest is used rather than `HttpWebRequest` because Unity 5.6's Mono
-predates TLS 1.2 and GitHub requires it; UnityWebRequest uses the OS stack. It
-is reached by reflection so the CI stub build still compiles.
-
-### Segments and triggers (the spine)
-
-Almost every remaining feature needed the same missing concept: **a named
-thing that happens**. Splits, segment start/end, checkpoints and leaderboard
-keys are all "a trigger fired", so it is defined once in `Data/Segments.cs`
-rather than reinvented per feature.
-
-Trigger kinds: `zone` (sphere), `item` (inventory comparison), `event` (a
-named in-process game event), `manual`.
-
-**Triggers are edge-based, and the first evaluation primes rather than
-fires.** That is deliberate and unit-tested: teleporting *into* a start zone
-must not start the run before you have moved.
-
-Segments live in `BepInEx/config/ForestOverlay/segments/*.txt` as `key = value`
-blocks under `[segment]` headers - a block format rather than the pipe format
-locations use, because a segment has a variable number of checkpoints.
-
-`Segment` is pure data with **no `GUIContent`**: it is linked into the test
-project, which has no Unity. Label caching belongs to the panel that draws it.
-`TriggerParser` is likewise split out of `SegmentLibrary` so the parsing can be
-tested without dragging in BepInEx and the filesystem.
-
-### Spots, not anchors
-
-There is **no separate "anchor" concept**. An earlier version had a manually
-set anchor *and* a teleport library, which overlapped confusingly: if you can
-save a spot, setting a nameless anchor as well is redundant.
-
-So the spot you last teleported to **is** where the next attempt starts from,
-`F6` saves where you stand as a real named spot (and selects it), and `F7`
-returns to the selected one. A spot is also what a segment grows out of -
-attach start/end triggers to one and it becomes timed and splittable.
-
-**Everything must eventually be editable in the GUI.** Runners should never
-have to open a config file; the text formats exist so sets can be shared and
-diffed, not as the primary interface.
-
-### Segment id convention
-
-Author namespace, then dot-separated broad to narrow:
-
-    deter/route.plane-to-cave5
-    maks/cave5.sinkhole-drop
-
-The namespace avoids collisions between authors; the rest names the route
-or area, because The Forest is one continuous world with no map names
-(Momentum keys zones off map + stage, KSF off map_stage - neither ports).
-
-**No SteamID and no timestamp in a segment id.** A segment id is *what is
-being run* and has to be identical across players, or two people running the
-same route produce ids that can never be compared - which defeats comparative
-leaderboards entirely. Who ran it and when belong to the *attempt*, and are
-already in the `.run` file.
-
-Ids are the comparison key, so renaming one orphans every time recorded
-against it. Choose before sharing a set.
-
-### Editing is GUI-first
-
-`SegmentEditorModule` (`Home`) creates and edits segments in game: id, name,
-category, spawn, start/end triggers and checkpoints, all set from where the
-player is standing via "Here" buttons rather than typed coordinates.
-
-**The text formats exist so sets can be shared and diffed, not as the
-interface.** Runners should never have to open a config file. Any new
-data-driven feature needs an editor alongside it, or it is not finished.
-
-Zones are **previewed in the world** while editing (`Game/ZonePreview.cs`):
-start green, checkpoints blue, end red. Typing a radius and hoping is
-guesswork - 3m and 12m look identical on a number field and are completely
-different to run into.
-
-Trigger rows lay out **vertically**. The first version packed them across one
-row at fixed x offsets that ran off a narrow pane, so half the controls were
-invisible.
-
-Edits live in memory until Save, so a half-made segment costs nothing and a
-bad edit cannot corrupt a shared file. Deletes write through immediately -
-a delete that only existed in memory would reappear on reload and look like a
-bug. New segments and duplicates always land in `my-segments.txt`, never back
-into a contributed set.
-
-`SegmentFormat` is pure and linked into the tests, for the same reason
-`TriggerParser` is: it is the code that can silently corrupt a shared route
-file, so the write/parse round trip is pinned rather than trusted.
-
-### Player state capture
-
-`Game/PlayerStateReader.cs` discovers every numeric and boolean field on
-`PlayerStats` by reflection and records them as **named channels** - Health,
-Stamina, Energy, Fullness, Thirst, BodyTemp, Armor, Cold, PedometerSteps and
-~50 more. Hand-picking fields would decide today what matters and leave
-everything else unbackfillable.
-
-Two tracks at different rates, on purpose: position at 30 Hz so the line is
-smooth, state at 5 Hz because stats do not change meaningfully per frame and
-~60 channels at 30 Hz would inflate a run by an order of magnitude.
-
-`TryStateAt` is a **step** lookup, not interpolated - several channels are
-booleans and interpolating those would invent states that never happened.
-
-`RunRecorder` stays free of reflection so it can be linked into the tests; the
-module feeds it the channel array.
-
-### Decisions taken 2026-09-22
-
-- **Leaderboards are comparative, not competitive.** Lines and ghosts for
-  practice, no verified ranking - so client-submitted times need no
-  anti-cheat story.
-- **The in-game timer aims to replace LiveSplit**, not complement it. That
-  makes reading existing LiveSplit split files and HUD/layout customisation
-  real requirements.
-- **Record everything about the player per sample**, not a chosen subset, and
-  let the runner filter later. Samples are cheap; re-recording history is not.
-- **Web viewer wants real 3D terrain** as a heavier secondary option, because
-  2D maps fall apart in caves. Plus annotations for concept lines, and a
-  scrub bar for replay - Momentum-style.
-- Flower/plant coordinate display is **out of scope by the author's own
-  call**: it pushes what the category should allow.
-
-### 100% tracking
-
-`Game/SurvivalBookReader.cs` reads the nature guide and todo list,
-read-only.
-
-One `SurvivalBookBestiary` component per book page (`_tab` is
-per-instance), each holding `FoundEnemyInfo[]`. Those inherit `ACondition`,
-so `_id` and `_done` come from several levels up the chain - hence the
-field lookup walks the hierarchy rather than assuming a declaring type.
-
-Entry names come from the `EnemyType` **enum** on
-`_availableConditionStorage`, not from the NGUI labels in
-`_foundEnemyInfosGOs`: the enum is stable and locale-independent, the
-labels are translated and would read differently per language.
-
-Todo tasks are found **by shape** - any field whose type carries `_done` -
-rather than by a hardcoded list of names, so a game update that adds an
-objective picks it up for free.
-
-**Flower and plant coordinates are deliberately out of scope**, by the
-author's own judgement that they push what the category should allow.
+- **Spots and segments are one thing.** Every Practice entry is somewhere to
+  teleport; tick "Timed segment" and it gains start/end triggers and
+  checkpoints. There is no separate "anchor".
+- **Triggers** (`zone`, `box`, `item`, `event`, `manual`) are the spine —
+  splits, segment bounds and eventually autosplits are all "a trigger fired".
+  Item triggers can be **relative** (`+3` = three more than at the start).
+- **Runs** record position at 30 Hz and ~60 named player-state channels at
+  5 Hz, discovered by reflection so a game update adds stats for free.
+  Attempts persist per segment id and carry a **route fingerprint**, so moving
+  a zone retires old times instead of letting them compete.
 
 ### Next up
 
-1. **Separated endgame splits** via Harmony `Postfix` on the individual
-   action classes (see game-notes). The single shared `endGameCutScene`
-   flag is why the author's autosplitter could not separate them, and the
-   call sites carry the identity the flag does not. This is the clearest
-   thing a plugin can do that an external autosplitter cannot.
-2. **LiveSplit split file import** (`.lss` / `.lsl`) - needed for the
-   in-game timer to replace LiveSplit rather than sit beside it.
-3. **Preloader patcher** to apply staged updates - auto-update's missing
-   half.
-4. **Web viewer** - local-first, export always; cloud later. Terrain
-   export is tractable above ground (Unity `Terrain` heightmap); caves are
-   mesh geometry and stream in on entry, so a full map needs a visit pass
-   rather than one export.
-5. Savestates via the game's own `LoadSave`/`LevelSerializer`.
+1. **Separated endgame splits** — Harmony `Postfix` on each action class
+   (`PlayerPickupTimmyAction`, `PlayerGirlPickupAction`, etc; table in
+   game-notes). The shared `endGameCutScene` flag is why the author's
+   autosplitter could not separate them, and the call sites carry the identity
+   the flag does not. **The clearest thing a plugin can do that an external
+   autosplitter cannot.** Wire these to the `event` trigger kind, which parses
+   and saves but currently never fires.
+2. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+   LiveSplit rather than sit beside it. Plus HUD/layout customisation.
+3. **Preloader patcher** in `BepInEx/patchers/` to apply staged updates.
+   Auto-update currently downloads but cannot install: Windows will not let a
+   loaded assembly be overwritten.
+4. **Web viewer** — local-first, export always; cloud later. 3D terrain is
+   tractable above ground (Unity `Terrain` heightmap); caves are mesh geometry
+   that streams in on entry, so a full map needs a visit pass plus a
+   "dump loaded geometry" button. Wants a scrub bar and annotations.
+5. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
+   health and inventory are restored rather than reconstructed badly.
+6. Runs tab layout (deferred), Timmy-drawing sub-pieces
+   (`DrawingsInventoryItemView._ids`), freeform zone shapes.

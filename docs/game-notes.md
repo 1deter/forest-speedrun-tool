@@ -1,311 +1,215 @@
 # The Forest — internals reference
 
-Everything here was confirmed from a live `F11` dump on 2026-09-21
-(game build as installed via Steam, ~7,300 types in `Assembly-CSharp`).
-Nothing in this file is guessed.
+Everything here is confirmed from a live `F11` dump or from IL via
+`tools/ILScan`. Nothing is guessed.
+
+> The one entry that *was* a guess — `VirtualCursor` filed as
+> "gamepad-related" — was wrong, and cost a release. If it is not in here,
+> go and look.
 
 ---
 
-## Player object
+## Player
 
-Root GameObject is named **`player`**, tagged `Player`.
-Components of interest sit directly on it.
+Root GameObject **`player`**, tagged `Player`.
 
-### `FirstPersonCharacter` — movement controller
+### `FirstPersonCharacter`
 
-| Field | Type | Observed value | Notes |
-|---|---|---|---|
-| `walkSpeed` | float | 6.5 | |
-| `runSpeed` | float | 13.5 | |
-| `strafeSpeed` | float | 6 | |
-| `crouchSpeed` | float | 4.5 | |
-| `swimmingSpeed` | float | 3.75 | |
-| `maximumVelocity` | float | 55 | hard cap |
-| `maxVelocityChange` | float | 4 | acceleration limit |
-| `gravity` | float | 10 | |
-| `jumpHeight` | float | 8 | |
-| `staminaCostPerSec` | float | 3.5 | |
-| **`Locked`** | bool | | **game's own full input lock** |
-| **`MovementLocked`** | bool | | movement-only lock |
-| `Grounded` | bool (backing field) | | `<Grounded>k__BackingField` |
-| `Sitting`, `Diving`, `run`, `running`, `jumping` | bool | | state flags |
-| `StandingOnDynamicObject`, `standingOnRaft`, `SailingRaft`, `PushingSled` | bool | | |
-| `rb` | Rigidbody | | the player's rigidbody |
-| `Stats` | PlayerStats | | |
-| `setup` | playerScriptSetup | | |
-| `targets` | playerTargetFunctions | | |
+| Member | Notes |
+|---|---|
+| `walkSpeed` 6.5 / `runSpeed` 13.5 / `maximumVelocity` 55 | |
+| `maxVelocityChange` 4, `gravity` 10, `jumpHeight` 8 | |
+| **`Locked`** (bool) | read by `Update`, `FixedUpdate`, `FirstPersonHeadBob` and **`SimpleMouseRotator.Update`** — stops movement *and* camera look |
+| `MovementLocked` (bool) | movement only |
+| `rb` | the player rigidbody; velocity is best read here |
+| `Grounded` | `<Grounded>k__BackingField` |
 
-Velocity is best read from `rb.velocity` (already what the overlay does).
+**Use `LockView(bool)` / `UnLockView()`, not the raw flag:**
+
+```
+LockView(true):                    UnLockView():
+  rb.Sleep(); isKinematic = true     Locked = false; CanJump = true
+  useGravity = false                 Input.LockMouse()
+  Locked = true; CanJump = false     isKinematic = false; useGravity = true
+  Input.UnLockMouse()                rb.WakeUp()
+```
+
+Writing `Locked` by hand skips the rigidbody handling (you sag through the
+floor), `CanJump`, and the cursor. Both also drive `Input.IsMouseLocked`, so
+apply the player lock **before** asserting the cursor in a frame.
+
+### Camera / look angles
+
+`SimpleMouseRotator` does not read the transform — it **recomposes** it every
+frame as `originalRotation * Euler(targetAngles)`. Writing `transform.rotation`
+during a teleport never sticks.
+
+Setting **`resetOriginalRotation = true`** makes it rebase on the current
+orientation (`CheckResetOriginalRotation` zeroes the angles and adopts the
+current rotation). That is the only thing needed after a teleport. It is
+consumed inside `UpdateRotation`, which only runs while unlocked — so setting
+it during a locked teleport applies on the first unlocked frame.
+
+Yaw is on the body rotator, **pitch on the camera rotator** (`cameraRotator ==
+true`) — two different transforms, so saving the player's rotation alone never
+captured where you were looking vertically.
+
+---
+
+## Cursor
+
+`TheForest.UI.VirtualCursor.LateUpdate` owns it:
+
+```
+if (TheForest.Utils.Input.IsMouseLocked) {
+    Cursor.lockState = Locked;   // WARPS the pointer to screen centre
+    Cursor.visible   = false;
+}
+```
+
+`lockState = Locked` recentres the pointer, so a later write can restore
+visibility but never position — which is why "win the frame in OnGUI" failed.
+
+The switch is **`TheForest.Utils.Input.IsMouseLocked`** (`LockMouse()` /
+`UnLockMouse()` are one-line flag setters, no side effects). With it false,
+`VirtualCursor` unlocks the cursor itself, every frame. Assert it from
+`Update()`, not `LateUpdate()` — all Updates run before any LateUpdate.
+
+---
+
+## `timeScale`
+
+Written from 22 places. The one that beats an external write every frame is
+**`InventoryItemView.Update`**. Also `HudGui.TogglePauseMenu` (ESC menu),
+`PlayerInventory.PauseTimeInInventory` / `.Close`, `MenuMain`, `LoadSave`.
+
+Do not try to freeze the game with `timeScale`.
 
 ---
 
 ## Inventory
 
-### `TheForest.Items.Inventory.PlayerInventory`
-67 fields / 34 properties / 164 methods. Lives on the player subtree.
+`TheForest.Items.Inventory.PlayerInventory`
 
-| Field | Type | Notes |
-|---|---|---|
-| `_possessedItems` | `List<InventoryItem>` | the actual held items |
-| `_possessedItemsCount` | int | **currently displayed on the HUD** |
-| `_possessedItemCache` | `Dictionary<int, InventoryItem>` | keyed by item id |
-| `_itemDatabase` | `ItemDatabase` | for resolving ids to names |
-| `_itemViews` | `InventoryItemView[]` | UI views |
-| `_equipmentSlots` | `InventoryItemView[]` | equipped items |
-| `_currentView` | `PlayerViews` enum | observed `World` |
+| Field | Notes |
+|---|---|
+| `_possessedItems` | `List<InventoryItem>` — read via non-generic `IList` |
+| `_possessedItemsCount` | **does not track reliably**; derive totals from the list |
+| `_itemDatabase` | `ItemDatabase` |
+| `_equipmentSlotsIds` | `int[]` — currently equipped |
 
-Known item ids seen as fields:
-`_leafItemId 34`, `_seedItemId 103`, `_sapItemId 104`, `_defaultWeaponItemId 80`
+`InventoryItem`: `_itemId`, `_amount`, `_maxAmount`, `_maxAmountBonus`.
 
-### Related types
-- `TheForest.Items.Inventory.InventoryItem` — 4 fields / 1 prop / 4 methods.
-  **Field layout not yet captured** — needed for per-item counts.
-- `TheForest.Items.ItemDatabase` — `ScriptableObject`, 5 fields / 10 methods.
-- `TheForest.Items.Inventory.InventoryItemView` — 30 fields / 63 methods.
+`ItemDatabase`: static `_instance`, `Items` (`Item[]`), `ItemById(int)`.
+`Item`: `_id`, `_name` (internal PascalCase, e.g. `SketchArtifact`).
+
+**Do not cache the inventory component** — it goes stale across a save load and
+counters freeze. Read the static `TheForest.Utils.LocalPlayer.Inventory` each
+time. Likewise find `ItemDatabase` independently of the player.
+
+### Phantom entries
+
+`_possessedItems` contains things that are not real contents. The author's
+LiveSplit autosplitter filters them as `id < 29 || id > 311 || id == 302`
+(302 is a dev item; 122 is the MP radio, listed in singleplayer). Observed:
+
+- **An equipped item reads `_amount = 0`** while held — cross-reference
+  `_equipmentSlotsIds` to tell "equipped" from "gone".
+- That id range describes `_possessedItems`, **not the database** — applying it
+  to the catalogue hides real items from search.
+
+### Item names
+
+Internal names are nothing like published ones: `MorgueReport` = Autopsy
+Report, `RecurveBow` = Modern Bow, `TennisRaquet` = Tennis Racket,
+`shippingManifest` = Cargo Manifest, `Walkman` = Cassette Player.
+
+Dump the full catalogue from the **100% tab → Dump item list**
+(`ForestOverlayDumps/items_*.txt`, 231 items).
+
+Multi-piece items are **one item holding pieces**, not several items:
+`TimmyDrawing` (208) holds all eight drawings, `MapFull` / `MapPiece_*`
+likewise. `Toy_Arm` / `Toy_Leg` are single items held **x2**.
+`DrawingsInventoryItemView._ids` / `._usedIds` would give per-piece progress.
 
 ---
 
-## Other notable types
+## Endgame splits — the separate triggers
 
-| Type | Shape | Likely use |
-|---|---|---|
-| `PlayerStats` | MB, 163 fields / 196 methods | health, stamina, hunger, thirst |
-| `TheForest.Utils.LocalPlayer` | MB, 132 fields | static-style access point to player subsystems |
-| `TheForest.Utils.Scene` | MB, 59 fields | scene-wide references |
-| `HudGui` | MB, 213 fields / 66 methods | the game's own HUD |
-| `TheForest.Items.Core.ItemStorage` | MB | on player |
-| `TheForest.Player.Clothing.PlayerClothing` | MB | |
-| `TheForest.Items.Special.*Controler` | MB | lighter, map, compass, walkman etc. (note the single-L spelling) |
+The autosplitter reads one bool, `playerAnimatorControl.endGameCutScene` (via
+`LocalPlayer.AnimControl`), set by **every** endgame cutscene — which is why
+those splits could not be separated from outside the process.
 
-Special-item controllers follow the pattern
-`TheForest.Items.Special.<Name>Controler` — e.g. `LighterControler`,
-`MapControler`, `CompassControler`, `FlashLightControler`.
-
----
-
-## Cursor locking - SOLVED 2026-09-21
-
-`TheForest.UI.VirtualCursor.LateUpdate` is the cursor owner. (An earlier note
-in this file guessed it was gamepad-related. It is not.) Its first branch is:
-
-```
-if (TheForest.Utils.Input.IsMouseLocked) {
-    if (Cursor.lockState != Locked) Cursor.lockState = Locked;
-    if (Cursor.visible)             Cursor.visible   = false;
-}
-```
-
-`Cursor.lockState = Locked` **warps the pointer to screen centre**, which is
-why v0.4.0's "win the frame in OnGUI" approach produced a cursor that was
-visible but pinned in place and flickering: OnGUI could restore visibility
-after LateUpdate, but could not un-warp a pointer that had already been
-recentred that frame.
-
-The switch is `TheForest.Utils.Input.IsMouseLocked` (backing field
-`<IsMouseLocked>k__BackingField`, helpers `LockMouse()` / `UnLockMouse()`,
-both confirmed to be plain one-line flag setters with no side effects). With
-it false, `VirtualCursor` takes its other branch and sets
-`lockState = None; visible = true` itself, every frame. That is what the ESC
-menu does.
-
-Implemented in `src/Core/CursorController.cs`. The flag is asserted from
-`Update()`, not `LateUpdate()`, because Unity runs every `Update` before any
-`LateUpdate` - ordering between two `LateUpdate`s is undefined.
-
-## timeScale re-assertion - SOLVED 2026-09-21
-
-`Time.timeScale` is written from 22 places. The one that beats an external
-write every frame is **`TheForest.Items.Inventory.InventoryItemView.Update`**.
-Others worth knowing: `HudGui.TogglePauseMenu` (the ESC menu),
-`PlayerInventory.PauseTimeInInventory` / `.Close`, `MenuMain.OnLoad` /
-`.OnExitMenu`, and `LoadSave`.
-
-This confirms the existing rule: do not try to freeze the game with
-`timeScale`. Use `FirstPersonCharacter.Locked` / `.MovementLocked`.
-
-## Autosplit candidates - lead, not yet confirmed
-
-`TheForest.Tools.TfEvent+Endgame` holds static event objects:
-
-| Field | Likely meaning |
-|---|---|
-| `Completed` | run end - the obvious split trigger |
-| `FireDetected` | |
-| `Shutdown2ndArtifact` | |
-
-Also present: `EndGameStats` (MonoBehaviour), `PlayerStats.EndgameWakeUp`
-(coroutine), `TheForest.Tools.PlayerInEndgameTester`.
-
-Nothing here is wired up yet. Any autosplit hook must be a read-only Harmony
-`Postfix` so it stays info-only.
-
-## Player lock - use LockView, not the raw field
-
-`FirstPersonCharacter` exposes its own pair, and they do more than set a flag:
-
-```
-LockView(bool):                       UnLockView():
-  if !BoltNetwork.isRunning             Locked   = false
-     && arg && Grounded:                CanJump  = true
-       rb.Sleep()                       Input.LockMouse()
-       rb.isKinematic = true            rb.isKinematic = false
-       rb.useGravity  = false           rb.useGravity  = true
-  Locked  = true                        rb.WakeUp()
-  CanJump = false
-  Input.UnLockMouse()
-```
-
-Writing `Locked` by hand skips the rigidbody handling (you sag through the
-floor), `CanJump`, and the cursor. Use the methods.
-
-Note both also drive `Input.IsMouseLocked`, so player-lock and cursor code
-interact - apply the player lock **before** asserting the cursor in a frame.
-
-`Locked` is read by `FirstPersonCharacter.Update` / `.FixedUpdate` /
-`.HandleHeightAdjustments` / `.DetermineVelocityChange`, `FirstPersonHeadBob`
-and - importantly - **`SimpleMouseRotator.Update`**, so it stops camera look as
-well as movement. It is not re-asserted per frame; all writers are event-driven.
-
-## Inventory gotchas - confirmed in game 2026-09-21
-
-- **Do not cache the inventory component.** A `FindObjectOfType` result goes
-  stale across a save load and the counters silently freeze at load-time
-  values. Read the static `TheForest.Utils.LocalPlayer.Inventory` each time.
-- **`_possessedItemsCount` does not track reliably.** Derive totals from
-  `_possessedItems`.
-- **`_possessedItems` contains entries that are not real inventory contents.**
-  The author's LiveSplit autosplitter filters them as
-  `id < 29 || id > 311 || id == 302`; 302 is a dev/ghost item. Observed
-  phantoms include 302 (never in inventory) and 122 (multiplayer radio, listed
-  in singleplayer but not present).
-- **An equipped item reads `_amount = 0`** while held - e.g. the lighter (48)
-  shows x0 when in hand. Cross-reference `_equipmentSlotsIds` (int[]) to tell
-  "equipped" apart from "gone".
-
-## The game ships a debug console - 256 methods
-
-`TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`
-dictionary) is a full developer console still present in the retail build.
-Methods are instance methods named `_<command>` taking a `String` or `Object`,
-so they can be invoked by reflection without going through the console UI.
-
-Directly relevant to a debug/theory-testing menu:
-
-| Command | Use |
-|---|---|
-| `_capsulemode(onoff)` | closest thing to a hitbox view |
-| `_diagRenderers(param)` | renderer diagnostics |
-| `_godmode`, `_invisible` | survive while testing a line |
-| `_speedyrun(onoff)`, `_timescale`, `_gametimescale` | movement experiments |
-| `GotoPosition(Vector3)` | teleport, typed - no string parsing |
-| `_goto(arg)`, `_gototag(arg)`, `GotoArea`, `GotoCave` | jump to named places |
-| `_follow(arg)` / `FollowTarget(go, delay)` | camera follow |
-| `_eval(sCSCode)` | evaluate C# at runtime |
-| `_terrainRender`, `_toggleOcclusionCulling`, `_toggleCullingGrid` | rendering |
-| `_additem`, `_spawnitem`, `_removeitem`, `_addAllItems` | inventory setup |
-| `_toggleFPSDisplay`, `_togglePlayerStats`, `_toggleOverlay` | built-in overlays |
-| `_setDrawDistance`, `_setShadowLevel`, `_targetFrameRate` | perf |
-
-There is a `CheatsAllowedSet` gate on the console UI. Invoking the methods
-directly by reflection sidesteps the UI but has not been tested against that
-gate yet - verify before building a menu on top of it.
-
-**No built-in wireframe, trigger or collider visualisation** beyond
-`_capsulemode`. Those would have to be drawn by the plugin: walk colliders and
-draw with `GL` lines in `OnRenderObject`, or a replacement shader for
-wireframe. Freecam likewise is not provided - `_follow` follows a target, it
-does not detach the camera.
-
-## Endgame splits - the separate triggers (solved 2026-09-22)
-
-The author's LiveSplit autosplitter reads one shared bool:
-
-```
-playerAnimatorControl.endGameCutScene   // via LocalPlayer.AnimControl
-```
-
-It is set by EVERY endgame cutscene, which is why all the endgame splits
-fired together and could not be separated from outside the process.
-
-From in-process this is solvable, because each cutscene has its own action
-class that sets the flag. Hook these individually (read-only `Postfix`):
+Each cutscene has its own action class. Hook these individually with read-only
+`Postfix`:
 
 | Split | Class / member |
 |---|---|
-| Finding Timmy | `TheForest.Player.Actions.PlayerPickupTimmyAction` (`lockPlayerParams`, `pickupTimmyRoutine`) |
+| Finding Timmy | `PlayerPickupTimmyAction` (`lockPlayerParams`, `pickupTimmyRoutine`) |
 | Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` |
-| Approaching Megan | `TheForest.Player.Actions.PlayerGirlPickupAction.girlToMachineRoutine` |
-| Megan into artifact | `TheForest.Player.Actions.PlayerGirlTransformAction.doGirlTransformRoutine` |
+| Approaching Megan | `PlayerGirlPickupAction.girlToMachineRoutine` |
+| Megan into artifact | `PlayerGirlTransformAction.doGirlTransformRoutine` |
 | Keycard door | `playerOpenKeypadDoorAction.lockPlayerParams` |
-| Game end | `TheForest.Player.Actions.PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` |
+| Game end | `PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` |
 | Raft / out of world | `RaftPush.outOfWorldRoutine` |
 
-**This is the clearest case so far of something a plugin can do that an
-external autosplitter cannot**: the shared flag carries no identity, but the
-call site does.
+**The shared flag carries no identity; the call site does.** This is the
+clearest case of something a plugin can do that an external autosplitter
+cannot.
 
-Related, still unmapped: Vault Door and the Red Elevator. `ElevatorManager`
-and `ElevatorGlobalState` exist and are the place to look.
+Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
+`FireDetected`, `Shutdown2ndArtifact`. Still unmapped: Vault Door and the Red
+Elevator — `ElevatorManager` / `ElevatorGlobalState` are where to look.
 
-## 100% tracking - the survival book (found 2026-09-22)
+---
 
-### Nature guide / bestiary
+## Survival book (100%)
 
-`TheForest.Player.SurvivalBookBestiary` (MonoBehaviour):
+`TheForest.Player.SerializableSurvivalBookTodo` — one `TodoTask` field per
+objective (`_son`, `_camp`, `_cave1..10`, `SinkHoleTodoTask`,
+`PassengersTodoTask`, …). Each inherits `ACondition`, which carries `_id` and
+**`_done`**. Discover them **by shape** (any field whose type has `_done`)
+rather than by name, so a game update adds objectives for free.
 
-| Member | Meaning |
-|---|---|
-| `_foundEnemyInfos` | `FoundEnemyInfo[]` - the entries on this page |
-| `_foundEnemyInfosGOs` | matching UI objects (display names live here) |
-| `_doneConditions` | `int[]` of completed condition ids, as saved |
-| `_tab` | `SelectPageNumber` - which book page this component is |
+The older `SurvivalBookTodo` also exists and adds `FindTimmyTodoTask` /
+`FindMeganTodoTask` — check which is live.
 
-`FoundEnemyInfo : TodoTask : Task : ACondition`, and `ACondition` carries the
-two fields that matter:
+`SurvivalBookBestiary` exists (one component per page, `FoundEnemyInfo[]`,
+names from the `EnemyType` enum on `_availableConditionStorage`) but **is not
+part of the 100% requirement** and the game carries two of them, so it renders
+twice. Not used.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `_id` | int | stable condition id |
-| `_done` | bool | **found / not found** |
+---
 
-`FoundEnemyInfo.CurrentUnlockLevel` (int) tracks partial discovery, so an entry
-can be shown as partly revealed rather than a plain yes/no.
+## The game ships a debug console — 256 methods
 
-Because `_tab` is per-component, **each `SurvivalBookBestiary` instance is one
-page**. Enumerating the instances gives exactly the "grouped by page, entries
-listed individually" shape that was asked for.
+`TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a
+full developer console in the retail build. Methods are instance methods named
+`_<command>` taking a `String` or `Object`, invokable by reflection without the
+console UI.
 
-### ToDo list
+Useful: `_godmode`, `_invisible`, `_capsulemode` (closest thing to a hitbox
+view), `_speedyrun`, `_timescale`, `GotoPosition(Vector3)` (typed),
+`_additem` / `_spawnitem` / `_removeitem`, `_setDrawDistance`,
+`_eval(sCSCode)` (runtime C#).
 
-`TheForest.Player.SerializableSurvivalBookTodo` holds one task field per
-objective, each a `TodoTask` (so again `_id` / `_done`): `_son`, `_camp`,
-`_food`, `_defenses`, `_redman`, `_cave1.._cave10`, plus
-`FindClimbingAxeTodoTask`, `FindRebreatherTodoTask`, `SinkHoleTodoTask`,
-`PassengersTodoTask`, `SacrificeTodoTask`.
+There is a `CheatsAllowedSet` gate on the console UI; reflection should
+sidestep it but that is **untested**.
 
-The older non-serialisable `TheForest.Player.SurvivalBookTodo` additionally has
-`FindTimmyTodoTask` and `FindMeganTodoTask`. Check which one is live before
-relying on either.
+**No wireframe, trigger or collider view, and no freecam** — those are drawn by
+the plugin (`Game/DebugDraw.cs`, `Game/ZonePreview.cs`) with `GL` lines and
+`Hidden/Internal-Colored`.
 
-A "23/40 entries done" counter is just counting `_done` across these.
-
-## Things still unknown
-
-- Which concrete method to patch for a run-start trigger
-- Whether `TfEvent.Endgame.Completed` fires on every ending variant
+---
 
 ## How to extend this file
 
-Two complementary tools:
+1. **In-game dump (`F11`)** — reflection metadata: type names, field names and
+   types, live values. The explorer's "Dump filtered" gives full method
+   signatures for a subset. Lands in `<game root>/ForestOverlayDumps/`.
 
-1. **In-game dump (`F11`)** - reflection metadata: type names, field names and
-   types, live values. Use the explorer's "Dump filtered" button for
-   `types_detail_*`, which gives full method signatures for a filtered subset.
-   Dumps land in `<game root>/ForestOverlayDumps/`.
-
-2. **`tools/ILScan`** - reads `Assembly-CSharp.dll` with Mono.Cecil offline and
-   sees the actual IL, which the dump cannot. This is how the cursor and
-   `timeScale` questions above were answered rather than guessed.
+2. **`tools/ILScan`** — reads `Assembly-CSharp.dll` with Mono.Cecil offline and
+   sees real IL, which the dump cannot:
 
    ```bash
    dotnet build tools/ILScan/ILScan.csproj -c Release
@@ -315,5 +219,5 @@ Two complementary tools:
    dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll type  "TheForest.Items.Item"
    ```
 
-   `writes` is the useful one when the question is "what keeps changing this
-   every frame".
+   `writes` is the one to reach for when the question is "what keeps changing
+   this every frame".
