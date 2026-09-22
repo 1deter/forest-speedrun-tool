@@ -342,6 +342,10 @@ namespace ForestOverlay.Modules
             _current = s;
             _status = "-> " + s.Name + (cave.Length > 0 ? " (" + cave + ")" : "");
 
+            // Logged too: the status line is easy to miss, and the log is
+            // what a runner sends when a cave teleport misbehaves.
+            if (cave.Length > 0) Ctx.Log.LogInfo("Teleport to '" + s.Name + "': " + cave + ".");
+
             if (OnPlacedAtSpot != null) OnPlacedAtSpot();
         }
 

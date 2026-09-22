@@ -351,8 +351,8 @@ the interpretation given here was checked with the author.
      (`developermodeon`, `speedyrun`). v0.18.2 adds `heap +N KB/s, overlay
      +M KB/s` to the `Perf` line — read it before assuming either side.
 3. **Deaths and caves.**
-   - **Quick-load on death and practice revive — shipped in v0.19.0,
-     awaiting an in-game check.** `Modules/DeathModule.cs` (Deaths tab),
+   - **Quick-load on death and practice revive — v0.19.0, confirmed working
+     in game (author, v0.19.2).** `Modules/DeathModule.cs` (Deaths tab),
      `Game/DeathHooks.cs`; mechanics in game-notes *Deaths*. Decided with
      the author: practice mode + a current spot → revive at the spot on
      every death (capture included); otherwise quick-load (toggle, on) on
@@ -367,8 +367,14 @@ the interpretation given here was checked with the author.
      things) turns off terrain collision; a teleport skipped it, so you
      arrived under the terrain. Practice teleports now apply the game's own
      `LocalPlayer.Goto` rule and `GotoCave` first (game-notes *Caves*).
-     Check: Go to a cave spot from outside and back out; the Practice status
-     says `(entered cave)` / `(left cave)`. *(runner)*
+     Check: Go to a cave spot from outside and back out; the log says
+     `Teleport to '<spot>': entered cave.` (since v0.19.3), as do the
+     info box's `Prac` line and the Practice tab's status. *(runner)*
+   - **Perf, v0.19.2 log (author):** overlay tick ≤ 0.01 ms avg; overlay
+     allocation 11–110 KB/s against 240–3100 KB/s for the whole heap
+     (~10%); GC 0–1 per 30 s in play. The >50 ms frames cluster around
+     loads, and the ~300 ms ones mostly have no GC — the game streaming,
+     not the overlay. Nothing to fix from that log.
 4. **Savestates** via the game's own `LoadSave`/`LevelSerializer`, so AI,
    health and inventory are restored rather than reconstructed badly. This is
    the foundation for several runner requests:
