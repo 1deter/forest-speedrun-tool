@@ -65,10 +65,12 @@ namespace ForestOverlay.Game
         private void OnRenderObject()
         {
             if (!Show || Zones == null || Count <= 0) return;
+            if (!DrawTarget.ShouldDraw()) return;
 
             EnsureMaterial();
             if (_material == null) return;
 
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
             _material.SetPass(0);
             GL.PushMatrix();
             GL.Begin(GL.LINES);
@@ -93,6 +95,7 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
+            DrawTarget.Record(start, 0);
         }
 
         private static void WireBox(Vector3 c, Vector3 e)

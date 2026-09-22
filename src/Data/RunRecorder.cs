@@ -166,6 +166,38 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// Where the reference was `t` seconds in - the ghost's position -
+        /// interpolated between samples. False past the end of the run.
+        ///
+        /// `hint` is the index found last frame. Time only moves forward
+        /// during a run, so the search resumes there instead of scanning
+        /// from the start every frame (which grew with the run's length).
+        /// A time earlier than the hint - a new run - restarts from 1.
+        public static bool PositionAt(IList<RunSample> samples, float duration, float t,
+                                      ref int hint, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (samples == null || samples.Count == 0) return false;
+            if (t > duration) return false;
+
+            int i = hint < 1 || hint >= samples.Count || samples[hint - 1].T > t ? 1 : hint;
+
+            for (; i < samples.Count; i++)
+            {
+                if (samples[i].T < t) continue;
+
+                hint = i;
+                float span = samples[i].T - samples[i - 1].T;
+                float f = span <= 0f ? 0f : (t - samples[i - 1].T) / span;
+                position = samples[i - 1].P + (samples[i].P - samples[i - 1].P) * f;
+                return true;
+            }
+
+            hint = samples.Count - 1;
+            position = samples[samples.Count - 1].P;
+            return true;
+        }
+
         /// Even split points through an attempt, for a splits-style
         /// readout when no explicit checkpoints exist. Returns the sample
         /// times at each fraction of the path length.
@@ -268,6 +300,13 @@ namespace ForestOverlay.Data
         /// Route fingerprint stamped onto the attempt. Set before Arm.
         public string Route = "";
 
+        /// Pulls the current state values when a state sample is due.
+        /// Reading ~60 fields by reflection is not free, and it used to
+        /// happen every frame to be thrown away four times out of five -
+        /// with a boxed allocation per field. Used when Tick is given no
+        /// state array.
+        public Func<float[]> StateSource;
+
         public void Arm(Vector3 anchor, string label)
         {
             _anchor = anchor;
@@ -321,8 +360,9 @@ namespace ForestOverlay.Data
 
         private void SampleState(float[] state)
         {
-            if (state == null || state.Length == 0) return;
             if (Elapsed < _nextStateTime) return;
+            if (state == null && StateSource != null) state = StateSource();
+            if (state == null || state.Length == 0) return;
             _nextStateTime = Elapsed + StateInterval;
 
             StateSample ss;

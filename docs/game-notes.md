@@ -41,18 +41,30 @@ apply the player lock **before** asserting the cursor in a frame.
 ### Camera / look angles
 
 `SimpleMouseRotator` does not read the transform — it **recomposes** it every
-frame as `originalRotation * Euler(targetAngles)`. Writing `transform.rotation`
-during a teleport never sticks.
-
-Setting **`resetOriginalRotation = true`** makes it rebase on the current
-orientation (`CheckResetOriginalRotation` zeroes the angles and adopts the
-current rotation). That is the only thing needed after a teleport. It is
-consumed inside `UpdateRotation`, which only runs while unlocked — so setting
-it during a locked teleport applies on the first unlocked frame.
+frame as `originalRotation * Euler(-followAngles.x, followAngles.y, 0)`, where
+`followAngles` damps towards `targetAngles` + `xOffset`/`yOffset`. Writing
+`transform.rotation` during a teleport never sticks.
 
 Yaw is on the body rotator, **pitch on the camera rotator** (`cameraRotator ==
-true`) — two different transforms, so saving the player's rotation alone never
-captured where you were looking vertically.
+true`; also the static `LocalPlayer.CamRotator`) — two different transforms,
+and they store the view differently. `UpdateRotation` every frame:
+
+| Rotator | Zeroes of `originalRotation` | So the view lives in |
+|---|---|---|
+| body | `.x`, `.z` | yaw in `originalRotation.y` |
+| camera | `.x`, `.y`, `.z` | pitch **only** in `targetAngles.x` / `followAngles.x` |
+
+**Yaw:** set the body rotation and raise **`resetOriginalRotation`**.
+`CheckResetOriginalRotation` adopts the current rotation and zeroes the angles.
+It is consumed inside `UpdateRotation`, which only runs while unlocked — so
+raising it during a locked teleport applies on the first unlocked frame.
+
+**Pitch: never reset the camera rotator** — zeroing its angles *is* zeroing
+the pitch (v0.17.0 and earlier snapped the view level on every window close).
+Write `targetAngles.x = -pitch - xOffset`, `followAngles.x = -pitch`, and
+raise **`fixCameraRotation`**, which snaps `followAngles` instead of damping.
+That is what the game does itself in `survivalBookController.FinalCloseBook`.
+Pitch here is Unity euler x, positive looking down.
 
 ---
 

@@ -76,7 +76,10 @@ namespace ForestOverlay.Modules
         private RunLineBehaviour _lines;
         private bool _showLines = true;
         private Attempt _lineSource;
-        private int _currentLineCount;
+        // Appended to, not rebuilt - see Data/LineBuffer.
+        private readonly LineBuffer _referenceLine = new LineBuffer();
+        private readonly LineBuffer _currentLine = new LineBuffer();
+        private int _ghostHint;
 
         // ------------------------------------------------------------------
         public override void Initialise(ModuleContext ctx)
@@ -94,6 +97,15 @@ namespace ForestOverlay.Modules
             _lineHost.hideFlags = HideFlags.HideAndDontSave;
             Object.DontDestroyOnLoad(_lineHost);
             _lines = _lineHost.AddComponent<RunLineBehaviour>();
+
+            // Pulled only when a state sample is due (5 Hz), not read every
+            // frame and thrown away.
+            _recorder.StateSource = ReadState;
+        }
+
+        private float[] ReadState()
+        {
+            return Ctx.PlayerState.Read();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -257,8 +269,7 @@ namespace ForestOverlay.Modules
                     FinishRun();
             }
 
-            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime,
-                           Ctx.PlayerState.Read());
+            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime, null);
 
             if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
             {
@@ -449,33 +460,25 @@ namespace ForestOverlay.Modules
             if (!ReferenceEquals(_lineSource, _reference))
             {
                 _lineSource = _reference;
-
-                if (_reference == null) _lines.ReferenceCount = 0;
-                else
-                {
-                    _lines.ReferenceLine = ToPoints(_reference);
-                    _lines.ReferenceCount = _lines.ReferenceLine.Length;
-                }
+                _ghostHint = 0;
+                _referenceLine.Clear();
+                if (_reference != null) _referenceLine.Sync(_reference.Samples);
             }
+            _lines.ReferenceLine = _referenceLine.Points;
+            _lines.ReferenceCount = _referenceLine.Count;
 
             Attempt current = _recorder.Current;
-            if (current == null)
-            {
-                _lines.CurrentCount = 0;
-                _currentLineCount = 0;
-            }
-            else if (current.Samples.Count != _currentLineCount)
-            {
-                _currentLineCount = current.Samples.Count;
-                _lines.CurrentLine = ToPoints(current);
-                _lines.CurrentCount = _lines.CurrentLine.Length;
-            }
+            if (current == null) _currentLine.Clear();
+            else _currentLine.Sync(current.Samples);
+            _lines.CurrentLine = _currentLine.Points;
+            _lines.CurrentCount = _currentLine.Count;
 
             _lines.HasGhost = false;
             if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
             {
                 Vector3 ghost;
-                if (SampleAtTime(_reference, _recorder.Elapsed, out ghost))
+                if (RunCompare.PositionAt(_reference.Samples, _reference.Duration, _recorder.Elapsed,
+                                          ref _ghostHint, out ghost))
                 {
                     _lines.GhostPosition = ghost;
                     _lines.HasGhost = true;
@@ -492,34 +495,9 @@ namespace ForestOverlay.Modules
             _lines.CurrentCount = 0;
             _lines.HasGhost = false;
             _lineSource = null;
-            _currentLineCount = 0;
-        }
-
-        private static Vector3[] ToPoints(Attempt a)
-        {
-            Vector3[] pts = new Vector3[a.Samples.Count];
-            for (int i = 0; i < pts.Length; i++) pts[i] = a.Samples[i].P;
-            return pts;
-        }
-
-        private static bool SampleAtTime(Attempt a, float t, out Vector3 position)
-        {
-            position = Vector3.zero;
-            if (a == null || a.Samples.Count == 0) return false;
-            if (t > a.Duration) return false;
-
-            for (int i = 1; i < a.Samples.Count; i++)
-            {
-                if (a.Samples[i].T < t) continue;
-
-                float span = a.Samples[i].T - a.Samples[i - 1].T;
-                float f = span <= 0f ? 0f : (t - a.Samples[i - 1].T) / span;
-                position = Vector3.Lerp(a.Samples[i - 1].P, a.Samples[i].P, f);
-                return true;
-            }
-
-            position = a.Samples[a.Samples.Count - 1].P;
-            return true;
+            _referenceLine.Clear();
+            _currentLine.Clear();
+            _ghostHint = 0;
         }
 
         // ------------------------------------------------------------------

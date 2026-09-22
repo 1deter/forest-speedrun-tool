@@ -28,6 +28,7 @@ namespace ForestOverlay.Core
         private readonly HudBuilder _hud = new HudBuilder();
         private readonly CursorController _cursor;
         private readonly GameInput _input;
+        private readonly PerfMonitor _perf;
 
         private float _nextHudRefresh;
 
@@ -66,6 +67,7 @@ namespace ForestOverlay.Core
             _ctx = ctx;
             _cursor = new CursorController(ctx.Log);
             _input = new GameInput(ctx.Log);
+            _perf = new PerfMonitor(ctx.Log);
             _hotkeys = new HotkeyMap(ctx.Config);
         }
 
@@ -155,6 +157,7 @@ namespace ForestOverlay.Core
         {
             _hotkeys.Dispatch();
 
+            double tickTotal = 0.0;
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
@@ -166,8 +169,11 @@ namespace ForestOverlay.Core
 
                 double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
                             System.Diagnostics.Stopwatch.Frequency;
+                tickTotal += ms;
                 if (ms >= SlowTickMs) ReportSlowTick(m, ms);
             }
+
+            _perf.Frame(tickTotal, _ctx.Player.Found);
 
             // What the window (or freecam) needs from the game this frame.
             // Only while a player exists: at the title screen there is no

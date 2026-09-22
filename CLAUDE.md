@@ -219,6 +219,11 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     module Tick over 5 ms as `Slow tick: '<id>'` — check the log for it before
     guessing at a hitch.
 
+12. **`OnRenderObject` runs once per camera**, reflections and UI included.
+    GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn
+    into the view only. The `Perf (30 s):` log line counts passes drawn and
+    skipped.
+
 ---
 
 ## Project intent
@@ -266,7 +271,7 @@ segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
 wireframe, with size and name filters), game input blocked while the window is
 open, self-installing updates (download in game, applied by a preloader
-patcher on restart), offline IL scanner. 133 tests.
+patcher on restart), offline IL scanner. 142 tests.
 
 ### Key concepts
 
@@ -299,7 +304,7 @@ came from runners' own requests (2026-09-22 idea dump), often in few words;
 the interpretation given here was checked with the author.
 
 1. **Practice quality-of-life** — small, and runners are practising now.
-   - **Shipped in v0.17.0, awaiting an in-game check** — freecam holds the
+   - **Shipped in v0.17.0, confirmed working in game by the author** — freecam holds the
      player (via `HoldsPlayer`, so closing the window no longer frees the
      body) and debug drawing centres on the freecam camera; collider/trigger
      views have a size cap and a name exclude list with one-click **Hide** on
@@ -308,20 +313,24 @@ the interpretation given here was checked with the author.
      with the axe held does not swing; the body stays put while flying;
      Settings shows *Game input: blocked* while open; ESC still pauses with
      the window open. *(runner / author)*
-   - **Look direction is wrong after closing the window.** Yaw/pitch (and
-     roll) saved with a spot do not end up applied once the overlay is closed,
-     e.g. after Go / `F7` from the Practice tab. A fix was attempted
-     (`GameBridge.ApplyLook` + `resetOriginalRotation`, game-notes *Camera*)
-     and it still fails, so **reproduce in game before changing code** —
-     suspects: the unlock path (`UnLockView`) running after the rebase was
-     consumed, and the rebase adopting a rotation that is then recomposed.
-     Roll is not captured or reset at all; a tilt left over from a fall or a
-     ragdoll would persist. *(author)*
-   - **Replay / practice-run performance.** Runners report slowdown while
-     ghost lines play or a run records. Suspects: `RunRecorder` sampling
-     (30 Hz position, 5 Hz reflection over ~80 state channels) and line
-     drawing. **Measure first** — `ModuleHost` logs `Slow tick:` over 5 ms.
-     *(runner)*
+   - **Pitch snapped level — fixed in v0.17.1, awaiting an in-game check.**
+     Yaw was fine; pitch always came back straight. Cause (IL): the camera
+     rotator keeps pitch only in its angles, and the rebase on every window
+     close reset them to zero. Now the camera rotator is never reset and
+     pitch is written the way the game's own book-close does (game-notes
+     *Camera*). Rotators also re-resolve after a save load. Roll is still
+     not captured; the rotators force it to zero anyway. *(author)*
+   - **Replay / practice-run performance — patched blind in v0.17.1.** The
+     author's machine never slows; a runner's does. Fixed without a
+     measurement: state read by reflection every frame (now 5 Hz, only
+     while recording), the current run line rebuilt from scratch 30×/s
+     (now appended, 0.75 m spacing), the ghost found by scanning from the
+     start each frame, lines drawn into every camera (now the view only),
+     a `FindObjectOfType` retry every frame, and type lookups scanning all
+     assemblies per call. **Next:** the runner's `LogOutput.log` now has a
+     `Perf (30 s):` line (fps, worst frame, hitches, GC count, overlay tick,
+     GL cost and passes) — ask for one with lines showing and read it before
+     changing anything else. *(runner)*
 2. **Separated endgame splits** — Harmony `Postfix` on each action class
    (`PlayerPickupTimmyAction`, `PlayerGirlPickupAction`, etc; table in
    game-notes). The shared `endGameCutScene` flag is why the author's

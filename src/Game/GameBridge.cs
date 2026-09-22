@@ -66,8 +66,7 @@ namespace ForestOverlay.Game
             _unlockView = null;
             _rotators = null;
             _rotatorsResolved = false;
-            _resetOriginalRotation = null;
-            _isCameraRotator = null;
+            _cameraRotator = null;
             _pitchTransform = null;
             _nextResolveTime = 0f;
             _loggedFailure = false;
@@ -201,46 +200,60 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
-        // Look-angle rebase.
+        // Look angles.
         //
         // SimpleMouseRotator does not read the transform - it RECOMPOSES
-        // it every frame as originalRotation * Euler(targetAngles). So
-        // writing transform.rotation during a teleport never sticks: the
-        // moment input resumes the rotator rebuilds the old orientation
-        // and the view snaps back to wherever you were looking when the
-        // rotator last ran.
+        // it every frame as originalRotation * Euler(-followAngles.x,
+        // followAngles.y, 0), where followAngles damps towards
+        // targetAngles (+ xOffset/yOffset). Writing transform.rotation
+        // during a teleport never sticks.
         //
-        // Writing targetAngles by hand does not fix it either, because
-        // they are relative to originalRotation, which is still stale.
+        // The two rotators store the view differently (confirmed from IL,
+        // UpdateRotation):
         //
-        // The game already has the right operation. CheckResetOriginalRotation:
+        //   BODY (yaw)     - zeroes originalRotation.x/.z every frame and
+        //                    keeps .y, so yaw lives in originalRotation.
+        //   CAMERA (pitch) - zeroes originalRotation.x/.y/.z every frame,
+        //                    so pitch lives ONLY in targetAngles.x /
+        //                    followAngles.x.
         //
-        //     if (resetOriginalRotation) {
-        //         originalRotation = useRigidbody ? rb.rotation
-        //                                         : transform.localRotation;
-        //         targetAngles.x = targetAngles.y = 0;
-        //         followAngles   = Vector2.zero;
-        //         resetOriginalRotation = false;
-        //     }
+        // So the two need different handling:
         //
-        // - "adopt the current orientation as the new base". Setting that
-        // one flag is all that is needed, and it lets the game decide what
-        // that means for the pitch rotator versus the yaw one.
+        //   Yaw: set the body's rotation and raise resetOriginalRotation.
+        //   CheckResetOriginalRotation adopts the current rotation as the
+        //   new base and zeroes the angles - exactly right for the body.
+        //   It is consumed inside UpdateRotation, which only runs while the
+        //   player is NOT locked, so raising it during a locked teleport
+        //   applies on the first unlocked frame.
         //
-        // It is consumed inside UpdateRotation, which only runs while the
-        // player is NOT locked - so setting it during a locked teleport
-        // applies on the first unlocked frame, which is exactly when the
-        // snap used to happen.
+        //   Pitch: NEVER reset the camera rotator. Zeroing its angles is
+        //   zeroing the pitch - that is what snapped the view level on
+        //   every window close. Write targetAngles.x / followAngles.x and
+        //   raise fixCameraRotation instead, which is what the game itself
+        //   does when the survival book closes
+        //   (survivalBookController.FinalCloseBook).
         // ------------------------------------------------------------------
         private Component[] _rotators;
+        private Component _cameraRotator;
         private FieldInfo _resetOriginalRotation;
         private FieldInfo _isCameraRotator;
+        private FieldInfo _targetAngles;
+        private FieldInfo _followAngles;
+        private FieldInfo _xOffset;
+        private FieldInfo _fixCameraRotation;
         private Transform _pitchTransform;
         private bool _rotatorsResolved;
+        private float _nextRotatorResolve;
 
         public void ResolveRotators(Transform playerRoot)
         {
-            if (_rotatorsResolved || playerRoot == null) return;
+            // Rotators die with the player on a save load; a destroyed
+            // component compares equal to null, so re-resolve then rather
+            // than keep rebasing (and reading pitch from) dead objects.
+            if (_rotatorsResolved && _rotators.Length > 0 && _rotators[0] != null) return;
+            if (playerRoot == null) return;
+            if (Time.unscaledTime < _nextRotatorResolve) return;
+            _nextRotatorResolve = Time.unscaledTime + RetryInterval;
 
             Component[] comps;
             try { comps = playerRoot.GetComponentsInChildren(typeof(Component), true); }
@@ -266,11 +279,16 @@ namespace ForestOverlay.Game
             BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             _resetOriginalRotation = rotatorType.GetField("resetOriginalRotation", flags);
             _isCameraRotator = rotatorType.GetField("cameraRotator", flags);
+            _targetAngles = rotatorType.GetField("targetAngles", flags);
+            _followAngles = rotatorType.GetField("followAngles", flags);
+            _xOffset = rotatorType.GetField("xOffset", flags);
+            _fixCameraRotation = rotatorType.GetField("fixCameraRotation", flags);
 
             // Pitch lives on the camera rotator, yaw on the body one. They
             // are separate transforms, which is why saving the player's
             // rotation alone never captured where you were actually
             // looking vertically.
+            _cameraRotator = null;
             _pitchTransform = null;
             if (_isCameraRotator != null)
             {
@@ -279,6 +297,7 @@ namespace ForestOverlay.Game
                     try
                     {
                         if (!(bool)_isCameraRotator.GetValue(_rotators[i])) continue;
+                        _cameraRotator = _rotators[i];
                         _pitchTransform = _rotators[i].transform;
                         break;
                     }
@@ -288,11 +307,14 @@ namespace ForestOverlay.Game
 
             _log.LogInfo("SimpleMouseRotator x" + _rotators.Length +
                          " resetOriginalRotation:" + (_resetOriginalRotation != null) +
-                         " pitchTransform:" + (_pitchTransform != null));
+                         " camera:" + (_cameraRotator != null) +
+                         " angles:" + (_targetAngles != null && _followAngles != null) +
+                         " fixCameraRotation:" + (_fixCameraRotation != null));
         }
 
         /// Current view pitch in degrees, normalised to -180..180 so it can
-        /// be stored and compared sensibly. Returns 0 when unavailable.
+        /// be stored and compared sensibly. Positive looks down (Unity's
+        /// euler x). Returns 0 when unavailable.
         public float GetLookPitch()
         {
             if (_pitchTransform == null) return 0f;
@@ -301,12 +323,10 @@ namespace ForestOverlay.Game
             return x > 180f ? x - 360f : x;
         }
 
-        /// Point the player at a saved view direction, then rebase so the
-        /// rotators adopt it instead of snapping back.
+        /// Point the player at a saved view direction.
         ///
-        /// Yaw is the body, pitch is the camera - two different transforms.
-        /// Writing only the player rotation (which is all the anchor used
-        /// to store) left pitch wherever it happened to be.
+        /// Yaw is the body, pitch is the camera - two different transforms,
+        /// stored two different ways (see above).
         public void ApplyLook(Transform playerRoot, float yaw, float pitch)
         {
             if (playerRoot != null)
@@ -316,6 +336,8 @@ namespace ForestOverlay.Game
                 playerRoot.eulerAngles = e;
             }
 
+            // The transform too, so the view is right while the player is
+            // still held and the rotator is not running.
             if (_pitchTransform != null)
             {
                 Vector3 c = _pitchTransform.localEulerAngles;
@@ -323,11 +345,42 @@ namespace ForestOverlay.Game
                 _pitchTransform.localEulerAngles = c;
             }
 
+            SetCameraPitch(pitch);
             RebaseLookAngles();
         }
 
-        /// Tell every rotator to rebase on the player's current orientation.
-        /// Call after any teleport, and whenever the player lock is released.
+        // Rotation is Euler(-followAngles.x, ...) and followAngles chases
+        // targetAngles.x + xOffset, so pitch P means followAngles.x = -P
+        // and targetAngles.x = -P - xOffset. fixCameraRotation makes the
+        // next update snap followAngles instead of damping towards it.
+        private void SetCameraPitch(float pitch)
+        {
+            if (_cameraRotator == null || _targetAngles == null || _followAngles == null) return;
+
+            try
+            {
+                float offset = _xOffset != null ? (float)_xOffset.GetValue(_cameraRotator) : 0f;
+
+                Vector3 target = (Vector3)_targetAngles.GetValue(_cameraRotator);
+                target.x = -pitch - offset;
+                _targetAngles.SetValue(_cameraRotator, target);
+
+                Vector3 follow = (Vector3)_followAngles.GetValue(_cameraRotator);
+                follow.x = -pitch;
+                _followAngles.SetValue(_cameraRotator, follow);
+
+                if (_fixCameraRotation != null) _fixCameraRotation.SetValue(_cameraRotator, true);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not set camera pitch: " + ex.Message);
+            }
+        }
+
+        /// Tell the BODY rotator to rebase on the player's current yaw.
+        /// Call after any teleport, and whenever the player lock is
+        /// released. Deliberately skips the camera rotator - resetting it
+        /// zeroes the pitch.
         public void RebaseLookAngles()
         {
             if (_rotators == null || _resetOriginalRotation == null) return;
@@ -335,6 +388,7 @@ namespace ForestOverlay.Game
             for (int i = 0; i < _rotators.Length; i++)
             {
                 if (_rotators[i] == null) continue;
+                if (ReferenceEquals(_rotators[i], _cameraRotator)) continue;
                 try { _resetOriginalRotation.SetValue(_rotators[i], true); }
                 catch (Exception) { }
             }
@@ -348,8 +402,20 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
+        // Lookups are cached. FindGameType walks every loaded assembly and
+        // allocates an AssemblyName per assembly, and ReadStaticField is
+        // called every frame (inventory, practice runs) - that was a steady
+        // trickle of garbage for Mono's GC. Only hits are cached: a miss
+        // may resolve once the game has finished loading.
+        private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>();
+        private static readonly Dictionary<string, Dictionary<string, FieldInfo>> StaticFieldCache =
+            new Dictionary<string, Dictionary<string, FieldInfo>>();
+
         public static Type FindGameType(string fullName)
         {
+            Type cached;
+            if (TypeCache.TryGetValue(fullName, out cached)) return cached;
+
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
             for (int a = 0; a < assemblies.Length; a++)
@@ -362,7 +428,7 @@ namespace ForestOverlay.Game
                 try
                 {
                     Type t = assemblies[a].GetType(fullName, false);
-                    if (t != null) return t;
+                    if (t != null) { TypeCache[fullName] = t; return t; }
                 }
                 catch (Exception) { }
             }
@@ -375,12 +441,25 @@ namespace ForestOverlay.Game
         /// FindObjectOfType result.
         public static object ReadStaticField(string typeName, string fieldName)
         {
-            Type t = FindGameType(typeName);
-            if (t == null) return null;
+            // Two-level so a lookup allocates nothing (a joined key would).
+            Dictionary<string, FieldInfo> fields;
+            if (!StaticFieldCache.TryGetValue(typeName, out fields))
+            {
+                fields = new Dictionary<string, FieldInfo>();
+                StaticFieldCache[typeName] = fields;
+            }
 
-            FieldInfo f = t.GetField(fieldName,
-                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            if (f == null) return null;
+            FieldInfo f;
+            if (!fields.TryGetValue(fieldName, out f))
+            {
+                Type t = FindGameType(typeName);
+                if (t == null) return null;
+
+                f = t.GetField(fieldName,
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (f == null) return null;
+                fields[fieldName] = f;
+            }
 
             try { return f.GetValue(null); }
             catch (Exception) { return null; }

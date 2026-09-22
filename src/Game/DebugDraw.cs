@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ForestOverlay.Core;
 using ForestOverlay.Data;
 using UnityEngine;
 
@@ -20,6 +21,58 @@ namespace ForestOverlay.Game
     // frame: the scene has tens of thousands of them and Physics.Overlap
     // per frame would be far more expensive than the drawing.
     // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Which camera our GL overlays draw into.
+    //
+    // OnRenderObject runs once for EVERY camera that renders - the main
+    // view, but also reflection and UI cameras. Drawing a long run line
+    // into each of them multiplied the cost for nothing anyone could see.
+    // Only the view the player is looking through is drawn: the freecam
+    // while it is on, otherwise Camera.main (the camera freecam copies,
+    // so it is the world view). If there is no main camera at all, draw
+    // everywhere rather than nowhere.
+    // ------------------------------------------------------------------
+    public static class DrawTarget
+    {
+        /// Set by FreeCamBehaviour while it is active.
+        public static Camera FreeCam;
+
+        private static int _frame = -1;
+        private static Camera _main;
+
+        public static bool ShouldDraw()
+        {
+            Camera current = Camera.current;
+            if (current == null) return false;
+
+            Camera target = FreeCam;
+            if (target == null)
+            {
+                // Camera.main searches by tag; once a frame is plenty.
+                if (Time.frameCount != _frame)
+                {
+                    _frame = Time.frameCount;
+                    _main = Camera.main;
+                }
+                target = _main;
+            }
+
+            if (target == null || current == target) return true;
+
+            PerfCounters.SkippedPasses++;
+            return false;
+        }
+
+        /// Wraps a draw for the perf log: call with the Stopwatch
+        /// timestamp taken before drawing and the vertices emitted.
+        public static void Record(long startTicks, int vertices)
+        {
+            PerfCounters.DrawPasses++;
+            PerfCounters.Vertices += vertices;
+            PerfCounters.RenderTicks += System.Diagnostics.Stopwatch.GetTimestamp() - startTicks;
+        }
+    }
+
     public sealed class DebugDrawBehaviour : MonoBehaviour
     {
         public bool ShowColliders;
@@ -119,10 +172,12 @@ namespace ForestOverlay.Game
         private void OnRenderObject()
         {
             if (_found.Count == 0) return;
+            if (!DrawTarget.ShouldDraw()) return;
 
             EnsureMaterial();
             if (_material == null) return;
 
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
             _material.SetPass(0);
 
             GL.PushMatrix();
@@ -144,6 +199,7 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
+            DrawTarget.Record(start, _found.Count * 24);
         }
 
         private static void DrawWireBox(Vector3 c, Vector3 e)
@@ -258,10 +314,12 @@ namespace ForestOverlay.Game
             _pitch = e.x > 180f ? e.x - 360f : e.x;
 
             _suppressed.enabled = false;
+            DrawTarget.FreeCam = _camera;
         }
 
         public void End()
         {
+            DrawTarget.FreeCam = null;
             if (_suppressed != null) _suppressed.enabled = true;
             _suppressed = null;
 
@@ -357,10 +415,12 @@ namespace ForestOverlay.Game
         {
             if (!Show) return;
             if (ReferenceCount < 2 && CurrentCount < 2 && !HasGhost) return;
+            if (!DrawTarget.ShouldDraw()) return;
 
             EnsureMaterial();
             if (_material == null) return;
 
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
             _material.SetPass(0);
             GL.PushMatrix();
             GL.Begin(GL.LINES);
@@ -378,6 +438,7 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
+            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - 1) + Mathf.Max(0, CurrentCount - 1)));
         }
 
         private static void DrawStrip(Vector3[] points, int count, Color colour)

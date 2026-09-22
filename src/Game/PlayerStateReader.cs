@@ -37,6 +37,9 @@ namespace ForestOverlay.Game
         private string[] _channels;
         private float[] _values;
 
+        private const float RetryInterval = 1f;
+        private float _nextResolve;
+
         public bool Available { get { return _stats != null && _fields != null; } }
         public string[] Channels { get { return _channels; } }
         public int ChannelCount { get { return _channels == null ? 0 : _channels.Length; } }
@@ -61,6 +64,12 @@ namespace ForestOverlay.Game
         public void Resolve()
         {
             if (_stats != null) return;
+
+            // FindObjectOfType walks every loaded object. Called from a
+            // per-frame Tick, a miss (mid-load, or no PlayerStats) meant a
+            // full scene walk every frame - rate-limit the retry.
+            if (Time.unscaledTime < _nextResolve) return;
+            _nextResolve = Time.unscaledTime + RetryInterval;
 
             Type t = GameBridge.FindGameType("PlayerStats");
             if (t == null) return;
