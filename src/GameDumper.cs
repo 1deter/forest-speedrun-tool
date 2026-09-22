@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
@@ -47,6 +48,38 @@ namespace ForestOverlay
         // 1. Type index - every type in the game's own assemblies.
         //    Small enough to share whole; the map of what exists.
         // ------------------------------------------------------------------
+        // ------------------------------------------------------------------
+        // The item catalogue: every id and name the game knows.
+        //
+        // Needed because the 100% checklist is authored from names the
+        // admins publish, which are not always what the game calls things.
+        // Guessing at them produced a page of unresolved entries; this
+        // makes the real list readable instead.
+        // ------------------------------------------------------------------
+        public static string WriteItemCatalogue(ManualLogSource log,
+                                                IList<ForestOverlay.Game.ItemInfo> catalogue)
+        {
+            string path = Path.Combine(DumpDirectory, "items_" + Stamp() + ".txt");
+
+            using (StreamWriter w = new StreamWriter(path, false, Encoding.UTF8))
+            {
+                w.WriteLine("# The Forest item catalogue");
+                w.WriteLine("# generated " + DateTime.Now);
+                w.WriteLine("# columns: id | name");
+                w.WriteLine("# " + (catalogue == null ? 0 : catalogue.Count) + " items");
+                w.WriteLine();
+
+                if (catalogue != null)
+                {
+                    for (int i = 0; i < catalogue.Count; i++)
+                        w.WriteLine(catalogue[i].Id + " | " + catalogue[i].Name);
+                }
+            }
+
+            log.LogInfo("Item catalogue -> " + path);
+            return path;
+        }
+
         public static string WriteTypeIndex(ManualLogSource log)
         {
             string path = Path.Combine(DumpDirectory, "types_index_" + Stamp() + ".tsv");

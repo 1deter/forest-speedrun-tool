@@ -241,7 +241,9 @@ namespace ForestOverlay.Modules
             float w = _tabW;
 
             GUI.Label(new Rect(0, 2, w - 200, 20),
-                      _list.Status + "   |   " + _book.Status, _rowStyle);
+                      _dumpStatus.Length > 0 ? _dumpStatus
+                                             : _list.Status + "   |   " + _book.Status,
+                      _rowStyle);
 
             bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) _pinSummary = pin;
@@ -251,6 +253,9 @@ namespace ForestOverlay.Modules
 
             bool missing = GUI.Toggle(new Rect(116, 26, 110, 20), _showMissing, " missing");
             if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
+
+            if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Dump item list"))
+                DumpItems();
 
             if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
             {
@@ -267,6 +272,32 @@ namespace ForestOverlay.Modules
 
             DrawList(new Rect(0, 54, w, _tabH - 58));
         }
+
+        /// Writes every id and name the game knows, so a checklist can
+        /// be authored against the real names rather than guessed ones.
+        private void DumpItems()
+        {
+            Ctx.Inventory.BuildCatalog();
+
+            if (Ctx.Inventory.Catalog.Count == 0)
+            {
+                _dumpStatus = "no items yet - " + Ctx.Inventory.CatalogStatus;
+                return;
+            }
+
+            try
+            {
+                string path = GameDumper.WriteItemCatalogue(Ctx.Log, Ctx.Inventory.Catalog);
+                _dumpStatus = "wrote " + Ctx.Inventory.Catalog.Count + " items -> " + path;
+            }
+            catch (System.Exception ex)
+            {
+                _dumpStatus = "dump failed - see log";
+                Ctx.Log.LogError("Item dump failed: " + ex);
+            }
+        }
+
+        private string _dumpStatus = "";
 
         private void EnsureStyles()
         {
