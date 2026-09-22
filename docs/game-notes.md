@@ -216,6 +216,79 @@ draw with `GL` lines in `OnRenderObject`, or a replacement shader for
 wireframe. Freecam likewise is not provided - `_follow` follows a target, it
 does not detach the camera.
 
+## Endgame splits - the separate triggers (solved 2026-09-22)
+
+The author's LiveSplit autosplitter reads one shared bool:
+
+```
+playerAnimatorControl.endGameCutScene   // via LocalPlayer.AnimControl
+```
+
+It is set by EVERY endgame cutscene, which is why all the endgame splits
+fired together and could not be separated from outside the process.
+
+From in-process this is solvable, because each cutscene has its own action
+class that sets the flag. Hook these individually (read-only `Postfix`):
+
+| Split | Class / member |
+|---|---|
+| Finding Timmy | `TheForest.Player.Actions.PlayerPickupTimmyAction` (`lockPlayerParams`, `pickupTimmyRoutine`) |
+| Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` |
+| Approaching Megan | `TheForest.Player.Actions.PlayerGirlPickupAction.girlToMachineRoutine` |
+| Megan into artifact | `TheForest.Player.Actions.PlayerGirlTransformAction.doGirlTransformRoutine` |
+| Keycard door | `playerOpenKeypadDoorAction.lockPlayerParams` |
+| Game end | `TheForest.Player.Actions.PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` |
+| Raft / out of world | `RaftPush.outOfWorldRoutine` |
+
+**This is the clearest case so far of something a plugin can do that an
+external autosplitter cannot**: the shared flag carries no identity, but the
+call site does.
+
+Related, still unmapped: Vault Door and the Red Elevator. `ElevatorManager`
+and `ElevatorGlobalState` exist and are the place to look.
+
+## 100% tracking - the survival book (found 2026-09-22)
+
+### Nature guide / bestiary
+
+`TheForest.Player.SurvivalBookBestiary` (MonoBehaviour):
+
+| Member | Meaning |
+|---|---|
+| `_foundEnemyInfos` | `FoundEnemyInfo[]` - the entries on this page |
+| `_foundEnemyInfosGOs` | matching UI objects (display names live here) |
+| `_doneConditions` | `int[]` of completed condition ids, as saved |
+| `_tab` | `SelectPageNumber` - which book page this component is |
+
+`FoundEnemyInfo : TodoTask : Task : ACondition`, and `ACondition` carries the
+two fields that matter:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `_id` | int | stable condition id |
+| `_done` | bool | **found / not found** |
+
+`FoundEnemyInfo.CurrentUnlockLevel` (int) tracks partial discovery, so an entry
+can be shown as partly revealed rather than a plain yes/no.
+
+Because `_tab` is per-component, **each `SurvivalBookBestiary` instance is one
+page**. Enumerating the instances gives exactly the "grouped by page, entries
+listed individually" shape that was asked for.
+
+### ToDo list
+
+`TheForest.Player.SerializableSurvivalBookTodo` holds one task field per
+objective, each a `TodoTask` (so again `_id` / `_done`): `_son`, `_camp`,
+`_food`, `_defenses`, `_redman`, `_cave1.._cave10`, plus
+`FindClimbingAxeTodoTask`, `FindRebreatherTodoTask`, `SinkHoleTodoTask`,
+`PassengersTodoTask`, `SacrificeTodoTask`.
+
+The older non-serialisable `TheForest.Player.SurvivalBookTodo` additionally has
+`FindTimmyTodoTask` and `FindMeganTodoTask`. Check which one is live before
+relying on either.
+
+A "23/40 entries done" counter is just counting `_done` across these.
+
 ## Things still unknown
 
 - Which concrete method to patch for a run-start trigger

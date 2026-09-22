@@ -45,7 +45,8 @@ namespace ForestOverlay.Modules
         // --- anchor -------------------------------------------------------
         private bool _hasAnchor;
         private Vector3 _anchorPosition;
-        private Quaternion _anchorRotation;
+        private float _anchorYaw;
+        private float _anchorPitch;
         private string _anchorLabel = "";
 
         public bool HasAnchor { get { return _hasAnchor; } }
@@ -89,10 +90,11 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        private void SetAnchor(Vector3 pos, Quaternion rot, string label)
+        private void SetAnchor(Vector3 pos, float yaw, float pitch, string label)
         {
             _anchorPosition = pos;
-            _anchorRotation = rot;
+            _anchorYaw = yaw;
+            _anchorPitch = pitch;
             _anchorLabel = label;
             _hasAnchor = true;
         }
@@ -101,7 +103,12 @@ namespace ForestOverlay.Modules
         {
             if (!Ctx.Player.Found) { _status = "No player ref."; return; }
 
-            SetAnchor(Ctx.Player.Transform.position, Ctx.Player.Transform.rotation, "manual");
+            // Pitch comes from the camera rotator, not the player root -
+            // they are different transforms.
+            SetAnchor(Ctx.Player.Transform.position,
+                      Ctx.Player.Transform.eulerAngles.y,
+                      Ctx.Bridge.GetLookPitch(),
+                      "manual");
             _status = "Anchor set here.";
         }
 
@@ -109,9 +116,9 @@ namespace ForestOverlay.Modules
         {
             if (!_hasAnchor) { _status = "No anchor set."; return; }
 
-            if (Ctx.Player.MoveTo(_anchorPosition, _anchorRotation))
+            if (Ctx.Player.MoveTo(_anchorPosition, Quaternion.Euler(0f, _anchorYaw, 0f)))
             {
-                Ctx.Bridge.RebaseLookAngles();
+                Ctx.Bridge.ApplyLook(Ctx.Player.Transform, _anchorYaw, _anchorPitch);
                 Ctx.Practice.Mark("return to anchor");
                 _status = "-> anchor (" + _anchorLabel + ")";
                 if (OnPlacedAtAnchor != null) OnPlacedAtAnchor();
@@ -127,8 +134,8 @@ namespace ForestOverlay.Modules
 
             if (Ctx.Player.MoveTo(loc.Position, rot))
             {
-                Ctx.Bridge.RebaseLookAngles();
-                SetAnchor(loc.Position, rot, loc.Name);
+                Ctx.Bridge.ApplyLook(Ctx.Player.Transform, loc.Yaw, loc.Pitch);
+                SetAnchor(loc.Position, loc.Yaw, loc.Pitch, loc.Name);
                 Ctx.Practice.Mark("teleport: " + loc.Name);
                 _status = "-> " + loc.Name;
                 if (OnPlacedAtAnchor != null) OnPlacedAtAnchor();
@@ -143,7 +150,7 @@ namespace ForestOverlay.Modules
             Vector3 p = Ctx.Player.Transform.position;
             float yaw = Ctx.Player.Transform.eulerAngles.y;
 
-            if (_library.Append(_captureCategory, _captureName, p, yaw, ""))
+            if (_library.Append(_captureCategory, _captureName, p, yaw, "", Ctx.Bridge.GetLookPitch()))
             {
                 _library.Reload();
                 _status = "Captured '" + _captureName + "'";

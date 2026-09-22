@@ -67,6 +67,8 @@ namespace ForestOverlay.Game
             _rotators = null;
             _rotatorsResolved = false;
             _resetOriginalRotation = null;
+            _isCameraRotator = null;
+            _pitchTransform = null;
             _nextResolveTime = 0f;
             _loggedFailure = false;
             LockStatus = "not resolved";
@@ -232,6 +234,8 @@ namespace ForestOverlay.Game
         // ------------------------------------------------------------------
         private Component[] _rotators;
         private FieldInfo _resetOriginalRotation;
+        private FieldInfo _isCameraRotator;
+        private Transform _pitchTransform;
         private bool _rotatorsResolved;
 
         public void ResolveRotators(Transform playerRoot)
@@ -259,11 +263,67 @@ namespace ForestOverlay.Game
             _rotatorsResolved = true;
             _rotators = found.ToArray();
 
-            _resetOriginalRotation = rotatorType.GetField("resetOriginalRotation",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            _resetOriginalRotation = rotatorType.GetField("resetOriginalRotation", flags);
+            _isCameraRotator = rotatorType.GetField("cameraRotator", flags);
+
+            // Pitch lives on the camera rotator, yaw on the body one. They
+            // are separate transforms, which is why saving the player's
+            // rotation alone never captured where you were actually
+            // looking vertically.
+            _pitchTransform = null;
+            if (_isCameraRotator != null)
+            {
+                for (int i = 0; i < _rotators.Length; i++)
+                {
+                    try
+                    {
+                        if (!(bool)_isCameraRotator.GetValue(_rotators[i])) continue;
+                        _pitchTransform = _rotators[i].transform;
+                        break;
+                    }
+                    catch (Exception) { }
+                }
+            }
 
             _log.LogInfo("SimpleMouseRotator x" + _rotators.Length +
-                         " resetOriginalRotation:" + (_resetOriginalRotation != null));
+                         " resetOriginalRotation:" + (_resetOriginalRotation != null) +
+                         " pitchTransform:" + (_pitchTransform != null));
+        }
+
+        /// Current view pitch in degrees, normalised to -180..180 so it can
+        /// be stored and compared sensibly. Returns 0 when unavailable.
+        public float GetLookPitch()
+        {
+            if (_pitchTransform == null) return 0f;
+
+            float x = _pitchTransform.localEulerAngles.x;
+            return x > 180f ? x - 360f : x;
+        }
+
+        /// Point the player at a saved view direction, then rebase so the
+        /// rotators adopt it instead of snapping back.
+        ///
+        /// Yaw is the body, pitch is the camera - two different transforms.
+        /// Writing only the player rotation (which is all the anchor used
+        /// to store) left pitch wherever it happened to be.
+        public void ApplyLook(Transform playerRoot, float yaw, float pitch)
+        {
+            if (playerRoot != null)
+            {
+                Vector3 e = playerRoot.eulerAngles;
+                e.y = yaw;
+                playerRoot.eulerAngles = e;
+            }
+
+            if (_pitchTransform != null)
+            {
+                Vector3 c = _pitchTransform.localEulerAngles;
+                c.x = pitch;
+                _pitchTransform.localEulerAngles = c;
+            }
+
+            RebaseLookAngles();
         }
 
         /// Tell every rotator to rebase on the player's current orientation.

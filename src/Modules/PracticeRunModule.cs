@@ -109,6 +109,7 @@ namespace ForestOverlay.Modules
             {
                 _recorder.Abort();
                 _hasDelta = false;
+                ClearLines();
                 _status = "practice mode off";
             }
             else
@@ -212,7 +213,12 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
-            if (!Enabled || !Ctx.Player.Found) return;
+            // Clear the renderer BEFORE the early return. Previously Tick
+            // bailed out when practice mode was off, so UpdateLines never
+            // ran and RunLineBehaviour kept drawing its last buffers -
+            // the line stayed on screen until something re-toggled it.
+            if (!Enabled) { ClearLines(); return; }
+            if (!Ctx.Player.Found) return;
 
             Vector3 pos = Ctx.Player.Transform.position;
             _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime);
@@ -225,6 +231,21 @@ namespace ForestOverlay.Modules
             else _hasDelta = false;
 
             UpdateLines();
+        }
+
+        private void ClearLines()
+        {
+            if (_lines == null) return;
+
+            _lines.Show = false;
+            _lines.ReferenceCount = 0;
+            _lines.CurrentCount = 0;
+            _lines.HasGhost = false;
+
+            // Drop the cached source so re-enabling rebuilds rather than
+            // reusing buffers that may belong to a cleared attempt list.
+            _lineSource = null;
+            _currentLineCount = 0;
         }
 
         // ------------------------------------------------------------------
@@ -367,7 +388,12 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(12, 50, 120, 24), "Restart run")) RestartRun();
             if (GUI.Button(new Rect(138, 50, 110, 24), "Finish")) FinishRun();
             if (GUI.Button(new Rect(254, 50, 90, 24), "Abort")) AbortRun();
-            if (GUI.Button(new Rect(350, 50, w - 362, 24), "Clear")) { _attempts.Clear(); SelectReference(); }
+            if (GUI.Button(new Rect(350, 50, w - 362, 24), "Clear"))
+            {
+                _attempts.Clear();
+                SelectReference();
+                ClearLines();
+            }
 
             GUI.Label(new Rect(12, 80, 80, 20), "Compare to");
             Reference kind = _referenceKind;

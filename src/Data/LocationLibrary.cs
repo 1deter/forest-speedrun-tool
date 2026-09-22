@@ -14,6 +14,7 @@ namespace ForestOverlay.Data
         public string Name;
         public Vector3 Position;
         public float Yaw;
+        public float Pitch;
         public string Notes;
         public string SourceFile;
 
@@ -38,7 +39,7 @@ namespace ForestOverlay.Data
     // and no index has to be updated. That is what lets the list grow as
     // the community adds to it.
     //
-    //   category | name | x | y | z | yaw | notes
+    //   category | name | x | y | z | yaw | notes | pitch
     //
     // Blank lines and lines starting with # are ignored. yaw and notes
     // are optional.
@@ -166,6 +167,10 @@ namespace ForestOverlay.Data
             loc.Position = new Vector3(x, y, z);
             loc.Yaw = yaw;
             loc.Notes = parts.Length > 6 ? parts[6].Trim() : "";
+
+            // Pitch is column 8, appended rather than inserted so files
+            // written before it existed still parse. Missing means level.
+            if (parts.Length > 7) TryFloat(parts[7], out loc.Pitch);
             loc.SourceFile = fileName;
 
             if (loc.Category.Length == 0) loc.Category = "Uncategorised";
@@ -204,7 +209,7 @@ namespace ForestOverlay.Data
         // Appends a captured spot to the personal file. Kept separate from
         // contributed sets so a git pull never clobbers personal spots and
         // a personal file never ends up in a pull request.
-        public bool Append(string category, string name, Vector3 pos, float yaw, string notes)
+        public bool Append(string category, string name, Vector3 pos, float yaw, string notes, float pitch)
         {
             try
             {
@@ -217,7 +222,7 @@ namespace ForestOverlay.Data
                         "# ForestOverlay - personal spots" + Environment.NewLine +
                         "# Contributed sets live in other files here, so updating them" + Environment.NewLine +
                         "# will never overwrite what you capture." + Environment.NewLine +
-                        "# category | name | x | y | z | yaw | notes" + Environment.NewLine,
+                        "# category | name | x | y | z | yaw | notes | pitch" + Environment.NewLine,
                         Encoding.UTF8);
                 }
 
@@ -228,7 +233,8 @@ namespace ForestOverlay.Data
                   .Append(Fmt(pos.y)).Append(" | ")
                   .Append(Fmt(pos.z)).Append(" | ")
                   .Append(Fmt(yaw)).Append(" | ")
-                  .Append(Sanitise(notes));
+                  .Append(Sanitise(notes)).Append(" | ")
+                  .Append(Fmt(pitch));
 
                 File.AppendAllText(path, sb.ToString() + Environment.NewLine, Encoding.UTF8);
                 return true;
@@ -259,9 +265,9 @@ namespace ForestOverlay.Data
                 Environment.NewLine +
                 "One spot per line:" + Environment.NewLine +
                 Environment.NewLine +
-                "    category | name | x | y | z | yaw | notes" + Environment.NewLine +
+                "    category | name | x | y | z | yaw | notes | pitch" + Environment.NewLine +
                 Environment.NewLine +
-                "  * yaw and notes are optional" + Environment.NewLine +
+                "  * yaw, notes and pitch are optional" + Environment.NewLine +
                 "  * blank lines and lines starting with # are ignored" + Environment.NewLine +
                 "  * use a dot for decimals, not a comma" + Environment.NewLine +
                 Environment.NewLine +
