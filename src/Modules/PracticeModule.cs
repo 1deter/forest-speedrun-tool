@@ -112,9 +112,19 @@ namespace ForestOverlay.Modules
 
         private void Reload()
         {
+            // Reload rebuilds every Segment object, so a remembered
+            // reference becomes an orphan: it is no longer in the
+            // library and still holds the OLD spawn and zones. That is
+            // how Restart could teleport you to a start position you had
+            // already moved. Re-resolve it by id instead.
+            string currentId = _current != null ? _current.Id : null;
+
             _library.Reload();
             _selected = null;
             _dirty = false;
+
+            _current = currentId != null ? _library.ById(currentId) : null;
+
             RebuildVisible();
         }
 
@@ -824,6 +834,10 @@ namespace ForestOverlay.Modules
         private void Touch()
         {
             _dirty = true;
+
+            // Anything holding this segment - a run armed against its
+            // start zone - can see that it changed underneath them.
+            if (_selected != null) _selected.Revision++;
         }
 
         private void SetSpawnHere(Segment s)

@@ -40,6 +40,11 @@ namespace ForestOverlay.Data
     public sealed class Attempt
     {
         public string AnchorLabel = "";
+
+        /// Which route this was run on - see Segment.RouteFingerprint.
+        /// Empty for attempts recorded before routes were tracked.
+        public string Route = "";
+
         public DateTime RecordedUtc;
         public float Duration;
         public bool Completed;
@@ -260,6 +265,9 @@ namespace ForestOverlay.Data
         /// Channel names for the run being recorded. Set before Arm.
         public string[] StateChannels = new string[0];
 
+        /// Route fingerprint stamped onto the attempt. Set before Arm.
+        public string Route = "";
+
         public void Arm(Vector3 anchor, string label)
         {
             _anchor = anchor;
@@ -354,6 +362,7 @@ namespace ForestOverlay.Data
             Current.AnchorLabel = _anchorLabel;
             Current.RecordedUtc = DateTime.UtcNow;
             Current.Channels = StateChannels ?? new string[0];
+            Current.Route = Route ?? "";
 
             RunSample s;
             s.T = 0f;

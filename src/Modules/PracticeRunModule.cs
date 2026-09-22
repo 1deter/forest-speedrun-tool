@@ -44,6 +44,9 @@ namespace ForestOverlay.Modules
         // --- the segment being run ----------------------------------------
         private Segment _segment;
         private string _loadedSegmentId;
+        private int _armedRevision;
+        private string _armedRoute = "";
+        private int _otherRouteCount;
 
         private TriggerState _startState;
         private TriggerState _endState;
@@ -176,7 +179,11 @@ namespace ForestOverlay.Modules
             }
             _baseline.Capture(_live, _referencedItemIds);
 
+            _armedRevision = _segment.Revision;
+            _armedRoute = _segment.RouteFingerprint();
+
             _recorder.StateChannels = Ctx.PlayerState.Channels;
+            _recorder.Route = _armedRoute;
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             SelectReference();
@@ -209,6 +216,17 @@ namespace ForestOverlay.Modules
         {
             if (!Enabled) { ClearLines(); return; }
             if (!Ctx.Player.Found || _segment == null) return;
+
+            // The segment can be edited while armed. Re-arm against the
+            // new geometry rather than keeping a run pointed at a zone
+            // that has moved.
+            if (_segment.Revision != _armedRevision &&
+                _recorder.State != RunRecorder.RunState.Running)
+            {
+                LoadAttemptsFor(_segment);
+                ArmRun();
+                _status = "segment edited - re-armed";
+            }
 
             Vector3 pos = Ctx.Player.Transform.position;
 
@@ -327,14 +345,37 @@ namespace ForestOverlay.Modules
 
         private void LoadAttemptsFor(Segment s)
         {
-            if (s.Id == _loadedSegmentId) return;
+            string route = s.RouteFingerprint();
+            if (s.Id == _loadedSegmentId && route == _armedRoute) return;
 
             _loadedSegmentId = s.Id;
             _attempts.Clear();
-            _attempts.AddRange(_store.LoadAll(s.Id));
             _lineSource = null;
+            _otherRouteCount = 0;
 
-            Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id);
+            // Attempts are keyed on the segment id so they can be
+            // compared between players - but moving a start zone changes
+            // what the times mean while leaving the id alone. Times from
+            // a different route are kept on disk and left out of the
+            // comparison rather than silently racing the new one.
+            List<Attempt> all = _store.LoadAll(s.Id);
+
+            for (int i = 0; i < all.Count; i++)
+            {
+                // An empty route means the attempt predates route
+                // tracking; treat it as belonging to the current one
+                // rather than throwing away someone’s history.
+                if (all[i].Route.Length > 0 && all[i].Route != route)
+                {
+                    _otherRouteCount++;
+                    continue;
+                }
+
+                _attempts.Add(all[i]);
+            }
+
+            Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
+                            (_otherRouteCount > 0 ? " (" + _otherRouteCount + " from another route)" : ""));
         }
 
         private void SelectReference()
@@ -629,7 +670,17 @@ namespace ForestOverlay.Modules
             if (_attempts.Count == 0)
             {
                 GUI.Label(new Rect(listRect.x + 4, listRect.y + 4, listRect.width - 8, 40),
-                          "No attempts yet for this segment.", _rowStyle);
+                          _otherRouteCount > 0
+                              ? "No attempts on this route yet. " + _otherRouteCount +
+                                " saved time(s) belong to an earlier version of it."
+                              : "No attempts yet for this segment.",
+                          _rowStyle);
+            }
+            else if (_otherRouteCount > 0)
+            {
+                GUI.Label(new Rect(listRect.x + 4, listRect.yMax - 20f, listRect.width - 8, 20f),
+                          _otherRouteCount + " older time(s) hidden - recorded before this route changed",
+                          _rowStyle);
             }
         }
 

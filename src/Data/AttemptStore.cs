@@ -21,6 +21,7 @@ namespace ForestOverlay.Data
     //   anchor|<label>
     //   recorded|<utc iso>
     //   duration|<seconds>
+    //   route|<fingerprint>                 which version of the route
     //   channels|Health|Stamina|Energy|...
     //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
     //   v|<t>|<v0>|<v1>|...                state,    5 Hz
@@ -65,7 +66,21 @@ namespace ForestOverlay.Data
                 StringBuilder sb = new StringBuilder();
                 sb.Append("anchor|").Append(attempt.AnchorLabel).Append('\n');
                 sb.Append("recorded|").Append(attempt.RecordedUtc.ToString("o")).Append('\n');
-                sb.Append("duration|").Append(F(attempt.Duration)).Append('\n');
+                sb.Append("duration|").Append(F(attempt.Duration)).Append(NL);
+
+                // Which version of the route this was run on. Without it,
+                // moving a start zone would leave old times silently
+                // competing with new ones under the same segment id.
+                if (!string.IsNullOrEmpty(attempt.Route))
+                    sb.Append("route|").Append(attempt.Route).Append(NL);
+
+                if (attempt.Channels != null && attempt.Channels.Length > 0)
+                {
+                    sb.Append("channels");
+                    for (int i = 0; i < attempt.Channels.Length; i++)
+                        sb.Append('|').Append(attempt.Channels[i]);
+                    sb.Append(NL);
+                }
 
                 for (int i = 0; i < attempt.Samples.Count; i++)
                 {
@@ -151,6 +166,7 @@ namespace ForestOverlay.Data
                             a.RecordedUtc = dt;
                     }
                     else if (p[0] == "duration" && p.Length > 1) a.Duration = P(p[1]);
+                    else if (p[0] == "route" && p.Length > 1) a.Route = p[1];
                     else if (p[0] == "channels" && p.Length > 1)
                     {
                         string[] names = new string[p.Length - 1];

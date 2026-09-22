@@ -265,9 +265,53 @@ namespace ForestOverlay.Data
         // is linked into the test project, which has no Unity - the label
         // cache is a GUI concern and lives with the panel that draws it.
 
+        /// Bumped by the editor on every change, so anything holding a
+        /// reference can notice it went stale. A run armed against the
+        /// old start zone must not keep using it after the zone moves.
+        public int Revision;
+
         /// True when this can be TIMED. Without both ends it is still a
         /// perfectly good place to teleport to, just not a run.
         public bool IsTimed { get { return Start.IsSet && End.IsSet; } }
+
+        /// Identifies the ROUTE, as opposed to the entry.
+        ///
+        /// Attempts are keyed on the segment id so they can be compared
+        /// between players, but moving a start zone changes what the
+        /// times mean while leaving the id alone. Recording this
+        /// alongside each attempt lets old times be recognised as
+        /// belonging to a different route rather than silently competing
+        /// with new ones.
+        ///
+        /// FNV-1a over the trigger text: deterministic across runs and
+        /// machines, unlike string.GetHashCode.
+        public string RouteFingerprint()
+        {
+            uint hash = 2166136261;
+
+            hash = Fold(hash, TriggerParser.Write(Start));
+            for (int i = 0; i < Checkpoints.Count; i++)
+                hash = Fold(hash, TriggerParser.Write(Checkpoints[i]));
+            hash = Fold(hash, TriggerParser.Write(End));
+
+            return hash.ToString("x8");
+        }
+
+        private static uint Fold(uint hash, string text)
+        {
+            if (text == null) return hash;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                hash ^= text[i];
+                hash *= 16777619;
+            }
+
+            // Separator, so "ab" + "c" cannot collide with "a" + "bc".
+            hash ^= 31;
+            hash *= 16777619;
+            return hash;
+        }
 
         /// A spot and a segment are the same thing at different levels of
         /// configuration: somewhere to stand, optionally with a start and
