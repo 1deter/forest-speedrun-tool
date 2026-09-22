@@ -197,11 +197,11 @@ interop, not legality.
 ## Current status
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
-per-item inventory, 100% checklist + To Do list, type explorer, dumps,
+per-item inventory, 100% checklist + nature guide + To Do list, type explorer, dumps,
 unified practice spots/segments with an in-game editor and zone preview,
 segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
-wireframe), update checking, offline IL scanner. 100 tests.
+wireframe), update checking, offline IL scanner. 106 tests.
 
 ### Key concepts
 

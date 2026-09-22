@@ -9,10 +9,12 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     // 100% tracking. INFO-ONLY.
     //
-    // Two things count, per the category admins:
-    //   1. the survival book's To Do List
-    //   2. a unique-item collection (weapons, story documents, drawings,
+    // Tracked here:
+    //   1. a unique-item collection (weapons, story documents, drawings,
     //      tapes, toy pieces, keycards...)
+    //   2. the survival book's nature guide - animals, birds, fish,
+    //      plants, grouped by the book page they are on
+    //   3. the survival book's To Do List
     //
     // The collection list is DATA (config/ForestOverlay/collectibles), not
     // code, because what counts is an admin decision that will change
@@ -42,6 +44,7 @@ namespace ForestOverlay.Modules
         public override int TabOrder { get { return 45; } }
 
         private SurvivalBookReader _book;
+        private NatureGuideReader _nature;
         private CollectionList _list;
         private float _nextRefresh;
         private bool _resolved;
@@ -69,6 +72,7 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
 
             _book = new SurvivalBookReader(ctx.Log);
+            _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);
             _list = new CollectionList(ctx.Log, ctx.ConfigDirectory);
             _list.WriteReadmeIfMissing();
             _list.Reload();
@@ -85,6 +89,7 @@ namespace ForestOverlay.Modules
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
             _book.Refresh();
+            _nature.Refresh();
 
             // Names resolve once the item catalogue exists, which needs the
             // game loaded - so keep trying until it takes.
@@ -156,6 +161,7 @@ namespace ForestOverlay.Modules
             if (!_pinSummary) return;
 
             if (_list.Total > 0) hud.Pair("Items", _list.SeenCount + "/" + _list.Total);
+            if (_nature.Entries.Count > 0) hud.Pair("Nature", _nature.TickedCount + "/" + _nature.Entries.Count);
             if (_book.Todo.Count > 0) hud.Pair("Tasks", _book.TodoDone + "/" + _book.Todo.Count);
         }
 
@@ -207,6 +213,33 @@ namespace ForestOverlay.Modules
                     if (e.Required > 1) state += "  " + e.Held + "/" + e.Required;
 
                     n = Add(n, "      " + e.Name + "   -   " + state, e.Seen ? 1 : 2);
+                }
+            }
+
+            // --- nature guide ----------------------------------------------
+            n = Add(n, "", 0);
+            n = Add(n, "NATURE GUIDE   " + _nature.TickedCount + "/" + _nature.Entries.Count, 0);
+
+            if (_nature.Entries.Count == 0)
+                n = Add(n, "  " + _nature.Status, 3);
+
+            IList<NaturePage> pages = _nature.Pages;
+            IList<NatureEntry> nature = _nature.Entries;
+
+            for (int p = 0; p < pages.Count; p++)
+            {
+                n = Add(n, "  " + pages[p].Name + "   " + pages[p].Ticked + "/" + pages[p].Total, 0);
+
+                for (int i = 0; i < nature.Count; i++)
+                {
+                    NatureEntry e = nature[i];
+                    if (e.PageIndex != p) continue;
+
+                    if (e.Ticked && !_showFound) continue;
+                    if (!e.Ticked && !_showMissing) continue;
+
+                    n = Add(n, "      " + e.Name + "   -   " + (e.Ticked ? "found" : "not found"),
+                            e.Ticked ? 1 : 2);
                 }
             }
 
@@ -270,7 +303,7 @@ namespace ForestOverlay.Modules
             bool missing = GUI.Toggle(new Rect(116, 26, 110, 20), _showMissing, " missing");
             if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
 
-            if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Dump item list"))
+            if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Write dumps"))
                 DumpItems();
 
             if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
@@ -304,7 +337,16 @@ namespace ForestOverlay.Modules
             try
             {
                 string path = GameDumper.WriteItemCatalogue(Ctx.Log, Ctx.Inventory.Catalog);
-                _dumpStatus = "wrote " + Ctx.Inventory.Catalog.Count + " items -> " + path;
+                _dumpStatus = "wrote " + Ctx.Inventory.Catalog.Count + " items";
+
+                // The nature guide only exists in a loaded save.
+                if (_nature.Entries.Count > 0)
+                {
+                    _nature.WriteDump();
+                    _dumpStatus += " + nature guide";
+                }
+
+                _dumpStatus += " -> " + System.IO.Path.GetDirectoryName(path);
             }
             catch (System.Exception ex)
             {

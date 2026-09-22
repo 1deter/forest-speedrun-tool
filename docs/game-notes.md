@@ -124,7 +124,7 @@ Internal names are nothing like published ones: `MorgueReport` = Autopsy
 Report, `RecurveBow` = Modern Bow, `TennisRaquet` = Tennis Racket,
 `shippingManifest` = Cargo Manifest, `Walkman` = Cassette Player.
 
-Dump the full catalogue from the **100% tab → Dump item list**
+Dump the full catalogue from the **100% tab → Write dumps**
 (`ForestOverlayDumps/items_*.txt`, 231 items).
 
 Multi-piece items are **one item holding pieces**, not several items:
@@ -173,6 +173,32 @@ rather than by name, so a game update adds objectives for free.
 
 The older `SurvivalBookTodo` also exists and adds `FindTimmyTodoTask` /
 `FindMeganTodoTask` — check which is live.
+
+### Nature guide — `TheForest.Player.TickOffSystem`
+
+The book's tick-off pages (animals, birds, fish, plants). A component on the
+player (`## TickOff`), found by the author in dnSpy via `DoneMessage` and
+confirmed from IL:
+
+| Member | Notes |
+|---|---|
+| `Entry[] _entries` | one per tick-off line |
+| `Entry._type` | `EntryType`: `CollectItem` / `InspectAnimal` / `InspectPlant` |
+| `Entry._animalType` | global `AnimalType` enum — 44 species incl. plants and mushrooms (`MuhshroomPuff` is the game's typo) |
+| `Entry._itemId` | for `CollectItem` |
+| **`Entry._ticked`** | set by the entry's handler; the live state |
+| `Entry._tickGo` | the tick mark on the book page; activated on tick |
+| `_tickedEntries` | `int[]` of ticked `_id`s, written only in `OnSerializing` |
+
+Each entry subscribes itself in `Init` to `EventRegistry.Player` —
+`TfEvent.AddedItem`/`UsedItem` (payload item id), `TfEvent.InspectedAnimal`
+/ `InspectedPlant` (payload `AnimalType`) — and publishes
+`TfEvent.TickedOffEntry` when ticked. `InspectedPlant` unboxes `AnimalType`
+too, so plants are species in the same enum.
+
+**Which page an entry is on is not recorded.** The plugin derives it from
+where `_tickGo` sits in the hierarchy (`Data/PageGrouping.cs`); the
+100% tab's **Write dumps** writes `natureguide_*.txt` with each tick's path.
 
 `SurvivalBookBestiary` exists (one component per page, `FoundEnemyInfo[]`,
 names from the `EnemyType` enum on `_availableConditionStorage`) but **is not
