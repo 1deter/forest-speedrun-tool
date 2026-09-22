@@ -16,6 +16,10 @@ namespace ForestOverlay.Core
         public PlayerStateReader PlayerState;
         public PlayerRef Player;
         public PracticeState Practice;
+
+        /// Named game events (endgame cutscenes etc.) seen by Harmony
+        /// postfixes. Read-only log; consumers keep their own position.
+        public GameEvents Events;
         public string ConfigDirectory;
 
         /// The plugin behaviour, for modules that need to start a

@@ -190,6 +190,7 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
    ```bash
    dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll writes "UnityEngine.Cursor"
    ```
+   `strings` finds `SendMessage("name")` callers, which `refs` cannot see.
 
 6. **Cached component references go stale across a save load.** Unity's
    fake-null makes them look merely absent. Re-resolve, and prefer the game's
@@ -271,7 +272,7 @@ segment-driven timed runs with checkpoints, ghosts, live deltas and run lines,
 full player-state capture, debug views (freecam / colliders / triggers /
 wireframe, with size and name filters), game input blocked while the window is
 open, self-installing updates (download in game, applied by a preloader
-patcher on restart), offline IL scanner. 142 tests.
+patcher on restart), offline IL scanner. 146 tests.
 
 ### Key concepts
 
@@ -331,13 +332,15 @@ the interpretation given here was checked with the author.
      `Perf (30 s):` line (fps, worst frame, hitches, GC count, overlay tick,
      GL cost and passes) — ask for one with lines showing and read it before
      changing anything else. *(runner)*
-2. **Separated endgame splits** — Harmony `Postfix` on each action class
-   (`PlayerPickupTimmyAction`, `PlayerGirlPickupAction`, etc; table in
-   game-notes). The shared `endGameCutScene` flag is why the author's
-   autosplitter could not separate them, and the call sites carry the identity
-   the flag does not. **The clearest thing a plugin can do that an external
-   autosplitter cannot.** Wire these to the `event` trigger kind, which parses
-   and saves but currently never fires.
+2. **Separated endgame splits — shipped in v0.18.0, awaiting an in-game
+   run.** `Game/GameEvents.cs`: Harmony postfixes note which cutscene is
+   starting; the split fires on the `endGameCutScene` rising edge, so times
+   match the autosplitter. `event` triggers now fire, with a picker in the
+   segment editor. **Still open:** the vault door, automatic door and red
+   elevator are one keypad action — the log line `Game event: keycard-door
+   (door '...', keycard N)` from one endgame run says which is which; then
+   give them their own event names (`vault-door`, …). Check also that
+   `Game events: 9/9 hooks` shows in the Runs tab. *(author)*
 3. **Deaths and caves.**
    - **Quick-load on death** — skip the death animation and load straight
      back into the save instead of waiting to quit to menu. The author rules

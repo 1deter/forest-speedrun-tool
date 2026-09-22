@@ -66,6 +66,12 @@ namespace ForestOverlay.Modules
         private bool _hasDelta;
 
         private string _status = "";
+
+        // Game events: how many of Ctx.Events have been evaluated, and a
+        // line for the tab saying the hooks are alive and what fired last.
+        private int _eventsSeen;
+        private int _eventLineBuiltFor = -1;
+        private string _eventLine = "";
         private float _tabW;
         private float _tabH;
         private Vector2 _scroll;
@@ -181,6 +187,7 @@ namespace ForestOverlay.Modules
             _nextCheckpoint = 0;
             _splits.Clear();
             _deltaHint = 0;
+            _eventsSeen = Ctx.Events.Count;
             _hasDelta = false;
 
             CollectReferencedItemIds(_segment);
@@ -226,8 +233,12 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
-            if (!Enabled) { ClearLines(); return; }
-            if (!Ctx.Player.Found || _segment == null) return;
+            BuildEventLine();
+
+            // Events that arrive while nothing is armed are not ours to
+            // act on later.
+            if (!Enabled) { ClearLines(); _eventsSeen = Ctx.Events.Count; return; }
+            if (!Ctx.Player.Found || _segment == null) { _eventsSeen = Ctx.Events.Count; return; }
 
             // The segment can be edited while armed. Re-arm against the
             // new geometry rather than keeping a run pointed at a zone
@@ -251,23 +262,15 @@ namespace ForestOverlay.Modules
 
             Ctx.PlayerState.Resolve();
 
-            if (_recorder.State == RunRecorder.RunState.Armed)
-            {
-                // Crossing, not entering: the spawn usually sits inside
-                // the start zone, so the run begins when you leave it.
-                if (TriggerEvaluator.Crossed(_segment.Start, ref _startState, pos, _live, null, _baseline))
-                {
-                    _recorder.ForceStart(pos);
-                    _status = "running";
-                }
-            }
-            else if (_recorder.State == RunRecorder.RunState.Running)
-            {
-                EvaluateCheckpoints(pos);
+            // Once with no event, or once per event that fired since the
+            // last frame - so two cutscenes starting in one frame both
+            // count. Events are instants: satisfied only in the pass that
+            // carries them, which gives the rising edge by itself.
+            int events = Ctx.Events.Count;
+            if (_eventsSeen > events) _eventsSeen = events;
 
-                if (TriggerEvaluator.Fired(_segment.End, ref _endState, pos, _live, null, _baseline))
-                    FinishRun();
-            }
+            if (_eventsSeen == events) EvaluateTriggers(pos, null);
+            while (_eventsSeen < events) EvaluateTriggers(pos, Ctx.Events.NameAt(_eventsSeen++));
 
             _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime, null);
 
@@ -282,7 +285,44 @@ namespace ForestOverlay.Modules
             UpdateRunPreview();
         }
 
-        private void EvaluateCheckpoints(Vector3 pos)
+        private void EvaluateTriggers(Vector3 pos, string firedEvent)
+        {
+            if (_recorder.State == RunRecorder.RunState.Armed)
+            {
+                // Crossing, not entering: the spawn usually sits inside
+                // the start zone, so the run begins when you leave it.
+                if (TriggerEvaluator.Crossed(_segment.Start, ref _startState, pos, _live, firedEvent, _baseline))
+                {
+                    _recorder.ForceStart(pos);
+                    _status = "running";
+                }
+            }
+            else if (_recorder.State == RunRecorder.RunState.Running)
+            {
+                EvaluateCheckpoints(pos, firedEvent);
+
+                if (TriggerEvaluator.Fired(_segment.End, ref _endState, pos, _live, firedEvent, _baseline))
+                    FinishRun();
+            }
+        }
+
+        private void BuildEventLine()
+        {
+            int n = Ctx.Events.Count;
+            if (n == _eventLineBuiltFor) return;
+            _eventLineBuiltFor = n;
+
+            string last = n == 0 ? null : Ctx.Events.NameAt(n - 1);
+            _eventLine = "Game events: " + Ctx.Events.Status +
+                         (n == 0 ? ", none fired yet"
+                                 : ", last '" + last + "' at " + Ctx.Events.StampAt(n - 1)) +
+                         // Which keypad: the vault, automatic door and red
+                         // elevator all share one action.
+                         (last != null && last.StartsWith(GameEvents.KeycardDoor) && GameEvents.LastDoor != null
+                             ? " - " + GameEvents.LastDoor : "");
+        }
+
+        private void EvaluateCheckpoints(Vector3 pos, string firedEvent)
         {
             // Checkpoints fire IN ORDER. Letting a later one fire early
             // would let a route that happens to pass near it skip a split
@@ -290,7 +330,7 @@ namespace ForestOverlay.Modules
             if (_nextCheckpoint >= _segment.Checkpoints.Count) return;
 
             if (!TriggerEvaluator.Fired(_segment.Checkpoints[_nextCheckpoint],
-                                        ref _checkStates[_nextCheckpoint], pos, _live, null, _baseline))
+                                        ref _checkStates[_nextCheckpoint], pos, _live, firedEvent, _baseline))
                 return;
 
             _splits.Add(_recorder.Elapsed);
@@ -578,7 +618,9 @@ namespace ForestOverlay.Modules
                 GUI.Label(new Rect(0, 122, w, 20), line);
             }
 
-            DrawAttemptList(new Rect(0, 146, w, _tabH - 150));
+            GUI.Label(new Rect(0, 142, w, 20), _eventLine, _rowStyle);
+
+            DrawAttemptList(new Rect(0, 166, w, _tabH - 170));
         }
 
         /// Says WHY a run is not progressing. A silent "nothing
@@ -592,6 +634,9 @@ namespace ForestOverlay.Modules
 
             if (_recorder.State == RunRecorder.RunState.Armed)
             {
+                if (_segment.Start.Kind == TriggerKind.Event)
+                    return "armed - waiting for game event '" + _segment.Start.EventName + "'";
+
                 Vector3 p = Ctx.Player.Transform.position;
                 bool inside = TriggerEvaluator.IsSatisfied(_segment.Start, p, _live, null, _baseline);
 

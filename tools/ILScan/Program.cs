@@ -13,6 +13,9 @@ namespace ForestOverlay.ILScan
     //   ilscan writes <substring>   methods that STORE to a matching field/property
     //   ilscan body   <Type::Method>  disassemble matching method bodies
     //   ilscan type   <substring>   members of matching types
+    //   ilscan strings <substring>  methods with a matching string literal -
+    //                               finds SendMessage / StartCoroutine /
+    //                               Invoke by name, which refs cannot see
     //
     // Matching is case-insensitive substring over the full member name.
     internal static class Program
@@ -21,7 +24,7 @@ namespace ForestOverlay.ILScan
         {
             if (args.Length < 2)
             {
-                Console.Error.WriteLine("usage: ilscan <refs|writes|body|type> <substring> [--asm <path>] [--max N]");
+                Console.Error.WriteLine("usage: ilscan <refs|writes|body|type|strings> <substring> [--asm <path>] [--max N]");
                 return 2;
             }
 
@@ -53,6 +56,7 @@ namespace ForestOverlay.ILScan
                 "writes" => ScanBodies(asm, needle, max, writesOnly: true),
                 "body"   => DumpBodies(asm, needle, max),
                 "type"   => DumpTypes(asm, needle, max),
+                "strings" => ScanStrings(asm, needle, max),
                 _        => -1
             };
 
@@ -120,6 +124,42 @@ namespace ForestOverlay.ILScan
 
                     Console.WriteLine($"{type.FullName}::{method.Name}");
                     foreach (var s in seen) Console.WriteLine("    " + s);
+                }
+            }
+            return hits;
+        }
+
+        private static int ScanStrings(AssemblyDefinition asm, string needle, int max)
+        {
+            int hits = 0;
+            foreach (var type in AllTypes(asm))
+            {
+                foreach (var method in type.Methods)
+                {
+                    if (!method.HasBody) continue;
+                    var seen = new List<string>();
+
+                    foreach (var ins in method.Body.Instructions)
+                    {
+                        if (ins.OpCode.Code != Code.Ldstr || ins.Operand is not string lit) continue;
+                        if (lit.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                        // The call that consumes the string is usually the
+                        // next call instruction - show it for context.
+                        string use = "";
+                        for (var n = ins.Next; n != null; n = n.Next)
+                        {
+                            if (n.OpCode.Code is Code.Call or Code.Callvirt) { use = "  -> " + OperandName(n); break; }
+                        }
+                        string entry = "ldstr \"" + lit + "\"" + use;
+                        if (!seen.Contains(entry)) seen.Add(entry);
+                    }
+
+                    if (seen.Count == 0) continue;
+                    if (++hits > max) return max;
+
+                    Console.WriteLine($"{type.FullName}::{method.Name}");
+                    foreach (var e in seen) Console.WriteLine("    " + e);
                 }
             }
             return hits;

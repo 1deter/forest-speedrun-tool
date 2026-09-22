@@ -650,11 +650,16 @@ namespace ForestOverlay.Modules
 
                 case TriggerKind.Event:
                     {
-                        string name = GUI.TextField(new Rect(x0, y - 2f, w - x0 - 6f, 22f), t.EventName ?? "");
+                        // Typed, or stepped through the known list - the
+                        // names are ids, and a typo would never fire.
+                        if (GUI.Button(new Rect(x0, y - 2f, 26f, 22f), "<")) { t.EventName = StepEvent(t.EventName, -1); Touch(); }
+                        if (GUI.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
+
+                        string name = GUI.TextField(new Rect(x0 + 58f, y - 2f, w - x0 - 64f, 22f), t.EventName ?? "");
                         if (name != t.EventName) { t.EventName = name; Touch(); }
                         y += 24f;
 
-                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), "a named game event", _dimStyle);
+                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), EventLabel(t.EventName), _dimStyle);
                         y += 22f;
                         break;
                     }
@@ -671,6 +676,49 @@ namespace ForestOverlay.Modules
             }
 
             return y + 6f;
+        }
+
+        // Every event a trigger can name, in route order. keycard-door-<id>
+        // is also valid but open-ended, so it is typed rather than listed.
+        private static string[] _knownEvents;
+
+        private static string[] KnownEvents()
+        {
+            if (_knownEvents != null) return _knownEvents;
+
+            List<string> all = new List<string>();
+            for (int i = 0; i < GameEvents.Hooks.Length; i++) all.Add(GameEvents.Hooks[i].Event);
+            for (int i = 0; i < GameEvents.Derived.Length; i++) all.Add(GameEvents.Derived[i]);
+            _knownEvents = all.ToArray();
+            return _knownEvents;
+        }
+
+        private static string StepEvent(string current, int dir)
+        {
+            string[] known = KnownEvents();
+            int at = -1;
+            for (int i = 0; i < known.Length; i++)
+                if (string.Equals(known[i], current, StringComparison.OrdinalIgnoreCase)) { at = i; break; }
+
+            int next = at < 0 ? (dir > 0 ? 0 : known.Length - 1)
+                              : (at + dir + known.Length) % known.Length;
+            return known[next];
+        }
+
+        // Labels are cached per name: OnGUI runs several times a frame and
+        // LabelFor builds a string for keycard-door-<id>.
+        private readonly Dictionary<string, string> _eventLabels = new Dictionary<string, string>();
+
+        private string EventLabel(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "pick an event with < >";
+
+            string label;
+            if (_eventLabels.TryGetValue(name, out label)) return label;
+
+            label = GameEvents.LabelFor(name) ?? "unknown event - this will never fire";
+            _eventLabels[name] = label;
+            return label;
         }
 
         private float SphereFields(float y, float w, float x0, ref Trigger t)

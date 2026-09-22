@@ -175,13 +175,47 @@ likewise. `Toy_Arm` / `Toy_Leg` are single items held **x2**.
 
 The autosplitter reads one bool, `playerAnimatorControl.endGameCutScene` (via
 `LocalPlayer.AnimControl`), set by **every** endgame cutscene — which is why
-those splits could not be separated from outside the process.
+those splits could not be separated from outside the process. Its split list:
+Vault Door, Finding Timmy, Approaching Megan, Putting Megan in Artifact, Gold
+Keycard (Automatic Door), Gold Keycard (Red Elevator), Game End.
 
-Each cutscene has its own action class. Hook these individually with read-only
-`Postfix`:
+**The shared flag carries no identity; the call site does.** Each cutscene is
+a method on the player, started by an `activate*` trigger with
+`SendMessage("<routine>")` (`ilscan strings`):
 
-| Split | Class / member |
-|---|---|
+| Split | Method (event name) | Flag set |
+|---|---|---|
+| Vault door, gold keycard doors, red elevator | `playerOpenKeypadDoorAction.openKeypadDoor` (`keycard-door`, `keycard-door-<itemId>`) | after the walk-up, in its `lockPlayerParams` |
+| Finding Timmy | `PlayerPickupTimmyAction.pickupTimmyRoutine` (`timmy-pickup`) | before first yield |
+| Approaching Megan | `PlayerGirlPickupAction.girlToMachineRoutine` (`megan-to-machine`) | after first yield |
+| Megan into artifact | `PlayerGirlTransformAction.doGirlTransformRoutine` (`megan-transform`) | after first yield |
+| Game end | `PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` (`end-crash` / `end-shutdown`, both `game-end`) | after first yield |
+| Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` (`timmy-goodbye`) | before first yield |
+| Raft out of world | `RaftPush.outOfWorldRoutine` (`raft-out-of-world`) | before first yield |
+| — | `PlayerGirlPickupAction.pickupGirlRoutine` (`megan-pickup`) | never — fires at routine start |
+
+Other writers of the flag: `playerAnimatorControl.lockPlayerParams`, called
+only from `PlayerStats.EndgameWakeUp`.
+
+Because several routines set the flag after a `yield` (and keypad doors only
+once the player has walked to the keypad), the plugin fires a split on the
+flag's **rising edge**, polled each frame, and uses the postfix only to say
+which cutscene it is (`Game/GameEvents.cs`). That keeps split times identical
+to the autosplitter's. `endgame-cutscene` fires on every rising edge, exactly
+as the autosplitter did.
+
+**Keypad doors all share one action.** `activateKeypadDoor.DoActorAnimation`
+sends `setKeycardId(_keycardId)`, `setShortSequence(shortSequence)`,
+`setDoorAnimator` and then `openKeypadDoor(playerPos)`. So the vault, the
+automatic door and the red elevator differ only by keycard item id,
+`shortSequence` and the door object. The event log line carries all three
+(`door '<path>', keycard <id>`). **Which door is which is not yet confirmed**
+— one endgame run's log settles it; then give each its own event name.
+
+Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
+`FireDetected`, `Shutdown2ndArtifact`.
+
+---|---|
 | Finding Timmy | `PlayerPickupTimmyAction` (`lockPlayerParams`, `pickupTimmyRoutine`) |
 | Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` |
 | Approaching Megan | `PlayerGirlPickupAction.girlToMachineRoutine` |
@@ -283,4 +317,10 @@ the plugin (`Game/DebugDraw.cs`, `Game/ZonePreview.cs`) with `GL` lines and
    ```
 
    `writes` is the one to reach for when the question is "what keeps changing
-   this every frame".
+   this every frame". `strings` finds string literals — the only way to see
+   `SendMessage("name")` / `StartCoroutine("name")` callers, which `refs`
+   cannot:
+
+   ```bash
+   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll strings "pickupTimmyRoutine"
+   ```

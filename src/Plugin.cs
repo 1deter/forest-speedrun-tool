@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.17.1";
+        public const string PluginVersion = "0.18.0";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -41,6 +41,7 @@ namespace ForestOverlay
         private InventoryReader _inventory;
         private PlayerStateReader _playerState;
         private PracticeState _practice;
+        private GameEvents _events;
 
         private GUIStyle _hudLabelStyle;
         private GUIStyle _warnStyle;
@@ -76,6 +77,11 @@ namespace ForestOverlay
                 _playerState = new PlayerStateReader(Logger);
                 _practice = new PracticeState();
 
+                // Read-only postfixes on the endgame cutscene methods.
+                // Installed before modules so none can miss an event.
+                _events = new GameEvents(Logger);
+                _events.Install(PluginGuid);
+
                 ModuleContext ctx = new ModuleContext();
                 ctx.Log = Logger;
                 ctx.Config = Config;
@@ -84,6 +90,7 @@ namespace ForestOverlay
                 ctx.Inventory = _inventory;
                 ctx.PlayerState = _playerState;
                 ctx.Practice = _practice;
+                ctx.Events = _events;
                 ctx.ConfigDirectory = configDir;
                 ctx.Runner = this;
                 ctx.PluginPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
@@ -143,6 +150,10 @@ namespace ForestOverlay
             try
             {
                 _player.Tick();
+
+                // Before modules, so a split fires in the frame its
+                // cutscene flag rose.
+                if (_events != null) _events.Tick();
                 if (_player.Found)
                 {
                     _bridge.ResolvePlayerController(_player.Transform);
@@ -171,6 +182,8 @@ namespace ForestOverlay
         {
             try { if (_host != null) _host.Shutdown(); }
             catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
+
+            if (_events != null) _events.Uninstall();
         }
 
         // ------------------------------------------------------------------
