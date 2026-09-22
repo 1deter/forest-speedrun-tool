@@ -19,11 +19,19 @@ A speedrun and practice tool for **The Forest**, built as a
   as the LiveSplit autosplitter
 - **Type explorer & dumps** — browse the game's classes and live field values
 
+**Run helper** — changes what happens, not your save:
+
+- **Quick-load on death** — any death loads your save straight away, through
+  the menu's own load (toggle in the **Deaths** tab; the first-death capture
+  has its own toggle). The author rules this allowed in normal runs.
+
 **Practice only** — writes game state, and flags the session when used:
 
 - **Practice spots** — teleport anywhere you have saved
 - **Segments** — a spot with a start, an end and checkpoints, timed and
   compared against your previous attempts
+- **Death recovery** — a death in practice mode puts you back at your spot
+  with full health and no blood overlay
 - **Debug views** — freecam (the body is held still), collider and trigger
   volumes with a size cap and a name filter, wireframe
 

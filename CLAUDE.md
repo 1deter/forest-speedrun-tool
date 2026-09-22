@@ -345,15 +345,17 @@ the interpretation given here was checked with the author.
      (`developermodeon`, `speedyrun`). v0.18.2 adds `heap +N KB/s, overlay
      +M KB/s` to the `Perf` line — read it before assuming either side.
 3. **Deaths and caves.**
-   - **Quick-load on death** — skip the death animation and load straight
-     back into the save instead of waiting to quit to menu. The author rules
-     this **allowed in normal runs** (not practice-only): it goes through the
-     game's own load, so it saves real time without altering game state. Use
-     the same load path the menu uses so the result is identical. *(runner)*
-   - **Practice-only death recovery** — for risky tricks (sinkhole jump,
-     cave 5 drop): respawn at the practice spot without a full reload, and
-     clear the blood overlay that builds up after repeated fall damage and
-     never fades. Writes state → `IsPracticeOnly`. *(runner)*
+   - **Quick-load on death and practice revive — shipped in v0.19.0,
+     awaiting an in-game check.** `Modules/DeathModule.cs` (Deaths tab),
+     `Game/DeathHooks.cs`; mechanics in game-notes *Deaths*. Decided with
+     the author: practice mode + a current spot → revive at the spot on
+     every death (capture included); otherwise quick-load (toggle, on) on
+     every death incl. the boss-fight wake-up, with the capture behind its
+     own toggle (on — no route uses the capture any more); never permadeath
+     or multiplayer. Quick-load is allowed in normal runs; revive marks
+     practice. Check: die normally → straight into the save; die in
+     practice mode → back at the spot, no blood; the Deaths tab shows
+     `2/2 death hooks` and the last death. *(runner / author)*
    - **Teleporting into a cave loads the cave.** Cave geometry streams in on
      entry, so a teleport to an unloaded cave lands in nothing. Find the
      game's cave load trigger with ILScan and invoke it before the teleport.

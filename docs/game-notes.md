@@ -297,6 +297,36 @@ twice. Not used.
 
 ---
 
+## Deaths
+
+All in `PlayerStats` (IL):
+
+| Method | What it does |
+|---|---|
+| `CheckDeath` | Returns under `Cheats.GodMode`. `Health <= 0` and not `Dead`: swimming → `DeathInWater`, else `Dead = true` → `FallDownDead`. Called from `Hit`, `Explosion` |
+| `Fell` | `Health -= 200`; if `<= 0`, `Dead = true` → `KillPlayer`. No IL callers — sent by name, from fall triggers |
+| `DeathInWater` | drowning; `Invoke("KillMeFast", 7)` — **always** a real death |
+| `KillMeFast` | death animation, `Invoke("GameOver", …)`, `KillPlayer` |
+| `KillPlayer` | `DeadTimes++`. SP: in the endgame and `IsFightingBoss` → `EndgameWakeUp`; `DeadTimes > 1` → dead cam, `Cheats.PermaDeath` deletes the save, `Invoke("GameOver", 6)`; otherwise the **capture** (wake in a cave) |
+| `GameOver` | `SceneManager.LoadScene("TitleScene")` |
+
+Full health is 100 (`Health`, `HealthTarget`).
+
+**The blood overlay** is `BleedBehavior`: static `BloodAmount`, faded in
+`Update` by an amount scaled by static `BloodReductionRatio`.
+`PlayerStats.Awake` resets them to `0` / `1`; `KillPlayer` sets the ratio to
+3, `hitFallDown` to 1.
+
+**Loading a save from the title screen** (`TitleScreen`, static `Instance`):
+`OnSinglePlayer` → `GameSetup.SetPlayerMode(SP)`; `OnLoad` →
+`SetInitType(Continue)`; `OnSlotSelection(int)` → `SetSlot`,
+`LoadSave.ShouldLoad = true`, activates `MyLoader`. The current slot is static
+`GameSetup.Slot`.
+
+The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
+`Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the
+death sequence has run when they act.
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a
