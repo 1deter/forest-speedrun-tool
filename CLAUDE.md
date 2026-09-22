@@ -154,6 +154,9 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
   copy aside. Keep `patcher/` small and its behaviour stable.
 - **Manual test without a release:** save any ForestOverlay.dll as
   `BepInEx/plugins/ForestOverlay.dll.pending` and launch.
+- **Confirmed end to end in game (v0.16.2 -> v0.16.3):** check, Download,
+  restart, installed, `.bak` kept — and the plugin replaced the loaded patcher
+  by renaming it aside.
 
 ---
 
@@ -202,6 +205,13 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 
 10. **Anything that only reaches a machine via `deploy.ps1` is missing for
     runners.** The 100% list did exactly that. Ship data inside the DLL.
+
+11. **`Resources.FindObjectsOfTypeAll` walks every loaded object.** Calling it
+    on a 1 Hz refresh was a visible once-a-second stutter. Find a component
+    once, keep it, re-search only when it goes fake-null, and rate-limit the
+    search (there is nothing to find at the main menu). `ModuleHost` logs any
+    module Tick over 5 ms as `Slow tick: '<id>'` — check the log for it before
+    guessing at a hitch.
 
 ---
 

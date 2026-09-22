@@ -29,6 +29,13 @@ namespace ForestOverlay.Core
 
         private float _nextHudRefresh;
 
+        // Stutter watch. A module that takes longer than this in one Tick
+        // is logged by name, at most once per interval per module, so a
+        // "the game hitches every second" report comes with a culprit.
+        private const double SlowTickMs = 5.0;
+        private const float SlowReportInterval = 10f;
+        private readonly Dictionary<OverlayModule, float> _nextSlowReport = new Dictionary<OverlayModule, float>();
+
         public HotkeyMap Hotkeys { get { return _hotkeys; } }
         public HudBuilder Hud { get { return _hud; } }
         public ModuleContext Context { get { return _ctx; } }
@@ -120,6 +127,16 @@ namespace ForestOverlay.Core
             _ctx.Log.LogError("Module '" + m.Id + "' disabled after throwing in " + where + ": " + ex);
         }
 
+        private void ReportSlowTick(OverlayModule m, double ms)
+        {
+            float next;
+            if (_nextSlowReport.TryGetValue(m, out next) && Time.unscaledTime < next) return;
+            _nextSlowReport[m] = Time.unscaledTime + SlowReportInterval;
+
+            _ctx.Log.LogWarning("Slow tick: '" + m.Id + "' took " + ms.ToString("0.0") +
+                                " ms (a visible hitch if it repeats).");
+        }
+
         private bool IsLive(OverlayModule m)
         {
             return !_failed.Contains(m);
@@ -134,8 +151,14 @@ namespace ForestOverlay.Core
             {
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
+
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 try { m.Tick(); }
                 catch (Exception ex) { Disable(m, "Tick", ex); }
+
+                double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
+                            System.Diagnostics.Stopwatch.Frequency;
+                if (ms >= SlowTickMs) ReportSlowTick(m, ms);
             }
 
             // Cursor is asserted from Update (not LateUpdate) so that

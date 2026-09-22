@@ -34,6 +34,18 @@ namespace ForestOverlay.Game
 
         private readonly List<BookEntry> _todo = new List<BookEntry>();
 
+        // Found once and kept. Resources.FindObjectsOfTypeAll walks every
+        // loaded object; running it every second was a visible 1 Hz stutter.
+        // A save load destroys the component (fake-null), which is what
+        // triggers the next search - and searches are rate-limited, since
+        // at the main menu there is nothing to find.
+        private const float SearchInterval = 5f;
+        private Component _host;
+        private float _nextSearch;
+        private readonly List<FieldInfo> _taskFields = new List<FieldInfo>();
+        private readonly List<FieldInfo> _doneFields = new List<FieldInfo>();
+        private readonly List<string> _taskNames = new List<string>();
+
         public IList<BookEntry> Todo { get { return _todo; } }
         public string Status { get; private set; }
 
@@ -62,13 +74,38 @@ namespace ForestOverlay.Game
         // ------------------------------------------------------------------
         private void ReadTodo()
         {
-            // The serialisable version is the live one in current builds;
-            // the older type is checked too rather than assuming.
-            if (ReadTodoFrom("TheForest.Player.SerializableSurvivalBookTodo")) return;
-            ReadTodoFrom("TheForest.Player.SurvivalBookTodo");
+            if (_host == null)
+            {
+                if (Time.unscaledTime < _nextSearch) return;
+                _nextSearch = Time.unscaledTime + SearchInterval;
+
+                // The serialisable version is the live one in current builds;
+                // the older type is checked too rather than assuming.
+                if (!Bind("TheForest.Player.SerializableSurvivalBookTodo"))
+                    Bind("TheForest.Player.SurvivalBookTodo");
+                if (_host == null) return;
+            }
+
+            for (int i = 0; i < _taskFields.Count; i++)
+            {
+                object task;
+                try { task = _taskFields[i].GetValue(_host); }
+                catch (Exception) { continue; }
+                if (task == null) continue;
+
+                BookEntry entry;
+                entry.Name = _taskNames[i];
+                entry.UnlockLevel = 0;
+
+                try { entry.Done = (bool)_doneFields[i].GetValue(task); }
+                catch (Exception) { continue; }
+
+                _todo.Add(entry);
+                if (entry.Done) TodoDone++;
+            }
         }
 
-        private bool ReadTodoFrom(string typeName)
+        private bool Bind(string typeName)
         {
             Type type = GameBridge.FindGameType(typeName);
             if (type == null) return false;
@@ -76,13 +113,23 @@ namespace ForestOverlay.Game
             UnityEngine.Object[] found;
             try { found = Resources.FindObjectsOfTypeAll(type); }
             catch (Exception) { return false; }
-            if (found == null || found.Length == 0) return false;
+            if (found == null) return false;
+
+            // Also returns prefab assets; only a scene instance is live.
+            Component host = null;
+            for (int i = 0; i < found.Length && host == null; i++)
+            {
+                Component c = found[i] as Component;
+                if (c != null && c.gameObject.scene.IsValid()) host = c;
+            }
+            if (host == null) return false;
 
             BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             FieldInfo[] fields = type.GetFields(flags);
 
-            Component host = found[0] as Component;
-            if (host == null) return false;
+            _taskFields.Clear();
+            _doneFields.Clear();
+            _taskNames.Clear();
 
             for (int i = 0; i < fields.Length; i++)
             {
@@ -92,23 +139,15 @@ namespace ForestOverlay.Game
                 FieldInfo doneField = FindField(fields[i].FieldType, "_done", flags);
                 if (doneField == null) continue;
 
-                object task;
-                try { task = fields[i].GetValue(host); }
-                catch (Exception) { continue; }
-                if (task == null) continue;
-
-                BookEntry entry;
-                entry.Name = Tidy(fields[i].Name);
-                entry.UnlockLevel = 0;
-
-                try { entry.Done = (bool)doneField.GetValue(task); }
-                catch (Exception) { continue; }
-
-                _todo.Add(entry);
-                if (entry.Done) TodoDone++;
+                _taskFields.Add(fields[i]);
+                _doneFields.Add(doneField);
+                _taskNames.Add(Tidy(fields[i].Name));
             }
 
-            return _todo.Count > 0;
+            if (_taskFields.Count == 0) return false;
+
+            _host = host;
+            return true;
         }
 
         // ------------------------------------------------------------------

@@ -61,6 +61,11 @@ namespace ForestOverlay.Game
 
         private Component _host;
 
+        // Searching is a full object scan; at the main menu there is
+        // nothing to find, so it is rate-limited rather than run each tick.
+        private const float SearchInterval = 5f;
+        private float _nextSearch;
+
         public IList<NatureEntry> Entries { get { return _entries; } }
         public IList<NaturePage> Pages { get { return _pages; } }
         public int TickedCount { get; private set; }
@@ -84,6 +89,9 @@ namespace ForestOverlay.Game
                 _entries.Clear();
                 _pages.Clear();
                 TickedCount = 0;
+
+                if (Time.unscaledTime < _nextSearch) return;
+                _nextSearch = Time.unscaledTime + SearchInterval;
 
                 _host = FindHost();
                 if (_host == null)
@@ -154,7 +162,6 @@ namespace ForestOverlay.Game
             if (array == null) return;
 
             List<int[]> chains = new List<int[]>(array.Count);
-            List<Transform> pageOf = new List<Transform>();
             Dictionary<int, Transform> byId = new Dictionary<int, Transform>();
 
             for (int i = 0; i < array.Count; i++)
