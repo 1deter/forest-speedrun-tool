@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -11,10 +11,22 @@ namespace ForestOverlay.Data
         public string Category = "";
         public string Name = "";
 
-        /// Resolved from Name against the item catalogue at load. -1 when
-        /// the name did not match anything, which is shown rather than
-        /// hidden so a typo in a shared list is fixable.
+        /// Resolved at load. -1 when nothing matched, which is shown
+        /// rather than hidden so a typo in a shared list is fixable.
         public int ItemId = -1;
+
+        /// Set in the file as "= 210" or "= KeycardElevator". An
+        /// explicit id skips name matching entirely, which is what the
+        /// shipped list uses: the game's internal names are nothing
+        /// like the ones the admins publish, so matching on the display
+        /// name was never going to work.
+        public string Lookup = "";
+
+        /// How many are needed. Some pieces are one item held twice
+        /// rather than two items.
+        public int Required = 1;
+
+        public int Held;
 
         /// Latched once seen. Story items stay in the inventory, but
         /// latching means a checklist cannot un-tick itself if something
@@ -31,12 +43,12 @@ namespace ForestOverlay.Data
     // else here: line-oriented so it diffs, merges and can be edited by
     // someone who has never written code.
     //
-    //   category | item name
+    //   Display name = <id>   or  = <internal name>  or  = <id> xN
     //
-    // Names, not ids: the admins publish names, and ids are an internal
-    // detail nobody should have to look up. They are resolved against the
-    // live item catalogue at load, and anything that fails to resolve is
-    // reported in the UI.
+    // The display name is what the admins publish; the lookup on the right
+    // is the game's own id, because the internal names are nothing like
+    // the published ones. Anything that fails to resolve is reported in
+    // the UI rather than silently dropped.
     // ------------------------------------------------------------------
     public sealed class CollectionList
     {
@@ -143,6 +155,27 @@ namespace ForestOverlay.Data
 
                 CollectionEntry e = new CollectionEntry();
 
+                // Optional "= lookup", where lookup is an item id or the
+                // game's internal item name.
+                int eq = line.IndexOf('=');
+                if (eq >= 0)
+                {
+                    e.Lookup = line.Substring(eq + 1).Trim();
+                    line = line.Substring(0, eq).Trim();
+
+                    // Trailing "x2" on the lookup is a required count.
+                    int x = e.Lookup.LastIndexOf('x');
+                    if (x > 0)
+                    {
+                        int count;
+                        if (int.TryParse(e.Lookup.Substring(x + 1).Trim(), out count) && count > 0)
+                        {
+                            e.Required = count;
+                            e.Lookup = e.Lookup.Substring(0, x).Trim();
+                        }
+                    }
+                }
+
                 int bar = line.IndexOf('|');
                 if (bar >= 0)
                 {
@@ -172,15 +205,26 @@ namespace ForestOverlay.Data
                     _categories.Add(_entries[i].Category);
         }
 
-        /// Resolves names to ids. `lookup` returns -1 when nothing matched.
+        /// Resolves entries to ids. An explicit lookup wins; otherwise
+        /// the display name is tried. `lookup` returns -1 for no match.
         public void Resolve(Func<string, int> lookup)
         {
             Unresolved = 0;
 
             for (int i = 0; i < _entries.Count; i++)
             {
-                _entries[i].ItemId = lookup(_entries[i].Name);
-                if (_entries[i].ItemId < 0) Unresolved++;
+                CollectionEntry e = _entries[i];
+                e.ItemId = -1;
+
+                if (e.Lookup.Length > 0)
+                {
+                    int id;
+                    if (int.TryParse(e.Lookup, out id)) e.ItemId = id;
+                    else e.ItemId = lookup(e.Lookup);
+                }
+
+                if (e.ItemId < 0) e.ItemId = lookup(e.Name);
+                if (e.ItemId < 0) Unresolved++;
             }
 
             if (Unresolved > 0)

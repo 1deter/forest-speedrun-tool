@@ -137,14 +137,17 @@ namespace ForestOverlay.Modules
 
             for (int i = 0; i < entries.Count; i++)
             {
-                if (entries[i].Seen || entries[i].ItemId < 0) continue;
+                CollectionEntry e = entries[i];
+                if (e.ItemId < 0) continue;
 
+                int held = 0;
                 for (int s = 0; s < stacks.Count; s++)
-                {
-                    if (stacks[s].Id != entries[i].ItemId) continue;
-                    entries[i].Seen = true;
-                    break;
-                }
+                    if (stacks[s].Id == e.ItemId) held += stacks[s].Amount;
+
+                // Latched: the highest count seen, so the checklist
+                // cannot un-tick itself when something is used up.
+                if (held > e.Held) e.Held = held;
+                if (e.Held >= e.Required) e.Seen = true;
             }
         }
 
@@ -187,10 +190,15 @@ namespace ForestOverlay.Modules
                     if (!e.Seen && !_showMissing) continue;
 
                     if (e.ItemId < 0)
-                        n = Add(n, "      " + e.Name + "   -   (?) name not recognised", 3);
-                    else
-                        n = Add(n, "      " + e.Name + "   -   " + (e.Seen ? "collected" : "missing"),
-                                e.Seen ? 1 : 2);
+                    {
+                        n = Add(n, "      " + e.Name + "   -   (?) not recognised", 3);
+                        continue;
+                    }
+
+                    string state = e.Seen ? "collected" : "missing";
+                    if (e.Required > 1) state += "  " + e.Held + "/" + e.Required;
+
+                    n = Add(n, "      " + e.Name + "   -   " + state, e.Seen ? 1 : 2);
                 }
             }
 

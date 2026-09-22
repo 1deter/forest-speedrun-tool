@@ -1,127 +1,131 @@
 # ForestOverlay - 100% collection checklist (Good Ending)
 #
-# The requirement list agreed by The Forest category admins.
-# Names are matched against the game's own item list; anything that does
-# not match shows as "unresolved" in the 100% tab so it can be corrected
-# rather than silently ignored.
+# The requirement list agreed by The Forest category admins, mapped onto
+# the game's own item ids.
 #
-# The To Do List is tracked separately and read from the survival book.
+#   Display name = <id>            or  = <internal name>   or  = <id> xN
+#
+# Ids come from the item catalogue dump (100% tab -> Dump item list).
+# They are explicit because the game's internal names are nothing like
+# the ones the admins publish - "Obelisk Sketch" is SketchArtifact,
+# "Autopsy Report" is MorgueReport - so matching on the published name
+# was never going to work.
+#
+# The To Do List is tracked separately, read from the survival book.
 
 [Unique tools and weapons]
-Plane Axe
-Rusty Axe
-Modern Axe
-Climbing Axe
-Machete
-Katana
-Tennis Racket
-Chainsaw
-Modern Bow
-Flare Gun
-Crossbow
-Flintlock Pistol
-Compass
-Map
-Pedometer
-Rebreather
-Flashlight
-Cooking Pot
+Plane Axe = 80
+Rusty Axe = 86
+Modern Axe = 88
+Climbing Axe = 138
+Machete = 265
+Katana = 180
+Tennis Racket = 184
+Chainsaw = 261
+Modern Bow = 279
+Flare Gun = 44
+Crossbow = 306
+Flintlock Pistol = 230
+Compass = 173
+Map = 169
+Pedometer = 63
+Rebreather = 143
+Flashlight = 51
+Cooking Pot = 142
 
-[Gun parts]
-Gun Part 1
-Gun Part 2
-Gun Part 3
-Gun Part 4
-Gun Part 5
-Gun Part 6
-Gun Part 7
-Gun Part 8
+[Flintlock parts]
+Gun Part 1 = 232
+Gun Part 2 = 233
+Gun Part 3 = 234
+Gun Part 4 = 235
+Gun Part 5 = 236
+Gun Part 6 = 237
+Gun Part 7 = 238
+Gun Part 8 = 241
 
 [Story documents]
-Autopsy Report
-Bible Page - Don't be afraid
-Bible Page - She's not dead
-Cargo Manifest
-Bring Down A Plane Email
-Megan Email
-Termination Notice Email
-Fortune
-Restraining Order
-Latin Paper
+Autopsy Report = 245
+Bible Page 1 = 246
+Bible Page 2 = 247
+Cargo Manifest = 229
+Bring Down A Plane Email = 255
+Megan Email = 256
+Termination Notice = 244
+Fortune = 202
+Restraining Order = 243
 
 [Megan drawings]
-Megan Drawing - Daddy
-Megan Drawing - Dinosaur
-Megan Drawing - Flower
-Megan Drawing - Unicorn
+Megan Drawing - Daddy = 252
+Megan Drawing - Dinosaur = 254
+Megan Drawing - Flower = 251
+Megan Drawing - Unicorn = 253
+Megan Crayons = 248
 
 [Magazines]
-Magazine - Beneath the Limestone
-Magazine - Ethical Scientist
-Magazine - The Practical Caver
-Magazine - Real!
-Magazine - Yacht
+Magazine - Beneath the Limestone = 149
+Magazine - Ethical Scientist = 218
+Magazine - The Practical Caver = 147
+Magazine - Real! = 209
+Magazine - Yacht = 148
 
 [Photos and sketches]
-Photo - Cache 1
-Photo - Cache 2
-Photo - Cache 3
-Photo - Cache 4
-Photo - Cache 5
-Photo - Cache 6
-Photo - Cache 7
-Photo - Cache 8
-Megan's School Photo
-Obelisk Photo
-Virginia Photo
-Yacht Photo
-Obelisk Sketch
-Obelisk Drawing
-Virginia Sketch
+Photo - Cache 1 = 220
+Photo - Cache 2 = 226
+Photo - Cache 3 = 225
+Photo - Cache 4 = 221
+Photo - Cache 5 = 222
+Photo - Cache 6 = 223
+Photo - Cache 7 = 224
+Photo - Cache 8 = 227
+Megan's School Photo = 219
+Obelisk Photo = 249
+Virginia Photo = 153
+Yacht Photo = 152
+Obelisk Sketch = 217
+Obelisk Drawing = 250
+Virginia Sketch = 155
+Sinkhole Sketch = 154
 
-[Schematics]
-Schematic 1
-Schematic 2
-Schematic 3
-Schematic 4
+[Keycard polaroids]
+Polaroid Keycard 1 = 258
+Polaroid Keycard 2 = 259
+Polaroid Keycard 3 = 260
 
 [Toy pieces]
-Toy Torso
-Toy Head
-Toy Arm 1
-Toy Arm 2
-Toy Leg 1
-Toy Leg 2
+# One item each - the 2x arms and 2x legs are a QUANTITY of a single
+# item, not separate items, so they are tracked as counts.
+Toy Torso = 136
+Toy Head = 133
+Toy Arm = 134 x2
+Toy Leg = 135 x2
+Assembled Toy = 179
 
 [Timmy drawings]
-Timmy Drawing 1 - Cannibal
-Timmy Drawing 2 - Plane Taking Off
-Timmy Drawing 3 - Cave Barricade
-Timmy Drawing 5 - Red Man
-Timmy Drawing 6 - Sinkhole
-Timmy Drawing 8 - Rebreather
-Timmy Drawing 9 - Vault Door
-Timmy Drawing 10 - Timmy and Dad
+# The game stores all eight as pieces INSIDE one item (id 208), the same
+# way map pieces work, so only the item itself can be tracked here.
+# Per-drawing progress needs DrawingsInventoryItemView._ids and is not
+# wired up yet.
+Timmy Drawings = 208
 
 [Camcorder tapes]
-Camcorder
-Tape 1 - Megan's Arrival
-Tape 2 - Lunch with Megan
-Tape 3 - Opening the Artifact
-Tape 4 - Side Effects
-Tape 5 - Armsy Breakout
-Tape 6 - Second Artifact Test
+Camcorder = 267
+Tape 1 - Megan's Arrival = 269
+Tape 2 - Lunch with Megan = 272
+Tape 3 - Opening the Artifact = 270
+Tape 4 - Side Effects = 271
+Tape 5 - Armsy Breakout = 274
+Tape 6 - Second Artifact Test = 273
 
 [Cassettes]
-Cassette Player
-Cassette 1
-Cassette 2
-Cassette 3
-Cassette 4
-Cassette 5
+Cassette Player = 61
+Cassette 1 = 69
+Cassette 2 = 117
+Cassette 3 = 119
+Cassette 4 = 118
+Cassette 5 = 120
 
 [Endgame]
-Keycard 1
-Keycard 2
-Artifact Ball
-Artifact Key
+Keycard = 210
+Keycard - Elevator = 242
+Artifact Ball = 294
+Artifact Key = 305
