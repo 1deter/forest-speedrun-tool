@@ -73,6 +73,24 @@ namespace ForestOverlay.Game
         public const string KeycardDoor = "keycard-door";
         public const string RedElevator = "red-elevator";
 
+        // Keypad doors named by the keycard they take. Confirmed in a real
+        // run (author, 2026-09-22): the vault door is keypadDoor_animate
+        // with the Keycard (210); the gold automatic door is
+        // ElevatorCardReader with Keycard 2 (242). Keyed on the card, not
+        // the object name - "keypadDoor_animate" is a prefab and may repeat.
+        private static readonly int[] DoorCards = { 210, 242 };
+        private static readonly string[] DoorNames = { "vault-door", "gold-door" };
+        private static readonly string[] DoorLabels = { "Vault door (keycard)", "Gold keycard: automatic door" };
+
+        /// Every nameable event in route order, for the segment editor's
+        /// picker. keycard-door-<id> is also valid but open-ended.
+        public static readonly string[] RouteOrder =
+        {
+            "vault-door", "timmy-pickup", "megan-transform", "megan-pickup", "megan-to-machine",
+            "gold-door", RedElevator, GameEnd, "end-crash", "end-shutdown",
+            AnyCutscene, KeycardDoor, "timmy-goodbye", "raft-out-of-world",
+        };
+
         // In route order. Table in docs/game-notes.md. The Megan labels
         // were confirmed against a real endgame run - an earlier guess had
         // the two swapped.
@@ -98,8 +116,6 @@ namespace ForestOverlay.Game
                      "RaftPush", "outOfWorldRoutine", false),
         };
 
-        /// Events that are not a hook of their own, for the editor's list.
-        public static readonly string[] Derived = { RedElevator, GameEnd, AnyCutscene };
 
         // A cutscene that has started but whose flag has not risen yet
         // expires after this long, so a stale identity is never pinned on
@@ -170,6 +186,8 @@ namespace ForestOverlay.Game
                 return "Game end (either ending)";
             if (string.Equals(evt, RedElevator, StringComparison.OrdinalIgnoreCase))
                 return "Gold keycard: red elevator";
+            for (int i = 0; i < DoorNames.Length; i++)
+                if (string.Equals(evt, DoorNames[i], StringComparison.OrdinalIgnoreCase)) return DoorLabels[i];
             if (evt != null && evt.StartsWith(KeycardDoor + "-", StringComparison.OrdinalIgnoreCase))
                 return "Keycard door opened with item " + evt.Substring(KeycardDoor.Length + 1);
             return null;
@@ -381,7 +399,12 @@ namespace ForestOverlay.Game
         {
             Record(evt, detail);
 
-            if (evt == KeycardDoor && keycard > 0) Record(KeycardDoor + "-" + keycard, null);
+            if (evt == KeycardDoor && keycard > 0)
+            {
+                Record(KeycardDoor + "-" + keycard, null);
+                for (int i = 0; i < DoorCards.Length; i++)
+                    if (DoorCards[i] == keycard) Record(DoorNames[i], null);
+            }
             if (evt == "end-crash" || evt == "end-shutdown") Record(GameEnd, null);
         }
 

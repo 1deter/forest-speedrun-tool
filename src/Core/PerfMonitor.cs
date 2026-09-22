@@ -28,12 +28,21 @@ namespace ForestOverlay.Core
     //
     //   Perf (30 s): 57.9 fps, worst 48 ms, 2 over 50 ms, GC x3 |
     //   overlay tick 0.21 ms avg, 1.80 max | GL 0.05 ms/frame,
-    //   1.0 passes (3.0 skipped), 2400 verts/frame
+    //   1.0 passes (3.0 skipped), 2400 verts/frame |
+    //   heap +900 KB/s, overlay +2.0 KB/s
     //
     // Hitches with a GC count beside them point at garbage; a high GL
     // figure points at the lines; a high overlay tick at a module (which
     // ModuleHost also names in a "Slow tick" line). Nothing here is
     // allocated per frame - only the log line itself, twice a minute.
+    //
+    // WHO MAKES THE GARBAGE. A GC every few seconds is a hitch every few
+    // seconds, and the question is always "the game, or us?". The managed
+    // heap is sampled once a frame (growth = everyone's allocation) and
+    // around the overlay's own Tick and OnGUI (growth = ours), and both
+    // are reported per second. Boehm's used-size counter moves in heap
+    // blocks, not bytes, so treat the figures as rough - the ratio is what
+    // matters.
     // ------------------------------------------------------------------
     public sealed class PerfMonitor
     {
@@ -51,6 +60,10 @@ namespace ForestOverlay.Core
         private double _tickSum;
         private double _tickMax;
 
+        private long _lastHeap = -1;
+        private double _heapGrowth;
+        private double _overlayGrowth;
+
         public PerfMonitor(ManualLogSource log)
         {
             _log = log;
@@ -62,6 +75,10 @@ namespace ForestOverlay.Core
         {
             float now = Time.unscaledTime;
             if (_windowStart < 0f || !inGame) { Restart(now); return; }
+
+            long heap = SafeHeap();
+            if (_lastHeap >= 0 && heap > _lastHeap) _heapGrowth += heap - _lastHeap;
+            _lastHeap = heap;
 
             float dt = Time.unscaledDeltaTime;
             _frames++;
@@ -93,7 +110,9 @@ namespace ForestOverlay.Core
                          " | GL " + (renderMs / _frames).ToString("0.00") + " ms/frame, " +
                          ((float)PerfCounters.DrawPasses / _frames).ToString("0.0") + " passes (" +
                          ((float)PerfCounters.SkippedPasses / _frames).ToString("0.0") + " skipped), " +
-                         (PerfCounters.Vertices / _frames) + " verts/frame");
+                         (PerfCounters.Vertices / _frames) + " verts/frame" +
+                         " | heap +" + (_heapGrowth / 1024.0 / seconds).ToString("0") + " KB/s, overlay +" +
+                         (_overlayGrowth / 1024.0 / seconds).ToString("0.0") + " KB/s");
         }
 
         private void Restart(float now)
@@ -105,11 +124,33 @@ namespace ForestOverlay.Core
             _tickSum = 0.0;
             _tickMax = 0.0;
             _gcAtStart = SafeGcCount();
+            _heapGrowth = 0.0;
+            _overlayGrowth = 0.0;
+            _lastHeap = -1;
 
             PerfCounters.DrawPasses = 0;
             PerfCounters.SkippedPasses = 0;
             PerfCounters.Vertices = 0;
             PerfCounters.RenderTicks = 0;
+        }
+
+        /// Heap size before a stretch of overlay work; pass it to EndAlloc.
+        public long BeginAlloc()
+        {
+            return SafeHeap();
+        }
+
+        public void EndAlloc(long start)
+        {
+            if (start < 0) return;
+            long d = SafeHeap() - start;
+            if (d > 0) _overlayGrowth += d;
+        }
+
+        private static long SafeHeap()
+        {
+            try { return GC.GetTotalMemory(false); }
+            catch (Exception) { return -1; }
         }
 
         private static int SafeGcCount()

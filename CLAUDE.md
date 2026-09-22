@@ -332,15 +332,18 @@ the interpretation given here was checked with the author.
      `Perf (30 s):` line (fps, worst frame, hitches, GC count, overlay tick,
      GL cost and passes) — ask for one with lines showing and read it before
      changing anything else. *(runner)*
-2. **Separated endgame splits — v0.18.0, confirmed by a real endgame run;
-   red elevator fixed in v0.18.1.** `Game/GameEvents.cs`: Harmony postfixes
-   note which cutscene is starting; the split fires on the `endGameCutScene`
-   rising edge, so times match the autosplitter. `event` triggers fire, with
-   a picker in the segment editor. The run showed the Megan labels had been
-   swapped (fixed) and that the red elevator bypasses `openKeypadDoor`
-   (now `red-elevator`). **Still open:** the vault door — the author's save
-   had it open. One log with it opened says whether it is a keypad door and
-   which keycard; then give it its own event (`vault-door`). *(author)*
+2. **Separated endgame splits — done, every split confirmed in game.**
+   `Game/GameEvents.cs`: Harmony postfixes note which cutscene is starting;
+   the split fires on the `endGameCutScene` rising edge, so times match the
+   autosplitter. Events in route order: `vault-door`, `timmy-pickup`,
+   `megan-transform`, `megan-pickup`, `megan-to-machine`, `gold-door`,
+   `red-elevator`, `game-end`. `event` triggers fire, with a picker in the
+   segment editor. Remaining: `end-shutdown`, `timmy-goodbye` and
+   `raft-out-of-world` have not been seen in a log yet. *(author)*
+   - **GC hitch every ~7.5 s** in the second endgame test (`GC x4` per
+     30 s, ~82 ms each; the first run had ~1 per 30 s). Cheats were on
+     (`developermodeon`, `speedyrun`). v0.18.2 adds `heap +N KB/s, overlay
+     +M KB/s` to the `Perf` line — read it before assuming either side.
 3. **Deaths and caves.**
    - **Quick-load on death** — skip the death animation and load straight
      back into the save instead of waiting to quit to menu. The author rules

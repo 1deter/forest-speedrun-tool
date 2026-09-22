@@ -40,6 +40,7 @@ namespace ForestOverlay.Core
         private readonly Dictionary<OverlayModule, float> _nextSlowReport = new Dictionary<OverlayModule, float>();
 
         public HotkeyMap Hotkeys { get { return _hotkeys; } }
+        public PerfMonitor Perf { get { return _perf; } }
         public HudBuilder Hud { get { return _hud; } }
         public ModuleContext Context { get { return _ctx; } }
 
@@ -155,6 +156,7 @@ namespace ForestOverlay.Core
         // ------------------------------------------------------------------
         public void Tick()
         {
+            long allocStart = _perf.BeginAlloc();
             _hotkeys.Dispatch();
 
             double tickTotal = 0.0;
@@ -212,6 +214,7 @@ namespace ForestOverlay.Core
             else _input.Release();
 
             RefreshHudIfDue();
+            _perf.EndAlloc(allocStart);
         }
 
         private bool AnyModuleHoldsPlayer()

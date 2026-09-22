@@ -678,19 +678,9 @@ namespace ForestOverlay.Modules
             return y + 6f;
         }
 
-        // Every event a trigger can name, in route order. keycard-door-<id>
-        // is also valid but open-ended, so it is typed rather than listed.
-        private static string[] _knownEvents;
-
         private static string[] KnownEvents()
         {
-            if (_knownEvents != null) return _knownEvents;
-
-            List<string> all = new List<string>();
-            for (int i = 0; i < GameEvents.Hooks.Length; i++) all.Add(GameEvents.Hooks[i].Event);
-            for (int i = 0; i < GameEvents.Derived.Length; i++) all.Add(GameEvents.Derived[i]);
-            _knownEvents = all.ToArray();
-            return _knownEvents;
+            return GameEvents.RouteOrder;
         }
 
         private static string StepEvent(string current, int dir)

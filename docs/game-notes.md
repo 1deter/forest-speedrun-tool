@@ -183,11 +183,12 @@ Keycard (Automatic Door), Gold Keycard (Red Elevator), Game End.
 a method on the player, started by an `activate*` trigger with
 `SendMessage("<routine>")` (`ilscan strings`):
 
-Confirmed against a real endgame run (2026-09-22, author) unless marked.
+Confirmed against two real endgame runs (2026-09-22, author) unless marked.
 
 | Split | Method (event name) | Flag set |
 |---|---|---|
-| Vault door *(unconfirmed)*, gold keycard automatic door | `playerOpenKeypadDoorAction.openDoorRoutine` via `openKeypadDoor` (`keycard-door`, `keycard-door-<itemId>`) | after the walk-up, in its `lockPlayerParams` |
+| Vault door | `playerOpenKeypadDoorAction.openDoorRoutine` via `openKeypadDoor`, keycard 210 (`vault-door`; also `keycard-door`, `keycard-door-210`) | after the walk-up, in its `lockPlayerParams` |
+| Gold keycard: automatic door | same, keycard 242 (`gold-door`; also `keycard-door`, `keycard-door-242`) | same |
 | Gold keycard: red elevator | the same `openDoorRoutine`, sent directly by `ElevatorSystem.Goto` (`red-elevator`) | same |
 | Finding Timmy | `PlayerPickupTimmyAction.pickupTimmyRoutine` (`timmy-pickup`) | before first yield |
 | Approaching Megan (she transforms) | `PlayerGirlTransformAction.doGirlTransformRoutine` (`megan-transform`) | after first yield |
@@ -216,11 +217,16 @@ as the autosplitter did.
 directly**, skipping `openKeypadDoor`. So the plugin hooks `openDoorRoutine`
 and marks calls made from inside `openKeypadDoor`; unmarked means elevator.
 
-In the test run the gold keycard automatic door logged
-`door 'ElevatorCardReader/Trigger/playerPos', keycard 242, short sequence`
-(it is the door *to* the elevator, hence the name). The vault door has not
-been logged yet — if it is also a keypad door with its own keycard id, give
-it an event of its own.
+Logged in game:
+
+| Door | Path of `playerPos` | Keycard |
+|---|---|---|
+| Vault | `keypadDoor_animate/keypadDoor_ANIM_base/playerPos` | 210 (Keycard) |
+| Gold automatic door | `ElevatorCardReader/Trigger/playerPos` (short sequence) | 242 (Keycard 2) |
+| Red elevator | `HellCorridor/Elevator_01a/playerPos` (short sequence) | 242 |
+
+`vault-door` / `gold-door` are keyed on the **keycard id**, not the object
+name — `keypadDoor_animate` is a prefab and could appear more than once.
 
 Lesson: search `strings` for **every** method of an action, not just its
 entry point — `openDoorRoutine` was sent by name from a second place.
