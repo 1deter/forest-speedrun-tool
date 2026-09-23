@@ -99,6 +99,11 @@ namespace ForestOverlay.Game
         private FieldInfo _presentIngredients;    // ReceipeIngredient[]
         private MethodInfo _addNeededToMission;   // static BuildMission.AddNeededToBuildMission(int, int, bool)
 
+        // Weapon-upgrade receivers (feathers, teeth, glass) on the inventory's
+        // item views: scene objects that hold each weapon's upgrades. Never
+        // built after a capture, so never ours to delete - see DeleteUnsaved.
+        private Type _upgradeReceiverType;
+
         // Hands
         private FieldInfo _inventory;             // LocalPlayer.Inventory
         private MethodInfo _stashWeapon;          // PlayerInventory.StashEquipedWeapon(bool)
@@ -296,6 +301,7 @@ namespace ForestOverlay.Game
                 _inventory = local.GetField("Inventory", stat);
             }
 
+            _upgradeReceiverType = GameBridge.FindGameType("TheForest.Items.Craft.UpgradeViewReceiver");
             _craftStructureType = GameBridge.FindGameType("TheForest.Buildings.Creation.Craft_Structure");
             if (_craftStructureType != null)
             {
@@ -505,7 +511,8 @@ namespace ForestOverlay.Game
 
             // LoadNow never deletes for a full-level save; do it here.
             List<string> deletedNames = new List<string>();
-            int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames) : 0;
+            int keptReceivers = 0;
+            int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames, ref keptReceivers) : 0;
             if (deleted > 0) yield return null;   // let Destroy land before the loader looks
 
             _loadDone = false;
@@ -571,6 +578,7 @@ namespace ForestOverlay.Game
                     sb.Append(", deleted ").Append(deleted).Append(" not in the save");
                     for (int i = 0; i < deletedNames.Count && i < 6; i++) sb.Append(i == 0 ? " (" : ", ").Append(deletedNames[i]);
                     if (deletedNames.Count > 0) sb.Append(deletedNames.Count > 6 ? ", ...)" : ")");
+                    if (keptReceivers > 0) sb.Append(", kept ").Append(keptReceivers).Append(" weapon-upgrade receiver(s) the save lacks");
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
@@ -844,13 +852,14 @@ namespace ForestOverlay.Game
             HashSet<Component> done = new HashSet<Component>();
             int remapped = 0, unmatched = 0, playerUnmatched = 0;
             List<string> playerMisses = new List<string>();
+            List<string> otherMisses = new List<string>();
             for (int i = 0; i < order.Count; i++)
             {
                 Component u = order[i].Value;
                 if (u == null || done.Contains(u)) continue;
 
                 List<SavedObject> named;
-                if (!byName.TryGetValue(u.gameObject.name, out named)) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, 0); continue; }
+                if (!byName.TryGetValue(u.gameObject.name, out named)) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, otherMisses, 0); continue; }
 
                 Transform parent = u.transform.parent;
                 Component parentUid = parent != null ? parent.GetComponent(_uniqueIdType) : null;
@@ -874,9 +883,9 @@ namespace ForestOverlay.Game
                     int paired = PairInOrder(u, top, named, parentId, classId, order, i, claimed, done);
                     if (paired > 0) { remapped += paired; continue; }
                 }
-                if (found != 1) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, found); continue; }
+                if (found != 1) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, otherMisses, found); continue; }
                 try { _uidId.SetValue(u, match.Id, null); }
-                catch (Exception) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, -1); continue; }
+                catch (Exception) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, otherMisses, -1); continue; }
                 claimed.Add(match.Id);
                 remapped++;
             }
@@ -894,6 +903,7 @@ namespace ForestOverlay.Game
             StringBuilder sb = new StringBuilder("Savestate: " + note + " ('" + top.gameObject.name + "' " +
                                                  topBefore + " -> " + topAfter + ")");
             for (int i = 0; i < playerMisses.Count; i++) sb.Append(i == 0 ? "; player misses: " : ", ").Append(playerMisses[i]);
+            for (int i = 0; i < otherMisses.Count; i++) sb.Append(i == 0 ? "; other misses: " : ", ").Append(otherMisses[i]);
             _log.LogInfo(sb.Append('.').ToString());
             return null;
         }
@@ -947,16 +957,21 @@ namespace ForestOverlay.Game
             return n;
         }
 
-        // Unmatched objects: counted, and those on the player named - they
-        // are what could still come back doubled.
+        // Unmatched objects: counted, and a few named - those on the player
+        // are what could still come back doubled; the rest say why the
+        // adoption missed (parent path and how many saved objects matched).
         private void Miss(Component u, Component top, Transform playerRoot, ref int unmatched, ref int playerUnmatched,
-                          List<string> names, int candidates)
+                          List<string> names, List<string> others, int candidates)
         {
             unmatched++;
-            if (!u.transform.IsChildOf(playerRoot)) return;
+            string why = candidates > 1 ? " (" + candidates + " candidates)" : candidates == 0 ? " (none)" : "";
+            if (!u.transform.IsChildOf(playerRoot))
+            {
+                if (others.Count < 6) others.Add(Path(u.transform) + why);
+                return;
+            }
             playerUnmatched++;
-            if (names.Count < 8)
-                names.Add(u.gameObject.name + (candidates > 1 ? " (" + candidates + " candidates)" : candidates == 0 ? " (none)" : ""));
+            if (names.Count < 8) names.Add(u.gameObject.name + why);
         }
 
         private static int Depth(Transform t)
@@ -966,7 +981,17 @@ namespace ForestOverlay.Game
             return d;
         }
 
-        private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names)
+        // Upgrade receivers are exempt. They are scene objects on the
+        // inventory's weapon views (UpgradeViewReceiver: _currentUpgrades,
+        // the implanted feathers/teeth/glass) and the game never removes
+        // one - OnDeserialized destroys only a stand-in the loader built
+        // (it has an EmptyObjectIdentifier). A savestate from another save
+        // could not match their per-game ids, and v0.22.x deleted 51 of them
+        // (author's log), which would leave the upgrade cog with nothing to
+        // implant into until a real load. Unmatched, they keep this game's
+        // upgrades; the save's own copies come back as stand-ins and destroy
+        // themselves.
+        private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names, ref int keptReceivers)
         {
             if (_allIdentifiers == null || _uidId == null) return 0;
 
@@ -988,6 +1013,7 @@ namespace ForestOverlay.Game
 
                 string id = ReadString(_uidId, u);
                 if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
+                if (_upgradeReceiverType != null && u.GetComponent(_upgradeReceiverType) != null) { keptReceivers++; continue; }
 
                 names.Add(u.gameObject.name);
                 CancelBuildMissions(u.gameObject);

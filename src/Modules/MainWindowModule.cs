@@ -48,6 +48,14 @@ namespace ForestOverlay.Modules
             map.Add("panel.main", KeyCode.F2, "Open ForestOverlay window", TogglePanel);
         }
 
+        /// True while the window is open on this module's tab.
+        public bool IsShowing(OverlayModule module)
+        {
+            if (!PanelOpen) return false;
+            List<OverlayModule> tabs = Host.Tabs();
+            return _active < tabs.Count && ReferenceEquals(tabs[_active], module);
+        }
+
         /// Opens the window focused on a given module's tab. Used by the
         /// optional per-feature hotkeys.
         public void OpenAt(OverlayModule module)

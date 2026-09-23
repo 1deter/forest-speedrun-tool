@@ -49,9 +49,8 @@ namespace ForestOverlay.Modules
         private int _otherRouteCount;
 
         private TriggerState _startState;
-        private TriggerState _endState;
-        private TriggerState[] _checkStates = new TriggerState[0];
-        private int _nextCheckpoint;
+        // Checkpoints in order, then the end - see Data/SplitSequence.
+        private readonly SplitSequence _sequence = new SplitSequence();
 
         private LiveItemCounts _live;
         private readonly ItemSnapshot _baseline = new ItemSnapshot();
@@ -176,15 +175,7 @@ namespace ForestOverlay.Modules
             // stops the start trigger going off while you are still standing
             // in the start zone after teleporting in.
             TriggerEvaluator.Reset(ref _startState);
-            TriggerEvaluator.Reset(ref _endState);
 
-            if (_checkStates.Length != _segment.Checkpoints.Count)
-                _checkStates = new TriggerState[_segment.Checkpoints.Count];
-
-            for (int i = 0; i < _checkStates.Length; i++)
-                TriggerEvaluator.Reset(ref _checkStates[i]);
-
-            _nextCheckpoint = 0;
             _splits.Clear();
             _deltaHint = 0;
             _eventsSeen = Ctx.Events.Count;
@@ -234,10 +225,16 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             BuildEventLine();
+            RefreshTabText();
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
             if (!Enabled) { ClearLines(); _eventsSeen = Ctx.Events.Count; return; }
+
+            // No segment = a plain spot: the last segment's lines went with
+            // it (runner report, v0.22.6: they stayed until practice mode was
+            // toggled).
+            if (_segment == null) ClearLines();
             if (!Ctx.Player.Found || _segment == null) { _eventsSeen = Ctx.Events.Count; return; }
 
             // The segment can be edited while armed. Re-arm against the
@@ -293,17 +290,50 @@ namespace ForestOverlay.Modules
                 // the start zone, so the run begins when you leave it.
                 if (TriggerEvaluator.Crossed(_segment.Start, ref _startState, pos, _live, firedEvent, _baseline))
                 {
-                    _recorder.ForceStart(pos);
+                    StartClock(pos);
                     _status = "running";
                 }
             }
             else if (_recorder.State == RunRecorder.RunState.Running)
             {
-                EvaluateCheckpoints(pos, firedEvent);
+                switch (_sequence.Evaluate(pos, _live, firedEvent, _baseline))
+                {
+                    case SplitEvent.Split:
+                        _splits.Add(_recorder.Elapsed);
+                        _status = "split " + _splits.Count + "/" + _segment.Checkpoints.Count +
+                                  "  " + Format(_recorder.Elapsed);
+                        Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _splits.Count + "/" +
+                                        _segment.Checkpoints.Count + " at " + Format(_recorder.Elapsed) + ".");
+                        break;
 
-                if (TriggerEvaluator.Fired(_segment.End, ref _endState, pos, _live, firedEvent, _baseline))
-                    FinishRun();
+                    case SplitEvent.EndBlocked:
+                        // Said, not silently ignored: a run that will not
+                        // finish looks exactly like a broken end trigger.
+                        _status = "end reached, but checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count +
+                                  " (" + _sequence.Current.Describe() + ") was not - the run goes on. F12 skips it.";
+                        Ctx.Log.LogInfo("Run '" + _segment.Id + "': end reached with checkpoint " + (_sequence.Next + 1) +
+                                        " (" + _sequence.Current.Describe() + ") outstanding" + ItemReading(_sequence.Current) + ".");
+                        break;
+
+                    case SplitEvent.Finished:
+                        FinishRun();
+                        break;
+                }
             }
+        }
+
+        private void StartClock(Vector3 pos)
+        {
+            _recorder.ForceStart(pos);
+            _sequence.Begin(_segment.Checkpoints, _segment.End);
+        }
+
+        // What an item trigger reads now - the log line a "checkpoint never
+        // fired" report needs.
+        private string ItemReading(Trigger t)
+        {
+            if (t.Kind != TriggerKind.Item) return "";
+            return "; holding " + _live.AmountOf(t.ItemId) + ", " + _baseline.AmountOf(t.ItemId) + " at the start";
         }
 
         private void BuildEventLine()
@@ -322,24 +352,6 @@ namespace ForestOverlay.Modules
                              ? " - " + GameEvents.LastDoor : "");
         }
 
-        private void EvaluateCheckpoints(Vector3 pos, string firedEvent)
-        {
-            // Checkpoints fire IN ORDER. Letting a later one fire early
-            // would let a route that happens to pass near it skip a split
-            // and silently produce an incomparable run.
-            if (_nextCheckpoint >= _segment.Checkpoints.Count) return;
-
-            if (!TriggerEvaluator.Fired(_segment.Checkpoints[_nextCheckpoint],
-                                        ref _checkStates[_nextCheckpoint], pos, _live, firedEvent, _baseline))
-                return;
-
-            _splits.Add(_recorder.Elapsed);
-            _nextCheckpoint++;
-
-            _status = "split " + _splits.Count + "/" + _segment.Checkpoints.Count +
-                      "  " + Format(_recorder.Elapsed);
-        }
-
         /// Manual split, or finish when all checkpoints are done. Lets a
         /// segment be driven by hand while its triggers are still being
         /// worked out.
@@ -347,9 +359,9 @@ namespace ForestOverlay.Modules
         {
             if (_recorder.State == RunRecorder.RunState.Armed)
             {
-                if (Ctx.Player.Found)
+                if (Ctx.Player.Found && _segment != null)
                 {
-                    _recorder.ForceStart(Ctx.Player.Transform.position);
+                    StartClock(Ctx.Player.Transform.position);
                     _status = "running (manual start)";
                 }
                 return;
@@ -357,11 +369,13 @@ namespace ForestOverlay.Modules
 
             if (_recorder.State != RunRecorder.RunState.Running) { _status = "no run armed"; return; }
 
-            if (_segment != null && _nextCheckpoint < _segment.Checkpoints.Count)
+            if (_segment != null && !_sequence.OnlyEndLeft)
             {
                 _splits.Add(_recorder.Elapsed);
-                _nextCheckpoint++;
+                _sequence.SkipCheckpoint();
                 _status = "split " + _splits.Count + " (manual)";
+                Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _splits.Count + " split by hand at " +
+                                Format(_recorder.Elapsed) + ".");
                 return;
             }
 
@@ -401,7 +415,12 @@ namespace ForestOverlay.Modules
 
             _loadedSegmentId = s.Id;
             _attempts.Clear();
+            _rowsDirty = true;
+            // Cleared here, not left to UpdateLines: a segment with no
+            // attempts has no reference either, and null == null never
+            // told UpdateLines the old segment's line had to go.
             _lineSource = null;
+            _referenceLine.Clear();
             _otherRouteCount = 0;
 
             // Attempts are keyed on the segment id so they can be
@@ -431,6 +450,7 @@ namespace ForestOverlay.Modules
 
         private void SelectReference()
         {
+            _rowsDirty = true;
             switch (_referenceKind)
             {
                 case Reference.Best:
@@ -478,10 +498,7 @@ namespace ForestOverlay.Modules
                 return;
             }
 
-            bool isEnd = _nextCheckpoint >= _segment.Checkpoints.Count;
-            Trigger next = isEnd ? _segment.End : _segment.Checkpoints[_nextCheckpoint];
-
-            _practice.SetRunPreview(next, isEnd ? 2 : 1);
+            _practice.SetRunPreview(_sequence.Current, _sequence.OnlyEndLeft ? 2 : 1);
         }
 
         private void ClearRunPreview()
@@ -560,8 +577,8 @@ namespace ForestOverlay.Modules
                 hud.Pair("Run", Format(_recorder.Elapsed) +
                                 (_hasDelta ? "   " + SignedDelta(_delta) : ""));
 
-                hud.Pair("Next", _nextCheckpoint < _segment.Checkpoints.Count
-                    ? "checkpoint " + (_nextCheckpoint + 1) + "/" + _segment.Checkpoints.Count
+                hud.Pair("Next", !_sequence.OnlyEndLeft
+                    ? "checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count
                     : "finish");
             }
             else
@@ -589,9 +606,7 @@ namespace ForestOverlay.Modules
             bool on = GUI.Toggle(new Rect(0, 2, 140, 20), Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
 
-            GUI.Label(new Rect(150, 2, w - 160, 20),
-                      _segment != null ? "Segment: " + _segment.Name
-                                       : "Pick a timed segment in the Practice tab");
+            GUI.Label(new Rect(150, 2, w - 160, 20), _segmentText);
 
             if (GUI.Button(new Rect(0, 28, 120, 24), "Restart")) Restart();
             if (GUI.Button(new Rect(126, 28, 120, 24), "Split / finish")) ManualAdvance();
@@ -611,20 +626,80 @@ namespace ForestOverlay.Modules
             // Flowing, each line as tall as its text (UiText) - these
             // messages vary in length and clipped at fixed heights.
             float y = 82f;
-            y += UiText.Draw(0, y, w, _status);
-            y += UiText.Draw(0, y, w, Diagnose());
-
-            if (_splits.Count > 0)
-            {
-                string line = "splits:";
-                for (int i = 0; i < _splits.Count; i++) line += "  " + Format(_splits[i]);
-                y += UiText.Draw(0, y, w, line);
-            }
-
-            y += UiText.Draw(0, y, w, _eventLine);
+            y += UiText.Draw(0, y, w, _statusText);
+            y += UiText.Draw(0, y, w, _diagnoseText);
+            y += UiText.Draw(0, y, w, _splitsText);
+            y += UiText.Draw(0, y, w, _eventText);
 
             y = Mathf.Max(y + 4f, 166f);
             DrawAttemptList(new Rect(0, y, w, _tabH - y - 4f));
+        }
+
+        // Tab text, rebuilt from Tick a few times a second - never in
+        // DrawTab, which runs several times a frame (module rules).
+        private const float TabTextInterval = 0.25f;
+        private float _nextTabText;
+        private readonly GUIContent _segmentText = new GUIContent("");
+        private readonly GUIContent _statusText = new GUIContent("");
+        private readonly GUIContent _diagnoseText = new GUIContent("");
+        private readonly GUIContent _splitsText = new GUIContent("");
+        private readonly GUIContent _eventText = new GUIContent("");
+        private readonly GUIContent _emptyListText = new GUIContent("");
+        private readonly List<GUIContent> _attemptRows = new List<GUIContent>();
+        private bool _rowsDirty = true;
+        private int _splitsShown = -1;
+
+        private void RefreshTabText()
+        {
+            if (_rowsDirty) RebuildAttemptRows();
+            // At once: it answers a click.
+            if (!ReferenceEquals(_statusText.text, _status)) _statusText.text = _status;
+            if (Time.unscaledTime < _nextTabText) return;
+            _nextTabText = Time.unscaledTime + TabTextInterval;
+
+            _segmentText.text = _segment != null ? "Segment: " + _segment.Name
+                                                 : "Pick a timed segment in the Practice tab";
+            _diagnoseText.text = Diagnose();
+            _eventText.text = _eventLine;
+
+            if (_splitsShown != _splits.Count)
+            {
+                _splitsShown = _splits.Count;
+                if (_splits.Count == 0) _splitsText.text = "";
+                else
+                {
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder("splits:");
+                    for (int i = 0; i < _splits.Count; i++) sb.Append("  ").Append(Format(_splits[i]));
+                    _splitsText.text = sb.ToString();
+                }
+            }
+        }
+
+        private void RebuildAttemptRows()
+        {
+            _rowsDirty = false;
+            Attempt best = RunCompare.Best(_attempts);
+
+            for (int i = 0; i < _attempts.Count; i++)
+            {
+                Attempt a = _attempts[i];
+                string row = "#" + (i + 1) + "   " + Format(a.Duration) +
+                             "   max " + a.TopSpeed.ToString("F1") + " u/s" +
+                             (ReferenceEquals(a, best) ? "   BEST" : "") +
+                             (ReferenceEquals(a, _reference) ? "   [ref]" : "");
+                if (i < _attemptRows.Count) _attemptRows[i].text = row;
+                else _attemptRows.Add(new GUIContent(row));
+            }
+
+            if (_attempts.Count == 0)
+                _emptyListText.text = _otherRouteCount > 0
+                    ? "No attempts on this route yet. " + _otherRouteCount +
+                      " saved time(s) belong to an earlier version of it."
+                    : "No attempts yet for this segment.";
+            else
+                _emptyListText.text = _otherRouteCount > 0
+                    ? _otherRouteCount + " older time(s) hidden - recorded before this route changed"
+                    : "";
         }
 
         /// Says WHY a run is not progressing. A silent "nothing
@@ -650,7 +725,10 @@ namespace ForestOverlay.Modules
             }
 
             if (_recorder.State == RunRecorder.RunState.Running)
-                return "running - end is " + _segment.End.Describe();
+                return _sequence.OnlyEndLeft
+                    ? "running - end is " + _segment.End.Describe()
+                    : "running - next is checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count +
+                      ", " + _sequence.Current.Describe() + " (the end waits for it)";
 
             return "idle - Restart to arm";
         }
@@ -664,6 +742,7 @@ namespace ForestOverlay.Modules
         private void ClearTimes()
         {
             _attempts.Clear();
+            _rowsDirty = true;
             SelectReference();
             ClearLines();
             _status = "times cleared from view (files kept)";
@@ -676,39 +755,20 @@ namespace ForestOverlay.Modules
             Rect content = new Rect(0, 0, listRect.width - 20f, _attempts.Count * rowH + 4f);
             _scroll = GUI.BeginScrollView(listRect, _scroll, content);
 
-            Attempt best = RunCompare.Best(_attempts);
-
-            for (int i = 0; i < _attempts.Count; i++)
+            int rows = Mathf.Min(_attempts.Count, _attemptRows.Count);
+            for (int i = 0; i < rows; i++)
             {
-                Attempt a = _attempts[i];
                 float y = i * rowH;
                 if (y + rowH < _scroll.y || y > _scroll.y + listRect.height) continue;
-
-                string row = "#" + (i + 1) + "   " + Format(a.Duration) +
-                             "   max " + a.TopSpeed.ToString("F1") + " u/s" +
-                             (ReferenceEquals(a, best) ? "   BEST" : "") +
-                             (ReferenceEquals(a, _reference) ? "   [ref]" : "");
-
-                GUI.Label(new Rect(4, y, content.width - 8, rowH), row, _rowStyle);
+                GUI.Label(new Rect(4, y, content.width - 8, rowH), _attemptRows[i], _rowStyle);
             }
 
             GUI.EndScrollView();
 
             if (_attempts.Count == 0)
-            {
-                GUI.Label(new Rect(listRect.x + 4, listRect.y + 4, listRect.width - 8, 40),
-                          _otherRouteCount > 0
-                              ? "No attempts on this route yet. " + _otherRouteCount +
-                                " saved time(s) belong to an earlier version of it."
-                              : "No attempts yet for this segment.",
-                          _rowStyle);
-            }
-            else if (_otherRouteCount > 0)
-            {
-                GUI.Label(new Rect(listRect.x + 4, listRect.yMax - 20f, listRect.width - 8, 20f),
-                          _otherRouteCount + " older time(s) hidden - recorded before this route changed",
-                          _rowStyle);
-            }
+                UiText.Draw(listRect.x + 4, listRect.y + 4, listRect.width - 8, _emptyListText);
+            else if (_emptyListText.text.Length > 0)
+                UiText.Draw(listRect.x + 4, listRect.yMax - 20f, listRect.width - 8, _emptyListText);
         }
 
         // ------------------------------------------------------------------

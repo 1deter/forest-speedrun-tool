@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
+    <Compile Include="../../src/Data/SplitSequence.cs" Link="Linked/SplitSequence.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />
     <Compile Include="../../src/Data/VolumeFilter.cs" Link="Linked/VolumeFilter.cs" />

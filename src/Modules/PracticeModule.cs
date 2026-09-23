@@ -618,8 +618,8 @@ namespace ForestOverlay.Modules
 
             // --- spawn -----------------------------------------------------
             GUI.Label(new Rect(0, y, 74, 20), "Spawn");
-            GUI.Label(new Rect(80, y, cw - 220, 20),
-                      s.HasSpawn ? Coords(s.SpawnPosition) : "(none - cannot teleport here)");
+            if (s.HasSpawn) GUI.Label(new Rect(80, y, cw - 220, 20), CoordsLabel(SpawnSlot, 0, s.SpawnPosition));
+            else GUI.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
 
             if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
 
@@ -648,7 +648,7 @@ namespace ForestOverlay.Modules
                 {
                     Trigger t = s.Checkpoints[i];
                     float before = y;
-                    y = DrawTrigger(y, cw, "Check " + (i + 1), ref t, i);
+                    y = DrawTrigger(y, cw, CheckName(i), ref t, i);
                     s.Checkpoints[i] = t;
 
                     if (GUI.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
@@ -714,7 +714,7 @@ namespace ForestOverlay.Modules
             {
                 case TriggerKind.Zone:
                     {
-                        GUI.Label(new Rect(x0, y, w - x0 - 70f, 20), Coords(t.Position));
+                        GUI.Label(new Rect(x0, y, w - x0 - 70f, 20), CoordsLabel(slot, 0, t.Position));
 
                         if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
                         {
@@ -723,8 +723,8 @@ namespace ForestOverlay.Modules
                         }
                         y += 24f;
 
-                        if (t.Shape == ZoneShape.Box) y = BoxFields(y, w, x0, ref t);
-                        else y = SphereFields(y, w, x0, ref t);
+                        if (t.Shape == ZoneShape.Box) y = BoxFields(y, w, x0, ref t, slot);
+                        else y = SphereFields(y, w, x0, ref t, slot);
                         break;
                     }
 
@@ -795,9 +795,9 @@ namespace ForestOverlay.Modules
             return label;
         }
 
-        private float SphereFields(float y, float w, float x0, ref Trigger t)
+        private float SphereFields(float y, float w, float x0, ref Trigger t, int slot)
         {
-            GUI.Label(new Rect(x0, y, 110f, 20), "radius " + t.Radius.ToString("F1") + "m");
+            GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, 1, "radius", t.Radius));
 
             float sliderX = x0 + 114f;
             float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
@@ -807,27 +807,27 @@ namespace ForestOverlay.Modules
             return y + 26f;
         }
 
-        private float BoxFields(float y, float w, float x0, ref Trigger t)
+        private float BoxFields(float y, float w, float x0, ref Trigger t, int slot)
         {
             Vector3 e = t.Extents;
             if (e.x <= 0f && e.y <= 0f && e.z <= 0f) e = new Vector3(3f, 3f, 3f);
 
             // Shown as full size because "width 6m" is what a player can
             // pace out; extents are the half-size the maths wants.
-            e.x = ExtentSlider(y, w, x0, "width", e.x);
+            e.x = ExtentSlider(y, w, x0, slot, 2, "width", e.x);
             y += 24f;
-            e.y = ExtentSlider(y, w, x0, "height", e.y);
+            e.y = ExtentSlider(y, w, x0, slot, 3, "height", e.y);
             y += 24f;
-            e.z = ExtentSlider(y, w, x0, "depth", e.z);
+            e.z = ExtentSlider(y, w, x0, slot, 4, "depth", e.z);
             y += 26f;
 
             if (e != t.Extents) { t.Extents = e; Touch(); }
             return y;
         }
 
-        private float ExtentSlider(float y, float w, float x0, string label, float value)
+        private float ExtentSlider(float y, float w, float x0, int slot, int field, string label, float value)
         {
-            GUI.Label(new Rect(x0, y, 110f, 20), label + " " + (value * 2f).ToString("F1") + "m");
+            GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
 
             float sliderX = x0 + 114f;
             return GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
@@ -837,10 +837,7 @@ namespace ForestOverlay.Modules
         // Item triggers search by NAME, because nobody knows item ids.
         private float ItemFields(float y, float w, float x0, ref Trigger t, int slot)
         {
-            string current = Ctx.Inventory.NameForId(t.ItemId);
-
-            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20),
-                      "item " + t.ItemId + (current != null ? "  -  " + current : ""));
+            GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), ItemLabel(slot, t.ItemId));
             y += 24f;
 
             bool searching = _itemSearchTarget == slot;
@@ -850,6 +847,7 @@ namespace ForestOverlay.Modules
                 _itemSearchTarget = searching ? -1 : slot;
                 _itemQuery = "";
                 _itemResults.Clear();
+                RebuildItemResultLabels();
             }
 
             if (GUI.Button(new Rect(x0 + 76f, y - 2f, 44f, 22f), Trigger.OpText(t.Compare)))
@@ -858,9 +856,13 @@ namespace ForestOverlay.Modules
                 Touch();
             }
 
-            string amtText = GUI.TextField(new Rect(x0 + 126f, y - 2f, 50f, 22f), t.Amount.ToString());
-            int parsedAmt;
-            if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
+            string amtText = GUI.TextField(new Rect(x0 + 126f, y - 2f, 50f, 22f), AmountText(slot, t.Amount));
+            if (!ReferenceEquals(amtText, AmountText(slot, t.Amount)))
+            {
+                _amountText[slot] = amtText;
+                int parsedAmt;
+                if (int.TryParse(amtText, out parsedAmt) && parsedAmt != t.Amount) { t.Amount = parsedAmt; Touch(); }
+            }
 
             bool rel = GUI.Toggle(new Rect(x0 + 184f, y, 100f, 20), t.Relative, " relative");
             if (rel != t.Relative) { t.Relative = rel; Touch(); }
@@ -883,13 +885,13 @@ namespace ForestOverlay.Modules
             {
                 _itemQuery = q;
                 Ctx.Inventory.SearchItems(q, _itemResults, 8);
+                RebuildItemResultLabels();
             }
             y += 26f;
 
-            for (int i = 0; i < _itemResults.Count; i++)
+            for (int i = 0; i < _itemResults.Count && i < _itemResultLabels.Count; i++)
             {
-                if (GUI.Button(new Rect(x0 + 10f, y, w - x0 - 20f, 20f),
-                               _itemResults[i].Name + "   (" + _itemResults[i].Id + ")", _rowStyle))
+                if (GUI.Button(new Rect(x0 + 10f, y, w - x0 - 20f, 20f), _itemResultLabels[i], _rowStyle))
                 {
                     t.ItemId = _itemResults[i].Id;
                     _itemSearchTarget = -1;
@@ -904,9 +906,7 @@ namespace ForestOverlay.Modules
             {
                 // Distinguishes "nothing matched" from "the catalogue never
                 // loaded", which previously looked identical.
-                GUI.Label(new Rect(x0 + 10f, y, w - x0 - 20f, 20f),
-                          "no matches  (" + Ctx.Inventory.CatalogStatus + ")", _dimStyle);
-                y += 21f;
+                y += UiText.DrawDim(x0 + 10f, y, w - x0 - 20f, _noMatchesLabel);
             }
 
             return y + 4f;
@@ -1218,6 +1218,93 @@ namespace ForestOverlay.Modules
             if (Ctx.Player.Found) { p = Ctx.Player.Transform.position; return true; }
             p = Vector3.zero;
             return false;
+        }
+
+        // --- labels ------------------------------------------------------
+        // Numbers the editor shows, formatted only when they change: doing
+        // it inline allocated on every OnGUI pass, several times a frame.
+        // Keyed by trigger slot (-2 start, -3 end, >= 0 checkpoint, -4 the
+        // spawn) and field.
+        private const int SpawnSlot = -4;
+
+        private sealed class NumLabel
+        {
+            public bool Set;
+            public Vector3 Value;
+            public readonly GUIContent Content = new GUIContent("");
+        }
+
+        private readonly Dictionary<int, NumLabel> _numLabels = new Dictionary<int, NumLabel>();
+        private readonly Dictionary<int, string> _amountText = new Dictionary<int, string>();
+        private readonly List<string> _checkNames = new List<string>();
+        private readonly List<GUIContent> _itemResultLabels = new List<GUIContent>();
+        private readonly GUIContent _noMatchesLabel = new GUIContent("");
+
+        private NumLabel Num(int slot, int field, Vector3 value, out bool changed)
+        {
+            int key = (slot + 8) * 8 + field;
+            NumLabel l;
+            if (!_numLabels.TryGetValue(key, out l)) _numLabels[key] = l = new NumLabel();
+            changed = !l.Set || l.Value != value;
+            l.Set = true;
+            l.Value = value;
+            return l;
+        }
+
+        private GUIContent CoordsLabel(int slot, int field, Vector3 v)
+        {
+            bool changed;
+            NumLabel l = Num(slot, field, v, out changed);
+            if (changed) l.Content.text = Coords(v);
+            return l.Content;
+        }
+
+        /// `name` must be the same text every call for a given slot/field.
+        private GUIContent MetresLabel(int slot, int field, string name, float metres)
+        {
+            bool changed;
+            NumLabel l = Num(slot, field, new Vector3(metres, 0f, 0f), out changed);
+            if (changed) l.Content.text = name + " " + metres.ToString("F1") + "m";
+            return l.Content;
+        }
+
+        // The item's name arrives once the catalogue loads, so it is part
+        // of what is compared.
+        private GUIContent ItemLabel(int slot, int itemId)
+        {
+            string name = Ctx.Inventory.NameForId(itemId);
+            bool changed;
+            NumLabel l = Num(slot, 5, new Vector3(itemId, name != null ? 1f : 0f, 0f), out changed);
+            if (changed) l.Content.text = "item " + itemId + (name != null ? "  -  " + name : "");
+            return l.Content;
+        }
+
+        private string AmountText(int slot, int amount)
+        {
+            string text;
+            int parsed;
+            if (_amountText.TryGetValue(slot, out text) &&
+                (!int.TryParse(text, out parsed) || parsed == amount))
+                return text;   // what was typed, even half-typed
+            _amountText[slot] = text = amount.ToString();
+            return text;
+        }
+
+        private string CheckName(int i)
+        {
+            while (_checkNames.Count <= i) _checkNames.Add("Check " + (_checkNames.Count + 1));
+            return _checkNames[i];
+        }
+
+        private void RebuildItemResultLabels()
+        {
+            for (int i = 0; i < _itemResults.Count; i++)
+            {
+                string text = _itemResults[i].Name + "   (" + _itemResults[i].Id + ")";
+                if (i < _itemResultLabels.Count) _itemResultLabels[i].text = text;
+                else _itemResultLabels.Add(new GUIContent(text));
+            }
+            _noMatchesLabel.text = "no matches  (" + Ctx.Inventory.CatalogStatus + ")";
         }
 
         private static string Coords(Vector3 v)

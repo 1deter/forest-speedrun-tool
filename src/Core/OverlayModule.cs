@@ -87,6 +87,19 @@ namespace ForestOverlay.Core
             if (main != null) main.OpenAt(this);
         }
 
+        /// True while the main window is open on this module's tab - for a
+        /// Tick that only needs to rebuild what the tab shows. PanelOpen is
+        /// about a module's OWN window and is never set for a tab.
+        protected bool TabShowing
+        {
+            get
+            {
+                if (Host == null) return false;
+                Modules.MainWindowModule main = Host.Find<Modules.MainWindowModule>();
+                return main != null && main.IsShowing(this);
+            }
+        }
+
         public virtual void Initialise(ModuleContext ctx) { Ctx = ctx; }
 
         /// Called once per frame from Update. Do reflection and string

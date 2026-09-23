@@ -75,6 +75,12 @@ namespace ForestOverlay.Modules
         private readonly List<GUIContent> _diagLabels = new List<GUIContent>();
 
         private GUIContent _status = new GUIContent("");
+
+        // Which buttons the status line answers, so it is drawn under them
+        // (UI rule: a message goes where the click was). Top = started from
+        // elsewhere (a Practice restart), or a timeout.
+        private enum Anchor { Top, Capture, List, Slot, Pickups }
+        private Anchor _anchor = Anchor.Top;
         private GUIContent _slotLabel = new GUIContent("");
         private GUIContent _bindLabel = new GUIContent("");
         private GUIContent _dirLabel = new GUIContent("");
@@ -195,6 +201,7 @@ namespace ForestOverlay.Modules
 
         private void Capture()
         {
+            _anchor = Anchor.Capture;
             CaptureTo(_name, null, null);
         }
 
@@ -285,6 +292,7 @@ namespace ForestOverlay.Modules
 
         private void RestoreSelectedInPlace()
         {
+            _anchor = Anchor.List;
             SavestateFile f = LoadSelected();
             if (f == null) return;
 
@@ -297,6 +305,7 @@ namespace ForestOverlay.Modules
 
         private void RestoreSelectedWithLoad()
         {
+            _anchor = Anchor.List;
             SavestateFile f = LoadSelected();
             if (f == null || _busy) return;
 
@@ -311,6 +320,7 @@ namespace ForestOverlay.Modules
 
         private void SlotInPlace()
         {
+            _anchor = Anchor.Slot;
             string error;
             string data = _bridge.ReadSlotData(out error);
             if (data == null)
@@ -328,6 +338,7 @@ namespace ForestOverlay.Modules
         private void SlotWithoutMenu()
         {
             if (_busy) return;
+            _anchor = Anchor.Slot;
             Ctx.Practice.Mark("savestate slot load");
             PickupKeeper.Armed = true;
             string err = _bridge.LoadSlotWithoutMenu();
@@ -443,6 +454,7 @@ namespace ForestOverlay.Modules
         /// changes its route fingerprint; saving the segment is the caller's.
         public void CaptureStartState(Segment s, Action<string> done)
         {
+            _anchor = Anchor.Top;
             CaptureTo("start of " + s.Name + " (" + s.Id + ")", StartStatePath(s), delegate(string error)
             {
                 if (error == null)
@@ -474,6 +486,7 @@ namespace ForestOverlay.Modules
         public void RestoreStartState(Segment s, Action<string> done)
         {
             if (Busy) { done("a savestate action is still running"); return; }
+            _anchor = Anchor.Top;
 
             SavestateFile f;
             try
@@ -534,6 +547,7 @@ namespace ForestOverlay.Modules
 
         private void CheckPickups()
         {
+            _anchor = Anchor.Pickups;
             int id;
             if (!int.TryParse(_itemIdText.Trim(), out id)) { SetStatus("item id must be a number"); return; }
 
@@ -549,6 +563,7 @@ namespace ForestOverlay.Modules
         private void DeleteSelected()
         {
             if (_selected < 0 || _selected >= _files.Count) return;
+            _anchor = Anchor.List;
 
             if (Time.unscaledTime > _deleteArmedUntil)
             {
@@ -633,6 +648,15 @@ namespace ForestOverlay.Modules
         private void SetStatus(string s)
         {
             _status = new GUIContent(s);
+
+            // A savestate hotkey with the window closed: the answer goes on
+            // screen. Practice restarts (Top) say their own piece there.
+            if (_anchor != Anchor.Top && Host != null && !Host.AnyPanelOpen()) Ctx.Notice.Show(s, 5f);
+        }
+
+        private float StatusIf(Anchor a, float y, float w)
+        {
+            return _anchor == a ? UiText.Draw(0, y, w, _status) + 4f : 0f;
         }
 
         // ------------------------------------------------------------------
@@ -645,6 +669,7 @@ namespace ForestOverlay.Modules
 
             float y = 4f;
             y += UiText.Draw(0, y, w, Warning) + 4f;
+            y += StatusIf(Anchor.Top, y, w);
 
             bool cross = GUI.Toggle(new Rect(0, y, w, 22), _allowCrossMode.Value,
                                     " Allow restoring across Creative and survival (testing)");
@@ -658,7 +683,9 @@ namespace ForestOverlay.Modules
             GUI.enabled = !_busy;
             if (GUI.Button(new Rect(0, y, 200, 24), "Capture here")) Capture();
             GUI.enabled = true;
-            y += 32f;
+            y += 28f;
+            y += StatusIf(Anchor.Capture, y, w);
+            y += 4f;
 
             // Saved states
             y += UiText.Draw(0, y, w, _dirLabel);
@@ -683,7 +710,9 @@ namespace ForestOverlay.Modules
             y += 28f;
             if (GUI.Button(new Rect(0, y, 120, 22), Time.unscaledTime <= _deleteArmedUntil ? "Delete - sure?" : "Delete")) DeleteSelected();
             GUI.enabled = true;
-            y += 32f;
+            y += 28f;
+            y += StatusIf(Anchor.List, y, w);
+            y += 4f;
 
             // The slot the game is running on
             y += UiText.Draw(0, y, w, _slotLabel);
@@ -692,19 +721,21 @@ namespace ForestOverlay.Modules
             y += 28f;
             if (GUI.Button(new Rect(0, y, 260, 24), "Load slot save without the menu")) SlotWithoutMenu();
             GUI.enabled = true;
-            y += 32f;
+            y += 28f;
+            y += StatusIf(Anchor.Slot, y, w);
+            y += 4f;
 
             // Diagnostics
             GUI.Label(new Rect(0, y, 60, 22), "Item id");
             _itemIdText = GUI.TextField(new Rect(62, y, 60, 22), _itemIdText ?? "");
             if (GUI.Button(new Rect(130, y, 130, 22), "Check pickups")) CheckPickups();
             y += 28f;
+            y += StatusIf(Anchor.Pickups, y, w);
             for (int i = 0; i < _diagLabels.Count; i++)
                 y += UiText.Draw(8, y, w - 8, _diagLabels[i]);
 
             y += 6f;
-            y += UiText.Draw(0, y, w, _status);
-            y += UiText.Draw(0, y, w, _bindLabel);
+            y += UiText.DrawDim(0, y, w, _bindLabel);
             _contentHeight = y + 8f;
 
             GUI.EndScrollView();

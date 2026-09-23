@@ -37,8 +37,6 @@ namespace ForestOverlay.Modules
         private readonly List<string> _watch = new List<string>();
         private readonly List<string> _watchLines = new List<string>();
 
-        private Rect _windowRect;
-        private bool _windowPlaced;
         private Vector2 _scroll;
         private string _filter = "";
 
@@ -51,18 +49,27 @@ namespace ForestOverlay.Modules
         private readonly List<GUIContent> _rowLabels = new List<GUIContent>();
         private static readonly GUIContent PinMark = new GUIContent("*");
 
+        // Stack indices that pass the filter, rebuilt with the rows or when
+        // the filter changes - lowercasing every name on every OnGUI pass
+        // allocated for as long as the tab was open.
+        private readonly List<int> _shown = new List<int>();
+        private string _shownFilter = "";
+        private bool _wasShowing;
+
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("tab.inventory", KeyCode.None, "Open Inventory tab", OpenMyTab);
         }
 
-        private void Toggle()
-        {
-            TogglePanel();
-        }
-
         public override void Tick()
         {
+            // The first frame on the tab refreshes at once: it opened empty
+            // until Refresh was clicked (author, v0.22.6) - rows were only
+            // rebuilt behind PanelOpen, which a tab never sets.
+            bool showing = TabShowing;
+            if (showing && !_wasShowing) _nextRefresh = 0f;
+            _wasShowing = showing;
+
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
@@ -74,7 +81,7 @@ namespace ForestOverlay.Modules
             _total = Ctx.Inventory.TotalItems;
             _stackCount = Ctx.Inventory.TotalStacks;
 
-            if (PanelOpen) RebuildRowLabels();
+            if (showing) RebuildRowLabels();
 
             RefreshTitle();
             RebuildWatchLines();
@@ -93,6 +100,19 @@ namespace ForestOverlay.Modules
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
             }
+
+            RebuildShown();
+        }
+
+        private void RebuildShown()
+        {
+            _shownFilter = _filter;
+            string lower = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
+            IList<ItemStack> stacks = Ctx.Inventory.Stacks;
+
+            _shown.Clear();
+            for (int i = 0; i < stacks.Count && i < _rowLabels.Count; i++)
+                if (Matches(stacks[i], lower)) _shown.Add(i);
         }
 
         private void RebuildWatchLines()
@@ -142,14 +162,15 @@ namespace ForestOverlay.Modules
         }
 
         // Rebuilt on the throttle, not in OnGUI.
-        private readonly GUIContent _windowTitle = new GUIContent("Inventory");
+        private readonly GUIContent _summary = new GUIContent("");
 
         private void RefreshTitle()
         {
-            _windowTitle.text = Ctx.Inventory.Available
-                ? "Inventory  -  " + _total + " items in " + _stackCount + " stacks" +
-                  (Ctx.Inventory.FilteredOut > 0 ? "  (" + Ctx.Inventory.FilteredOut + " filtered)" : "")
-                : "Inventory  -  not resolved";
+            _summary.text = (Ctx.Inventory.Available
+                ? _total + " items in " + _stackCount + " stacks" +
+                  (Ctx.Inventory.FilteredOut > 0 ? " (" + Ctx.Inventory.FilteredOut + " filtered)" : "")
+                : "inventory not resolved - load a game") +
+                (_watch.Count > 0 ? "   |   pinned: " + _watch.Count : "   |   click a row to pin it to the HUD");
         }
 
         private void DrawContents(int id)
@@ -165,6 +186,7 @@ namespace ForestOverlay.Modules
             _filter = GUI.TextField(new Rect(58, 26, 200, 22), _filter);
 
             if (GUI.Button(new Rect(266, 26, 56, 22), "Clear")) _filter = "";
+            if (!ReferenceEquals(_filter, _shownFilter)) RebuildShown();
             if (GUI.Button(new Rect(326, 26, 64, 22), "Refresh"))
             {
                 Ctx.Inventory.Refresh();
@@ -193,9 +215,9 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            GUI.Label(new Rect(272, 52, 120, 20), "pinned: " + _watch.Count);
+            float y = 76f + UiText.Draw(10, 76, _tabW - 20, _summary);
 
-            Rect listRect = new Rect(8, 76, _tabW - 16, _tabH - 86);
+            Rect listRect = new Rect(8, y, _tabW - 16, _tabH - y - 10);
             DrawList(listRect);
 
         }
@@ -203,15 +225,8 @@ namespace ForestOverlay.Modules
         private void DrawList(Rect listRect)
         {
             IList<ItemStack> stacks = Ctx.Inventory.Stacks;
-            string filter = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
 
-            // Count matches first so the scroll view gets a correct height
-            // without building a temporary list every pass.
-            int matches = 0;
-            for (int i = 0; i < stacks.Count; i++)
-                if (Matches(stacks[i], filter)) matches++;
-
-            Rect content = new Rect(0, 0, listRect.width - 20f, matches * RowHeight);
+            Rect content = new Rect(0, 0, listRect.width - 20f, _shown.Count * RowHeight);
             _scroll = GUI.BeginScrollView(listRect, _scroll, content);
 
             // Virtualised: only rows inside the viewport are drawn. Drawing
@@ -220,15 +235,11 @@ namespace ForestOverlay.Modules
             int first = Mathf.Max(0, (int)(_scroll.y / RowHeight) - 1);
             int visible = (int)(listRect.height / RowHeight) + 3;
 
-            int row = 0;
-            for (int i = 0; i < stacks.Count; i++)
+            int last = Mathf.Min(_shown.Count - 1, first + visible);
+            for (int thisRow = first; thisRow <= last; thisRow++)
             {
-                if (!Matches(stacks[i], filter)) continue;
-
-                int thisRow = row++;
-                if (thisRow < first || thisRow > first + visible) continue;
-
-                if (i >= _rowLabels.Count) continue;
+                int i = _shown[thisRow];
+                if (i >= stacks.Count || i >= _rowLabels.Count) continue;
 
                 Rect r = new Rect(16f, thisRow * RowHeight, content.width - 16f, RowHeight);
 
@@ -263,6 +274,7 @@ namespace ForestOverlay.Modules
             if (_watch.Contains(key)) _watch.Remove(key);
             else _watch.Add(key);
             RebuildWatchLines();
+            RefreshTitle();
         }
     }
 }

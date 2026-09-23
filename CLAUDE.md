@@ -374,8 +374,8 @@ identity.
 
 ## Current status
 
-**Released: v0.22.6** (2026-09-23). The author runs it via the in-game updater.
-**174 tests.**
+**Released: v0.22.7** (2026-09-23). The author runs it via the in-game updater.
+**186 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -509,6 +509,18 @@ buttons (one leftover — the Name box edge — fixed in v0.22.4).
   with attempts asks for a second click and names the count; the Runs tab
   then shows them as "from another route". Log: `Savestate: start state of
   '<id>' is now <hash> - route <fp>.`
+- **Checkpoints in order** (v0.22.7, `Data/SplitSequence`): the end no
+  longer finishes a run with a checkpoint outstanding (it says so and F12
+  skips it), and a checkpoint already satisfied when it becomes current
+  (keycard already held, standing in its zone) fires at once. Log:
+  `Run '<id>': checkpoint n/m at mm:ss`, `... end reached with checkpoint n
+  (...) outstanding; holding x, y at the start`. The runner's keycard case
+  (`210 >= 1` bypassed after a quick reload) is the one to re-test.
+- **Run lines cleared** when going to a plain spot or another segment
+  (v0.22.7); **Inventory tab** filled on first open (v0.22.7).
+- **Weapon-upgrade receivers kept** on a cross-save restore (v0.22.7): the
+  restore line says `kept N weapon-upgrade receiver(s)`, and the adoption
+  line lists `other misses:` - read it to see why they did not adopt.
 - **Whether a timed run still arms after an F7 restore** — runs do not log
   arming; add a log line if it is ever in doubt.
 - **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2).
@@ -537,6 +549,20 @@ buttons (one leftover — the Name box edge — fixed in v0.22.4).
   should send a `natureguide_*.txt` from the 100% tab's **Write dumps**.
 - **Installs older than v0.16.2 cannot download updates**; older than
   v0.19.2 can hit the post-release 404 (click Download again later).
+- **A renamed plugin never updates** *(runner)*: a browser saved the DLL as
+  `ForestOverlay(1).dll`; the download is staged as
+  `ForestOverlay(1).dll.pending`, which the patcher does not install, so
+  the same update is offered every launch. Workaround: rename it to
+  `ForestOverlay.dll`. Fix planned (patcher or plugin should handle any
+  name).
+- **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
+  about 30 in-place restores of a sinkhole start state, each after a fall
+  death + revive, then the first **load** restore started **from a death**
+  (`Restart ... with a load` right after `Death: revived from a fall`), and
+  the log ends. Every earlier load restore in these logs came from F7, not a
+  death. Unknown whether it is the death path or the degraded session
+  (in-place restores at 450 -> 975 ms by then). Needs the Unity log
+  (`TheForest_Data/output_log.txt`, replaced each launch) if it recurs.
 
 ### Next up
 
@@ -554,7 +580,17 @@ list so we can move onto expanding more features".
    **~128 MB kept and +0.5 s per load**; in-place restores slowed from
    ~135 ms to 200–500 ms after one quick-load. Only load *restores* log it
    today (`Loads this session: N, Mono heap after GC X MB`, in
-   `SavestateModule`). **Next:**
+   `SavestateModule`). **Runner logs of 2026-09-23 (v0.22.5/6):** 20 load
+   restores in a row: heap 340 -> 2293 MB, **~103 MB kept per load, every
+   load**, 6.4 -> 15.2 s to in game; `worst` frame 1 -> 4 s. Then **two menu
+   loads (title screen) brought it back to ~600 MB** - the title scene
+   releases most of it, the same-scene reload (`LoadSavedLevel`/`Resume`)
+   does not. In-place restores degrade too: 149 ms -> 2 s over a session,
+   450 -> 975 ms over ~30 restores in a fresh one, fps 160 -> 106. The
+   author: the leak predates the tool and hits every load (menu loads, cave
+   streaming) - runners used to quit to the menu. Working theory: a larger
+   Mono heap makes every GC (non-generational, marks everything) slower, so
+   everything allocation-heavy slows with it. **Next:**
    - log that line for **every** load — hook the game's own load completion
      (quick-load, menu load, load restore) rather than one module;
    - add a one-off object census per load (`Resources.FindObjectsOfTypeAll`
@@ -617,9 +653,62 @@ list so we can move onto expanding more features".
    vs yours (look at Momentum Mod); 3D terrain from the `Terrain` heightmap,
    caves need a geometry dump; scrub bar and annotations.
 7. **TAS** — exploratory only. Builds on savestates and the recorder.
-8. Runs tab layout (it still builds strings in `DrawTab`, against the
-   module rules), Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`),
-   freeform zone shapes.
+8. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
+   zone shapes.
+
+### Deferred runner feedback (voice call, 2026-09-23)
+
+Collected by the author testing v0.22.6 with a runner. **Deferred** until
+Next up is done (author: finish the list, then QoL/UX), unless critical.
+Already fixed in v0.22.7: checkpoints bypassed, stale run lines, Inventory
+tab empty on first open.
+
+Savestates (fold into Next up 2):
+- **The survival book's page** is not kept by an in-place restore, and a
+  load restore resets it. Savestates should keep the page; a **quick-load**
+  (death) should reset it to the game's default opening page (a saved page
+  is not default behaviour - bad for realistic practice).
+- **Falling state carries over**: restoring while in mid-air keeps the fall
+  and deals landing damage. Zero velocity / fall state on restore.
+- **Lab + hellcave not restored, even with a load**: after the red elevator
+  loaded the overlook area, the last lab section (collision loaded,
+  invisible) must stay as it was at capture - runners do that part "blind".
+- Optional: time of day restored without cycling through the night.
+- **Stats-only start state**: carry over only player stats (thirst, hunger,
+  stamina, energy) so a revive is instant (even an in-place restore freezes
+  briefly).
+- **Checkpoint savestates** ("saveloc", like KSF surf): reload from the last
+  checkpoint of a mapped route. Problem: capturing on the fly without a
+  hitch.
+
+Deaths / UX:
+- **Revive is confusing**, worse with practice mode on and another spot
+  selected. Wants one clear choice of what a death does: quick-load, restore
+  the start state (in place / load), revive, or reload the whole save.
+
+Runs:
+- Checkpoint **boxes should rotate**; new ones could face the look direction.
+- Hide zones individually, or show only the next one.
+- Runs tab: when each time was set, more detail; the HUD should show the
+  **previous** time, not only the best.
+- **Runs continue at the main menu** - abort / invalidate automatically.
+- Ghost: a custom model; buildings in the replay (a ghost of what was built).
+
+Settings / HUD:
+- **Settings do not persist** (run lines etc. re-toggled every launch) -
+  persist all of them.
+- More control over the top-left HUD; remove duplicated clutter (UX pass).
+
+Debug views:
+- More detailed colliders (hitboxes); a better collider filter - items share
+  generic names.
+- Investigate colliders that change between attempts and make no-fall-damage
+  tech inconsistent (cave drop, rebreather cave stalagmite drop, keycard cave
+  body slide, wall climbs - landing on bodies a certain way makes wall climbs
+  consistent).
+
+Updates:
+- `ForestOverlay(1).dll` never updates (see Open threads).
 
 Shipped: practice QoL (v0.17.0–0.17.1), separate endgame splits
 (v0.18.0–0.18.2), deaths and caves (v0.19.0–0.19.1), nature guide (v0.15.0),

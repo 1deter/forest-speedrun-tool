@@ -23,9 +23,12 @@ namespace ForestOverlay.Modules
         public override int TabOrder { get { return 70; } }
 
         private UpdateChecker _checker;
-        private Rect _windowRect;
-        private bool _windowPlaced;
         private bool _autoOpened;
+
+        // Built in Tick when the checker's text changes, never in DrawTab.
+        private readonly GUIContent _statusText = new GUIContent("");
+        private readonly GUIContent _downloadText = new GUIContent("Download");
+        private string _messageShown, _latestShown;
         private string _autoInstallLabel = "";
 
         public override void Initialise(ModuleContext ctx)
@@ -62,6 +65,17 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
+            if (!ReferenceEquals(_checker.Message, _messageShown))
+            {
+                _messageShown = _checker.Message;
+                _statusText.text = "Status: " + _messageShown;
+            }
+            if (!ReferenceEquals(_checker.LatestVersion, _latestShown))
+            {
+                _latestShown = _checker.LatestVersion;
+                _downloadText.text = "Download v" + (_latestShown ?? "?");
+            }
+
             // A release caught mid-publish has no DLL yet; ask again rather
             // than leaving the runner to guess that "Check again" will work.
             if (_checker.State == UpdateChecker.Status.Publishing && Ctx.Runner != null &&
@@ -119,23 +133,18 @@ namespace ForestOverlay.Modules
         {
             _tabW = area.width;
             _tabH = area.height;
-            DrawContents(0);
-        }
-
-        private void DrawContents(int id)
-        {
             float w = _tabW;
 
             float y = 28f;
             y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
-            y += UiText.Draw(12, y, w - 24, "Status: " + _checker.Message);
+            y += UiText.Draw(12, y, w - 24, _statusText);
             y += UiText.Draw(12, y, w - 24, _autoInstallLabel) + 6f;
 
             bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable ||
                                _checker.State == UpdateChecker.Status.DownloadRetry;
 
             GUI.enabled = canDownload;
-            if (GUI.Button(new Rect(12, y, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
+            if (GUI.Button(new Rect(12, y, 190, 26), _downloadText))
             {
                 if (Ctx.Runner != null)
                 {

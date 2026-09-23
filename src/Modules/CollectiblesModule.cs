@@ -289,19 +289,14 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            GUI.Label(new Rect(0, 2, w - 200, 20),
-                      _dumpStatus.Length > 0 ? _dumpStatus
-                                             : _list.Status + "   |   " + _book.Status,
-                      _rowStyle);
+            bool found = GUI.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
+            if (found != _showFound) { _showFound = found; RebuildRows(); }
+
+            bool missing = GUI.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
+            if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
 
             bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) _pinSummary = pin;
-
-            bool found = GUI.Toggle(new Rect(0, 26, 110, 20), _showFound, " collected");
-            if (found != _showFound) { _showFound = found; RebuildRows(); }
-
-            bool missing = GUI.Toggle(new Rect(116, 26, 110, 20), _showMissing, " missing");
-            if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
 
             if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Write dumps"))
                 DumpItems();
@@ -319,7 +314,14 @@ namespace ForestOverlay.Modules
                 RebuildRows();
             }
 
-            DrawList(new Rect(0, 54, w, _tabH - 58));
+            // Under the buttons that produce them: the dump result, then
+            // where the list and the book came from.
+            RefreshTabText();
+            float y = 52f;
+            y += UiText.Draw(0, y, w, _dumpText);
+            y += UiText.DrawDim(0, y, w, _sourceText);
+
+            DrawList(new Rect(0, y + 2f, w, _tabH - y - 6f));
         }
 
         /// Writes every id and name the game knows, so a checklist can
@@ -356,6 +358,25 @@ namespace ForestOverlay.Modules
         }
 
         private string _dumpStatus = "";
+
+        // Tab text, rebuilt only when a source string changes (a reference
+        // compare per pass, no allocation otherwise).
+        private readonly GUIContent _dumpText = new GUIContent("");
+        private readonly GUIContent _sourceText = new GUIContent("");
+        private readonly GUIContent _emptyText = new GUIContent("");
+        private string _dumpShown, _listShown, _bookShown;
+
+        private void RefreshTabText()
+        {
+            if (!ReferenceEquals(_dumpStatus, _dumpShown)) { _dumpShown = _dumpStatus; _dumpText.text = _dumpStatus; }
+
+            string list = _list.Status, book = _book.Status;
+            if (ReferenceEquals(list, _listShown) && ReferenceEquals(book, _bookShown)) return;
+            _listShown = list;
+            _bookShown = book;
+            _sourceText.text = list + "   |   " + book;
+            _emptyText.text = "Nothing to show yet.\n\n" + list;
+        }
 
         private void EnsureStyles()
         {
@@ -408,8 +429,7 @@ namespace ForestOverlay.Modules
 
             if (_rowCount == 0)
             {
-                GUI.Label(new Rect(area.x + 8, area.y + 8, area.width - 16, 60),
-                          "Nothing to show yet.\n\n" + _list.Status, _rowStyle);
+                UiText.Draw(area.x + 8, area.y + 8, area.width - 16, _emptyText);
             }
         }
     }

@@ -27,9 +27,14 @@ namespace ForestOverlay.Modules
         public override string TabTitle { get { return "Settings"; } }
         public override int TabOrder { get { return 60; } }
 
-        private Rect _windowRect;
-        private bool _windowPlaced;
         private Vector2 _scroll;
+
+        // Key names: KeyCode.ToString() allocates, and the list asked for
+        // one per row on every OnGUI pass.
+        private readonly Dictionary<KeyCode, GUIContent> _keyLabels = new Dictionary<KeyCode, GUIContent>();
+        private static readonly GUIContent PressText = new GUIContent("press...");
+        private static readonly GUIContent UnboundText = new GUIContent("unbound");
+        private HotkeyMap.Binding _promptFor;
 
         private GUIStyle _labelStyle;
         private GUIStyle _warnStyle;
@@ -42,11 +47,12 @@ namespace ForestOverlay.Modules
             map.Add("tab.settings", KeyCode.None, "Open Settings tab", OpenMyTab);
         }
 
-        public override void OnPanelToggled(bool open)
+        public override void Tick()
         {
-            // Never leave a capture armed across a close; it would eat the
-            // next key press the moment the panel reopened.
-            if (!open && Host != null) Host.Hotkeys.AwaitingRebind = null;
+            // Never leave a capture armed once the tab is gone; it would eat
+            // the next key press the moment the window reopened. (This was
+            // OnPanelToggled, which never fires for a tab.)
+            if (Host.Hotkeys.AwaitingRebind != null && !TabShowing) Host.Hotkeys.AwaitingRebind = null;
         }
 
         private float _tabW;
@@ -56,7 +62,7 @@ namespace ForestOverlay.Modules
         {
             _tabW = area.width;
             _tabH = area.height;
-            DrawContents(0);
+            DrawContents();
         }
 
         private void EnsureStyles()
@@ -76,7 +82,7 @@ namespace ForestOverlay.Modules
             _promptStyle.alignment = TextAnchor.UpperLeft;
         }
 
-        private void DrawContents(int id)
+        private void DrawContents()
         {
             EnsureStyles();
             HotkeyMap map = Host.Hotkeys;
@@ -96,10 +102,16 @@ namespace ForestOverlay.Modules
             }
 
             bool rebinding = map.AwaitingRebind != null;
-            _prompt.text = rebinding
-                ? "Press a key for: " + map.AwaitingRebind.Description +
-                  "      Esc cancels, Backspace unbinds"
-                : (_message.Length > 0 ? _message : StatusLine());
+            if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
+            {
+                _promptFor = map.AwaitingRebind;
+                _prompt.text = "Press a key for: " + _promptFor.Description + "      Esc cancels, Backspace unbinds";
+            }
+            else if (!rebinding)
+            {
+                _promptFor = null;
+                _prompt.text = _message.Length > 0 ? _message : StatusLine();
+            }
 
             GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
             float promptW = w - 24f;
@@ -154,7 +166,7 @@ namespace ForestOverlay.Modules
                 }
 
                 bool waiting = map.AwaitingRebind == b;
-                string label = waiting ? "press..." : (b.Key == KeyCode.None ? "unbound" : b.Key.ToString());
+                GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
 
                 if (GUI.Button(new Rect(content.width - 132f, y + 2f, 84f, RowHeight - 6f), label))
                     map.AwaitingRebind = waiting ? null : b;
@@ -167,6 +179,13 @@ namespace ForestOverlay.Modules
             }
 
             GUI.EndScrollView();
+        }
+
+        private GUIContent KeyLabel(KeyCode key)
+        {
+            GUIContent c;
+            if (!_keyLabels.TryGetValue(key, out c)) _keyLabels[key] = c = new GUIContent(key.ToString());
+            return c;
         }
 
         private void CaptureKey(HotkeyMap map)

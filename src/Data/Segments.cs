@@ -232,6 +232,16 @@ namespace ForestOverlay.Data
             state.Primed = false;
             state.InitialValue = false;
         }
+
+        /// Primed as "not satisfied", so the next Fired() fires if the
+        /// condition already holds. For a trigger that becomes the one to
+        /// watch because an earlier one fired (SplitSequence).
+        public static void ArmAsNext(ref TriggerState state)
+        {
+            state.Satisfied = false;
+            state.Primed = true;
+            state.InitialValue = false;
+        }
     }
 
     // ------------------------------------------------------------------

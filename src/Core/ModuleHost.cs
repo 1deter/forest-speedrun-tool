@@ -81,21 +81,24 @@ namespace ForestOverlay.Core
 
         public int Count { get { return _modules.Count; } }
 
-        /// Locate a sibling module. Used sparingly - modules are meant to
-        /// be independent - but a couple of them genuinely collaborate
-        /// (practice runs need to know where the anchor is), and an
-        /// explicit lookup beats a static.
-        /// Modules contributing tabs, in display order.
+        /// Modules contributing tabs, in display order. Cached: the window
+        /// asks on every OnGUI pass, and the list only changes when a
+        /// module is disabled. Callers must not modify it.
         public List<OverlayModule> Tabs()
         {
-            List<OverlayModule> tabs = new List<OverlayModule>();
+            if (_tabs != null && _tabsBuiltFailed == _failed.Count) return _tabs;
 
+            _tabs = new List<OverlayModule>();
             for (int i = 0; i < _modules.Count; i++)
-                if (_modules[i].HasTab && IsLive(_modules[i])) tabs.Add(_modules[i]);
+                if (_modules[i].HasTab && IsLive(_modules[i])) _tabs.Add(_modules[i]);
 
-            tabs.Sort(CompareTabs);
-            return tabs;
+            _tabs.Sort(CompareTabs);
+            _tabsBuiltFailed = _failed.Count;
+            return _tabs;
         }
+
+        private List<OverlayModule> _tabs;
+        private int _tabsBuiltFailed = -1;
 
         private static int CompareTabs(OverlayModule a, OverlayModule b)
         {
@@ -103,6 +106,10 @@ namespace ForestOverlay.Core
             return string.Compare(a.TabTitle, b.TabTitle, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// Locate a sibling module. Used sparingly - modules are meant to
+        /// be independent - but a couple of them genuinely collaborate
+        /// (practice runs need to know where the anchor is), and an
+        /// explicit lookup beats a static.
         public T Find<T>() where T : OverlayModule
         {
             for (int i = 0; i < _modules.Count; i++)

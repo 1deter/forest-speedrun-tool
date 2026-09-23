@@ -84,6 +84,12 @@ namespace ForestOverlay.Modules
         private string _lastDeath = "none this session";
         private string _status = "";
 
+        // Built in Tick when a source changes, never in DrawTab.
+        private readonly GUIContent _hooksText = new GUIContent("");
+        private readonly GUIContent _lastDeathText = new GUIContent("");
+        private readonly GUIContent _statusText = new GUIContent("");
+        private string _hooksShown, _lastDeathShown, _statusShown;
+
         // Title screen reflection.
         private FieldInfo _titleInstance;
         private MethodInfo _onSinglePlayer;
@@ -184,6 +190,8 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
+            RefreshText();
+
             if (_pendingRevive)
             {
                 _pendingRevive = false;
@@ -299,6 +307,14 @@ namespace ForestOverlay.Modules
             catch (Exception) { return -1; }
         }
 
+        private void RefreshText()
+        {
+            string hooks = _hooks.Status;
+            if (!ReferenceEquals(hooks, _hooksShown)) { _hooksShown = hooks; _hooksText.text = "Hooks: " + hooks; }
+            if (!ReferenceEquals(_lastDeath, _lastDeathShown)) { _lastDeathShown = _lastDeath; _lastDeathText.text = "Last death: " + _lastDeath; }
+            if (!ReferenceEquals(_status, _statusShown)) { _statusShown = _status; _statusText.text = _status; }
+        }
+
         private void ClearBlood()
         {
             DeathHooks.ClearBlood();
@@ -338,11 +354,12 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, w, ReviveText) + 4f;
 
             if (GUI.Button(new Rect(0, y, 160, 24), "Clear blood overlay")) ClearBlood();
-            y += 32f;
+            y += 28f;
+            // What the button above (or the last death) just did, under it.
+            y += UiText.Draw(0, y, w, _statusText) + 4f;
 
-            y += UiText.Draw(0, y, w, "Hooks: " + _hooks.Status);
-            y += UiText.Draw(0, y, w, "Last death: " + _lastDeath);
-            UiText.Draw(0, y, w, _status);
+            y += UiText.DrawDim(0, y, w, _hooksText);
+            UiText.DrawDim(0, y, w, _lastDeathText);
         }
     }
 }

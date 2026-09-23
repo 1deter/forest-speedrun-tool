@@ -511,6 +511,26 @@ every live identifier the save lacks, not just the player's (v0.22.3).
 Creative is chosen before the game loads and is not in the save data, so
 restores are refused across Creative and survival (author's suggestion).
 
+**Weapon-upgrade receivers are never deleted.** A cross-save restore in
+the author's v0.22.5 log adopted 107 ids and deleted the 51 it could not
+match, mostly `ToothReceiver`, `FeatherReceiver` and `glassReceiver`. These
+are `TheForest.Items.Craft.UpgradeViewReceiver`: scene objects on the
+inventory's weapon views that keep each weapon's implanted upgrades
+(`_currentUpgrades`, `UpgradeViewData` = item id + local position and
+rotation). `UpgradeCog.NextIngredient` looks through `_receivers` for one
+that accepts the ingredient ("No upgrade receiver for ..."), so with them
+gone the upgrade cog has nowhere to implant until a real load.
+`PlayerInventory.OnDeserialized` calls each receiver's `OnDeserialized`,
+which **destroys its own GameObject when it carries an
+`EmptyObjectIdentifier`**. That is the game cleaning up a stand-in the
+loader built for a saved object it could not find. So a receiver is never
+meant to be removed by a load. The plugin exempts them from its delete
+step (v0.22.7): unmatched receivers keep this game's upgrades, and the
+save's copies come back as stand-ins that destroy themselves. Why they did
+not adopt is still open. The adoption line now names a few unmatched
+non-player objects with their parent path and candidate count
+(`other misses:`).
+
 Killed enemies do **not** come back with an in-place restore (author,
 v0.22.0). A load restore is the reference for what should.
 
