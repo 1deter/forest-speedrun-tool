@@ -384,7 +384,7 @@ identity.
 
 ## Current status
 
-**Released: v0.23.0** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.23.1** (2026-09-23). The author runs it via the in-game updater.
 **191 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -503,16 +503,11 @@ teleports and Restart restores; cross-save restores in place — Normal →
 Hard and Creative → Hard (with the testing switch) — give **one player and
 one inventory** (`from another save: 107 id(s) adopted, 51 left (0 on the
 player)`); the ESC menu keeps its cursor when the window closes over it;
-the fall-revive stagger animation is gone; text wraps and sits under its
-buttons (one leftover — the Name box edge — fixed in v0.22.4).
+the fall-revive stagger animation is gone, and (v0.22.6) jump comes back at
+once after a fall revive; text wraps and sits under its buttons (one
+leftover — the Name box edge — fixed in v0.22.4).
 
 **Awaiting an in-game check** — ask before building on these:
-- **Fall revive, second half** (v0.22.6): jump works at once and the arms
-  are not thrown down (v0.22.5 removed the stagger but left ~1 s of no jump,
-  arms down and slowed movement — the tail of `smoothEnableSpine` is now
-  applied immediately). Log: `Death: revived from a fall - hard landing
-  cancelled.`; startup: `DeathHooks: landing hook installed (... jump:True
-  unfreeze:True)`.
 - **Updates tab**: Check again after a Download says "downloaded - restart
   to install" instead of offering the same version (v0.22.3).
 - **Retiring times on a new start state** (v0.22.0): capture on a segment
@@ -612,10 +607,21 @@ list so we can move onto expanding more features".
    statics, **destroyed Unity objects still referenced** (the leak's
    signature) per static root with growth, and Unity objects by type.
    Savestates tab: *Memory census now* (for in-place restores), switch
-   `Diagnostics.MemoryCensusOnLoad` (on). **Next:** get a log of several
-   load restores in a row (and some in-place restores + a manual census),
-   read which roots grow, then fix those - clear or prune the static at the
-   right moment - and keep the census to prove it. Other suspects from IL:
+   `Diagnostics.MemoryCensusOnLoad` (on).
+   **Census result (author, 21 load restores):** +122 MB a load, but statics
+   and Unity objects flat - the root is not a static. **Found in IL:
+   `AstarPath.OnDestroy` returns early when it is not `active`**, and on a
+   same-scene reload the new world's pathfinder already is - the old graph
+   and its path threads are never cleaned up (game-notes *The load leak*).
+   **v0.23.1 fixes it** (`Game/PathfindingCleanup`, switch
+   `Fixes.PathfindingCleanupOnReload`). **Awaiting the author's test:** the
+   `Pathfinding: ... running the cleanup the game skips` line on every
+   reload, and the census heap no longer +120 MB a load. If it only partly
+   drops, the census is still there for what remains.
+   In-place restores: heap +0 over 21 but 841 -> 1157 ms; Unity objects
+   +36k between the last load census and the manual one - probably streaming
+   loaded after the load, not a leak. To tell: *Memory census now*, 20
+   in-place restores standing still, *Memory census now* again. Other suspects from IL:
    `LevelLoader` only unloads assets when its time-scale argument is 0; the
    `DontDestroyOnLoad` `LevelLoader`; static `EventRegistry` subscriptions;
    our own statics (`DeathHooks._lastStats` keeps the last dead player's

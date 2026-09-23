@@ -561,8 +561,51 @@ restore) never clears `InsideCheck._grid`: a
 (`AddWallChunk(start, end, height)` -> token, `RemoveWallChunk(token)`) and
 `IRoof`s (`AddRoof` / `RemoveRoof`) - building pieces. A lead, not a
 verdict: whether pieces unregister on scene unload is not checked, and the
-magnitude is unknown. The census (`Game/MemoryCensus`) is meant to settle
-it.
+magnitude is unknown. **The census cleared it** (below): the grid does not
+grow.
+
+**The census (author, v0.23.0, 21 load restores of a Creative save):** heap
++122 MB per load, flat (261 -> 2741 MB; 4.8 -> 14.8 s per load), while what
+statics reach grew by ~90 objects a load, destroyed-but-referenced Unity
+objects by ~8, and Unity objects stayed at ~443k. So the scene itself is
+released and no walked static holds the old world: the root is something a
+static walk cannot see - a live object's fields, or a **thread**. 21
+in-place restores after that: heap +0, but 841 -> 1157 ms each (a bigger
+heap makes every GC slower).
+
+**The culprit: `AstarPath.OnDestroy`** (A* Pathfinding Project, IL):
+
+```
+if (!Application.isPlaying) return;
+if (AstarPath.active != this) return;      // <- skips ALL of the below
+BlockUntilPathQueueBlocked(); FlushWorkItemsInternal(false);
+pathProcessor.queue.TerminateReceivers(); graphUpdates.DisableMultithreading();
+pathProcessor.JoinThreads(); pathReturnQueue.ReturnPaths(false);
+astarData.OnDestroy();                      // the graphs
+OnAwakeSettings = OnGraphPreScan = ... = OnThreadSafeCallback = null; active = null;
+```
+
+A reload of the game scene over itself loads the new world before the old
+one is destroyed; the new `AstarPath.Awake` -> `SetUpReferences` has already
+set `active`, so the old instance returns at once: its path threads keep
+running and its navigation graph stays alive, every load. Through the title
+screen there is no new instance, so the cleanup runs - which is exactly why
+a menu trip gave the memory back. `PathPool.pool` jumping to the census cap
+(150k objects) on the first reload was the graph showing through pooled
+paths. `GraphNode.Destroy` returns node indices through `AstarPath.active`,
+so the old instance must be `active` while it cleans up.
+
+The plugin's fix (`Game/PathfindingCleanup`, v0.23.1, switch
+`Fixes.PathfindingCleanupOnReload`, on): a prefix makes the dying instance
+`active` when it is not, and a finalizer restores `active` and every static
+callback the cleanup nulled (the new world registered them already). Log:
+`Pathfinding: the previous world's AstarPath was destroyed while the new
+one was active - running the cleanup the game skips (n this session).`
+
+Every other `OnDestroy` in the game with a singleton guard (18 of them:
+`Sunshine`, `InsideCheck`, `OverlayIconManager`, `VirtualCursor`, `Mood`,
+`Prefabs`, `GrassModeManager`, ...) only does
+`if (Instance == this) Instance = null` - nothing skipped that matters.
 
 ## The game ships a debug console — 256 methods
 

@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.1 - 2026-09-23
+
+- Load slowdown, first fix: every quick-load or savestate load kept the old
+  world's pathfinding (about 120 MB) in memory, because the game skips its
+  cleanup when it reloads over itself. The overlay now runs that cleanup.
+  Switch in the Savestates tab if you need it off.
+
 ## v0.23.0 - 2026-09-23
 
 - Updates tab: shows what's new in the latest version (this list).
