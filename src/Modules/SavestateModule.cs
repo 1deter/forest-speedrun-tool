@@ -98,8 +98,8 @@ namespace ForestOverlay.Modules
         private readonly LoadWatcher _loads = new LoadWatcher();
         private MemoryCensus _census;
         private ConfigEntry<bool> _censusOnLoad;
-        private PathfindingCleanup _pathfinding;
-        private ConfigEntry<bool> _pathfindingFix;
+        private LeakedThreads _threads;
+        private ConfigEntry<bool> _threadsFix;
         private float _censusDue;
         private string _censusLabel = "";
         private readonly GUIContent _censusText = new GUIContent("");
@@ -123,15 +123,15 @@ namespace ForestOverlay.Modules
 
             _census = new MemoryCensus(ctx.Log);
 
-            // The leak's first culprit (game-notes "The load leak"): the old
-            // world's pathfinder skips its cleanup on a reload. Memory only -
-            // no gameplay effect, so not practice-only.
-            _pathfindingFix = ctx.Config.Bind("Fixes", "PathfindingCleanupOnReload", true,
-                "On a reload of the game scene (quick-load, load restore), run the old world's pathfinding cleanup, " +
-                "which the game skips - its navigation graph and path threads otherwise stay in memory every load.");
-            PathfindingCleanup.Enabled = _pathfindingFix.Value;
-            _pathfinding = new PathfindingCleanup(ctx.Log);
-            _pathfinding.Install(OverlayPlugin.PluginGuid);
+            // Two worker threads the game leaves running every load
+            // (game-notes "The load leak"). Memory only - no gameplay
+            // effect, so not practice-only.
+            _threadsFix = ctx.Config.Bind("Fixes", "StopLeakedThreadsOnLoad", true,
+                "Stop the two worker threads the game leaves running on every load (the old WorkScheduler's, " +
+                "and an extra FocusLostAudio copy's) - each keeps memory from the previous load.");
+            LeakedThreads.Enabled = _threadsFix.Value;
+            _threads = new LeakedThreads(ctx.Log);
+            _threads.Install(OverlayPlugin.PluginGuid);
             _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusOnLoad", true,
                 "After every load, log the Mono heap and which static references hold destroyed objects " +
                 "(the load memory leak investigation). Costs a hitch of up to a second or so, just after a load.");
@@ -153,7 +153,7 @@ namespace ForestOverlay.Modules
         {
             PickupKeeper.Armed = false;
             if (_keeper != null) _keeper.Uninstall();
-            if (_pathfinding != null) _pathfinding.Uninstall();
+            if (_threads != null) _threads.Uninstall();
         }
 
         // ------------------------------------------------------------------
@@ -216,7 +216,7 @@ namespace ForestOverlay.Modules
             if (_loads.Tick())
             {
                 _censusLabel = "load " + _loads.Loads + (_loads.LastFromOtherScene ? " (from the title screen)" : " (game scene reloaded)") +
-                               ", pathfinding cleanups " + PathfindingCleanup.Cleaned;
+                               ", " + LeakedThreads.Summary();
                 if (_censusOnLoad.Value)
                 {
                     // A moment later: the activation sequence's last frames
@@ -796,9 +796,9 @@ namespace ForestOverlay.Modules
             y += 6f;
 
             // The load leak: what each load leaves behind.
-            bool fix = GUI.Toggle(new Rect(0, y, w, 22), _pathfindingFix.Value,
-                                  " Fix: clean up the old world's pathfinding on a reload (the game skips it)");
-            if (fix != _pathfindingFix.Value) { _pathfindingFix.Value = fix; PathfindingCleanup.Enabled = fix; }
+            bool fix = GUI.Toggle(new Rect(0, y, w, 22), _threadsFix.Value,
+                                  " Fix: stop the worker threads the game leaves running after a load");
+            if (fix != _threadsFix.Value) { _threadsFix.Value = fix; LeakedThreads.Enabled = fix; }
             y += 26f;
             bool census = GUI.Toggle(new Rect(0, y, w, 22), _censusOnLoad.Value,
                                      " Memory census after every load (log; a short hitch after the load)");

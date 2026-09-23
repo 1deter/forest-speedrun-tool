@@ -5,6 +5,19 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.3 - 2026-09-23
+
+- Load slowdown, second try: every load left two of the game's background
+  threads running (one to organise world updates, one for the "window lost
+  focus" sound), about two more per load. The overlay now stops the old
+  ones. Whether this is what kept the ~120 MB a load is still being
+  tested. Switch in the Savestates tab.
+- The v0.23.1 pathfinding fix is removed: the game does clean up its
+  pathfinding on a reload, so it never did anything.
+- The short hitch about a second after a load is the memory report in the
+  log (Savestates tab, "Memory census after every load"). It stays on
+  while the slowdown is being tracked down.
+
 ## v0.23.2 - 2026-09-23
 
 - Load slowdown: the v0.23.1 fix never had anything to do on a reload,

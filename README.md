@@ -26,11 +26,11 @@ A speedrun and practice tool for **The Forest**, built as a
   game's own load, skipping the title screen (toggles in the **Deaths** tab;
   the first-death capture and the boss fight have their own). The author
   rules this allowed in normal runs.
-- **Load slowdown fix** — every quick-load (or any load that reloads the game
-  over itself) kept the old world's pathfinding in memory, about 120 MB a
-  time, so loads got slower and slower until you went back to the title
-  screen. The overlay runs the cleanup the game skips. Memory only; it can be
-  switched off in the **Savestates** tab.
+- **Load slowdown fix** *(being tested)* — every quick-load (or any load
+  that reloads the game over itself) keeps about 120 MB more memory, so
+  loads get slower and slower until you go back to the title screen. The
+  overlay stops two game threads each load leaves running, the leading
+  suspect. Memory only; it can be switched off in the **Savestates** tab.
 
 **Practice only** — writes game state, and flags the session when used:
 

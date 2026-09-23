@@ -103,7 +103,7 @@ Where things live:
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
 | Updates, changelog | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
-| Load leak diagnostics | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static roots holding destroyed objects, Unity objects by type), run from `Modules/SavestateModule` |
+| Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 
 ### Rules for modules
@@ -346,8 +346,12 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     ~120 MB a load. Threads, live `DontDestroyOnLoad` objects' fields and
     generic-type statics are invisible to it, and counting objects hides
     one huge array (v0.23.2 adds sizes, DDOL roots and a thread count).
-    The pathfinding-thread theory it led to was wrong (gotcha 25). When a census comes up flat, read the teardown code
-    (`OnDestroy`) of anything that runs threads or holds big graphs.
+    The pathfinding theory it led to was wrong (gotcha 25); the thread
+    count found two leaked threads a load (v0.23.3). When a census comes up
+    flat, count threads, then read the teardown code (`OnDestroy`) of
+    anything that starts one (`ilscan refs "System.Threading.Thread::.ctor"`).
+    A worker parked on a wait handle that only a frame callback signals
+    never sees its "stop" flag once the object is destroyed.
 
 25. **A theory built from IL alone is still a guess.** v0.23.1 shipped a
     fix on the belief that a same-scene reload wakes the new scene before
@@ -401,38 +405,37 @@ identity.
 
 ## Current status
 
-**Released: v0.23.2** (2026-09-23, diagnostics only). The author runs it
-via the in-game updater. **191 tests.**
+**Released: v0.23.3** (2026-09-23). The author runs it via the in-game
+updater. **191 tests.**
 
 ### Pick up here (handoff of 2026-09-23, evening)
 
-**v0.23.1's leak fix did not work** (author's log: 20 in-place restores,
-census, 21 load restores, census). `pathfinding cleanups 0` on every
-reload, heap 262 -> 2746 MB (+122 a load, identical to v0.23.0), loads
-5.3 -> 14.0 s. The one `Pathfinding:` line was at quit, a false positive
-(gotcha 25; game-notes *The load leak*). No new baseline is needed -
-v0.23.0 and v0.23.1 are the same baseline twice.
+The load leak so far (game-notes *The load leak*): pathfinding is ruled
+out (v0.23.2 log: the old `AstarPath` dies `active: this one` before the
+new one wakes; the v0.23.1 fix is removed). The v0.23.2 census found
+**OS threads +2 a load** while statics (~36 MB) and DDOL objects stayed
+small and the heap grew +123 MB a load (262 -> 2874 MB over 22 loads,
+4.7 -> 13.0 s each). The two threads: the old `WorkScheduler`'s (parked in
+`WaitOne` forever) and a `FocusLostAudio` DDOL copy per load.
 
-v0.23.2 adds diagnostics only. Ask the author for the same test (~20 load
-restores, *Memory census now* at the end) and read the log:
+v0.23.3 stops both (`Game/LeakedThreads`). Ask the author for the same
+test (~20 load restores, *Memory census now* at the end) and read:
 
-1. **Pathfinding order**: `Pathfinding: AstarPath #id awake.` and
-   `Pathfinding: AstarPath #id destroyed, active: this one|another|none`
-   around each load. `this one` = the game's cleanup ran, pathfinding is
-   ruled out; `destroyed` never logged for an old id = the old pathfinder
-   survives the load (then look at why - DontDestroyOnLoad? a reference
-   keeping the GameObject?). `another` would mean the fix should act.
-2. **Census line**: `threads N (+d)` - a count that climbs every load is a
-   leaked worker thread (look at what threads the game starts: `ilscan refs
-   "System.Threading.Thread::.ctor"`). `statics reach ... ~X MB (+d)` and
-   `DontDestroyOnLoad: n objects reach m, ~X MB (+d)` - either one growing
-   ~120 MB a load names the root. Then `Grown in size:` and `Largest roots:`
-   name it exactly; `Destroyed, by type:` says what the top holders keep.
-3. If none of those grows: the leak is below anything C# walks can see
-   (native, or Mono internals / a conservative-GC false root). Next step
-   would be comparing `Profiler.GetMonoUsedSize` / `GetTotalAllocatedMemory`
-   and trying `Resources.UnloadUnusedAssets` + `GC.Collect` after a load,
-   and checking whether the heap is really held (a menu trip gave it back).
+1. Each load: `Threads: woke the destroyed WorkScheduler's thread ...` and
+   `Threads: removed 1 older FocusLostAudio copy ...`; the census label's
+   `leaked threads stopped: scheduler n` with **no** `still running`, and
+   `threads N` **flat**. `DontDestroyOnLoad: n objects` flat too.
+2. **The heap line.** Flat: the leak is fixed - record it, set
+   `MemoryCensusOnLoad` off by default (author asked about the post-load
+   hitch; that is the census), finish Next up 1's tail. Still +120 MB with
+   threads flat: the threads were a side leak; the rest is below what C#
+   walks see - next compare `Profiler.GetMonoUsedSize` with
+   `GC.GetTotalMemory`, try `Resources.UnloadUnusedAssets` + `GC.Collect`
+   after a load, and see what a title-screen trip frees that a reload
+   does not (it gave the memory back in runner logs).
+3. Nothing broke: world tasks still run after a load (trees/LOD update,
+   building works), the focus-lost audio still ducks when alt-tabbing, no
+   `LeakedThreads:` warning.
 4. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
@@ -563,10 +566,11 @@ scanner.
   sees every load by `Scene.FinishGameLoad`; 1.5 s later `Game/MemoryCensus`
   logs the heap, destroyed Unity objects still reachable from statics (per
   root, with growth) and Unity objects by type (switch
-  `Diagnostics.MemoryCensusOnLoad`, on - a hitch of ~0.4-0.8 s after a
-  load). *Memory census now* runs it on demand. `Game/PathfindingCleanup`
-  (switch `Fixes.PathfindingCleanupOnReload`, on) is the leak fix - memory
-  only, no gameplay effect, so not practice-only.
+  `Diagnostics.MemoryCensusOnLoad`, on - a hitch of ~0.6-1.0 s after a
+  load, noticed by the author). *Memory census now* runs it on demand.
+  `Game/LeakedThreads` (switch `Fixes.StopLeakedThreadsOnLoad`, on) stops
+  the two threads each load leaves running - memory only, no gameplay
+  effect, so not practice-only.
 - **Changelog** (author, 2026-09-23, "all future updates"): `CHANGELOG.md`,
   one runner-facing section per release. CI puts the tag's section in the
   GitHub release and fails without one; the Updates tab shows the latest
@@ -593,7 +597,7 @@ once** (v0.22.6, author); text wraps and sits under its buttons; the
 v0.23.0 census ran after every load without trouble (0.4-0.8 s).
 
 **Awaiting an in-game check** — ask before building on these:
-- **The load leak diagnostics** (v0.23.2) - see *Pick up here*.
+- **The load leak thread fix** (v0.23.3) - see *Pick up here*.
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
   (installed)" after updating.
@@ -797,7 +801,8 @@ session of 2026-09-23 afternoon (v0.22.7–0.23.1): ordered checkpoints
 (`Data/SplitSequence`), stale run lines, Inventory tab refresh, upgrade
 receivers kept, no string building in any `DrawTab`, messages under their
 buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
-tab), the load watcher and memory census, the pathfinding leak fix.
+tab), the load watcher and memory census; v0.23.1-0.23.3 the load leak
+hunt (pathfinding ruled out, two leaked threads stopped).
 
 ### How a session goes
 

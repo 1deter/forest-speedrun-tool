@@ -595,7 +595,7 @@ a menu trip gave the memory back. `PathPool.pool` jumping to the census cap
 paths. `GraphNode.Destroy` returns node indices through `AstarPath.active`,
 so the old instance must be `active` while it cleans up.
 
-The plugin's fix (`Game/PathfindingCleanup`, v0.23.1, switch
+The plugin's fix (`Game/PathfindingCleanup`, v0.23.1-0.23.2, removed in v0.23.3, switch
 `Fixes.PathfindingCleanupOnReload`, on): a prefix makes the dying instance
 `active` when it is not, and a finalizer restores `active` and every static
 callback the cleanup nulled (the new world registered them already). Log:
@@ -613,6 +613,50 @@ leak.** The fix logged once, at quit: `OnApplicationQuit` (IL) calls
 then Unity calls `OnDestroy` again - a false positive, ignored since
 v0.23.2. v0.23.2 logs every `AstarPath` `Awake` / `OnDestroy` with which
 instance was active, to settle the order.
+
+**Settled (author, v0.23.2, 22 load restores):** every reload logs
+`AstarPath #old destroyed, active: this one` and then `#new awake` - the old
+world is destroyed **before** the new one wakes, and the game's own
+pathfinding cleanup runs. The v0.23.1 fix was removed in v0.23.3.
+
+**Threads (v0.23.2 census):** OS threads **+2 a load** (151 -> 189 over 21),
+heap still +123 MB a load, while statics (~36 MB, +0.2 a load) and
+DontDestroyOnLoad objects (+1 a load, tiny) stayed small. `ilscan refs
+"System.Threading.Thread::.ctor"` gives the game's thread starters; two
+leak per load:
+
+- **`WorkScheduler`** (world task scheduler, one per scene). `OnEnable`
+  starts `ThreadedUpdate`: `while (secondaryThreadState < 3) {
+  mutex.WaitOne(); if (state == 1 && ...) ProcessArea(...); mutex.Reset(); }`.
+  Only `LateUpdate` calls `mutex.Set()`. `OnDisable` sets state 2,
+  `OnDestroy` sets 3 and `Clear()`s the batches (`WorkSchedulerBatch.Clear`:
+  `tasks`, `tfTasks`, `tfTasksChanged` lists). The thread is parked in
+  `WaitOne` and a destroyed object gets no more `LateUpdate`: it never
+  wakes, and its stack keeps the old scheduler alive for good.
+- **`FocusLostAudio`** (the "Focus Lost" FMOD snapshot). `OnEnable` starts a
+  worker (`Monitor.Wait` on `commandQueue`), unparents itself and calls
+  `DontDestroyOnLoad`; `OnDisable` issues `Shutdown`, which ends the
+  worker. `OnLevelWasLoaded` destroys it only when `TitleScene` loads (and
+  only a copy that has seen a game load). Every game scene has one, so
+  every reload adds a DDOL copy and a thread; the census saw
+  `[DDOL] FocusLostAudio` and `DontDestroyOnLoad: n objects` +1 a load.
+
+Fix (`Game/LeakedThreads`, v0.23.3, switch `Fixes.StopLeakedThreadsOnLoad`,
+on): a postfix on `WorkScheduler.OnDestroy` sets `mutex` once more (the
+loop wakes, skips its work as state is not 1, and exits); a postfix on
+`FocusLostAudio.OnEnable` destroys the older copies' GameObjects, as the
+game does at the title. Logs `Threads: woke the destroyed WorkScheduler's
+thread ...` and `Threads: removed 1 older FocusLostAudio copy ...`; the
+census label says `leaked threads stopped: scheduler n (k still running),
+focus audio n` - `still running` means a woken thread did not exit.
+**Unconfirmed that the threads are what holds the ~120 MB**: after
+`Clear()` the old scheduler's own fields look small, so a thread may pin
+more through its stack (Mono's Boehm GC scans stacks conservatively) or
+may not. Only the heap line after the fix will say.
+
+The census itself costs ~0.6-1.0 s about 1.5 s after each load, growing
+with the heap (`GC.GetTotalMemory(true)` is a full collection) - the hitch
+the author noticed after loading.
 
 What the census cannot see yet (v0.23.0-0.23.1): it counted **objects,
 not bytes** (a 100 MB array is one node), stopped at every live Unity
