@@ -34,6 +34,14 @@ namespace ForestOverlay.Game
     // put back `active` and every static callback the cleanup nulled - the
     // new world registered those already. A finalizer restores them even if
     // the cleanup throws, and passes the exception on unchanged.
+    //
+    // UNCONFIRMED (v0.23.1 in game, 21 load restores): the fix never acted
+    // on a reload and the heap still grew +122 MB a load, so the old
+    // pathfinder was the active one when it died (its own cleanup ran), or
+    // it never died. It logged once, at quit: OnApplicationQuit calls
+    // OnDestroy itself and nulls `active`, then Unity calls OnDestroy again -
+    // `active == null` is now left alone. v0.23.2 logs every AstarPath Awake
+    // and OnDestroy (with which one was active) to settle the order.
     // ------------------------------------------------------------------
     public sealed class PathfindingCleanup
     {
@@ -88,6 +96,10 @@ namespace ForestOverlay.Game
                                prefix: new HarmonyMethod(typeof(PathfindingCleanup).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic)),
                                finalizer: new HarmonyMethod(typeof(PathfindingCleanup).GetMethod("Finalizer", BindingFlags.Static | BindingFlags.NonPublic)));
 
+                MethodInfo awake = astar.GetMethod("Awake", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                if (awake != null)
+                    _harmony.Patch(awake, postfix: new HarmonyMethod(typeof(PathfindingCleanup).GetMethod("AwakePostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+
                 Status = "installed (" + _saved.Length + " statics kept)";
                 _log.LogInfo("PathfindingCleanup: " + Status + ".");
             }
@@ -111,8 +123,17 @@ namespace ForestOverlay.Game
             {
                 if (!Enabled || _saved == null) return;
 
+                // One line per pathfinder: which one was active tells the load
+                // order (v0.23.1 never saw "another" on a reload - 21 loads).
                 object active = _active.GetValue(null);
-                if (ReferenceEquals(active, __instance)) return;   // the game's own path: nothing to do
+                string who = active == null ? "none" : ReferenceEquals(active, __instance) ? "this one" : "another";
+                _log.LogInfo("Pathfinding: AstarPath #" + Id(__instance) + " destroyed, active: " + who +
+                             (active != null && !ReferenceEquals(active, __instance) ? " (#" + Id(active) + ")" : "") + ".");
+
+                // this one: the game's own cleanup runs. none: it already ran -
+                // OnApplicationQuit calls OnDestroy itself and nulls `active`,
+                // then Unity calls it again (the one line v0.23.1 logged, at quit).
+                if (active == null || ReferenceEquals(active, __instance)) return;
 
                 __state = new object[_saved.Length];
                 for (int i = 0; i < _saved.Length; i++) __state[i] = _saved[i].GetValue(null);
@@ -129,6 +150,18 @@ namespace ForestOverlay.Game
                 __state = null;
                 _log.LogWarning("PathfindingCleanup: prefix failed: " + ex.Message);
             }
+        }
+
+        private static void AwakePostfix(object __instance)
+        {
+            try { _log.LogInfo("Pathfinding: AstarPath #" + Id(__instance) + " awake."); }
+            catch (Exception) { }
+        }
+
+        private static string Id(object o)
+        {
+            UnityEngine.Object u = o as UnityEngine.Object;
+            return u != null ? u.GetInstanceID().ToString() : "?";
         }
 
         private static Exception Finalizer(Exception __exception, object[] __state)

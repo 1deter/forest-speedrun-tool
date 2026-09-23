@@ -343,18 +343,20 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 
 24. **A static walk cannot see every root.** The v0.23.0 census walked
     every static of the game and found nothing growing while the heap grew
-    ~120 MB a load: the old world was held by a live pathfinding thread
-    (`AstarPath` skipped its own cleanup). Threads, live
-    `DontDestroyOnLoad` objects' fields and generic-type statics are
-    invisible to it. When a census comes up flat, read the teardown code
+    ~120 MB a load. Threads, live `DontDestroyOnLoad` objects' fields and
+    generic-type statics are invisible to it, and counting objects hides
+    one huge array (v0.23.2 adds sizes, DDOL roots and a thread count).
+    The pathfinding-thread theory it led to was wrong (gotcha 25). When a census comes up flat, read the teardown code
     (`OnDestroy`) of anything that runs threads or holds big graphs.
 
-25. **Singleton guards in `OnDestroy` skip cleanup on a reload.** A
-    same-scene reload awakes the new scene before destroying the old, so
-    `if (active != this) return;` returns for the old instance. Harmless
-    when the rest only nulls `Instance`; a leak when it guards real cleanup
-    (`AstarPath`, gotcha 24). All 19 guarded `OnDestroy`s in the game were
-    checked (game-notes *The load leak*).
+25. **A theory built from IL alone is still a guess.** v0.23.1 shipped a
+    fix on the belief that a same-scene reload wakes the new scene before
+    destroying the old one, so `AstarPath.OnDestroy`'s
+    `if (active != this) return;` skipped the cleanup. In game it never
+    acted once in 21 reloads. Before shipping a fix for an ordering or
+    lifecycle theory, **ship the log line that proves the theory first**
+    (or with it), and read the whole lifecycle: `OnApplicationQuit` calling
+    `OnDestroy` itself made the only hit a false positive at quit.
 
 ## Project intent
 
@@ -399,38 +401,45 @@ identity.
 
 ## Current status
 
-**Released: v0.23.1** (2026-09-23). The author runs it via the in-game updater.
-**191 tests.**
+**Released: v0.23.2** (2026-09-23, diagnostics only). The author runs it
+via the in-game updater. **191 tests.**
 
-### Pick up here (handoff of 2026-09-23)
+### Pick up here (handoff of 2026-09-23, evening)
 
-The author is testing **v0.23.1** in game. Ask for the `LogOutput.log` path
-(`G:\SteamLibrary\steamapps\common\The Forest\BepInEx\LogOutput.log`) and
-read it before they relaunch. What to look for, in order:
+**v0.23.1's leak fix did not work** (author's log: 20 in-place restores,
+census, 21 load restores, census). `pathfinding cleanups 0` on every
+reload, heap 262 -> 2746 MB (+122 a load, identical to v0.23.0), loads
+5.3 -> 14.0 s. The one `Pathfinding:` line was at quit, a false positive
+(gotcha 25; game-notes *The load leak*). No new baseline is needed -
+v0.23.0 and v0.23.1 are the same baseline twice.
 
-1. **The load-leak fix** (Next up 1). The author repeats ~20 load restores
-   in a row. Expect on **every** reload of the game scene:
-   `Pathfinding: the previous world's AstarPath was destroyed while the new
-   one was active - running the cleanup the game skips (n this session).`
-   and the `Memory census N after load N (game scene reloaded, pathfinding
-   cleanups n)` heap figure **no longer climbing ~120 MB a load** (v0.23.0
-   baseline: 261 -> 2741 MB over 21 loads, 4.8 -> 14.8 s each).
-   - Line present, heap flat: the leak is fixed. Record it (game-notes *The
-     load leak*, here), then finish item 1's tail below.
-   - Line never appears: the ordering theory is wrong - `AstarPath` was
-     already inactive or destroyed first. Look at `OnDestroy` order again.
-   - Line present, heap still grows (less): the census stays on; look for
-     what remains (live DontDestroyOnLoad objects and threads are what a
-     static walk cannot see).
-   - Also check nothing broke: enemies still path (they chase), and no
-     `PathfindingCleanup: ... threw` warning.
-2. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
+v0.23.2 adds diagnostics only. Ask the author for the same test (~20 load
+restores, *Memory census now* at the end) and read the log:
+
+1. **Pathfinding order**: `Pathfinding: AstarPath #id awake.` and
+   `Pathfinding: AstarPath #id destroyed, active: this one|another|none`
+   around each load. `this one` = the game's cleanup ran, pathfinding is
+   ruled out; `destroyed` never logged for an old id = the old pathfinder
+   survives the load (then look at why - DontDestroyOnLoad? a reference
+   keeping the GameObject?). `another` would mean the fix should act.
+2. **Census line**: `threads N (+d)` - a count that climbs every load is a
+   leaked worker thread (look at what threads the game starts: `ilscan refs
+   "System.Threading.Thread::.ctor"`). `statics reach ... ~X MB (+d)` and
+   `DontDestroyOnLoad: n objects reach m, ~X MB (+d)` - either one growing
+   ~120 MB a load names the root. Then `Grown in size:` and `Largest roots:`
+   name it exactly; `Destroyed, by type:` says what the top holders keep.
+3. If none of those grows: the leak is below anything C# walks can see
+   (native, or Mono internals / a conservative-GC false root). Next step
+   would be comparing `Profiler.GetMonoUsedSize` / `GetTotalAllocatedMemory`
+   and trying `Resources.UnloadUnusedAssets` + `GC.Collect` after a load,
+   and checking whether the heap is really held (a menu trip gave it back).
+4. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
    with checkpoint n (...) outstanding; holding x, y at the start`.
-3. In-place restore slowdown (optional): *Memory census now*, ~20 in-place
-   restores standing still, *Memory census now* again - the Unity-object
-   growth between the two is per-restore, if any.
+5. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
+   kept only +12 MB, but each took ~150 ms for 12 restores, then ~330 ms
+   from the 13th on. Not a leak; a step. Look if it recurs.
 
 Then continue with **Next up**, in order. The author wants Next up finished
 before QoL/UX work; the runner feedback below is deferred unless critical
@@ -450,7 +459,7 @@ states** (in the route fingerprint), debug views (freecam / colliders /
 triggers / wireframe, with size and name filters), game input blocked while
 the window is open, an on-screen notice, a 30 s perf log line,
 self-installing updates **with a changelog in the Updates tab**, a
-**memory census on every load**, the **pathfinding leak fix**, offline IL
+**memory census on every load**, offline IL
 scanner.
 
 ### Key concepts
@@ -584,7 +593,7 @@ once** (v0.22.6, author); text wraps and sits under its buttons; the
 v0.23.0 census ran after every load without trouble (0.4-0.8 s).
 
 **Awaiting an in-game check** — ask before building on these:
-- **The pathfinding leak fix** (v0.23.1) - see *Pick up here*.
+- **The load leak diagnostics** (v0.23.2) - see *Pick up here*.
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
   (installed)" after updating.
@@ -651,9 +660,10 @@ list so we can move onto expanding more features".
    2026-09-23 (~103 MB kept per load restore, 6.4 -> 15.2 s, a menu trip
    gave most of it back); the author's v0.23.0 census (21 load restores:
    +122 MB a load while statics and Unity objects stayed flat); IL:
-   `AstarPath.OnDestroy` skips all cleanup unless it is `active`, and on a
-   same-scene reload the new world's pathfinder already is (game-notes
-   *The load leak*). **v0.23.1 fixes that; confirm it.** Then the tail:
+   `AstarPath.OnDestroy` skips all cleanup unless it is `active` - the
+   v0.23.1 fix for that **never acted in game** (gotcha 25); v0.23.2's
+   census sizes, DDOL roots and thread count are the next look (game-notes
+   *The load leak*). Once the cause is found and fixed, the tail:
    - fix our own small holders, left in as known positives for the census:
      `PickupKeeper.TakenList` (prune destroyed entries when a load
      finishes - only an in-place restore prunes it today) and

@@ -602,6 +602,33 @@ callback the cleanup nulled (the new world registered them already). Log:
 `Pathfinding: the previous world's AstarPath was destroyed while the new
 one was active - running the cleanup the game skips (n this session).`
 
+**It did not act on a reload (author, v0.23.1, 2026-09-23).** 21 load
+restores of a Creative save: `pathfinding cleanups 0` after every one, heap
+262 -> 2746 MB (+122 a load, same as v0.23.0; 5.3 -> 14.0 s a load). So
+on a same-scene reload the old `AstarPath` was `active` when its
+`OnDestroy` ran (the game's own cleanup ran) or it never ran - **the
+ordering theory is unconfirmed, and pathfinding is probably not the
+leak.** The fix logged once, at quit: `OnApplicationQuit` (IL) calls
+`OnDestroy()` then `pathProcessor.AbortThreads()`, which nulls `active`,
+then Unity calls `OnDestroy` again - a false positive, ignored since
+v0.23.2. v0.23.2 logs every `AstarPath` `Awake` / `OnDestroy` with which
+instance was active, to settle the order.
+
+What the census cannot see yet (v0.23.0-0.23.1): it counted **objects,
+not bytes** (a 100 MB array is one node), stopped at every live Unity
+object (a `DontDestroyOnLoad` object's fields were never walked), read
+only `Assembly-CSharp(-firstpass)`, and had no thread count. v0.23.2 adds
+an estimated size per root, `DontDestroyOnLoad` objects as roots, the
+UnityScript / PlayMaker / `TheForest.Commons` statics, and the OS thread
+count. Small real holders it did see growing every load:
+`Achievements.Data` (+~55 objects, +4-5 destroyed), `TreeHealth.OnTreeCutDown`
+(+12, +2 destroyed), `MecanimEventManager.globalLastStates` (+13),
+`DepthBufferGrabCommand.m_data` (+4, +1 destroyed).
+
+The in-place restores in the same session: heap +12 MB over 20, but the
+restore time went from ~150 ms to ~330 ms partway through (restore 13) and
+stayed there.
+
 Every other `OnDestroy` in the game with a singleton guard (18 of them:
 `Sunshine`, `InsideCheck`, `OverlayIconManager`, `VirtualCursor`, `Mood`,
 `Prefabs`, `GrassModeManager`, ...) only does

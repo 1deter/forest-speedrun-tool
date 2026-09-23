@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.2 - 2026-09-23
+
+- Load slowdown: the v0.23.1 fix never had anything to do on a reload,
+  and memory still grows about 120 MB a load, so pathfinding was not the
+  cause. This version only adds detail to the memory report in the
+  log (sizes, background threads, objects kept across loads) to find the
+  real cause. Nothing changes in game.
+
 ## v0.23.1 - 2026-09-23
 
 - Load slowdown, first fix: every quick-load or savestate load kept the old

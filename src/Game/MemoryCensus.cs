@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using BepInEx.Logging;
 using UnityEngine;
@@ -29,6 +30,14 @@ namespace ForestOverlay.Game
     // walk the whole scene). Compared census to census, the root whose dead
     // count grows by a load's worth each time is the leak.
     //
+    // v0.23.2, after v0.23.0/0.23.1 found object counts flat while the heap
+    // grew ~122 MB a load: counting objects hides one huge array, so every
+    // root now carries an estimated SIZE (arrays and strings exactly, other
+    // objects by field count); the live DontDestroyOnLoad objects - which
+    // outlive every load - are walked as roots too; more of the game's
+    // assemblies are read; and the process's OS thread count is logged
+    // (a leaked worker thread is a root no walk can see - gotcha 24).
+    //
     // Also counts every Unity object by type (Resources.FindObjectsOfTypeAll
     // - once per load, never on a timer: gotcha 11) for native growth.
     //
@@ -43,8 +52,14 @@ namespace ForestOverlay.Game
         private const int RootNodeCap = 150000;
         private const int TotalNodeCap = 1500000;
         private const int TopN = 8;
+        private const long MB = 1024 * 1024;
+        private const string DdolPrefix = "[DDOL] ";
 
-        private static readonly string[] Assemblies = { "Assembly-CSharp", "Assembly-CSharp-firstpass", "ForestOverlay" };
+        private static readonly string[] Assemblies =
+        {
+            "Assembly-CSharp", "Assembly-CSharp-firstpass", "Assembly-UnityScript", "Assembly-UnityScript-firstpass",
+            "PlayMaker", "TheForest.Commons", "ForestOverlay"
+        };
         private static readonly string[] SkipPrefixes = { "Bolt", "Coop", "Steam", "UdpKit", "Photon", "Mp", "MP" };
 
         private sealed class RefEq : IEqualityComparer<object>
@@ -64,7 +79,9 @@ namespace ForestOverlay.Game
             public int Nodes;
             public int Dead;
             public int Alive;
+            public long Bytes;
             public bool Capped;
+            public Dictionary<string, int> DeadTypes;
         }
 
         private struct Item
@@ -77,14 +94,19 @@ namespace ForestOverlay.Game
         private readonly ManualLogSource _log;
         private List<Root> _roots;
         private readonly Dictionary<Type, FieldInfo[]> _fields = new Dictionary<Type, FieldInfo[]>();
+        private readonly Dictionary<Type, int> _objSize = new Dictionary<Type, int>();
+        private readonly Dictionary<Type, int> _elemSize = new Dictionary<Type, int>();
         private readonly List<Item> _stack = new List<Item>();
 
         private Dictionary<string, RootStat> _last;
         private Dictionary<Type, int> _lastTypes;
         private int _lastDead;
         private long _lastNodes;
+        private long _lastBytes;
+        private long _lastDdolBytes;
         private int _lastUnity;
         private long _lastHeap;
+        private int _lastThreads;
 
         public int Runs { get; private set; }
 
@@ -101,13 +123,14 @@ namespace ForestOverlay.Game
             Runs++;
 
             long heap = GC.GetTotalMemory(true);
+            int threads = CountThreads();
             if (_roots == null) FindRoots();
 
             HashSet<object> seen = new HashSet<object>(new RefEq());
             Dictionary<string, RootStat> stats = new Dictionary<string, RootStat>();
             int budget = TotalNodeCap;
             int dead = 0, alive = 0, failed = 0;
-            long nodes = 0;
+            long nodes = 0, bytes = 0;
 
             for (int i = 0; i < _roots.Count && budget > 0; i++)
             {
@@ -122,21 +145,50 @@ namespace ForestOverlay.Game
                 if (value == null) continue;
 
                 RootStat st = new RootStat();
-                Walk(value, st, seen, ref budget);
+                Walk(value, st, seen, ref budget, false);
                 if (st.Nodes == 0) continue;
 
                 stats[_roots[i].Name] = st;
                 nodes += st.Nodes;
+                bytes += st.Bytes;
                 dead += st.Dead;
                 alive += st.Alive;
+            }
+
+            UnityEngine.Object[] all = null;
+            try { all = Resources.FindObjectsOfTypeAll(typeof(UnityEngine.Object)); }
+            catch (Exception ex) { _log.LogWarning("Memory census: object count failed: " + ex.Message); }
+
+            // Live DontDestroyOnLoad objects outlive every load, so their
+            // fields are roots like statics. One root per type.
+            int ddol = 0;
+            long ddolNodes = 0, ddolBytes = 0;
+            if (all != null)
+            {
+                for (int i = 0; i < all.Length && budget > 0; i++)
+                {
+                    MonoBehaviour mb = all[i] as MonoBehaviour;
+                    if (mb == null || !IsDdol(mb)) continue;
+                    ddol++;
+
+                    string name = DdolPrefix + mb.GetType().Name;
+                    RootStat st;
+                    if (!stats.TryGetValue(name, out st)) { st = new RootStat(); stats[name] = st; }
+                    int n0 = st.Nodes;
+                    long b0 = st.Bytes;
+                    int d0 = st.Dead;
+                    Walk(mb, st, seen, ref budget, true);
+                    ddolNodes += st.Nodes - n0;
+                    ddolBytes += st.Bytes - b0;
+                    dead += st.Dead - d0;
+                }
             }
 
             // Native side: every Unity object, by type.
             Dictionary<Type, int> types = new Dictionary<Type, int>();
             int unity = 0;
-            try
+            if (all != null)
             {
-                UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(UnityEngine.Object));
                 unity = all.Length;
                 for (int i = 0; i < all.Length; i++)
                 {
@@ -147,18 +199,34 @@ namespace ForestOverlay.Game
                     types[t] = n + 1;
                 }
             }
-            catch (Exception ex) { _log.LogWarning("Memory census: object count failed: " + ex.Message); }
 
             sw.Stop();
-            string summary = Report(label, heap, nodes, dead, alive, unity, stats, types, budget <= 0, sw.ElapsedMilliseconds);
+            string summary = Report(label, heap, threads, nodes, bytes, dead, alive, ddol, ddolNodes, ddolBytes,
+                                    unity, stats, types, budget <= 0, sw.ElapsedMilliseconds);
 
             _last = stats;
             _lastTypes = types;
             _lastDead = dead;
             _lastNodes = nodes;
+            _lastBytes = bytes;
+            _lastDdolBytes = ddolBytes;
             _lastUnity = unity;
             _lastHeap = heap;
+            _lastThreads = threads;
             return summary;
+        }
+
+        private static bool IsDdol(MonoBehaviour mb)
+        {
+            try
+            {
+                string asm = mb.GetType().Assembly.GetName().Name;
+                if (asm.StartsWith("ForestOverlay", StringComparison.Ordinal) || asm.StartsWith("BepInEx", StringComparison.Ordinal) ||
+                    asm.IndexOf("Harmony", StringComparison.Ordinal) >= 0)
+                    return false;   // ours: already walked through our statics
+                return mb.gameObject.scene.name == "DontDestroyOnLoad";
+            }
+            catch (Exception) { return false; }
         }
 
         // ------------------------------------------------------------------
@@ -191,7 +259,7 @@ namespace ForestOverlay.Game
                         FieldInfo fi = fields[f];
                         if (fi.IsLiteral) continue;
                         Type ft = fi.FieldType;
-                        if (ft.IsValueType || ft == typeof(string) || ft.IsPointer) continue;
+                        if (ft.IsValueType || ft.IsPointer) continue;
 
                         Root r;
                         r.Name = type.Name + "." + fi.Name;
@@ -217,10 +285,19 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
-        private void Walk(object start, RootStat st, HashSet<object> seen, ref int budget)
+        /// intoLive: start is a live Unity object whose own fields are the
+        /// root (a DontDestroyOnLoad object); otherwise live ones end the walk.
+        private void Walk(object start, RootStat st, HashSet<object> seen, ref int budget, bool intoLive)
         {
             _stack.Clear();
-            _stack.Add(new Item(start, 0));
+            if (intoLive)
+            {
+                if (!seen.Add(start)) return;
+                st.Nodes++;
+                st.Bytes += ObjectSize(start.GetType());
+                PushFields(start, start.GetType(), 1);
+            }
+            else _stack.Add(new Item(start, 0));
 
             while (_stack.Count > 0)
             {
@@ -229,8 +306,16 @@ namespace ForestOverlay.Game
 
                 object o = it.O;
                 if (o == null) continue;
+
+                string s = o as string;
+                if (s != null)
+                {
+                    if (seen.Add(o)) st.Bytes += 20 + 2L * s.Length;
+                    continue;
+                }
+
                 Type t = o.GetType();
-                if (t.IsValueType || o is string || o is MemberInfo || o is Assembly || o is Module) continue;
+                if (t.IsValueType || o is MemberInfo || o is Assembly || o is Module) continue;
                 if (!seen.Add(o)) continue;
 
                 st.Nodes++;
@@ -239,24 +324,31 @@ namespace ForestOverlay.Game
                 if (o is UnityEngine.Object)
                 {
                     // The overloaded == asks the native side: true once destroyed.
-                    if ((UnityEngine.Object)o == null) st.Dead++;
-                    else { st.Alive++; continue; }
+                    if ((UnityEngine.Object)o != null) { st.Alive++; continue; }
+                    st.Dead++;
+                    st.Bytes += ObjectSize(t);
+                    if (st.DeadTypes == null) st.DeadTypes = new Dictionary<string, int>();
+                    int n;
+                    st.DeadTypes.TryGetValue(t.Name, out n);
+                    st.DeadTypes[t.Name] = n + 1;
                     // A destroyed object's C# fields are what it keeps alive.
                     if (it.Depth < MaxDepth) PushFields(o, t, it.Depth + 1);
                     continue;
                 }
 
-                if (it.Depth >= MaxDepth) continue;
-                int next = it.Depth + 1;
-
                 Array arr = o as Array;
                 if (arr != null)
                 {
                     Type et = t.GetElementType();
-                    if (et.IsValueType) continue;
-                    foreach (object e in arr) Push(e, next);
+                    st.Bytes += 16 + arr.LongLength * ElementSize(et);
+                    if (et.IsValueType || it.Depth >= MaxDepth) continue;
+                    foreach (object e in arr) Push(e, it.Depth + 1);
                     continue;
                 }
+
+                st.Bytes += ObjectSize(t);
+                if (it.Depth >= MaxDepth) continue;
+                int next = it.Depth + 1;
 
                 Delegate d = o as Delegate;
                 if (d != null)
@@ -274,12 +366,15 @@ namespace ForestOverlay.Game
                     IDictionary dict = o as IDictionary;
                     if (dict != null)
                     {
+                        st.Bytes += 24L * dict.Count;   // buckets + entries, not reached by enumerating
                         foreach (DictionaryEntry e in dict) { Push(e.Key, next); Push(e.Value, next); }
                         continue;
                     }
                     IEnumerable en = o as IEnumerable;
                     if (en != null)
                     {
+                        ICollection c = o as ICollection;
+                        if (c != null) st.Bytes += 8L * c.Count;   // the backing array
                         foreach (object e in en) Push(e, next);
                         continue;
                     }
@@ -312,8 +407,9 @@ namespace ForestOverlay.Game
             return ns != null && ns.StartsWith("System.Collections", StringComparison.Ordinal);
         }
 
-        // Reference-type instance fields, base classes included, up to the
-        // Unity base types (whose own fields are native bookkeeping).
+        // Reference-type instance fields (strings included, for their size),
+        // base classes included, up to the Unity base types (whose own
+        // fields are native bookkeeping).
         private FieldInfo[] FieldsOf(Type t)
         {
             FieldInfo[] cached;
@@ -327,7 +423,7 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < fs.Length; i++)
                 {
                     Type ft = fs[i].FieldType;
-                    if (ft.IsValueType || ft == typeof(string) || ft.IsPointer) continue;
+                    if (ft.IsValueType || ft.IsPointer) continue;
                     list.Add(fs[i]);
                 }
             }
@@ -337,20 +433,100 @@ namespace ForestOverlay.Game
             return cached;
         }
 
+        // An estimate: a header plus 8 bytes a field. Close enough to tell a
+        // 100 MB root from a small one.
+        private int ObjectSize(Type t)
+        {
+            int size;
+            if (_objSize.TryGetValue(t, out size)) return size;
+            size = 16;
+            for (Type c = t; c != null && c != typeof(object); c = c.BaseType)
+            {
+                try { size += 8 * c.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly).Length; }
+                catch (Exception) { }
+            }
+            _objSize[t] = size;
+            return size;
+        }
+
+        private int ElementSize(Type et)
+        {
+            if (!et.IsValueType) return 8;
+            int size;
+            if (_elemSize.TryGetValue(et, out size)) return size;
+            try { size = Marshal.SizeOf(et); }
+            catch (Exception) { size = 8 * Math.Max(1, et.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Length); }
+            _elemSize[et] = size;
+            return size;
+        }
+
         // ------------------------------------------------------------------
-        private string Report(string label, long heap, long nodes, int dead, int alive, int unity,
+        // OS threads of this process (Toolhelp snapshot). A pathfinder or any
+        // worker left running by an old world shows up here. -1 if unknown.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ThreadEntry32
+        {
+            public uint dwSize;
+            public uint cntUsage;
+            public uint th32ThreadID;
+            public uint th32OwnerProcessID;
+            public int tpBasePri;
+            public int tpDeltaPri;
+            public uint dwFlags;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+        [DllImport("kernel32.dll")] private static extern bool Thread32First(IntPtr snapshot, ref ThreadEntry32 entry);
+        [DllImport("kernel32.dll")] private static extern bool Thread32Next(IntPtr snapshot, ref ThreadEntry32 entry);
+        [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32.dll")] private static extern uint GetCurrentProcessId();
+
+        private static int CountThreads()
+        {
+            try
+            {
+                IntPtr snap = CreateToolhelp32Snapshot(4 /* TH32CS_SNAPTHREAD */, 0);
+                if (snap == IntPtr.Zero || snap == new IntPtr(-1)) return -1;
+                try
+                {
+                    uint pid = GetCurrentProcessId();
+                    ThreadEntry32 e = new ThreadEntry32();
+                    e.dwSize = (uint)Marshal.SizeOf(typeof(ThreadEntry32));
+                    int n = 0;
+                    for (bool ok = Thread32First(snap, ref e); ok; ok = Thread32Next(snap, ref e))
+                        if (e.th32OwnerProcessID == pid) n++;
+                    return n;
+                }
+                finally { CloseHandle(snap); }
+            }
+            catch (Exception) { return -1; }
+        }
+
+        // ------------------------------------------------------------------
+        private string Report(string label, long heap, int threads, long nodes, long bytes, int dead, int alive,
+                              int ddol, long ddolNodes, long ddolBytes, int unity,
                               Dictionary<string, RootStat> stats, Dictionary<Type, int> types, bool capped, long ms)
         {
             bool first = _last == null;
             StringBuilder sb = new StringBuilder();
             sb.Append("Memory census ").Append(Runs).Append(" after ").Append(label)
-              .Append(" (").Append(ms).Append(" ms): Mono heap ").Append(heap / (1024 * 1024)).Append(" MB");
-            if (!first) sb.Append(" (").Append(Signed((heap - _lastHeap) / (1024 * 1024))).Append(")");
+              .Append(" (").Append(ms).Append(" ms): Mono heap ").Append(heap / MB).Append(" MB");
+            if (!first) sb.Append(" (").Append(Signed((heap - _lastHeap) / MB)).Append(")");
+            if (threads >= 0)
+            {
+                sb.Append(" | threads ").Append(threads);
+                if (!first && _lastThreads >= 0) sb.Append(" (").Append(Signed(threads - _lastThreads)).Append(")");
+            }
             sb.Append(" | statics reach ").Append(nodes).Append(" objects");
             if (!first) sb.Append(" (").Append(Signed(nodes - _lastNodes)).Append(")");
+            sb.Append(", ~").Append(Mb(bytes)).Append(" MB");
+            if (!first) sb.Append(" (").Append(SignedMb(bytes - _lastBytes)).Append(")");
             sb.Append(", destroyed Unity objects still referenced ").Append(dead);
             if (!first) sb.Append(" (").Append(Signed(dead - _lastDead)).Append(")");
             sb.Append(", live ").Append(alive);
+            sb.Append(" | DontDestroyOnLoad: ").Append(ddol).Append(" objects reach ").Append(ddolNodes)
+              .Append(", ~").Append(Mb(ddolBytes)).Append(" MB");
+            if (!first) sb.Append(" (").Append(SignedMb(ddolBytes - _lastDdolBytes)).Append(")");
             sb.Append(" | Unity objects ").Append(unity);
             if (!first) sb.Append(" (").Append(Signed(unity - _lastUnity)).Append(")");
             if (capped) sb.Append(" | walk CAPPED at ").Append(TotalNodeCap);
@@ -371,15 +547,38 @@ namespace ForestOverlay.Game
             if (sb.Length > 0) _log.LogInfo(sb.ToString());
             else _log.LogInfo("  Holding destroyed objects: none.");
 
-            // Growth since the last census, by objects reached.
+            // What the top holders' destroyed objects are.
+            sb.Length = 0;
+            for (int i = 0; i < byDead.Count && i < 4 && byDead[i].Value.Dead > 0; i++)
+            {
+                sb.Append(i == 0 ? "  Destroyed, by type: " : " | ").Append(byDead[i].Key).Append(": ");
+                AppendTop(sb, byDead[i].Value.DeadTypes, 4);
+            }
+            if (sb.Length > 0) _log.LogInfo(sb.ToString());
+
+            // Largest roots by estimated size.
+            List<KeyValuePair<string, RootStat>> bySize = new List<KeyValuePair<string, RootStat>>(stats);
+            bySize.Sort(delegate(KeyValuePair<string, RootStat> a, KeyValuePair<string, RootStat> b) { return b.Value.Bytes.CompareTo(a.Value.Bytes); });
+            sb.Length = 0;
+            for (int i = 0; i < bySize.Count && i < TopN; i++)
+            {
+                sb.Append(i == 0 ? "  Largest roots: " : ", ").Append(bySize[i].Key).Append(" ~").Append(Mb(bySize[i].Value.Bytes)).Append(" MB");
+                if (bySize[i].Value.Capped) sb.Append(" [capped]");
+            }
+            if (sb.Length > 0) _log.LogInfo(sb.ToString());
+
+            // Growth since the last census, by objects reached and by size.
             if (!first)
             {
                 List<KeyValuePair<string, int>> grown = new List<KeyValuePair<string, int>>();
+                List<KeyValuePair<string, long>> grownSize = new List<KeyValuePair<string, long>>();
                 foreach (KeyValuePair<string, RootStat> kv in stats)
                 {
                     RootStat was = Previous(kv.Key);
                     int d = kv.Value.Nodes - (was != null ? was.Nodes : 0);
                     if (d > 0) grown.Add(new KeyValuePair<string, int>(kv.Key, d));
+                    long db = kv.Value.Bytes - (was != null ? was.Bytes : 0);
+                    if (db >= 64 * 1024) grownSize.Add(new KeyValuePair<string, long>(kv.Key, db));
                 }
                 grown.Sort(delegate(KeyValuePair<string, int> a, KeyValuePair<string, int> b) { return b.Value.CompareTo(a.Value); });
                 sb.Length = 0;
@@ -387,6 +586,13 @@ namespace ForestOverlay.Game
                     sb.Append(i == 0 ? "  Grown since census " + (Runs - 1) + ": " : ", ")
                       .Append(grown[i].Key).Append(" +").Append(grown[i].Value).Append(" (").Append(stats[grown[i].Key].Nodes).Append(')');
                 _log.LogInfo(sb.Length > 0 ? sb.ToString() : "  Grown since census " + (Runs - 1) + ": nothing.");
+
+                grownSize.Sort(delegate(KeyValuePair<string, long> a, KeyValuePair<string, long> b) { return b.Value.CompareTo(a.Value); });
+                sb.Length = 0;
+                for (int i = 0; i < grownSize.Count && i < TopN; i++)
+                    sb.Append(i == 0 ? "  Grown in size: " : ", ").Append(grownSize[i].Key).Append(' ').Append(SignedMb(grownSize[i].Value))
+                      .Append(" (").Append(Mb(stats[grownSize[i].Key].Bytes)).Append(" MB)");
+                _log.LogInfo(sb.Length > 0 ? sb.ToString() : "  Grown in size: nothing over 64 KB.");
 
                 List<KeyValuePair<Type, int>> typeGrowth = new List<KeyValuePair<Type, int>>();
                 foreach (KeyValuePair<Type, int> kv in types)
@@ -406,6 +612,15 @@ namespace ForestOverlay.Game
             return summary;
         }
 
+        private static void AppendTop(StringBuilder sb, Dictionary<string, int> counts, int max)
+        {
+            if (counts == null) return;
+            List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(counts);
+            list.Sort(delegate(KeyValuePair<string, int> a, KeyValuePair<string, int> b) { return b.Value.CompareTo(a.Value); });
+            for (int i = 0; i < list.Count && i < max; i++)
+                sb.Append(i == 0 ? "" : ", ").Append(list[i].Key).Append(' ').Append(list[i].Value);
+        }
+
         private RootStat Previous(string root)
         {
             RootStat r;
@@ -415,6 +630,16 @@ namespace ForestOverlay.Game
         private static string Signed(long v)
         {
             return (v >= 0 ? "+" : "") + v;
+        }
+
+        private static string Mb(long bytes)
+        {
+            return (bytes / (double)MB).ToString("0.0");
+        }
+
+        private static string SignedMb(long bytes)
+        {
+            return (bytes >= 0 ? "+" : "-") + Mb(Math.Abs(bytes)) + " MB";
         }
     }
 }
