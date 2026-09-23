@@ -281,13 +281,16 @@ namespace ForestOverlay.Modules
             SavestateFile f = LoadSelected();
             if (f == null) return;
             HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", null);
+            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, null);
         }
 
         private void RestoreSelectedWithLoad()
         {
             SavestateFile f = LoadSelected();
             if (f == null || _busy) return;
+
+            string foreign = ForeignSave(f);
+            if (foreign != null) { SetStatus("restore '" + f.Name + "' refused: " + foreign); return; }
 
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
@@ -308,7 +311,7 @@ namespace ForestOverlay.Modules
             // A slot save was made the game's way: streaming unloaded only in
             // MemorySafeSaveMode. No pickup list - a menu load would bring
             // them all back, so every kept pickup is put back.
-            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, null);
+            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, -1, null);
         }
 
         private void SlotWithoutMenu()
@@ -320,8 +323,10 @@ namespace ForestOverlay.Modules
             StartLoad("load slot " + _bridge.CurrentSlot + " without the menu", err, null);
         }
 
+        /// `savedInCave`: the file's cave flag (1 / 0), or -1 when unknown
+        /// (a slot save) and the player's position has to decide.
         private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
-                                    Action<string> after)
+                                    int savedInCave, Action<string> after)
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             _busy = true;
@@ -343,13 +348,18 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup restore failed: " + ex.Message); }
                 }
 
-                // The serializer restores the player's transform but only
-                // the Clock/cave-door path sends InACave; bring the cave
-                // state in line with where the player now stands.
+                // The serializer restores the IsInCaves flag but not what
+                // the cave doors did (terrain collision, lighting,
+                // streaming), so a flag test sees nothing to change. The
+                // file knows where it was captured: send that state outright.
                 string cave = "";
                 if (r.Ok && Ctx.Player.Found)
                 {
-                    try { cave = Ctx.Bridge.SyncCaveState(Ctx.Player.Transform.position); }
+                    try
+                    {
+                        cave = savedInCave >= 0 ? Ctx.Bridge.ForceCaveState(savedInCave == 1)
+                                                : Ctx.Bridge.SyncCaveState(Ctx.Player.Transform.position);
+                    }
                     catch (Exception) { }
                 }
 
@@ -473,6 +483,9 @@ namespace ForestOverlay.Modules
             string what = "start state of '" + s.Name + "'";
             if (s.StartRestoreWithLoad)
             {
+                string foreign = ForeignSave(f);
+                if (foreign != null) { done(foreign); return; }
+
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
                 StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), done);
@@ -480,8 +493,15 @@ namespace ForestOverlay.Modules
             else
             {
                 HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-                RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, done);
+                RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, f.InCave ? 1 : 0, done);
             }
+        }
+
+        // In place, the bridge checks this itself before touching anything.
+        private string ForeignSave(SavestateFile f)
+        {
+            if (!Ctx.Player.Found || !_bridge.Resolve()) return null;
+            return _bridge.ForeignPlayer(f.Data, Ctx.Player.Transform.root);
         }
 
         private void CheckPickups()

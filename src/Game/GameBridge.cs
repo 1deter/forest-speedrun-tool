@@ -414,6 +414,7 @@ namespace ForestOverlay.Game
         // ------------------------------------------------------------------
         private Type _localPlayerType;
         private Component _localPlayer;
+        private FieldInfo _localPlayerGo;          // static LocalPlayer.GameObject
         private MethodInfo _gotoCave;
         private PropertyInfo _isInCaves;
         private bool _caveResolved;
@@ -461,6 +462,33 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// Puts the player in or out of cave state UNCONDITIONALLY, by sending
+        /// the message cave doors send. GotoCave cannot do this: it acts
+        /// only when the IsInCaves flag disagrees, and an in-place restore
+        /// can bring the save's flag back without the side effects - the
+        /// terrain collision, lighting and streaming stay as they were
+        /// (author, v0.22.0: died in a cave, restored outside it, fell
+        /// through the terrain). ActiveAreaInfo.OnDeserialized only ever
+        /// sends InACave, never NotInACave.
+        public string ForceCaveState(bool inCave)
+        {
+            ResolveCave();
+            if (_localPlayerGo == null) return "cave switch unavailable";
+
+            try
+            {
+                GameObject go = _localPlayerGo.GetValue(null) as GameObject;
+                if (go == null) return "cave switch: no player";
+                go.SendMessage(inCave ? "InACave" : "NotInACave", SendMessageOptions.DontRequireReceiver);
+                return inCave ? "cave state set (in a cave)" : "surface state set";
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Cave state switch failed: " + ex.Message);
+                return "cave switch failed";
+            }
+        }
+
         private void ResolveCave()
         {
             if (_caveResolved) return;
@@ -472,6 +500,7 @@ namespace ForestOverlay.Game
             BindingFlags any = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             _gotoCave = _localPlayerType.GetMethod("GotoCave", any, null, new Type[] { typeof(bool) }, null);
             _isInCaves = _localPlayerType.GetProperty("IsInCaves", any);
+            _localPlayerGo = _localPlayerType.GetField("GameObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
             _log.LogInfo("Cave switch: GotoCave:" + (_gotoCave != null) + " IsInCaves:" + (_isInCaves != null));
         }

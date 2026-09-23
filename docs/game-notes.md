@@ -325,6 +325,19 @@ and `ActiveAreaInfo.OnDeserialized` send `InACave`.
 
 State: static `LocalPlayer.IsInCaves` (→ `ActiveAreaInfo.IsInCaves`).
 
+**The flag and the effects can disagree after a restore.**
+`ActiveAreaInfo.OnDeserialized` sends `InACave` when the saved
+`_isInCaves` is set (and the player is below the terrain) and **never sends
+`NotInACave`**. `GotoCave` acts only when the flag differs. So an in-place
+restore of a surface save while in a cave left the cave effects on — no
+terrain collision, cave streaming — with nothing to switch (author,
+v0.22.0). `PlayerStats.NotInACave` has no flag check of its own
+(`Clock.IsNotCave`, ocean on, `SetInCave(false)`, MP bookkeeping), so the
+plugin sends the message the save's flag calls for outright
+(`GameBridge.ForceCaveState`). Senders of `NotInACave` (`ilscan strings`):
+`CaveDoor.OnTriggerExit`, `CaveTriggers`, `playerEnterCaveAction`,
+`PlayerRespawnMP.Respawn`, `DebugConsole.GotoCave`, `LocalPlayer.GotoCave`.
+
 **The game's own teleport**, `LocalPlayer.Goto(Vector3)` (instance method;
 `LocalPlayer` is a component, no static instance): a target where
 `Terrain.activeTerrain.SampleHeight(pos) - pos.y > (IsInCaves ? 3 : 6)` is in
@@ -440,7 +453,17 @@ present._amount), true)` and then spawns the committed items back as
 pickups. Destroying a ghost directly skips it, so the plugin makes the same
 call (without the spawn) before deleting one.
 
-Still unknown: how AI takes an in-place restore (Creative, no enemies).
+**A savestate from another save duplicates the player.** Restoring in
+place a Hard save's state inside a Creative game produced a second player
+beside the first, mirroring input, with its own inventory — Tab closed one
+inventory and opened the other (author, v0.22.0). The player's
+`UniqueIdentifier` id differs between saves, so `LoadNow` does not find the
+saved player and instantiates it from its prefab, while the live one is
+never deleted. The plugin now refuses both restores when the save does not
+contain the live player's shallowest identifier id.
+
+Killed enemies do **not** come back with an in-place restore (author,
+v0.22.0). A load restore is the reference for what should.
 
 ---
 

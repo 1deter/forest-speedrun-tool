@@ -475,6 +475,9 @@ namespace ForestOverlay.Game
             string diffError;
             HashSet<string> stored = StoredNames(data, out diffError);
 
+            string foreign = stored != null ? ForeignPlayer(stored, keepRoot) : null;
+            if (foreign != null) { r.Message = foreign; done(r); yield break; }
+
             StashHands();
 
             int before = IdentifierCount;
@@ -716,6 +719,48 @@ namespace ForestOverlay.Game
                 error = "could not read the level data: " + (ex.InnerException ?? ex).Message;
                 return null;
             }
+        }
+
+        /// Null when `data` belongs to the game that is running, otherwise
+        /// why not. A savestate from another save names a different player:
+        /// in place, LoadNow cannot find it, instantiates it from its prefab
+        /// beside the live one, and both take input with two inventories
+        /// (author, v0.22.0: a Hard start state restored in a Creative game).
+        /// A load would swap in the other game under this slot. The player's
+        /// shallowest UniqueIdentifier is its identity; no identifier = no
+        /// verdict, and the restore goes ahead.
+        public string ForeignPlayer(string data, Transform playerRoot)
+        {
+            string error;
+            HashSet<string> stored = StoredNames(data, out error);
+            return stored != null ? ForeignPlayer(stored, playerRoot) : null;
+        }
+
+        private string ForeignPlayer(HashSet<string> stored, Transform playerRoot)
+        {
+            if (playerRoot == null || _uniqueIdType == null || _uidId == null) return null;
+
+            Component[] ids;
+            try { ids = playerRoot.GetComponentsInChildren(_uniqueIdType, true); }
+            catch (Exception) { return null; }
+
+            Component top = null;
+            int topDepth = int.MaxValue;
+            for (int i = 0; i < ids.Length; i++)
+            {
+                if (ids[i] == null) continue;
+                int depth = 0;
+                for (Transform t = ids[i].transform; t != playerRoot && t != null; t = t.parent) depth++;
+                if (depth < topDepth) { top = ids[i]; topDepth = depth; }
+            }
+            if (top == null) return null;
+
+            string id = ReadString(_uidId, top);
+            if (string.IsNullOrEmpty(id) || stored.Contains(id)) return null;
+
+            _log.LogWarning("Savestate: refused - the save does not contain this game's player ('" +
+                            top.gameObject.name + "' " + id + "); it was captured in another save.");
+            return "this savestate is from another save (its player is not this one) - load that save first";
         }
 
         private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names)

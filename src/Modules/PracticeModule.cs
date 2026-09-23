@@ -70,6 +70,7 @@ namespace ForestOverlay.Modules
         private GUIStyle _rowStyle;
         private GUIStyle _selectedRowStyle;
         private GUIStyle _dimStyle;
+        private GUIStyle _statusStyle;
         private GUIStyle _headerStyle;
 
         // The list is grouped by category with collapsible headers.
@@ -143,7 +144,7 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("practice.saveSpot", KeyCode.F6, "Save spot here", QuickSaveSpot);
-            map.Add("practice.goToSpot", KeyCode.F7, "Return to current spot", ReturnToSpot);
+            map.Add("practice.goToSpot", KeyCode.F7, "Restart current spot (restores its start state)", ReturnToSpot);
             map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
         }
 
@@ -350,7 +351,7 @@ namespace ForestOverlay.Modules
         /// place, or with a load per the segment), then the teleport runs as
         /// before - it sets the view angles and the cave state, and fires
         /// OnPlacedAtSpot for the run module once the world is final.
-        private void GoTo(Segment s)
+        private void Restart(Segment s)
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
 
@@ -369,23 +370,33 @@ namespace ForestOverlay.Modules
                         Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
                         _status = "Start state not restored: " + error;
                     }
-                    PlaceAt(s);
+                    // A restored state has set the cave state from its file;
+                    // the terrain guess below can be wrong at a cave mouth.
+                    PlaceAt(s, error != null);
                 });
                 return;
             }
 
             if (_savestates != null) Ctx.Log.LogInfo("Restart '" + s.Id + "': no start state - teleport only.");
-            PlaceAt(s);
+            PlaceAt(s, true);
         }
 
-        private void PlaceAt(Segment s)
+        /// Go: a teleport and nothing else, start state or not (author,
+        /// v0.22.0: one button, one job - restoring is Restart / F7).
+        private void Teleport(Segment s)
+        {
+            if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
+            PlaceAt(s, true);
+        }
+
+        private void PlaceAt(Segment s, bool syncCave)
         {
             Quaternion rot = Quaternion.Euler(0f, s.SpawnYaw, 0f);
 
             // Before moving, as the game's own Goto does: a spot inside a
             // cave needs the cave state (no terrain collision, cave
             // lighting), or you arrive under the terrain in the dark.
-            string cave = Ctx.Player.Found ? Ctx.Bridge.SyncCaveState(s.SpawnPosition) : "";
+            string cave = Ctx.Player.Found && syncCave ? Ctx.Bridge.SyncCaveState(s.SpawnPosition) : "";
 
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 
@@ -405,7 +416,7 @@ namespace ForestOverlay.Modules
         public void ReturnToSpot()
         {
             if (_current == null) { _status = "No entry selected."; return; }
-            GoTo(_current);
+            Restart(_current);
         }
 
         /// Saves where you stand as a new entry and selects it.
@@ -481,10 +492,13 @@ namespace ForestOverlay.Modules
             bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
             if (preview != _showPreview) _showPreview = preview;
 
-            GUI.Label(new Rect(ListWidth + 140, 30, w - ListWidth - 140, 20), _status, _dimStyle);
+            // Its own full-width line, one line high and never wrapped:
+            // beside the toggle a long message wrapped into two lines and
+            // both were cut in half (author, v0.22.0).
+            GUI.Label(new Rect(0, 54, w, 20), _status, _statusStyle);
 
-            DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
-            DrawEditor(new Rect(ListWidth + 14, 56, w - ListWidth - 14, _tabH - 60));
+            DrawList(new Rect(0, 78, ListWidth, _tabH - 82));
+            DrawEditor(new Rect(ListWidth + 14, 78, w - ListWidth - 14, _tabH - 82));
         }
 
         private void EnsureStyles()
@@ -500,6 +514,10 @@ namespace ForestOverlay.Modules
 
             _dimStyle = new GUIStyle(GUI.skin.label);
             _dimStyle.alignment = TextAnchor.MiddleLeft;
+
+            _statusStyle = new GUIStyle(_dimStyle);
+            _statusStyle.wordWrap = false;
+            _statusStyle.clipping = TextClipping.Clip;
 
             _headerStyle = new GUIStyle(GUI.skin.box);
             _headerStyle.alignment = TextAnchor.MiddleLeft;
@@ -544,7 +562,7 @@ namespace ForestOverlay.Modules
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
-                    GoTo(entry);
+                    Teleport(entry);
                 GUI.enabled = true;
             }
 
@@ -605,7 +623,7 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
 
             GUI.enabled = s.HasSpawn;
-            if (GUI.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) GoTo(s);
+            if (GUI.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) Teleport(s);
             GUI.enabled = true;
             y += 30f;
 
@@ -1058,6 +1076,8 @@ namespace ForestOverlay.Modules
             GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s);
             if (GUI.Button(new Rect(196, y - 2, 70, 22),
                            Time.unscaledTime <= _deleteStartArmedUntil ? "Sure?" : "Delete")) DeleteStartState(s);
+            GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s) && s.HasSpawn;
+            if (GUI.Button(new Rect(272, y - 2, 70, 22), "Restart")) Restart(s);
             GUI.enabled = true;
             y += 26f;
 

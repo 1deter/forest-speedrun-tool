@@ -94,7 +94,7 @@ Where things live:
 | Feature | Files |
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge`, `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`GoTo`) |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge`, `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go) |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -335,7 +335,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.0** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.1** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -355,7 +355,10 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   teleport; tick "Timed segment" and it gains start/end triggers and
   checkpoints. There is no separate "anchor". **F7 restarts the *current*
   spot** (the last one teleported to or captured on), not the editor's
-  selection.
+  selection. **Go only teleports** — never restores a start state
+  (author, v0.22.0: "buttons shouldn't have double-purposes"). Restoring
+  is *Restart*: F7, the Runs tab's Restart, a death revive, and the
+  *Restart* button on the editor's Start state row.
 - **Triggers** (`zone`, `box`, `item`, `event`, `manual`) are the spine —
   splits, segment bounds and eventually autosplits are all "a trigger fired".
   Item triggers can be **relative** (`+3` = three more than at the start).
@@ -402,7 +405,11 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   was unloaded; `Data/SavestateFile` is pure and tested.
 - **Segment start states** (Practice editor, *Start state* row): a
   savestate at `savestates/segments/<safe segment id>.fosave`, restored on
-  every restart (Go / F7) before the usual teleport. **In place by default;
+  every restart (F7 / Restart / death revive — not Go) before the usual
+  teleport, which then skips its cave guess: the restore sets the cave
+  state from the file's `cave` flag (`GameBridge.ForceCaveState`).
+  **Refused when the file is from another save** (its player id is not
+  the live player's) — in place it duplicated the player. **In place by default;
   `restore = load` on the segment** for the full reset (author 2026-09-23:
   fastest by default, the validated method as the alternative). Capturing
   moves the spawn to where you stand and makes the segment current. No
@@ -444,10 +451,14 @@ place 132–501 ms with `168 -> 168`, with a load ~11 s).
   with attempts asks for a second click and names the count; afterwards the
   Runs tab shows them as "from another route". Log line:
   `Savestate: start state of '<id>' is now <hash> - route <fp>.`
-- **Death at a start-state spot with practice mode off** (v0.22.0) revives
-  and restores the start state (v0.21.1 quick-loaded the slot instead).
-- **Text clipping at the top of some panel** — the author saw new text cut
-  off at the top somewhere in the UI (after v0.21.1); will find where.
+- **v0.22.1 fixes:** a restore out of a cave puts the surface state back
+  (the log's restore line ends `| cave: surface state set`); a start state
+  from another save is refused (`Savestate: refused - the save does not
+  contain this game's player ...`) instead of duplicating the player; Go
+  only teleports; the Practice status is one unwrapped line of its own
+  (it was cut in half beside *show zones* on a long delete message).
+- Death at a start-state spot with practice mode off restoring the state
+  — **confirmed** (v0.22.0).
 - **Whether a timed run still arms after an F7 restore** — runs do not log
   arming, so the v0.21.1 log could not show it.
 - **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2 clears the build
@@ -571,8 +582,17 @@ until the admins rule, and a few runners act as QA.
    - **100%: passengers.** The tab shows the passenger To Do task but not
      which passengers were found or how many. Find where the game tracks
      each passenger (IL) and list them like the nature guide.
-   - **"Log in inventory" mod** — asked for by runner sxczurass; what it
-     means is not yet clear (author unsure too). Ask before building.
+   - **Logs in the inventory** *(runner sxczurass, clarified 2026-09-23)*:
+     picked-up tree logs go into the inventory with a counter like any
+     item, up to a cap (runner wants 5; author wants it configurable —
+     slider or text box). **Not** held in the arms and not infinite
+     stacking in the hands. Rendering them in the inventory is optional
+     (the full inventory is cramped). A gameplay mod, not practice
+     tooling — label it honestly. Research the log pickup / carry /
+     build-ingredient paths in IL first.
+   - **"CANNOT CARRY ANY MORE LIGHTERS"** appears bottom-left after a
+     start-state restore; harmless (author). Probably the inventory
+     restore re-adding an item already held. QoL, later.
    - Idea (author): a **god mode** toggle for practice, as the other answer
      to deaths when there is no start state — the game's console has
      `_godmode` (`DebugConsole`, invokable by reflection).
