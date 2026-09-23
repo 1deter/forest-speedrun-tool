@@ -200,7 +200,7 @@ namespace ForestOverlay.ILScan
                 foreach (var p in type.Properties)
                     Console.WriteLine($"    prop   {p.PropertyType.Name} {p.Name}");
                 foreach (var mm in type.Methods)
-                    Console.WriteLine($"    method {mm.ReturnType.Name} {mm.Name}({string.Join(", ", mm.Parameters.Select(x => x.ParameterType.Name + " " + x.Name))})");
+                    Console.WriteLine($"    method {mm.ReturnType.Name} {mm.Name}({string.Join(", ", mm.Parameters.Select(x => x.ParameterType.Name + " " + x.Name))}){(mm.IsStatic ? "  [static]" : "")}");
                 Console.WriteLine();
             }
             return hits;

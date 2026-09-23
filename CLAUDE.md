@@ -365,12 +365,11 @@ Confirmed by the author: game-input block and freecam hold (v0.17.0), pitch
 kept across teleport / window close (v0.17.1), every endgame split incl.
 vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 (v0.19.2), cave teleport both ways — lit, loaded, standable (v0.19.1, confirmed
-2026-09-23), the self-updater end to end.
+2026-09-23), Inventory tab item names (v0.19.4), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
-- **Inventory tab item names** (v0.19.4). Every entry read `item <id>`
-  because `ItemById` is static; names now come from the catalogue.
-- **Boss-fight quick-load toggle** (v0.19.4), Deaths tab.
+- **Boss-fight quick-load toggle** (v0.19.4), Deaths tab. The author sees
+  it; the behaviour itself is untested (a boss-fight death is rare to hit).
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
 
 ### Open threads
@@ -422,13 +421,28 @@ checked with the author.
    - Respawning used items and resetting built structures are **equally
      important**. AI positions/state would be great but are not required.
 
-   **Start with research, not code** — propose a plan from ILScan findings
-   first, including whether a no-load restore is feasible at all. Known starting
-   points: the title-screen load path and `LoadSave.ShouldLoad`
-   (game-notes *Deaths*), `LoadSave.Activation`, `PlayerStats.JustSave`
-   (calls `Input.SetState`), `LevelSerializer` (progress callback on
-   `LoadSave`), `GameSetup.Slot`. Quick-load already proves a save can be
-   reloaded through the menu path from in game.
+   **Research done (2026-09-23, IL — game-notes *Saving and loading*).**
+   Plan, not yet agreed with the author:
+   - **No slot at all.** Capture by running the game's own save routine
+     (it force-unloads streamed content, reparents held items…) with
+     `Checkpoint`, `CreateThumbnail` and `SaveGameDifficulty` redirected by
+     Harmony prefixes while a capture is in flight: `CreateSaveEntry` +
+     `SerializeLevelToBytes` into our own file, nothing written to a slot or
+     Steam Cloud. Restores read that file too, so no overwrite prompt.
+   - **Restore A, no load:** `LevelSerializer.LoadNow(data, false, …)` into
+     the running scene, with streaming force-unloaded around it as the save
+     does. Removes objects built after the capture; recreates missing
+     *prefab* objects. Unknown: scene-object pickups, AI, what
+     `LoadSave.Activation` would have done.
+   - **Restore B, load:** `LevelSerializer.LoadSavedLevel(data)` straight
+     from in game — one scene load instead of the two a menu load does.
+     Fallback: the title-screen path with a prefix on `Resume`.
+   - **Phase 0 is a probe**: capture + both restores behind an
+     experimental, practice-marked panel that logs what each restore did
+     (destroyed / created / "Could not find", time, size), plus whether the
+     keycard is a `PrefabIdentifier`. The author's test decides A or B.
+     Then per-segment start states (shareable with the segment file) and
+     the per-segment restore-or-keep choice.
 2. **The game's load memory leak.** Each save loaded without restarting the
    game makes it worse: stutters and lower performance, loading certainly,
    gameplay probably (runner Cheesecake404: "loading definitely"; gameplay
@@ -438,12 +452,17 @@ checked with the author.
    count once, load time) so a real session shows what grows. Suspects to
    check with ILScan: objects that survive the scene change, static
    `EventRegistry` subscriptions from destroyed objects, whether
-   `Resources.UnloadUnusedAssets` runs on load.
+   `Resources.UnloadUnusedAssets` runs on load. From the savestate research
+   (IL): a menu load **loads the game scene twice** (see game-notes
+   *Saving and loading*), and `LevelLoader` only unloads assets when its
+   time-scale argument is 0 — both worth measuring.
 3. **Freecam keeps the game's lighting.** With freecam on the game goes
    darker, "like cave state while in the overworld". Freecam is a new
    `Camera` from `CopyFrom`, which copies camera settings but **not** the
    image-effect components on the game's camera (tonemapping, scattering,
-   colour grading…) — likely the cause; not yet checked. Fix candidate: move
+   colour grading…) — likely the cause; not yet checked. The author: darker
+   **everywhere** (sky and distance too), and normal again the instant
+   freecam is off — which fits missing post effects. Fix candidate: move
    the game's own camera instead of a copy, or copy its effect components.
    Dump the main camera's components first.
 4. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace

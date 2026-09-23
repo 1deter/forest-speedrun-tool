@@ -335,6 +335,72 @@ teleport does the same (`GameBridge.SyncCaveState`), before moving.
 `StreamCaveIn.LoadIn` additively loads `CaveProps_Streaming`; nothing in IL
 calls it.
 
+## Saving and loading
+
+The game uses **UnitySerializer** (`LevelSerializer`, `LevelLoader`,
+`UniqueIdentifier` / `PrefabIdentifier` / `EmptyObjectIdentifier`). A
+`JSONLevelSerializer` twin exists; the game uses the binary one. All IL.
+
+**Where a save lives.** `PlayerPrefsFile.SetString(PlayerName + "__RESUME__",
+base64, useSlots: true)` writes `SaveSlotUtils.GetLocalSlotPath()` +
+`__RESUME__` — the path is built from `GameSetup.Mode` and `GameSetup.Slot`
+(`Slots`: `Slot1`..`Slot5` only, in `TheForest.Commons.dll`). The previous
+file is kept as `…prev`; with Steam Cloud on it is also uploaded
+(`CoopSteamCloud.CloudSave`). `CanResume` = that file exists (or the cloud
+copy).
+
+**Saving** — `PlayerStats.OnSaveSlotSelectedRoutine` (from `JustSave` /
+`OnSaveSlotSelected`), in order: drop the glider, close the inventory/pause
+view, hide HUD and cams, **force-unload streamed content**
+(`GreebleZonesManager.ForcedUnload(true)`, every
+`Scene.SceneLoaders[i].ForcedUnload(true)` — `SceneUnloadInCave`),
+`ResourcesHelper.UnloadUnusedAssets` + `GCCollect`, `FakeParent.ReParent`
+on held item slots, `SaveSlotUtils.CreateThumbnail`, **`LevelSerializer
+.Checkpoint()`**, `SaveGameDifficulty`, (MP: `SaveHostGameGUID`), then undo
+the force-unload and the reparent. Refused in the overlook area.
+
+`Checkpoint` → `SaveGame(<difficulty or "Creative">, false,
+PerformSaveCheckPoint)` → `CreateSaveEntry(name, urgent)` (a `SaveEntry`:
+`Name`, `When`, `Level` = loaded scene, `Data` = `SerializeLevel(urgent)`)
+→ `SerializeLevelToBytes` → base64 → the slot file. `GC.Collect()` four
+times on the way.
+
+**Loading** — the title screen sets `LoadSave.ShouldLoad` and loads the game
+scene. In it, `LoadSave.Awake`: `ShouldLoad && CanResume` →
+`ShouldLoad = false`, `LevelSerializer.Resume()` → reads the slot file, sets
+difficulty from `SaveEntry.Name` → `SaveEntry.Load()` →
+`LoadSavedLevel(Data)`: a `DontDestroyOnLoad` `LevelLoader` holding the
+data, then **`SceneManager.LoadSceneAsync(Data.Name)` — the same scene
+again**. `LevelLoader.OnLevelWasLoaded` runs the restore; the second
+scene's `LoadSave.Awake` finds `ShouldLoad` false and starts
+`Activation(true)` ("Game Activation Sequence"). So **a save load loads
+the game scene twice.**
+
+**In-place restore exists:** `LevelSerializer.LoadNow(data,
+dontDeleteExistingItems, showLoadingGUI, complete)` builds a `LevelLoader`
+in the current scene and runs its `Load` coroutine — no scene load. The
+game itself uses `SerializeLevel` / `LoadNow` for `OnlyInRangeManager`
+(hide/show item streaming). With `DontDelete` false the loader:
+
+- destroys every live `UniqueIdentifier` whose id is **not** in the save's
+  `StoredObjectNames` (unless `LevelLoader.OnDestroyObject` vetoes — nothing
+  in the game subscribes);
+- recreates stored objects missing from the scene by `ClassId` from
+  `LevelSerializer.AllPrefabs` (`Instantiate`), finds the rest by
+  `UniqueIdentifier.GetByName` ("Could not find …" if a scene object is
+  gone);
+- restores components, strips components not in the save, sends
+  `OnDeserialized` to each object, and sets `IsDeserializing` around it.
+  `Resources.UnloadUnusedAssets` + `GC.Collect` run only when the load's
+  time scale argument is 0.
+
+**Unknown until tried in game:** whether a world pickup (e.g. keycard 210)
+is a `PrefabIdentifier` (would be recreated in place) or a scene object
+(would not); how AI and the spawn managers take an in-place restore; what
+`LoadSave.Activation` does that an in-place restore would skip.
+
+---
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a
