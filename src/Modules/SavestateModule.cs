@@ -20,7 +20,10 @@ namespace ForestOverlay.Modules
     //
     //   Capture here          - the game's save routine, redirected to
     //                           BepInEx/config/ForestOverlay/savestates.
-    //   Restore in place      - LoadNow into the running scene, no load.
+    //   Restore in place      - LoadNow into the running scene, no load;
+    //                           deletes what the save does not know and
+    //                           puts back world pickups taken since
+    //                           (Game/PickupKeeper).
     //   Restore with load     - LoadSavedLevel: one scene load.
     //   Current slot's save   - the same two restores fed from the slot the
     //                           game is running on (the author's idea: a
@@ -42,6 +45,7 @@ namespace ForestOverlay.Modules
         public override bool IsPracticeOnly { get { return true; } }
 
         private SavestateBridge _bridge;
+        private PickupKeeper _keeper;
         private string _dir;
 
         private bool _busy;
@@ -81,6 +85,8 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _bridge = new SavestateBridge(ctx.Log);
+            _keeper = new PickupKeeper(ctx.Log);
+            _keeper.Install(OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
@@ -94,6 +100,12 @@ namespace ForestOverlay.Modules
             map.Add("savestate.restoreLoad", KeyCode.None, "Savestate: restore selected with load", RestoreSelectedWithLoad);
         }
 
+        public override void Shutdown()
+        {
+            PickupKeeper.Armed = false;
+            if (_keeper != null) _keeper.Uninstall();
+        }
+
         // ------------------------------------------------------------------
         public override void Tick()
         {
@@ -101,7 +113,8 @@ namespace ForestOverlay.Modules
             {
                 _nextSlotRefresh = Time.unscaledTime + 1f;
                 _slotLabel.text = "Current save slot: " + _bridge.CurrentSlot;
-                _bindLabel.text = "Bound: " + _bridge.Status;
+                _bindLabel.text = "Bound: " + _bridge.Status + " | pickups: " + _keeper.Status +
+                                  (PickupKeeper.Armed ? ", " + _keeper.KeptCount + " kept for a restore" : ", armed by the first capture/restore");
             }
 
             if (_timingLoad) TimeLoad();
@@ -130,8 +143,11 @@ namespace ForestOverlay.Modules
             {
                 _timingLoad = false;
                 _loadsThisSession++;
+                // A full collection first, so the heap figure is what survived
+                // the load, not garbage waiting for the GC - one hitch, at the
+                // end of a load.
                 string line = _loadWhat + ": in game after " + elapsed.ToString("0.0") + " s. Loads this session: " +
-                              _loadsThisSession + ", Mono heap " + (GC.GetTotalMemory(false) / (1024 * 1024)) + " MB.";
+                              _loadsThisSession + ", Mono heap after GC " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB.";
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
                 return;
@@ -156,16 +172,23 @@ namespace ForestOverlay.Modules
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             Ctx.Practice.Mark("savestate capture");
+            PickupKeeper.Armed = true;
             SetStatus("capturing...");
 
             string name = _name;
             Vector3 pos = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
             bool inCave = Ctx.Bridge.IsInCaves();
 
-            Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r) { OnCaptured(r, name, pos, inCave); }));
+            // Before the capture unloads streaming, while every pickup here is
+            // still loaded.
+            List<string> pickups = new List<string>();
+            try { _keeper.Snapshot(pickups); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup snapshot failed: " + ex.Message); }
+
+            Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r) { OnCaptured(r, name, pos, inCave, pickups); }));
         }
 
-        private void OnCaptured(SavestateBridge.Result r, string name, Vector3 pos, bool inCave)
+        private void OnCaptured(SavestateBridge.Result r, string name, Vector3 pos, bool inCave, List<string> pickups)
         {
             _busy = false;
             if (!r.Ok)
@@ -185,13 +208,16 @@ namespace ForestOverlay.Modules
                 f.PluginVersion = OverlayPlugin.PluginVersion;
                 f.X = pos.x; f.Y = pos.y; f.Z = pos.z;
                 f.InCave = inCave;
+                f.StreamingUnloaded = r.StreamingUnloaded;
+                f.Pickups = pickups;
                 f.Data = r.Data;
 
                 Directory.CreateDirectory(_dir);
                 string path = UniquePath(SavestateFile.SafeFileName(name));
                 File.WriteAllText(path, f.Write(), new UTF8Encoding(false));
 
-                string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message;
+                string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
+                              ", " + pickups.Count + " world pickups listed";
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
 
@@ -208,7 +234,9 @@ namespace ForestOverlay.Modules
         private void RestoreSelectedInPlace()
         {
             SavestateFile f = LoadSelected();
-            if (f != null) RestoreInPlace(f.Data, "'" + f.Name + "'");
+            if (f == null) return;
+            HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
+            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'");
         }
 
         private void RestoreSelectedWithLoad()
@@ -217,6 +245,7 @@ namespace ForestOverlay.Modules
             if (f == null || _busy) return;
 
             Ctx.Practice.Mark("savestate restore (load)");
+            PickupKeeper.Armed = true;
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
             StartLoad("restore '" + f.Name + "' with load", err);
         }
@@ -231,29 +260,42 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("Savestate slot reload in place: " + error);
                 return;
             }
-            RestoreInPlace(data, "slot " + _bridge.CurrentSlot);
+            // A slot save was made the game's way: streaming unloaded only in
+            // MemorySafeSaveMode. No pickup list - a menu load would bring
+            // them all back, so every kept pickup is put back.
+            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot);
         }
 
         private void SlotWithoutMenu()
         {
             if (_busy) return;
             Ctx.Practice.Mark("savestate slot load");
+            PickupKeeper.Armed = true;
             string err = _bridge.LoadSlotWithoutMenu();
             StartLoad("load slot " + _bridge.CurrentSlot + " without the menu", err);
         }
 
-        private void RestoreInPlace(string data, string what)
+        private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what)
         {
             if (_busy) return;
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             Ctx.Practice.Mark("savestate restore (in place)");
+            PickupKeeper.Armed = true;
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
 
-            Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, delegate(SavestateBridge.Result r)
+            Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
+            Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 _busy = false;
+
+                int pickups = 0;
+                if (r.Ok)
+                {
+                    try { pickups = _keeper.Restore(presentPickups); }
+                    catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup restore failed: " + ex.Message); }
+                }
 
                 // The serializer restores the player's transform but only
                 // the Clock/cave-door path sends InACave; bring the cave
@@ -266,6 +308,8 @@ namespace ForestOverlay.Modules
                 }
 
                 string line = "restore " + what + " in place: " + r.Message +
+                              ", pickups put back " + pickups +
+                              (presentPickups == null ? " (all kept)" : "") +
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);

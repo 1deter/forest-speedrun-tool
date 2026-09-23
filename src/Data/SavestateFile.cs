@@ -18,7 +18,16 @@ namespace ForestOverlay.Data
     //   plugin = 0.20.0
     //   position = -1000.50 90.25 550.13
     //   cave = 0
+    //   streaming = unloaded
+    //   pickups = 210@1283.2,-70.2,615.0;...
     //   data = <base64>
+    //
+    // `streaming` says whether streamed content was force-unloaded around
+    // the capture; a restore must do the same or it would duplicate or
+    // delete streamed objects. Files from v0.20.0 have no line: "kept".
+    // `pickups` lists the world pickups present at capture (see
+    // PickupKey); absent in v0.20.0 files, which then restore every pickup
+    // taken since.
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -37,6 +46,12 @@ namespace ForestOverlay.Data
         public string PluginVersion = "";
         public float X, Y, Z;
         public bool InCave;
+        public bool StreamingUnloaded;
+
+        /// Null when the file has no pickups line (v0.20.0), which is not
+        /// the same as a capture that saw no pickups.
+        public List<string> Pickups;
+
         public string Data = "";
 
         public string Write()
@@ -50,6 +65,8 @@ namespace ForestOverlay.Data
             Line(sb, "plugin", PluginVersion);
             Line(sb, "position", F(X) + " " + F(Y) + " " + F(Z));
             Line(sb, "cave", InCave ? "1" : "0");
+            Line(sb, "streaming", StreamingUnloaded ? "unloaded" : "kept");
+            if (Pickups != null) Line(sb, "pickups", string.Join(";", Pickups.ToArray()));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -88,6 +105,14 @@ namespace ForestOverlay.Data
                     case "created": s.Created = value; break;
                     case "plugin": s.PluginVersion = value; break;
                     case "cave": s.InCave = value == "1"; break;
+                    case "streaming": s.StreamingUnloaded = value == "unloaded"; break;
+                    case "pickups":
+                        {
+                            s.Pickups = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.Pickups.Add(keys[k].Trim());
+                            break;
+                        }
                     case "data": s.Data = value; break;
                     case "position":
                         {
@@ -105,6 +130,23 @@ namespace ForestOverlay.Data
 
             if (s.Data.Length == 0) { error = "no data line"; return null; }
             return s;
+        }
+
+        /// Identifies a world pickup across a restore - it has no save
+        /// identifier, so item id plus position (0.1 m) is what there is.
+        /// Positions are rounded to one decimal, so jitter below 5 cm does
+        /// not change the key.
+        public static string PickupKey(int itemId, float x, float y, float z)
+        {
+            return itemId.ToString(CultureInfo.InvariantCulture) + "@" + K(x) + "," + K(y) + "," + K(z);
+        }
+
+        // Rounded first so -0.04 reads "0.0", not "-0.0".
+        private static string K(float v)
+        {
+            double r = Math.Round(v, 1);
+            if (r == 0) r = 0;
+            return r.ToString("0.0", CultureInfo.InvariantCulture);
         }
 
         /// A name safe as a file name on Windows: invalid characters become

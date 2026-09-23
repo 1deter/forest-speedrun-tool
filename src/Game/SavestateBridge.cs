@@ -17,20 +17,28 @@ namespace ForestOverlay.Game
     //
     // CAPTURE mirrors PlayerStats.OnSaveSlotSelectedRoutine step for step,
     // except the UI toggling and the slot writes:
-    //   drop the glider -> (MemorySafeSaveMode: force-unload greeble zones
-    //   and cave scene loaders, CheckInCave, UnloadUnusedAssets, GCCollect)
-    //   -> FakeParent.ReParent on inactive held items -> SerializeLevel
-    //   -> undo the force-unload, wait 0.3 s, UnParent.
+    //   drop the glider -> force-unload greeble zones and the surface
+    //   scene loaders, CheckInCave, UnloadUnusedAssets, GCCollect -> FakeParent
+    //   .ReParent on inactive held items -> SerializeLevel -> undo the
+    //   force-unload, wait 0.3 s, UnParent.
+    // The game force-unloads only in MemorySafeSaveMode; savestates always
+    // do (since v0.20.1), so streamed content is never in the save and an
+    // in-place restore can unload, diff and reload it cleanly.
     // The game's routine ends in Checkpoint(), which writes the slot file
     // (and Steam Cloud). We call SerializeLevel(false) instead - the same
     // string Checkpoint would store - and keep it in our own file.
     //
     // RESTORE, two ways:
     //   in place - LevelSerializer.LoadNow(data, false, false, complete):
-    //              no scene load. Destroys identifiers the save does not
-    //              know, recreates missing prefab objects, restores the
-    //              rest. Streaming is force-unloaded around it exactly as
-    //              around the capture.
+    //              no scene load. Recreates missing prefab objects and
+    //              restores the rest - but its delete step only runs for a
+    //              partial save (LevelData.rootObject set), NEVER for a
+    //              full level, so objects built after the capture survived
+    //              v0.20.0. We delete them first: every identifier whose Id
+    //              is not in the save's StoredObjectNames, outside the
+    //              player. Held items are stashed first (the inventory
+    //              restore does not touch the hands). Streaming is
+    //              force-unloaded around it exactly as around the capture.
     //   with load - LevelSerializer.LoadSavedLevel(data): what the game's
     //              Resume() does after reading the slot file - one scene
     //              load, not the two a menu load costs.
@@ -47,6 +55,7 @@ namespace ForestOverlay.Game
             public string Data;
             public string Level = "";
             public string Difficulty = "";
+            public bool StreamingUnloaded;
         }
 
         private const float LoadTimeout = 120f;
@@ -71,6 +80,17 @@ namespace ForestOverlay.Game
         private MethodInfo _prefsGetString;      // PlayerPrefsFile.GetString(string, string, bool)
         private MethodInfo _deserializeEntry;    // UnitySerializer.Deserialize<SaveEntry>(byte[])
         private FieldInfo _entryData;
+
+        // Level data, for the delete step
+        private MethodInfo _deserializeLevelData; // UnitySerializer.Deserialize<LevelData>(byte[])
+        private FieldInfo _storedObjectNames;     // LevelData.StoredObjectNames : List<StoredItem>
+        private FieldInfo _storedItemName;        // StoredItem.Name
+        private MethodInfo _decompress;           // CompressionHelper.Decompress(string) : byte[]
+
+        // Hands
+        private FieldInfo _inventory;             // LocalPlayer.Inventory
+        private MethodInfo _stashWeapon;          // PlayerInventory.StashEquipedWeapon(bool)
+        private MethodInfo _stashLeftHand;        // PlayerInventory.StashLeftHand()
 
         // Identifiers
         private Type _uniqueIdType;
@@ -156,8 +176,13 @@ namespace ForestOverlay.Game
                 Type entry = ls.GetNestedType("SaveEntry", BindingFlags.Public | BindingFlags.NonPublic);
                 if (entry != null) _entryData = entry.GetField("Data", inst);
 
+                Type levelData = ls.GetNestedType("LevelData", BindingFlags.Public | BindingFlags.NonPublic);
+                Type storedItem = ls.GetNestedType("StoredItem", BindingFlags.Public | BindingFlags.NonPublic);
+                if (levelData != null) _storedObjectNames = levelData.GetField("StoredObjectNames", inst);
+                if (storedItem != null) _storedItemName = storedItem.GetField("Name", inst);
+
                 Type us = GameBridge.FindGameType("Serialization.UnitySerializer");
-                if (us != null && entry != null)
+                if (us != null)
                 {
                     foreach (MethodInfo m in us.GetMethods(stat))
                     {
@@ -165,11 +190,16 @@ namespace ForestOverlay.Game
                         ParameterInfo[] p = m.GetParameters();
                         if (p.Length == 1 && p[0].ParameterType == typeof(byte[]))
                         {
-                            _deserializeEntry = m.MakeGenericMethod(entry);
+                            if (entry != null) _deserializeEntry = m.MakeGenericMethod(entry);
+                            if (levelData != null) _deserializeLevelData = m.MakeGenericMethod(levelData);
                             break;
                         }
                     }
                 }
+
+                Type compression = GameBridge.FindGameType("CompressionHelper");
+                if (compression != null)
+                    _decompress = compression.GetMethod("Decompress", stat, null, new[] { typeof(string) }, null);
             }
 
             Type prefs = GameBridge.FindGameType("PlayerPrefsFile");
@@ -245,6 +275,14 @@ namespace ForestOverlay.Game
                 _animControl = local.GetField("AnimControl", stat);
                 _specialActions = local.GetField("SpecialActions", stat);
                 _inOverlook = local.GetProperty("IsInOverlookArea", stat);
+                _inventory = local.GetField("Inventory", stat);
+            }
+
+            Type inv = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
+            if (inv != null)
+            {
+                _stashWeapon = inv.GetMethod("StashEquipedWeapon", inst, null, new[] { typeof(bool) }, null);
+                _stashLeftHand = inv.GetMethod("StashLeftHand", inst, null, Type.EmptyTypes, null);
             }
 
             Type slotType = GameBridge.FindGameType("itemConstrainToHand");
@@ -272,6 +310,8 @@ namespace ForestOverlay.Game
                      " loadSaved:" + (_loadSavedLevel != null) +
                      " resume:" + (_resume != null) +
                      " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
+                     " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
+                     " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null) +
                      " init:" + (_setInitType != null && _initContinue != null);
@@ -333,21 +373,16 @@ namespace ForestOverlay.Game
             if (ReadBool(_inOverlook)) { r.Message = "the game refuses to save in the overlook area"; done(r); yield break; }
 
             Stopwatch total = Stopwatch.StartNew();
-            bool memorySafe = ReadStaticBool(_memorySafe);
 
             DropGlider();
 
-            bool unloaded = false;
-            if (memorySafe)
-            {
-                unloaded = ForceUnloadStreaming(true, true);
-                yield return null;
-                Call(_unloadUnused);
-                yield return null;
-                yield return null;
-                Call(_gcCollect);
-                yield return null;
-            }
+            bool unloaded = ForceUnloadStreaming(true, true);
+            yield return null;
+            Call(_unloadUnused);
+            yield return null;
+            yield return null;
+            Call(_gcCollect);
+            yield return null;
 
             ReParentHeld(true);
             yield return null;
@@ -382,6 +417,7 @@ namespace ForestOverlay.Game
 
             r.Level = SceneManager.GetActiveScene().name;
             r.Difficulty = DifficultyName();
+            r.StreamingUnloaded = unloaded;
 
             // Undo, in the game's order.
             if (unloaded)
@@ -396,7 +432,7 @@ namespace ForestOverlay.Game
             {
                 r.Message = "serialized in " + serialize.ElapsedMilliseconds + " ms (total " +
                             total.ElapsedMilliseconds + " ms), " + Kb(r.Data.Length) +
-                            ", streaming " + (memorySafe ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept (MemorySafeSaveMode off)") +
+                            ", streaming " + (unloaded ? "force-unloaded" : "unload FAILED (kept)") +
                             ", " + IdentifierCount + " identifiers";
             }
             done(r);
@@ -404,21 +440,35 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // RESTORE IN PLACE - no scene load.
-        public IEnumerator RestoreInPlace(string data, Action<Result> done)
+        /// `unloadStreaming` must match how the data was captured: true for
+        /// savestates since v0.20.1, the header's value for older files, the
+        /// game's MemorySafeSaveMode for a slot save. `keepRoot` (the
+        /// player) is never deleted from.
+        public IEnumerator RestoreInPlace(string data, bool unloadStreaming, Transform keepRoot, Action<Result> done)
         {
             Result r = new Result();
 
             if (!Resolve() || _loadNow == null) { r.Message = "LevelSerializer.LoadNow not found"; done(r); yield break; }
             if (IsDeserializing) { r.Message = "the game is already loading"; done(r); yield break; }
 
+            string diffError;
+            HashSet<string> stored = StoredNames(data, out diffError);
+
+            StashHands();
+
             int before = IdentifierCount;
-            bool memorySafe = ReadStaticBool(_memorySafe);
             bool unloaded = false;
-            if (memorySafe)
+            if (unloadStreaming)
             {
                 unloaded = ForceUnloadStreaming(true, true);
-                yield return null;
+                // Greeble zones and scene unloads take a few frames.
+                yield return new WaitForSeconds(0.25f);
             }
+
+            // LoadNow never deletes for a full-level save; do it here.
+            List<string> deletedNames = new List<string>();
+            int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames) : 0;
+            if (deleted > 0) yield return null;   // let Destroy land before the loader looks
 
             _loadDone = false;
             _logNotFound = 0;
@@ -477,9 +527,16 @@ namespace ForestOverlay.Game
                 StringBuilder sb = new StringBuilder();
                 sb.Append(_loadDone ? "done in " : "TIMED OUT after ").Append(sw.ElapsedMilliseconds).Append(" ms");
                 sb.Append(", identifiers ").Append(before).Append(" -> ").Append(after);
+                if (stored == null) sb.Append(", delete step SKIPPED (").Append(diffError).Append(")");
+                else
+                {
+                    sb.Append(", deleted ").Append(deleted).Append(" not in the save");
+                    for (int i = 0; i < deletedNames.Count && i < 6; i++) sb.Append(i == 0 ? " (" : ", ").Append(deletedNames[i]);
+                    if (deletedNames.Count > 0) sb.Append(deletedNames.Count > 6 ? ", ...)" : ")");
+                }
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
-                sb.Append(", streaming ").Append(memorySafe ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
+                sb.Append(", streaming ").Append(unloadStreaming ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -600,6 +657,94 @@ namespace ForestOverlay.Game
             }
             return note;
         }
+
+        // ------------------------------------------------------------------
+        // The ids the save knows - LevelData.StoredObjectNames[i].Name, which
+        // the loader compares against UniqueIdentifier.Id. The data is
+        // "NOCOMPRESSION" + base64, or CompressionHelper's format.
+        private HashSet<string> StoredNames(string data, out string error)
+        {
+            error = null;
+            if (_deserializeLevelData == null || _storedObjectNames == null || _storedItemName == null)
+            {
+                error = "level data reader not bound";
+                return null;
+            }
+
+            try
+            {
+                byte[] bytes;
+                if (data.StartsWith("NOCOMPRESSION")) bytes = Convert.FromBase64String(data.Substring(13));
+                else if (_decompress != null) bytes = _decompress.Invoke(null, new object[] { data }) as byte[];
+                else { error = "compressed data and no CompressionHelper"; return null; }
+
+                object level = _deserializeLevelData.Invoke(null, new object[] { bytes });
+                IList items = level != null ? _storedObjectNames.GetValue(level) as IList : null;
+                if (items == null) { error = "no StoredObjectNames"; return null; }
+
+                HashSet<string> names = new HashSet<string>();
+                for (int i = 0; i < items.Count; i++)
+                {
+                    string n = items[i] != null ? _storedItemName.GetValue(items[i]) as string : null;
+                    if (!string.IsNullOrEmpty(n)) names.Add(n);
+                }
+                return names;
+            }
+            catch (Exception ex)
+            {
+                error = "could not read the level data: " + (ex.InnerException ?? ex).Message;
+                return null;
+            }
+        }
+
+        private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names)
+        {
+            if (_allIdentifiers == null || _uidId == null) return 0;
+
+            IList all;
+            try { all = _allIdentifiers.GetValue(null, null) as IList; }
+            catch (Exception) { return 0; }
+            if (all == null) return 0;
+
+            // Copy first: Destroy -> OnDestroy removes from AllIdentifiers.
+            Component[] snapshot = new Component[all.Count];
+            for (int i = 0; i < all.Count; i++) snapshot[i] = all[i] as Component;
+
+            int n = 0;
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                Component u = snapshot[i];
+                if (u == null) continue;
+                if (keepRoot != null && u.transform.IsChildOf(keepRoot)) continue;
+
+                string id = ReadString(_uidId, u);
+                if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
+
+                names.Add(u.gameObject.name);
+                UnityEngine.Object.Destroy(u.gameObject);
+                n++;
+            }
+            return n;
+        }
+
+        // The inventory restore rewrites the bag but not the hands: a stick
+        // held during the restore survived it (author, v0.20.0).
+        private void StashHands()
+        {
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                if (inv == null) return;
+                if (_stashWeapon != null) _stashWeapon.Invoke(inv, new object[] { false });
+                if (_stashLeftHand != null) _stashLeftHand.Invoke(inv, null);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Savestate: stashing held items failed: " + (ex.InnerException ?? ex).Message);
+            }
+        }
+
+        public bool MemorySafeSaveMode { get { return ReadStaticBool(_memorySafe); } }
 
         // ------------------------------------------------------------------
         // DIAGNOSTICS: would the in-place restore bring this pickup back?

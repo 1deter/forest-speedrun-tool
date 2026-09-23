@@ -382,9 +382,13 @@ in the current scene and runs its `Load` coroutine — no scene load. The
 game itself uses `SerializeLevel` / `LoadNow` for `OnlyInRangeManager`
 (hide/show item streaming). With `DontDelete` false the loader:
 
-- destroys every live `UniqueIdentifier` whose id is **not** in the save's
-  `StoredObjectNames` (unless `LevelLoader.OnDestroyObject` vetoes — nothing
-  in the game subscribes);
+- **only when `LevelData.rootObject` is set** (a partial "object tree"
+  save), destroys every live `UniqueIdentifier` whose id is not in the
+  save's `StoredObjectNames` (unless `LevelLoader.OnDestroyObject` vetoes —
+  nothing in the game subscribes). **A full-level save has no
+  `rootObject`, so nothing is deleted** — walls built after a capture
+  survived an in-place restore (author's test, v0.20.0: identifiers
+  172 -> 172). The plugin does this delete itself;
 - recreates stored objects missing from the scene by `ClassId` from
   `LevelSerializer.AllPrefabs` (`Instantiate`), finds the rest by
   `UniqueIdentifier.GetByName` ("Could not find …" if a scene object is
@@ -394,10 +398,32 @@ game itself uses `SerializeLevel` / `LoadNow` for `OnlyInRangeManager`
   `Resources.UnloadUnusedAssets` + `GC.Collect` run only when the load's
   time scale argument is 0.
 
-**Unknown until tried in game:** whether a world pickup (e.g. keycard 210)
-is a `PrefabIdentifier` (would be recreated in place) or a scene object
-(would not); how AI and the spawn managers take an in-place restore; what
-`LoadSave.Activation` does that an in-place restore would skip.
+**World pickups are not in the save.** The keycard
+(`C6_Props/C6_secretRoom02/Keycard`) has no `UniqueIdentifier` on itself,
+its parents or its `_destroyTarget` (logged in game). Taking a pickup runs
+`PickUp.ClearOut(fakeDrop)`: fake drop / multiplayer destroy aside,
+`_disableInsteadOfDestroy` → `Used = true`, `GrabExit`,
+`target.SetActive(false)`; otherwise unparent, `TryPool()` or
+`Destroy(_destroyTarget)` (never for `_infinite`). So a taken pickup is
+gone until a scene load re-creates it — which is why every menu load
+respawns pickups, and why `LoadNow` cannot.
+
+**Streaming comes back by itself.** `ForcedUnload(bool)` on
+`GreebleZonesManager` and `SceneUnloadInCave` only sets `_forcedUnload`;
+`SceneUnloadInCave.Awake` registers `CheckInCave` with
+`WorkScheduler.RegisterGlobal`, which re-evaluates it (in caves or forced →
+`Unload()`, else `Load()`). Despite its name, `SceneUnloadInCave` unloads
+**surface** scenes while you are in a cave.
+
+**In game (author, v0.20.0, Creative, capture 252 KB in 312 ms):**
+restore in place took 130 ms and put the inventory back, but left new
+walls and did not bring taken pickups back; restore with load (4.7 s,
+"notably very fast") put everything back. Reloading the slot save in place
+teleported to the save's spot and reset the inventory; loading the slot
+without the menu (5.2 s) put everything back. Held items survive an
+in-place inventory restore.
+
+Still unknown: how AI takes an in-place restore (Creative, no enemies).
 
 ---
 

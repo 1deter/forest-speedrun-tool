@@ -20,6 +20,8 @@ namespace ForestOverlay.Tests
             s.PluginVersion = "0.20.0";
             s.X = -1000.5f; s.Y = 90.25f; s.Z = 550.125f;
             s.InCave = true;
+            s.StreamingUnloaded = true;
+            s.Pickups = new System.Collections.Generic.List<string> { "210@1283.2,-70.2,615.0", "57@1.0,2.0,3.0" };
             s.Data = "H4sIAAAAAAAEAO29B2AcSZYlJi9tynt/SvVK1+B0oQiAYBMk2JBAEOzBiM3mkuwdaUcjKasqgcplVmVdZhZAzO2dvPfee++99+==";
             return s;
         }
@@ -42,7 +44,46 @@ namespace ForestOverlay.Tests
             Assert.Equal(90.25f, back.Y);
             Assert.Equal(550.13f, back.Z, 2);
             Assert.True(back.InCave);
+            Assert.True(back.StreamingUnloaded);
+            Assert.Equal(s.Pickups, back.Pickups);
             Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
+        public void V0200FileHasNoPickupsAndKeptStreaming()
+        {
+            string v0200 = SavestateFile.Magic + "\nname = old\ncave = 1\ndata = abc\n";
+            string error;
+            SavestateFile back = SavestateFile.Parse(v0200, out error);
+            Assert.Null(error);
+            Assert.False(back.StreamingUnloaded);
+            Assert.Null(back.Pickups);
+        }
+
+        [Fact]
+        public void EmptyPickupListIsNotAbsent()
+        {
+            SavestateFile s = Sample();
+            s.Pickups = new System.Collections.Generic.List<string>();
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.NotNull(back.Pickups);
+            Assert.Empty(back.Pickups);
+        }
+
+        [Theory]
+        [InlineData(210, 1283.23f, -70.24f, 615.02f, "210@1283.2,-70.2,615.0")]
+        [InlineData(57, 0f, 0f, 0f, "57@0.0,0.0,0.0")]
+        [InlineData(57, -0.04f, 10.26f, 3f, "57@0.0,10.3,3.0")]
+        public void PickupKeyIsStableAndCultureFree(int id, float x, float y, float z, string expected)
+        {
+            System.Globalization.CultureInfo old = System.Globalization.CultureInfo.CurrentCulture;
+            try
+            {
+                System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+                Assert.Equal(expected, SavestateFile.PickupKey(id, x, y, z));
+            }
+            finally { System.Globalization.CultureInfo.CurrentCulture = old; }
         }
 
         [Fact]

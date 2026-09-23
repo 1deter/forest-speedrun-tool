@@ -315,8 +315,8 @@ identity.
 
 ## Current status
 
-**Released: v0.20.0** (2026-09-23). The author runs it via the in-game updater.
-**162 tests.**
+**Released: v0.20.1** (2026-09-23). The author runs it via the in-game updater.
+**167 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -369,13 +369,17 @@ vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 2026-09-23), Inventory tab item names (v0.19.4), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
-- **Savestates phase 0** (v0.20.0, Savestates tab). The test the author
-  agreed to: capture; build something and pick up the keycard (item 210);
-  **Check pickups** before and after; **Restore in place**, then
-  **Restore with load**; report what came back and how the AI behaved. Also
-  try the two slot buttons. Read the `Savestate ...` log lines (capture
-  size/time, identifiers before -> after, 'not found' count, load seconds,
-  Mono heap) and the `Savestates bound.` line.
+- **Savestates in-place fixes** (v0.20.1). Phase 0 was tested (results in
+  game-notes *Saving and loading*): restore with load and slot-without-menu
+  work; in place left new walls, taken pickups and held items. v0.20.1
+  deletes objects the save does not know, keeps taken world pickups
+  hidden instead of destroyed (`Game/PickupKeeper`, armed by the first
+  capture/restore) and puts them back, stashes held items, and always
+  force-unloads streaming around capture and in-place restore. **Old
+  v0.20.0 captures lack the new header lines — recapture.** Same test
+  again; log line shows `deleted N not in the save`, `pickups put back N`.
+  Watch for duplicated sticks (pooled greebles) and anything deleted that
+  should not be. AI still untested (author plays Creative).
 - **Boss-fight quick-load toggle** (v0.19.4), Deaths tab. The author sees
   it; the behaviour itself is untested (a boss-fight death is rare to hit).
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
@@ -452,7 +456,9 @@ checked with the author.
      (destroyed / created / "Could not find", time, size), plus whether the
      keycard is a `PrefabIdentifier`. The author's test decides A or B.
      Then per-segment start states (shareable with the segment file) and
-     the per-segment restore-or-keep choice. **Phase 0 shipped in v0.20.0.**
+     the per-segment restore-or-keep choice. **Phase 0 shipped in v0.20.0,
+     tested the same day; in-place fixes in v0.20.1.** Restore with load
+     (4.7 s) and slot-without-menu (5.2 s) already work end to end.
    - **Author's idea (2026-09-23): the same two paths for death.** If a
      no-menu load works, quick-load can use it (`LevelSerializer.Resume()`
      from in game, skipping the title screen and one scene load); and,
