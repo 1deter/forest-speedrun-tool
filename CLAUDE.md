@@ -94,6 +94,7 @@ Where things live:
 | Feature | Files |
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
+| Savestates (phase 0, experimental) | `Modules/SavestateModule`, `Game/SavestateBridge`, `Data/SavestateFile` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -119,7 +120,7 @@ Where things live:
 scale. Per-feature keys still exist and are rebindable, but they open the
 window on that tab and are **unbound by default**.
 
-Tabs: Practice, Runs, Deaths, Debug views, Inventory, 100%, Settings,
+Tabs: Practice, Savestates, Runs, Deaths, Debug views, Inventory, 100%, Settings,
 Updates. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
@@ -314,8 +315,8 @@ identity.
 
 ## Current status
 
-**Released: v0.19.4** (2026-09-23). The author runs it via the in-game updater.
-**148 tests.**
+**Released: v0.20.0** (2026-09-23). The author runs it via the in-game updater.
+**162 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -368,6 +369,13 @@ vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 2026-09-23), Inventory tab item names (v0.19.4), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
+- **Savestates phase 0** (v0.20.0, Savestates tab). The test the author
+  agreed to: capture; build something and pick up the keycard (item 210);
+  **Check pickups** before and after; **Restore in place**, then
+  **Restore with load**; report what came back and how the AI behaved. Also
+  try the two slot buttons. Read the `Savestate ...` log lines (capture
+  size/time, identifiers before -> after, 'not found' count, load seconds,
+  Mono heap) and the `Savestates bound.` line.
 - **Boss-fight quick-load toggle** (v0.19.4), Deaths tab. The author sees
   it; the behaviour itself is untested (a boss-fight death is rare to hit).
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
@@ -422,7 +430,9 @@ checked with the author.
      important**. AI positions/state would be great but are not required.
 
    **Research done (2026-09-23, IL — game-notes *Saving and loading*).**
-   Plan, not yet agreed with the author:
+   Plan agreed with the author (2026-09-23); files on disk, per segment
+   later. This is dev/alpha: nothing is used in real runs until the admins
+   rule, and a few runners act as QA.
    - **No slot at all.** Capture by running the game's own save routine
      (it force-unloads streamed content, reparents held items…) with
      `Checkpoint`, `CreateThumbnail` and `SaveGameDifficulty` redirected by
@@ -442,7 +452,13 @@ checked with the author.
      (destroyed / created / "Could not find", time, size), plus whether the
      keycard is a `PrefabIdentifier`. The author's test decides A or B.
      Then per-segment start states (shareable with the segment file) and
-     the per-segment restore-or-keep choice.
+     the per-segment restore-or-keep choice. **Phase 0 shipped in v0.20.0.**
+   - **Author's idea (2026-09-23): the same two paths for death.** If a
+     no-menu load works, quick-load can use it (`LevelSerializer.Resume()`
+     from in game, skipping the title screen and one scene load); and,
+     experimentally, a death could reload the slot in place with no load at
+     all. Phase 0's two slot buttons are exactly these — decide after the
+     test.
 2. **The game's load memory leak.** Each save loaded without restarting the
    game makes it worse: stutters and lower performance, loading certainly,
    gameplay probably (runner Cheesecake404: "loading definitely"; gameplay

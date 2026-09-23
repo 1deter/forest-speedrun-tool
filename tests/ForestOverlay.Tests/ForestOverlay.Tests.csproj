@@ -39,6 +39,7 @@
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
+    <Compile Include="../../src/Data/SavestateFile.cs" Link="Linked/SavestateFile.cs" />
   </ItemGroup>
 
 </Project>

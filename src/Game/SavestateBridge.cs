@@ -1,0 +1,811 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
+using System.Text;
+using BepInEx.Logging;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+namespace ForestOverlay.Game
+{
+    // ------------------------------------------------------------------
+    // Savestates through the game's own serializer (UnitySerializer's
+    // LevelSerializer). Everything below is from IL - see game-notes
+    // "Saving and loading".
+    //
+    // CAPTURE mirrors PlayerStats.OnSaveSlotSelectedRoutine step for step,
+    // except the UI toggling and the slot writes:
+    //   drop the glider -> (MemorySafeSaveMode: force-unload greeble zones
+    //   and cave scene loaders, CheckInCave, UnloadUnusedAssets, GCCollect)
+    //   -> FakeParent.ReParent on inactive held items -> SerializeLevel
+    //   -> undo the force-unload, wait 0.3 s, UnParent.
+    // The game's routine ends in Checkpoint(), which writes the slot file
+    // (and Steam Cloud). We call SerializeLevel(false) instead - the same
+    // string Checkpoint would store - and keep it in our own file.
+    //
+    // RESTORE, two ways:
+    //   in place - LevelSerializer.LoadNow(data, false, false, complete):
+    //              no scene load. Destroys identifiers the save does not
+    //              know, recreates missing prefab objects, restores the
+    //              rest. Streaming is force-unloaded around it exactly as
+    //              around the capture.
+    //   with load - LevelSerializer.LoadSavedLevel(data): what the game's
+    //              Resume() does after reading the slot file - one scene
+    //              load, not the two a menu load costs.
+    //
+    // PHASE 0: this is a probe. Every step logs what it did so the
+    // author's test can decide which restore is worth building on.
+    // ------------------------------------------------------------------
+    public sealed class SavestateBridge
+    {
+        public sealed class Result
+        {
+            public bool Ok;
+            public string Message = "";
+            public string Data;
+            public string Level = "";
+            public string Difficulty = "";
+        }
+
+        private const float LoadTimeout = 120f;
+
+        private readonly ManualLogSource _log;
+        private bool _resolved;
+
+        public string Status { get; private set; }
+
+        // LevelSerializer
+        private MethodInfo _serializeLevel;      // static string SerializeLevel(bool urgent)
+        private MethodInfo _loadNow;             // static void LoadNow(object, bool, bool, Action<LevelLoader>)
+        private MethodInfo _loadSavedLevel;      // static LevelLoader LoadSavedLevel(string)
+        private MethodInfo _resume;              // static void Resume()
+        private PropertyInfo _isSuspended;
+        private PropertyInfo _isDeserializing;
+        private PropertyInfo _allPrefabs;
+        private FieldInfo _playerName;
+        private Type _levelLoaderType;
+
+        // Slot file
+        private MethodInfo _prefsGetString;      // PlayerPrefsFile.GetString(string, string, bool)
+        private MethodInfo _deserializeEntry;    // UnitySerializer.Deserialize<SaveEntry>(byte[])
+        private FieldInfo _entryData;
+
+        // Identifiers
+        private Type _uniqueIdType;
+        private PropertyInfo _allIdentifiers;
+        private PropertyInfo _uidId;
+        private PropertyInfo _uidClassId;
+
+        // GameSetup
+        private MethodInfo _setInitType;
+        private object _initContinue;
+        private PropertyInfo _difficulty;
+        private PropertyInfo _isCreative;
+        private MethodInfo _setDifficulty;
+        private Type _difficultyType;
+        private PropertyInfo _slot;
+
+        // Save-routine steps
+        private FieldInfo _memorySafe;
+        private FieldInfo _greebleManager;
+        private MethodInfo _greebleForcedUnload;
+        private MethodInfo _greebleCheckInCave;
+        private FieldInfo _sceneLoaders;
+        private MethodInfo _caveForcedUnload;
+        private MethodInfo _caveCheckInCave;
+        private MethodInfo _unloadUnused;
+        private MethodInfo _gcCollect;
+        private FieldInfo _itemSlots;
+        private FieldInfo _available;
+        private Type _fakeParentType;
+        private MethodInfo _reParent;
+        private MethodInfo _unParent;
+        private FieldInfo _animControl;
+        private FieldInfo _holdingGlider;
+        private FieldInfo _specialActions;
+        private PropertyInfo _inOverlook;
+        private FieldInfo _finishGameLoad;
+
+        // Pickup diagnostics
+        private Type _pickUpType;
+        private FieldInfo _pickUpItemId;
+        private FieldInfo _pickUpDestroyTarget;
+
+        // In-place restore bookkeeping.
+        private bool _loadDone;
+        private int _logNotFound;
+        private int _logProblems;
+        private readonly List<string> _logSamples = new List<string>();
+
+        public SavestateBridge(ManualLogSource log)
+        {
+            _log = log;
+            Status = "not resolved";
+        }
+
+        // ------------------------------------------------------------------
+        public bool Resolve()
+        {
+            if (_resolved) return _serializeLevel != null;
+            _resolved = true;
+
+            BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            Type ls = GameBridge.FindGameType("LevelSerializer");
+            _levelLoaderType = GameBridge.FindGameType("LevelLoader");
+            if (ls != null)
+            {
+                _serializeLevel = ls.GetMethod("SerializeLevel", stat, null, new[] { typeof(bool) }, null);
+                _loadSavedLevel = ls.GetMethod("LoadSavedLevel", stat, null, new[] { typeof(string) }, null);
+                _resume = ls.GetMethod("Resume", stat, null, Type.EmptyTypes, null);
+                _isSuspended = ls.GetProperty("IsSuspended", stat);
+                _isDeserializing = ls.GetProperty("IsDeserializing", stat);
+                _allPrefabs = ls.GetProperty("AllPrefabs", stat);
+                _playerName = ls.GetField("PlayerName", stat);
+
+                if (_levelLoaderType != null)
+                {
+                    Type complete = typeof(Action<>).MakeGenericType(_levelLoaderType);
+                    _loadNow = ls.GetMethod("LoadNow", stat, null,
+                        new[] { typeof(object), typeof(bool), typeof(bool), complete }, null);
+                }
+
+                Type entry = ls.GetNestedType("SaveEntry", BindingFlags.Public | BindingFlags.NonPublic);
+                if (entry != null) _entryData = entry.GetField("Data", inst);
+
+                Type us = GameBridge.FindGameType("Serialization.UnitySerializer");
+                if (us != null && entry != null)
+                {
+                    foreach (MethodInfo m in us.GetMethods(stat))
+                    {
+                        if (m.Name != "Deserialize" || !m.IsGenericMethodDefinition) continue;
+                        ParameterInfo[] p = m.GetParameters();
+                        if (p.Length == 1 && p[0].ParameterType == typeof(byte[]))
+                        {
+                            _deserializeEntry = m.MakeGenericMethod(entry);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            Type prefs = GameBridge.FindGameType("PlayerPrefsFile");
+            if (prefs != null)
+                _prefsGetString = prefs.GetMethod("GetString", stat, null,
+                    new[] { typeof(string), typeof(string), typeof(bool) }, null);
+
+            _uniqueIdType = GameBridge.FindGameType("UniqueIdentifier");
+            if (_uniqueIdType != null)
+            {
+                _allIdentifiers = _uniqueIdType.GetProperty("AllIdentifiers", stat);
+                _uidId = _uniqueIdType.GetProperty("Id", inst);
+                _uidClassId = _uniqueIdType.GetProperty("ClassId", inst);
+            }
+
+            Type setup = GameBridge.FindGameType("TheForest.Utils.GameSetup");
+            if (setup != null)
+            {
+                _difficulty = setup.GetProperty("Difficulty", stat);
+                _isCreative = setup.GetProperty("IsCreativeGame", stat);
+                _slot = setup.GetProperty("Slot", stat);
+                if (_difficulty != null)
+                {
+                    _difficultyType = _difficulty.PropertyType;
+                    _setDifficulty = setup.GetMethod("SetDifficulty", stat, null, new[] { _difficultyType }, null);
+                }
+
+                PropertyInfo init = setup.GetProperty("Init", stat);
+                if (init != null)
+                {
+                    _setInitType = setup.GetMethod("SetInitType", stat, null, new[] { init.PropertyType }, null);
+                    try { _initContinue = Enum.Parse(init.PropertyType, "Continue"); }
+                    catch (Exception) { _initContinue = null; }
+                }
+            }
+
+            Type pp = GameBridge.FindGameType("PlayerPreferences");
+            if (pp != null) _memorySafe = pp.GetField("MemorySafeSaveMode", stat);
+
+            Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
+            if (scene != null)
+            {
+                _greebleManager = scene.GetField("GreebleZonesManager", stat);
+                _sceneLoaders = scene.GetField("SceneLoaders", stat);
+                _finishGameLoad = scene.GetField("FinishGameLoad", stat);
+            }
+
+            Type greeble = GameBridge.FindGameType("GreebleZonesManager");
+            if (greeble != null)
+            {
+                _greebleForcedUnload = greeble.GetMethod("ForcedUnload", inst, null, new[] { typeof(bool) }, null);
+                _greebleCheckInCave = greeble.GetMethod("CheckInCave", inst, null, Type.EmptyTypes, null);
+            }
+
+            Type cave = GameBridge.FindGameType("TheForest.World.SceneUnloadInCave");
+            if (cave != null)
+            {
+                _caveForcedUnload = cave.GetMethod("ForcedUnload", inst, null, new[] { typeof(bool) }, null);
+                _caveCheckInCave = cave.GetMethod("CheckInCave", inst, null, Type.EmptyTypes, null);
+            }
+
+            Type res = GameBridge.FindGameType("TheForest.Utils.ResourcesHelper");
+            if (res != null)
+            {
+                _unloadUnused = res.GetMethod("UnloadUnusedAssets", stat, null, Type.EmptyTypes, null);
+                _gcCollect = res.GetMethod("GCCollect", stat, null, Type.EmptyTypes, null);
+            }
+
+            Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            if (local != null)
+            {
+                _itemSlots = local.GetField("ItemSlots", stat);
+                _animControl = local.GetField("AnimControl", stat);
+                _specialActions = local.GetField("SpecialActions", stat);
+                _inOverlook = local.GetProperty("IsInOverlookArea", stat);
+            }
+
+            Type slotType = GameBridge.FindGameType("itemConstrainToHand");
+            if (slotType != null) _available = slotType.GetField("Available", inst);
+
+            _fakeParentType = GameBridge.FindGameType("TheForest.Utils.FakeParent");
+            if (_fakeParentType != null)
+            {
+                _reParent = _fakeParentType.GetMethod("ReParent", inst, null, Type.EmptyTypes, null);
+                _unParent = _fakeParentType.GetMethod("UnParent", inst, null, Type.EmptyTypes, null);
+            }
+
+            Type anim = GameBridge.FindGameType("playerAnimatorControl");
+            if (anim != null) _holdingGlider = anim.GetField("holdingGlider", inst);
+
+            _pickUpType = GameBridge.FindGameType("TheForest.Items.World.PickUp");
+            if (_pickUpType != null)
+            {
+                _pickUpItemId = _pickUpType.GetField("_itemId", inst);
+                _pickUpDestroyTarget = _pickUpType.GetField("_destroyTarget", inst);
+            }
+
+            Status = "serialize:" + (_serializeLevel != null) +
+                     " loadNow:" + (_loadNow != null) +
+                     " loadSaved:" + (_loadSavedLevel != null) +
+                     " resume:" + (_resume != null) +
+                     " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
+                     " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
+                     " fakeParent:" + (_reParent != null) +
+                     " init:" + (_setInitType != null && _initContinue != null);
+            _log.LogInfo("Savestates bound. " + Status);
+            return _serializeLevel != null;
+        }
+
+        // ------------------------------------------------------------------
+        // State the panel shows.
+
+        public bool IsDeserializing
+        {
+            get { return ReadBool(_isDeserializing); }
+        }
+
+        public bool GameLoadFinished
+        {
+            get
+            {
+                if (_finishGameLoad == null) return true;
+                try { return (bool)_finishGameLoad.GetValue(null); }
+                catch (Exception) { return true; }
+            }
+        }
+
+        public string CurrentSlot
+        {
+            get
+            {
+                if (_slot == null) return "?";
+                try { return _slot.GetValue(null, null).ToString(); }
+                catch (Exception) { return "?"; }
+            }
+        }
+
+        public int IdentifierCount
+        {
+            get
+            {
+                if (_allIdentifiers == null) return -1;
+                try
+                {
+                    ICollection c = _allIdentifiers.GetValue(null, null) as ICollection;
+                    return c != null ? c.Count : -1;
+                }
+                catch (Exception) { return -1; }
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // CAPTURE. A coroutine because the game's routine spreads its steps
+        // over frames (asset unload, GC, the 0.3 s before UnParent).
+        public IEnumerator Capture(Action<Result> done)
+        {
+            Result r = new Result();
+
+            if (!Resolve()) { r.Message = "LevelSerializer.SerializeLevel not found"; done(r); yield break; }
+            if (IsDeserializing) { r.Message = "the game is loading"; done(r); yield break; }
+            if (ReadBool(_inOverlook)) { r.Message = "the game refuses to save in the overlook area"; done(r); yield break; }
+
+            Stopwatch total = Stopwatch.StartNew();
+            bool memorySafe = ReadStaticBool(_memorySafe);
+
+            DropGlider();
+
+            bool unloaded = false;
+            if (memorySafe)
+            {
+                unloaded = ForceUnloadStreaming(true, true);
+                yield return null;
+                Call(_unloadUnused);
+                yield return null;
+                yield return null;
+                Call(_gcCollect);
+                yield return null;
+            }
+
+            ReParentHeld(true);
+            yield return null;
+
+            // The game's SaveGame defers a non-urgent save while serialization
+            // is suspended; wait for it the same way rather than forcing it.
+            float waitStart = Time.realtimeSinceStartup;
+            while (ReadBool(_isSuspended) && Time.realtimeSinceStartup - waitStart < 5f)
+                yield return null;
+
+            Stopwatch serialize = Stopwatch.StartNew();
+            try
+            {
+                if (ReadBool(_isSuspended))
+                {
+                    r.Message = "serialization stayed suspended for 5 s";
+                }
+                else
+                {
+                    r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string;
+                    r.Ok = !string.IsNullOrEmpty(r.Data);
+                    if (!r.Ok) r.Message = "SerializeLevel returned nothing";
+                }
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                r.Message = "SerializeLevel threw: " + inner.GetType().Name + ": " + inner.Message;
+                _log.LogWarning("Savestate capture: " + inner);
+            }
+            serialize.Stop();
+
+            r.Level = SceneManager.GetActiveScene().name;
+            r.Difficulty = DifficultyName();
+
+            // Undo, in the game's order.
+            if (unloaded)
+            {
+                ForceUnloadStreaming(false, false);
+                yield return new WaitForSeconds(0.3f);
+            }
+            ReParentHeld(false);
+
+            total.Stop();
+            if (r.Ok)
+            {
+                r.Message = "serialized in " + serialize.ElapsedMilliseconds + " ms (total " +
+                            total.ElapsedMilliseconds + " ms), " + Kb(r.Data.Length) +
+                            ", streaming " + (memorySafe ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept (MemorySafeSaveMode off)") +
+                            ", " + IdentifierCount + " identifiers";
+            }
+            done(r);
+        }
+
+        // ------------------------------------------------------------------
+        // RESTORE IN PLACE - no scene load.
+        public IEnumerator RestoreInPlace(string data, Action<Result> done)
+        {
+            Result r = new Result();
+
+            if (!Resolve() || _loadNow == null) { r.Message = "LevelSerializer.LoadNow not found"; done(r); yield break; }
+            if (IsDeserializing) { r.Message = "the game is already loading"; done(r); yield break; }
+
+            int before = IdentifierCount;
+            bool memorySafe = ReadStaticBool(_memorySafe);
+            bool unloaded = false;
+            if (memorySafe)
+            {
+                unloaded = ForceUnloadStreaming(true, true);
+                yield return null;
+            }
+
+            _loadDone = false;
+            _logNotFound = 0;
+            _logProblems = 0;
+            _logSamples.Clear();
+            Application.logMessageReceived += OnUnityLog;
+
+            Stopwatch sw = Stopwatch.StartNew();
+            bool started = false;
+            try
+            {
+                Delegate complete = null;
+                try
+                {
+                    complete = Delegate.CreateDelegate(typeof(Action<>).MakeGenericType(_levelLoaderType), this,
+                        GetType().GetMethod("OnLoadComplete", BindingFlags.Instance | BindingFlags.NonPublic));
+                }
+                catch (Exception) { complete = null; }
+
+                _loadNow.Invoke(null, new object[] { data, false, false, complete });
+                started = true;
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                r.Message = "LoadNow threw: " + inner.GetType().Name + ": " + inner.Message;
+                _log.LogWarning("Savestate restore (in place): " + inner);
+            }
+
+            if (started)
+            {
+                // Without a completion callback, fall back to watching the
+                // serializer's own flag go up and come back down.
+                bool sawDeserializing = false;
+                while (!_loadDone && sw.Elapsed.TotalSeconds < LoadTimeout)
+                {
+                    bool d = IsDeserializing;
+                    if (d) sawDeserializing = true;
+                    else if (sawDeserializing) { _loadDone = true; break; }
+                    yield return null;
+                }
+            }
+            sw.Stop();
+            Application.logMessageReceived -= OnUnityLog;
+
+            if (unloaded)
+            {
+                ForceUnloadStreaming(false, false);
+                yield return null;
+            }
+
+            if (started)
+            {
+                int after = IdentifierCount;
+                r.Ok = _loadDone;
+                StringBuilder sb = new StringBuilder();
+                sb.Append(_loadDone ? "done in " : "TIMED OUT after ").Append(sw.ElapsedMilliseconds).Append(" ms");
+                sb.Append(", identifiers ").Append(before).Append(" -> ").Append(after);
+                sb.Append(", 'not found' ").Append(_logNotFound);
+                sb.Append(", problems ").Append(_logProblems);
+                sb.Append(", streaming ").Append(memorySafe ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
+                for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
+                r.Message = sb.ToString();
+            }
+            done(r);
+        }
+
+        // Signature matches Action<LevelLoader> by relaxed binding.
+        private void OnLoadComplete(object loader)
+        {
+            _loadDone = true;
+        }
+
+        private void OnUnityLog(string condition, string stackTrace, LogType type)
+        {
+            if (condition == null) return;
+            bool notFound = condition.StartsWith("Could not find") || condition.StartsWith("Not found");
+            bool problem = condition.StartsWith("Problem ");
+            if (!notFound && !problem) return;
+
+            if (notFound) _logNotFound++;
+            if (problem) _logProblems++;
+            if (_logSamples.Count < 6) _logSamples.Add(condition.Length > 120 ? condition.Substring(0, 120) : condition);
+        }
+
+        // ------------------------------------------------------------------
+        // RESTORE WITH A LOAD - the second half of the game's own load.
+        public string RestoreWithLoad(string data, string difficulty)
+        {
+            if (!Resolve() || _loadSavedLevel == null) return "LevelSerializer.LoadSavedLevel not found";
+            if (IsDeserializing) return "the game is already loading";
+
+            string prep = PrepareContinue(difficulty);
+            try
+            {
+                _loadSavedLevel.Invoke(null, new object[] { data });
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                _log.LogWarning("Savestate restore (load): " + inner);
+                return "LoadSavedLevel threw: " + inner.Message + (prep != null ? " (" + prep + ")" : "");
+            }
+        }
+
+        /// The current slot's save, loaded without the menu: Resume() reads
+        /// the slot file, sets the difficulty from it and calls
+        /// LoadSavedLevel - exactly what LoadSave.Awake does.
+        public string LoadSlotWithoutMenu()
+        {
+            if (!Resolve() || _resume == null) return "LevelSerializer.Resume not found";
+            if (IsDeserializing) return "the game is already loading";
+
+            PrepareContinue(null);
+            try
+            {
+                _resume.Invoke(null, null);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                _log.LogWarning("Savestate slot load: " + inner);
+                return "Resume threw: " + inner.Message;
+            }
+        }
+
+        /// The level data inside the current slot's save file, or null
+        /// with `error` set.
+        public string ReadSlotData(out string error)
+        {
+            error = null;
+            if (!Resolve() || _prefsGetString == null || _deserializeEntry == null || _entryData == null)
+            {
+                error = "slot reader not bound";
+                return null;
+            }
+
+            try
+            {
+                string key = (_playerName != null ? _playerName.GetValue(null) as string : "") + "__RESUME__";
+                string b64 = _prefsGetString.Invoke(null, new object[] { key, "", true }) as string;
+                if (string.IsNullOrEmpty(b64)) { error = "slot " + CurrentSlot + " has no save"; return null; }
+
+                object entry = _deserializeEntry.Invoke(null, new object[] { Convert.FromBase64String(b64) });
+                string data = entry != null ? _entryData.GetValue(entry) as string : null;
+                if (string.IsNullOrEmpty(data)) error = "save entry held no data";
+                return data;
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                error = "could not read the slot save: " + inner.Message;
+                return null;
+            }
+        }
+
+        // A menu load sets InitType Continue on the title screen; a game
+        // that began as New would otherwise treat the reload as a new game.
+        private string PrepareContinue(string difficulty)
+        {
+            string note = null;
+            try
+            {
+                if (_setInitType != null && _initContinue != null)
+                    _setInitType.Invoke(null, new[] { _initContinue });
+                else note = "InitType not set";
+            }
+            catch (Exception ex) { note = "InitType: " + ex.Message; }
+
+            // Resume() sets the difficulty from the save's name; LoadSavedLevel
+            // does not. Creative is a game type, not a difficulty - left alone.
+            if (!string.IsNullOrEmpty(difficulty) && difficulty != "Creative" &&
+                _setDifficulty != null && _difficultyType != null)
+            {
+                try { _setDifficulty.Invoke(null, new[] { Enum.Parse(_difficultyType, difficulty) }); }
+                catch (Exception) { note = "difficulty '" + difficulty + "' not applied"; }
+            }
+            return note;
+        }
+
+        // ------------------------------------------------------------------
+        // DIAGNOSTICS: would the in-place restore bring this pickup back?
+        // The loader recreates a missing object only from a prefab
+        // (ClassId in AllPrefabs); a scene object that was destroyed is
+        // "Could not find".
+        public void DescribePickups(int itemId, List<string> lines)
+        {
+            lines.Clear();
+            if (!Resolve()) { lines.Add("not bound"); return; }
+            if (_pickUpType == null || _pickUpItemId == null) { lines.Add("PickUp type not found"); return; }
+
+            IDictionary prefabs = null;
+            try { prefabs = _allPrefabs != null ? _allPrefabs.GetValue(null, null) as IDictionary : null; }
+            catch (Exception) { }
+
+            UnityEngine.Object[] all;
+            try { all = Resources.FindObjectsOfTypeAll(_pickUpType); }
+            catch (Exception ex) { lines.Add("search failed: " + ex.Message); return; }
+
+            int found = 0;
+            for (int i = 0; i < all.Length && found < 10; i++)
+            {
+                Component c = all[i] as Component;
+                if (c == null || c.gameObject.hideFlags != HideFlags.None) continue;
+                if (!c.gameObject.scene.IsValid()) continue;   // prefab assets, not scene objects
+
+                int id;
+                try { id = (int)_pickUpItemId.GetValue(c); }
+                catch (Exception) { continue; }
+                if (id != itemId) continue;
+
+                found++;
+                StringBuilder sb = new StringBuilder();
+                sb.Append(Path(c.transform)).Append(c.gameObject.activeInHierarchy ? " (active)" : " (inactive)");
+                sb.Append(" | self/parents: ").Append(DescribeIdentifiers(c.gameObject, prefabs));
+
+                GameObject target = null;
+                try { target = _pickUpDestroyTarget != null ? _pickUpDestroyTarget.GetValue(c) as GameObject : null; }
+                catch (Exception) { }
+                if (target != null && target != c.gameObject)
+                    sb.Append(" | destroy target ").Append(target.name).Append(": ").Append(DescribeIdentifiers(target, prefabs));
+
+                lines.Add(sb.ToString());
+            }
+
+            if (found == 0) lines.Add("no pickup with item id " + itemId + " is loaded (it may be streamed out, or already taken)");
+            lines.Insert(0, "Item " + itemId + ": " + found + " pickup(s). Identifiers " + IdentifierCount +
+                            ", prefabs known " + (prefabs != null ? prefabs.Count.ToString() : "?"));
+        }
+
+        private string DescribeIdentifiers(GameObject go, IDictionary prefabs)
+        {
+            if (_uniqueIdType == null) return "?";
+            Component[] ids = go.GetComponentsInParent(_uniqueIdType, true);
+            if (ids == null || ids.Length == 0) return "no identifier (not saved: comes back only with the scene)";
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < ids.Length && i < 3; i++)
+            {
+                if (i > 0) sb.Append("; ");
+                Component u = ids[i];
+                string classId = ReadString(_uidClassId, u);
+                bool isPrefab = prefabs != null && !string.IsNullOrEmpty(classId) && prefabs.Contains(classId);
+                sb.Append(u.GetType().Name).Append(" on ").Append(u.gameObject.name);
+                sb.Append(isPrefab ? " [prefab: recreated in place]" : " [scene object: NOT recreated in place]");
+            }
+            return sb.ToString();
+        }
+
+        // ------------------------------------------------------------------
+        // Save-routine steps. Each is individually guarded: a missing piece
+        // is logged, not thrown.
+
+        private void DropGlider()
+        {
+            try
+            {
+                object anim = _animControl != null ? _animControl.GetValue(null) : null;
+                if (anim == null || _holdingGlider == null || !(bool)_holdingGlider.GetValue(anim)) return;
+                GameObject actions = _specialActions != null ? _specialActions.GetValue(null) as GameObject : null;
+                if (actions != null) actions.SendMessage("DropGlider", false);
+            }
+            catch (Exception) { }
+        }
+
+        /// ForcedUnload(unload) on the greeble zones and every cave scene
+        /// loader, as the game's save does. CheckInCave follows only on the
+        /// way in, matching the game.
+        private bool ForceUnloadStreaming(bool unload, bool checkInCave)
+        {
+            if (_greebleForcedUnload == null || _caveForcedUnload == null) return false;
+            try
+            {
+                object greeble = _greebleManager != null ? _greebleManager.GetValue(null) : null;
+                if (greeble != null)
+                {
+                    _greebleForcedUnload.Invoke(greeble, new object[] { unload });
+                    if (checkInCave && _greebleCheckInCave != null) _greebleCheckInCave.Invoke(greeble, null);
+                }
+
+                Array loaders = _sceneLoaders != null ? _sceneLoaders.GetValue(null) as Array : null;
+                if (loaders != null)
+                {
+                    for (int i = 0; i < loaders.Length; i++)
+                    {
+                        object l = loaders.GetValue(i);
+                        UnityEngine.Object uo = l as UnityEngine.Object;
+                        if (l == null || (uo != null && uo == null)) continue;
+                        _caveForcedUnload.Invoke(l, new object[] { unload });
+                        if (checkInCave && _caveCheckInCave != null) _caveCheckInCave.Invoke(l, null);
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Savestate: ForcedUnload(" + unload + ") failed: " + (ex.InnerException ?? ex).Message);
+                return false;
+            }
+        }
+
+        /// ReParent (before saving) / UnParent (after) on held items that
+        /// are inactive and carry a FakeParent - the game's exact filter.
+        private void ReParentHeld(bool reParent)
+        {
+            MethodInfo m = reParent ? _reParent : _unParent;
+            if (m == null || _itemSlots == null || _available == null || _fakeParentType == null) return;
+            try
+            {
+                Array slots = _itemSlots.GetValue(null) as Array;
+                if (slots == null) return;
+                for (int s = 0; s < slots.Length; s++)
+                {
+                    object slot = slots.GetValue(s);
+                    if (slot == null) continue;
+                    GameObject[] items = _available.GetValue(slot) as GameObject[];
+                    if (items == null) continue;
+                    for (int i = 0; i < items.Length; i++)
+                    {
+                        GameObject go = items[i];
+                        if (go == null || go.activeSelf) continue;
+                        Component fp = go.GetComponent(_fakeParentType);
+                        if (fp != null) m.Invoke(fp, null);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Savestate: " + (reParent ? "ReParent" : "UnParent") + " failed: " + (ex.InnerException ?? ex).Message);
+            }
+        }
+
+        private string DifficultyName()
+        {
+            try
+            {
+                if (_isCreative != null && (bool)_isCreative.GetValue(null, null)) return "Creative";
+                if (_difficulty != null) return _difficulty.GetValue(null, null).ToString();
+            }
+            catch (Exception) { }
+            return "";
+        }
+
+        // ------------------------------------------------------------------
+        private static void Call(MethodInfo m)
+        {
+            if (m == null) return;
+            try { m.Invoke(null, null); }
+            catch (Exception) { }
+        }
+
+        private static bool ReadBool(PropertyInfo p)
+        {
+            if (p == null) return false;
+            try { return (bool)p.GetValue(null, null); }
+            catch (Exception) { return false; }
+        }
+
+        private static bool ReadStaticBool(FieldInfo f)
+        {
+            if (f == null) return false;
+            try { return (bool)f.GetValue(null); }
+            catch (Exception) { return false; }
+        }
+
+        private static string ReadString(PropertyInfo p, object o)
+        {
+            if (p == null) return null;
+            try { return p.GetValue(o, null) as string; }
+            catch (Exception) { return null; }
+        }
+
+        private static string Path(Transform t)
+        {
+            string s = t.name;
+            int depth = 0;
+            while (t.parent != null && depth++ < 4) { t = t.parent; s = t.name + "/" + s; }
+            return s;
+        }
+
+        public static string Kb(int chars)
+        {
+            return chars >= 1024 * 1024
+                ? (chars / (1024f * 1024f)).ToString("0.0") + " MB"
+                : (chars / 1024) + " KB";
+        }
+    }
+}
