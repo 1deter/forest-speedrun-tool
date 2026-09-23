@@ -335,8 +335,8 @@ identity.
 
 ## Current status
 
-**Released: v0.21.1** (2026-09-23). The author runs it via the in-game updater.
-**170 tests.**
+**Released: v0.22.0** (2026-09-23). The author runs it via the in-game updater.
+**174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -371,7 +371,11 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   autosplitter**; the Harmony postfix only says which cutscene it was.
 - **Deaths** (Deaths tab): practice mode on + a current spot → **revive** at
   the spot on every death, capture included (health 100, blood cleared, no
-  reload, marks practice). Otherwise **quick-load** (toggle, on) — every death.
+  reload, marks practice). A current spot **with a start state** revives
+  even with practice mode off, and the restart restores the state the
+  segment's way — a load-mode state means a full load per death (author,
+  2026-09-23: "if the runner wants to practice with a save state then it
+  should reload entirely on death"). Otherwise **quick-load** (toggle, on) — every death.
   The first-death capture and the boss-fight wake-up each have their own
   toggle, both on (no current route uses the capture; the boss toggle is the
   author's call, 2026-09-23). Never permadeath or multiplayer.
@@ -405,6 +409,15 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   start state = the restart keeps the game as it is (routes need that).
   Each restart logs `Restart '<id>': restoring its start state ...` or
   `... no start state - teleport only.`
+  **A new start state is a new route** (v0.22.0, author's call): capture
+  writes `startstate = <FNV hash of the data>` into the segment block and
+  saves the segment straight away; the hash is folded into
+  `RouteFingerprint()` only when set, so older fingerprints are
+  unchanged, and old times retire as when a zone moves. Capture and
+  Delete ask for a second click when attempts would be retired
+  (`AttemptStore.CountOnRoute`, header-only read). A restart whose file
+  does not match the hash logs a warning — the hook for sharing. Start
+  states captured before v0.22.0 carry no hash until recaptured.
 - **Runs** record position at 30 Hz and ~60 named player-state channels at
   5 Hz (read only when a sample is due), discovered by reflection so a game
   update adds stats for free. Attempts persist per segment id and carry a
@@ -421,22 +434,29 @@ vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 built walls, puts back the keycard / camcorder / sticks, empties hands and
 inventory, no duplicates; with a load everything back in 5.0 s vs
 6.95–7.45 s by stopwatch for a menu load), **quick-load without the menu**
-(v0.21.0), the self-updater end to end.
+(v0.21.0), the self-updater end to end, **segment start states on F7**
+both ways and the start-state text on its own line (v0.21.1; log of
+2026-09-23 03:44: every restart logged `restoring its start state`, in
+place 132–501 ms with `168 -> 168`, with a load ~11 s).
 
 **Awaiting an in-game check** — ask before building on these:
-- **Segment start states, F7** (v0.21.1). In v0.21.0 F7 teleported without
-  restoring: the start state was captured on `tent` in the editor while
-  another spot was current, and F7 restarts the current spot. v0.21.1 makes
-  capturing select the segment and logs every restart. Test both ways
-  (in place / *Restore with a load*) and that a timed run still arms.
-- **Start state text layout** (v0.21.1): it wrapped into two half-visible
-  lines beside the buttons; now on its own full-width line.
+- **Retiring times on a new start state** (v0.22.0): capture on a segment
+  with attempts asks for a second click and names the count; afterwards the
+  Runs tab shows them as "from another route". Log line:
+  `Savestate: start state of '<id>' is now <hash> - route <fp>.`
+- **Death at a start-state spot with practice mode off** (v0.22.0) revives
+  and restores the start state (v0.21.1 quick-loaded the slot instead).
+- **Text clipping at the top of some panel** — the author saw new text cut
+  off at the top somewhere in the UI (after v0.21.1); will find where.
+- **Whether a timed run still arms after an F7 restore** — runs do not log
+  arming, so the v0.21.1 log could not show it.
 - **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2 clears the build
   mission before deleting a ghost).
-- **Savestates outside the easy case:** a busy surface area, and AI (the
-  author plays Creative; will test later — not the priority, savestates
-  are QoL). Oddity seen once after an in-place restore: the first stick
-  picked up went to the inventory instead of the hand. No duplicates.
+- **Savestates outside the easy case:** a busy surface area. Oddity seen
+  once after an in-place restore: the first stick picked up went to the
+  inventory instead of the hand. No duplicates. **AI is now a known gap:
+  an in-place restore does not bring killed enemies back** (author,
+  2026-09-23) — see Next up.
 - **Boss-fight quick-load toggle** (v0.19.4). The author sees it; a
   boss-fight death is rare to hit.
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
@@ -477,19 +497,18 @@ until the admins rule, and a few runners act as QA.
 1. **Savestates, finishing phase 1.** Built (see *Key concepts*): capture,
    both restores, segment start states, no-menu quick-load. Remaining, in
    order:
-   - **Confirm the v0.21.1 F7 fix** (above) before anything else here.
-   - **Changing a start state retires the segment's old times** — the
-     author's call (2026-09-23), **with a warning before** the runner
-     overwrites (or deletes) a start state that has recorded attempts.
-     Proposed design, not yet built: on capture, write `startstate =
-     <hash of the data line>` into the segment block and fold it into
-     `Segment.RouteFingerprint()`, so attempts retire exactly as they do
-     when a zone moves; the warning checks `AttemptStore` for attempts on
-     the current fingerprint. A shared segment then also says which start
-     state it expects.
-   - **Sharing**: start states are already named by segment id; nothing
-     bundles a segment file with its `.fosave` yet.
-   - AI under in-place restores; a busy surface area; the stick oddity.
+   - ~~F7 fix~~ confirmed; ~~retiring times on a new start state~~ built
+     in v0.22.0 (awaiting a check).
+   - **In-place restore does not revive killed enemies** (author,
+     2026-09-23). Enemies are spawned and pooled by the game's spawn
+     managers, most likely outside `UniqueIdentifier`, so `LoadNow` never
+     sees them. Find from IL what owns a live enemy and what a scene load
+     re-creates (the load restore is the reference: does it bring them
+     back?), then do what the pickup keeper does for pickups.
+   - **Sharing**: start states are already named by segment id and the
+     segment now names its state's hash; nothing bundles a segment file
+     with its `.fosave` yet.
+   - A busy surface area; the stick oddity.
    - Author's idea, still open: reload the slot **in place** on death (no
      load at all). The Savestates tab's *Reload slot save in place* button
      is exactly that and worked in the author's test (teleport, inventory
@@ -500,7 +519,11 @@ until the admins rule, and a few runners act as QA.
    is a guess). Runners reset constantly and every quick-load / load restore
    is another load. **Measuring has started:** a load-based savestate
    restore logs `Loads this session: N, Mono heap after GC X MB` (390 MB
-   after the first load in the author's session). Next: log the same line
+   after the first load in the author's session). **First series (v0.21.1,
+   four load restores in a row after one quick-load):** 540 → 664 → 796 →
+   924 MB, and 10.7 → 11.0 → 11.6 → 12.1 s to in game — about **128 MB
+   kept and +0.5 s per load**. In-place restores went from ~135 ms to
+   200–500 ms after the quick-load. Next: log the same line
    for **every** load (quick-load, menu load) — hook the game's own load
    completion rather than the Savestates module — plus a one-off
    `Resources.FindObjectsOfTypeAll(Object)` count, so a session of repeated
@@ -535,14 +558,33 @@ until the admins rule, and a few runners act as QA.
    - 3D terrain is tractable above ground (Unity `Terrain` heightmap); caves
      are mesh geometry under the terrain, so a full map needs a visit pass
      plus a "dump loaded geometry" button. Wants a scrub bar and annotations.
-6. **TAS** — exploratory only. Builds on savestates and the recorder.
-7. Runs tab layout (deferred; it still builds strings in `DrawTab`, against
+6. **The author's list of 2026-09-23** (bugs first):
+   - **Bug: closing the overlay window while the ESC menu is open hides
+     the cursor**, so the pause menu cannot be used until reopened. Likely
+     cause: on close the plugin releases `Menu` (`Game/GameInput`) and
+     unlocks the view (`UnLockView` → `Input.LockMouse()`), both of which
+     the pause menu still needs. Fix by leaving both alone when the pause
+     menu is open.
+   - **Revive after a fall plays a stagger / get-up animation.** Remove it
+     on a practice revive. Find from IL what starts it (the fall trigger,
+     `hitFallDown`, the animator) — `Fell` itself is skipped by the prefix.
+   - **100%: passengers.** The tab shows the passenger To Do task but not
+     which passengers were found or how many. Find where the game tracks
+     each passenger (IL) and list them like the nature guide.
+   - **"Log in inventory" mod** — asked for by runner sxczurass; what it
+     means is not yet clear (author unsure too). Ask before building.
+   - Idea (author): a **god mode** toggle for practice, as the other answer
+     to deaths when there is no start state — the game's console has
+     `_godmode` (`DebugConsole`, invokable by reflection).
+7. **TAS** — exploratory only. Builds on savestates and the recorder.
+8. Runs tab layout (deferred; it still builds strings in `DrawTab`, against
    the module rules), Timmy-drawing sub-pieces
    (`DrawingsInventoryItemView._ids`), freeform zone shapes.
 
 Shipped from the old list: practice QoL (v0.17.0–0.17.1), separate endgame
 splits (v0.18.0–0.18.2), deaths and caves (v0.19.0–0.19.1), nature guide
-(v0.15.0), savestates phase 0 → 1 and no-menu quick-load (v0.20.0–0.21.1).
+(v0.15.0), savestates phase 0 → 1 and no-menu quick-load (v0.20.0–0.21.1),
+start states in the route fingerprint and death at a start-state spot (v0.22.0).
 
 ### How a session goes
 

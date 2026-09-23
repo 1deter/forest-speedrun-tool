@@ -57,6 +57,7 @@ namespace ForestOverlay.Modules
         private string _dir;
 
         private bool _busy;
+        private string _lastCaptureHash = "";
         private float _busySince;
         private string _name = "savestate";
         private string _itemIdText = "210";
@@ -255,6 +256,7 @@ namespace ForestOverlay.Modules
                 }
                 else Directory.CreateDirectory(Path.GetDirectoryName(path));
                 File.WriteAllText(path, f.Write(), new UTF8Encoding(false));
+                _lastCaptureHash = Segment.HashText(f.Data);
 
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
                               ", " + pickups.Count + " world pickups listed";
@@ -416,9 +418,20 @@ namespace ForestOverlay.Modules
             catch (Exception ex) { return "unreadable: " + ex.Message; }
         }
 
+        /// On success the segment names the new state (`StartState`), which
+        /// changes its route fingerprint; saving the segment is the caller's.
         public void CaptureStartState(Segment s, Action<string> done)
         {
-            CaptureTo("start of " + s.Name + " (" + s.Id + ")", StartStatePath(s), done);
+            CaptureTo("start of " + s.Name + " (" + s.Id + ")", StartStatePath(s), delegate(string error)
+            {
+                if (error == null)
+                {
+                    s.StartState = _lastCaptureHash;
+                    Ctx.Log.LogInfo("Savestate: start state of '" + s.Id + "' is now " + s.StartState +
+                                    " - route " + s.RouteFingerprint() + ".");
+                }
+                done(error);
+            });
         }
 
         public string DeleteStartState(Segment s)
@@ -427,6 +440,7 @@ namespace ForestOverlay.Modules
             {
                 string path = StartStatePath(s);
                 if (File.Exists(path)) File.Delete(path);
+                s.StartState = "";
                 Ctx.Log.LogInfo("Savestate: start state of '" + s.Id + "' deleted.");
                 return null;
             }
@@ -448,6 +462,13 @@ namespace ForestOverlay.Modules
                 if (f == null) { done("start state unreadable: " + error); return; }
             }
             catch (Exception ex) { done("start state unreadable: " + ex.Message); return; }
+
+            // A shared segment names the state it was timed from; a file
+            // that is not that state still restores, but its times will not
+            // compare fairly - say so.
+            if (s.StartState.Length > 0 && Segment.HashText(f.Data) != s.StartState)
+                Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
+                                   s.StartState + ") - recapture it to make it so.");
 
             string what = "start state of '" + s.Name + "'";
             if (s.StartRestoreWithLoad)

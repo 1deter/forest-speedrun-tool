@@ -13,6 +13,10 @@ namespace ForestOverlay.Modules
     //   1. Practice mode on and a current spot  -> REVIVE at the spot.
     //      Every death, the capture included. Health and blood reset, no
     //      reload, then teleported back. Writes state -> practice marker.
+    //      A current spot WITH A START STATE revives even with practice
+    //      mode off: the restart restores the state, the segment's way
+    //      (author, 2026-09-23: practising from a savestate should reload
+    //      it entirely on death - v0.21.1 quick-loaded the slot instead).
     //   2. Otherwise, quick-load on (default)   -> QUICK-LOAD the save.
     //      Every death. The capture (first death) and the boss-fight
     //      wake-up each have their own toggle, both on by default - no
@@ -146,7 +150,8 @@ namespace ForestOverlay.Modules
 
         private bool ReviveApplies()
         {
-            return _runs != null && _runs.Enabled && _practice != null && _practice.HasSpot;
+            if (_practice == null || !_practice.HasSpot) return false;
+            return (_runs != null && _runs.Enabled) || _practice.CurrentHasStartState;
         }
 
         private void OnHandled(DeathKind kind, DeathAction action)
@@ -326,10 +331,11 @@ namespace ForestOverlay.Modules
                       "Not permadeath (the game deletes the save) or multiplayer.");
             y += 44f;
 
-            GUI.Label(new Rect(0, y, w, 40),
+            GUI.Label(new Rect(0, y, w, 60),
                       "Practice mode on + a spot selected: a death revives you at the spot instead " +
-                      "(health and blood reset, no reload). Marks the session as practice.");
-            y += 48f;
+                      "(health and blood reset, no reload). A spot with a start state does this " +
+                      "even with practice mode off, and restores the start state. Marks the session as practice.");
+            y += 64f;
 
             if (GUI.Button(new Rect(0, y, 160, 24), "Clear blood overlay")) ClearBlood();
             y += 32f;

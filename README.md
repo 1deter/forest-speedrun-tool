@@ -35,7 +35,9 @@ A speedrun and practice tool for **The Forest**, built as a
   is touched) and restore it instantly in place, or with a ~5 s load for the
   game's full reset. Built walls go, taken items come back
 - **Segment start states** — give a segment a savestate and every restart
-  (`F7`) puts the world back as it was before teleporting you to the start
+  (`F7`) puts the world back as it was before teleporting you to the start.
+  A new start state retires the segment's old times (it asks first), and
+  dying at such a spot restores it too
 - **Death recovery** — a death in practice mode puts you back at your spot
   with full health and no blood overlay
 - **Debug views** — freecam (the body is held still), collider and trigger

@@ -115,5 +115,40 @@ namespace ForestOverlay.Tests
 
             Assert.NotEqual(a.RouteFingerprint(), b.RouteFingerprint());
         }
+
+        [Fact]
+        public void NoStartStateLeavesTheFingerprintAsItWas()
+        {
+            // Attempts recorded before start states existed must stay
+            // current: an empty start state folds nothing in.
+            Segment a = Route();
+            string before = a.RouteFingerprint();
+            a.StartState = "";
+            Assert.Equal(before, a.RouteFingerprint());
+            Assert.Equal("b0fc595e", before);   // the value before start states existed
+        }
+
+        [Fact]
+        public void ANewStartStateIsANewRoute()
+        {
+            Segment a = Route();
+            string none = a.RouteFingerprint();
+
+            a.StartState = Segment.HashText("world one");
+            string one = a.RouteFingerprint();
+            a.StartState = Segment.HashText("world two");
+            string two = a.RouteFingerprint();
+
+            Assert.NotEqual(none, one);
+            Assert.NotEqual(one, two);
+        }
+
+        [Fact]
+        public void HashTextIsStableHex()
+        {
+            Assert.Equal(Segment.HashText("abc"), Segment.HashText("abc"));
+            Assert.NotEqual(Segment.HashText("abc"), Segment.HashText("abd"));
+            Assert.Equal(8, Segment.HashText("").Length);
+        }
     }
 }

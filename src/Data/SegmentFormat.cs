@@ -33,6 +33,8 @@ namespace ForestOverlay.Data
                     if (value == "in-place") { s.StartRestoreWithLoad = false; return null; }
                     return "bad restore (in-place or load): " + value;
 
+                case "startstate": s.StartState = value; return null;
+
                 case "spawn":
                     {
                         string[] p = TriggerParser.Split(value);
@@ -103,6 +105,7 @@ namespace ForestOverlay.Data
             if (s.End.IsSet) sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
 
             if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
+            if (!string.IsNullOrEmpty(s.StartState)) sb.Append("startstate = ").Append(s.StartState).Append(nl);
 
             if (!string.IsNullOrEmpty(s.Notes)) sb.Append("notes    = ").Append(s.Notes).Append(nl);
         }

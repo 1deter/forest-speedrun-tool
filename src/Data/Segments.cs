@@ -269,6 +269,13 @@ namespace ForestOverlay.Data
         /// validated method as the alternative).
         public bool StartRestoreWithLoad;
 
+        /// Which start state the segment expects: a hash of the savestate's
+        /// data, written on capture as `startstate = <hash>`. Part of the
+        /// route fingerprint, so a new start state retires old times just
+        /// as moving a zone does (author's call, 2026-09-23). Empty when
+        /// there is none - and then the fingerprint is what it always was.
+        public string StartState = "";
+
         // No cached GUIContent here on purpose. Segment is pure data and
         // is linked into the test project, which has no Unity - the label
         // cache is a GUI concern and lives with the panel that draws it.
@@ -302,7 +309,18 @@ namespace ForestOverlay.Data
                 hash = Fold(hash, TriggerParser.Write(Checkpoints[i]));
             hash = Fold(hash, TriggerParser.Write(End));
 
+            // Only when set, so segments without a start state keep the
+            // fingerprint their recorded attempts carry.
+            if (!string.IsNullOrEmpty(StartState)) hash = Fold(hash, "startstate " + StartState);
+
             return hash.ToString("x8");
+        }
+
+        /// FNV-1a of any text as eight hex digits - how a start state's
+        /// data is named in the segment block.
+        public static string HashText(string text)
+        {
+            return Fold(2166136261, text).ToString("x8");
         }
 
         private static uint Fold(uint hash, string text)

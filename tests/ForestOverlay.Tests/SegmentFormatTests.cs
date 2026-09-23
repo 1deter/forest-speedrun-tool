@@ -259,5 +259,19 @@ namespace ForestOverlay.Tests
             Assert.Equal(1, warnings);
             Assert.False(back[0].StartRestoreWithLoad);
         }
+
+        // Which start state the segment was timed from. Omitted when there
+        // is none, so segments without one save byte-identical.
+        [Fact]
+        public void StartStateRoundTripsAndIsOmittedWhenEmpty()
+        {
+            Segment s = Sample();
+            Assert.DoesNotContain("startstate", Write(s));
+
+            s.StartState = "0badf00d";
+            string text = Write(s);
+            Assert.Contains("startstate = 0badf00d", text);
+            Assert.Equal("0badf00d", Parse(text)[0].StartState);
+        }
     }
 }

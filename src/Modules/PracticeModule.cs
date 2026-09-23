@@ -52,6 +52,12 @@ namespace ForestOverlay.Modules
         public string SpotLabel { get { return _current != null ? _current.Name : ""; } }
         public Segment CurrentSegment { get { return _current; } }
 
+        /// A file check - for a death, not per frame.
+        public bool CurrentHasStartState
+        {
+            get { return HasSpot && _savestates != null && _savestates.HasStartState(_current); }
+        }
+
         /// Raised when the player is placed at the current entry, so a run
         /// can arm without this module knowing the timer exists.
         public Action OnPlacedAtSpot;
@@ -112,6 +118,10 @@ namespace ForestOverlay.Modules
         private string _startStateForId;
         private readonly GUIContent _startStateLabel = new GUIContent("");
         private float _deleteStartArmedUntil;
+        private float _captureStartArmedUntil;
+
+        // Only to count what a start-state change would retire.
+        private AttemptStore _attempts;
 
         // ------------------------------------------------------------------
         public override void Initialise(ModuleContext ctx)
@@ -122,6 +132,7 @@ namespace ForestOverlay.Modules
             Reload();
 
             _savestates = Host.Find<SavestateModule>();
+            _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
 
             _previewHost = new GameObject("ForestOverlay_ZonePreview");
             _previewHost.hideFlags = HideFlags.HideAndDontSave;
@@ -1042,7 +1053,8 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(0, y, 74, 20), "Start state");
 
             GUI.enabled = !_savestates.Busy && s.Id.Length > 0;
-            if (GUI.Button(new Rect(80, y - 2, 110, 22), "Capture here")) CaptureStartState(s);
+            if (GUI.Button(new Rect(80, y - 2, 110, 22),
+                           Time.unscaledTime <= _captureStartArmedUntil ? "Sure?" : "Capture here")) CaptureStartState(s);
             GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s);
             if (GUI.Button(new Rect(196, y - 2, 70, 22),
                            Time.unscaledTime <= _deleteStartArmedUntil ? "Sure?" : "Delete")) DeleteStartState(s);
@@ -1072,6 +1084,20 @@ namespace ForestOverlay.Modules
         {
             if (!_library.IsIdAvailable(s.Id, s)) { _status = "Pick a free id first - the start state is named after it."; return; }
 
+            // A new start state is a new route: times recorded from the old
+            // one are retired (author, 2026-09-23) - so say so first.
+            if (Time.unscaledTime > _captureStartArmedUntil)
+            {
+                string warning = RetireWarning(s);
+                if (warning != null)
+                {
+                    _captureStartArmedUntil = Time.unscaledTime + 3f;
+                    _status = warning + " Click Capture again within 3 s.";
+                    return;
+                }
+            }
+            _captureStartArmedUntil = 0f;
+
             SetSpawnHere(s);
 
             // F7 restarts the CURRENT spot. Capturing on the editor's entry
@@ -1082,10 +1108,32 @@ namespace ForestOverlay.Modules
             _savestates.CaptureStartState(s, delegate(string error)
             {
                 RefreshStartStateLabel(s);
-                _status = error == null
-                    ? "Start state captured - F7 now restarts '" + s.Name + "'. Spawn moved here - Save to keep it."
-                    : "Start state not captured: " + error;
+                if (error != null) { _status = "Start state not captured: " + error; return; }
+
+                Touch();
+                _status = "Start state captured - F7 now restarts '" + s.Name + "'. " + SaveStartStateChange(s);
             });
+        }
+
+        /// Null when nothing would be retired.
+        private string RetireWarning(Segment s)
+        {
+            int n = _attempts.CountOnRoute(s.Id, s.RouteFingerprint());
+            if (n == 0) return null;
+            return "This retires " + n + " recorded time" + (n == 1 ? "" : "s") +
+                   " for '" + s.Name + "' (kept on disk, left out of comparisons).";
+        }
+
+        // The .fosave is already written or gone, so the segment's note of
+        // which state it expects is written straight through too - left
+        // unsaved, a reload would pair the new state with the old times.
+        private string SaveStartStateChange(Segment s)
+        {
+            if (!s.IsValid) return "Save the segment to keep it.";
+            if (!_library.SaveFile(s.SourceFile)) return "Saving the segment failed - see log.";
+            _dirty = false;
+            RebuildVisible();
+            return "Segment saved.";
         }
 
         private void DeleteStartState(Segment s)
@@ -1093,14 +1141,18 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime > _deleteStartArmedUntil)
             {
                 _deleteStartArmedUntil = Time.unscaledTime + 3f;
-                _status = "Click Delete again within 3 s to delete the start state.";
+                string warning = RetireWarning(s);
+                _status = (warning != null ? warning + " " : "") + "Click Delete again within 3 s to delete the start state.";
                 return;
             }
 
             _deleteStartArmedUntil = 0f;
             string error = _savestates.DeleteStartState(s);
             RefreshStartStateLabel(s);
-            _status = error == null ? "Start state deleted - restarts now keep the game as it is." : "Delete failed: " + error;
+            if (error != null) { _status = "Delete failed: " + error; return; }
+
+            Touch();
+            _status = "Start state deleted - restarts now keep the game as it is. " + SaveStartStateChange(s);
         }
 
         private void SetSpawnHere(Segment s)

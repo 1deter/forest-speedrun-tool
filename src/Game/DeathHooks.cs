@@ -221,6 +221,7 @@ namespace ForestOverlay.Game
             if (action == DeathAction.Revive)
             {
                 Revive(stats);
+                _log.LogInfo("Death: revived (practice).");
             }
             else if (action == DeathAction.QuickLoad && _gameOver != null)
             {
@@ -250,7 +251,6 @@ namespace ForestOverlay.Game
             if (_healthTarget != null) _healthTarget.SetValue(stats, 100f);
             if (_bloodAmount != null) _bloodAmount.SetValue(null, 0f);
             if (_bloodRatio != null) _bloodRatio.SetValue(null, 1f);
-            _log.LogInfo("Death: revived (practice).");
         }
 
         /// The menu path, for when an in-game quick-load could not start:

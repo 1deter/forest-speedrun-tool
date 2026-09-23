@@ -138,6 +138,45 @@ namespace ForestOverlay.Data
             return result;
         }
 
+        /// How many saved attempts count for `route` - what changing the
+        /// route would retire. Reads only each file's header, not its
+        /// samples. No route line counts as current, as in LoadAll's caller.
+        public int CountOnRoute(string anchorLabel, string route)
+        {
+            int n = 0;
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) return 0;
+
+                string[] files = Directory.GetFiles(dir, "*.run");
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string r = RouteOf(files[i]);
+                    if (r.Length == 0 || r == route) n++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not count attempts: " + ex.Message);
+            }
+            return n;
+        }
+
+        private static string RouteOf(string path)
+        {
+            using (StreamReader r = new StreamReader(path, Encoding.UTF8))
+            {
+                string line;
+                while ((line = r.ReadLine()) != null)
+                {
+                    if (line.StartsWith("route|")) return line.Substring(6).Trim();
+                    if (line.StartsWith("s|") || line.StartsWith("v|")) break;   // header over
+                }
+            }
+            return "";
+        }
+
         private static int CompareByTime(Attempt a, Attempt b)
         {
             return a.RecordedUtc.CompareTo(b.RecordedUtc);
