@@ -333,6 +333,23 @@ happened inside that call, stops the trigger and the routine,
 `CancelInvoke("resetAnimSpine")`, and applies `smoothEnableSpine`'s end
 state at once (v0.22.5 did only the first part; v0.22.6 the rest).
 
+**What a landing hurts from (IL, v0.23.9).** `FixedUpdate` calls
+`HandleLanded` on `Grounded && !prevGrounded` and `HandleStartJumping` on
+the opposite edge. `HandleStartJumping` starts the `startJumpTimer`
+coroutine (zeroes `jumpingTimer`, sets `jumpTimerStarted`, then adds
+`deltaTime` every frame) and `Invoke("fallDamageTimer", 0.35)`, which sets
+`allowFallDamage`. `OnCollisionEnterProxied` stores the collision's
+`relativeVelocity.y` in `prevVelocity` (and x/z in `prevVelocityXZ`).
+`HandleLanded` stops the coroutine (the timer keeps its last value) and
+deals damage only when `prevVelocity > 28`, `allowFallDamage`, and
+`jumpingTimer > 0.75` (no damage while riding a shell or gliding faster
+than 32): `0.9 * v * v / 27.5`, or **1000 when air time is over 3.8 s**
+(5 on a shell). So a restore in mid-air carried the air time and speed
+into the landing at the restored spot. `GameBridge.EndFall` zeroes the
+body's velocity, `prevVelocity`, `prevVelocityXZ` and `jumpingTimer`, and
+leaves the coroutine and `allowFallDamage` alone: the game's own landing
+then runs soft, and a real fall after the restore still counts from zero.
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

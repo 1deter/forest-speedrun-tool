@@ -414,6 +414,11 @@ namespace ForestOverlay.Modules
 
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 
+            // MoveTo zeroes the speed; the fall's air time and last impact
+            // speed live in the game's controller, and a Go in mid-air kept
+            // them for the landing.
+            string fall = Ctx.Bridge.EndFall();
+
             Ctx.Bridge.ApplyLook(Ctx.Player.Transform, s.SpawnYaw, s.SpawnPitch);
             Ctx.Practice.Mark("teleport: " + s.Name);
 
@@ -422,7 +427,9 @@ namespace ForestOverlay.Modules
 
             // Logged too: the status line is easy to miss, and the log is
             // what a runner sends when a cave teleport misbehaves.
-            if (cave.Length > 0) Ctx.Log.LogInfo("Teleport to '" + s.Name + "': " + cave + ".");
+            if (cave.Length > 0 || fall.Length > 0)
+                Ctx.Log.LogInfo("Teleport to '" + s.Name + "': " + cave +
+                                (cave.Length > 0 && fall.Length > 0 ? ", " : "") + fall + ".");
 
             if (OnPlacedAtSpot != null) OnPlacedAtSpot();
         }

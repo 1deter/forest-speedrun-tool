@@ -34,6 +34,12 @@ namespace ForestOverlay.Game
         private readonly ManualLogSource _log;
 
         private Component _fpc;
+
+        // The fall in progress (EndFall).
+        private FieldInfo _prevVelocityField;     // Single - last collision's vertical speed
+        private FieldInfo _prevVelocityXZField;   // Vector3
+        private FieldInfo _jumpingTimerField;     // Single - air time
+        private FieldInfo _jumpTimerStartedField; // Boolean - true while in the air
         private FieldInfo _lockedField;
         private FieldInfo _movementLockedField;
         private MethodInfo _lockView;
@@ -140,6 +146,11 @@ namespace ForestOverlay.Game
             _lockedField = t.GetField("Locked", flags);
             _movementLockedField = t.GetField("MovementLocked", flags);
 
+            _prevVelocityField = t.GetField("prevVelocity", flags);
+            _prevVelocityXZField = t.GetField("prevVelocityXZ", flags);
+            _jumpingTimerField = t.GetField("jumpingTimer", flags);
+            _jumpTimerStartedField = t.GetField("jumpTimerStarted", flags);
+
             // Prefer the game's own pair. LockView additionally sleeps the
             // rigidbody, sets isKinematic and clears useGravity (so you do
             // not sag through the floor while held), clears CanJump, and
@@ -157,7 +168,51 @@ namespace ForestOverlay.Game
             _log.LogInfo("FirstPersonCharacter bound. LockView:" + (_lockView != null) +
                          "(" + _lockViewArgCount + " arg) UnLockView:" + (_unlockView != null) +
                          " Locked:" + (_lockedField != null) +
-                         " MovementLocked:" + (_movementLockedField != null));
+                         " MovementLocked:" + (_movementLockedField != null) +
+                         " fall:" + (_prevVelocityField != null && _jumpingTimerField != null));
+        }
+
+        /// Ends a fall in progress so it cannot hurt on landing (runner,
+        /// v0.22.6: a restore in mid-air kept the fall and the landing dealt
+        /// damage). FirstPersonCharacter.HandleLanded hurts when
+        /// prevVelocity - the vertical speed of the last collision - is
+        /// over 28 and jumpingTimer - air time, counted by the
+        /// startJumpTimer coroutine and never reset on landing - is over
+        /// 0.75 s (over 3.8 s is 1000 damage). Clearing both and the body's
+        /// velocity leaves the game's own landing to run as a soft one,
+        /// which still stops the timer, the shake and the jump animation.
+        /// The coroutine is left running: a real fall after the restore
+        /// still counts, from zero. Returns what it ended, or "".
+        public string EndFall()
+        {
+            if (!Live()) return "";
+
+            try
+            {
+                bool inAir = _jumpTimerStartedField != null && (bool)_jumpTimerStartedField.GetValue(_fpc);
+                float air = _jumpingTimerField != null ? (float)_jumpingTimerField.GetValue(_fpc) : 0f;
+
+                Rigidbody body = _fpc.GetComponent<Rigidbody>();
+                float speed = body != null ? body.velocity.magnitude : 0f;
+                if (body != null)
+                {
+                    body.velocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
+
+                if (_prevVelocityField != null) _prevVelocityField.SetValue(_fpc, 0f);
+                if (_prevVelocityXZField != null) _prevVelocityXZField.SetValue(_fpc, Vector3.zero);
+                if (_jumpingTimerField != null) _jumpingTimerField.SetValue(_fpc, 0f);
+
+                if (!inAir && speed < 1f) return "";
+                return "fall ended (" + (inAir ? air.ToString("F1") + " s in the air, " : "") +
+                       speed.ToString("F0") + " m/s)";
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Ending the fall failed: " + ex.Message);
+                return "";
+            }
         }
 
         // LockView takes a bool in the build this was written against, but

@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.23.8** (2026-09-23). The author runs it via the in-game
+**Released: v0.23.9** (2026-09-23). The author runs it via the in-game
 updater. **210 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -622,6 +622,9 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **No landing damage after a mid-air restore** (v0.23.9): F7 or a
+  Savestates-tab restore while falling; the restore line ends `| fall
+  ended (...)`.
 - **v0.23.6's census off by default** - no hitch after a load.
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
@@ -713,10 +716,15 @@ list so we can move onto expanding more features".
 2. ~~Updater: any plugin file name~~ **done** (v0.23.7). Left: the in-game
    check at the next release (Pick up here 2).
 3. **Savestates, remaining** (with the runner feedback that belongs here):
-   - **Falling state carries over** *(runner)*: restoring while in mid-air
-     keeps the fall and deals landing damage. Zero the rigidbody velocity
-     and the fall state on restore (find the fall-damage state in
-     `FirstPersonCharacter` IL - `HandleLanded` is where it lands).
+   - ~~**Falling state carries over**~~ **done** (v0.23.9, awaiting a
+     check) *(runner)*: restoring while in mid-air kept the fall and dealt
+     landing damage. `GameBridge.EndFall` (before and after every in-place
+     restore, and after every teleport) zeroes the body's velocity and
+     `FirstPersonCharacter.prevVelocity` / `prevVelocityXZ` /
+     `jumpingTimer`; the game's own `HandleLanded` then lands softly
+     (damage needs `prevVelocity > 28` and air time `> 0.75 s`; game-notes
+     *Deaths*). Log: `... | fall ended (x s in the air, y m/s)` on the
+     restore line, or on `Teleport to '<name>': ...`.
    - **The survival book's page** *(runner)*: an in-place restore does not
      keep the page, a load restore resets it. Savestates should keep it; a
      **quick-load** (death) should reset it to the game's default opening

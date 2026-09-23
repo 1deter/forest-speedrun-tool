@@ -434,10 +434,20 @@ namespace ForestOverlay.Modules
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
 
+            // Before as well as after: a physics step during the restore
+            // could land the old fall at the restored spot.
+            string fall = Ctx.Bridge.EndFall();
+
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 _busy = false;
+
+                // The restore can bring the saved body's speed back, and a
+                // fall in progress keeps its air time (runner: restoring in
+                // mid-air dealt landing damage).
+                string after2 = Ctx.Bridge.EndFall();
+                if (fall.Length == 0) fall = after2;
 
                 int pickups = 0;
                 if (r.Ok)
@@ -464,7 +474,8 @@ namespace ForestOverlay.Modules
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
                               (presentPickups == null ? " (all kept)" : "") +
-                              (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave);
+                              (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
+                              (fall.Length == 0 ? "" : " | " + fall);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 SetStatus(line);

@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.9 - 2026-09-23
+
+- Restoring a savestate or a start state while falling no longer carries
+  the fall over: you arrive standing, with no landing damage. The same
+  goes for Go on a spot in mid-air.
+
 ## v0.23.8 - 2026-09-23
 
 - The Practice list no longer gets stuck on one spot. With unsaved
