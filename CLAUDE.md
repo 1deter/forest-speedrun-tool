@@ -648,6 +648,11 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
   another name (`ForestOverlay(1).dll`) must rename it to
   `ForestOverlay.dll` once, game closed; tell them if they report being
   offered the same update every launch.
+- **Spots stop switching** *(runner maks, seen ~3 times)*: the Practice
+  tab stays stuck on one spot ("logboosts") and clicking another does
+  nothing, until a new spot is created and deleted. A core-flow bug, not
+  QoL. Cause unknown - read `PracticeModule`'s selection / list code and
+  get the log from a session where it happened.
 - **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
   about 30 in-place restores of a sinkhole start state, each after a fall
   death + revive, then the first **load** restore started **from a death**
@@ -705,9 +710,20 @@ list so we can move onto expanding more features".
      are spawned and pooled by the game's spawn managers, most likely outside
      `UniqueIdentifier`. Find from IL what owns a live enemy and what a
      scene load re-creates, then do what `PickupKeeper` does for pickups.
-   - **"CANNOT CARRY ANY MORE LIGHTERS"** after a start-state restore —
-     harmless (author). `LogControler` has `_lighterItemId` and an
-     `OnDeserialized` routine; check its IL first.
+   - **The lighter is put away by an in-place restore** *(runner maks)*:
+     captured with the lighter out and lit, every in-place restore leaves
+     it away, so it has to be taken out again each reset (cave 6,
+     sinkhole; load restores are fine). **Our own doing:** the restore
+     calls `StashHands()` -> `PlayerInventory.StashLeftHand()`
+     (`SavestateBridge`), and the lighter is a left-hand item. Record what
+     each hand held at capture and re-equip it after the restore (lit if
+     it was lit). The harmless **"CANNOT CARRY ANY MORE LIGHTERS"**
+     message (author) is probably the same path - `LogControler` has
+     `_lighterItemId` and an `OnDeserialized` routine; check its IL too.
+   - **A savestate taken during the Megan cutscene** (author): capturing
+     while Megan transforms into the boss and restoring (in place or with
+     a load) starts the cutscene over from its beginning. Cutscene progress
+     is outside the serializer.
    - **Sharing**: nothing bundles a segment file with its `.fosave` yet.
    - Optional *(runner)*: time of day restored without cycling through the
      night; a **stats-only start state** (thirst, hunger, stamina, energy -
@@ -793,6 +809,13 @@ Deaths / UX:
 - **Revive is confusing**, worse with practice mode on and another spot
   selected. Wants one clear choice of what a death does: quick-load, restore
   the start state (in place / load), revive, or reload the whole save.
+- **Split the death extras into their own toggles** (author): *no blood*
+  (never show the blood overlay, cleared continuously while ticked - not
+  only on death) and *no stagger* (the hard-landing stagger and related
+  animations), separate from the death revive, which keeps doing both on
+  death only. Off by default, practice-only: survival keeps the game's
+  own feel. They must also work in **Creative**, where the player never
+  dies, so the death path never runs there.
 
 Runs:
 - Checkpoint **boxes should rotate**; new ones could face the look direction.
