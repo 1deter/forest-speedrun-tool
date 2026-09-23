@@ -142,7 +142,9 @@ namespace ForestOverlay.Modules
                 "(the game only clears them at the title screen) - they keep the old world in memory, ~120 MB a load.");
             StaleSubscribers.Enabled = _subscribersFix.Value;
             _subscribers = new StaleSubscribers(ctx.Log);
-            _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusOnLoad", true,
+            // Off since v0.23.6 (the leak is fixed; the census is the ~0.7 s
+            // hitch after a load). A new key, so existing configs turn it off.
+            _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusAfterEveryLoad", false,
                 "After every load, log the Mono heap and which static references hold destroyed objects " +
                 "(the load memory leak investigation). Costs a hitch of up to a second or so, just after a load.");
 
@@ -228,6 +230,7 @@ namespace ForestOverlay.Modules
                 // Before the census, so its heap line shows the result.
                 _subscribers.Prune();
                 _keeper.PruneDestroyed();
+                DeathHooks.ForgetDeath();
                 _censusLabel = "load " + _loads.Loads + (_loads.LastFromOtherScene ? " (from the title screen)" : " (game scene reloaded)") +
                                ", " + LeakedThreads.Summary() + ", stale subscribers removed " + StaleSubscribers.Removed;
                 if (_censusOnLoad.Value)

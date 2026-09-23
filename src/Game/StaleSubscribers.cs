@@ -32,12 +32,13 @@ namespace ForestOverlay.Game
     // or two a load), through UnityEventBase.RemoveListener.
     //
     // v0.23.4 skipped a subscription whose _publishingEventIndex was not -1
-    // ("mid-publish"). In game it kept 5 worlds until the author killed,
-    // built and chopped: Publish resets the index to -1 only when its loop
-    // finishes, so a subscriber that throws (a dead one, likely) leaves it
-    // stuck, and the skip kept that list's dead callbacks until the event
-    // was published again. Prune runs from a module Tick, never inside a
-    // Publish, so it no longer skips; it counts stuck lists and resets them.
+    // ("mid-publish"). But the EventSubscription constructor never sets it:
+    // it starts at 0 and becomes -1 only after the first Publish. So every
+    // event not yet published since the load (43 at the first load) was
+    // skipped, and kept its dead callbacks until the author killed, built
+    // or chopped. Prune runs from a module Tick, never inside a Publish, so
+    // it no longer skips; it sets such an index to -1, the idle value
+    // (Unsubscribe only adjusts the index when it is above -1).
     //
     // A dead subscriber would also run on every publish (a stat counted
     // once per past load). Memory only for us: not practice-only.
@@ -59,7 +60,6 @@ namespace ForestOverlay.Game
         private FieldInfo _unityCalls;       // UnityEventBase.m_Calls
         private FieldInfo _runtimeCalls;     // InvokableCallList.m_RuntimeCalls
         private MethodInfo _removeListener;  // UnityEventBase.RemoveListener(object, MethodInfo)
-        private int _stuck;
 
         public string Status { get; private set; }
 
@@ -122,19 +122,17 @@ namespace ForestOverlay.Game
             if (!_bound) Bind();
 
             int registry = 0, tree = 0;
-            _stuck = 0;
             try { registry = PruneRegistries(); }
             catch (Exception ex) { _log.LogWarning("StaleSubscribers: registry prune failed: " + ex.Message); }
             try { tree = PruneTreeCutDown(); }
             catch (Exception ex) { _log.LogWarning("StaleSubscribers: OnTreeCutDown prune failed: " + ex.Message); }
 
             int n = registry + tree;
-            if (n > 0 || _stuck > 0)
+            if (n > 0)
             {
                 Removed += n;
                 _log.LogInfo("Events: removed " + registry + " event-registry subscription(s) and " + tree +
-                             " tree-cut listener(s) left by destroyed objects (" + Removed + " this session)" +
-                             (_stuck > 0 ? "; " + _stuck + " event list(s) were stuck mid-publish (a subscriber threw)" : "") + ".");
+                             " tree-cut listener(s) left by destroyed objects (" + Removed + " this session).");
             }
             return n;
         }
@@ -160,13 +158,9 @@ namespace ForestOverlay.Game
                         Delegate d = list[i] as Delegate;
                         if (d != null && IsDead(d.Target)) { list.RemoveAt(i); removed++; }
                     }
-                    // Not -1 outside a Publish = a Publish that threw. Its next
-                    // Publish would reset it; reset it now so it is counted once.
+                    // 0 = never published since it was created; -1 is idle.
                     if (_publishing != null && (int)_publishing.GetValue(subscription) != -1)
-                    {
-                        _stuck++;
                         _publishing.SetValue(subscription, -1);
-                    }
                 }
             }
             return removed;

@@ -700,7 +700,7 @@ threads flat (143-147). `Achievements.Data`'s dead `GameStats` /
 `AchievementsManager` / `PlayerInventory` dropped -11 at load 7, when the
 prune removed 17.
 
-Why loads 2-6 still grew: v0.23.4 skipped any subscription whose
+Why loads 2-6 still grew (first theory - corrected below): v0.23.4 skipped any subscription whose
 `_publishingEventIndex` was not -1. `Publish` (IL above) resets it to -1
 only after its loop ends, so a subscriber that throws (a dead one, most
 likely - Unity's own log is not written by this game, so unconfirmed)
@@ -716,6 +716,33 @@ threw)`. Also: `TreeHealth.OnTreeCutDown` is a `UnityEvent<Vector3>`
 the protected `UnityEventBase.RemoveListener(object, MethodInfo)` (Unity
 5.6 names, from `UnityEngine.dll`). And the plugin's own
 `PickupKeeper.TakenList` (196 dead after 21 loads) is pruned on every load.
+
+**Correction (v0.23.5 log + IL):** the "stuck" lists were not a throw.
+`EventSubscription`'s constructor never sets `_publishingEventIndex`, so it
+starts at **0** and is -1 only after the first `Publish` finishes; the
+first load of v0.23.5 found 43 such lists, before any reload. v0.23.4's
+skip therefore kept the dead callbacks of every event not yet published
+since the load - until the author's kill / build / chop published them.
+`Unsubscribe` adjusts the index only when it is above -1, so setting a
+never-published list to -1 (the idle value) is safe.
+
+**Fixed (author, v0.23.5, 20 load restores with nothing in between):**
+heap 262 (first load into the save) -> 394 -> 475 MB, then **475 -> 483 MB
+over the next 18 loads** (421 MB after *Memory census now*); every load
+5.0-5.1 s; OS threads 145-151; `Events: removed 6-9 event-registry
+subscription(s) and 2 tree-cut listener(s)` each reload; no destroyed
+object left growing in the census. The +131 / +80 MB of the first two
+reloads is a one-time warm-up (pools and caches that fill on the first
+reloads over the same scene - `PathPool.pool` jumps 150k objects on the
+first one), not a leak.
+
+**The load leak, in one paragraph:** a reload of the game scene over
+itself (quick-load, load restore) kept the whole previous world's managed
+side alive, ~120 MB a load, because the game's `EventRegistry` is only
+cleared by `TitleScreen.Awake` and objects leave lambda subscriptions
+behind; two worker threads (`WorkScheduler`, `FocusLostAudio`) also leaked
+per load. Fixed by `Game/StaleSubscribers` and `Game/LeakedThreads` in the
+plugin (v0.23.3-0.23.5). Not pathfinding (v0.23.1's fix, removed).
 
 The census itself costs ~0.6-1.0 s about 1.5 s after each load, growing
 with the heap (`GC.GetTotalMemory(true)` is a full collection) - the hitch

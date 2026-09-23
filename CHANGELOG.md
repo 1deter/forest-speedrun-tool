@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.6 - 2026-09-23
+
+- Load slowdown: fixed. 20 reloads in a row now all take about 5 s, and
+  memory stays flat after the first couple of loads (it used to climb to
+  2.7 GB and 13 s a load).
+- The memory report no longer runs after every load, so the short hitch a
+  second after loading is gone. "Memory census now" in the Savestates tab
+  still runs it on demand, and the switch can turn it back on.
+
 ## v0.23.5 - 2026-09-23
 
 - Load slowdown: v0.23.4 worked - after 21 reloads memory stayed around

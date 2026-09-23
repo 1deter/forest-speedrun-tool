@@ -380,6 +380,13 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
+        /// Called when a load finishes: the skipped death's stats belong to
+        /// the destroyed world by then (a holder the memory census listed).
+        public static void ForgetDeath()
+        {
+            _lastStats = null;
+        }
+
         /// Clears the blood overlay on demand - it builds up after
         /// repeated fall damage.
         public static void ClearBlood()

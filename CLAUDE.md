@@ -408,48 +408,31 @@ identity.
 
 ## Current status
 
-**Released: v0.23.5** (2026-09-23). The author runs it via the in-game
+**Released: v0.23.6** (2026-09-23). The author runs it via the in-game
 updater. **191 tests.**
 
-### Pick up here (handoff of 2026-09-23, evening)
+### Pick up here (handoff of 2026-09-23, night)
 
-The load leak so far (game-notes *The load leak*): pathfinding is ruled
-out (v0.23.2 log: the old `AstarPath` dies `active: this one` before the
-new one wakes; the v0.23.1 fix is removed). The v0.23.2 census found
-**OS threads +2 a load** while statics (~36 MB) and DDOL objects stayed
-small and the heap grew +123 MB a load (262 -> 2874 MB over 22 loads,
-4.7 -> 13.0 s each). The two threads: the old `WorkScheduler`'s (parked in
-`WaitOne` forever) and a `FocusLostAudio` DDOL copy per load.
+**The load leak is fixed** (author, v0.23.5: 20 load restores, heap flat
+at ~480 MB after two warm-up loads, every load 5.0-5.1 s; was 2.7 GB and
+13 s). Root: the game's `EventRegistry` is cleared only by
+`TitleScreen.Awake`, so every reload kept the previous world through
+leftover subscribers; plus two leaked threads a load. Fixes:
+`Game/StaleSubscribers`, `Game/LeakedThreads` (game-notes *The load leak*,
+*The event bus*). v0.23.6 turns the per-load census off by default (a
+renamed key, `Diagnostics.MemoryCensusAfterEveryLoad`, so existing
+configs turn off too - the author asked about the post-load hitch; that
+was it) and clears `DeathHooks._lastStats` on each load.
 
-v0.23.3 stopped both (`Game/LeakedThreads`): confirmed, threads flat.
-**v0.23.4 found the root: the game's `EventRegistry` keeps every destroyed
-world's subscribers; only `TitleScreen.Awake` clears it** (game-notes *The
-event bus*). `Game/StaleSubscribers` prunes them on each load. **It works
-(author, 21 load restores): heap bounded at ~410-610 MB, loads ~5 s all
-session** (was 2.7 GB, 13 s) - except loads 2-6 still grew until the
-author killed/built/chopped: a subscriber that throws leaves
-`_publishingEventIndex` stuck and v0.23.4 skipped such lists. v0.23.5
-prunes them anyway, fixes the `TreeHealth.OnTreeCutDown` prune (a
-UnityEvent) and prunes `PickupKeeper.TakenList` on each load.
+Next: **Next up 2, the updater and renamed DLLs**. Open checks, when the
+author is in game anyway:
 
-Ask the author for one more run (~20 load restores **without** doing
-anything in between, *Memory census now* at the end) and read:
-
-1. Each reload: `Events: removed n ... and m tree-cut listener(s)` with
-   **m = 2**-ish now, maybe `n event list(s) were stuck mid-publish`
-   (evidence for the throw theory - note it in game-notes).
-2. **The heap line flat from load 2 on** (some oscillation of one world,
-   ~+75/-190, was normal in v0.23.4's tail). Then: record it, set
-   `MemoryCensusOnLoad` off by default (the post-load hitch the author
-   asked about), finish Next up 1's tail (`DeathHooks._lastStats`;
-   in-place restore timing on a flat heap).
-3. The census's `TreeHealth.OnTreeCutDown` and `PickupKeeper.TakenList`
-   destroyed counts stop growing.
-4. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
+1. v0.23.6: no hitch ~1.5 s after a load; *Memory census now* still logs.
+2. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
    with checkpoint n (...) outstanding; holding x, y at the start`.
-5. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
+3. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
    kept only +12 MB, but each took ~150 ms for 12 restores, then ~330 ms
    from the 13th on. Not a leak; a step. Look if it recurs.
 
@@ -575,8 +558,9 @@ scanner.
   sees every load by `Scene.FinishGameLoad`; 1.5 s later `Game/MemoryCensus`
   logs the heap, destroyed Unity objects still reachable from statics (per
   root, with growth) and Unity objects by type (switch
-  `Diagnostics.MemoryCensusOnLoad`, on - a hitch of ~0.6-1.0 s after a
-  load, noticed by the author). *Memory census now* runs it on demand.
+  `Diagnostics.MemoryCensusAfterEveryLoad`, **off** since v0.23.6 - a
+  hitch of ~0.6-1.0 s after a load, noticed by the author; the old key
+  `MemoryCensusOnLoad` is orphaned). *Memory census now* runs it on demand.
   `Game/LeakedThreads` (switch `Fixes.StopLeakedThreadsOnLoad`, on) stops
   the two threads each load leaves running; `Game/StaleSubscribers`
   (switch `Fixes.PruneDeadSubscribersOnLoad`, on) drops the old world's
@@ -605,13 +589,12 @@ teleports and Restart restores; cross-save restores in place give **one
 player and one inventory**; the ESC menu keeps its cursor when the window
 closes over it; the fall revive has no stagger and **jump comes back at
 once** (v0.22.6, author); text wraps and sits under its buttons; the
-v0.23.0 census ran after every load without trouble (0.4-0.8 s).
+v0.23.0 census ran after every load without trouble (0.4-0.8 s); **the
+load leak fixed** (v0.23.3-0.23.5: threads flat, heap flat, loads ~5 s;
+building, chopping and killing across reloads fine).
 
 **Awaiting an in-game check** — ask before building on these:
-- **The load leak, last gap** (v0.23.5) - see *Pick up here*. (v0.23.3's
-  thread fix and v0.23.4's event-bus fix are confirmed: threads flat,
-  heap bounded, loads ~5 s; stats still counted after reloads - the
-  author built, chopped and killed every 5 loads without trouble.)
+- **v0.23.6's census off by default** - no hitch after a load.
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
   (installed)" after updating.
@@ -651,7 +634,7 @@ v0.23.0 census ran after every load without trouble (0.4-0.8 s).
 - **Another runner's slowdown with ghost lines / recording.** Not reproducible
   on the author's machine (4080 Super / 7800X3D). Read that runner's
   `Perf (30 s):` lines before changing anything - and note the load leak
-  (fixed in v0.23.1, if confirmed) slowed everything on long sessions.
+  (fixed in v0.23.5) slowed everything on long sessions.
 - **Background performance (maks).** Waiting on maks's `LogOutput.log`; read
   `Perf (30 s):` and `Slow tick:` first.
 - **Author's own perf:** overlay tick ≤ 0.02 ms, GC 0–1 per 30 s in play.
@@ -674,24 +657,8 @@ author. This is all dev/alpha: nothing is used in real runs until the admins
 rule, and a few runners act as QA. The author: "work through the current
 list so we can move onto expanding more features".
 
-1. **Finish the load leak.** *(see Pick up here)* Data: runner logs of
-   2026-09-23 (~103 MB kept per load restore, 6.4 -> 15.2 s, a menu trip
-   gave most of it back); the author's v0.23.0 census (21 load restores:
-   +122 MB a load while statics and Unity objects stayed flat); IL:
-   `AstarPath.OnDestroy` skips all cleanup unless it is `active` - the
-   v0.23.1 fix for that **never acted in game** (gotcha 25); v0.23.2's
-   census sizes, DDOL roots and thread count are the next look (game-notes
-   *The load leak*). Once the cause is found and fixed, the tail:
-   - fix our own small holders, left in as known positives for the census:
-     `PickupKeeper.TakenList` (done v0.23.5: pruned on every load) and
-     `DeathHooks._lastStats` (clear it once a death is handled). The
-     v0.23.0 census did not list either among the top holders - they are
-     small;
-   - decide with the author whether `MemoryCensusOnLoad` stays on by
-     default (it costs ~0.5 s after every load) - probably off once the
-     leak is confirmed fixed, with *Memory census now* kept;
-   - in-place restores: 841 -> 1157 ms over 21 with the heap flat - re-check
-     on a fixed heap (a big heap slows every GC).
+1. ~~Finish the load leak~~ **done** (v0.23.3-0.23.6, see *Pick up
+   here*). Left: in-place restore timing on a fixed heap (Pick up here 3).
 2. **Updater: any plugin file name** *(runner)*. The plugin stages
    `<its own file name>.pending`; the patcher only installs
    `ForestOverlay.dll.pending`, so `ForestOverlay(1).dll` never updates.
@@ -814,9 +781,9 @@ session of 2026-09-23 afternoon (v0.22.7–0.23.1): ordered checkpoints
 (`Data/SplitSequence`), stale run lines, Inventory tab refresh, upgrade
 receivers kept, no string building in any `DrawTab`, messages under their
 buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
-tab), the load watcher and memory census; v0.23.1-0.23.3 the load leak
-hunt (pathfinding ruled out, two leaked threads stopped, dead event
-subscribers pruned).
+tab), the load watcher and memory census; v0.23.1-0.23.6 **the load leak
+fixed** (pathfinding ruled out, two leaked threads stopped, dead event
+subscribers pruned, census off by default).
 
 ### How a session goes
 
