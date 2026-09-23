@@ -423,6 +423,23 @@ teleported to the save's spot and reset the inventory; loading the slot
 without the menu (5.2 s) put everything back. Held items survive an
 in-place inventory restore.
 
+**v0.20.1 in game (author):** in place (122 ms) deleted exactly the 5 new
+objects (`Ghost_Ex_WallChunk(Clone)` x2 and their `Trigger`s,
+`Ex_WallChunkBuilt(Clone)`), put back 3 kept pickups, emptied the hands and
+the inventory - but left the HUD's "GATHER LOGS 0/4". Restore with load:
+5.0 s to `FinishGameLoad`; a menu load of the same save, click to in game
+by stopwatch, 6.95-7.45 s.
+
+**Build missions** (that HUD line): `BuildMission` keeps a static
+`ActiveMissions` tally per item. `Craft_Structure.Initialize` /
+`SwapToNextGhost` / `AddIngrendient_Actual` add to it through static
+`AddNeededToBuildMission(itemId, amount, isCancelling)`; cancelling a ghost
+runs `SpawnBackIngredients`, which for each ingredient calls
+`AddNeededToBuildMission(required._itemID, -(required._amount -
+present._amount), true)` and then spawns the committed items back as
+pickups. Destroying a ghost directly skips it, so the plugin makes the same
+call (without the spawn) before deleting one.
+
 Still unknown: how AI takes an in-place restore (Creative, no enemies).
 
 ---

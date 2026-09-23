@@ -315,7 +315,7 @@ identity.
 
 ## Current status
 
-**Released: v0.20.1** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.20.2** (2026-09-23). The author runs it via the in-game updater.
 **167 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -369,17 +369,16 @@ vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 2026-09-23), Inventory tab item names (v0.19.4), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
-- **Savestates in-place fixes** (v0.20.1). Phase 0 was tested (results in
-  game-notes *Saving and loading*): restore with load and slot-without-menu
-  work; in place left new walls, taken pickups and held items. v0.20.1
-  deletes objects the save does not know, keeps taken world pickups
-  hidden instead of destroyed (`Game/PickupKeeper`, armed by the first
-  capture/restore) and puts them back, stashes held items, and always
-  force-unloads streaming around capture and in-place restore. **Old
-  v0.20.0 captures lack the new header lines — recapture.** Same test
-  again; log line shows `deleted N not in the save`, `pickups put back N`.
-  Watch for duplicated sticks (pooled greebles) and anything deleted that
-  should not be. AI still untested (author plays Creative).
+- **Savestates** — confirmed in game by the author (v0.20.1, Creative, in a
+  cave): in place removes built walls, puts back taken pickups (keycard,
+  camcorder, sticks), empties hands and inventory, no duplicates; restore
+  with load puts everything back in 5.0 s vs 6.95-7.45 s for a menu load.
+  **Awaiting:** the "GATHER LOGS 0/4" HUD line left by an in-place restore
+  (v0.20.2 clears the build mission before deleting a ghost); AI (author
+  will test outside Creative; not the priority - savestates are QoL);
+  a busier area than a cave.
+  Oddity seen once after an in-place restore: the first stick picked up
+  went to the inventory instead of the hand. No duplicates; not chased.
 - **Boss-fight quick-load toggle** (v0.19.4), Deaths tab. The author sees
   it; the behaviour itself is untested (a boss-fight death is rare to hit).
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.

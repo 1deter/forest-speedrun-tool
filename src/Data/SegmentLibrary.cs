@@ -126,6 +126,12 @@ namespace ForestOverlay.Data
                     if (s == null) continue;
 
                     s.SourceFile = name;
+
+                    // Already migrated: saving from the Practice tab writes
+                    // legacy spots into segments/ under the same id, and the
+                    // old file stays. Not a conflict - skip without warning.
+                    if (ById(s.Id) != null) continue;
+
                     if (Commit(s, name)) added++;
                 }
 

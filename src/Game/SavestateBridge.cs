@@ -87,6 +87,15 @@ namespace ForestOverlay.Game
         private FieldInfo _storedItemName;        // StoredItem.Name
         private MethodInfo _decompress;           // CompressionHelper.Decompress(string) : byte[]
 
+        // Build missions (the "GATHER LOGS 0/4" HUD). Craft_Structure adds
+        // to BuildMission's static tally when a ghost is placed and takes it
+        // back in SpawnBackIngredients when one is cancelled; deleting a
+        // ghost skips that, so the HUD line stayed (author, v0.20.1).
+        private Type _craftStructureType;
+        private FieldInfo _requiredIngredients;   // List<BuildIngredients>
+        private FieldInfo _presentIngredients;    // ReceipeIngredient[]
+        private MethodInfo _addNeededToMission;   // static BuildMission.AddNeededToBuildMission(int, int, bool)
+
         // Hands
         private FieldInfo _inventory;             // LocalPlayer.Inventory
         private MethodInfo _stashWeapon;          // PlayerInventory.StashEquipedWeapon(bool)
@@ -278,6 +287,17 @@ namespace ForestOverlay.Game
                 _inventory = local.GetField("Inventory", stat);
             }
 
+            _craftStructureType = GameBridge.FindGameType("TheForest.Buildings.Creation.Craft_Structure");
+            if (_craftStructureType != null)
+            {
+                _requiredIngredients = _craftStructureType.GetField("_requiredIngredients", inst);
+                _presentIngredients = _craftStructureType.GetField("_presentIngredients", inst);
+            }
+            Type mission = GameBridge.FindGameType("TheForest.Buildings.Creation.BuildMission");
+            if (mission != null)
+                _addNeededToMission = mission.GetMethod("AddNeededToBuildMission", stat, null,
+                    new[] { typeof(int), typeof(int), typeof(bool) }, null);
+
             Type inv = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
             if (inv != null)
             {
@@ -312,6 +332,7 @@ namespace ForestOverlay.Game
                      " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
+                     " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null) +
                      " init:" + (_setInitType != null && _initContinue != null);
@@ -721,10 +742,60 @@ namespace ForestOverlay.Game
                 if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
 
                 names.Add(u.gameObject.name);
+                CancelBuildMissions(u.gameObject);
                 UnityEngine.Object.Destroy(u.gameObject);
                 n++;
             }
             return n;
+        }
+
+        // What Craft_Structure.SpawnBackIngredients does for the HUD, without
+        // spawning the committed logs back into the world: for each
+        // ingredient i with both entries set,
+        //   BuildMission.AddNeededToBuildMission(required[i]._itemID,
+        //       -(required[i]._amount - present[i]._amount), true)
+        private void CancelBuildMissions(GameObject go)
+        {
+            if (_craftStructureType == null || _requiredIngredients == null ||
+                _presentIngredients == null || _addNeededToMission == null) return;
+
+            Component[] ghosts = go.GetComponentsInChildren(_craftStructureType, true);
+            for (int g = 0; g < ghosts.Length; g++)
+            {
+                try
+                {
+                    IList required = _requiredIngredients.GetValue(ghosts[g]) as IList;
+                    Array present = _presentIngredients.GetValue(ghosts[g]) as Array;
+                    if (required == null || present == null) continue;
+
+                    for (int i = 0; i < required.Count && i < present.Length; i++)
+                    {
+                        object req = required[i];
+                        object have = present.GetValue(i);
+                        if (req == null || have == null) continue;
+
+                        int itemId = (int)IngredientField(req, "_itemID");
+                        int remaining = (int)IngredientField(req, "_amount") - (int)IngredientField(have, "_amount");
+                        _addNeededToMission.Invoke(null, new object[] { itemId, -remaining, true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Savestate: could not clear the build mission for " + go.name + ": " +
+                                    (ex.InnerException ?? ex).Message);
+                }
+            }
+        }
+
+        private static object IngredientField(object ingredient, string name)
+        {
+            // BuildIngredients derives from ReceipeIngredient; walk up for the field.
+            for (Type t = ingredient.GetType(); t != null; t = t.BaseType)
+            {
+                FieldInfo f = t.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (f != null) return f.GetValue(ingredient);
+            }
+            throw new MissingFieldException(ingredient.GetType().Name, name);
         }
 
         // The inventory restore rewrites the bag but not the hands: a stick
