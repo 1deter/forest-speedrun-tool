@@ -619,7 +619,14 @@ list so we can move onto expanding more features".
    `LevelLoader` only unloads assets when its time-scale argument is 0; the
    `DontDestroyOnLoad` `LevelLoader`; static `EventRegistry` subscriptions;
    our own statics (`DeathHooks._lastStats` keeps the last dead player's
-   `PlayerStats` - one generation, not cumulative).
+   `PlayerStats` - one generation, not cumulative; `PickupKeeper.TakenList`
+   is pruned only by an in-place restore, so after a load restore it points
+   at destroyed pickups - small). **Both left in on purpose for the first
+   census round as known positives**: if the census names them, it works.
+   Fix them in the same pass as the game's roots. Note the census walks
+   plugin objects too: `DeathHooks.Decide`/`Handled` are delegates to
+   `DeathModule`, so that root reaches every module and its cached
+   components - stale caches of ours would show up under it.
 2. **Savestates, remaining:**
    - **In-place restore does not revive killed enemies** (author). Enemies
      are spawned and pooled by the game's spawn managers, most likely outside
