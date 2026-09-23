@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
 using ForestOverlay.Game;
@@ -57,6 +58,7 @@ namespace ForestOverlay.Modules
         private string _dir;
 
         private bool _busy;
+        private ConfigEntry<bool> _allowCrossMode;
         private float _contentHeight = 520f;
         private string _lastCaptureHash = "";
         private float _busySince;
@@ -101,6 +103,10 @@ namespace ForestOverlay.Modules
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
+
+            _allowCrossMode = ctx.Config.Bind("Savestates", "AllowCrossModeRestore", false,
+                "Restore a savestate captured in a Creative game into a survival game, or the other way round. " +
+                "For testing: the game mode is not in the save, so the world comes back in this game's mode.");
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -514,6 +520,13 @@ namespace ForestOverlay.Modules
             if (here.Length == 0 || f.Difficulty.Length == 0) return null;
             if ((here == "Creative") == (f.Difficulty == "Creative")) return null;
 
+            if (_allowCrossMode.Value)
+            {
+                Ctx.Log.LogWarning("Savestate: '" + f.Name + "' was captured in a " + f.Difficulty +
+                                   " game, this one is " + here + " - restoring anyway (AllowCrossModeRestore).");
+                return null;
+            }
+
             Ctx.Log.LogWarning("Savestate: refused '" + f.Name + "' - captured in a " + f.Difficulty +
                                " game, this one is " + here + ".");
             return "captured in a " + f.Difficulty + " game - this one is " + here + " (Creative and survival do not mix)";
@@ -632,6 +645,11 @@ namespace ForestOverlay.Modules
 
             float y = 4f;
             y += UiText.Draw(0, y, w, Warning) + 4f;
+
+            bool cross = GUI.Toggle(new Rect(0, y, w, 22), _allowCrossMode.Value,
+                                    " Allow restoring across Creative and survival (testing)");
+            if (cross != _allowCrossMode.Value) _allowCrossMode.Value = cross;
+            y += 26f;
 
             // Capture
             GUI.Label(new Rect(0, y, 50, 22), "Name");

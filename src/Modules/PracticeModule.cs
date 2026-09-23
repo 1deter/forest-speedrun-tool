@@ -66,6 +66,7 @@ namespace ForestOverlay.Modules
         private float _tabH;
         private Vector2 _listScroll;
         private Vector2 _editScroll;
+        private float _editHeight = 700f;
 
         private GUIStyle _rowStyle;
         private GUIStyle _selectedRowStyle;
@@ -360,7 +361,7 @@ namespace ForestOverlay.Modules
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
 
                 _current = s;
-                _status = "Restoring the start state of '" + s.Name + "'" + (s.StartRestoreWithLoad ? " (load)..." : "...");
+                StartStatus("Restoring" + (s.StartRestoreWithLoad ? " with a load..." : "..."));
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (s.StartRestoreWithLoad ? "with a load." : "in place."));
                 _savestates.RestoreStartState(s, delegate(string error)
@@ -375,7 +376,7 @@ namespace ForestOverlay.Modules
                     // closed (F7, a death): the log alone went unseen.
                     Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
                     string msg = "Start state not restored - " + error + ". Teleported only.";
-                    _status = msg;
+                    _status = "";   // said once, under the Start state buttons
                     StartStatus(msg);
                     if (!Host.AnyPanelOpen()) Ctx.Notice.Show(msg, 7f);
                 });
@@ -593,14 +594,13 @@ namespace ForestOverlay.Modules
             Segment s = _selected;
             float w = area.width;
 
-            float height = 338f;
-            if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
-                height = 698f + s.Checkpoints.Count * 110f;
-
-            Rect content = new Rect(0, 0, w - 20f, height);
+            // The height drawn last pass - wrapped text makes it vary.
+            Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_editHeight, 200f));
             _editScroll = GUI.BeginScrollView(area, _editScroll, content);
 
-            float y = 0f;
+            // Not 0: a text field sits 2 px above its row and the scroll
+            // view clipped its top edge (author, v0.22.3).
+            float y = 4f;
             float cw = content.width;
 
             y = Field(y, cw, "Name", ref s.Name);
@@ -669,6 +669,7 @@ namespace ForestOverlay.Modules
                 y = DrawTrigger(y, cw, "End", ref s.End, -3);
             }
 
+            _editHeight = y + 40f;   // room for the item search results below a trigger
             GUI.EndScrollView();
         }
 

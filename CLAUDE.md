@@ -344,7 +344,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.3** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.4** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -466,22 +466,21 @@ place 132–501 ms with `168 -> 168`, with a load ~11 s).
   with attempts asks for a second click and names the count; afterwards the
   Runs tab shows them as "from another route". Log line:
   `Savestate: start state of '<id>' is now <hash> - route <fp>.`
-- **Cross-save restores** (v0.22.3). v0.22.2 fixed the second player but
-  not the second inventory: the inventory's item views
-  (`Spear_Upgraded_Inv`, `CraftedBomb1`...) sit outside the `player`
-  hierarchy with per-game ids, so they were deleted and the save's set was
-  rebuilt beside the live one (log: 15 remapped, 1 unmatched, 140 deleted).
-  v0.22.3 adopts ids world-wide once the player is foreign. Expect ONE
-  inventory holding the saved items; the log line reads
-  `Savestate: from another save: N id(s) adopted, M left (K on the
-  player)`, naming player misses. Creative vs survival is refused, under
-  the buttons / on screen (confirmed working in v0.22.2 — but the message
-  ran off the right edge; now wraps).
+- **Cross-save restores — confirmed** Normal → Hard in place (v0.22.3):
+  one player, one inventory (`104 id(s) adopted, 54 left (3 on the
+  player)`). The 3 were identical `PassengerManifest` siblings (3
+  candidates each); v0.22.4 pairs identical siblings in order when the
+  counts agree — check the player misses are gone.
+- **Creative ↔ survival** is refused by default; v0.22.4 adds
+  *Allow restoring across Creative and survival (testing)* in the
+  Savestates tab (`AllowCrossModeRestore`) so the author can test whether
+  the adoption also fixes the duplicate there.
 - **Updates tab**: Check again after a Download says "downloaded - restart
   to install" instead of offering the same version again (v0.22.3).
-- **Text everywhere** now wraps via `UiText` (Practice, Deaths, Runs,
-  Savestates, Debug views, Updates, the notice) — look for anything still
-  clipped.
+- **Text** wraps everywhere — confirmed at a glance (v0.22.3). v0.22.4:
+  start-state messages only under the buttons (they were also shown at the
+  top); the editor starts 4 px down (the Name box's top edge was clipped)
+  and its scroll height follows what it drew.
 - Practice text placement — **confirmed** (v0.22.2): capture messages sit
   under the buttons and the saved-state line.
 - Confirmed in v0.22.1: the restore out of a cave sets the surface state

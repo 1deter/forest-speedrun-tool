@@ -841,12 +841,13 @@ namespace ForestOverlay.Game
             }
 
             HashSet<string> claimed = new HashSet<string>();
+            HashSet<Component> done = new HashSet<Component>();
             int remapped = 0, unmatched = 0, playerUnmatched = 0;
             List<string> playerMisses = new List<string>();
             for (int i = 0; i < order.Count; i++)
             {
                 Component u = order[i].Value;
-                if (u == null) continue;
+                if (u == null || done.Contains(u)) continue;
 
                 List<SavedObject> named;
                 if (!byName.TryGetValue(u.gameObject.name, out named)) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, 0); continue; }
@@ -868,6 +869,11 @@ namespace ForestOverlay.Game
                     found++;
                 }
 
+                if (found > 1)
+                {
+                    int paired = PairInOrder(u, top, named, parentId, classId, order, i, claimed, done);
+                    if (paired > 0) { remapped += paired; continue; }
+                }
                 if (found != 1) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, found); continue; }
                 try { _uidId.SetValue(u, match.Id, null); }
                 catch (Exception) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, -1); continue; }
@@ -890,6 +896,55 @@ namespace ForestOverlay.Game
             for (int i = 0; i < playerMisses.Count; i++) sb.Append(i == 0 ? "; player misses: " : ", ").Append(playerMisses[i]);
             _log.LogInfo(sb.Append('.').ToString());
             return null;
+        }
+
+        // Identical siblings - same name, parent and class, e.g. the three
+        // PassengerManifest objects on the player (author, v0.22.3: "3
+        // candidates" each, so none matched). When the live group and the
+        // saved group are the same size, pair them in order: live by
+        // sibling index, saved in the order the save lists them. Copies
+        // that alike are interchangeable, so the order barely matters.
+        private int PairInOrder(Component first, Component top, List<SavedObject> named, string parentId, string classId,
+                                List<KeyValuePair<int, Component>> order, int from,
+                                HashSet<string> claimed, HashSet<Component> done)
+        {
+            List<Component> group = new List<Component>();
+            for (int i = from; i < order.Count; i++)
+            {
+                Component c = order[i].Value;
+                if (c == null || c == top || done.Contains(c)) continue;
+                if (c.gameObject.name != first.gameObject.name || c.transform.parent != first.transform.parent) continue;
+                if (ReadString(_uidClassId, c) != classId) continue;
+                group.Add(c);
+            }
+
+            List<SavedObject> candidates = new List<SavedObject>();
+            for (int s = 0; s < named.Count; s++)
+            {
+                SavedObject o = named[s];
+                if (claimed.Contains(o.Id)) continue;
+                if (!string.IsNullOrEmpty(o.ClassId) && !string.IsNullOrEmpty(classId) && o.ClassId != classId) continue;
+                if ((o.ParentId ?? "") != (parentId ?? "")) continue;
+                candidates.Add(o);
+            }
+
+            if (group.Count < 2 || group.Count != candidates.Count) return 0;
+
+            group.Sort(delegate(Component a, Component b)
+            {
+                return a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex());
+            });
+
+            int n = 0;
+            for (int k = 0; k < group.Count; k++)
+            {
+                try { _uidId.SetValue(group[k], candidates[k].Id, null); }
+                catch (Exception) { continue; }
+                claimed.Add(candidates[k].Id);
+                done.Add(group[k]);
+                n++;
+            }
+            return n;
         }
 
         // Unmatched objects: counted, and those on the player named - they
