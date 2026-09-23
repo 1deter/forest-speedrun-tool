@@ -438,7 +438,8 @@ The session of 2026-09-23 evening had two jobs, both done:
 - **Updates install under any plugin file name** (v0.23.7,
   `Data/UpdateStaging`, 19 new tests; see *Releases and updates*).
 
-The next session starts on **Next up 3** (savestates, remaining) - or 4,
+The next session starts on the **stuck spot list** (Open threads - a
+core-flow bug), then **Next up 3** (savestates, remaining) - or 5,
 the performance investigation the author asked for, if they prefer. Open
 checks, when the author is in game anyway:
 
@@ -651,8 +652,20 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 - **Spots stop switching** *(runner maks, seen ~3 times)*: the Practice
   tab stays stuck on one spot ("logboosts") and clicking another does
   nothing, until a new spot is created and deleted. A core-flow bug, not
-  QoL. Cause unknown - read `PracticeModule`'s selection / list code and
-  get the log from a session where it happened.
+  QoL - **fix first**. Almost certainly the **unsaved-changes guard**
+  (`PracticeModule.DrawList`: with `_dirty` set, a row click only sets
+  `_status = "Unsaved changes - Save or Reload first."`). The message is
+  easy to miss at the top and does not change on a second click, so it
+  looks like nothing happens; *Delete* writes the file and clears
+  `_dirty`, hence the workaround. Anything that calls `Touch()` sets it -
+  a slider nudged, *Restore with a load* ticked. Suspect too: slider
+  defaults (`SphereFields` / `BoxFields` show 3 m / DefaultRadius for a
+  zero size and write it back, so merely *viewing* such a zone dirties
+  it). Fix: selecting always works (edits stay in memory on the
+  `Segment`), track unsaved files as a set and have Save write them all,
+  show "unsaved" on the row; stop the display-only writes. Selection is
+  not logged, so maks's log (v0.23.1) could not show it; the author
+  recalls maks often forgot to save, which fits.
 - **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
   about 30 in-place restores of a sinkhole start state, each after a fall
   death + revive, then the first **load** restore started **from a death**
@@ -720,17 +733,48 @@ list so we can move onto expanding more features".
      it was lit). The harmless **"CANNOT CARRY ANY MORE LIGHTERS"**
      message (author) is probably the same path - `LogControler` has
      `_lighterItemId` and an `OnDeserialized` routine; check its IL too.
-   - **A savestate taken during the Megan cutscene** (author): capturing
-     while Megan transforms into the boss and restoring (in place or with
-     a load) starts the cutscene over from its beginning. Cutscene progress
-     is outside the serializer.
+   - **A savestate taken during the Megan cutscene** *(runner maks)*:
+     capturing while Megan transforms into the boss and restoring (in
+     place or with a load) starts the cutscene over from its beginning;
+     cutscene progress is outside the serializer. Maks practises the boss
+     kill from the exact spot the player stands up, in a tight window, and
+     wants the **last 2-3 s of the cutscene** kept as a reference point,
+     "always same variables". Do not refuse the capture (author). Aim:
+     restore to the captured moment. Approach to check in IL first: note
+     how far into the cutscene the capture was (its clock / animator
+     normalized time), restore as now (cutscene from the start), then
+     **fast-forward** it to that point (the game's own time scale flag -
+     gotcha 1 - or the animators' speed) and return to normal speed a few
+     seconds early. Replaying the game's own script keeps it identical
+     every time; resuming a coroutine mid-way is not possible.
+   - **Cave panels keep their damage** *(runner maks)*: the wooden panels
+     in caves lose health with every axe clip and eventually break. An
+     in-place restore does not put their health back ("it breaks when you
+     try without the restore"); unknown whether a load restore does. Find
+     the panel's health component (IL) and restore it like
+     `PickupKeeper`.
    - **Sharing**: nothing bundles a segment file with its `.fosave` yet.
    - Optional *(runner)*: time of day restored without cycling through the
      night; a **stats-only start state** (thirst, hunger, stamina, energy -
      an instant revive with no restore freeze).
    - Author's idea, still open: reload the slot **in place** on death (the
      Savestates tab's *Reload slot save in place* does exactly that).
-4. **Performance: can patches make the game itself faster?** (author,
+4. **Practice QoL the runners asked for** (author, 2026-09-23):
+   - **Auto-restart at the end of a timed spot** *(runner maks)*: a
+     tickable option; the moment the end condition fires, the time shows
+     briefly (~0.4 s, "like those games") and the spot restarts at once,
+     exactly as F7 would (start state if it has one). The attempt is saved
+     first, like any finished run.
+   - **No blood** and **no stagger** toggles (author): *no blood* keeps
+     the blood overlay cleared all the time while ticked (`BleedBehavior`,
+     game-notes *Deaths*); *no stagger* skips the hard-landing stagger and
+     its animations (what the fall revive already undoes in
+     `HandleLanded`). Each on its own, off by default, practice-only;
+     survival keeps its own feel. **This is also the answer for Creative**,
+     where the player never dies: there is no "death" to detect there, so
+     the toggles do it instead (author). The death revive keeps doing both
+     on death, as now.
+5. **Performance: can patches make the game itself faster?** (author,
    2026-09-23, after the leak fix). The leak hunt showed the game doing
    avoidable work - dead subscribers were called on every publish, worker
    threads never ended - so there may be more. Measure first, change
@@ -758,7 +802,7 @@ list so we can move onto expanding more features".
      changes game timing or outcomes is a gameplay change - label it
      honestly (`IsPracticeOnly` / the run-legality split) like everything
      else; the admins have not ruled.
-5. **The author's list of 2026-09-23:**
+6. **The author's list of 2026-09-23:**
    - **100%: passengers.** The tab shows the passenger To Do task but not
      which passengers were found or how many. Find where the game tracks
      each passenger (IL) and list them like the nature guide. (Note the
@@ -780,21 +824,21 @@ list so we can move onto expanding more features".
    - Idea (author): a **god mode** toggle for practice, the other answer to
      deaths without a start state — the game's console has `_godmode`
      (`DebugConsole`, invokable by reflection).
-6. **Freecam keeps the game's lighting.** With freecam on the game goes
+7. **Freecam keeps the game's lighting.** With freecam on the game goes
    darker everywhere, normal the instant it is off (author). Freecam is a new
    `Camera` from `CopyFrom`, which does not copy the image-effect components
    on the game's camera — the likely cause, unchecked. Dump the main
    camera's components first.
-7. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+8. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
    LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
    author's autosplitter is the reference (memory `autosplitter-repo`).
-8. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
+9. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
    Local-first, export always; comparison keys on segment id + route
    fingerprint (now including the start state). Web panel: everyone's runs
    vs yours (look at Momentum Mod); 3D terrain from the `Terrain` heightmap,
    caves need a geometry dump; scrub bar and annotations.
-9. **TAS** — exploratory only. Builds on savestates and the recorder.
-10. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
+10. **TAS** — exploratory only. Builds on savestates and the recorder.
+11. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
    zone shapes.
 
 ### Deferred runner feedback (voice call, 2026-09-23)
@@ -809,13 +853,7 @@ Deaths / UX:
 - **Revive is confusing**, worse with practice mode on and another spot
   selected. Wants one clear choice of what a death does: quick-load, restore
   the start state (in place / load), revive, or reload the whole save.
-- **Split the death extras into their own toggles** (author): *no blood*
-  (never show the blood overlay, cleared continuously while ticked - not
-  only on death) and *no stagger* (the hard-landing stagger and related
-  animations), separate from the death revive, which keeps doing both on
-  death only. Off by default, practice-only: survival keeps the game's
-  own feel. They must also work in **Creative**, where the player never
-  dies, so the death path never runs there.
+- The no-blood / no-stagger toggles moved to Next up 4 (author decided).
 
 Runs:
 - Checkpoint **boxes should rotate**; new ones could face the look direction.
