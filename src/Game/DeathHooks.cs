@@ -148,6 +148,7 @@ namespace ForestOverlay.Game
                 int n = 0;
                 n += Patch(stats, "CheckDeath", "CheckDeathPrefix");
                 n += Patch(stats, "Fell", "FellPrefix");
+                PatchLanding();
                 Status = n + "/2 death hooks" + (_gameOver == null ? ", no GameOver - quick-load off" : "");
             }
             catch (Exception ex)
@@ -220,6 +221,7 @@ namespace ForestOverlay.Game
             DeathAction action = Decide(kind);
             if (action == DeathAction.Revive)
             {
+                _revives++;
                 Revive(stats);
                 _log.LogInfo("Death: revived (practice).");
             }
@@ -241,6 +243,92 @@ namespace ForestOverlay.Game
 
             if (Handled != null) Handled(kind, action);
             return false;
+        }
+
+        // ------------------------------------------------------------------
+        // A revive from a fall still played the hard landing: stagger, 1 s
+        // frozen, slow look (author). FirstPersonCharacter.HandleLanded
+        // applies the fall damage with PlayerStats.Hit - where the revive
+        // happens - and THEN, for a hard landing: Animator
+        // "landHeavyTrigger", HitReactions.StartCoroutine("doHardfallRoutine")
+        // (clampInputVal = 0 and velocity zeroed every frame for 1 s),
+        // MainRotator.rotationSpeed = 0.55 (prevMouseXSpeed kept; the game
+        // restores it later via resetAnimSpine). When a revive happened
+        // inside this call, the postfix undoes those four. Anything else
+        // HandleLanded does is left alone.
+        private static int _revives;
+        private static FieldInfo _hitReactions;     // static LocalPlayer.HitReactions
+        private static FieldInfo _animator;         // static LocalPlayer.Animator
+        private static FieldInfo _mainRotator;      // static LocalPlayer.MainRotator
+        private static FieldInfo _clampInput;       // FirstPersonCharacter.clampInputVal
+        private static FieldInfo _prevMouseSpeed;   // FirstPersonCharacter.prevMouseXSpeed
+        private static FieldInfo _rotationSpeed;    // SimpleMouseRotator.rotationSpeed
+
+        private void PatchLanding()
+        {
+            Type fpc = GameBridge.FindGameType("FirstPersonCharacter");
+            Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            Type rot = GameBridge.FindGameType("SimpleMouseRotator");
+            if (fpc == null || local == null) { _log.LogWarning("DeathHooks: no landing hook (types missing)."); return; }
+
+            BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            _hitReactions = local.GetField("HitReactions", stat);
+            _animator = local.GetField("Animator", stat);
+            _mainRotator = local.GetField("MainRotator", stat);
+            _clampInput = fpc.GetField("clampInputVal", inst);
+            _prevMouseSpeed = fpc.GetField("prevMouseXSpeed", inst);
+            if (rot != null) _rotationSpeed = rot.GetField("rotationSpeed", inst);
+
+            MethodInfo landed = fpc.GetMethod("HandleLanded", inst, null, Type.EmptyTypes, null);
+            if (landed == null) { _log.LogWarning("DeathHooks: FirstPersonCharacter.HandleLanded not found."); return; }
+
+            try
+            {
+                _harmony.Patch(landed,
+                    new HarmonyMethod(typeof(DeathHooks).GetMethod("LandedPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                    new HarmonyMethod(typeof(DeathHooks).GetMethod("LandedPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+                _log.LogInfo("DeathHooks: landing hook installed (hitReactions:" + (_hitReactions != null) +
+                             " animator:" + (_animator != null) + " clamp:" + (_clampInput != null) +
+                             " look:" + (_rotationSpeed != null && _prevMouseSpeed != null) + ").");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("DeathHooks: could not hook HandleLanded: " + ex.Message);
+            }
+        }
+
+        private static void LandedPrefix(out int __state)
+        {
+            __state = _revives;
+        }
+
+        private static void LandedPostfix(object __instance, int __state)
+        {
+            if (_revives == __state) return;   // no revive during this landing
+            try
+            {
+                MonoBehaviour reactions = _hitReactions != null ? _hitReactions.GetValue(null) as MonoBehaviour : null;
+                if (reactions != null) reactions.StopCoroutine("doHardfallRoutine");
+
+                Animator a = _animator != null ? _animator.GetValue(null) as Animator : null;
+                if (a != null) a.ResetTrigger("landHeavyTrigger");
+
+                if (_clampInput != null) _clampInput.SetValue(__instance, 1f);
+
+                object rotator = _mainRotator != null ? _mainRotator.GetValue(null) : null;
+                if (rotator != null && _rotationSpeed != null && _prevMouseSpeed != null)
+                {
+                    float prev = (float)_prevMouseSpeed.GetValue(__instance);
+                    if (prev > 0.55f) _rotationSpeed.SetValue(rotator, prev);
+                }
+
+                _log.LogInfo("Death: revived from a fall - hard landing cancelled.");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Death: could not cancel the hard landing: " + ex.Message);
+            }
         }
 
         // Full health and a clean screen - the values PlayerStats.Awake

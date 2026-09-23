@@ -313,6 +313,26 @@ The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
 `Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the
 death sequence has run when they act.
 
+**The hard landing runs after the fall damage.**
+`FirstPersonCharacter.HandleLanded` (IL) calls `PlayerStats.Hit` for fall
+damage — where a death, and so a revive, happens — and then, for a hard
+landing, carries on: `Animator.SetTrigger("landHeavyTrigger")`,
+`LocalPlayer.HitReactions.StartCoroutine("doHardfallRoutine")` (sets
+`FpCharacter.clampInputVal = 0` and zeroes the rigidbody velocity every
+frame for 1 s, then `clampInputVal = 1`), `prevMouseXSpeed =
+MainRotator.rotationSpeed; rotationSpeed = 0.55`, layer weights, and
+`Invoke("resetAnimSpine", 1)`. So a revived player still staggered. The
+plugin's postfix on `HandleLanded` undoes the trigger, the routine, the
+input clamp and the look speed when a revive happened inside that call.
+
+## The ESC menu and the player lock
+
+`HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and
+closes with `UnLockView()`. A panel opened over it found the player already
+locked; releasing "our" lock on close called `UnLockView` under the menu,
+whose `Input.LockMouse()` hid the cursor (author). `ModuleHost` now leaves a
+lock the game already held to the game.
+
 ## Caves
 
 Entering a cave on foot, `CaveTriggers` / `CaveDoor` send

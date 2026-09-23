@@ -62,6 +62,7 @@ namespace ForestOverlay.Core
         /// stop reaching the game.
         public bool LockPlayerWhilePanelOpen = true;
         private bool _playerLockApplied;
+        private bool _gameHeldLock;   // the game had the player locked when we took over
 
         public ModuleHost(ModuleContext ctx)
         {
@@ -293,6 +294,16 @@ namespace ForestOverlay.Core
             if (_playerLockApplied && _ctx.Bridge.IsPlayerLocked()) return;
 
             _ctx.Bridge.ResolvePlayerController(_ctx.Player.Transform);
+
+            // Whose lock is it? Opened over the ESC menu (or the book, the
+            // inventory) the game already holds the player with LockView,
+            // and it releases him itself when that menu closes. Taking the
+            // lock over and releasing it on window close called UnLockView
+            // under the pause menu - LockMouse hid the cursor and the menu
+            // could not be used (author, v0.22.x). Lost while we held it =
+            // the game let go, so from then on the lock is ours.
+            _gameHeldLock = !_playerLockApplied && _ctx.Bridge.IsPlayerLocked();
+
             _ctx.Bridge.SetPlayerLocked(true);
 
             if (!_playerLockApplied)
@@ -306,13 +317,18 @@ namespace ForestOverlay.Core
         private void ReleasePlayerLock()
         {
             if (!_playerLockApplied || _ctx.Bridge == null) return;
+            _playerLockApplied = false;
+
+            // The game's own menu still holds him: leave the lock (and the
+            // cursor it freed) to the game.
+            if (_gameHeldLock) { _gameHeldLock = false; return; }
+
             _ctx.Bridge.SetPlayerLocked(false);
 
             // Rebase before input resumes, so the view stays where the
             // player is actually looking rather than snapping back to
             // whatever the rotator held when the panel opened.
             _ctx.Bridge.RebaseLookAngles();
-            _playerLockApplied = false;
         }
 
         /// Tick reconciles the lock and the input block on the next frame.

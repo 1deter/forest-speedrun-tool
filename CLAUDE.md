@@ -344,7 +344,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.4** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.5** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -477,6 +477,11 @@ place 132–501 ms with `168 -> 168`, with a load ~11 s).
   the adoption also fixes the duplicate there.
 - **Updates tab**: Check again after a Download says "downloaded - restart
   to install" instead of offering the same version again (v0.22.3).
+- **ESC menu + window** (v0.22.5): open the pause menu, open the window,
+  close the window — the pause menu should keep a usable cursor.
+- **Revive after a fall** (v0.22.5): no stagger, no 1 s freeze, normal
+  look speed. Log: `Death: revived from a fall - hard landing cancelled.`
+  Startup logs `DeathHooks: landing hook installed (...)`.
 - **Text** wraps everywhere — confirmed at a glance (v0.22.3). v0.22.4:
   start-state messages only under the buttons (they were also shown at the
   top); the editor starts 4 px down (the Name box's top edge was clipped)
@@ -598,15 +603,8 @@ until the admins rule, and a few runners act as QA.
      are mesh geometry under the terrain, so a full map needs a visit pass
      plus a "dump loaded geometry" button. Wants a scrub bar and annotations.
 6. **The author's list of 2026-09-23** (bugs first):
-   - **Bug: closing the overlay window while the ESC menu is open hides
-     the cursor**, so the pause menu cannot be used until reopened. Likely
-     cause: on close the plugin releases `Menu` (`Game/GameInput`) and
-     unlocks the view (`UnLockView` → `Input.LockMouse()`), both of which
-     the pause menu still needs. Fix by leaving both alone when the pause
-     menu is open.
-   - **Revive after a fall plays a stagger / get-up animation.** Remove it
-     on a practice revive. Find from IL what starts it (the fall trigger,
-     `hitFallDown`, the animator) — `Fell` itself is skipped by the prefix.
+   - ~~ESC menu cursor bug~~ and ~~stagger after a fall revive~~ — built
+     in v0.22.5, awaiting a check (see above; game-notes has the IL).
    - **100%: passengers.** The tab shows the passenger To Do task but not
      which passengers were found or how many. Find where the game tracks
      each passenger (IL) and list them like the nature guide.
