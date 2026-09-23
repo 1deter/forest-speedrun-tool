@@ -326,20 +326,24 @@ namespace ForestOverlay.Modules
             // so a restore can fast-forward the replay to this moment.
             string cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
             float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
+
+            // Before the capture force-unloads streaming: what is loaded as
+            // the player sees it.
+            string areas = AreaReport.Describe();
             List<string> panels = new List<string>();
             try { _panels.Snapshot(panels); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel snapshot failed: " + ex.Message); }
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt, areas);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> panels,
-                                  string cutscene, float cutsceneAt)
+                                  string cutscene, float cutsceneAt, string areas)
         {
             _busy = false;
             if (!r.Ok)
@@ -365,6 +369,7 @@ namespace ForestOverlay.Modules
                 f.Held = held;
                 f.Panels = panels;
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
+                f.Areas = areas;
                 f.Data = r.Data;
 
                 if (path == null)
@@ -382,6 +387,7 @@ namespace ForestOverlay.Modules
                               (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
                               (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "");
                 Ctx.Log.LogInfo("Savestate " + line);
+                Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
                 SetStatus(line);
 
                 RefreshFiles();
@@ -534,6 +540,7 @@ namespace ForestOverlay.Modules
                               (panelNote.Length == 0 ? "" : " | " + panelNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
+                if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
                 SetStatus(line);
 
                 if (after != null)
@@ -606,6 +613,19 @@ namespace ForestOverlay.Modules
                             " in " + (Time.realtimeSinceStartup - realStart).ToString("0.0") + " s real time.");
         }
 
+        // The lab / hellcave report (Next up 3): what was loaded at capture
+        // beside what is loaded now, once the restore has finished - the
+        // difference is what a fix has to put back. Two seconds later:
+        // streamed sections load asynchronously after a restore.
+        private IEnumerator LogAreas(SavestateFile f)
+        {
+            yield return new WaitForSecondsRealtime(2f);
+            string now = AreaReport.Describe();
+            if (f == null || f.Areas.Length == 0) { Ctx.Log.LogInfo("Savestate areas after the restore: " + now); yield break; }
+            Ctx.Log.LogInfo("Savestate areas after the restore: " +
+                            (now == f.Areas ? "same as at capture (" + now + ")" : now + " || at capture: " + f.Areas));
+        }
+
         private string NameOfItem(int id)
         {
             string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
@@ -635,6 +655,7 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
                                     (panels.Length > 0 ? " | " + panels : "") + ".");
+                    Ctx.Runner.StartCoroutine(LogAreas(f));
                     if (f.CutsceneAt >= 0f)
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
                 }

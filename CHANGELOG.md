@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.4 - 2026-09-24
+
+- For the lab / hellcave savestate problem: savestates now write down which
+  parts of the world are loaded when you capture, and the log compares
+  that with what is loaded after each restore. If the lab or hellcave
+  comes back wrong for you, capture, restore, and send your
+  LogOutput.log - that is what the fix needs.
+
 ## v0.24.3 - 2026-09-24
 
 - A savestate captured during an endgame cutscene (like Megan's

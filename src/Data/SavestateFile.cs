@@ -24,6 +24,7 @@ namespace ForestOverlay.Data
     //   held = 53
     //   panels = 30@120.5,-80.1,33.0;...
     //   cutscene = megan-transform@12.40
+    //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
     // `streaming` says whether streamed content was force-unloaded around
@@ -39,6 +40,8 @@ namespace ForestOverlay.Data
     // format); absent before v0.24.2. `cutscene` names the endgame
     // cutscene running at capture (a GameEvents event) and how far into it
     // (game seconds from the cutscene flag's rising edge); absent when none.
+    // `areas` is Game/AreaReport's line at capture - for the log, so a
+    // restore can say what differs (v0.24.4).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -77,6 +80,9 @@ namespace ForestOverlay.Data
         public string Cutscene = "";
         public float CutsceneAt = -1f;
 
+        /// AreaReport.Describe() at capture; "" before v0.24.4.
+        public string Areas = "";
+
         public string Data = "";
 
         public string Write()
@@ -100,6 +106,7 @@ namespace ForestOverlay.Data
                 Line(sb, "held", string.Join(",", ids));
             }
             if (Panels != null) Line(sb, "panels", string.Join(";", Panels.ToArray()));
+            if (Areas.Length > 0) Line(sb, "areas", Areas);
             if (Cutscene.Length > 0 && CutsceneAt >= 0f)
                 Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
             Line(sb, "data", Data);
@@ -149,6 +156,7 @@ namespace ForestOverlay.Data
                             break;
                         }
                     case "book": s.Book = value; break;
+                    case "areas": s.Areas = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

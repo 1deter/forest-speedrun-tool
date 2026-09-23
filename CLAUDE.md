@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.3** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.4** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -622,6 +622,9 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **Lab / hellcave area report** (v0.24.4): the runner's red-elevator case -
+  capture in the lab, trigger the overlook, restore both ways; read the
+  `Savestate areas ...` lines (Next up 3).
 - **Megan cutscene savestate** (v0.24.3): capture ~2 s before the end of
   Megan's transformation, restore both ways. Capture line: `during
   cutscene 'megan-transform' at x s`; after the restore: `cutscene
@@ -760,8 +763,20 @@ list so we can move onto expanding more features".
    - **Lab + hellcave not restored, even with a load** *(runner)*: after the
      red elevator loaded the overlook area, the last lab section (collision
      loaded, invisible) must stay as it was at capture - runners do it
-     "blind". Streaming / area state outside the serializer; start from
-     `ElevatorSystem`, `SceneLoaders`, `Area`.
+     "blind". Streaming / area state outside the serializer. **v0.24.4
+     ships the diagnostic first (gotcha 25):** IL cannot show which object
+     holds it - `LocalPlayer.SetInOverlookArea` has no code callers (scene
+     objects / PlayMaker), no C# loader names the lab. `Game/AreaReport`
+     logs `Savestate areas at capture: caves / endgame / overlook | scenes:
+     ... | streamed: <each Scene.SceneLoaders entry> loaded / unloaded /
+     loaded-inactive` and, 2 s after every restore, `Savestate areas after
+     the restore: <now> || at capture: <then>` (stored as the `areas`
+     header). **Next step: get that log from the runner's case**, then
+     restore what differs. If scenes and loaders match but the lab still
+     differs, the state lives in scene objects: dump the lab's active
+     GameObjects / colliders at capture and after (F11 or a new report).
+     Note: capture is refused inside the overlook area (the game's own
+     save rule, `SavestateBridge`).
    - **In-place restore does not revive killed enemies** (author). Enemies
      are spawned and pooled by the game's spawn managers, most likely outside
      `UniqueIdentifier`. Find from IL what owns a live enemy and what a
