@@ -252,17 +252,26 @@ namespace ForestOverlay.Game
         // happens - and THEN, for a hard landing: Animator
         // "landHeavyTrigger", HitReactions.StartCoroutine("doHardfallRoutine")
         // (clampInputVal = 0 and velocity zeroed every frame for 1 s),
-        // MainRotator.rotationSpeed = 0.55 (prevMouseXSpeed kept; the game
-        // restores it later via resetAnimSpine). When a revive happened
-        // inside this call, the postfix undoes those four. Anything else
-        // HandleLanded does is left alone.
+        // MainRotator.rotationSpeed = 0.55, CanJump = false, arm layers
+        // (1-4) weighted to 0, and Invoke("resetAnimSpine", 1), whose
+        // smoothEnableSpine fades layers 1 and 4 back in over 0.5 s and then
+        // sets jumpCoolDown = false, CanJump = true,
+        // HitReactions.disableControllerFreeze(), rotationSpeed = 5. When a
+        // revive happened inside this call, the postfix stops the routine
+        // and the trigger and applies that END state at once, cancelling the
+        // delayed reset so it cannot fade the arms out again. v0.22.5 did
+        // only the first part: no stagger, but no jump and arms down for
+        // about a second (author).
         private static int _revives;
         private static FieldInfo _hitReactions;     // static LocalPlayer.HitReactions
         private static FieldInfo _animator;         // static LocalPlayer.Animator
         private static FieldInfo _mainRotator;      // static LocalPlayer.MainRotator
         private static FieldInfo _clampInput;       // FirstPersonCharacter.clampInputVal
-        private static FieldInfo _prevMouseSpeed;   // FirstPersonCharacter.prevMouseXSpeed
         private static FieldInfo _rotationSpeed;    // SimpleMouseRotator.rotationSpeed
+        private static FieldInfo _canJump;          // FirstPersonCharacter.CanJump
+        private static FieldInfo _jumpLand;         // FirstPersonCharacter.jumpLand
+        private static FieldInfo _jumpCoolDown;     // FirstPersonCharacter.jumpCoolDown
+        private static MethodInfo _unfreeze;        // playerHitReactions.disableControllerFreeze()
 
         private void PatchLanding()
         {
@@ -277,8 +286,12 @@ namespace ForestOverlay.Game
             _animator = local.GetField("Animator", stat);
             _mainRotator = local.GetField("MainRotator", stat);
             _clampInput = fpc.GetField("clampInputVal", inst);
-            _prevMouseSpeed = fpc.GetField("prevMouseXSpeed", inst);
             if (rot != null) _rotationSpeed = rot.GetField("rotationSpeed", inst);
+            _canJump = fpc.GetField("CanJump", inst);
+            _jumpLand = fpc.GetField("jumpLand", inst);
+            _jumpCoolDown = fpc.GetField("jumpCoolDown", inst);
+            Type reactionsType = GameBridge.FindGameType("playerHitReactions");
+            if (reactionsType != null) _unfreeze = reactionsType.GetMethod("disableControllerFreeze", inst, null, Type.EmptyTypes, null);
 
             MethodInfo landed = fpc.GetMethod("HandleLanded", inst, null, Type.EmptyTypes, null);
             if (landed == null) { _log.LogWarning("DeathHooks: FirstPersonCharacter.HandleLanded not found."); return; }
@@ -290,7 +303,8 @@ namespace ForestOverlay.Game
                     new HarmonyMethod(typeof(DeathHooks).GetMethod("LandedPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
                 _log.LogInfo("DeathHooks: landing hook installed (hitReactions:" + (_hitReactions != null) +
                              " animator:" + (_animator != null) + " clamp:" + (_clampInput != null) +
-                             " look:" + (_rotationSpeed != null && _prevMouseSpeed != null) + ").");
+                             " look:" + (_rotationSpeed != null) + " jump:" + (_canJump != null) +
+                             " unfreeze:" + (_unfreeze != null) + ").");
             }
             catch (Exception ex)
             {
@@ -311,17 +325,27 @@ namespace ForestOverlay.Game
                 MonoBehaviour reactions = _hitReactions != null ? _hitReactions.GetValue(null) as MonoBehaviour : null;
                 if (reactions != null) reactions.StopCoroutine("doHardfallRoutine");
 
+                // The delayed reset would fade the arms out and in again.
+                MonoBehaviour fpc = __instance as MonoBehaviour;
+                if (fpc != null) fpc.CancelInvoke("resetAnimSpine");
+
                 Animator a = _animator != null ? _animator.GetValue(null) as Animator : null;
-                if (a != null) a.ResetTrigger("landHeavyTrigger");
+                if (a != null)
+                {
+                    a.ResetTrigger("landHeavyTrigger");
+                    // smoothEnableSpine's end: layer 4 unless drawing a bow, and 1.
+                    if (!a.GetBool("drawBowBool")) a.SetLayerWeight(4, 1f);
+                    a.SetLayerWeight(1, 1f);
+                }
 
                 if (_clampInput != null) _clampInput.SetValue(__instance, 1f);
+                if (_jumpLand != null) _jumpLand.SetValue(__instance, false);
+                if (_jumpCoolDown != null) _jumpCoolDown.SetValue(__instance, false);
+                if (_canJump != null) _canJump.SetValue(__instance, true);
+                if (reactions != null && _unfreeze != null) _unfreeze.Invoke(reactions, null);
 
                 object rotator = _mainRotator != null ? _mainRotator.GetValue(null) : null;
-                if (rotator != null && _rotationSpeed != null && _prevMouseSpeed != null)
-                {
-                    float prev = (float)_prevMouseSpeed.GetValue(__instance);
-                    if (prev > 0.55f) _rotationSpeed.SetValue(rotator, prev);
-                }
+                if (rotator != null && _rotationSpeed != null) _rotationSpeed.SetValue(rotator, 5f);   // the game's own value
 
                 _log.LogInfo("Death: revived from a fall - hard landing cancelled.");
             }

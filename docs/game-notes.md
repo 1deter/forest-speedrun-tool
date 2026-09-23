@@ -321,9 +321,17 @@ landing, carries on: `Animator.SetTrigger("landHeavyTrigger")`,
 `FpCharacter.clampInputVal = 0` and zeroes the rigidbody velocity every
 frame for 1 s, then `clampInputVal = 1`), `prevMouseXSpeed =
 MainRotator.rotationSpeed; rotationSpeed = 0.55`, layer weights, and
-`Invoke("resetAnimSpine", 1)`. So a revived player still staggered. The
-plugin's postfix on `HandleLanded` undoes the trigger, the routine, the
-input clamp and the look speed when a revive happened inside that call.
+`CanJump = false`, arm layers 1–4 weighted to 0, and
+`Invoke("resetAnimSpine", 1)`. `resetAnimSpine` sets `jumpLand = false` and
+starts `smoothEnableSpine`, which lerps layer 4 (unless `drawBowBool`) and
+layer 1 back to 1 over 0.5 s, then `jumpCoolDown = false`, `CanJump = true`,
+`HitReactions.disableControllerFreeze()` (walk/run/strafe speeds back,
+`hitByEnemy = false`, rigidbody drag 0) and `MainRotator.rotationSpeed = 5`.
+So a revived player still staggered, then had no jump and arms down for
+about a second. The plugin's postfix on `HandleLanded`, when a revive
+happened inside that call, stops the trigger and the routine,
+`CancelInvoke("resetAnimSpine")`, and applies `smoothEnableSpine`'s end
+state at once (v0.22.5 did only the first part; v0.22.6 the rest).
 
 ## The ESC menu and the player lock
 

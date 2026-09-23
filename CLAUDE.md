@@ -94,11 +94,12 @@ Where things live:
 | Feature | Files |
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge`, `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go) |
+| Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
-| Quick-load / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes) |
+| Quick-load / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
 | Updates | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson`, `Core/UpdaterInstaller`, `patcher/` |
@@ -298,6 +299,35 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     errors; write the script to the scratchpad and run it. Inside a
     triple-quoted Python replacement, `\n` meant for C# becomes a real
     newline — use the Edit tool for C# string literals with escapes.
+    Use raw strings (`r'''...'''`) in those scripts so C# escapes survive.
+
+20. **A restore can bring back a flag without its effects.** The serializer
+    restored `IsInCaves = false` while the cave's side effects (no terrain
+    collision, cave streaming) stayed, and `GotoCave` does nothing when the
+    flag already agrees — so a death in a cave restored "outside" and fell
+    through the world. When restoring state, send the game's own message
+    for the state you want (`InACave` / `NotInACave`), don't test the flag.
+
+21. **Ids are per game, not per scene.** `UniqueIdentifier` ids (GUIDs)
+    differ between saves for the player **and** for objects outside him
+    (the inventory's item views). Anything cross-save — shared start
+    states, cloud runs — must map ids, not assume them
+    (`SavestateBridge.AdoptPlayer`). Look at the restore log's
+    `adopted / left (n on the player)` counts before guessing.
+
+22. **A hook runs mid-method; the caller carries on.** The practice revive
+    happens inside `PlayerStats.Hit`, called from
+    `FirstPersonCharacter.HandleLanded` — which then played the stagger,
+    froze input and scheduled a 1 s recovery. Read the **caller's** body
+    past the hooked call (`ilscan body`), and when cancelling a sequence,
+    apply its **end state** (the delayed routine's last lines), not just
+    stop its start.
+
+23. **Whose lock is it?** Opening the window over the ESC menu found the
+    player already locked by the game; releasing it on close called
+    `UnLockView` under the menu and hid the cursor. Before taking over a
+    game state, note whether the game already held it, and hand back only
+    what you took.
 
 ---
 
@@ -344,7 +374,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.5** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.6** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -352,11 +382,13 @@ per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
 dumps, unified practice spots/segments with an in-game editor and zone
 preview, segment-driven timed runs with checkpoints, ghosts, live deltas and
 run lines, full player-state capture, **separate endgame split events**,
-**quick-load on death (no menu)**, **practice revive**, cave-aware teleports,
-**savestates** (capture / restore in place / restore with load, no save slot
-used), **segment start states**, debug views (freecam / colliders / triggers /
-wireframe, with size and name filters), game input blocked while the window
-is open, a 30 s perf log line, self-installing updates, offline IL scanner.
+**quick-load on death (no menu)**, **practice revive** (no hard-landing
+stagger), cave-aware teleports, **savestates** (capture / restore in place /
+restore with load, no save slot used, **across saves**), **segment start
+states** (in the route fingerprint), debug views (freecam / colliders /
+triggers / wireframe, with size and name filters), game input blocked while
+the window is open, an on-screen notice, a 30 s perf log line,
+self-installing updates, offline IL scanner.
 
 ### Key concepts
 
@@ -364,9 +396,10 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   teleport; tick "Timed segment" and it gains start/end triggers and
   checkpoints. There is no separate "anchor". **F7 restarts the *current*
   spot** (the last one teleported to or captured on), not the editor's
-  selection. **Go only teleports** — never restores a start state
-  (author, v0.22.0: "buttons shouldn't have double-purposes"). Restoring
-  is *Restart*: F7, the Runs tab's Restart, a death revive, and the
+  selection.
+- **One button, one job** (author, v0.22.0: "buttons shouldn't have
+  double-purposes"). **Go only teleports**, start state or not. Restoring
+  is **Restart**: F7, the Runs tab's Restart, a death revive, and the
   *Restart* button on the editor's Start state row.
 - **Triggers** (`zone`, `box`, `item`, `event`, `manual`) are the spine —
   splits, segment bounds and eventually autosplits are all "a trigger fired".
@@ -381,65 +414,64 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   `timmy-goodbye`, `raft-out-of-world`. Each fires on the rising edge of
   `endGameCutScene`, so split times are **frame-identical to the LiveSplit
   autosplitter**; the Harmony postfix only says which cutscene it was.
-- **Deaths** (Deaths tab): practice mode on + a current spot → **revive** at
-  the spot on every death, capture included (health 100, blood cleared, no
-  reload, marks practice). A current spot **with a start state** revives
-  even with practice mode off, and the restart restores the state the
-  segment's way — a load-mode state means a full load per death (author,
-  2026-09-23: "if the runner wants to practice with a save state then it
-  should reload entirely on death"). Otherwise **quick-load** (toggle, on) — every death.
-  The first-death capture and the boss-fight wake-up each have their own
-  toggle, both on (no current route uses the capture; the boss toggle is the
-  author's call, 2026-09-23). Never permadeath or multiplayer.
-  **Skips the title screen** by default (v0.21.0, author 2026-09-23: "faster
-  load with no compromise"): the death is skipped and the slot loads from in
-  game via `LevelSerializer.Resume()` — the call `LoadSave.Awake` makes after
-  the menu, one scene load fewer (5.2 s vs ~7 s). Toggle `QuickLoadSkipMenu`;
-  falls back to the menu path if Resume fails. The author rules quick-load
-  **allowed in normal runs**: it is the game's own load of the same save, so
-  the game loaded is identical.
+- **Deaths** (Deaths tab), decided in `DeathModule.Decide`:
+  1. a current spot **with a start state** → revive and restore it, the
+     segment's way, **even with practice mode off** (author: "if the runner
+     wants to practice with a save state then it should reload entirely on
+     death"; a load-mode state = a full load per death);
+  2. practice mode on + a current spot → **revive** at the spot (health
+     100, blood cleared, no reload, marks practice);
+  3. otherwise **quick-load** (toggle, on) — every death, the first-death
+     capture and the boss-fight wake-up each with their own toggle (both on;
+     the boss toggle is the author's call). Never permadeath or multiplayer.
+  Quick-load **skips the title screen** by default (`QuickLoadSkipMenu`,
+  author: "faster load with no compromise") via `LevelSerializer.Resume()`,
+  falling back to the menu path. The author rules quick-load **allowed in
+  normal runs**: it is the game's own load of the same save.
+  A revive from a fatal hard landing cancels the landing's aftermath (a
+  postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
 - **Savestates** (Savestates tab, practice-only; game-notes *Saving and
   loading* has the IL). The game's own level serialization
   (`LevelSerializer.SerializeLevel`) written to
   `config/ForestOverlay/savestates/*.fosave` — never a save slot or Steam
   Cloud. Capture mirrors the game's save routine. Two restores:
-  - **in place** (~0.1 s, no load): `LoadNow`, plus what `LoadNow` does not
-    do for a full-level save — delete objects not in the save (walls built
-    since), clear their build-mission HUD line, stash held items — and
-    `Game/PickupKeeper` puts taken world pickups back (they are destroyed
-    and not in the save, so the keeper hides them instead once armed).
+  - **in place** (~0.15 s, no load): `LoadNow`, plus what `LoadNow` does
+    not do for a full-level save — delete objects not in the save (walls
+    built since), clear their build-mission HUD line, stash held items —
+    and `Game/PickupKeeper` puts taken world pickups back. Afterwards the
+    **cave state is sent outright from the file's `cave` flag**
+    (`GameBridge.ForceCaveState`): the serializer restores the flag without
+    its effects.
   - **with a load** (~5 s): `LoadSavedLevel` — the second half of the
     game's own load. Full reset, proven.
+  **From another save** (sharing): every game gives its objects its own
+  `UniqueIdentifier` ids, so an in-place restore first **adopts** the saved
+  ids — every live identifier the save lacks takes the id of the saved
+  object with the same name, prefab class and parent id, shallowest first,
+  unique matches only; identical siblings pair in order
+  (`SavestateBridge.AdoptPlayer`). Without it the player and the inventory
+  views were built a second time beside the live ones. **Refused across
+  Creative and survival** (the mode is not in the save) unless *Allow
+  restoring across Creative and survival (testing)* is on
+  (`AllowCrossModeRestore`, off).
   The file header lists the world pickups at capture and whether streaming
   was unloaded; `Data/SavestateFile` is pure and tested.
-- **Segment start states** (Practice editor, *Start state* row): a
-  savestate at `savestates/segments/<safe segment id>.fosave`, restored on
-  every restart (F7 / Restart / death revive — not Go) before the usual
-  teleport, which then skips its cave guess: the restore sets the cave
-  state from the file's `cave` flag (`GameBridge.ForceCaveState`).
-  **A state from another save restores into your player** (v0.22.2): in
-  place, the live player's identifiers take the saved ids first
-  (`SavestateBridge.AdoptPlayer`) — without that, `LoadNow` built a second
-  player beside the first (v0.22.0). **Refused across Creative and
-  survival** (the mode is not in the save; author's suggestion). A refused
-  or failed restart still teleports, says why under the Start state
-  buttons, and — with the window closed (F7, a death) — in an on-screen
-  notice (`Core/Notice`, `Ctx.Notice`). **In place by default;
-  `restore = load` on the segment** for the full reset (author 2026-09-23:
-  fastest by default, the validated method as the alternative). Capturing
-  moves the spawn to where you stand and makes the segment current. No
-  start state = the restart keeps the game as it is (routes need that).
-  Each restart logs `Restart '<id>': restoring its start state ...` or
-  `... no start state - teleport only.`
-  **A new start state is a new route** (v0.22.0, author's call): capture
-  writes `startstate = <FNV hash of the data>` into the segment block and
-  saves the segment straight away; the hash is folded into
-  `RouteFingerprint()` only when set, so older fingerprints are
-  unchanged, and old times retire as when a zone moves. Capture and
-  Delete ask for a second click when attempts would be retired
-  (`AttemptStore.CountOnRoute`, header-only read). A restart whose file
-  does not match the hash logs a warning — the hook for sharing. Start
-  states captured before v0.22.0 carry no hash until recaptured.
+- **Segment start states** (Practice editor, *Start state* row: Capture /
+  Delete / Restart): a savestate at
+  `savestates/segments/<safe segment id>.fosave`, restored on every restart
+  before the usual teleport (which then skips its terrain-based cave guess).
+  **In place by default; `restore = load` on the segment** for the full
+  reset (author: fastest by default, the validated method as the
+  alternative). Capturing moves the spawn to where you stand, makes the
+  segment current and **saves the segment**. No start state = the restart
+  keeps the game as it is (routes need that). **A new start state is a new
+  route** (author's call): capture writes `startstate = <FNV hash of the
+  data>`, folded into `RouteFingerprint()` only when set, so old times
+  retire as when a zone moves; Capture and Delete ask for a second click
+  when attempts would be retired (`AttemptStore.CountOnRoute`). A restart
+  whose file does not match the hash logs a warning. Each restart logs
+  `Restart '<id>': ...`; a refused or failed one still teleports and says
+  why under the buttons, or — window closed — in `Ctx.Notice`.
 - **Runs** record position at 30 Hz and ~60 named player-state channels at
   5 Hz (read only when a sample is due), discovered by reflection so a game
   update adds stats for free. Attempts persist per segment id and carry a
@@ -452,185 +484,151 @@ Confirmed by the author: game-input block and freecam hold (v0.17.0), pitch
 kept across teleport / window close (v0.17.1), every endgame split incl.
 vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 (v0.19.2), cave teleport both ways (v0.19.1), Inventory tab item names
-(v0.19.4), **savestates** in a cave in Creative (v0.20.1: in place removes
-built walls, puts back the keycard / camcorder / sticks, empties hands and
-inventory, no duplicates; with a load everything back in 5.0 s vs
-6.95–7.45 s by stopwatch for a menu load), **quick-load without the menu**
-(v0.21.0), the self-updater end to end, **segment start states on F7**
-both ways and the start-state text on its own line (v0.21.1; log of
-2026-09-23 03:44: every restart logged `restoring its start state`, in
-place 132–501 ms with `168 -> 168`, with a load ~11 s).
+(v0.19.4), savestates in a cave in Creative (v0.20.1), quick-load without
+the menu (v0.21.0), the self-updater end to end, segment start states on F7
+both ways (v0.21.1). **This session (v0.22.x), all by the author in game:**
+death at a start-state spot with practice mode off restores it; a restore
+out of a cave sets the surface state (`| cave: surface state set`); Go only
+teleports and Restart restores; cross-save restores in place — Normal →
+Hard and Creative → Hard (with the testing switch) — give **one player and
+one inventory** (`from another save: 107 id(s) adopted, 51 left (0 on the
+player)`); the ESC menu keeps its cursor when the window closes over it;
+the fall-revive stagger animation is gone; text wraps and sits under its
+buttons (one leftover — the Name box edge — fixed in v0.22.4).
 
 **Awaiting an in-game check** — ask before building on these:
-- **Retiring times on a new start state** (v0.22.0): capture on a segment
-  with attempts asks for a second click and names the count; afterwards the
-  Runs tab shows them as "from another route". Log line:
-  `Savestate: start state of '<id>' is now <hash> - route <fp>.`
-- **Cross-save restores — confirmed** Normal → Hard in place (v0.22.3):
-  one player, one inventory (`104 id(s) adopted, 54 left (3 on the
-  player)`). The 3 were identical `PassengerManifest` siblings (3
-  candidates each); v0.22.4 pairs identical siblings in order when the
-  counts agree — check the player misses are gone.
-- **Creative ↔ survival** is refused by default; v0.22.4 adds
-  *Allow restoring across Creative and survival (testing)* in the
-  Savestates tab (`AllowCrossModeRestore`) so the author can test whether
-  the adoption also fixes the duplicate there.
+- **Fall revive, second half** (v0.22.6): jump works at once and the arms
+  are not thrown down (v0.22.5 removed the stagger but left ~1 s of no jump,
+  arms down and slowed movement — the tail of `smoothEnableSpine` is now
+  applied immediately). Log: `Death: revived from a fall - hard landing
+  cancelled.`; startup: `DeathHooks: landing hook installed (... jump:True
+  unfreeze:True)`.
 - **Updates tab**: Check again after a Download says "downloaded - restart
-  to install" instead of offering the same version again (v0.22.3).
-- **ESC menu + window** (v0.22.5): open the pause menu, open the window,
-  close the window — the pause menu should keep a usable cursor.
-- **Revive after a fall** (v0.22.5): no stagger, no 1 s freeze, normal
-  look speed. Log: `Death: revived from a fall - hard landing cancelled.`
-  Startup logs `DeathHooks: landing hook installed (...)`.
-- **Text** wraps everywhere — confirmed at a glance (v0.22.3). v0.22.4:
-  start-state messages only under the buttons (they were also shown at the
-  top); the editor starts 4 px down (the Name box's top edge was clipped)
-  and its scroll height follows what it drew.
-- Practice text placement — **confirmed** (v0.22.2): capture messages sit
-  under the buttons and the saved-state line.
-- Confirmed in v0.22.1: the restore out of a cave sets the surface state
-  (`| cave: surface state set`); Go only teleports and Restart restores;
-  the cross-save refusal logged as designed. Confirmed in v0.22.0: death
-  at a start-state spot with practice mode off restores the state.
+  to install" instead of offering the same version (v0.22.3).
+- **Retiring times on a new start state** (v0.22.0): capture on a segment
+  with attempts asks for a second click and names the count; the Runs tab
+  then shows them as "from another route". Log: `Savestate: start state of
+  '<id>' is now <hash> - route <fp>.`
 - **Whether a timed run still arms after an F7 restore** — runs do not log
-  arming, so the v0.21.1 log could not show it.
-- **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2 clears the build
-  mission before deleting a ghost).
-- **Savestates outside the easy case:** a busy surface area. Oddity seen
-  once after an in-place restore: the first stick picked up went to the
-  inventory instead of the hand. No duplicates. **AI is now a known gap:
-  an in-place restore does not bring killed enemies back** (author,
-  2026-09-23) — see Next up.
-- **Boss-fight quick-load toggle** (v0.19.4). The author sees it; a
-  boss-fight death is rare to hit.
+  arming; add a log line if it is ever in doubt.
+- **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2).
+- **Savestates outside the easy case:** a busy surface area; the stick
+  oddity (first stick picked up after an in-place restore went to the
+  inventory, not the hand; seen once).
+- **Boss-fight quick-load toggle** (v0.19.4) — a boss-fight death is rare.
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
 
 ### Open threads
 
 - **Another runner's slowdown with ghost lines / recording.** Not reproducible
   on the author's machine (4080 Super / 7800X3D). Blind fixes shipped in
-  v0.17.1 (see git log). The author will get that runner's `LogOutput.log`;
-  read its `Perf (30 s):` lines (`GL ms/frame`, `verts/frame`, `GC x`, `heap`
-  vs `overlay` KB/s) before changing anything.
+  v0.17.1. Read that runner's `Perf (30 s):` lines (`GL ms/frame`,
+  `verts/frame`, `GC x`, `heap` vs `overlay` KB/s) before changing anything.
 - **Background performance (maks).** Possible slowdown just from having the
-  tool loaded, no panel open. Waiting on maks's `LogOutput.log` and
-  follow-up; read its `Perf (30 s):` and `Slow tick:` lines first.
-- **Author's own perf:** overlay tick ≤ 0.02 ms, GC 0–1 per 30 s in play;
-  big frames are loads and game streaming. The one-off `Slow tick:`
-  lines for `collectibles` / `inventory` (15–100 ms) come while the player
-  and nature guide bind during a load — not repeating, left alone.
-  `Slow tick: 'savestates' ~100 ms` after a load-based restore is the
+  tool loaded. Waiting on maks's `LogOutput.log`; read `Perf (30 s):` and
+  `Slow tick:` first.
+- **Author's own perf:** overlay tick ≤ 0.02 ms, GC 0–1 per 30 s in play.
+  One-off `Slow tick:` lines for `collectibles` / `inventory` (15–100 ms)
+  while the player binds during a load, and `deaths` (~150–490 ms) while a
+  quick-load or load restore starts, are the load itself — left alone.
+  `Slow tick: 'savestates' ~100–200 ms` after a load restore is the
   deliberate full GC behind the heap figure.
-- **Nature guide page names are unverified.** Pages are derived from the tick
-  marks' hierarchy (`Data/PageGrouping.cs`) and named after the page
-  GameObjects, which may read as "Page 3" rather than "Birds". The runner who
-  asked for it (maks) should send a `natureguide_*.txt` from the 100% tab's
-  **Write dumps**; use it to check the grouping and name the pages.
-- **Installs older than v0.16.2 cannot download updates** — one manual install
-  of a current release, then automatic. Installs older than v0.19.2 can hit
-  the post-release 404 (see *Releases and updates*); clicking Download again
-  a minute later works.
+- **Nature guide page names are unverified** (`Data/PageGrouping.cs`); maks
+  should send a `natureguide_*.txt` from the 100% tab's **Write dumps**.
+- **Installs older than v0.16.2 cannot download updates**; older than
+  v0.19.2 can hit the post-release 404 (click Download again later).
 
 ### Next up
 
 Ordered by what runners feel soonest for the effort. Items marked *(runner)*
-came from runners' own requests (2026-09-22 idea dump); the interpretation was
-checked with the author. This is all dev/alpha: nothing is used in real runs
-until the admins rule, and a few runners act as QA.
+came from runners' own requests; the interpretation was checked with the
+author. This is all dev/alpha: nothing is used in real runs until the admins
+rule, and a few runners act as QA. The author: "work through the current
+list so we can move onto expanding more features".
 
-1. **Savestates, finishing phase 1.** Built (see *Key concepts*): capture,
-   both restores, segment start states, no-menu quick-load. Remaining, in
-   order:
-   - ~~F7 fix~~ confirmed; ~~retiring times on a new start state~~ built
-     in v0.22.0 (awaiting a check).
-   - **In-place restore does not revive killed enemies** (author,
-     2026-09-23). Enemies are spawned and pooled by the game's spawn
-     managers, most likely outside `UniqueIdentifier`, so `LoadNow` never
-     sees them. Find from IL what owns a live enemy and what a scene load
-     re-creates (the load restore is the reference: does it bring them
-     back?), then do what the pickup keeper does for pickups.
-   - **Sharing**: start states are already named by segment id and the
-     segment now names its state's hash; nothing bundles a segment file
-     with its `.fosave` yet.
-   - A busy surface area; the stick oddity.
-   - Author's idea, still open: reload the slot **in place** on death (no
-     load at all). The Savestates tab's *Reload slot save in place* button
-     is exactly that and worked in the author's test (teleport, inventory
-     reset) — but world pickups only come back once the keeper is armed.
-2. **The game's load memory leak.** Each save loaded without restarting the
-   game makes it worse: stutters and lower performance, loading certainly,
-   gameplay probably (runner Cheesecake404: "loading definitely"; gameplay
-   is a guess). Runners reset constantly and every quick-load / load restore
-   is another load. **Measuring has started:** a load-based savestate
-   restore logs `Loads this session: N, Mono heap after GC X MB` (390 MB
-   after the first load in the author's session). **First series (v0.21.1,
-   four load restores in a row after one quick-load):** 540 → 664 → 796 →
-   924 MB, and 10.7 → 11.0 → 11.6 → 12.1 s to in game — about **128 MB
-   kept and +0.5 s per load**. In-place restores went from ~135 ms to
-   200–500 ms after the quick-load. Next: log the same line
-   for **every** load (quick-load, menu load) — hook the game's own load
-   completion rather than the Savestates module — plus a one-off
-   `Resources.FindObjectsOfTypeAll(Object)` count, so a session of repeated
-   loads shows what grows. From IL: a menu load **loads the game scene
-   twice** (the no-menu paths already cut one), and `LevelLoader` only
-   unloads assets when its time-scale argument is 0. Suspects to check:
-   objects surviving the scene change (the `DontDestroyOnLoad` `LevelLoader`
-   — does it destroy itself?), static `EventRegistry` subscriptions from
-   destroyed objects.
-3. **Freecam keeps the game's lighting.** With freecam on the game goes
-   darker **everywhere** (sky and distance too), normal again the instant
-   freecam is off (author). Freecam is a new `Camera` from `CopyFrom`,
-   which copies camera settings but **not** the image-effect components on
-   the game's camera (tonemapping, scattering, colour grading…) — the likely
-   cause, not yet checked. Dump the main camera's components first; fix by
-   moving the game's own camera, or copying its effect components.
-4. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
-   LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
-   author's autosplitter is the reference for what runners split on — see
-   memory `autosplitter-repo` (github.com/1deter/auto-splitters).
-5. **forest.deter.cloud — shared runs and a web viewer.** Local-first,
-   export always; the cloud holds players' best runs so they can be compared
-   without clogging the GitHub repo. *(runner)*
-   - Already true locally: runs are segment-based (a start → end "stage" such
-     as plane spawn → cave 5, not free-form), attempts save per segment id in
-     the config folder, and segments carry a category. Cloud comparison keys
-     on the segment id + route fingerprint, which is why ids never embed a
-     SteamID or timestamp. Start states make shared segments start from the
-     same world — another reason to fold them into the fingerprint.
-   - Web panel: everyone's runs vs your own, with data visualisation — look
-     at how Momentum Mod does replays and comparison for the model.
-   - 3D terrain is tractable above ground (Unity `Terrain` heightmap); caves
-     are mesh geometry under the terrain, so a full map needs a visit pass
-     plus a "dump loaded geometry" button. Wants a scrub bar and annotations.
-6. **The author's list of 2026-09-23** (bugs first):
-   - ~~ESC menu cursor bug~~ and ~~stagger after a fall revive~~ — built
-     in v0.22.5, awaiting a check (see above; game-notes has the IL).
+1. **The game's load memory leak.** Each save loaded without restarting the
+   game makes it worse (runner Cheesecake404: loading definitely, gameplay a
+   guess), and runners reset constantly. **Data so far** (author, v0.21.1,
+   four load restores in a row after one quick-load): Mono heap after a full
+   GC 540 → 664 → 796 → 924 MB and 10.7 → 11.0 → 11.6 → 12.1 s to in game —
+   **~128 MB kept and +0.5 s per load**; in-place restores slowed from
+   ~135 ms to 200–500 ms after one quick-load. Only load *restores* log it
+   today (`Loads this session: N, Mono heap after GC X MB`, in
+   `SavestateModule`). **Next:**
+   - log that line for **every** load — hook the game's own load completion
+     (quick-load, menu load, load restore) rather than one module;
+   - add a one-off object census per load (`Resources.FindObjectsOfTypeAll`
+     counted by type — once per load, never on a timer; gotcha 11) so a
+     session of repeated loads shows which types grow;
+   - suspects from IL: a menu load loads the game scene **twice** (the
+     no-menu paths cut one); `LevelLoader` only unloads assets when its
+     time-scale argument is 0; the `DontDestroyOnLoad` `LevelLoader` — does
+     it destroy itself?; static `EventRegistry` subscriptions from destroyed
+     objects. Measure first, then fix what the census shows.
+2. **Savestates, remaining:**
+   - **In-place restore does not revive killed enemies** (author). Enemies
+     are spawned and pooled by the game's spawn managers, most likely outside
+     `UniqueIdentifier`. Find from IL what owns a live enemy and what a
+     scene load re-creates (a load restore is the reference), then do what
+     `PickupKeeper` does for pickups.
+   - **"CANNOT CARRY ANY MORE LIGHTERS"** bottom-left after a start-state
+     restore — harmless (author). `LogControler` has a `_lighterItemId`
+     field and an `OnDeserialized` routine: likely it re-equips the lighter
+     the inventory restore already put back. Check its IL first.
+   - **Sharing**: start states are named by segment id and the segment names
+     its state's hash; nothing bundles a segment file with its `.fosave` yet.
+     Cross-save restores now work, so this is unblocked.
+   - Author's idea, still open: reload the slot **in place** on death (the
+     Savestates tab's *Reload slot save in place* does exactly that).
+3. **The author's list of 2026-09-23:**
    - **100%: passengers.** The tab shows the passenger To Do task but not
      which passengers were found or how many. Find where the game tracks
-     each passenger (IL) and list them like the nature guide.
-   - **Logs in the inventory** *(runner sxczurass, clarified 2026-09-23)*:
-     picked-up tree logs go into the inventory with a counter like any
-     item, up to a cap (runner wants 5; author wants it configurable —
-     slider or text box). **Not** held in the arms and not infinite
-     stacking in the hands. Rendering them in the inventory is optional
-     (the full inventory is cramped). A gameplay mod, not practice
-     tooling — label it honestly. Research the log pickup / carry /
-     build-ingredient paths in IL first.
-   - **"CANNOT CARRY ANY MORE LIGHTERS"** appears bottom-left after a
-     start-state restore; harmless (author). Probably the inventory
-     restore re-adding an item already held. QoL, later.
-   - Idea (author): a **god mode** toggle for practice, as the other answer
-     to deaths when there is no start state — the game's console has
-     `_godmode` (`DebugConsole`, invokable by reflection).
+     each passenger (IL) and list them like the nature guide. (Note the
+     `PassengerManifest` objects on the player — three of them.)
+   - **Logs in the inventory** *(runner sxczurass, clarified with the
+     author)*: picked-up tree logs go into the inventory with a counter
+     like any item, up to a cap (runner wants 5; author wants it
+     configurable — slider or text box, editable in the GUI). **Not** held
+     in the arms, not infinite stacking in the hands. Rendering them in the
+     inventory is optional (the full inventory is cramped). A gameplay mod,
+     not practice tooling — label it honestly. **IL starting points:** item
+     `Log` is id 78; carrying is `TheForest.Items.Special.LogControler`
+     (`PlayerInventory.Logs`): `_logs`, `_logsHeld` (the shoulder models),
+     `Lift()`, `PutDown(fake, drop, equipPrevious, preSpawned)`,
+     `RemoveLog`, `UpdateLogCount`, `Amount`, `HasLogs`, and
+     `_infiniteLogHack` — set by the game's own console command
+     `DebugConsole._loghack on|off`. Still to map: what calls `Lift` on a
+     pickup, how building takes logs (`Craft_Structure` ingredients vs
+     `LogControler`), and dropping.
+   - Idea (author): a **god mode** toggle for practice, the other answer to
+     deaths without a start state — the game's console has `_godmode`
+     (`DebugConsole`, invokable by reflection).
+4. **Freecam keeps the game's lighting.** With freecam on the game goes
+   darker everywhere, normal the instant it is off (author). Freecam is a new
+   `Camera` from `CopyFrom`, which does not copy the image-effect components
+   on the game's camera — the likely cause, unchecked. Dump the main
+   camera's components first.
+5. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+   LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
+   author's autosplitter is the reference (memory `autosplitter-repo`).
+6. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
+   Local-first, export always; comparison keys on segment id + route
+   fingerprint (now including the start state). Web panel: everyone's runs
+   vs yours (look at Momentum Mod); 3D terrain from the `Terrain` heightmap,
+   caves need a geometry dump; scrub bar and annotations.
 7. **TAS** — exploratory only. Builds on savestates and the recorder.
-8. Runs tab layout (deferred; it still builds strings in `DrawTab`, against
-   the module rules), Timmy-drawing sub-pieces
-   (`DrawingsInventoryItemView._ids`), freeform zone shapes.
+8. Runs tab layout (it still builds strings in `DrawTab`, against the
+   module rules), Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`),
+   freeform zone shapes.
 
-Shipped from the old list: practice QoL (v0.17.0–0.17.1), separate endgame
-splits (v0.18.0–0.18.2), deaths and caves (v0.19.0–0.19.1), nature guide
-(v0.15.0), savestates phase 0 → 1 and no-menu quick-load (v0.20.0–0.21.1),
-start states in the route fingerprint and death at a start-state spot (v0.22.0).
+Shipped: practice QoL (v0.17.0–0.17.1), separate endgame splits
+(v0.18.0–0.18.2), deaths and caves (v0.19.0–0.19.1), nature guide (v0.15.0),
+savestates phase 0 → 1 and no-menu quick-load (v0.20.0–0.21.1), and this
+session (v0.22.0–0.22.6): start states in the route fingerprint, death at a
+start-state spot, cave state after a restore, Go / Restart split,
+cross-save restores (id adoption), Creative/survival guard with a testing
+switch, `UiText` + `Ctx.Notice`, the update re-offer fix, the ESC-menu
+cursor fix, the fall-revive landing fix.
 
 ### How a session goes
 
@@ -640,4 +638,11 @@ and passes tests: bump the version (csproj `Version`/`AssemblyVersion`/
 `FileVersion` **and** `Plugin.PluginVersion`), commit, push, tag, then watch
 the asset URL with a background `Monitor` and say when it is attached — never
 `api.github.com`. Do not deploy into the game folder. Mark decisions made with
-the author in this file, with who decided.
+the author in this file, with who decided. The log is replaced on every game
+launch — read it before the author starts the game again.
+
+Editing tip: for multi-line changes, write a Python script to the scratchpad
+with a small `edit(path, [(old, new), ...])` helper that asserts each `old`
+occurs once and **preserves the file's BOM and line endings** (several `.cs`
+files are CRLF, others LF; a mismatch makes `old` not match). Run it with
+`python <file>`; heredocs in the Bash tool broke on quoting.
