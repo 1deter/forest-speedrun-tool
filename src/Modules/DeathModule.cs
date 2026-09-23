@@ -26,6 +26,14 @@ namespace ForestOverlay.Modules
     // Never: permadeath (the game deletes the save on death, nothing to
     // load) or multiplayer.
     //
+    // SKIPPING THE MENU (default since v0.20.3, author's call 2026-09-23:
+    // "faster load with no compromise"). The death is skipped and the slot
+    // is loaded from in game with LevelSerializer.Resume() - exactly what
+    // LoadSave.Awake does once the menu has loaded the game scene, so the
+    // loaded game is the same; the title scene and one of the two game-scene
+    // loads are cut. Measured 5.2 s vs ~7 s through the menu. Off, or if
+    // Resume cannot start, the menu path below is used.
+    //
     // QUICK-LOAD MECHANICS (IL): PlayerStats.GameOver loads "TitleScene".
     // There, TitleScreen.OnSinglePlayer / OnLoad / OnSlotSelection(slot)
     // are what the menu buttons call: SetPlayerMode(SP), SetInitType
@@ -47,6 +55,9 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _quickLoadCfg;
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
+        private ConfigEntry<bool> _skipMenuCfg;
+        private SavestateBridge _loader;
+        private bool _pendingInGameLoad;
 
         private PracticeModule _practice;
         private PracticeRunModule _runs;
@@ -85,6 +96,11 @@ namespace ForestOverlay.Modules
                 "Quick-load also on a death in the endgame boss fight, which the game otherwise turns into " +
                 "waking up in the boss room. Off keeps the game's wake-up.");
 
+            _skipMenuCfg = Ctx.Config.Bind("Deaths", "QuickLoadSkipMenu", true,
+                "Quick-load from in game (LevelSerializer.Resume) instead of through the title screen: " +
+                "the same load, one scene load fewer. Off uses the menu path.");
+            _loader = new SavestateBridge(ctx.Log);
+
             _practice = Host.Find<PracticeModule>();
             _runs = Host.Find<PracticeRunModule>();
 
@@ -121,7 +137,8 @@ namespace ForestOverlay.Modules
             {
                 // Read the slot now, while the game that owns it is alive.
                 _quickLoadSlot = ReadSlot();
-                if (_quickLoadSlot >= 0) return DeathAction.QuickLoad;
+                if (_quickLoadSlot >= 0)
+                    return _skipMenuCfg.Value ? DeathAction.QuickLoadInGame : DeathAction.QuickLoad;
             }
 
             return DeathAction.Normal;
@@ -137,6 +154,11 @@ namespace ForestOverlay.Modules
             _lastDeath = kind + " -> " + action + " at " + DateTime.Now.ToString("HH:mm:ss");
 
             if (action == DeathAction.Revive) _pendingRevive = true;
+            if (action == DeathAction.QuickLoadInGame)
+            {
+                _pendingInGameLoad = true;
+                _status = "quick-loading slot " + _quickLoadSlot + " without the menu...";
+            }
             if (action == DeathAction.QuickLoad)
             {
                 _pendingQuickLoad = true;
@@ -157,7 +179,35 @@ namespace ForestOverlay.Modules
                 _status = "revived at '" + (_practice != null ? _practice.SpotLabel : "?") + "'";
             }
 
+            if (_pendingInGameLoad) LoadInGame();
             if (_pendingQuickLoad) DriveTitleScreen();
+        }
+
+        private void LoadInGame()
+        {
+            _pendingInGameLoad = false;
+            string err = _loader.LoadSlotWithoutMenu();
+            if (err == null)
+            {
+                _status = "quick-loaded slot " + _quickLoadSlot + " without the menu";
+                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " from in game (no menu).");
+                return;
+            }
+
+            // Fall back to the menu path: the death was skipped, so end it
+            // the game's way and let the title screen load the slot.
+            Ctx.Log.LogWarning("Quick-load without the menu failed (" + err + ") - using the menu.");
+            if (DeathHooks.GameOverNow())
+            {
+                _pendingQuickLoad = true;
+                _quickLoadStarted = Time.unscaledTime;
+                _titleSeenFrame = -1;
+                _status = "quick-loading slot " + _quickLoadSlot + " via the menu (in-game load failed)...";
+            }
+            else
+            {
+                _status = "quick-load failed: " + err + " - load from the menu";
+            }
         }
 
         private void DriveTitleScreen()
@@ -264,10 +314,15 @@ namespace ForestOverlay.Modules
                                        " Also in the boss fight (instead of waking up in the boss room)");
                 if (boss != _quickLoadBossCfg.Value) _quickLoadBossCfg.Value = boss;
                 y += 26f;
+
+                bool skip = GUI.Toggle(new Rect(20, y, w - 20, 22), _skipMenuCfg.Value,
+                                       " Skip the title screen (faster; off = load through the menu)");
+                if (skip != _skipMenuCfg.Value) _skipMenuCfg.Value = skip;
+                y += 26f;
             }
 
             GUI.Label(new Rect(0, y, w, 40),
-                      "A death loads your save at once, through the menu's own load. " +
+                      "A death loads your save at once, with the game's own load. " +
                       "Not permadeath (the game deletes the save) or multiplayer.");
             y += 44f;
 

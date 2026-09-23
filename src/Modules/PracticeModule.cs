@@ -103,6 +103,16 @@ namespace ForestOverlay.Modules
 
         public SegmentLibrary Library { get { return _library; } }
 
+        // Segment start states live in the Savestates module; this module
+        // only decides when to restore one (every restart) and shows it in
+        // the editor. The label is rebuilt on selection change or after a
+        // capture/delete, never per frame.
+        private SavestateModule _savestates;
+        private Segment _startStateFor;
+        private string _startStateForId;
+        private readonly GUIContent _startStateLabel = new GUIContent("");
+        private float _deleteStartArmedUntil;
+
         // ------------------------------------------------------------------
         public override void Initialise(ModuleContext ctx)
         {
@@ -110,6 +120,8 @@ namespace ForestOverlay.Modules
 
             _library = new SegmentLibrary(ctx.Log, ctx.ConfigDirectory);
             Reload();
+
+            _savestates = Host.Find<SavestateModule>();
 
             _previewHost = new GameObject("ForestOverlay_ZonePreview");
             _previewHost.hideFlags = HideFlags.HideAndDontSave;
@@ -323,10 +335,37 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         // Teleporting
         // ------------------------------------------------------------------
+        /// A restart. With a start state the world is restored first (in
+        /// place, or with a load per the segment), then the teleport runs as
+        /// before - it sets the view angles and the cave state, and fires
+        /// OnPlacedAtSpot for the run module once the world is final.
         private void GoTo(Segment s)
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
 
+            if (_savestates != null && _savestates.HasStartState(s))
+            {
+                if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
+
+                _current = s;
+                _status = "Restoring the start state of '" + s.Name + "'" + (s.StartRestoreWithLoad ? " (load)..." : "...");
+                _savestates.RestoreStartState(s, delegate(string error)
+                {
+                    if (error != null)
+                    {
+                        Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
+                        _status = "Start state not restored: " + error;
+                    }
+                    PlaceAt(s);
+                });
+                return;
+            }
+
+            PlaceAt(s);
+        }
+
+        private void PlaceAt(Segment s)
+        {
             Quaternion rot = Quaternion.Euler(0f, s.SpawnYaw, 0f);
 
             // Before moving, as the game's own Goto does: a spot inside a
@@ -521,9 +560,9 @@ namespace ForestOverlay.Modules
             Segment s = _selected;
             float w = area.width;
 
-            float height = 260f;
+            float height = 316f;
             if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
-                height = 620f + s.Checkpoints.Count * 110f;
+                height = 676f + s.Checkpoints.Count * 110f;
 
             Rect content = new Rect(0, 0, w - 20f, height);
             _editScroll = GUI.BeginScrollView(area, _editScroll, content);
@@ -555,6 +594,8 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(cw - 76, y - 2, 42, 22), "Go")) GoTo(s);
             GUI.enabled = true;
             y += 30f;
+
+            y = DrawStartState(y, cw, s);
 
             // --- timed toggle ----------------------------------------------
             bool timed = GUI.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
@@ -893,6 +934,7 @@ namespace ForestOverlay.Modules
             s.SpawnPosition = src.SpawnPosition;
             s.SpawnYaw = src.SpawnYaw;
             s.SpawnPitch = src.SpawnPitch;
+            s.StartRestoreWithLoad = src.StartRestoreWithLoad;
             s.Start = src.Start;
             s.End = src.End;
             s.Checkpoints.AddRange(src.Checkpoints);
@@ -983,6 +1025,69 @@ namespace ForestOverlay.Modules
             // Anything holding this segment - a run armed against its
             // start zone - can see that it changed underneath them.
             if (_selected != null) _selected.Revision++;
+        }
+
+        // --- start state (a savestate restored on every restart) -----------
+        private float DrawStartState(float y, float cw, Segment s)
+        {
+            if (_savestates == null) return y;
+            if (!ReferenceEquals(_startStateFor, s) || _startStateForId != s.Id) RefreshStartStateLabel(s);
+
+            GUI.Label(new Rect(0, y, 74, 20), "Start state");
+            GUI.Label(new Rect(80, y, cw - 290, 20), _startStateLabel, _dimStyle);
+
+            GUI.enabled = !_savestates.Busy && s.Id.Length > 0;
+            if (GUI.Button(new Rect(cw - 204, y - 2, 120, 22), "Capture here")) CaptureStartState(s);
+            GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s);
+            if (GUI.Button(new Rect(cw - 80, y - 2, 70, 22),
+                           Time.unscaledTime <= _deleteStartArmedUntil ? "Sure?" : "Delete")) DeleteStartState(s);
+            GUI.enabled = true;
+            y += 26f;
+
+            bool load = GUI.Toggle(new Rect(80, y, cw - 90, 20), s.StartRestoreWithLoad,
+                                   " Restore with a load (slower, the game's full reset)");
+            if (load != s.StartRestoreWithLoad) { s.StartRestoreWithLoad = load; Touch(); }
+            y += 28f;
+            return y;
+        }
+
+        private void RefreshStartStateLabel(Segment s)
+        {
+            _startStateFor = s;
+            _startStateForId = s.Id;
+            _startStateLabel.text = _savestates != null ? _savestates.DescribeStartState(s) : "";
+        }
+
+        // The state includes where you stand, so the spawn moves here too -
+        // a restart then restores and teleports to the same place.
+        private void CaptureStartState(Segment s)
+        {
+            if (!_library.IsIdAvailable(s.Id, s)) { _status = "Pick a free id first - the start state is named after it."; return; }
+
+            SetSpawnHere(s);
+            _status = "Capturing the start state...";
+            _savestates.CaptureStartState(s, delegate(string error)
+            {
+                RefreshStartStateLabel(s);
+                _status = error == null
+                    ? "Start state captured; spawn moved here - Save to keep the spawn."
+                    : "Start state not captured: " + error;
+            });
+        }
+
+        private void DeleteStartState(Segment s)
+        {
+            if (Time.unscaledTime > _deleteStartArmedUntil)
+            {
+                _deleteStartArmedUntil = Time.unscaledTime + 3f;
+                _status = "Click Delete again within 3 s to delete the start state.";
+                return;
+            }
+
+            _deleteStartArmedUntil = 0f;
+            string error = _savestates.DeleteStartState(s);
+            RefreshStartStateLabel(s);
+            _status = error == null ? "Start state deleted - restarts now keep the game as it is." : "Delete failed: " + error;
         }
 
         private void SetSpawnHere(Segment s)

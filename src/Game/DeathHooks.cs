@@ -23,7 +23,7 @@ namespace ForestOverlay.Game
         Multiplayer,
     }
 
-    public enum DeathAction { Normal, Revive, QuickLoad }
+    public enum DeathAction { Normal, Revive, QuickLoad, QuickLoadInGame }
 
     // ------------------------------------------------------------------
     // Intercepts the player's death at the moment it is decided.
@@ -49,6 +49,12 @@ namespace ForestOverlay.Game
     //   QuickLoad  - call GameOver now (skipping the fall and the 6 s dead
     //                cam); the module then drives the title screen's own
     //                load of the same slot.
+    //   QuickLoadInGame - skip the death (health back to full so it cannot
+    //                re-trigger before the scene goes), and the module loads
+    //                the slot from in game: LevelSerializer.Resume(), the
+    //                call LoadSave.Awake makes after the title screen. Skips
+    //                the title scene and the first of a menu load's two
+    //                game-scene loads. GameOverNow() is the fallback.
     //
     // The prefixes only skip the original when an action is taken, and
     // never throw into the game.
@@ -64,6 +70,9 @@ namespace ForestOverlay.Game
         public static Action<DeathKind, DeathAction> Handled;
 
         private static ManualLogSource _log;
+
+        // The PlayerStats of the last handled death, for GameOverNow().
+        private static object _lastStats;
 
         private static FieldInfo _health;
         private static FieldInfo _healthTarget;
@@ -218,6 +227,12 @@ namespace ForestOverlay.Game
                 _log.LogInfo("Death (" + kind + "): quick-loading.");
                 _gameOver.Invoke(stats, null);
             }
+            else if (action == DeathAction.QuickLoadInGame)
+            {
+                _log.LogInfo("Death (" + kind + "): quick-loading without the menu.");
+                _lastStats = stats;
+                Revive(stats);
+            }
             else
             {
                 return true;
@@ -236,6 +251,21 @@ namespace ForestOverlay.Game
             if (_bloodAmount != null) _bloodAmount.SetValue(null, 0f);
             if (_bloodRatio != null) _bloodRatio.SetValue(null, 1f);
             _log.LogInfo("Death: revived (practice).");
+        }
+
+        /// The menu path, for when an in-game quick-load could not start:
+        /// GameOver on the stats of the death that was skipped.
+        public static bool GameOverNow()
+        {
+            if (_gameOver == null || _lastStats == null) return false;
+            try
+            {
+                UnityEngine.Object o = _lastStats as UnityEngine.Object;
+                if (o != null && o == null) return false;   // scene already gone
+                _gameOver.Invoke(_lastStats, null);
+                return true;
+            }
+            catch (Exception) { return false; }
         }
 
         /// Clears the blood overlay on demand - it builds up after

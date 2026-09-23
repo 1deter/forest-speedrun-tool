@@ -94,7 +94,7 @@ Where things live:
 | Feature | Files |
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
-| Savestates (phase 0, experimental) | `Modules/SavestateModule`, `Game/SavestateBridge`, `Data/SavestateFile` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge`, `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`GoTo`) |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -315,8 +315,8 @@ identity.
 
 ## Current status
 
-**Released: v0.20.2** (2026-09-23). The author runs it via the in-game updater.
-**167 tests.**
+**Released: v0.21.0** (2026-09-23). The author runs it via the in-game updater.
+**170 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -352,6 +352,18 @@ updates, offline IL scanner.
   The first-death capture and the boss-fight wake-up each have their own
   toggle, both on (no current route uses the capture; the boss toggle is the
   author's call, 2026-09-23). Never permadeath or multiplayer.
+  **Skips the title screen** by default (v0.21.0, author 2026-09-23: "faster
+  load with no compromise"): the death is skipped and the slot loads from
+  in game via `LevelSerializer.Resume()` - the same call `LoadSave.Awake`
+  makes after the menu, one scene load fewer (5.2 s vs ~7 s). Toggle
+  `QuickLoadSkipMenu`; falls back to the menu path if Resume fails.
+- **Segment start states** (Practice editor, *Start state* row): a
+  savestate kept at `savestates/segments/<safe id>.fosave`, restored on
+  every restart (Go / F7) before the teleport. **In place by default,
+  `restore = load` per segment** for the game's full reset (author
+  2026-09-23: fastest by default, the validated method as the
+  alternative). Capturing moves the spawn to where you stand. No start
+  state = the restart keeps the game as it is (routes that need that).
   The author rules quick-load **allowed in normal runs**: it loads through
   the title screen's own path, so the game loaded is identical.
 - **Runs** record position at 30 Hz and ~60 named player-state channels at
@@ -369,6 +381,11 @@ vault / gold door / red elevator (v0.18.x), quick-load and practice revive
 2026-09-23), Inventory tab item names (v0.19.4), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
+- **Quick-load without the menu** (v0.21.0) - the default now. Log line
+  `Quick-load: loading slot N from in game (no menu).`
+- **Segment start states** (v0.21.0): capture on a segment, restart with
+  F7 both ways (in place / `Restore with a load`); a timed run should arm
+  normally after the restore.
 - **Savestates** — confirmed in game by the author (v0.20.1, Creative, in a
   cave): in place removes built walls, puts back taken pickups (keycard,
   camcorder, sticks), empties hands and inventory, no duplicates; restore
@@ -456,8 +473,11 @@ checked with the author.
      keycard is a `PrefabIdentifier`. The author's test decides A or B.
      Then per-segment start states (shareable with the segment file) and
      the per-segment restore-or-keep choice. **Phase 0 shipped in v0.20.0,
-     tested the same day; in-place fixes in v0.20.1.** Restore with load
-     (4.7 s) and slot-without-menu (5.2 s) already work end to end.
+     tested the same day; in-place fixes in v0.20.1-0.20.2.** Phase 1
+     (segment start states, no-menu quick-load) shipped in v0.21.0.
+     Still open: sharing start states with segments (they are named by id
+     already; nothing bundles them), whether a start state should feed the
+     route fingerprint, AI under in-place restores.
    - **Author's idea (2026-09-23): the same two paths for death.** If a
      no-menu load works, quick-load can use it (`LevelSerializer.Resume()`
      from in game, skipping the title screen and one scene load); and,

@@ -227,5 +227,37 @@ namespace ForestOverlay.Tests
 
             Assert.DoesNotContain("notes", Write(s));
         }
+
+        // The start-state restore method: in place is the default and is not
+        // written, so existing shared files stay byte-identical on save.
+        [Fact]
+        public void RestoreInPlaceIsTheDefaultAndOmitted()
+        {
+            Segment s = Sample();
+            Assert.False(s.StartRestoreWithLoad);
+            Assert.DoesNotContain("restore", Write(s));
+            Assert.False(Parse(Write(s))[0].StartRestoreWithLoad);
+        }
+
+        [Fact]
+        public void RestoreWithLoadRoundTrips()
+        {
+            Segment s = Sample();
+            s.StartRestoreWithLoad = true;
+            string text = Write(s);
+            Assert.Contains("restore  = load", text);
+            Assert.True(Parse(text)[0].StartRestoreWithLoad);
+        }
+
+        [Fact]
+        public void BadRestoreValueWarnsAndKeepsTheSegment()
+        {
+            string text = Write(Sample()).Replace("notes", "restore  = sideways" + NL + "notes");
+            int warnings = 0;
+            List<Segment> back = SegmentFormat.ParseAll(text.Split('\n'), delegate(int line, string m) { warnings++; });
+            Assert.Single(back);
+            Assert.Equal(1, warnings);
+            Assert.False(back[0].StartRestoreWithLoad);
+        }
     }
 }

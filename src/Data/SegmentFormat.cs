@@ -28,6 +28,11 @@ namespace ForestOverlay.Data
                 case "category": s.Category = value.Length > 0 ? value : "Segments"; return null;
                 case "notes": s.Notes = value; return null;
 
+                case "restore":
+                    if (value == "load") { s.StartRestoreWithLoad = true; return null; }
+                    if (value == "in-place") { s.StartRestoreWithLoad = false; return null; }
+                    return "bad restore (in-place or load): " + value;
+
                 case "spawn":
                     {
                         string[] p = TriggerParser.Split(value);
@@ -96,6 +101,8 @@ namespace ForestOverlay.Data
             }
 
             if (s.End.IsSet) sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
+
+            if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
 
             if (!string.IsNullOrEmpty(s.Notes)) sb.Append("notes    = ").Append(s.Notes).Append(nl);
         }

@@ -32,6 +32,14 @@ namespace ForestOverlay.Modules
     //                           (default 210, the keycard) back?
     //
     // Every action logs one "Savestate ..." line; that line is the test.
+    //
+    // SEGMENT START STATES (phase 1): a segment may keep a savestate at
+    // savestates/segments/<safe segment id>.fosave - named from the id, so
+    // a shared segment file and its start state travel together. The
+    // Practice module restores it on every restart (return to spot), in
+    // place or with a load per Segment.StartRestoreWithLoad, then teleports
+    // to the spawn as before. No file: the restart keeps the game state,
+    // which some routes need (runner request).
     // ------------------------------------------------------------------
     public sealed class SavestateModule : OverlayModule
     {
@@ -70,6 +78,7 @@ namespace ForestOverlay.Modules
 
         // Timing a scene-load restore across the load.
         private bool _timingLoad;
+        private Action<string> _loadAfter;
         private bool _sawLoading;
         private float _loadStarted;
         private string _loadWhat;
@@ -150,15 +159,27 @@ namespace ForestOverlay.Modules
                               _loadsThisSession + ", Mono heap after GC " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB.";
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
+                Continue(null);
                 return;
             }
 
             if (elapsed > LoadTimingTimeout)
             {
                 _timingLoad = false;
-                Ctx.Log.LogWarning("Savestate " + _loadWhat + ": could not time the load (FinishGameLoad " +
-                                   (_sawLoading ? "never came back" : "never changed") + ").");
+                string why = "could not time the load (FinishGameLoad " +
+                             (_sawLoading ? "never came back" : "never changed") + ")";
+                Ctx.Log.LogWarning("Savestate " + _loadWhat + ": " + why + ".");
+                Continue(why);
             }
+        }
+
+        private void Continue(string error)
+        {
+            Action<string> after = _loadAfter;
+            _loadAfter = null;
+            if (after == null) return;
+            try { after(error); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: continuation failed: " + ex.Message); }
         }
 
         // ------------------------------------------------------------------
@@ -166,8 +187,20 @@ namespace ForestOverlay.Modules
 
         private void Capture()
         {
-            if (_busy) return;
-            if (!_bridge.Resolve()) { SetStatus("capture unavailable: " + _bridge.Status); return; }
+            CaptureTo(_name, null, null);
+        }
+
+        /// `path` null: a new file in the savestates folder, never
+        /// overwriting. `after` gets null on success or the reason.
+        private void CaptureTo(string name, string path, Action<string> after)
+        {
+            if (_busy) { if (after != null) after("a savestate action is still running"); return; }
+            if (!_bridge.Resolve())
+            {
+                SetStatus("capture unavailable: " + _bridge.Status);
+                if (after != null) after("capture unavailable: " + _bridge.Status);
+                return;
+            }
 
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
@@ -175,7 +208,6 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = true;
             SetStatus("capturing...");
 
-            string name = _name;
             Vector3 pos = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
             bool inCave = Ctx.Bridge.IsInCaves();
 
@@ -185,17 +217,21 @@ namespace ForestOverlay.Modules
             try { _keeper.Snapshot(pickups); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup snapshot failed: " + ex.Message); }
 
-            Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r) { OnCaptured(r, name, pos, inCave, pickups); }));
+            Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
+            {
+                string error = OnCaptured(r, name, path, pos, inCave, pickups);
+                if (after != null) after(error);
+            }));
         }
 
-        private void OnCaptured(SavestateBridge.Result r, string name, Vector3 pos, bool inCave, List<string> pickups)
+        private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups)
         {
             _busy = false;
             if (!r.Ok)
             {
                 Ctx.Log.LogWarning("Savestate capture failed: " + r.Message);
                 SetStatus("capture failed: " + r.Message);
-                return;
+                return r.Message;
             }
 
             try
@@ -212,8 +248,12 @@ namespace ForestOverlay.Modules
                 f.Pickups = pickups;
                 f.Data = r.Data;
 
-                Directory.CreateDirectory(_dir);
-                string path = UniquePath(SavestateFile.SafeFileName(name));
+                if (path == null)
+                {
+                    Directory.CreateDirectory(_dir);
+                    path = UniquePath(SavestateFile.SafeFileName(name));
+                }
+                else Directory.CreateDirectory(Path.GetDirectoryName(path));
                 File.WriteAllText(path, f.Write(), new UTF8Encoding(false));
 
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
@@ -222,12 +262,15 @@ namespace ForestOverlay.Modules
                 SetStatus(line);
 
                 RefreshFiles();
-                _selected = _files.IndexOf(path);
+                int listed = _files.IndexOf(path);
+                if (listed >= 0) _selected = listed;
+                return null;
             }
             catch (Exception ex)
             {
                 Ctx.Log.LogWarning("Savestate capture: could not write the file: " + ex.Message);
                 SetStatus("capture failed writing the file: " + ex.Message);
+                return "could not write the file: " + ex.Message;
             }
         }
 
@@ -236,7 +279,7 @@ namespace ForestOverlay.Modules
             SavestateFile f = LoadSelected();
             if (f == null) return;
             HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'");
+            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", null);
         }
 
         private void RestoreSelectedWithLoad()
@@ -247,7 +290,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
-            StartLoad("restore '" + f.Name + "' with load", err);
+            StartLoad("restore '" + f.Name + "' with load", err, null);
         }
 
         private void SlotInPlace()
@@ -263,7 +306,7 @@ namespace ForestOverlay.Modules
             // A slot save was made the game's way: streaming unloaded only in
             // MemorySafeSaveMode. No pickup list - a menu load would bring
             // them all back, so every kept pickup is put back.
-            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot);
+            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, null);
         }
 
         private void SlotWithoutMenu()
@@ -272,12 +315,13 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("savestate slot load");
             PickupKeeper.Armed = true;
             string err = _bridge.LoadSlotWithoutMenu();
-            StartLoad("load slot " + _bridge.CurrentSlot + " without the menu", err);
+            StartLoad("load slot " + _bridge.CurrentSlot + " without the menu", err, null);
         }
 
-        private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what)
+        private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
+                                    Action<string> after)
         {
-            if (_busy) return;
+            if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             Ctx.Practice.Mark("savestate restore (in place)");
@@ -314,24 +358,109 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 SetStatus(line);
+
+                if (after != null)
+                {
+                    try { after(r.Ok ? null : r.Message); }
+                    catch (Exception ex) { Ctx.Log.LogWarning("Savestate: continuation failed: " + ex.Message); }
+                }
             }));
         }
 
-        private void StartLoad(string what, string error)
+        private void StartLoad(string what, string error, Action<string> after)
         {
             if (error != null)
             {
                 Ctx.Log.LogWarning("Savestate " + what + " failed: " + error);
                 SetStatus(what + " failed: " + error);
+                if (after != null) after(error);
                 return;
             }
 
+            _loadAfter = after;
             Ctx.Log.LogInfo("Savestate " + what + ": scene load started.");
             SetStatus(what + ": loading...");
             _timingLoad = true;
             _sawLoading = false;
             _loadStarted = Time.realtimeSinceStartup;
             _loadWhat = what;
+        }
+
+        // ------------------------------------------------------------------
+        // Segment start states - called by the Practice module.
+
+        public bool Busy { get { return _busy || _timingLoad; } }
+
+        public string StartStatePath(Segment s)
+        {
+            return Path.Combine(Path.Combine(_dir, "segments"), SavestateFile.SafeFileName(s.Id) + SavestateFile.Extension);
+        }
+
+        public bool HasStartState(Segment s)
+        {
+            if (s == null || string.IsNullOrEmpty(s.Id)) return false;
+            try { return File.Exists(StartStatePath(s)); }
+            catch (Exception) { return false; }
+        }
+
+        /// One line for the segment editor; built on demand, not per frame.
+        public string DescribeStartState(Segment s)
+        {
+            if (!HasStartState(s)) return "none - a restart keeps the game as it is";
+            try
+            {
+                FileInfo fi = new FileInfo(StartStatePath(s));
+                return "saved " + fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm") + ", " +
+                       SavestateBridge.Kb((int)Math.Min(fi.Length, int.MaxValue));
+            }
+            catch (Exception ex) { return "unreadable: " + ex.Message; }
+        }
+
+        public void CaptureStartState(Segment s, Action<string> done)
+        {
+            CaptureTo("start of " + s.Name + " (" + s.Id + ")", StartStatePath(s), done);
+        }
+
+        public string DeleteStartState(Segment s)
+        {
+            try
+            {
+                string path = StartStatePath(s);
+                if (File.Exists(path)) File.Delete(path);
+                Ctx.Log.LogInfo("Savestate: start state of '" + s.Id + "' deleted.");
+                return null;
+            }
+            catch (Exception ex) { return ex.Message; }
+        }
+
+        /// Restores the segment's start state the segment's way; `done` gets
+        /// null once the game is back in play (after the load, for a load),
+        /// or the reason it could not.
+        public void RestoreStartState(Segment s, Action<string> done)
+        {
+            if (Busy) { done("a savestate action is still running"); return; }
+
+            SavestateFile f;
+            try
+            {
+                string error;
+                f = SavestateFile.Parse(File.ReadAllText(StartStatePath(s), Encoding.UTF8), out error);
+                if (f == null) { done("start state unreadable: " + error); return; }
+            }
+            catch (Exception ex) { done("start state unreadable: " + ex.Message); return; }
+
+            string what = "start state of '" + s.Name + "'";
+            if (s.StartRestoreWithLoad)
+            {
+                Ctx.Practice.Mark("savestate restore (load)");
+                PickupKeeper.Armed = true;
+                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), done);
+            }
+            else
+            {
+                HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
+                RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, done);
+            }
         }
 
         private void CheckPickups()

@@ -261,6 +261,14 @@ namespace ForestOverlay.Data
         public float SpawnYaw;
         public float SpawnPitch;
 
+        /// How the segment's start state (a savestate kept beside it, see
+        /// Modules/SavestateModule) is restored on a restart: in place by
+        /// default - instant - or with a scene load, slower but the full
+        /// reset the game itself does. Written as `restore = load` only
+        /// when set (author's call, 2026-09-23: fastest by default, the
+        /// validated method as the alternative).
+        public bool StartRestoreWithLoad;
+
         // No cached GUIContent here on purpose. Segment is pure data and
         // is linked into the test project, which has no Unity - the label
         // cache is a GUI concern and lives with the panel that draws it.
