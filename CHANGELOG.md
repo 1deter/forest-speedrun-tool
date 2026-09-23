@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.5 - 2026-09-23
+
+- Load slowdown: v0.23.4 worked - after 21 reloads memory stayed around
+  400-600 MB (it used to reach 2.7 GB) and every load took about 5 s
+  (it used to creep to 13 s). This version closes the gap it left: the
+  first few reloads still grew until you killed, built or chopped
+  something. Also cleans up dead tree-cutting listeners and the overlay's
+  own list of picked-up items after each load.
+
 ## v0.23.4 - 2026-09-23
 
 - Load slowdown, third try - the likely real cause: the game's event system

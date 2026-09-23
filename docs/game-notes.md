@@ -689,8 +689,33 @@ a destroyed Unity object or a compiler closure holding one, skipping a
 subscription mid-publish; also dead listeners of the static
 `TreeHealth.OnTreeCutDown` (+2 dead `TreeLodGrid` a load). Log:
 `Events: removed n event-registry subscription(s) and m tree-cut
-listener(s) left by destroyed objects (k this session).` **Awaiting the
-heap line.**
+listener(s) left by destroyed objects (k this session).`
+
+**It works (author, v0.23.4, 21 load restores; built, chopped a tree and
+killed an animal every 5):** heap 262 -> 396 -> ... -> 890 MB over loads
+1-6 (+120 a load, prune removing 3-4 a load), then after the author's
+actions **779, 531, 604, 605, 606, 413, 487 ... 414 MB** - bounded at
+~410-610 MB; loads 4.6-5.4 s all session (v0.23.3: 4.7 -> 12.6 s). OS
+threads flat (143-147). `Achievements.Data`'s dead `GameStats` /
+`AchievementsManager` / `PlayerInventory` dropped -11 at load 7, when the
+prune removed 17.
+
+Why loads 2-6 still grew: v0.23.4 skipped any subscription whose
+`_publishingEventIndex` was not -1. `Publish` (IL above) resets it to -1
+only after its loop ends, so a subscriber that throws (a dead one, most
+likely - Unity's own log is not written by this game, so unconfirmed)
+leaves the index stuck and the skip kept that list's dead callbacks -
+until the author's kill / build / chop published those events again,
+reset the index, and the next prune dropped them. v0.23.5 prunes
+regardless (it runs from a Tick, never inside a `Publish`), resets a stuck
+index and logs `n event list(s) were stuck mid-publish (a subscriber
+threw)`. Also: `TreeHealth.OnTreeCutDown` is a `UnityEvent<Vector3>`
+(`TreeHealth/TreeCutDownEvent`), not a delegate - v0.23.4 removed 0 of its
++2 dead `TreeLodGrid` a load; v0.23.5 reads `UnityEventBase.m_Calls` ->
+`InvokableCallList.m_RuntimeCalls` -> `InvokableCall\`1.Delegate` and calls
+the protected `UnityEventBase.RemoveListener(object, MethodInfo)` (Unity
+5.6 names, from `UnityEngine.dll`). And the plugin's own
+`PickupKeeper.TakenList` (196 dead after 21 loads) is pruned on every load.
 
 The census itself costs ~0.6-1.0 s about 1.5 s after each load, growing
 with the heap (`GC.GetTotalMemory(true)` is a full collection) - the hitch

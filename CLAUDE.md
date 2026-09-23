@@ -408,7 +408,7 @@ identity.
 
 ## Current status
 
-**Released: v0.23.4** (2026-09-23). The author runs it via the in-game
+**Released: v0.23.5** (2026-09-23). The author runs it via the in-game
 updater. **191 tests.**
 
 ### Pick up here (handoff of 2026-09-23, evening)
@@ -421,30 +421,30 @@ small and the heap grew +123 MB a load (262 -> 2874 MB over 22 loads,
 4.7 -> 13.0 s each). The two threads: the old `WorkScheduler`'s (parked in
 `WaitOne` forever) and a `FocusLostAudio` DDOL copy per load.
 
-v0.23.3 stopped both (`Game/LeakedThreads`): confirmed in game, threads
-flat - but the heap still +122 MB a load. v0.23.4 goes after the likely
-root: **the game's `EventRegistry` keeps every destroyed world's
-subscribers; only `TitleScreen.Awake` clears it** (game-notes *The event
-bus*) - which matches a title trip freeing the memory.
-`Game/StaleSubscribers` prunes dead callbacks when a load finishes.
+v0.23.3 stopped both (`Game/LeakedThreads`): confirmed, threads flat.
+**v0.23.4 found the root: the game's `EventRegistry` keeps every destroyed
+world's subscribers; only `TitleScreen.Awake` clears it** (game-notes *The
+event bus*). `Game/StaleSubscribers` prunes them on each load. **It works
+(author, 21 load restores): heap bounded at ~410-610 MB, loads ~5 s all
+session** (was 2.7 GB, 13 s) - except loads 2-6 still grew until the
+author killed/built/chopped: a subscriber that throws leaves
+`_publishingEventIndex` stuck and v0.23.4 skipped such lists. v0.23.5
+prunes them anyway, fixes the `TreeHealth.OnTreeCutDown` prune (a
+UnityEvent) and prunes `PickupKeeper.TakenList` on each load.
 
-Ask the author for the same test (~20 load restores, *Memory census now*
-at the end) and read:
+Ask the author for one more run (~20 load restores **without** doing
+anything in between, *Memory census now* at the end) and read:
 
-1. Each load: `Events: removed n event-registry subscription(s) and m
-   tree-cut listener(s) ...` with n > 0 (the first load from the title:
-   none). `StaleSubscribers: 7 event registries, TreeHealth.OnTreeCutDown.`
-   at startup. The census's `Achievements.Data` destroyed count should stop
-   growing.
-2. **The heap line.** Flat (or nearly): fixed - record it, set
-   `MemoryCensusOnLoad` off by default (author asked about the post-load
-   hitch; that is the census), finish Next up 1's tail. Still growing:
-   something else holds the dead objects too - lift the census depth limit
-   for walks into destroyed objects (a deep *Memory census now*) to see
-   what each root really keeps; `Grown in size` then names it.
-3. Nothing broke: stats and achievements still count after a load (kills,
-   building), no `StaleSubscribers:` warning. v0.23.3's checks still
-   stand: trees/LOD update, alt-tab muffles the audio.
+1. Each reload: `Events: removed n ... and m tree-cut listener(s)` with
+   **m = 2**-ish now, maybe `n event list(s) were stuck mid-publish`
+   (evidence for the throw theory - note it in game-notes).
+2. **The heap line flat from load 2 on** (some oscillation of one world,
+   ~+75/-190, was normal in v0.23.4's tail). Then: record it, set
+   `MemoryCensusOnLoad` off by default (the post-load hitch the author
+   asked about), finish Next up 1's tail (`DeathHooks._lastStats`;
+   in-place restore timing on a flat heap).
+3. The census's `TreeHealth.OnTreeCutDown` and `PickupKeeper.TakenList`
+   destroyed counts stop growing.
 4. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
@@ -608,8 +608,10 @@ once** (v0.22.6, author); text wraps and sits under its buttons; the
 v0.23.0 census ran after every load without trouble (0.4-0.8 s).
 
 **Awaiting an in-game check** — ask before building on these:
-- **The load leak event-bus fix** (v0.23.4) - see *Pick up here*.
-  (v0.23.3's thread fix is confirmed: threads flat.)
+- **The load leak, last gap** (v0.23.5) - see *Pick up here*. (v0.23.3's
+  thread fix and v0.23.4's event-bus fix are confirmed: threads flat,
+  heap bounded, loads ~5 s; stats still counted after reloads - the
+  author built, chopped and killed every 5 loads without trouble.)
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
   (installed)" after updating.
@@ -681,8 +683,7 @@ list so we can move onto expanding more features".
    census sizes, DDOL roots and thread count are the next look (game-notes
    *The load leak*). Once the cause is found and fixed, the tail:
    - fix our own small holders, left in as known positives for the census:
-     `PickupKeeper.TakenList` (prune destroyed entries when a load
-     finishes - only an in-place restore prunes it today) and
+     `PickupKeeper.TakenList` (done v0.23.5: pruned on every load) and
      `DeathHooks._lastStats` (clear it once a death is handled). The
      v0.23.0 census did not list either among the top holders - they are
      small;

@@ -130,6 +130,20 @@ namespace ForestOverlay.Game
             catch (Exception) { }
         }
 
+        /// Drops entries whose objects a load destroyed (only an in-place
+        /// restore used to prune them; the census saw 196 dead after 21
+        /// load restores). Returns how many.
+        public int PruneDestroyed()
+        {
+            int n = 0;
+            for (int i = TakenList.Count - 1; i >= 0; i--)
+            {
+                Taken t = TakenList[i];
+                if (t.Target == null || t.Pickup == null) { TakenList.RemoveAt(i); n++; }
+            }
+            return n;
+        }
+
         /// Puts back kept pickups: those in `present` (the capture's list),
         /// or every kept pickup when `present` is null (no list: a v0.20.0
         /// file or a slot save - a normal load would respawn them all).

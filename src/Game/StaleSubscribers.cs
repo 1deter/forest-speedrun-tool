@@ -28,7 +28,16 @@ namespace ForestOverlay.Game
     // Fix: after each load, drop callbacks whose target is a destroyed
     // Unity object (or a compiler closure holding one) - what Clear() does
     // at the title, minus the live world's subscribers. Also the static
-    // TreeHealth.OnTreeCutDown event (a dead TreeLodGrid or two a load).
+    // TreeHealth.OnTreeCutDown (a UnityEvent<Vector3>: a dead TreeLodGrid
+    // or two a load), through UnityEventBase.RemoveListener.
+    //
+    // v0.23.4 skipped a subscription whose _publishingEventIndex was not -1
+    // ("mid-publish"). In game it kept 5 worlds until the author killed,
+    // built and chopped: Publish resets the index to -1 only when its loop
+    // finishes, so a subscriber that throws (a dead one, likely) leaves it
+    // stuck, and the skip kept that list's dead callbacks until the event
+    // was published again. Prune runs from a module Tick, never inside a
+    // Publish, so it no longer skips; it counts stuck lists and resets them.
     //
     // A dead subscriber would also run on every publish (a stat counted
     // once per past load). Memory only for us: not practice-only.
@@ -47,6 +56,10 @@ namespace ForestOverlay.Game
         private FieldInfo _callbacks;        // EventSubscription._callbacks
         private FieldInfo _publishing;       // EventSubscription._publishingEventIndex
         private FieldInfo _treeCutDown;      // TreeHealth.OnTreeCutDown
+        private FieldInfo _unityCalls;       // UnityEventBase.m_Calls
+        private FieldInfo _runtimeCalls;     // InvokableCallList.m_RuntimeCalls
+        private MethodInfo _removeListener;  // UnityEventBase.RemoveListener(object, MethodInfo)
+        private int _stuck;
 
         public string Status { get; private set; }
 
@@ -80,6 +93,11 @@ namespace ForestOverlay.Game
 
                 Type tree = GameBridge.FindGameType("TreeHealth");
                 _treeCutDown = tree != null ? tree.GetField("OnTreeCutDown", stat) : null;
+                Type ueb = typeof(UnityEngine.Events.UnityEventBase);
+                _unityCalls = ueb.GetField("m_Calls", inst);
+                _runtimeCalls = _unityCalls != null ? _unityCalls.FieldType.GetField("m_RuntimeCalls", inst) : null;
+                _removeListener = ueb.GetMethod("RemoveListener", inst, null, new Type[] { typeof(object), typeof(MethodInfo) }, null);
+                if (_unityCalls == null || _runtimeCalls == null || _removeListener == null) _treeCutDown = null;
 
                 bool registryOk = _registries != null && _registries.Length > 0 && _subscriptions != null && _callbacks != null;
                 Status = (registryOk ? _registries.Length + " event registries" : "event registries NOT found") +
@@ -104,17 +122,19 @@ namespace ForestOverlay.Game
             if (!_bound) Bind();
 
             int registry = 0, tree = 0;
+            _stuck = 0;
             try { registry = PruneRegistries(); }
             catch (Exception ex) { _log.LogWarning("StaleSubscribers: registry prune failed: " + ex.Message); }
             try { tree = PruneTreeCutDown(); }
             catch (Exception ex) { _log.LogWarning("StaleSubscribers: OnTreeCutDown prune failed: " + ex.Message); }
 
             int n = registry + tree;
-            if (n > 0)
+            if (n > 0 || _stuck > 0)
             {
                 Removed += n;
                 _log.LogInfo("Events: removed " + registry + " event-registry subscription(s) and " + tree +
-                             " tree-cut listener(s) left by destroyed objects (" + Removed + " this session).");
+                             " tree-cut listener(s) left by destroyed objects (" + Removed + " this session)" +
+                             (_stuck > 0 ? "; " + _stuck + " event list(s) were stuck mid-publish (a subscriber threw)" : "") + ".");
             }
             return n;
         }
@@ -133,14 +153,19 @@ namespace ForestOverlay.Game
                 foreach (object subscription in subs.Values)
                 {
                     if (subscription == null) continue;
-                    // Never while its own Publish is walking the list.
-                    if (_publishing != null && (int)_publishing.GetValue(subscription) != -1) continue;
                     IList list = _callbacks.GetValue(subscription) as IList;
                     if (list == null) continue;
                     for (int i = list.Count - 1; i >= 0; i--)
                     {
                         Delegate d = list[i] as Delegate;
                         if (d != null && IsDead(d.Target)) { list.RemoveAt(i); removed++; }
+                    }
+                    // Not -1 outside a Publish = a Publish that threw. Its next
+                    // Publish would reset it; reset it now so it is counted once.
+                    if (_publishing != null && (int)_publishing.GetValue(subscription) != -1)
+                    {
+                        _stuck++;
+                        _publishing.SetValue(subscription, -1);
                     }
                 }
             }
@@ -150,19 +175,34 @@ namespace ForestOverlay.Game
         private int PruneTreeCutDown()
         {
             if (_treeCutDown == null) return 0;
-            Delegate all = _treeCutDown.GetValue(null) as Delegate;
-            if (all == null) return 0;
+            object evt = _treeCutDown.GetValue(null);
+            if (evt == null) return 0;
+            object calls = _unityCalls.GetValue(evt);
+            IList runtime = calls != null ? _runtimeCalls.GetValue(calls) as IList : null;
+            if (runtime == null) return 0;
 
-            Delegate[] list = all.GetInvocationList();
-            Delegate kept = null;
-            int removed = 0;
-            for (int i = 0; i < list.Length; i++)
+            // Collect first: RemoveListener edits the list.
+            List<Delegate> dead = new List<Delegate>();
+            for (int i = 0; i < runtime.Count; i++)
             {
-                if (IsDead(list[i].Target)) removed++;
-                else kept = Delegate.Combine(kept, list[i]);
+                Delegate d = CallDelegate(runtime[i]);
+                if (d != null && IsDead(d.Target)) dead.Add(d);
             }
-            if (removed > 0) _treeCutDown.SetValue(null, kept);
-            return removed;
+            for (int i = 0; i < dead.Count; i++)
+                _removeListener.Invoke(evt, new object[] { dead[i].Target, dead[i].Method });
+            return dead.Count;
+        }
+
+        // InvokableCall`1.Delegate (a field on the generic subclass).
+        private static Delegate CallDelegate(object call)
+        {
+            if (call == null) return null;
+            for (Type t = call.GetType(); t != null && t != typeof(object); t = t.BaseType)
+            {
+                FieldInfo f = t.GetField("Delegate", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                if (f != null) return f.GetValue(call) as Delegate;
+            }
+            return null;
         }
 
         // A destroyed Unity object, or a compiler closure (<>c__...) whose

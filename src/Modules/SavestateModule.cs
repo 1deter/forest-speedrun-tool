@@ -227,6 +227,7 @@ namespace ForestOverlay.Modules
             {
                 // Before the census, so its heap line shows the result.
                 _subscribers.Prune();
+                _keeper.PruneDestroyed();
                 _censusLabel = "load " + _loads.Loads + (_loads.LastFromOtherScene ? " (from the title screen)" : " (game scene reloaded)") +
                                ", " + LeakedThreads.Summary() + ", stale subscribers removed " + StaleSubscribers.Removed;
                 if (_censusOnLoad.Value)
