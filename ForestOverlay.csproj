@@ -13,9 +13,9 @@
     <Description>Speedrun information overlay for The Forest (BepInEx plugin)</Description>
     <LangVersion>latest</LangVersion>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.23.9</Version>
-    <AssemblyVersion>0.23.9.0</AssemblyVersion>
-    <FileVersion>0.23.9.0</FileVersion>
+    <Version>0.24.0</Version>
+    <AssemblyVersion>0.24.0.0</AssemblyVersion>
+    <FileVersion>0.24.0.0</FileVersion>
   </PropertyGroup>
 
   <!--

@@ -55,6 +55,7 @@ namespace ForestOverlay.Modules
 
         private SavestateBridge _bridge;
         private PickupKeeper _keeper;
+        private BookPages _book;
         private string _dir;
 
         private bool _busy;
@@ -118,6 +119,7 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
             _bridge = new SavestateBridge(ctx.Log);
             _keeper = new PickupKeeper(ctx.Log);
+            _book = new BookPages(ctx.Log);
             _keeper.Install(OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
@@ -308,14 +310,18 @@ namespace ForestOverlay.Modules
             try { _keeper.Snapshot(pickups); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup snapshot failed: " + ex.Message); }
 
+            string bookNote;
+            string book = _book.Capture(out bookNote);
+
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote);
                 if (after != null) after(error);
             }));
         }
 
-        private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups)
+        private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
+                                  string book, string bookNote)
         {
             _busy = false;
             if (!r.Ok)
@@ -337,6 +343,7 @@ namespace ForestOverlay.Modules
                 f.InCave = inCave;
                 f.StreamingUnloaded = r.StreamingUnloaded;
                 f.Pickups = pickups;
+                f.Book = book;
                 f.Data = r.Data;
 
                 if (path == null)
@@ -349,7 +356,7 @@ namespace ForestOverlay.Modules
                 _lastCaptureHash = Segment.HashText(f.Data);
 
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
-                              ", " + pickups.Count + " world pickups listed";
+                              ", " + pickups.Count + " world pickups listed, " + bookNote;
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
 
@@ -376,7 +383,7 @@ namespace ForestOverlay.Modules
             if (mode != null) { SetStatus("restore '" + f.Name + "' refused: " + mode); return; }
 
             HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, null);
+            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, f.Book, null);
         }
 
         private void RestoreSelectedWithLoad()
@@ -391,7 +398,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
-            StartLoad("restore '" + f.Name + "' with load", err, null);
+            StartLoad("restore '" + f.Name + "' with load", err, WithBook(f.Book, null));
         }
 
         private void SlotInPlace()
@@ -408,7 +415,7 @@ namespace ForestOverlay.Modules
             // A slot save was made the game's way: streaming unloaded only in
             // MemorySafeSaveMode. No pickup list - a menu load would bring
             // them all back, so every kept pickup is put back.
-            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, -1, null);
+            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, -1, null, null);
         }
 
         private void SlotWithoutMenu()
@@ -423,8 +430,10 @@ namespace ForestOverlay.Modules
 
         /// `savedInCave`: the file's cave flag (1 / 0), or -1 when unknown
         /// (a slot save) and the player's position has to decide.
+        /// `book`: the file's book page state; null for a slot save, which
+        /// leaves the book as it is.
         private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
-                                    int savedInCave, Action<string> after)
+                                    int savedInCave, string book, Action<string> after)
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             _busy = true;
@@ -471,11 +480,14 @@ namespace ForestOverlay.Modules
                     catch (Exception) { }
                 }
 
+                string bookNote = r.Ok && book != null ? _book.Apply(book) : "";
+
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
                               (presentPickups == null ? " (all kept)" : "") +
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
-                              (fall.Length == 0 ? "" : " | " + fall);
+                              (fall.Length == 0 ? "" : " | " + fall) +
+                              (bookNote.Length == 0 ? "" : " | " + bookNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 SetStatus(line);
@@ -486,6 +498,18 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { Ctx.Log.LogWarning("Savestate: continuation failed: " + ex.Message); }
                 }
             }));
+        }
+
+        /// A load rebuilds the book on its default page; once in game, put
+        /// the captured page back (author: a savestate keeps its page).
+        private Action<string> WithBook(string book, Action<string> after)
+        {
+            return delegate(string error)
+            {
+                if (error == null)
+                    Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(book) + ".");
+                if (after != null) after(error);
+            };
         }
 
         private void StartLoad(string what, string error, Action<string> after)
@@ -599,12 +623,12 @@ namespace ForestOverlay.Modules
             {
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
-                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), done);
+                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), WithBook(f.Book, done));
             }
             else
             {
                 HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-                RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, f.InCave ? 1 : 0, done);
+                RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, f.InCave ? 1 : 0, f.Book, done);
             }
         }
 

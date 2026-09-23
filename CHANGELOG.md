@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.0 - 2026-09-23
+
+- Savestates and start states remember the survival book's page: restoring
+  one (in place or with a load) opens the book where it was when you
+  captured it. A quick-load after a death still opens it on the game's
+  usual page. Savestates captured before this version leave the book as
+  it is - capture them again to keep the page.
+
 ## v0.23.9 - 2026-09-23
 
 - Restoring a savestate or a start state while falling no longer carries

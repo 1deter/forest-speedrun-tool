@@ -20,6 +20,7 @@ namespace ForestOverlay.Data
     //   cave = 0
     //   streaming = unloaded
     //   pickups = 210@1283.2,-70.2,615.0;...
+    //   book = 23:00000100000000000000001
     //   data = <base64>
     //
     // `streaming` says whether streamed content was force-unloaded around
@@ -27,7 +28,8 @@ namespace ForestOverlay.Data
     // delete streamed objects. Files from v0.20.0 have no line: "kept".
     // `pickups` lists the world pickups present at capture (see
     // PickupKey); absent in v0.20.0 files, which then restore every pickup
-    // taken since.
+    // taken since. `book` is the survival book's open page (BookPageState);
+    // absent before v0.24.0, and then the page is left as it is.
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -52,6 +54,9 @@ namespace ForestOverlay.Data
         /// the same as a capture that saw no pickups.
         public List<string> Pickups;
 
+        /// BookPageState's value; "" when not captured.
+        public string Book = "";
+
         public string Data = "";
 
         public string Write()
@@ -67,6 +72,7 @@ namespace ForestOverlay.Data
             Line(sb, "cave", InCave ? "1" : "0");
             Line(sb, "streaming", StreamingUnloaded ? "unloaded" : "kept");
             if (Pickups != null) Line(sb, "pickups", string.Join(";", Pickups.ToArray()));
+            if (Book.Length > 0) Line(sb, "book", Book);
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -113,6 +119,7 @@ namespace ForestOverlay.Data
                             for (int k = 0; k < keys.Length; k++) s.Pickups.Add(keys[k].Trim());
                             break;
                         }
+                    case "book": s.Book = value; break;
                     case "data": s.Data = value; break;
                     case "position":
                         {

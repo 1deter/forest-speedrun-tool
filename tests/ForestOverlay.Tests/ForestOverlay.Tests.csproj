@@ -42,6 +42,7 @@
     <Compile Include="../../src/Data/UpdateStaging.cs" Link="Linked/UpdateStaging.cs" />
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
     <Compile Include="../../src/Data/SavestateFile.cs" Link="Linked/SavestateFile.cs" />
+    <Compile Include="../../src/Data/BookPageState.cs" Link="Linked/BookPageState.cs" />
   </ItemGroup>
 
 </Project>

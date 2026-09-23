@@ -95,7 +95,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/BookPages` + `Data/BookPageState` (book page), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -419,8 +419,8 @@ identity.
 
 ## Current status
 
-**Released: v0.23.9** (2026-09-23). The author runs it via the in-game
-updater. **210 tests.**
+**Released: v0.24.0** (2026-09-23). The author runs it via the in-game
+updater. **221 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
 
@@ -622,6 +622,10 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **The book page kept by savestates** (v0.24.0): capture on a page,
+  flip to another, restore both ways - the capture line's `book:` names
+  the page, the restore line says it was switched back. `BookPages
+  bound. ...` must be all True.
 - **No landing damage after a mid-air restore** (v0.23.9): F7 or a
   Savestates-tab restore while falling; the restore line ends `| fall
   ended (...)`.
@@ -725,11 +729,18 @@ list so we can move onto expanding more features".
      (damage needs `prevVelocity > 28` and air time `> 0.75 s`; game-notes
      *Deaths*). Log: `... | fall ended (x s in the air, y m/s)` on the
      restore line, or on `Teleport to '<name>': ...`.
-   - **The survival book's page** *(runner)*: an in-place restore does not
-     keep the page, a load restore resets it. Savestates should keep it; a
-     **quick-load** (death) should reset it to the game's default opening
-     page. Find where the book keeps its page (`survivalBookController`,
-     `SurvivalBook`).
+   - ~~**The survival book's page**~~ **done** (v0.24.0, awaiting a check)
+     *(runner)*: an in-place restore did not keep the page, a load restore
+     reset it. **Author's call (2026-09-23): a savestate keeps the page it
+     was captured on, in place or with a load; a quick-load keeps the
+     game's default.** The page is which page objects are active
+     (game-notes *The open page*): `Game/BookPages` captures it into the
+     file's `book` header (`Data/BookPageState`, tested; not part of the
+     start-state hash) and applies it after an in-place restore and once in
+     game after a load (`WithBook`). Log: `..., book: showing 'x' (of n)`
+     on capture; `| book: showing 'x' (of n) (k page object(s) switched)`
+     on an in-place restore; `Savestate after the load: book: ...`.
+     Files from before v0.24.0 leave the book as it is.
    - **Lab + hellcave not restored, even with a load** *(runner)*: after the
      red elevator loaded the overlook area, the last lab section (collision
      loaded, invisible) must stay as it was at capture - runners do it

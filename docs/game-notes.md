@@ -250,6 +250,25 @@ rather than by name, so a game update adds objectives for free.
 The older `SurvivalBookTodo` also exists and adds `FindTimmyTodoTask` /
 `FindMeganTodoTask` — check which is live.
 
+### The open page (IL, v0.24.0)
+
+There is **no page number**. Pages are GameObjects switched on and off by
+`SelectPageNumber` (one per link, index entry and tab) in `OnClick`:
+a plain link deactivates its own page (`ThisPageOverride`, else
+`transform.parent`) and activates `MyPageNew`; an **index** entry runs
+`TurnOffAllPages` (every child of its `Pages` container off) and activates
+`MyPageNew`; a **tab** does the same, also hides `IndexPage`, and shows
+`HighlightedPage` instead when highlighted. Every click ends by copying
+`MyPageNew`'s `Renderer.sharedMaterial` onto the static
+`LocalPlayer.AnimatedBook` (a `SkinnedMeshRenderer`: the book model seen
+while opening and closing). `survivalBookController` only opens and closes
+the book (animator, `bookIsOpen`), not the page. A load rebuilds the
+player, so the page returns to the prefab's default. `Game/BookPages`
+records the on/off of every page object (children of each distinct
+`Pages`, then each `IndexPage`, in hierarchy order under
+`LocalPlayer.GameObject`) as the savestate's `book` header and restores it
+the way a click does. Not yet confirmed in game.
+
 ### Nature guide — `TheForest.Player.TickOffSystem`
 
 The book's tick-off pages (animals, birds, fish, plants). A component on the
