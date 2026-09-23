@@ -422,44 +422,54 @@ identity.
 **Released: v0.24.7** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
-### Pick up here (handoff of 2026-09-23, end of the load-leak session)
+### Pick up here (handoff of 2026-09-24, the Next up 3 + 4 session)
 
-The session of 2026-09-23 evening had two jobs, both done:
+The session of 2026-09-23/24 cross-checked the author's ideas file against
+this file (every lost item is now in Next up / Open threads / Deferred),
+then shipped **v0.23.8 - v0.24.7**, all awaiting an in-game check (see
+*Awaiting an in-game check* - each entry names the log line to read):
 
-- **The load leak is fixed** (v0.23.3-0.23.6; author, v0.23.5: 20 load
-  restores, heap flat at ~480 MB after two warm-up loads, every load
-  5.0-5.1 s - was 2.7 GB and 13 s). Root: the game's `EventRegistry` is
-  cleared only by `TitleScreen.Awake`, so every same-scene reload kept the
-  previous world alive through leftover subscribers; plus two leaked
-  threads a load. Fixes: `Game/StaleSubscribers`, `Game/LeakedThreads`;
-  the whole story is game-notes *The load leak* and *The event bus*. The
-  per-load census is off by default (v0.23.6, renamed key
-  `Diagnostics.MemoryCensusAfterEveryLoad`; it was the post-load hitch).
-- **Updates install under any plugin file name** (v0.23.7,
-  `Data/UpdateStaging`, 19 new tests; see *Releases and updates*).
+- v0.23.8 the Practice list never sticks (unsaved-changes guard);
+- v0.23.9 no landing damage after a mid-air restore (`EndFall`);
+- v0.24.0 savestates keep the survival book page (`book` header);
+- v0.24.1 in-place restores keep the lighter / held items (`held`);
+- v0.24.2 cave panels healed and rebuilt (`PanelKeeper`, `panels`);
+- v0.24.3 a capture during an endgame cutscene restores to its moment
+  (fast-forward, `cutscene`);
+- v0.24.4 lab / hellcave **diagnostic only** (`AreaReport`, `areas`);
+- v0.24.5 enemies respawn after an in-place restore (the game's restart);
+- v0.24.6 auto-restart at the end of a timed spot;
+- v0.24.7 no-blood / no-stagger practice toggles.
 
-The stuck spot list is fixed (v0.23.8, same day). The next session
-starts on **Next up 3** (savestates, remaining) - or 5,
-the performance investigation the author asked for, if they prefer. Open
-checks, when the author is in game anyway:
+The savestate file gained five header lines (`book`, `held`, `panels`,
+`cutscene`, `areas`) - all outside the start-state hash, so no times were
+retired; files captured before them simply lack those features.
+
+**Next session:** read the author's / runners' logs for the checks above
+first - several are IL-only theories (gotcha 25), especially the
+cutscene fast-forward, the panel copies and the enemy restart. Then
+**Next up 3's remainder**: the lab / hellcave fix (needs the
+`Savestate areas ...` log from the runner's case), **sharing** (bundle a
+segment with its `.fosave` - format not decided with the author yet),
+the optional items; then **Next up 5** (performance). Older open checks:
 
 1. v0.23.6+: no hitch ~1.5 s after a load; *Memory census now* still logs.
-2. **Renamed plugin updates** (v0.23.7) - only testable once a newer
-   release exists: rename `ForestOverlay.dll` to `ForestOverlay(1).dll`
-   (game closed), launch, Download. Log: `Update: this plugin runs as
+2. **Renamed plugin updates** (v0.23.7) - testable now that newer releases
+   exist: rename `ForestOverlay.dll` to `ForestOverlay(1).dll` (game
+   closed), launch, Download. Log: `Update: this plugin runs as
    ForestOverlay(1).dll ... moved it to ForestOverlay.dll.bak`; after the
    restart the patcher logs `Installed staged update` and the plugins
    folder holds one `ForestOverlay.dll` plus `.bak`.
-3. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
-   `item 210 >= 1`, re-tested with a quick reload after picking the keycard
-   up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
-   with checkpoint n (...) outstanding; holding x, y at the start`.
-4. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
-   kept only +12 MB, but each took ~150 ms for 12 restores, then ~330 ms
-   from the 13th on. Not a leak; a step. Their older slowdown (841 -> 1157
-   ms) came from a heap bloated by load restores - fixed with the leak.
-   Re-test: ~20 in-place restores on v0.23.6+ from a fresh launch, read the
-   `done in N ms` of each `Savestate restore ... in place` line.
+3. **The keycard checkpoint** (v0.22.7): a checkpoint `item 210 >= 1`,
+   re-tested with a quick reload after picking the keycard up. Log:
+   `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached with
+   checkpoint n (...) outstanding; holding x, y at the start`. Maks's
+   v0.23.1 log had checkpoint 1/1 firing 4 ms after every start on a test
+   spot - probably his spawn inside the checkpoint zone; ask him.
+4. In-place restore timing on a fixed heap: ~20 in-place restores from a
+   fresh launch, read each `done in N ms` (was ~150 ms, then ~330 ms from
+   the 13th - a step, not a leak).
+5. Maks runs v0.23.1 (his log): he should update - the leak is fixed.
 
 Then continue with **Next up**, in order. The author wants Next up finished
 before QoL/UX work; the runner feedback below is deferred unless critical
@@ -986,7 +996,10 @@ buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
 tab), the load watcher and memory census; v0.23.1-0.23.6 **the load leak
 fixed** (pathfinding ruled out, two leaked threads stopped, dead event
 subscribers pruned, census off by default); v0.23.7 updates under any
-plugin file name.
+plugin file name; v0.23.8-0.24.7 (2026-09-24) the Practice list fix,
+savestate completeness (fall, book page, held items, cave panels,
+cutscene moment, enemies, the area report) and Next up 4 (auto-restart,
+no blood / no stagger).
 
 ### How a session goes
 
