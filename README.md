@@ -29,8 +29,10 @@ A speedrun and practice tool for **The Forest**, built as a
 - **Load slowdown fix** *(being tested)* — every quick-load (or any load
   that reloads the game over itself) keeps about 120 MB more memory, so
   loads get slower and slower until you go back to the title screen. The
-  overlay stops two game threads each load leaves running, the leading
-  suspect. Memory only; it can be switched off in the **Savestates** tab.
+  game's event system keeps the old world's listeners until the title
+  screen; the overlay removes them after every load, and stops two
+  background threads each load leaves running. Memory only; both can be
+  switched off in the **Savestates** tab.
 
 **Practice only** — writes game state, and flags the session when used:
 

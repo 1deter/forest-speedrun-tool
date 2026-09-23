@@ -654,6 +654,44 @@ focus audio n` - `still running` means a woken thread did not exit.
 more through its stack (Mono's Boehm GC scans stacks conservatively) or
 may not. Only the heap line after the fix will say.
 
+**Threads fixed, heap not (author, v0.23.3, 21 load restores):** every load
+logs both `Threads:` lines, OS threads stay flat (151 -> 146), DDOL objects
+flat (16), no `still running` - and the heap still +122 MB a load
+(262 -> 2726 MB, 4.7 -> 12.6 s). The threads were a side leak.
+
+### The event bus
+
+**IL, v0.23.4.** `TheForest.Tools.EventRegistry` has static
+registries `System`, `Game`, `Player`, `Enemy`, `Animal`, `Endgame`,
+`Achievements`; each holds `_eventSubscriptions`
+(`IDictionary<object, EventSubscription>`), each subscription
+`_callbacks` (`IList<SubscriberCallback>`) and `_publishingEventIndex`
+(`Publish` walks the list backwards by it; -1 when idle). `Subscribe` adds
+if not already contained. **`EventRegistry.Clear()` (empties every
+registry's lists) is called only from `TitleScreen.Awake`** - so a title
+trip frees the memory and a same-scene reload never does. Objects
+unsubscribe their named handlers in `OnDestroy` (`GameStats`,
+`AchievementsManager`, ...), but `GameStats.Awake` also subscribes
+lambdas (`<Awake>m__0..6`, instance methods) that nothing removes. Every
+reload leaves callbacks targeting destroyed objects; through their C#
+fields they hold the old world's managed side. The census saw it as
+`Achievements.Data` (`AchievementData.Registry` is one of these
+registries) holding one dead `GameStats`, `AchievementsManager`,
+`PlayerInventory`, `StoryCluesFolder` per load, and its depth limit (7)
+hid the rest. (`Achievements.Reset`, called by `AccountInfo.Load` from
+`SetSaveGame`, clears `AchievementData` - also a menu path.) Side effect in
+the unpatched game: dead subscribers still run on every publish.
+
+Fix (`Game/StaleSubscribers`, v0.23.4, switch
+`Fixes.PruneDeadSubscribersOnLoad`, on): when `LoadWatcher` sees a load
+finish (before the census), drop every registry callback whose target is
+a destroyed Unity object or a compiler closure holding one, skipping a
+subscription mid-publish; also dead listeners of the static
+`TreeHealth.OnTreeCutDown` (+2 dead `TreeLodGrid` a load). Log:
+`Events: removed n event-registry subscription(s) and m tree-cut
+listener(s) left by destroyed objects (k this session).` **Awaiting the
+heap line.**
+
 The census itself costs ~0.6-1.0 s about 1.5 s after each load, growing
 with the heap (`GC.GetTotalMemory(true)` is a full collection) - the hitch
 the author noticed after loading.

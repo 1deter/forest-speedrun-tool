@@ -103,7 +103,7 @@ Where things live:
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
 | Updates, changelog | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
-| Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), run from `Modules/SavestateModule` |
+| Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 
 ### Rules for modules
@@ -351,7 +351,10 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     flat, count threads, then read the teardown code (`OnDestroy`) of
     anything that starts one (`ilscan refs "System.Threading.Thread::.ctor"`).
     A worker parked on a wait handle that only a frame callback signals
-    never sees its "stop" flag once the object is destroyed.
+    never sees its "stop" flag once the object is destroyed. And **ask
+    what the title screen clears that a reload does not** - a menu trip
+    freeing the memory pointed at `TitleScreen.Awake` ->
+    `EventRegistry.Clear()` all along (v0.23.4).
 
 25. **A theory built from IL alone is still a guess.** v0.23.1 shipped a
     fix on the belief that a same-scene reload wakes the new scene before
@@ -405,7 +408,7 @@ identity.
 
 ## Current status
 
-**Released: v0.23.3** (2026-09-23). The author runs it via the in-game
+**Released: v0.23.4** (2026-09-23). The author runs it via the in-game
 updater. **191 tests.**
 
 ### Pick up here (handoff of 2026-09-23, evening)
@@ -418,24 +421,30 @@ small and the heap grew +123 MB a load (262 -> 2874 MB over 22 loads,
 4.7 -> 13.0 s each). The two threads: the old `WorkScheduler`'s (parked in
 `WaitOne` forever) and a `FocusLostAudio` DDOL copy per load.
 
-v0.23.3 stops both (`Game/LeakedThreads`). Ask the author for the same
-test (~20 load restores, *Memory census now* at the end) and read:
+v0.23.3 stopped both (`Game/LeakedThreads`): confirmed in game, threads
+flat - but the heap still +122 MB a load. v0.23.4 goes after the likely
+root: **the game's `EventRegistry` keeps every destroyed world's
+subscribers; only `TitleScreen.Awake` clears it** (game-notes *The event
+bus*) - which matches a title trip freeing the memory.
+`Game/StaleSubscribers` prunes dead callbacks when a load finishes.
 
-1. Each load: `Threads: woke the destroyed WorkScheduler's thread ...` and
-   `Threads: removed 1 older FocusLostAudio copy ...`; the census label's
-   `leaked threads stopped: scheduler n` with **no** `still running`, and
-   `threads N` **flat**. `DontDestroyOnLoad: n objects` flat too.
-2. **The heap line.** Flat: the leak is fixed - record it, set
+Ask the author for the same test (~20 load restores, *Memory census now*
+at the end) and read:
+
+1. Each load: `Events: removed n event-registry subscription(s) and m
+   tree-cut listener(s) ...` with n > 0 (the first load from the title:
+   none). `StaleSubscribers: 7 event registries, TreeHealth.OnTreeCutDown.`
+   at startup. The census's `Achievements.Data` destroyed count should stop
+   growing.
+2. **The heap line.** Flat (or nearly): fixed - record it, set
    `MemoryCensusOnLoad` off by default (author asked about the post-load
-   hitch; that is the census), finish Next up 1's tail. Still +120 MB with
-   threads flat: the threads were a side leak; the rest is below what C#
-   walks see - next compare `Profiler.GetMonoUsedSize` with
-   `GC.GetTotalMemory`, try `Resources.UnloadUnusedAssets` + `GC.Collect`
-   after a load, and see what a title-screen trip frees that a reload
-   does not (it gave the memory back in runner logs).
-3. Nothing broke: world tasks still run after a load (trees/LOD update,
-   building works), the focus-lost audio still ducks when alt-tabbing, no
-   `LeakedThreads:` warning.
+   hitch; that is the census), finish Next up 1's tail. Still growing:
+   something else holds the dead objects too - lift the census depth limit
+   for walks into destroyed objects (a deep *Memory census now*) to see
+   what each root really keeps; `Grown in size` then names it.
+3. Nothing broke: stats and achievements still count after a load (kills,
+   building), no `StaleSubscribers:` warning. v0.23.3's checks still
+   stand: trees/LOD update, alt-tab muffles the audio.
 4. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
@@ -569,8 +578,10 @@ scanner.
   `Diagnostics.MemoryCensusOnLoad`, on - a hitch of ~0.6-1.0 s after a
   load, noticed by the author). *Memory census now* runs it on demand.
   `Game/LeakedThreads` (switch `Fixes.StopLeakedThreadsOnLoad`, on) stops
-  the two threads each load leaves running - memory only, no gameplay
-  effect, so not practice-only.
+  the two threads each load leaves running; `Game/StaleSubscribers`
+  (switch `Fixes.PruneDeadSubscribersOnLoad`, on) drops the old world's
+  event subscribers the game keeps until the title screen - memory only,
+  no gameplay effect, so not practice-only.
 - **Changelog** (author, 2026-09-23, "all future updates"): `CHANGELOG.md`,
   one runner-facing section per release. CI puts the tag's section in the
   GitHub release and fails without one; the Updates tab shows the latest
@@ -597,7 +608,8 @@ once** (v0.22.6, author); text wraps and sits under its buttons; the
 v0.23.0 census ran after every load without trouble (0.4-0.8 s).
 
 **Awaiting an in-game check** — ask before building on these:
-- **The load leak thread fix** (v0.23.3) - see *Pick up here*.
+- **The load leak event-bus fix** (v0.23.4) - see *Pick up here*.
+  (v0.23.3's thread fix is confirmed: threads flat.)
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
   (installed)" after updating.
@@ -802,7 +814,8 @@ session of 2026-09-23 afternoon (v0.22.7–0.23.1): ordered checkpoints
 receivers kept, no string building in any `DrawTab`, messages under their
 buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
 tab), the load watcher and memory census; v0.23.1-0.23.3 the load leak
-hunt (pathfinding ruled out, two leaked threads stopped).
+hunt (pathfinding ruled out, two leaked threads stopped, dead event
+subscribers pruned).
 
 ### How a session goes
 

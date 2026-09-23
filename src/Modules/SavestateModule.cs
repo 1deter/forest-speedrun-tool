@@ -100,6 +100,8 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _censusOnLoad;
         private LeakedThreads _threads;
         private ConfigEntry<bool> _threadsFix;
+        private StaleSubscribers _subscribers;
+        private ConfigEntry<bool> _subscribersFix;
         private float _censusDue;
         private string _censusLabel = "";
         private readonly GUIContent _censusText = new GUIContent("");
@@ -132,6 +134,14 @@ namespace ForestOverlay.Modules
             LeakedThreads.Enabled = _threadsFix.Value;
             _threads = new LeakedThreads(ctx.Log);
             _threads.Install(OverlayPlugin.PluginGuid);
+
+            // The leak's root: the game's event registries keep every
+            // destroyed world's subscribers until the title screen clears them.
+            _subscribersFix = ctx.Config.Bind("Fixes", "PruneDeadSubscribersOnLoad", true,
+                "After every load, remove the game's event subscriptions left by the previous world's destroyed objects " +
+                "(the game only clears them at the title screen) - they keep the old world in memory, ~120 MB a load.");
+            StaleSubscribers.Enabled = _subscribersFix.Value;
+            _subscribers = new StaleSubscribers(ctx.Log);
             _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusOnLoad", true,
                 "After every load, log the Mono heap and which static references hold destroyed objects " +
                 "(the load memory leak investigation). Costs a hitch of up to a second or so, just after a load.");
@@ -215,8 +225,10 @@ namespace ForestOverlay.Modules
         {
             if (_loads.Tick())
             {
+                // Before the census, so its heap line shows the result.
+                _subscribers.Prune();
                 _censusLabel = "load " + _loads.Loads + (_loads.LastFromOtherScene ? " (from the title screen)" : " (game scene reloaded)") +
-                               ", " + LeakedThreads.Summary();
+                               ", " + LeakedThreads.Summary() + ", stale subscribers removed " + StaleSubscribers.Removed;
                 if (_censusOnLoad.Value)
                 {
                     // A moment later: the activation sequence's last frames
@@ -799,6 +811,10 @@ namespace ForestOverlay.Modules
             bool fix = GUI.Toggle(new Rect(0, y, w, 22), _threadsFix.Value,
                                   " Fix: stop the worker threads the game leaves running after a load");
             if (fix != _threadsFix.Value) { _threadsFix.Value = fix; LeakedThreads.Enabled = fix; }
+            y += 26f;
+            bool subs = GUI.Toggle(new Rect(0, y, w, 22), _subscribersFix.Value,
+                                   " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
+            if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
             y += 26f;
             bool census = GUI.Toggle(new Rect(0, y, w, 22), _censusOnLoad.Value,
                                      " Memory census after every load (log; a short hitch after the load)");

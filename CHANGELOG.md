@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.4 - 2026-09-23
+
+- Load slowdown, third try - the likely real cause: the game's event system
+  keeps listeners from every previous load (it only clears them at the
+  title screen), and each one keeps that old world in memory. The overlay
+  now removes the dead ones after every load. Switch in the Savestates tab.
+- The background-thread fix from v0.23.3 works (thread count stays flat)
+  and stays on.
+
 ## v0.23.3 - 2026-09-23
 
 - Load slowdown, second try: every load left two of the game's background
