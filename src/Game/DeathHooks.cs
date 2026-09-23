@@ -263,6 +263,15 @@ namespace ForestOverlay.Game
         // only the first part: no stagger, but no jump and arms down for
         // about a second (author).
         private static int _revives;
+
+        /// Practice toggles (author, 2026-09-23), each on its own and not
+        /// tied to a death - the answer for Creative too, where the player
+        /// never dies. NoStagger cancels every hard landing the way a fall
+        /// revive does; NoBlood is applied per tick by the Deaths module.
+        public static bool NoStagger;
+        private static bool _jumpLandBefore;
+        private static readonly object BoxedZero = 0f;
+        private static readonly object BoxedOne = 1f;
         private static FieldInfo _hitReactions;     // static LocalPlayer.HitReactions
         private static FieldInfo _animator;         // static LocalPlayer.Animator
         private static FieldInfo _mainRotator;      // static LocalPlayer.MainRotator
@@ -312,14 +321,32 @@ namespace ForestOverlay.Game
             }
         }
 
-        private static void LandedPrefix(out int __state)
+        private static void LandedPrefix(object __instance, out int __state)
         {
             __state = _revives;
+            try { _jumpLandBefore = _jumpLand != null && (bool)_jumpLand.GetValue(__instance); }
+            catch (Exception) { _jumpLandBefore = true; }
         }
 
         private static void LandedPostfix(object __instance, int __state)
         {
-            if (_revives == __state) return;   // no revive during this landing
+            bool revived = _revives != __state;
+
+            // HandleLanded sets jumpLand only on the hard-landing branch
+            // (the one that plays the stagger), so a false -> true change is
+            // a hard landing.
+            bool hard = false;
+            if (!revived && NoStagger)
+            {
+                try { hard = !_jumpLandBefore && _jumpLand != null && (bool)_jumpLand.GetValue(__instance); }
+                catch (Exception) { hard = false; }
+            }
+            if (!revived && !hard) return;
+            CancelHardLanding(__instance, revived ? "Death: revived from a fall - hard landing cancelled." : "No stagger: hard landing cancelled.");
+        }
+
+        private static void CancelHardLanding(object __instance, string logLine)
+        {
             try
             {
                 MonoBehaviour reactions = _hitReactions != null ? _hitReactions.GetValue(null) as MonoBehaviour : null;
@@ -347,7 +374,7 @@ namespace ForestOverlay.Game
                 object rotator = _mainRotator != null ? _mainRotator.GetValue(null) : null;
                 if (rotator != null && _rotationSpeed != null) _rotationSpeed.SetValue(rotator, 5f);   // the game's own value
 
-                _log.LogInfo("Death: revived from a fall - hard landing cancelled.");
+                _log.LogInfo(logLine);
             }
             catch (Exception ex)
             {
@@ -393,11 +420,13 @@ namespace ForestOverlay.Game
         {
             try
             {
-                if (_bloodAmount != null) _bloodAmount.SetValue(null, 0f);
-                if (_bloodRatio != null) _bloodRatio.SetValue(null, 1f);
+                if (_bloodAmount != null) _bloodAmount.SetValue(null, BoxedZero);
+                if (_bloodRatio != null) _bloodRatio.SetValue(null, BoxedOne);
             }
             catch (Exception) { }
         }
+
+        public static bool CanClearBlood { get { return _bloodAmount != null; } }
 
         // ------------------------------------------------------------------
         // Mirrors KillPlayer's branches, evaluated before it runs: DeadTimes

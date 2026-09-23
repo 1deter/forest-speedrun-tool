@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.7 - 2026-09-24
+
+- Two practice toggles in the Deaths tab, each on its own and off by
+  default: **No blood** keeps the blood overlay off at all times, and
+  **No stagger** skips the stagger (and the frozen, jumpless second after
+  it) on every hard landing. They work in Creative too, where you cannot
+  die.
+
 ## v0.24.6 - 2026-09-24
 
 - Auto-restart (Runs tab): tick it and a timed spot restarts by itself as

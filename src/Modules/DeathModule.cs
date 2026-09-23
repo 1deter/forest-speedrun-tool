@@ -68,6 +68,9 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
         private ConfigEntry<bool> _skipMenuCfg;
+        private ConfigEntry<bool> _noBloodCfg;
+        private ConfigEntry<bool> _noStaggerCfg;
+        private bool _extrasMarked;
         private SavestateBridge _loader;
         private bool _pendingInGameLoad;
 
@@ -117,6 +120,14 @@ namespace ForestOverlay.Modules
             _skipMenuCfg = Ctx.Config.Bind("Deaths", "QuickLoadSkipMenu", true,
                 "Quick-load from in game (LevelSerializer.Resume) instead of through the title screen: " +
                 "the same load, one scene load fewer. Off uses the menu path.");
+            // Practice toggles, separate from what a death does (author,
+            // 2026-09-23): off by default, so survival keeps the game's
+            // own feel; they also cover Creative, where nobody dies.
+            _noBloodCfg = Ctx.Config.Bind("Deaths", "NoBlood", false,
+                "Practice: never show the blood overlay - it is cleared continuously while this is on, not only on death.");
+            _noStaggerCfg = Ctx.Config.Bind("Deaths", "NoStagger", false,
+                "Practice: skip the hard-landing stagger and its aftermath (frozen input, slow look, no jump, arms down) " +
+                "on every hard landing, as the fall revive does.");
             _loader = new SavestateBridge(ctx.Log);
 
             _practice = Host.Find<PracticeModule>();
@@ -191,6 +202,18 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             RefreshText();
+
+            DeathHooks.NoStagger = _noStaggerCfg.Value;
+            if (_noBloodCfg.Value) DeathHooks.ClearBlood();
+            if ((_noBloodCfg.Value || _noStaggerCfg.Value) && !_extrasMarked)
+            {
+                _extrasMarked = true;
+                Ctx.Practice.Mark(_noBloodCfg.Value && _noStaggerCfg.Value ? "no blood, no stagger"
+                                  : _noBloodCfg.Value ? "no blood" : "no stagger");
+                Ctx.Log.LogInfo("Deaths: practice toggles on -" + (_noBloodCfg.Value ? " no blood" : "") +
+                                (_noStaggerCfg.Value ? " no stagger" : "") + ".");
+            }
+            if (!_noBloodCfg.Value && !_noStaggerCfg.Value) _extrasMarked = false;
 
             if (_pendingRevive)
             {
@@ -355,6 +378,16 @@ namespace ForestOverlay.Modules
 
             if (GUI.Button(new Rect(0, y, 160, 24), "Clear blood overlay")) ClearBlood();
             y += 28f;
+
+            // Practice toggles - not tied to dying, so they work in Creative.
+            bool noBlood = GUI.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,
+                                      " No blood: keep the blood overlay off (practice)");
+            if (noBlood != _noBloodCfg.Value) _noBloodCfg.Value = noBlood;
+            y += 26f;
+            bool noStagger = GUI.Toggle(new Rect(0, y, w, 22), _noStaggerCfg.Value,
+                                        " No stagger: skip the hard-landing stagger on every landing (practice)");
+            if (noStagger != _noStaggerCfg.Value) _noStaggerCfg.Value = noStagger;
+            y += 26f;
             // What the button above (or the last death) just did, under it.
             y += UiText.Draw(0, y, w, _statusText) + 4f;
 

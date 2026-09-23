@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.6** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.7** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -622,6 +622,9 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **No blood / no stagger** (v0.24.7): in Creative and survival - fall
+  hard with no stagger on (moving and jumping at once), take damage with
+  no blood on (no red overlay).
 - **Auto-restart** (v0.24.6): tick it in the Runs tab, finish a timed
   spot - the time flashes and the spot restarts; with a load-mode start
   state too.
@@ -852,7 +855,13 @@ list so we can move onto expanding more features".
      first, like any finished run. **One global setting** (author), and
      it acts for load-mode start states too (~5 s) - runners untick it if
      they do not want that (author).
-   - **No blood** and **no stagger** toggles (author): *no blood* keeps
+   - ~~**No blood** and **no stagger** toggles~~ **done** (v0.24.7,
+     awaiting a check: `Deaths.NoBlood` / `Deaths.NoStagger`, off,
+     checkboxes in the Deaths tab; no blood clears `BleedBehavior` every
+     tick; no stagger reuses the fall revive's cancel in the
+     `HandleLanded` postfix whenever `jumpLand` went false -> true in that
+     call (the hard-landing branch); log `No stagger: hard landing
+     cancelled.`, `Deaths: practice toggles on - ...`) (author): *no blood* keeps
      the blood overlay cleared all the time while ticked (`BleedBehavior`,
      game-notes *Deaths*); *no stagger* skips the hard-landing stagger and
      its animations (what the fall revive already undoes in
