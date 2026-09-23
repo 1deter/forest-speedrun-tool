@@ -472,6 +472,14 @@ object's `UniqueIdentifier.Id`, `GameObjectName` = its name, `ParentName`
 = the **direct parent's** identifier id (none when the parent has no
 identifier), `ClassId` = the `PrefabIdentifier`'s class, prefabs only.
 
+**Not only the player has per-game ids.** The inventory's item views
+(`Spear_Upgraded_Inv`, `CraftedBomb1`...`5`, ...) are identifiers
+**outside** the `player` hierarchy (the delete step, which skips the
+player, deleted 140 of them in a Normal game restoring a Hard state), and
+the save rebuilt its own set: a second inventory with the saved items
+(author, v0.22.2). So once the player is foreign, the plugin adopts ids for
+every live identifier the save lacks, not just the player's (v0.22.3).
+
 Creative is chosen before the game loads and is not in the save data, so
 restores are refused across Creative and survival (author's suggestion).
 

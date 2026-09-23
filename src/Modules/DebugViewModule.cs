@@ -342,21 +342,10 @@ namespace ForestOverlay.Modules
             y += 8f;
 
             // --- notes ------------------------------------------------------
-            if (_status.Length > 0)
-            {
-                GUI.Label(new Rect(12, y, w - 24, 20), _status);
-                y += 22f;
-            }
-
-            GUI.Label(new Rect(12, y, w - 24, 20),
-                      "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
-            y += 20f;
-            GUI.Label(new Rect(12, y, w - 24, 20),
-                      "The body is held still while it is on.");
-            y += 20f;
-            GUI.Label(new Rect(12, y, w - 24, 20),
-                      "Volumes are world-space bounds, not exact mesh shapes.");
-            y += 24f;
+            y += UiText.Draw(12, y, w - 24, _status);
+            y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
+            y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
+            y += UiText.Draw(12, y, w - 24, "Volumes are world-space bounds, not exact mesh shapes.") + 4f;
 
             _contentHeight = y;
             GUI.EndScrollView();

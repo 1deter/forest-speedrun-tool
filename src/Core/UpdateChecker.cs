@@ -45,6 +45,12 @@ namespace ForestOverlay.Core
         public string Message { get; private set; }
         public string DownloadUrl { get; private set; }
 
+        // What this session already downloaded, so a later Check does not
+        // offer the same version again (author, v0.22.2: Check after a
+        // Download re-offered it, endlessly).
+        private string _stagedVersion;
+        private string _stagedPath;
+
         public UpdateChecker(ManualLogSource log, string currentVersion)
         {
             _log = log;
@@ -95,6 +101,11 @@ namespace ForestOverlay.Core
                 State = Status.Publishing;
                 Message = "v" + LatestVersion + " is still being published - checking again shortly";
             }
+            else if (LatestVersion == _stagedVersion && File.Exists(_stagedPath))
+            {
+                State = Status.Staged;
+                Message = StagedMessage();
+            }
             else
             {
                 State = Status.UpdateAvailable;
@@ -111,6 +122,17 @@ namespace ForestOverlay.Core
             State = Status.UpdateAvailable;
             Message = message;
             _log.LogWarning("Update download: " + message);
+        }
+
+        // Only promise "restart" when the patcher that does the install is
+        // really there - an unconditional "restart to apply" once left
+        // runners on the old version.
+        private string StagedMessage()
+        {
+            return UpdaterInstaller.Installed
+                ? "v" + LatestVersion + " downloaded - restart the game to install it"
+                : "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
+                  "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
         }
 
         public IEnumerator Download(string pluginDllPath)
@@ -161,14 +183,10 @@ namespace ForestOverlay.Core
             try
             {
                 File.WriteAllBytes(pluginDllPath + PendingSuffix, data);
+                _stagedVersion = LatestVersion;
+                _stagedPath = pluginDllPath + PendingSuffix;
                 State = Status.Staged;
-                // Only promise "restart" when the patcher that does the
-                // install is really there - an unconditional "restart to
-                // apply" once left runners on the old version.
-                Message = UpdaterInstaller.Installed
-                    ? "v" + LatestVersion + " downloaded - restart the game to install it"
-                    : "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
-                      "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
+                Message = StagedMessage();
                 _log.LogInfo(Message);
             }
             catch (Exception ex)

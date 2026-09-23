@@ -608,19 +608,23 @@ namespace ForestOverlay.Modules
             bool lines = GUI.Toggle(new Rect(300, 58, 110, 20), _showLines, " run lines");
             if (lines != _showLines) _showLines = lines;
 
-            GUI.Label(new Rect(0, 82, w, 20), _status);
-            GUI.Label(new Rect(0, 102, w, 20), Diagnose(), _rowStyle);
+            // Flowing, each line as tall as its text (UiText) - these
+            // messages vary in length and clipped at fixed heights.
+            float y = 82f;
+            y += UiText.Draw(0, y, w, _status);
+            y += UiText.Draw(0, y, w, Diagnose());
 
             if (_splits.Count > 0)
             {
                 string line = "splits:";
                 for (int i = 0; i < _splits.Count; i++) line += "  " + Format(_splits[i]);
-                GUI.Label(new Rect(0, 122, w, 20), line);
+                y += UiText.Draw(0, y, w, line);
             }
 
-            GUI.Label(new Rect(0, 142, w, 20), _eventLine, _rowStyle);
+            y += UiText.Draw(0, y, w, _eventLine);
 
-            DrawAttemptList(new Rect(0, 166, w, _tabH - 170));
+            y = Mathf.Max(y + 4f, 166f);
+            DrawAttemptList(new Rect(0, y, w, _tabH - y - 4f));
         }
 
         /// Says WHY a run is not progressing. A silent "nothing

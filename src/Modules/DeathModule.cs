@@ -55,6 +55,14 @@ namespace ForestOverlay.Modules
         public override string TabTitle { get { return "Deaths"; } }
         public override int TabOrder { get { return 45; } }
 
+        private static readonly GUIContent QuickLoadText = new GUIContent(
+            "A death loads your save at once, with the game's own load. " +
+            "Not permadeath (the game deletes the save) or multiplayer.");
+        private static readonly GUIContent ReviveText = new GUIContent(
+            "Practice mode on + a spot selected: a death revives you at the spot instead " +
+            "(health and blood reset, no reload). A spot with a start state does this " +
+            "even with practice mode off, and restores the start state. Marks the session as practice.");
+
         private DeathHooks _hooks;
         private ConfigEntry<bool> _quickLoadCfg;
         private ConfigEntry<bool> _quickLoadCaptureCfg;
@@ -326,25 +334,15 @@ namespace ForestOverlay.Modules
                 y += 26f;
             }
 
-            GUI.Label(new Rect(0, y, w, 40),
-                      "A death loads your save at once, with the game's own load. " +
-                      "Not permadeath (the game deletes the save) or multiplayer.");
-            y += 44f;
-
-            GUI.Label(new Rect(0, y, w, 60),
-                      "Practice mode on + a spot selected: a death revives you at the spot instead " +
-                      "(health and blood reset, no reload). A spot with a start state does this " +
-                      "even with practice mode off, and restores the start state. Marks the session as practice.");
-            y += 64f;
+            y += UiText.Draw(0, y, w, QuickLoadText) + 4f;
+            y += UiText.Draw(0, y, w, ReviveText) + 4f;
 
             if (GUI.Button(new Rect(0, y, 160, 24), "Clear blood overlay")) ClearBlood();
             y += 32f;
 
-            GUI.Label(new Rect(0, y, w, 20), "Hooks: " + _hooks.Status);
-            y += 20f;
-            GUI.Label(new Rect(0, y, w, 20), "Last death: " + _lastDeath);
-            y += 20f;
-            if (_status.Length > 0) GUI.Label(new Rect(0, y, w, 20), _status);
+            y += UiText.Draw(0, y, w, "Hooks: " + _hooks.Status);
+            y += UiText.Draw(0, y, w, "Last death: " + _lastDeath);
+            UiText.Draw(0, y, w, _status);
         }
     }
 }

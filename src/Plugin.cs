@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.22.2";
+        public const string PluginVersion = "0.22.3";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -238,7 +238,8 @@ namespace ForestOverlay
         // own messages (bottom left), and where the eye is while playing.
         private void DrawNotice()
         {
-            const float w = 560f, h = 48f;
+            const float w = 560f;
+            float h = Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, w) + 16f);
             GUI.Box(new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h), _notice.Content, _noticeStyle);
         }
 

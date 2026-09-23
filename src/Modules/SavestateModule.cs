@@ -57,6 +57,7 @@ namespace ForestOverlay.Modules
         private string _dir;
 
         private bool _busy;
+        private float _contentHeight = 520f;
         private string _lastCaptureHash = "";
         private float _busySince;
         private string _name = "savestate";
@@ -625,12 +626,12 @@ namespace ForestOverlay.Modules
         public override void DrawTab(Rect area)
         {
             float w = area.width - 20f;
-            float contentHeight = 520f + 24f * (_fileLabels.Count + _diagLabels.Count);
+            // The height drawn last pass: wrapped text makes it vary.
+            float contentHeight = Mathf.Max(_contentHeight, 200f);
             _scroll = GUI.BeginScrollView(area, _scroll, new Rect(0, 0, w, contentHeight));
 
             float y = 4f;
-            GUI.Label(new Rect(0, y, w, 44), Warning);
-            y += 48f;
+            y += UiText.Draw(0, y, w, Warning) + 4f;
 
             // Capture
             GUI.Label(new Rect(0, y, 50, 22), "Name");
@@ -642,8 +643,7 @@ namespace ForestOverlay.Modules
             y += 32f;
 
             // Saved states
-            GUI.Label(new Rect(0, y, w, 20), _dirLabel);
-            y += 22f;
+            y += UiText.Draw(0, y, w, _dirLabel);
             if (_fileLabels.Count == 0)
             {
                 GUI.Label(new Rect(8, y, w, 20), "none yet");
@@ -668,8 +668,7 @@ namespace ForestOverlay.Modules
             y += 32f;
 
             // The slot the game is running on
-            GUI.Label(new Rect(0, y, w, 20), _slotLabel);
-            y += 22f;
+            y += UiText.Draw(0, y, w, _slotLabel);
             GUI.enabled = !_busy;
             if (GUI.Button(new Rect(0, y, 260, 24), "Reload slot save in place (no load)")) SlotInPlace();
             y += 28f;
@@ -683,15 +682,12 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(130, y, 130, 22), "Check pickups")) CheckPickups();
             y += 28f;
             for (int i = 0; i < _diagLabels.Count; i++)
-            {
-                GUI.Label(new Rect(8, y, w - 8, 22), _diagLabels[i]);
-                y += 24f;
-            }
+                y += UiText.Draw(8, y, w - 8, _diagLabels[i]);
 
             y += 6f;
-            GUI.Label(new Rect(0, y, w, 60), _status);
-            y += 62f;
-            GUI.Label(new Rect(0, y, w, 40), _bindLabel);
+            y += UiText.Draw(0, y, w, _status);
+            y += UiText.Draw(0, y, w, _bindLabel);
+            _contentHeight = y + 8f;
 
             GUI.EndScrollView();
         }

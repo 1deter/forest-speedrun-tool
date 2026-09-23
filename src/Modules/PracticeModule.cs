@@ -70,7 +70,6 @@ namespace ForestOverlay.Modules
         private GUIStyle _rowStyle;
         private GUIStyle _selectedRowStyle;
         private GUIStyle _dimStyle;
-        private GUIStyle _statusStyle;
         private GUIStyle _headerStyle;
 
         // The list is grouped by category with collapsible headers.
@@ -498,14 +497,13 @@ namespace ForestOverlay.Modules
             bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
             if (preview != _showPreview) _showPreview = preview;
 
-            // One line, never wrapped, over the spot panel it is about:
-            // beside the toggle a long message wrapped and both lines were
-            // cut in half (v0.22.0); full width it ran under the list
-            // (v0.22.1). Start-state messages sit under their own buttons.
-            GUI.Label(new Rect(ListWidth + 14, 54, w - ListWidth - 14, 20), _status, _statusStyle);
+            // Over the spot panel it is about, wrapped to that panel and as
+            // tall as it needs (UiText); the editor starts below it.
+            // Start-state messages sit under their own buttons.
+            float statusH = Mathf.Max(22f, UiText.Draw(ListWidth + 14, 54, w - ListWidth - 14, _status));
 
             DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
-            DrawEditor(new Rect(ListWidth + 14, 78, w - ListWidth - 14, _tabH - 82));
+            DrawEditor(new Rect(ListWidth + 14, 56 + statusH, w - ListWidth - 14, _tabH - 60 - statusH));
         }
 
         private void EnsureStyles()
@@ -521,10 +519,6 @@ namespace ForestOverlay.Modules
 
             _dimStyle = new GUIStyle(GUI.skin.label);
             _dimStyle.alignment = TextAnchor.MiddleLeft;
-
-            _statusStyle = new GUIStyle(_dimStyle);
-            _statusStyle.wordWrap = false;
-            _statusStyle.clipping = TextClipping.Clip;
 
             _headerStyle = new GUIStyle(GUI.skin.box);
             _headerStyle.alignment = TextAnchor.MiddleLeft;
@@ -1092,16 +1086,11 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             y += 26f;
 
-            GUI.Label(new Rect(80, y, cw - 90, 20), _startStateLabel, _dimStyle);
-            y += 22f;
+            y += UiText.DrawDim(80, y, cw - 90, _startStateLabel);
 
             // What the buttons above just did, right under them. Cleared on
             // selection change so it never describes another spot.
-            if (_startStatusLabel.text.Length > 0)
-            {
-                GUI.Label(new Rect(80, y, cw - 90, 20), _startStatusLabel, _statusStyle);
-                y += 22f;
-            }
+            y += UiText.Draw(80, y, cw - 90, _startStatusLabel);
 
             bool load = GUI.Toggle(new Rect(80, y, cw - 90, 20), s.StartRestoreWithLoad,
                                    " Restore with a load (slower, the game's full reset)");

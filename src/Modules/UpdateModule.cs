@@ -126,15 +126,16 @@ namespace ForestOverlay.Modules
         {
             float w = _tabW;
 
-            GUI.Label(new Rect(12, 28, w - 24, 20), "Installed: v" + OverlayPlugin.PluginVersion);
-            GUI.Label(new Rect(12, 48, w - 24, 20), "Status: " + _checker.Message);
-            GUI.Label(new Rect(12, 68, w - 24, 20), _autoInstallLabel);
+            float y = 28f;
+            y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
+            y += UiText.Draw(12, y, w - 24, "Status: " + _checker.Message);
+            y += UiText.Draw(12, y, w - 24, _autoInstallLabel) + 6f;
 
             bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable ||
                                _checker.State == UpdateChecker.Status.DownloadRetry;
 
             GUI.enabled = canDownload;
-            if (GUI.Button(new Rect(12, 96, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
+            if (GUI.Button(new Rect(12, y, 190, 26), "Download v" + (_checker.LatestVersion ?? "?")))
             {
                 if (Ctx.Runner != null)
                 {
@@ -145,21 +146,18 @@ namespace ForestOverlay.Modules
             }
             GUI.enabled = true;
 
-            if (GUI.Button(new Rect(210, 96, 130, 26), "Check again"))
+            if (GUI.Button(new Rect(210, y, 130, 26), "Check again"))
             {
                 if (Ctx.Runner != null) Ctx.Runner.StartCoroutine(_checker.Check());
             }
+            y += 34f;
 
             if (_checker.State == UpdateChecker.Status.Staged)
-            {
-                GUI.Label(new Rect(12, 130, w - 24, 40), _checker.Message);
-            }
+                UiText.Draw(12, y, w - 24, _checker.Message);
             else
-            {
-                GUI.Label(new Rect(12, 130, w - 24, 40),
-                          UpdaterInstaller.Installed ? "Downloaded updates install on the next game start."
-                                                     : "Auto-install is unavailable - downloads must be swapped in by hand.");
-            }
+                UiText.Draw(12, y, w - 24,
+                            UpdaterInstaller.Installed ? "Downloaded updates install on the next game start."
+                                                       : "Auto-install is unavailable - downloads must be swapped in by hand.");
 
         }
     }

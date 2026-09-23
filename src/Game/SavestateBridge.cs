@@ -757,12 +757,13 @@ namespace ForestOverlay.Game
         /// UniqueIdentifier id; in place, LoadNow could not find the saved
         /// one and instantiated it beside the live player - two players, two
         /// inventories (author, v0.22.0: a Hard start state in a Creative
-        /// game). Every identifier under the player that the save lacks is
-        /// given the id of the saved object with the same GameObject name,
-        /// prefab class and parent id - shallowest first, so a child
-        /// matches against its parent's NEW id - but only on a unique
-        /// match. Returns null when the player is (now) in the save, or why
-        /// the restore must not go ahead. No identifier = no verdict.
+        /// game). When the player is not in the save, EVERY live identifier
+        /// the save lacks is given the id of the saved object with the same
+        /// GameObject name, prefab class and parent id - shallowest first,
+        /// so a child matches against its parent's NEW id - but only on a
+        /// unique match, and never an id a live object holds. Returns null
+        /// when the player is (now) in the save, or why the restore must
+        /// not go ahead. No identifier = no verdict.
         public string AdoptPlayer(string data, Transform playerRoot, out string note)
         {
             note = null;
@@ -785,34 +786,70 @@ namespace ForestOverlay.Game
         private string AdoptPlayer(HashSet<string> stored, List<SavedObject> saved, Transform playerRoot, out string note)
         {
             note = null;
-            if (playerRoot == null || _uniqueIdType == null || _uidId == null) return null;
+            if (playerRoot == null || _uniqueIdType == null || _uidId == null || _allIdentifiers == null) return null;
 
-            Component[] ids;
-            try { ids = playerRoot.GetComponentsInChildren(_uniqueIdType, true); }
-            catch (Exception) { return null; }
-
-            List<KeyValuePair<int, Component>> order = new List<KeyValuePair<int, Component>>();
-            for (int i = 0; i < ids.Length; i++)
+            // The player's shallowest identifier says whose save this is.
+            Component top = null;
+            int topDepth = int.MaxValue;
+            try
             {
-                if (ids[i] == null) continue;
-                int depth = 0;
-                for (Transform t = ids[i].transform; t != playerRoot && t != null; t = t.parent) depth++;
-                order.Add(new KeyValuePair<int, Component>(depth, ids[i]));
+                Component[] under = playerRoot.GetComponentsInChildren(_uniqueIdType, true);
+                for (int i = 0; i < under.Length; i++)
+                {
+                    if (under[i] == null) continue;
+                    int d = Depth(under[i].transform);
+                    if (d < topDepth) { top = under[i]; topDepth = d; }
+                }
             }
-            if (order.Count == 0) return null;
-            order.Sort(new ByDepth());
+            catch (Exception) { return null; }
+            if (top == null) return null;
 
-            Component top = order[0].Value;
             string topBefore = ReadString(_uidId, top);
             if (string.IsNullOrEmpty(topBefore) || stored.Contains(topBefore)) return null;   // this game's own state
 
+            // Another save. Not only the player carries per-game ids: the
+            // inventory's item views (Spear_Upgraded_Inv, CraftedBomb1...)
+            // sit outside the player and were deleted and rebuilt from the
+            // save as a SECOND inventory (author, v0.22.2). So every live
+            // identifier the save lacks is matched, not just the player's.
+            IList all;
+            try { all = _allIdentifiers.GetValue(null, null) as IList; }
+            catch (Exception) { return null; }
+            if (all == null) return null;
+
+            HashSet<string> live = new HashSet<string>();
+            List<KeyValuePair<int, Component>> order = new List<KeyValuePair<int, Component>>();
+            for (int i = 0; i < all.Count; i++)
+            {
+                Component u = all[i] as Component;
+                if (u == null) continue;
+                string id = ReadString(_uidId, u);
+                if (string.IsNullOrEmpty(id)) continue;
+                live.Add(id);
+                if (!stored.Contains(id)) order.Add(new KeyValuePair<int, Component>(Depth(u.transform), u));
+            }
+            order.Sort(new ByDepth());
+
+            Dictionary<string, List<SavedObject>> byName = new Dictionary<string, List<SavedObject>>();
+            for (int s = 0; s < saved.Count; s++)
+            {
+                SavedObject o = saved[s];
+                if (o.GameObjectName == null || live.Contains(o.Id)) continue;   // never give a live object's id away
+                List<SavedObject> list;
+                if (!byName.TryGetValue(o.GameObjectName, out list)) byName[o.GameObjectName] = list = new List<SavedObject>();
+                list.Add(o);
+            }
+
             HashSet<string> claimed = new HashSet<string>();
-            int remapped = 0, unmatched = 0;
+            int remapped = 0, unmatched = 0, playerUnmatched = 0;
+            List<string> playerMisses = new List<string>();
             for (int i = 0; i < order.Count; i++)
             {
                 Component u = order[i].Value;
-                string id = ReadString(_uidId, u);
-                if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
+                if (u == null) continue;
+
+                List<SavedObject> named;
+                if (!byName.TryGetValue(u.gameObject.name, out named)) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, 0); continue; }
 
                 Transform parent = u.transform.parent;
                 Component parentUid = parent != null ? parent.GetComponent(_uniqueIdType) : null;
@@ -821,19 +858,19 @@ namespace ForestOverlay.Game
 
                 SavedObject match = null;
                 int found = 0;
-                for (int s = 0; s < saved.Count; s++)
+                for (int s = 0; s < named.Count; s++)
                 {
-                    SavedObject o = saved[s];
-                    if (o.GameObjectName != u.gameObject.name || claimed.Contains(o.Id)) continue;
+                    SavedObject o = named[s];
+                    if (claimed.Contains(o.Id)) continue;
                     if (!string.IsNullOrEmpty(o.ClassId) && !string.IsNullOrEmpty(classId) && o.ClassId != classId) continue;
                     if (u != top && (o.ParentId ?? "") != (parentId ?? "")) continue;
                     match = o;
                     found++;
                 }
 
-                if (found != 1) { unmatched++; continue; }
+                if (found != 1) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, found); continue; }
                 try { _uidId.SetValue(u, match.Id, null); }
-                catch (Exception) { unmatched++; continue; }
+                catch (Exception) { Miss(u, top, playerRoot, ref unmatched, ref playerUnmatched, playerMisses, -1); continue; }
                 claimed.Add(match.Id);
                 remapped++;
             }
@@ -846,11 +883,32 @@ namespace ForestOverlay.Game
                 return "its player could not be matched to yours (see the log)";
             }
 
-            note = "adopted the save's player, " + remapped + " id(s) remapped" +
-                   (unmatched > 0 ? ", " + unmatched + " unmatched" : "");
-            _log.LogInfo("Savestate: from another save - " + note + " ('" + top.gameObject.name + "' " +
-                         topBefore + " -> " + topAfter + ").");
+            note = "from another save: " + remapped + " id(s) adopted, " + unmatched + " left (" +
+                   playerUnmatched + " on the player)";
+            StringBuilder sb = new StringBuilder("Savestate: " + note + " ('" + top.gameObject.name + "' " +
+                                                 topBefore + " -> " + topAfter + ")");
+            for (int i = 0; i < playerMisses.Count; i++) sb.Append(i == 0 ? "; player misses: " : ", ").Append(playerMisses[i]);
+            _log.LogInfo(sb.Append('.').ToString());
             return null;
+        }
+
+        // Unmatched objects: counted, and those on the player named - they
+        // are what could still come back doubled.
+        private void Miss(Component u, Component top, Transform playerRoot, ref int unmatched, ref int playerUnmatched,
+                          List<string> names, int candidates)
+        {
+            unmatched++;
+            if (!u.transform.IsChildOf(playerRoot)) return;
+            playerUnmatched++;
+            if (names.Count < 8)
+                names.Add(u.gameObject.name + (candidates > 1 ? " (" + candidates + " candidates)" : candidates == 0 ? " (none)" : ""));
+        }
+
+        private static int Depth(Transform t)
+        {
+            int d = 0;
+            for (Transform p = t.parent; p != null; p = p.parent) d++;
+            return d;
         }
 
         private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names)

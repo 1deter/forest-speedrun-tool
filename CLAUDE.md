@@ -113,6 +113,15 @@ Where things live:
   that clips on narrow widths.
 - **If it can fail invisibly, show why on screen.** A dead toggle, an empty
   search and a timer that never starts were all reported as "nothing happens".
+- **Variable text goes through `Core/UiText.Draw`** — status lines, errors,
+  descriptions, anything whose length is not fixed. It wraps to the width
+  given, takes the height it needs and returns it; the caller adds that to
+  `y`. A fixed `GUI.Label(new Rect(x, y, w, 20), text)` is only for short
+  constant text and virtualised list rows. The author reported clipped text
+  three times in one session (cut in half when wrapping in 20 px, cut off
+  on the right when not, running under the list) — this rule is the fix.
+  A message goes **where the click was** (under its button); with no panel
+  open it goes to `Ctx.Notice` (upper middle, a few seconds).
 
 ### UI
 
@@ -335,7 +344,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.2** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.3** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -457,15 +466,24 @@ place 132–501 ms with `168 -> 168`, with a load ~11 s).
   with attempts asks for a second click and names the count; afterwards the
   Runs tab shows them as "from another route". Log line:
   `Savestate: start state of '<id>' is now <hash> - route <fp>.`
-- **Cross-save restores** (v0.22.2): a Hard state restored in place in
-  another Hard/Normal game should come back with ONE player, logging
-  `Savestate: from another save - adopted the save's player, N id(s)
-  remapped`. Watch for anything under the player that did not match
-  (`unmatched` in that line), and for leftovers in the world. Creative vs
-  survival shows the refusal under the buttons / on screen.
-- **Practice text placement** (v0.22.2): start-state messages on their own
-  line under Capture / Delete / Restart; the general status over the
-  right-hand panel only (v0.22.1 ran it under the spot list).
+- **Cross-save restores** (v0.22.3). v0.22.2 fixed the second player but
+  not the second inventory: the inventory's item views
+  (`Spear_Upgraded_Inv`, `CraftedBomb1`...) sit outside the `player`
+  hierarchy with per-game ids, so they were deleted and the save's set was
+  rebuilt beside the live one (log: 15 remapped, 1 unmatched, 140 deleted).
+  v0.22.3 adopts ids world-wide once the player is foreign. Expect ONE
+  inventory holding the saved items; the log line reads
+  `Savestate: from another save: N id(s) adopted, M left (K on the
+  player)`, naming player misses. Creative vs survival is refused, under
+  the buttons / on screen (confirmed working in v0.22.2 — but the message
+  ran off the right edge; now wraps).
+- **Updates tab**: Check again after a Download says "downloaded - restart
+  to install" instead of offering the same version again (v0.22.3).
+- **Text everywhere** now wraps via `UiText` (Practice, Deaths, Runs,
+  Savestates, Debug views, Updates, the notice) — look for anything still
+  clipped.
+- Practice text placement — **confirmed** (v0.22.2): capture messages sit
+  under the buttons and the saved-state line.
 - Confirmed in v0.22.1: the restore out of a cave sets the surface state
   (`| cave: surface state set`); Go only teleports and Restart restores;
   the cross-save refusal logged as designed. Confirmed in v0.22.0: death
