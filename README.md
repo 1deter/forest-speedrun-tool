@@ -13,7 +13,8 @@ A speedrun and practice tool for **The Forest**, built as a
 - **Per-item inventory** — live counts, pin the items you care about to the HUD
 - **100% tracking** — the unique-item checklist, the nature guide (grouped by
   book page) and the in-game To Do List
-- **Timed practice runs** — splits, ghost deltas against your best, run lines
+- **Timed practice runs** — checkpoints in order, ghost deltas against your
+  best, run lines
 - **Separate endgame splits** — each endgame cutscene (keycard doors, Timmy,
   Megan, red elevator, game end) is its own `event` trigger, splitting on the same frame
   as the LiveSplit autosplitter
@@ -25,6 +26,11 @@ A speedrun and practice tool for **The Forest**, built as a
   game's own load, skipping the title screen (toggles in the **Deaths** tab;
   the first-death capture and the boss fight have their own). The author
   rules this allowed in normal runs.
+- **Load slowdown fix** — every quick-load (or any load that reloads the game
+  over itself) kept the old world's pathfinding in memory, about 120 MB a
+  time, so loads got slower and slower until you went back to the title
+  screen. The overlay runs the cleanup the game skips. Memory only; it can be
+  switched off in the **Savestates** tab.
 
 **Practice only** — writes game state, and flags the session when used:
 
@@ -91,9 +97,12 @@ update installer into `BepInEx/patchers/`.
 ### Updates
 
 The plugin checks for a new release on startup and opens the **Updates** tab
-when there is one. Click **Download**, then restart the game — the update is
-installed before the plugin loads, and the previous version is kept as
-`ForestOverlay.dll.bak`.
+when there is one, with what's new in it ([`CHANGELOG.md`](CHANGELOG.md)).
+Click **Download**, then restart the game — the update is installed before
+the plugin loads, and the previous version is kept as `ForestOverlay.dll.bak`.
+
+Keep the file named `ForestOverlay.dll`: a browser that saves it as
+`ForestOverlay(1).dll` stops updates from installing (a fix is planned).
 
 To roll back, close the game, delete `ForestOverlay.dll` and rename
 `ForestOverlay.dll.bak` to `ForestOverlay.dll`.
