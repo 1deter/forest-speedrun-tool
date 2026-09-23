@@ -23,6 +23,7 @@ namespace ForestOverlay.Data
     //   book = 23:00000100000000000000001
     //   held = 53
     //   panels = 30@120.5,-80.1,33.0;...
+    //   cutscene = megan-transform@12.40
     //   data = <base64>
     //
     // `streaming` says whether streamed content was force-unloaded around
@@ -35,7 +36,9 @@ namespace ForestOverlay.Data
     // lists the item ids in the equipment slots (hands first), re-equipped
     // after an in-place restore; absent before v0.24.1. `panels` lists
     // every cave wooden panel's health as "health@x,y,z" (PickupKey's
-    // format); absent before v0.24.2.
+    // format); absent before v0.24.2. `cutscene` names the endgame
+    // cutscene running at capture (a GameEvents event) and how far into it
+    // (game seconds from the cutscene flag's rising edge); absent when none.
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -69,6 +72,11 @@ namespace ForestOverlay.Data
         /// Null when the file has no panels line (before v0.24.2).
         public List<string> Panels;
 
+        /// The cutscene running at capture, "" for none; CutsceneAt is how
+        /// far into it, in game seconds (-1 for none).
+        public string Cutscene = "";
+        public float CutsceneAt = -1f;
+
         public string Data = "";
 
         public string Write()
@@ -92,6 +100,8 @@ namespace ForestOverlay.Data
                 Line(sb, "held", string.Join(",", ids));
             }
             if (Panels != null) Line(sb, "panels", string.Join(";", Panels.ToArray()));
+            if (Cutscene.Length > 0 && CutsceneAt >= 0f)
+                Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -139,6 +149,17 @@ namespace ForestOverlay.Data
                             break;
                         }
                     case "book": s.Book = value; break;
+                    case "cutscene":
+                        {
+                            int at = value.LastIndexOf('@');
+                            float t;
+                            if (at > 0 && TryF(value.Substring(at + 1), out t) && t >= 0f)
+                            {
+                                s.Cutscene = value.Substring(0, at).Trim();
+                                s.CutsceneAt = t;
+                            }
+                            break;
+                        }
                     case "panels":
                         {
                             s.Panels = new List<string>();

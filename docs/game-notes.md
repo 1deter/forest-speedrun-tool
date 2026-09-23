@@ -122,6 +122,13 @@ Written from 22 places. The one that beats an external write every frame is
 
 Do not try to freeze the game with `timeScale`.
 
+**Correction (IL, v0.24.3):** `InventoryItemView.Update` writes
+`timeScale = 1` only when an item is **equipped from the open inventory**
+(`BubbleUpInventoryView`, unless `_preventClosingInventoryAfterEquip`), not
+every frame. With the inventory closed nothing re-asserts it, so the
+savestate cutscene fast-forward (`SavestateModule.FastForwardCutscene`)
+can drive it; the ESC menu's 0 is left alone.
+
 ---
 
 ## Inventory
@@ -392,6 +399,24 @@ unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
 `IsBusy` is false and the left slot unlocked, the capture writes the held
 ids to the file (`held = ...`), and 0.3 s after the restore
 `SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
+
+## Savestates during an endgame cutscene (v0.24.3)
+
+The endgame cutscenes are coroutines on the player's action scripts
+(`PlayerGirlTransformAction.doGirlTransformRoutine` for Megan's
+transformation: `Invoke`-free, yields on animator states of the player and
+Megan, sets positions from its `mark`), and none of it is in the save.
+Runner maks: a savestate taken during Megan's transformation restores
+(either way) to the cutscene's **start**. `GameEvents` now keeps which
+cutscene runs (`CutsceneRunning`, from the routine postfix that armed the
+`endGameCutScene` rising edge), when it began (`Time.time`) and a start
+counter; a capture during one writes `cutscene = <event>@<game s>`.
+After a restore, the next start of the same cutscene (within 20 s) is run
+at `timeScale` up to 6, easing to 1 as it reaches the captured time. It
+replays the game's own script, so it lands in the same state every time
+(within a frame). **Unconfirmed:** that the cutscene does start again
+after a restore (the log says so if not), and that 6x keeps root-motion
+positions identical.
 
 ## Cave wooden panels (IL, v0.24.2)
 

@@ -102,6 +102,26 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SavestateHeaderCarriesCutscene()
+        {
+            SavestateFile s = new SavestateFile();
+            s.Cutscene = "megan-transform";
+            s.CutsceneAt = 12.4f;
+            s.Data = "abc";
+
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal("megan-transform", back.Cutscene);
+            Assert.Equal(12.4f, back.CutsceneAt, 2);
+
+            // Not during a cutscene: no line, and it reads back as none.
+            back = SavestateFile.Parse(new SavestateFile { Data = "abc" }.Write(), out error);
+            Assert.Equal("", back.Cutscene);
+            Assert.Equal(-1f, back.CutsceneAt);
+        }
+
+        [Fact]
         public void OlderSavestateHasNoBook()
         {
             string error;

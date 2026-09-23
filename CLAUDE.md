@@ -419,8 +419,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.2** (2026-09-24). The author runs it via the in-game
-updater. **223 tests.**
+**Released: v0.24.3** (2026-09-24). The author runs it via the in-game
+updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
 
@@ -622,6 +622,13 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **Megan cutscene savestate** (v0.24.3): capture ~2 s before the end of
+  Megan's transformation, restore both ways. Capture line: `during
+  cutscene 'megan-transform' at x s`; after the restore: `cutscene
+  'megan-transform' fast-forwarded to x s (captured at x s) in y s real
+  time`, or why not (`no cutscene began within 20 s` - then the cutscene
+  does not restart after a restore and the approach needs rethinking).
+  Maks: same stand-up spot every time?
 - **Cave panels kept by savestates** (v0.24.2): capture in a cave, axe
   clip a panel a few times (or break it), restore in place - the line
   says `panels: 1 healed` (or `1 rebuilt`) and the panel is whole.
@@ -771,7 +778,10 @@ list so we can move onto expanding more features".
      it was lit). The harmless **"CANNOT CARRY ANY MORE LIGHTERS"**
      message (author) is probably the same path - `LogControler` has
      `_lighterItemId` and an `OnDeserialized` routine; check its IL too.
-   - **A savestate taken during the Megan cutscene** *(runner maks)*:
+   - ~~**A savestate taken during the Megan cutscene**~~ **done**
+     (v0.24.3, awaiting a check; game-notes *Savestates during an endgame
+     cutscene*: the capture notes the cutscene and game seconds into it,
+     the restore fast-forwards its replay there) *(runner maks)*:
      capturing while Megan transforms into the boss and restoring (in
      place or with a load) starts the cutscene over from its beginning;
      cutscene progress is outside the serializer. Maks practises the boss

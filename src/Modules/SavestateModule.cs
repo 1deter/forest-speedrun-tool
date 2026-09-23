@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -320,19 +321,25 @@ namespace ForestOverlay.Modules
             string bookNote;
             string book = _book.Capture(out bookNote);
             List<int> held = _bridge.HeldIds();
+
+            // Captured during an endgame cutscene: note which and how far in,
+            // so a restore can fast-forward the replay to this moment.
+            string cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
+            float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
             List<string> panels = new List<string>();
             try { _panels.Snapshot(panels); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel snapshot failed: " + ex.Message); }
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
-                                  string book, string bookNote, List<int> held, List<string> panels)
+                                  string book, string bookNote, List<int> held, List<string> panels,
+                                  string cutscene, float cutsceneAt)
         {
             _busy = false;
             if (!r.Ok)
@@ -357,6 +364,7 @@ namespace ForestOverlay.Modules
                 f.Book = book;
                 f.Held = held;
                 f.Panels = panels;
+                if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
                 f.Data = r.Data;
 
                 if (path == null)
@@ -371,7 +379,8 @@ namespace ForestOverlay.Modules
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
                               ", " + pickups.Count + " world pickups listed, " + bookNote +
                               ", held " + HeldNames(held) +
-                              (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "");
+                              (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
+                              (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
 
@@ -454,6 +463,7 @@ namespace ForestOverlay.Modules
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
+            int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
             Ctx.Practice.Mark("savestate restore (in place)");
             PickupKeeper.Armed = true;
             SetStatus("restoring " + what + " in place...");
@@ -508,6 +518,9 @@ namespace ForestOverlay.Modules
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
                 // and unlit). Its own log line, a moment later.
+                if (r.Ok && file != null && file.CutsceneAt >= 0f)
+                    Ctx.Runner.StartCoroutine(FastForwardCutscene(file, cutsceneStarts, what));
+
                 if (r.Ok && file != null && file.Held != null && file.Held.Count > 0)
                     Ctx.Runner.StartCoroutine(_bridge.ReEquip(file.Held, NameOfItem,
                         delegate(string note) { Ctx.Log.LogInfo("Savestate restore " + what + ": " + note + "."); }));
@@ -531,6 +544,68 @@ namespace ForestOverlay.Modules
             }));
         }
 
+        // A savestate taken during an endgame cutscene restores to its start:
+        // the cutscene is a coroutine and animator states the serializer
+        // does not keep, and the game starts it over (runner maks, Megan's
+        // transformation - he wants the last seconds kept as the reference
+        // for the boss kill, "always same variables"). So once the same
+        // cutscene begins again, replay it faster to the captured moment:
+        // the game's own script, only sooner, identical every time.
+        // timeScale is safe here: InventoryItemView.Update writes it only
+        // when an item is equipped from the open inventory (game-notes
+        // *timeScale*). Near the mark it slows so it lands on it.
+        private const float CutsceneSpeed = 6f;
+        private const float CutsceneWait = 20f;
+
+        private IEnumerator FastForwardCutscene(SavestateFile f, int startsBefore, string what)
+        {
+            GameEvents ev = Ctx.Events;
+            if (ev == null) yield break;
+
+            float waitStart = Time.realtimeSinceStartup;
+            while (ev.CutsceneStarts <= startsBefore)
+            {
+                if (Time.realtimeSinceStartup - waitStart > CutsceneWait)
+                {
+                    Ctx.Log.LogInfo("Savestate " + what + ": captured " + f.CutsceneAt.ToString("0.0") + " s into cutscene '" +
+                                    f.Cutscene + "', but no cutscene began within " + CutsceneWait + " s of the restore - nothing fast-forwarded.");
+                    yield break;
+                }
+                yield return null;
+            }
+
+            string running = ev.CutsceneRunning;
+            if (running != null && running != f.Cutscene && running != GameEvents.AnyCutscene && f.Cutscene != GameEvents.AnyCutscene)
+            {
+                Ctx.Log.LogInfo("Savestate " + what + ": cutscene '" + running + "' began, not the captured '" + f.Cutscene +
+                                "' - left at normal speed.");
+                yield break;
+            }
+
+            float realStart = Time.realtimeSinceStartup;
+            while (ev.CutsceneRunning != null)
+            {
+                float remaining = f.CutsceneAt - (Time.time - ev.CutsceneStartedAt);
+                if (remaining <= 0f) break;
+
+                // Paused (the ESC menu sets 0) stays paused.
+                if (Time.timeScale > 0f)
+                {
+                    float dt = Time.unscaledDeltaTime > 0.0001f ? Time.unscaledDeltaTime : 0.016f;
+                    Time.timeScale = Mathf.Clamp(remaining / dt, 1f, CutsceneSpeed);
+                }
+                yield return null;
+            }
+            if (Time.timeScale > 0f) Time.timeScale = 1f;
+
+            float reached = ev.CutsceneRunning != null ? Time.time - ev.CutsceneStartedAt : -1f;
+            Ctx.Log.LogInfo("Savestate " + what + ": cutscene '" + (running ?? f.Cutscene) + "' " +
+                            (reached >= 0f
+                                ? "fast-forwarded to " + reached.ToString("0.00") + " s (captured at " + f.CutsceneAt.ToString("0.00") + " s)"
+                                : "ended before the captured " + f.CutsceneAt.ToString("0.00") + " s") +
+                            " in " + (Time.realtimeSinceStartup - realStart).ToString("0.0") + " s real time.");
+        }
+
         private string NameOfItem(int id)
         {
             string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
@@ -550,6 +625,7 @@ namespace ForestOverlay.Modules
         /// (author: a savestate keeps its page) and panel health.
         private Action<string> AfterLoad(SavestateFile f, Action<string> after)
         {
+            int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
             return delegate(string error)
             {
                 if (error == null)
@@ -559,6 +635,8 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
                                     (panels.Length > 0 ? " | " + panels : "") + ".");
+                    if (f.CutsceneAt >= 0f)
+                        Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
                 }
                 if (after != null) after(error);
             };

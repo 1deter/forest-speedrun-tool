@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.3 - 2026-09-24
+
+- A savestate captured during an endgame cutscene (like Megan's
+  transformation) now comes back at the moment you captured it: the
+  cutscene still starts over, but plays fast until it reaches that
+  moment, then runs at normal speed. Capture a couple of seconds before
+  it ends to keep its last seconds as your reference.
+
 ## v0.24.2 - 2026-09-24
 
 - The wooden panels in caves come back as they were when you captured the

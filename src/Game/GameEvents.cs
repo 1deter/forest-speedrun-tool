@@ -159,6 +159,14 @@ namespace ForestOverlay.Game
 
         public int Installed { get; private set; }
 
+        /// The endgame cutscene running now - its event, or AnyCutscene when
+        /// no known routine started it - or null. With when it began
+        /// (Time.time: the cutscene runs in game time) and how many have
+        /// begun this session, for savestates taken during one.
+        public string CutsceneRunning { get; private set; }
+        public float CutsceneStartedAt { get; private set; }
+        public int CutsceneStarts { get; private set; }
+
         public GameEvents(ManualLogSource log)
         {
             _log = log;
@@ -334,11 +342,17 @@ namespace ForestOverlay.Game
 
             bool rising = flag && !_lastFlag;
             _lastFlag = flag;
+            if (!flag) CutsceneRunning = null;
             if (!rising) return;
+
+            bool known = _pendingEvent != null && Time.unscaledTime - _pendingAt <= PendingTimeout;
+            CutsceneRunning = known ? _pendingEvent : AnyCutscene;
+            CutsceneStartedAt = Time.time;
+            CutsceneStarts++;
 
             Record(AnyCutscene, null);
 
-            if (_pendingEvent != null && Time.unscaledTime - _pendingAt <= PendingTimeout)
+            if (known)
                 Fire(_pendingEvent, _pendingDetail, _pendingKeycard);
             else
                 _log.LogInfo("Game event: endgame cutscene with no known routine pending.");
