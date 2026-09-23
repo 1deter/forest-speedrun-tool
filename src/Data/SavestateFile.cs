@@ -22,6 +22,7 @@ namespace ForestOverlay.Data
     //   pickups = 210@1283.2,-70.2,615.0;...
     //   book = 23:00000100000000000000001
     //   held = 53
+    //   panels = 30@120.5,-80.1,33.0;...
     //   data = <base64>
     //
     // `streaming` says whether streamed content was force-unloaded around
@@ -32,7 +33,9 @@ namespace ForestOverlay.Data
     // taken since. `book` is the survival book's open page (BookPageState);
     // absent before v0.24.0, and then the page is left as it is. `held`
     // lists the item ids in the equipment slots (hands first), re-equipped
-    // after an in-place restore; absent before v0.24.1.
+    // after an in-place restore; absent before v0.24.1. `panels` lists
+    // every cave wooden panel's health as "health@x,y,z" (PickupKey's
+    // format); absent before v0.24.2.
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -63,6 +66,9 @@ namespace ForestOverlay.Data
         /// Null when the file has no held line (before v0.24.1).
         public List<int> Held;
 
+        /// Null when the file has no panels line (before v0.24.2).
+        public List<string> Panels;
+
         public string Data = "";
 
         public string Write()
@@ -85,6 +91,7 @@ namespace ForestOverlay.Data
                 for (int i = 0; i < Held.Count; i++) ids[i] = Held[i].ToString(CultureInfo.InvariantCulture);
                 Line(sb, "held", string.Join(",", ids));
             }
+            if (Panels != null) Line(sb, "panels", string.Join(";", Panels.ToArray()));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -132,6 +139,13 @@ namespace ForestOverlay.Data
                             break;
                         }
                     case "book": s.Book = value; break;
+                    case "panels":
+                        {
+                            s.Panels = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.Panels.Add(keys[k].Trim());
+                            break;
+                        }
                     case "held":
                         {
                             s.Held = new List<int>();

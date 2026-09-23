@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.2 - 2026-09-24
+
+- The wooden panels in caves come back as they were when you captured the
+  savestate: axe clips no longer wear them down over restores, and a panel
+  you broke is put back by an in-place restore. Savestates captured before
+  this version do not know the panels; capture them again.
+
 ## v0.24.1 - 2026-09-23
 
 - Restoring a savestate in place puts back what you were holding when you

@@ -393,6 +393,27 @@ unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
 ids to the file (`held = ...`), and 0.3 s after the restore
 `SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
 
+## Cave wooden panels (IL, v0.24.2)
+
+A panel is `BreakWoodSimple`: `int Health`; `Hit(damage)` subtracts and at
+`<= 0` calls `CutDown` (in multiplayer it sends `BreakPlank` with the
+panel's index instead). `CutDown` plays `breakEvent` once, activates the
+three pieces `Cut1..3`, unparents them, pushes each with a random force of
+30-100 per axis, and **Destroys the panel**. `Explosion()` is
+`Hit(Health)`. Every panel is in the scene-authored array
+`CoopWoodPlanks.Instance.Planks` (`Awake` only sets `Instance`; multiplayer
+syncs broken ones through `CoopWeatherProxy.BreakableWallsChanged`, a
+`CutDown` per index). An in-place restore leaves `Health` alone (runner
+maks: axe clips wore a panel down over restores until it broke), and a
+destroyed scene object cannot come back through the serializer.
+`Game/PanelKeeper`: the capture writes every live panel's health by
+position (`panels` header); while armed a prefix on `CutDown` copies the
+intact panel under an inactive holder (so the copy does not wake) before
+the game breaks it; an in-place restore sets the health back and moves a
+kept copy into place (and into `Planks`), deleting the flying pieces. A
+load restore only sets health. Whether panels carry a `UniqueIdentifier`
+is unknown. Not yet confirmed in game.
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

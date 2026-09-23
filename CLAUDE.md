@@ -95,7 +95,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/BookPages` + `Data/BookPageState` (book page), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/BookPages` + `Data/BookPageState` (book page), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -419,8 +419,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.1** (2026-09-23). The author runs it via the in-game
-updater. **222 tests.**
+**Released: v0.24.2** (2026-09-24). The author runs it via the in-game
+updater. **223 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
 
@@ -622,6 +622,10 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **Cave panels kept by savestates** (v0.24.2): capture in a cave, axe
+  clip a panel a few times (or break it), restore in place - the line
+  says `panels: 1 healed` (or `1 rebuilt`) and the panel is whole.
+  `PanelKeeper: hooked.` at startup.
 - **The lighter kept by in-place restores** (v0.24.1): capture with the
   lighter out and lit, restore in place. Capture line: `held Lighter`;
   restore: `held at capture: Lighter (held)` or `(re-equipped)`, and no
@@ -742,7 +746,7 @@ list so we can move onto expanding more features".
      (game-notes *The open page*): `Game/BookPages` captures it into the
      file's `book` header (`Data/BookPageState`, tested; not part of the
      start-state hash) and applies it after an in-place restore and once in
-     game after a load (`WithBook`). Log: `..., book: showing 'x' (of n)`
+     game after a load (`AfterLoad`). Log: `..., book: showing 'x' (of n)`
      on capture; `| book: showing 'x' (of n) (k page object(s) switched)`
      on an in-place restore; `Savestate after the load: book: ...`.
      Files from before v0.24.0 leave the book as it is.
@@ -781,12 +785,16 @@ list so we can move onto expanding more features".
      gotcha 1 - or the animators' speed) and return to normal speed a few
      seconds early. Replaying the game's own script keeps it identical
      every time; resuming a coroutine mid-way is not possible.
-   - **Cave panels keep their damage** *(runner maks)*: the wooden panels
-     in caves lose health with every axe clip and eventually break. An
-     in-place restore does not put their health back ("it breaks when you
-     try without the restore"); unknown whether a load restore does. Find
-     the panel's health component (IL) and restore it like
-     `PickupKeeper`.
+   - ~~**Cave panels keep their damage**~~ **done** (v0.24.2, awaiting a
+     check; game-notes *Cave wooden panels*) *(runner maks)*: the wooden
+     panels in caves (`BreakWoodSimple.Health`) lose health with every axe
+     clip and eventually break; an in-place restore did not put it back.
+     `Game/PanelKeeper` writes every panel's health to the `panels`
+     header, sets it back after both restores, and (armed, in place) keeps
+     a copy of a panel before it breaks and puts it back. Log: `..., n
+     cave panels` on capture; `| panels: n healed, m rebuilt[, k broken
+     and not kept]` on the restore line; `PanelKeeper: panel <pos> broke;
+     kept for a restore`.
    - **Sharing**: nothing bundles a segment file with its `.fosave` yet.
    - Optional *(runner)*: time of day restored without cycling through the
      night; a **stats-only start state** (thirst, hunger, stamina, energy -

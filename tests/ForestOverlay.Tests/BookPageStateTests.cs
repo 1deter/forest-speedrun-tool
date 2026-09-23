@@ -85,6 +85,23 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SavestateHeaderCarriesPanels()
+        {
+            SavestateFile s = new SavestateFile();
+            s.Panels = new System.Collections.Generic.List<string>
+            {
+                SavestateFile.PickupKey(30, 120.5f, -80.1f, 33f),
+                SavestateFile.PickupKey(4, 1f, 2f, 3f)
+            };
+            s.Data = "abc";
+
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(new[] { "30@120.5,-80.1,33.0", "4@1.0,2.0,3.0" }, back.Panels);
+        }
+
+        [Fact]
         public void OlderSavestateHasNoBook()
         {
             string error;
@@ -92,6 +109,7 @@ namespace ForestOverlay.Tests
             Assert.Null(error);
             Assert.Equal("", back.Book);
             Assert.Null(back.Held);
+            Assert.Null(back.Panels);
         }
     }
 }
