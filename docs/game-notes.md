@@ -137,7 +137,10 @@ Do not try to freeze the game with `timeScale`.
 
 `InventoryItem`: `_itemId`, `_amount`, `_maxAmount`, `_maxAmountBonus`.
 
-`ItemDatabase`: static `_instance`, `Items` (`Item[]`), `ItemById(int)`.
+`ItemDatabase`: static `_instance`, `Items` (`Item[]`), **static**
+`ItemById(int)` (reads `_instance._itemsCache`; throws on an unknown id).
+Bound as an instance method it is never found — the Inventory tab showed
+`item <id>` for every entry until v0.19.4.
 `Item`: `_id`, `_name` (internal PascalCase, e.g. `SketchArtifact`).
 
 **Do not cache the inventory component** — it goes stale across a save load and
@@ -233,23 +236,6 @@ entry point — `openDoorRoutine` was sent by name from a second place.
 
 Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
 `FireDetected`, `Shutdown2ndArtifact`.
-
----|---|
-| Finding Timmy | `PlayerPickupTimmyAction` (`lockPlayerParams`, `pickupTimmyRoutine`) |
-| Goodbye Timmy | `PlayerGoodbyeTimmyAction.goodbyeTimmyRoutine` |
-| Approaching Megan | `PlayerGirlPickupAction.girlToMachineRoutine` |
-| Megan into artifact | `PlayerGirlTransformAction.doGirlTransformRoutine` |
-| Keycard door | `playerOpenKeypadDoorAction.lockPlayerParams` |
-| Game end | `PlayerEndCrashAction.doEndPlaneCrashRoutine` / `doShutDownRoutine` |
-| Raft / out of world | `RaftPush.outOfWorldRoutine` |
-
-**The shared flag carries no identity; the call site does.** This is the
-clearest case of something a plugin can do that an external autosplitter
-cannot.
-
-Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
-`FireDetected`, `Shutdown2ndArtifact`. Still unmapped: Vault Door and the Red
-Elevator — `ElevatorManager` / `ElevatorGlobalState` are where to look.
 
 ---
 

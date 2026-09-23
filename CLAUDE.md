@@ -314,7 +314,7 @@ identity.
 
 ## Current status
 
-**Released: v0.19.3** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.19.4** (2026-09-23). The author runs it via the in-game updater.
 **148 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -347,9 +347,10 @@ updates, offline IL scanner.
   autosplitter**; the Harmony postfix only says which cutscene it was.
 - **Deaths** (Deaths tab): practice mode on + a current spot → **revive** at
   the spot on every death, capture included (health 100, blood cleared, no
-  reload, marks practice). Otherwise **quick-load** (toggle, on) — every death,
-  incl. the boss-fight wake-up; the first-death capture has its own toggle
-  (on: no current route uses the capture). Never permadeath or multiplayer.
+  reload, marks practice). Otherwise **quick-load** (toggle, on) — every death.
+  The first-death capture and the boss-fight wake-up each have their own
+  toggle, both on (no current route uses the capture; the boss toggle is the
+  author's call, 2026-09-23). Never permadeath or multiplayer.
   The author rules quick-load **allowed in normal runs**: it loads through
   the title screen's own path, so the game loaded is identical.
 - **Runs** record position at 30 Hz and ~60 named player-state channels at
@@ -360,20 +361,16 @@ updates, offline IL scanner.
 
 ### Confirmed in game vs awaiting a check
 
-Confirmed by the author: game-input block and freecam hold (v0.17.0), every
-endgame split incl. vault / gold door / red elevator (v0.18.x), quick-load
-and practice revive (v0.19.2), the self-updater end to end.
+Confirmed by the author: game-input block and freecam hold (v0.17.0), pitch
+kept across teleport / window close (v0.17.1), every endgame split incl.
+vault / gold door / red elevator (v0.18.x), quick-load and practice revive
+(v0.19.2), cave teleport both ways — lit, loaded, standable (v0.19.1, confirmed
+2026-09-23), the self-updater end to end.
 
 **Awaiting an in-game check** — ask before building on these:
-- **Pitch after teleport / window close** (v0.17.1). The camera rotator keeps
-  pitch only in its angles and our rebase used to zero them; fixed per
-  game-notes *Camera*. The author reported the bug ("pitch always snaps
-  straight") but has not confirmed the fix.
-- **Cave teleport** (v0.19.1). Asked, no answer yet. The log line to look for
-  is `Teleport to '<spot>': entered cave.` (v0.19.3+).
-- **Boss-fight death quick-loads** instead of the game's wake-up in the boss
-  room. Offered the author a choice; no answer yet. Easy to exclude in
-  `DeathModule.Decide` (`DeathKind.BossWake`).
+- **Inventory tab item names** (v0.19.4). Every entry read `item <id>`
+  because `ItemById` is static; names now come from the catalogue.
+- **Boss-fight quick-load toggle** (v0.19.4), Deaths tab.
 - `end-shutdown`, `timmy-goodbye`, `raft-out-of-world` never seen in a log.
 
 ### Open threads
@@ -387,6 +384,9 @@ and practice revive (v0.19.2), the self-updater end to end.
   allocation ~10% of heap growth, GC 0–1 per 30 s in play; the big frames are
   loads and game streaming. Nothing to fix. A GC every ~7.5 s was seen once
   with cheats on (`developermodeon`, `speedyrun`) — not reproduced since.
+- **Background performance (maks).** Possible slowdown just from having the
+  tool loaded, no panel open. Waiting on maks's `LogOutput.log` and
+  follow-up; as above, read its `Perf (30 s):` and `Slow tick:` lines first.
 - **Nature guide page names are unverified.** Pages are derived from the tick
   marks' hierarchy (`Data/PageGrouping.cs`) and named after the page
   GameObjects, which may read as "Page 3" rather than "Birds". The runner who
@@ -413,18 +413,44 @@ checked with the author.
    - some segments need game state *preserved* across a restart instead —
      make it a per-segment choice. *(runner)*
 
-   **Start with research, not code** — the author was asked and has not yet
-   answered; propose a plan from ILScan findings first. Known starting
+   **Author's answers (2026-09-23):**
+   - Speed is not the top priority, but runners would prefer a **no-load**
+     savestate. If that is too much work, a normal load is fine.
+   - Save slots: ideally a savestate needs no slot of its own. If that is too
+     hacky, use a slot, but **ask before overwriting one** or make sure the
+     runner has a free slot.
+   - Respawning used items and resetting built structures are **equally
+     important**. AI positions/state would be great but are not required.
+
+   **Start with research, not code** — propose a plan from ILScan findings
+   first, including whether a no-load restore is feasible at all. Known starting
    points: the title-screen load path and `LoadSave.ShouldLoad`
    (game-notes *Deaths*), `LoadSave.Activation`, `PlayerStats.JustSave`
    (calls `Input.SetState`), `LevelSerializer` (progress callback on
    `LoadSave`), `GameSetup.Slot`. Quick-load already proves a save can be
    reloaded through the menu path from in game.
-2. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+2. **The game's load memory leak.** Each save loaded without restarting the
+   game makes it worse: stutters and lower performance, loading certainly,
+   gameplay probably (runner Cheesecake404: "loading definitely"; gameplay
+   is a guess). Runners reset constantly, and quick-load and savestates both
+   load more, so this compounds with item 1. Measure first: log one line per
+   load (load count, Mono heap, `Resources.FindObjectsOfTypeAll(Object)`
+   count once, load time) so a real session shows what grows. Suspects to
+   check with ILScan: objects that survive the scene change, static
+   `EventRegistry` subscriptions from destroyed objects, whether
+   `Resources.UnloadUnusedAssets` runs on load.
+3. **Freecam keeps the game's lighting.** With freecam on the game goes
+   darker, "like cave state while in the overworld". Freecam is a new
+   `Camera` from `CopyFrom`, which copies camera settings but **not** the
+   image-effect components on the game's camera (tonemapping, scattering,
+   colour grading…) — likely the cause; not yet checked. Fix candidate: move
+   the game's own camera instead of a copy, or copy its effect components.
+   Dump the main camera's components first.
+4. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
    LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
    author's autosplitter is the reference for what runners split on — see
    memory `autosplitter-repo` (github.com/1deter/auto-splitters).
-3. **forest.deter.cloud — shared runs and a web viewer.** Local-first,
+5. **forest.deter.cloud — shared runs and a web viewer.** Local-first,
    export always; the cloud holds players' best runs so they can be compared
    without clogging the GitHub repo. *(runner)*
    - Already true locally: runs are segment-based (a start → end "stage" such
@@ -437,8 +463,8 @@ checked with the author.
    - 3D terrain is tractable above ground (Unity `Terrain` heightmap); caves
      are mesh geometry under the terrain, so a full map needs a visit pass
      plus a "dump loaded geometry" button. Wants a scrub bar and annotations.
-4. **TAS** — exploratory only. Builds on savestates and the recorder.
-5. Runs tab layout (deferred; it still builds strings in `DrawTab`, against
+6. **TAS** — exploratory only. Builds on savestates and the recorder.
+7. Runs tab layout (deferred; it still builds strings in `DrawTab`, against
    the module rules), Timmy-drawing sub-pieces
    (`DrawingsInventoryItemView._ids`), freeform zone shapes.
 

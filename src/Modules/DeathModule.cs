@@ -14,10 +14,11 @@ namespace ForestOverlay.Modules
     //      Every death, the capture included. Health and blood reset, no
     //      reload, then teleported back. Writes state -> practice marker.
     //   2. Otherwise, quick-load on (default)   -> QUICK-LOAD the save.
-    //      Every death, the boss-fight wake-up included. The capture (first
-    //      death) has its own toggle, on by default - no current route
-    //      relies on being captured (author's call), but a future one
-    //      might. The author rules quick-load allowed in normal runs: it
+    //      Every death. The capture (first death) and the boss-fight
+    //      wake-up each have their own toggle, both on by default - no
+    //      current route relies on being captured (author's call), but a
+    //      future one might; the boss toggle was the author's request
+    //      (2026-09-23) so the game's own wake-up can be kept. The author rules quick-load allowed in normal runs: it
     //      skips the death animation and the menu but loads through the
     //      title screen's own path, so the loaded game is identical.
     //   3. Otherwise                            -> the game's own death.
@@ -45,6 +46,7 @@ namespace ForestOverlay.Modules
         private DeathHooks _hooks;
         private ConfigEntry<bool> _quickLoadCfg;
         private ConfigEntry<bool> _quickLoadCaptureCfg;
+        private ConfigEntry<bool> _quickLoadBossCfg;
 
         private PracticeModule _practice;
         private PracticeRunModule _runs;
@@ -79,6 +81,10 @@ namespace ForestOverlay.Modules
                 "Quick-load also on the first death, which the game otherwise turns into the capture " +
                 "(waking up in a cave). Off keeps the capture.");
 
+            _quickLoadBossCfg = Ctx.Config.Bind("Deaths", "QuickLoadInBossFight", true,
+                "Quick-load also on a death in the endgame boss fight, which the game otherwise turns into " +
+                "waking up in the boss room. Off keeps the game's wake-up.");
+
             _practice = Host.Find<PracticeModule>();
             _runs = Host.Find<PracticeRunModule>();
 
@@ -110,7 +116,8 @@ namespace ForestOverlay.Modules
             if (ReviveApplies()) return DeathAction.Revive;
 
             if (_quickLoadCfg.Value && kind != DeathKind.PermaDeath &&
-                (kind != DeathKind.Capture || _quickLoadCaptureCfg.Value))
+                (kind != DeathKind.Capture || _quickLoadCaptureCfg.Value) &&
+                (kind != DeathKind.BossWake || _quickLoadBossCfg.Value))
             {
                 // Read the slot now, while the game that owns it is alive.
                 _quickLoadSlot = ReadSlot();
@@ -251,6 +258,11 @@ namespace ForestOverlay.Modules
                 bool cap = GUI.Toggle(new Rect(20, y, w - 20, 22), _quickLoadCaptureCfg.Value,
                                       " Also on the first death (instead of being captured)");
                 if (cap != _quickLoadCaptureCfg.Value) _quickLoadCaptureCfg.Value = cap;
+                y += 26f;
+
+                bool boss = GUI.Toggle(new Rect(20, y, w - 20, 22), _quickLoadBossCfg.Value,
+                                       " Also in the boss fight (instead of waking up in the boss room)");
+                if (boss != _quickLoadBossCfg.Value) _quickLoadBossCfg.Value = boss;
                 y += 26f;
             }
 

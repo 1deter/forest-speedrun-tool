@@ -473,8 +473,20 @@ namespace ForestOverlay.Game
             string cached;
             if (_nameCache.TryGetValue(id, out cached)) return cached;
 
-            string name = ResolveName(id);
-            if (string.IsNullOrEmpty(name)) name = "item " + id;
+            // The catalogue first: it is built from ItemDatabase.Items and
+            // is the lookup the search already proves. ItemById is a
+            // *static* method (IL), which the instance-only binding below
+            // never found - so every held item read "item <id>" until
+            // v0.19.4.
+            string name = NameForId(id);
+            if (string.IsNullOrEmpty(name)) name = ResolveName(id);
+            if (string.IsNullOrEmpty(name))
+            {
+                // Not cached until the catalogue exists, or an item read
+                // before the database loaded would stay nameless for good.
+                if (!_catalogBuilt) return "item " + id;
+                name = "item " + id;
+            }
 
             _nameCache[id] = name;
             return name;
@@ -515,7 +527,7 @@ namespace ForestOverlay.Game
             if (_itemDatabase == null) return;
 
             _itemByIdMethod = _itemDatabase.GetType().GetMethod("ItemById",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             _log.LogInfo("ItemDatabase resolved. ItemById:" + (_itemByIdMethod != null));
         }
