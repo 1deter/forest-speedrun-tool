@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.4** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.5** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -622,6 +622,10 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **Enemies respawn after an in-place restore** (v0.24.5): kill a few,
+  restore in place - they are back (elsewhere is expected). Also check
+  nothing doubles up and caves still spawn. `Savestates bound. ...
+  enemies:True`.
 - **Lab / hellcave area report** (v0.24.4): the runner's red-elevator case -
   capture in the lab, trigger the overlook, restore both ways; read the
   `Savestate areas ...` lines (Next up 3).
@@ -777,10 +781,16 @@ list so we can move onto expanding more features".
      GameObjects / colliders at capture and after (F11 or a new report).
      Note: capture is refused inside the overlook area (the game's own
      save rule, `SavestateBridge`).
-   - **In-place restore does not revive killed enemies** (author). Enemies
-     are spawned and pooled by the game's spawn managers, most likely outside
-     `UniqueIdentifier`. Find from IL what owns a live enemy and what a
-     scene load re-creates, then do what `PickupKeeper` does for pickups.
+   - ~~**In-place restore does not revive killed enemies**~~ **done**
+     (v0.24.5, awaiting a check; game-notes *Enemies across an in-place
+     restore*) (author). After every in-place restore the game's own enemy
+     restart runs (`mutantController.restartEnemiesFromPauseMenu` ->
+     `setupFamilies`), switch `Savestates.RespawnEnemiesInPlace` (on,
+     checkbox in the Savestates tab). Enemies come back where the game
+     spawns them, as after a load - **not the captured positions**; if a
+     route needs those, the next step is recording each cannibal's
+     position/type at capture and placing the respawns. Log: `| enemies:
+     respawned (the game's enemy restart)` on the restore line.
    - ~~**The lighter is put away by an in-place restore**~~ **done**
      (v0.24.1, awaiting a check; game-notes *Held items across an in-place
      restore*) *(runner maks)*:

@@ -62,6 +62,7 @@ namespace ForestOverlay.Modules
 
         private bool _busy;
         private ConfigEntry<bool> _allowCrossMode;
+        private ConfigEntry<bool> _respawnEnemies;
         private float _contentHeight = 520f;
         private string _lastCaptureHash = "";
         private float _busySince;
@@ -157,6 +158,10 @@ namespace ForestOverlay.Modules
             _allowCrossMode = ctx.Config.Bind("Savestates", "AllowCrossModeRestore", false,
                 "Restore a savestate captured in a Creative game into a survival game, or the other way round. " +
                 "For testing: the game mode is not in the save, so the world comes back in this game's mode.");
+
+            _respawnEnemies = ctx.Config.Bind("Savestates", "RespawnEnemiesInPlace", true,
+                "After an in-place restore, run the game's own enemy restart so enemies killed since the capture " +
+                "come back. They spawn where the game places them, as after a load - not exactly where they stood.");
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -514,6 +519,9 @@ namespace ForestOverlay.Modules
 
                 string bookNote = r.Ok && file != null ? _book.Apply(file.Book) : "";
 
+                // A slot reload in place too: every in-place restore.
+                string enemyNote = r.Ok && _respawnEnemies.Value ? _bridge.RespawnEnemies() : "";
+
                 string panelNote = "";
                 if (r.Ok && file != null)
                 {
@@ -537,7 +545,8 @@ namespace ForestOverlay.Modules
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
                               (fall.Length == 0 ? "" : " | " + fall) +
                               (bookNote.Length == 0 ? "" : " | " + bookNote) +
-                              (panelNote.Length == 0 ? "" : " | " + panelNote);
+                              (panelNote.Length == 0 ? "" : " | " + panelNote) +
+                              (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
@@ -936,6 +945,11 @@ namespace ForestOverlay.Modules
             bool cross = GUI.Toggle(new Rect(0, y, w, 22), _allowCrossMode.Value,
                                     " Allow restoring across Creative and survival (testing)");
             if (cross != _allowCrossMode.Value) _allowCrossMode.Value = cross;
+            y += 26f;
+
+            bool respawn = GUI.Toggle(new Rect(0, y, w, 22), _respawnEnemies.Value,
+                                      " Respawn enemies after an in-place restore (as a load would)");
+            if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;
             y += 26f;
 
             // Capture

@@ -418,6 +418,26 @@ replays the game's own script, so it lands in the same state every time
 after a restore (the log says so if not), and that 6x keeps root-motion
 positions identical.
 
+## Enemies across an in-place restore (IL, v0.24.5)
+
+Enemies are spawned and despawned by `mutantController` (static
+`Scene.MutantControler`), not kept by the serializer: families
+(`activeFamilies`, `allWorldSpawns`), cave spawners (`allCaveSpawns`, each a
+`spawnMutants`), `activeCannibals`, day-based setup (`setDayConditions`,
+`updateSpawns` / `updateCaveSpawns`). `setupFamilies` (started by
+`startSetupFamilies`, skipped in horde mode) despawns every active
+cannibal (`despawnGo`), destroys the world spawns, disables the cave
+spawners' `spawnMutants`, sets the day's conditions and restarts
+`updateSpawns`. `restartEnemiesFromPauseMenu` - run by
+`RefreshMaxActiveMutants` in Creative when the enemy option changes -
+returns at once behind a loading screen or while `doingRestartEnemies`,
+waits out the pause view, then `startSetupFamilies()` when
+`currentMaxActiveMutants > 0`, else `removeAllEnemies()`. That is the
+game's own "enemies as after a load", and v0.24.5 starts it on the
+controller after every in-place restore (`SavestateBridge.RespawnEnemies`,
+setting `Savestates.RespawnEnemiesInPlace`, on). Not the captured
+positions - nothing records those. Not yet confirmed in game.
+
 ## Cave wooden panels (IL, v0.24.2)
 
 A panel is `BreakWoodSimple`: `int Health`; `Hit(damage)` subtracts and at

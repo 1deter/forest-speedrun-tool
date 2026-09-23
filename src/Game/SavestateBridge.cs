@@ -119,6 +119,11 @@ namespace ForestOverlay.Game
         private object _leftHandSlot;             // Item.EquipmentSlot.LeftHand
         private FieldInfo _lighterBusy;           // static LighterControler.IsBusy
 
+        // Enemies (v0.24.5): the game's own enemy restart.
+        private FieldInfo _mutantControler;       // static Scene.MutantControler
+        private MethodInfo _restartEnemies;       // mutantController.restartEnemiesFromPauseMenu()
+        private FieldInfo _maxActiveMutants;      // mutantController.currentMaxActiveMutants
+
         // Identifiers
         private Type _uniqueIdType;
         private PropertyInfo _allIdentifiers;
@@ -343,6 +348,15 @@ namespace ForestOverlay.Game
             Type lighter = GameBridge.FindGameType("TheForest.Items.Special.LighterControler");
             if (lighter != null) _lighterBusy = lighter.GetField("IsBusy", stat);
 
+            Type sceneStatics = GameBridge.FindGameType("TheForest.Utils.Scene");
+            if (sceneStatics != null) _mutantControler = sceneStatics.GetField("MutantControler", stat);
+            Type mutants = GameBridge.FindGameType("mutantController");
+            if (mutants != null)
+            {
+                _restartEnemies = mutants.GetMethod("restartEnemiesFromPauseMenu", inst, null, Type.EmptyTypes, null);
+                _maxActiveMutants = mutants.GetField("currentMaxActiveMutants", inst);
+            }
+
             Type slotType = GameBridge.FindGameType("itemConstrainToHand");
             if (slotType != null) _available = slotType.GetField("Available", inst);
 
@@ -371,6 +385,7 @@ namespace ForestOverlay.Game
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
                      " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
+                     " enemies:" + (_mutantControler != null && _restartEnemies != null) +
                      " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null) +
@@ -1197,6 +1212,37 @@ namespace ForestOverlay.Game
                 sb.Append(" | re-equip failed: ").Append((ex.InnerException ?? ex).Message);
             }
             done(sb.ToString());
+        }
+
+        /// After an in-place restore: the game's own enemy restart, so enemies
+        /// killed since the capture are back (author). Enemies are spawned
+        /// by mutantController, not kept by the serializer.
+        /// restartEnemiesFromPauseMenu is what the game runs when Creative's
+        /// enemy option changes: it waits out the pause menu and a loading
+        /// screen, then setupFamilies despawns every active cannibal,
+        /// destroys the world spawns, resets the cave spawners and spawns
+        /// again for the day - what a load does. So they come back where
+        /// the game's spawn logic puts them, as after a load, not exactly
+        /// where they stood at capture. Returns a note for the log.
+        public string RespawnEnemies()
+        {
+            if (!Resolve() || _mutantControler == null || _restartEnemies == null) return "enemies: not bound";
+            try
+            {
+                MonoBehaviour ctrl = _mutantControler.GetValue(null) as MonoBehaviour;
+                if (ctrl == null) return "enemies: no spawn controller in this scene";
+
+                IEnumerator routine = _restartEnemies.Invoke(ctrl, null) as IEnumerator;
+                if (routine == null) return "enemies: the restart routine returned nothing";
+                ctrl.StartCoroutine(routine);
+
+                int max = _maxActiveMutants != null ? (int)_maxActiveMutants.GetValue(ctrl) : -1;
+                return max == 0 ? "enemies: off in this game - removed" : "enemies: respawned (the game's enemy restart)";
+            }
+            catch (Exception ex)
+            {
+                return "enemies: respawn failed (" + (ex.InnerException ?? ex).Message + ")";
+            }
         }
 
         public bool MemorySafeSaveMode { get { return ReadStaticBool(_memorySafe); } }
