@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.8 - 2026-09-23
+
+- The Practice list no longer gets stuck on one spot. With unsaved
+  changes it used to refuse to switch; now clicking a spot always
+  switches, and your edits are kept.
+- Spots with unsaved changes say "(unsaved)" in the list, and the button
+  shows how many are waiting ("Save (2)"). Save now saves all of them.
+  Leaving a spot with unsaved changes tells you so.
+- Just looking at a zone no longer counts as editing it.
+
 ## v0.23.7 - 2026-09-23
 
 - Updates now install even if your browser saved the plugin under another

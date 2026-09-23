@@ -24,7 +24,11 @@ namespace ForestOverlay.Modules
     // editing, because typing a radius and hoping is guesswork.
     //
     // Edits live in memory until Save, so a half-made entry costs nothing
-    // and a bad edit cannot corrupt a shared file.
+    // and a bad edit cannot corrupt a shared file. Selection never waits
+    // on Save: an edit stays on its Segment, the list marks it unsaved and
+    // Save writes every unsaved entry. A guard that refused the click
+    // while anything was unsaved read as a stuck list (runner maks,
+    // v0.23.1: "clicking on the others and nothing is happening").
     // ------------------------------------------------------------------
     public sealed class PracticeModule : OverlayModule
     {
@@ -41,7 +45,8 @@ namespace ForestOverlay.Modules
 
         private SegmentLibrary _library;
         private Segment _selected;
-        private bool _dirty;
+        private readonly List<Segment> _unsaved = new List<Segment>();
+        private readonly GUIContent _saveLabel = new GUIContent("Save");
         private string _status = "";
         private string _filter = "";
 
@@ -160,7 +165,7 @@ namespace ForestOverlay.Modules
 
             _library.Reload();
             _selected = null;
-            _dirty = false;
+            _unsaved.Clear();
 
             _current = currentId != null ? _library.ById(currentId) : null;
 
@@ -241,12 +246,15 @@ namespace ForestOverlay.Modules
                 {
                     // A star marks a timed segment; plain entries are just
                     // somewhere to teleport.
-                    text = (_rows[i].Entry.IsTimed ? "  * " : "     ") + _rows[i].Entry.Name;
+                    text = (_rows[i].Entry.IsTimed ? "  * " : "     ") + _rows[i].Entry.Name +
+                           (_unsaved.Contains(_rows[i].Entry) ? "  (unsaved)" : "");
                 }
 
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
             }
+
+            _saveLabel.text = _unsaved.Count == 0 ? "Save" : "Save (" + _unsaved.Count + ")";
         }
 
         private int CountIn(string category)
@@ -439,7 +447,7 @@ namespace ForestOverlay.Modules
 
             // Written straight through: a quick-save that only lived in
             // memory would vanish on the next reload.
-            if (_library.SaveFile(s.SourceFile)) _status = "Saved '" + s.Name + "'";
+            if (WriteFile(s.SourceFile)) _status = "Saved '" + s.Name + "'";
             else _status = "Save failed - see log.";
         }
 
@@ -484,8 +492,8 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
 
-            GUI.enabled = _dirty;
-            if (GUI.Button(new Rect(w - 160, 0, 70, 24), "Save")) Save();
+            GUI.enabled = _unsaved.Count > 0;
+            if (GUI.Button(new Rect(w - 160, 0, 70, 24), _saveLabel)) Save();
             GUI.enabled = true;
             if (GUI.Button(new Rect(w - 86, 0, 86, 24), "Reload")) Reload();
 
@@ -556,11 +564,8 @@ namespace ForestOverlay.Modules
                 Rect r = new Rect(2f, rowY, content.width - 52f, RowHeight - 2f);
                 bool isSelected = ReferenceEquals(entry, _selected);
 
-                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle))
-                {
-                    if (_dirty) _status = "Unsaved changes - Save or Reload first.";
-                    else { _selected = entry; _status = ""; }
-                }
+                if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle) && !isSelected)
+                    Select(entry);
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
@@ -799,10 +804,13 @@ namespace ForestOverlay.Modules
         {
             GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, 1, "radius", t.Radius));
 
+            // Written only when dragged: the slider shows a default for a
+            // zero size and clamps to its range, and writing that back
+            // marked an entry edited just for being looked at.
             float sliderX = x0 + 114f;
-            float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f),
-                                           t.Radius <= 0f ? DefaultRadius : t.Radius, 0.5f, 25f);
-            if (!Mathf.Approximately(r, t.Radius)) { t.Radius = r; Touch(); }
+            float shown = Mathf.Clamp(t.Radius <= 0f ? DefaultRadius : t.Radius, 0.5f, 25f);
+            float r = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), shown, 0.5f, 25f);
+            if (!Mathf.Approximately(r, shown)) { t.Radius = r; Touch(); }
 
             return y + 26f;
         }
@@ -811,6 +819,10 @@ namespace ForestOverlay.Modules
         {
             Vector3 e = t.Extents;
             if (e.x <= 0f && e.y <= 0f && e.z <= 0f) e = new Vector3(3f, 3f, 3f);
+
+            // Written only when dragged (see SphereFields).
+            Vector3 shown = new Vector3(Mathf.Clamp(e.x, 0.5f, 30f), Mathf.Clamp(e.y, 0.5f, 30f), Mathf.Clamp(e.z, 0.5f, 30f));
+            e = shown;
 
             // Shown as full size because "width 6m" is what a player can
             // pace out; extents are the half-size the maths wants.
@@ -821,7 +833,7 @@ namespace ForestOverlay.Modules
             e.z = ExtentSlider(y, w, x0, slot, 4, "depth", e.z);
             y += 26f;
 
-            if (e != t.Extents) { t.Extents = e; Touch(); }
+            if (e != shown) { t.Extents = e; Touch(); }
             return y;
         }
 
@@ -989,39 +1001,55 @@ namespace ForestOverlay.Modules
             if (ReferenceEquals(_current, _selected)) _current = null;
 
             _library.Remove(_selected);
+            _unsaved.Remove(_selected);
             _selected = null;
-            RebuildVisible();
 
             // Written straight through: a delete that only existed in memory
             // would reappear on reload and look like a bug.
-            _library.SaveFile(file);
-            _dirty = false;
-            _status = "Deleted.";
+            _status = WriteFile(file) ? "Deleted." : "Deleted here, but writing the file failed - see log.";
         }
 
+        /// Writes every unsaved entry. One that cannot be saved is selected
+        /// and named, and nothing is written, so no file is half-saved.
         private void Save()
         {
-            if (_selected != null && !_library.IsIdAvailable(_selected.Id, _selected))
+            if (_unsaved.Count == 0) return;
+
+            for (int i = 0; i < _unsaved.Count; i++)
             {
-                _status = "Cannot save: id '" + _selected.Id + "' is already used.";
+                Segment u = _unsaved[i];
+                string why = !_library.IsIdAvailable(u.Id, u) ? "id '" + u.Id + "' is already used"
+                           : !u.IsValid ? "needs an id, and a spawn or a start and end"
+                           : null;
+                if (why == null) continue;
+
+                _selected = u;
+                _status = "Cannot save '" + u.Name + "': " + why + ".";
                 return;
             }
 
-            if (_selected != null && !_selected.IsValid)
+            List<string> files = new List<string>();
+            for (int i = 0; i < _unsaved.Count; i++)
             {
-                _status = "Cannot save: needs an id, and a spawn or a start and end.";
-                return;
+                string f = string.IsNullOrEmpty(_unsaved[i].SourceFile) ? SegmentLibrary.UserFileName : _unsaved[i].SourceFile;
+                bool seen = false;
+                for (int j = 0; j < files.Count; j++)
+                    if (string.Equals(files[j], f, StringComparison.OrdinalIgnoreCase)) { seen = true; break; }
+                if (!seen) files.Add(f);
             }
 
-            string file = _selected != null ? _selected.SourceFile : SegmentLibrary.UserFileName;
+            int count = _unsaved.Count;
+            bool ok = true;
+            for (int i = 0; i < files.Count; i++)
+                if (!WriteFile(files[i])) ok = false;
 
-            if (_library.SaveFile(file))
+            string names = string.Join(", ", files.ToArray());
+            if (ok)
             {
-                _dirty = false;
-                RebuildVisible();
-                _status = "Saved to " + file;
+                _status = "Saved " + count + (count == 1 ? " entry" : " entries") + " to " + names;
+                Ctx.Log.LogInfo("Practice: saved " + count + " unsaved entr" + (count == 1 ? "y" : "ies") + " to " + names + ".");
             }
-            else _status = "Save failed - see log.";
+            else _status = "Save failed - see log (" + _unsaved.Count + " still unsaved).";
         }
 
         private string NextFreeId(string basis)
@@ -1052,13 +1080,53 @@ namespace ForestOverlay.Modules
             return slug.Length == 0 ? "unnamed" : slug;
         }
 
-        private void Touch()
+        private void Touch() { Touch(_selected); }
+
+        private void Touch(Segment s)
         {
-            _dirty = true;
+            if (s == null) return;
 
             // Anything holding this segment - a run armed against its
             // start zone - can see that it changed underneath them.
-            if (_selected != null) _selected.Revision++;
+            s.Revision++;
+
+            if (_unsaved.Contains(s)) return;
+            _unsaved.Add(s);
+            RebuildLabels();
+        }
+
+        /// Switching never loses an edit, so it is never refused - it only
+        /// says what was left unsaved, where the click was.
+        private void Select(Segment entry)
+        {
+            Segment left = _selected;
+            bool leftUnsaved = left != null && _unsaved.Contains(left);
+
+            _selected = entry;
+            _status = leftUnsaved
+                ? "'" + left.Name + "' has unsaved changes - Save keeps them, Reload drops them."
+                : "";
+
+            // Selection was invisible in the log, so a stuck list could
+            // not be told from a click that never arrived.
+            Ctx.Log.LogInfo("Practice: selected '" + entry.Id + "'" +
+                            (leftUnsaved ? ", '" + left.Id + "' left unsaved" : "") +
+                            " (" + _unsaved.Count + " unsaved).");
+        }
+
+        /// Every write goes through here. SaveFile writes every entry of
+        /// that file, unsaved edits included, so all of them are saved now.
+        private bool WriteFile(string file)
+        {
+            if (string.IsNullOrEmpty(file)) file = SegmentLibrary.UserFileName;
+            if (!_library.SaveFile(file)) return false;
+
+            for (int i = _unsaved.Count - 1; i >= 0; i--)
+                if (string.Equals(_unsaved[i].SourceFile, file, StringComparison.OrdinalIgnoreCase))
+                    _unsaved.RemoveAt(i);
+
+            RebuildVisible();
+            return true;
         }
 
         // --- start state (a savestate restored on every restart) -----------
@@ -1144,7 +1212,7 @@ namespace ForestOverlay.Modules
                 RefreshStartStateLabel(s);
                 if (error != null) { StartStatus("Not captured: " + error); return; }
 
-                Touch();
+                Touch(s);
                 StartStatus("Captured - F7 now restarts '" + s.Name + "'. " + SaveStartStateChange(s));
             });
         }
@@ -1164,9 +1232,7 @@ namespace ForestOverlay.Modules
         private string SaveStartStateChange(Segment s)
         {
             if (!s.IsValid) return "Save the segment to keep it.";
-            if (!_library.SaveFile(s.SourceFile)) return "Saving the segment failed - see log.";
-            _dirty = false;
-            RebuildVisible();
+            if (!WriteFile(s.SourceFile)) return "Saving the segment failed - see log.";
             return "Segment saved.";
         }
 
@@ -1185,7 +1251,7 @@ namespace ForestOverlay.Modules
             RefreshStartStateLabel(s);
             if (error != null) { StartStatus("Delete failed: " + error); return; }
 
-            Touch();
+            Touch(s);
             StartStatus("Deleted - restarts now keep the game as it is. " + SaveStartStateChange(s));
         }
 

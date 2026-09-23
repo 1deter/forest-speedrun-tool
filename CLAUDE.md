@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.23.7** (2026-09-23). The author runs it via the in-game
+**Released: v0.23.8** (2026-09-23). The author runs it via the in-game
 updater. **210 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -438,8 +438,8 @@ The session of 2026-09-23 evening had two jobs, both done:
 - **Updates install under any plugin file name** (v0.23.7,
   `Data/UpdateStaging`, 19 new tests; see *Releases and updates*).
 
-The next session starts on the **stuck spot list** (Open threads - a
-core-flow bug), then **Next up 3** (savestates, remaining) - or 5,
+The stuck spot list is fixed (v0.23.8, same day). The next session
+starts on **Next up 3** (savestates, remaining) - or 5,
 the performance investigation the author asked for, if they prefer. Open
 checks, when the author is in game anyway:
 
@@ -620,6 +620,8 @@ building, chopping and killing across reloads fine); the menu route (exit
 to title -> Continue) flat too, 10 trips (v0.23.7).
 
 **Awaiting an in-game check** — ask before building on these:
+- **The Practice list never sticks** (v0.23.8): switch with unsaved
+  edits, "(unsaved)" on the row, "Save (n)" saves them all.
 - **v0.23.6's census off by default** - no hitch after a load.
 - **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
 - **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
@@ -649,10 +651,11 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
   another name (`ForestOverlay(1).dll`) must rename it to
   `ForestOverlay.dll` once, game closed; tell them if they report being
   offered the same update every launch.
-- **Spots stop switching** *(runner maks, seen ~3 times)*: the Practice
+- **Spots stop switching** *(runner maks, seen ~3 times)* - **fixed in
+  v0.23.8**, awaiting maks. The Practice
   tab stays stuck on one spot ("logboosts") and clicking another does
   nothing, until a new spot is created and deleted. A core-flow bug, not
-  QoL - **fix first**. Almost certainly the **unsaved-changes guard**
+  QoL. Almost certainly the **unsaved-changes guard**
   (`PracticeModule.DrawList`: with `_dirty` set, a row click only sets
   `_status = "Unsaved changes - Save or Reload first."`). The message is
   easy to miss at the top and does not change on a second click, so it
@@ -661,9 +664,14 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
   a slider nudged, *Restore with a load* ticked. Suspect too: slider
   defaults (`SphereFields` / `BoxFields` show 3 m / DefaultRadius for a
   zero size and write it back, so merely *viewing* such a zone dirties
-  it). Fix: selecting always works (edits stay in memory on the
-  `Segment`), track unsaved files as a set and have Save write them all,
-  show "unsaved" on the row; stop the display-only writes. Selection is
+  it). Fix (v0.23.8, author approved): selecting always works (edits
+  stay in memory on the `Segment`); `_unsaved` lists edited entries, the
+  row says "(unsaved)", the button "Save (n)", and Save writes every
+  unsaved entry (refusing, with the entry selected, if one is invalid);
+  leaving an unsaved entry says so in the status line. Every write goes
+  through `WriteFile`, which clears that file's entries. Sliders write
+  only when dragged. Log: `Practice: selected '<id>'[, '<id>' left
+  unsaved] (n unsaved).` and `Practice: saved n unsaved entries to ...`. Selection is
   not logged, so maks's log (v0.23.1) could not show it; the author
   recalls maks often forgot to save, which fits.
 - **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
@@ -764,7 +772,9 @@ list so we can move onto expanding more features".
      tickable option; the moment the end condition fires, the time shows
      briefly (~0.4 s, "like those games") and the spot restarts at once,
      exactly as F7 would (start state if it has one). The attempt is saved
-     first, like any finished run.
+     first, like any finished run. **One global setting** (author), and
+     it acts for load-mode start states too (~5 s) - runners untick it if
+     they do not want that (author).
    - **No blood** and **no stagger** toggles (author): *no blood* keeps
      the blood overlay cleared all the time while ticked (`BleedBehavior`,
      game-notes *Deaths*); *no stagger* skips the hard-landing stagger and
