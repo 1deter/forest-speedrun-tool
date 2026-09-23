@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.23.7 - 2026-09-23
+
+- Updates now install even if your browser saved the plugin under another
+  name, like `ForestOverlay(1).dll`. The overlay renames itself when it
+  downloads an update, and after the restart you have a normal
+  `ForestOverlay.dll` again (the old version is kept as
+  `ForestOverlay.dll.bak`, as always).
+- If your plugin file is already called something else, rename it to
+  `ForestOverlay.dll` by hand once, with the game closed - older versions
+  cannot fix this themselves. From this version on it is automatic.
+
 ## v0.23.6 - 2026-09-23
 
 - Load slowdown: fixed. 20 reloads in a row now all take about 5 s, and

@@ -102,7 +102,7 @@ Where things live:
 | Quick-load / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
-| Updates, changelog | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
+| Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 
@@ -199,7 +199,18 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
   (200 = attached).
 - **Rollback:** close the game, delete `ForestOverlay.dll`, rename
   `ForestOverlay.dll.bak` to `ForestOverlay.dll`. A download that is not the
-  ForestOverlay assembly is renamed `.rejected` and never installed.
+  ForestOverlay assembly is renamed `.rejected` and never installed; if
+  that leaves no `ForestOverlay.dll`, the patcher puts the `.bak` back.
+- **Any plugin file name (v0.23.7).** The download is always staged as
+  `ForestOverlay.dll.pending` beside the running plugin
+  (`Data/UpdateStaging`); a plugin running as e.g. `ForestOverlay(1).dll`
+  renames itself to `ForestOverlay.dll.bak` at download time (a loaded
+  DLL can be renamed on Windows), so the restart leaves one
+  `ForestOverlay.dll`. At startup `UpdateChecker.TidyPluginFolder`
+  deletes a stale `<other name>.dll.pending` and renames any second
+  ForestOverlay assembly in the folder to `.old`. Installs older than
+  v0.23.7 under another name need one manual rename - their code stages
+  the wrong name.
 - **The patcher updates less reliably than the plugin** — it is loaded while
   the game runs, so `Core/UpdaterInstaller` swaps it by renaming the loaded
   copy aside. Keep `patcher/` small and its behaviour stable.
@@ -408,31 +419,41 @@ identity.
 
 ## Current status
 
-**Released: v0.23.6** (2026-09-23). The author runs it via the in-game
-updater. **191 tests.**
+**Released: v0.23.7** (2026-09-23). The author runs it via the in-game
+updater. **210 tests.**
 
-### Pick up here (handoff of 2026-09-23, night)
+### Pick up here (handoff of 2026-09-23, end of the load-leak session)
 
-**The load leak is fixed** (author, v0.23.5: 20 load restores, heap flat
-at ~480 MB after two warm-up loads, every load 5.0-5.1 s; was 2.7 GB and
-13 s). Root: the game's `EventRegistry` is cleared only by
-`TitleScreen.Awake`, so every reload kept the previous world through
-leftover subscribers; plus two leaked threads a load. Fixes:
-`Game/StaleSubscribers`, `Game/LeakedThreads` (game-notes *The load leak*,
-*The event bus*). v0.23.6 turns the per-load census off by default (a
-renamed key, `Diagnostics.MemoryCensusAfterEveryLoad`, so existing
-configs turn off too - the author asked about the post-load hitch; that
-was it) and clears `DeathHooks._lastStats` on each load.
+The session of 2026-09-23 evening had two jobs, both done:
 
-Next: **Next up 2, the updater and renamed DLLs**. Open checks, when the
-author is in game anyway:
+- **The load leak is fixed** (v0.23.3-0.23.6; author, v0.23.5: 20 load
+  restores, heap flat at ~480 MB after two warm-up loads, every load
+  5.0-5.1 s - was 2.7 GB and 13 s). Root: the game's `EventRegistry` is
+  cleared only by `TitleScreen.Awake`, so every same-scene reload kept the
+  previous world alive through leftover subscribers; plus two leaked
+  threads a load. Fixes: `Game/StaleSubscribers`, `Game/LeakedThreads`;
+  the whole story is game-notes *The load leak* and *The event bus*. The
+  per-load census is off by default (v0.23.6, renamed key
+  `Diagnostics.MemoryCensusAfterEveryLoad`; it was the post-load hitch).
+- **Updates install under any plugin file name** (v0.23.7,
+  `Data/UpdateStaging`, 19 new tests; see *Releases and updates*).
 
-1. v0.23.6: no hitch ~1.5 s after a load; *Memory census now* still logs.
-2. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
+The next session starts on **Next up 3** (savestates, remaining) - or 4,
+the performance investigation the author asked for, if they prefer. Open
+checks, when the author is in game anyway:
+
+1. v0.23.6+: no hitch ~1.5 s after a load; *Memory census now* still logs.
+2. **Renamed plugin updates** (v0.23.7) - only testable once a newer
+   release exists: rename `ForestOverlay.dll` to `ForestOverlay(1).dll`
+   (game closed), launch, Download. Log: `Update: this plugin runs as
+   ForestOverlay(1).dll ... moved it to ForestOverlay.dll.bak`; after the
+   restart the patcher logs `Installed staged update` and the plugins
+   folder holds one `ForestOverlay.dll` plus `.bak`.
+3. **The keycard checkpoint** (v0.22.7): the runner's case, a checkpoint
    `item 210 >= 1`, re-tested with a quick reload after picking the keycard
    up. Log lines: `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached
    with checkpoint n (...) outstanding; holding x, y at the start`.
-3. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
+4. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
    kept only +12 MB, but each took ~150 ms for 12 restores, then ~330 ms
    from the 13th on. Not a leak; a step. Look if it recurs.
 
@@ -618,11 +639,11 @@ building, chopping and killing across reloads fine).
 
 ### Open threads
 
-- **A renamed plugin never updates** *(runner)*: a browser saved the DLL as
-  `ForestOverlay(1).dll`; the download is staged as
-  `ForestOverlay(1).dll.pending`, which the patcher does not install, so
-  the same update is offered every launch. Workaround told to the author:
-  rename it to `ForestOverlay.dll`. Fix is Next up 2.
+- **A renamed plugin never updated** *(runner)* - fixed in v0.23.7 for
+  every install from v0.23.7 on. A runner still on an older version under
+  another name (`ForestOverlay(1).dll`) must rename it to
+  `ForestOverlay.dll` once, game closed; tell them if they report being
+  offered the same update every launch.
 - **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
   about 30 in-place restores of a sinkhole start state, each after a fall
   death + revive, then the first **load** restore started **from a death**
@@ -657,18 +678,10 @@ author. This is all dev/alpha: nothing is used in real runs until the admins
 rule, and a few runners act as QA. The author: "work through the current
 list so we can move onto expanding more features".
 
-1. ~~Finish the load leak~~ **done** (v0.23.3-0.23.6, see *Pick up
-   here*). Left: in-place restore timing on a fixed heap (Pick up here 3).
-2. **Updater: any plugin file name** *(runner)*. The plugin stages
-   `<its own file name>.pending`; the patcher only installs
-   `ForestOverlay.dll.pending`, so `ForestOverlay(1).dll` never updates.
-   Small and blocks runners from getting every other fix - do it early.
-   The patcher updates less reliably than the plugin (see *Releases and
-   updates*), so prefer fixing it in the plugin: e.g. stage as
-   `ForestOverlay.dll.pending` and, if its own file is named differently,
-   rename itself aside the way `Core/UpdaterInstaller` swaps the patcher.
-   `patcher/PendingSwap.cs` is tested against real temp folders - extend
-   those tests.
+1. ~~Finish the load leak~~ **done** (v0.23.3-0.23.6). Left: in-place
+   restore timing on a fixed heap (Pick up here 4).
+2. ~~Updater: any plugin file name~~ **done** (v0.23.7). Left: the in-game
+   check at the next release (Pick up here 2).
 3. **Savestates, remaining** (with the runner feedback that belongs here):
    - **Falling state carries over** *(runner)*: restoring while in mid-air
      keeps the fall and deals landing damage. Zero the rigidbody velocity
@@ -697,7 +710,35 @@ list so we can move onto expanding more features".
      an instant revive with no restore freeze).
    - Author's idea, still open: reload the slot **in place** on death (the
      Savestates tab's *Reload slot save in place* does exactly that).
-4. **The author's list of 2026-09-23:**
+4. **Performance: can patches make the game itself faster?** (author,
+   2026-09-23, after the leak fix). The leak hunt showed the game doing
+   avoidable work - dead subscribers were called on every publish, worker
+   threads never ended - so there may be more. Measure first, change
+   second:
+   - **Baseline**: the `Perf (30 s):` line (fps, worst frame, frames over
+     50 ms, GC count, heap KB/s). The author's v0.23.4 log at idle: ~175
+     fps, **heap +1091 KB/s** with the overlay at +5 KB/s - the game
+     allocates ~1 MB/s, and Unity 5.6's Boehm GC is non-generational, so
+     every collection walks the whole heap (why a leaked heap made
+     everything slower). GC count and worst frame are the numbers to move.
+   - **Find hot spots offline**: `ilscan` over `Update` / `LateUpdate` /
+     `FixedUpdate` / `OnGUI` bodies for per-frame `FindObjectsOfType`,
+     `GameObject.Find`, `GetComponent(s)`, `SendMessage`, string building,
+     `UniLinq`, `new List`/closures; `strings` for per-frame `SendMessage`.
+     Candidates already seen: `MecanimEventManager.globalLastStates` and
+     `TreeWindSfxManager` lists growing, `WorkScheduler.ProcessArea`,
+     `AdvancedTerrainGrass.GrassManager`, enemy AI updates.
+   - **Measure in game**: a debug toggle (Debug views tab) that wraps a
+     named list of game methods in Harmony prefix/postfix `Stopwatch`
+     timing and logs the top N by ms per 30 s - the log is the test
+     harness (gotcha 16). Never leave timing patches on by default.
+   - **Rules**: only behaviour-preserving patches (cache a lookup, skip a
+     no-op, pool an allocation); each with its own switch and one log line
+     when it acts; before/after `Perf` lines from the author. A patch that
+     changes game timing or outcomes is a gameplay change - label it
+     honestly (`IsPracticeOnly` / the run-legality split) like everything
+     else; the admins have not ruled.
+5. **The author's list of 2026-09-23:**
    - **100%: passengers.** The tab shows the passenger To Do task but not
      which passengers were found or how many. Find where the game tracks
      each passenger (IL) and list them like the nature guide. (Note the
@@ -719,21 +760,21 @@ list so we can move onto expanding more features".
    - Idea (author): a **god mode** toggle for practice, the other answer to
      deaths without a start state — the game's console has `_godmode`
      (`DebugConsole`, invokable by reflection).
-5. **Freecam keeps the game's lighting.** With freecam on the game goes
+6. **Freecam keeps the game's lighting.** With freecam on the game goes
    darker everywhere, normal the instant it is off (author). Freecam is a new
    `Camera` from `CopyFrom`, which does not copy the image-effect components
    on the game's camera — the likely cause, unchecked. Dump the main
    camera's components first.
-6. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
+7. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
    LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
    author's autosplitter is the reference (memory `autosplitter-repo`).
-7. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
+8. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
    Local-first, export always; comparison keys on segment id + route
    fingerprint (now including the start state). Web panel: everyone's runs
    vs yours (look at Momentum Mod); 3D terrain from the `Terrain` heightmap,
    caves need a geometry dump; scrub bar and annotations.
-8. **TAS** — exploratory only. Builds on savestates and the recorder.
-9. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
+9. **TAS** — exploratory only. Builds on savestates and the recorder.
+10. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
    zone shapes.
 
 ### Deferred runner feedback (voice call, 2026-09-23)
@@ -741,8 +782,8 @@ list so we can move onto expanding more features".
 Collected by the author testing v0.22.6 with a runner. **Deferred** until
 Next up is done (author: finish the list, then QoL/UX), unless critical.
 Already done: checkpoints bypassed, stale run lines, Inventory tab empty on
-first open (v0.22.7). The savestate items and the renamed DLL are in Next
-up 2-3.
+first open (v0.22.7), the renamed DLL (v0.23.7). The savestate items are
+in Next up 3.
 
 Deaths / UX:
 - **Revive is confusing**, worse with practice mode on and another spot
@@ -783,7 +824,8 @@ receivers kept, no string building in any `DrawTab`, messages under their
 buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
 tab), the load watcher and memory census; v0.23.1-0.23.6 **the load leak
 fixed** (pathfinding ruled out, two leaked threads stopped, dead event
-subscribers pruned, census off by default).
+subscribers pruned, census off by default); v0.23.7 updates under any
+plugin file name.
 
 ### How a session goes
 

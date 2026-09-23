@@ -23,15 +23,16 @@ namespace ForestOverlay.Core
     // WHY THIS ONLY STAGES THE FILE
     // Windows will not let a loaded assembly be overwritten, and our own
     // DLL is loaded by definition. So the download lands beside the
-    // plugin as a .pending file, and the preloader patcher
+    // plugin as ForestOverlay.dll.pending, and the preloader patcher
     // (patcher/UpdaterPatcher.cs, installed by Core/UpdaterInstaller)
-    // moves it into place on the next launch, before plugins load.
+    // moves it into place on the next launch, before plugins load. A
+    // plugin running under another file name (a browser's
+    // ForestOverlay(1).dll) moves itself aside: Data/UpdateStaging.
     // ------------------------------------------------------------------
     public sealed class UpdateChecker
     {
         public const string Repo = "1deter/forest-speedrun-tool";
         private const string LatestUrl = "https://api.github.com/repos/" + Repo + "/releases/latest";
-        public const string PendingSuffix = ".pending";
 
         // DownloadRetry: the release lists the DLL but it is not downloadable
         // yet (404 for a short while after publishing) - UpdateModule retries.
@@ -54,6 +55,7 @@ namespace ForestOverlay.Core
         // Download re-offered it, endlessly).
         private string _stagedVersion;
         private string _stagedPath;
+        private string _ownName = UpdateStaging.PluginFile;
 
         public UpdateChecker(ManualLogSource log, string currentVersion)
         {
@@ -136,8 +138,8 @@ namespace ForestOverlay.Core
         {
             return UpdaterInstaller.Installed
                 ? "v" + LatestVersion + " downloaded - restart the game to install it"
-                : "v" + LatestVersion + " downloaded - close the game, delete ForestOverlay.dll, " +
-                  "rename ForestOverlay.dll" + PendingSuffix + " to ForestOverlay.dll";
+                : "v" + LatestVersion + " downloaded - close the game, delete " + _ownName + ", " +
+                  "rename ForestOverlay.dll" + UpdateStaging.PendingSuffix + " to ForestOverlay.dll";
         }
 
         public IEnumerator Download(string pluginDllPath)
@@ -187,18 +189,67 @@ namespace ForestOverlay.Core
 
             try
             {
-                File.WriteAllBytes(pluginDllPath + PendingSuffix, data);
+                _ownName = Path.GetFileName(pluginDllPath);
+                UpdateStaging.Result staged = UpdateStaging.Stage(pluginDllPath, data);
                 _stagedVersion = LatestVersion;
-                _stagedPath = pluginDllPath + PendingSuffix;
+                _stagedPath = staged.Pending;
                 State = Status.Staged;
                 Message = StagedMessage();
-                _log.LogInfo(Message);
+                _log.LogInfo(Message + " (" + Path.GetFileName(staged.Pending) + ")");
+                if (staged.Aside != null)
+                    _log.LogInfo("Update: this plugin runs as " + _ownName + ", which the installer does not update - " +
+                                 "moved it to " + Path.GetFileName(staged.Aside) + " (the backup); the update installs as ForestOverlay.dll.");
+                else if (staged.AsideError != null)
+                    _log.LogWarning("Update: could not move " + _ownName + " aside (" + staged.AsideError + ") - " +
+                                    "the next launch renames the extra copy instead.");
             }
             catch (Exception ex)
             {
                 State = Status.Failed;
                 Message = "could not write update: " + ex.Message;
                 _log.LogWarning(Message);
+            }
+        }
+
+        /// At startup: removes what the old naming left behind. A plugin
+        /// running as ForestOverlay.dll renames any other ForestOverlay
+        /// assembly in its folder to .old (two copies would both load); a
+        /// plugin under another name deletes its stale "<name>.pending",
+        /// which the patcher never installs. Logs what it did.
+        public static void TidyPluginFolder(string ownPath, ManualLogSource log)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(ownPath);
+                string[] files = Directory.GetFiles(dir);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string name = Path.GetFileName(files[i]);
+                    if (string.Equals(files[i], ownPath, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (UpdateStaging.IsStalePending(name))
+                    {
+                        File.Delete(files[i]);
+                        log.LogInfo("Updater: deleted " + name + " - a download staged under a name the installer never picks up.");
+                        continue;
+                    }
+
+                    if (!UpdateStaging.IsCanonical(ownPath) || !UpdateStaging.MaybeStrayCopy(name)) continue;
+                    string asm;
+                    try { asm = System.Reflection.AssemblyName.GetAssemblyName(files[i]).Name; }
+                    catch (Exception) { continue; }
+                    if (asm != UpdateStaging.AssemblyName) continue;
+
+                    string aside = files[i] + UpdateStaging.AsideSuffix;
+                    if (File.Exists(aside)) File.Delete(aside);
+                    File.Move(files[i], aside);
+                    log.LogInfo("Updater: renamed " + name + " to " + Path.GetFileName(aside) +
+                                " - a second copy of this plugin (this one is ForestOverlay.dll).");
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning("Updater: plugin folder tidy failed: " + ex.Message);
             }
         }
 

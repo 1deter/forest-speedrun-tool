@@ -103,8 +103,10 @@ when there is one, with what's new in it ([`CHANGELOG.md`](CHANGELOG.md)).
 Click **Download**, then restart the game — the update is installed before
 the plugin loads, and the previous version is kept as `ForestOverlay.dll.bak`.
 
-Keep the file named `ForestOverlay.dll`: a browser that saves it as
-`ForestOverlay(1).dll` stops updates from installing (a fix is planned).
+If a browser saved it as `ForestOverlay(1).dll` or similar, updates still
+install from v0.23.7 on: the plugin renames itself when it downloads one.
+Versions before v0.23.7 cannot - rename the file to `ForestOverlay.dll` once,
+with the game closed.
 
 To roll back, close the game, delete `ForestOverlay.dll` and rename
 `ForestOverlay.dll.bak` to `ForestOverlay.dll`.

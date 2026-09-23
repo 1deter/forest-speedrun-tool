@@ -104,6 +104,36 @@ namespace ForestOverlay.Tests
             Assert.Equal("MZold", Text(_dll));
         }
 
+        // A plugin that ran as ForestOverlay(1).dll moved itself to the
+        // backup when it staged (v0.23.7): no ForestOverlay.dll here.
+        [Fact]
+        public void ARejectedUpdatePutsTheBackupBackWhenThePluginIsMissing()
+        {
+            File.WriteAllBytes(_dll + ".bak", Dll("old"));
+            File.WriteAllText(_dll + ".pending", "<html>rate limited</html>");
+
+            Assert.Equal(PendingSwap.Result.Rejected, Apply());
+            Assert.Equal("MZold", Text(_dll));
+            Assert.False(File.Exists(_dll + ".bak"));
+        }
+
+        [Fact]
+        public void AFailedMovePutsTheBackupBackWhenThePluginIsMissing()
+        {
+            File.WriteAllBytes(_dll + ".bak", Dll("old"));
+            File.WriteAllBytes(_dll + ".pending", Dll("new"));
+
+            using (new FileStream(_dll + ".pending", FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                PendingSwap.Result r = Apply();
+                if (!OperatingSystem.IsWindows()) return;   // POSIX allows the move
+
+                Assert.Equal(PendingSwap.Result.Failed, r);
+            }
+
+            Assert.Equal("MZold", Text(_dll));
+        }
+
         [Fact]
         public void AFailedMoveRestoresThePlugin()
         {

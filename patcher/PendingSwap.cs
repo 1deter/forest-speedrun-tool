@@ -39,6 +39,7 @@ namespace ForestOverlay.Updater
             if (!LooksLikeDll(pending) || (isValid != null && !SafeValid(isValid, pending)))
             {
                 Replace(pending, target + RejectedSuffix);
+                RestoreIfMissing(target, backup, log);
                 log("Staged update is not a valid ForestOverlay.dll - kept the installed version.");
                 return Result.Rejected;
             }
@@ -60,15 +61,26 @@ namespace ForestOverlay.Updater
             }
             catch (Exception ex)
             {
-                if (backedUp && !File.Exists(target))
-                {
-                    try { File.Move(backup, target); }
-                    catch (Exception) { }
-                }
+                RestoreIfMissing(target, backup, log);
 
                 log("Could not install staged update: " + ex.Message + " - kept the installed version.");
                 return Result.Failed;
             }
+        }
+
+        /// A plugin that ran under another name (ForestOverlay(1).dll) moves
+        /// itself to the backup when it stages an update (v0.23.7), so the
+        /// target may be missing here: if the update cannot go in, the
+        /// backup goes back, and the runner keeps a working plugin.
+        private static void RestoreIfMissing(string target, string backup, Action<string> log)
+        {
+            if (File.Exists(target) || !File.Exists(backup)) return;
+            try
+            {
+                File.Move(backup, target);
+                log("Put the previous version back as " + Path.GetFileName(target) + ".");
+            }
+            catch (Exception) { }
         }
 
         /// A PE file starts with "MZ". Catches the classic failure of
