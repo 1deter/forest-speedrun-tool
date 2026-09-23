@@ -455,7 +455,10 @@ checks, when the author is in game anyway:
    with checkpoint n (...) outstanding; holding x, y at the start`.
 4. In-place restore slowdown: the author's 20 in-place restores (v0.23.1)
    kept only +12 MB, but each took ~150 ms for 12 restores, then ~330 ms
-   from the 13th on. Not a leak; a step. Look if it recurs.
+   from the 13th on. Not a leak; a step. Their older slowdown (841 -> 1157
+   ms) came from a heap bloated by load restores - fixed with the leak.
+   Re-test: ~20 in-place restores on v0.23.6+ from a fresh launch, read the
+   `done in N ms` of each `Savestate restore ... in place` line.
 
 Then continue with **Next up**, in order. The author wants Next up finished
 before QoL/UX work; the runner feedback below is deferred unless critical
@@ -612,7 +615,8 @@ closes over it; the fall revive has no stagger and **jump comes back at
 once** (v0.22.6, author); text wraps and sits under its buttons; the
 v0.23.0 census ran after every load without trouble (0.4-0.8 s); **the
 load leak fixed** (v0.23.3-0.23.5: threads flat, heap flat, loads ~5 s;
-building, chopping and killing across reloads fine).
+building, chopping and killing across reloads fine); the menu route (exit
+to title -> Continue) flat too, 10 trips (v0.23.7).
 
 **Awaiting an in-game check** — ask before building on these:
 - **v0.23.6's census off by default** - no hitch after a load.

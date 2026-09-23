@@ -736,6 +736,31 @@ reloads is a one-time warm-up (pools and caches that fill on the first
 reloads over the same scene - `PathPool.pool` jumps 150k objects on the
 first one), not a leak.
 
+**The menu route (author, v0.23.7, 10 trips exit to title -> Continue):**
+heap 262 -> 276 -> 277 -> 351 MB (one-time +74 at trip 3), then **351-352
+MB for the other 7**; threads 145-150. It never had the big leak (the title
+clears `EventRegistry`, and `FocusLostAudio.OnLevelWasLoaded` destroys the
+copies there), but it shared two small ones, both now caught every trip:
+the old `WorkScheduler`'s thread (`Threads: woke ...` once per trip - its
+thread strands on any destroy) and 2 dead `TreeLodGrid` listeners on
+`TreeHealth.OnTreeCutDown` (a UnityEvent the title does not clear:
+`removed 0 event-registry subscription(s) and 2 tree-cut listener(s)`).
+The plugin also logs 2 `FocusLostAudio` copies removed per trip (the title
+scene's own, then the game scene's) - harmless either way.
+
+Still growing by a little on both routes, left alone (objects, not MB):
+`DepthBufferGrabCommand.m_data` (+1 destroyed `Camera`, +4 objects a load)
+and `MecanimEventManager.globalLastStates` (+13 objects a load). Worth a
+look only if a census ever shows them in `Grown in size`.
+
+**In-place restores (no load) are a different path.** They never leaked
+(v0.23.1: +12 MB over 20), but they allocate a lot, and every garbage
+collection walks the whole heap - so on a heap bloated by earlier load
+restores they slowed down (841 -> 1157 ms over 21 in v0.23.0). The leak fix
+removes that cause. A separate step on a fresh heap (~150 ms for 12
+restores, then ~330 ms from the 13th, v0.23.1) is unexplained - re-test on
+v0.23.6+.
+
 **The load leak, in one paragraph:** a reload of the game scene over
 itself (quick-load, load restore) kept the whole previous world's managed
 side alive, ~120 MB a load, because the game's `EventRegistry` is only
