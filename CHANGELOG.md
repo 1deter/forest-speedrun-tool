@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.1 - 2026-09-23
+
+- Restoring a savestate in place puts back what you were holding when you
+  captured it - no more taking the lighter out again after every reset.
+  Savestates captured before this version do not know what you held;
+  capture them again.
+- The "CANNOT CARRY ANY MORE LIGHTERS" message after a restore should be
+  gone.
+
 ## v0.24.0 - 2026-09-23
 
 - Savestates and start states remember the survival book's page: restoring

@@ -21,6 +21,7 @@ namespace ForestOverlay.Data
     //   streaming = unloaded
     //   pickups = 210@1283.2,-70.2,615.0;...
     //   book = 23:00000100000000000000001
+    //   held = 53
     //   data = <base64>
     //
     // `streaming` says whether streamed content was force-unloaded around
@@ -29,7 +30,9 @@ namespace ForestOverlay.Data
     // `pickups` lists the world pickups present at capture (see
     // PickupKey); absent in v0.20.0 files, which then restore every pickup
     // taken since. `book` is the survival book's open page (BookPageState);
-    // absent before v0.24.0, and then the page is left as it is.
+    // absent before v0.24.0, and then the page is left as it is. `held`
+    // lists the item ids in the equipment slots (hands first), re-equipped
+    // after an in-place restore; absent before v0.24.1.
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -57,6 +60,9 @@ namespace ForestOverlay.Data
         /// BookPageState's value; "" when not captured.
         public string Book = "";
 
+        /// Null when the file has no held line (before v0.24.1).
+        public List<int> Held;
+
         public string Data = "";
 
         public string Write()
@@ -73,6 +79,12 @@ namespace ForestOverlay.Data
             Line(sb, "streaming", StreamingUnloaded ? "unloaded" : "kept");
             if (Pickups != null) Line(sb, "pickups", string.Join(";", Pickups.ToArray()));
             if (Book.Length > 0) Line(sb, "book", Book);
+            if (Held != null)
+            {
+                string[] ids = new string[Held.Count];
+                for (int i = 0; i < Held.Count; i++) ids[i] = Held[i].ToString(CultureInfo.InvariantCulture);
+                Line(sb, "held", string.Join(",", ids));
+            }
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -120,6 +132,17 @@ namespace ForestOverlay.Data
                             break;
                         }
                     case "book": s.Book = value; break;
+                    case "held":
+                        {
+                            s.Held = new List<int>();
+                            string[] ids = value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < ids.Length; k++)
+                            {
+                                int id;
+                                if (int.TryParse(ids[k].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out id)) s.Held.Add(id);
+                            }
+                            break;
+                        }
                     case "data": s.Data = value; break;
                     case "position":
                         {

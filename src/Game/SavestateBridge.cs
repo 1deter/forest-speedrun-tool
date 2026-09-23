@@ -109,6 +109,16 @@ namespace ForestOverlay.Game
         private MethodInfo _stashWeapon;          // PlayerInventory.StashEquipedWeapon(bool)
         private MethodInfo _stashLeftHand;        // PlayerInventory.StashLeftHand()
 
+        // Held items (v0.24.1): what the hands held at capture is put back
+        // after an in-place restore.
+        private FieldInfo _equipmentSlots;        // PlayerInventory._equipmentSlots (InventoryItemView[])
+        private FieldInfo _noEquipedItem;         // PlayerInventory._noEquipedItem - the "empty" view
+        private FieldInfo _viewItemId;            // InventoryItemView._itemId
+        private MethodInfo _equipById;            // PlayerInventory.Equip(int, bool)
+        private MethodInfo _isSlotLocked;         // PlayerInventory.IsSlotLocked(EquipmentSlot)
+        private object _leftHandSlot;             // Item.EquipmentSlot.LeftHand
+        private FieldInfo _lighterBusy;           // static LighterControler.IsBusy
+
         // Identifiers
         private Type _uniqueIdType;
         private PropertyInfo _allIdentifiers;
@@ -318,7 +328,20 @@ namespace ForestOverlay.Game
             {
                 _stashWeapon = inv.GetMethod("StashEquipedWeapon", inst, null, new[] { typeof(bool) }, null);
                 _stashLeftHand = inv.GetMethod("StashLeftHand", inst, null, Type.EmptyTypes, null);
+                _equipmentSlots = inv.GetField("_equipmentSlots", inst);
+                _noEquipedItem = inv.GetField("_noEquipedItem", inst);
+                _equipById = inv.GetMethod("Equip", inst, null, new[] { typeof(int), typeof(bool) }, null);
+                _isSlotLocked = inv.GetMethod("IsSlotLocked", inst);
+                if (_isSlotLocked != null)
+                {
+                    try { _leftHandSlot = Enum.Parse(_isSlotLocked.GetParameters()[0].ParameterType, "LeftHand"); }
+                    catch (Exception) { _leftHandSlot = null; }
+                }
             }
+            Type view = GameBridge.FindGameType("TheForest.Items.Inventory.InventoryItemView");
+            if (view != null) _viewItemId = view.GetField("_itemId", inst);
+            Type lighter = GameBridge.FindGameType("TheForest.Items.Special.LighterControler");
+            if (lighter != null) _lighterBusy = lighter.GetField("IsBusy", stat);
 
             Type slotType = GameBridge.FindGameType("itemConstrainToHand");
             if (slotType != null) _available = slotType.GetField("Available", inst);
@@ -347,6 +370,7 @@ namespace ForestOverlay.Game
                      " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
+                     " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
                      " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null) +
@@ -500,6 +524,17 @@ namespace ForestOverlay.Game
 
             StashHands();
 
+            // Putting the lighter away is an animated routine
+            // (LighterControler.StashLighterRoutine): it locks the left-hand
+            // slot and unequips at its end. Restoring meanwhile, the game's
+            // re-equip found the slot locked and fell back to AddItem -
+            // "CANNOT CARRY ANY MORE LIGHTERS" - and the routine then put
+            // away the lighter the restore had just equipped (runner maks).
+            float stashStart = Time.realtimeSinceStartup;
+            while (HandsBusy() && Time.realtimeSinceStartup - stashStart < 2f) yield return null;
+            float stashWait = Time.realtimeSinceStartup - stashStart;
+            bool stashStuck = HandsBusy();
+
             int before = IdentifierCount;
             bool unloaded = false;
             if (unloadStreaming)
@@ -583,6 +618,8 @@ namespace ForestOverlay.Game
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
                 sb.Append(", streaming ").Append(unloadStreaming ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
+                if (stashWait > 0.05f || stashStuck)
+                    sb.Append(", hands put away in ").Append((int)(stashWait * 1000f)).Append(" ms").Append(stashStuck ? " (STILL BUSY)" : "");
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
@@ -1087,6 +1124,79 @@ namespace ForestOverlay.Game
             {
                 _log.LogWarning("Savestate: stashing held items failed: " + (ex.InnerException ?? ex).Message);
             }
+        }
+
+        private bool HandsBusy()
+        {
+            try
+            {
+                if (_lighterBusy != null && (bool)_lighterBusy.GetValue(null)) return true;
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                if (inv == null || _isSlotLocked == null || _leftHandSlot == null) return false;
+                return (bool)_isSlotLocked.Invoke(inv, new[] { _leftHandSlot });
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// Item ids in the equipment slots now (hands first), read from the
+        /// live slots - `_equipmentSlotsIds` is only filled when the game
+        /// saves (PlayerInventory.OnSerializing), from these same views.
+        public List<int> HeldIds()
+        {
+            List<int> ids = new List<int>();
+            if (!Resolve() || _equipmentSlots == null || _viewItemId == null) return ids;
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                Array slots = inv != null ? _equipmentSlots.GetValue(inv) as Array : null;
+                if (slots == null) return ids;
+                object none = _noEquipedItem != null ? _noEquipedItem.GetValue(inv) : null;
+
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    UnityEngine.Object v = slots.GetValue(i) as UnityEngine.Object;
+                    if (v == null || ReferenceEquals(v, none)) continue;
+                    int id = (int)_viewItemId.GetValue(v);
+                    if (id > 0 && !ids.Contains(id)) ids.Add(id);
+                }
+            }
+            catch (Exception ex) { _log.LogWarning("Savestate: reading held items failed: " + ex.Message); }
+            return ids;
+        }
+
+        /// After an in-place restore: equips each item held at capture that
+        /// is not held now, the way the game's own load does
+        /// (PlayerInventory.OnDeserialized: Equip(id, ...)). A short wait
+        /// first, so the restore's own OnDeserialized routines have run.
+        /// `done` gets one line for the log.
+        public IEnumerator ReEquip(List<int> wanted, Func<int, string> nameOf, Action<string> done)
+        {
+            yield return new WaitForSecondsRealtime(0.3f);
+
+            float start = Time.realtimeSinceStartup;
+            while (HandsBusy() && Time.realtimeSinceStartup - start < 2f) yield return null;
+
+            StringBuilder sb = new StringBuilder("held at capture:");
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                List<int> now = HeldIds();
+                for (int i = 0; i < wanted.Count; i++)
+                {
+                    int id = wanted[i];
+                    sb.Append(i == 0 ? " " : ", ").Append(nameOf(id));
+                    if (now.Contains(id)) { sb.Append(" (held)"); continue; }
+                    if (inv == null || _equipById == null) { sb.Append(" (cannot equip: not bound)"); continue; }
+
+                    bool ok = (bool)_equipById.Invoke(inv, new object[] { id, false });
+                    sb.Append(ok ? " (re-equipped)" : " (Equip refused)");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.Append(" | re-equip failed: ").Append((ex.InnerException ?? ex).Message);
+            }
+            done(sb.ToString());
         }
 
         public bool MemorySafeSaveMode { get { return ReadStaticBool(_memorySafe); } }

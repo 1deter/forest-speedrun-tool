@@ -419,8 +419,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.0** (2026-09-23). The author runs it via the in-game
-updater. **221 tests.**
+**Released: v0.24.1** (2026-09-23). The author runs it via the in-game
+updater. **222 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
 
@@ -622,6 +622,11 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **The lighter kept by in-place restores** (v0.24.1): capture with the
+  lighter out and lit, restore in place. Capture line: `held Lighter`;
+  restore: `held at capture: Lighter (held)` or `(re-equipped)`, and no
+  "CANNOT CARRY" message. Is it lit? `hands put away in N ms` on the
+  restore line shows the wait. `Savestates bound. ... held:True`.
 - **The book page kept by savestates** (v0.24.0): capture on a page,
   flip to another, restore both ways - the capture line's `book:` names
   the page, the restore line says it was switched back. `BookPages
@@ -750,7 +755,9 @@ list so we can move onto expanding more features".
      are spawned and pooled by the game's spawn managers, most likely outside
      `UniqueIdentifier`. Find from IL what owns a live enemy and what a
      scene load re-creates, then do what `PickupKeeper` does for pickups.
-   - **The lighter is put away by an in-place restore** *(runner maks)*:
+   - ~~**The lighter is put away by an in-place restore**~~ **done**
+     (v0.24.1, awaiting a check; game-notes *Held items across an in-place
+     restore*) *(runner maks)*:
      captured with the lighter out and lit, every in-place restore leaves
      it away, so it has to be taken out again each reset (cave 6,
      sinkhole; load restores are fine). **Our own doing:** the restore

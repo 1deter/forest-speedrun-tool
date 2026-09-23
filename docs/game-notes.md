@@ -369,6 +369,30 @@ body's velocity, `prevVelocity`, `prevVelocityXZ` and `jumpingTimer`, and
 leaves the coroutine and `allowFallDamage` alone: the game's own landing
 then runs soft, and a real fall after the restore still counts from zero.
 
+## Held items across an in-place restore (IL, v0.24.1)
+
+`PlayerInventory._equipmentSlotsIds` is **only filled when the game
+saves** (`OnSerializing`: each `_equipmentSlots` view's `_itemId`, 0 for
+none); live code reads `_equipmentSlots` (InventoryItemView[], slot order
+`Item.EquipmentSlot`: RightHand, LeftHand, Chest, Feet) and compares
+against `_noEquipedItem`. On a load, `OnDeserialized` runs
+`HideAllEquiped`, then per saved id `UnlockEquipmentSlot` + `Equip(id,
+true)`, and when `Equip` fails, `AddItem(id, 1, ...)` - with the lighter
+already in the bag that is "CANNOT CARRY ANY MORE LIGHTERS".
+
+`StashLeftHand` with the lighter held calls
+`LighterControler.StashLighter`, which only **starts** the animated
+`StashLighterRoutine`: `IsBusy = true`, `LockEquipmentSlot(LeftHand)`,
+animator `lighterIgnite` / `lighterHeld` off, `TurnLighterOff`, and at its
+end `UnlockEquipmentSlot` + `UnequipItemAtSlot`. The plugin's in-place
+restore stashed the hands and restored at once, so the game's re-equip met
+a locked slot (the fallback message), and the routine then put away the
+lighter the restore had equipped (runner maks: the lighter came back away,
+unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
+`IsBusy` is false and the left slot unlocked, the capture writes the held
+ids to the file (`held = ...`), and 0.3 s after the restore
+`SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

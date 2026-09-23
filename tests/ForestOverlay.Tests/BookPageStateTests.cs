@@ -66,12 +66,32 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SavestateHeaderCarriesHeldItems()
+        {
+            SavestateFile s = new SavestateFile();
+            s.Held = new System.Collections.Generic.List<int> { 80, 53 };
+            s.Data = "abc";
+
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(new[] { 80, 53 }, back.Held);
+
+            // Nothing held is still a held line, not an old file.
+            s.Held.Clear();
+            back = SavestateFile.Parse(s.Write(), out error);
+            Assert.NotNull(back.Held);
+            Assert.Empty(back.Held);
+        }
+
+        [Fact]
         public void OlderSavestateHasNoBook()
         {
             string error;
             SavestateFile back = SavestateFile.Parse(SavestateFile.Magic + "\nname = old\ndata = abc\n", out error);
             Assert.Null(error);
             Assert.Equal("", back.Book);
+            Assert.Null(back.Held);
         }
     }
 }
