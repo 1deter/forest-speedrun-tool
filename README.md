@@ -21,15 +21,21 @@ A speedrun and practice tool for **The Forest**, built as a
 
 **Run helper** — changes what happens, not your save:
 
-- **Quick-load on death** — any death loads your save straight away, through
-  the menu's own load (toggle in the **Deaths** tab; the first-death capture
-  has its own toggle). The author rules this allowed in normal runs.
+- **Quick-load on death** — any death loads your save straight away with the
+  game's own load, skipping the title screen (toggles in the **Deaths** tab;
+  the first-death capture and the boss fight have their own). The author
+  rules this allowed in normal runs.
 
 **Practice only** — writes game state, and flags the session when used:
 
 - **Practice spots** — teleport anywhere you have saved
 - **Segments** — a spot with a start, an end and checkpoints, timed and
   compared against your previous attempts
+- **Savestates** *(experimental)* — capture the world to a file (no save slot
+  is touched) and restore it instantly in place, or with a ~5 s load for the
+  game's full reset. Built walls go, taken items come back
+- **Segment start states** — give a segment a savestate and every restart
+  (`F7`) puts the world back as it was before teleporting you to the start
 - **Death recovery** — a death in practice mode puts you back at your spot
   with full health and no blood overlay
 - **Debug views** — freecam (the body is held still), collider and trigger
@@ -43,7 +49,7 @@ A speedrun and practice tool for **The Forest**, built as a
 |---|---|
 | `F2` | Open the ForestOverlay window |
 | `F5` | Show / hide all overlay UI |
-| `F6` / `F7` | Save spot here / return to it |
+| `F6` / `F7` | Save spot here / restart it (restores its start state) |
 | `F9` | Practice mode on / off |
 | `F10` | Type explorer |
 | `F11` | Write dump files |
