@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.5** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.6** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-23, end of the load-leak session)
@@ -622,6 +622,9 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
 **Awaiting an in-game check** — ask before building on these:
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
+- **Auto-restart** (v0.24.6): tick it in the Runs tab, finish a timed
+  spot - the time flashes and the spot restarts; with a load-mode start
+  state too.
 - **Enemies respawn after an in-place restore** (v0.24.5): kill a few,
   restore in place - they are back (elsewhere is expected). Also check
   nothing doubles up and caves still spawn. `Savestates bound. ...
@@ -837,7 +840,12 @@ list so we can move onto expanding more features".
    - Author's idea, still open: reload the slot **in place** on death (the
      Savestates tab's *Reload slot save in place* does exactly that).
 4. **Practice QoL the runners asked for** (author, 2026-09-23):
-   - **Auto-restart at the end of a timed spot** *(runner maks)*: a
+   - ~~**Auto-restart at the end of a timed spot**~~ **done** (v0.24.6,
+     awaiting a check: `Runs.AutoRestartAtEnd`, off; checkbox on its own
+     line in the Runs tab; `FinishRun` shows the time as a 1.2 s notice and
+     `ReturnToSpot` runs 0.4 s later unless the run was aborted, the spot
+     changed or a new run started; log `Run '<id>': finished in m:ss` and
+     `Run '<id>': auto-restart.`) *(runner maks)*: a
      tickable option; the moment the end condition fires, the time shows
      briefly (~0.4 s, "like those games") and the spot restarts at once,
      exactly as F7 would (start state if it has one). The attempt is saved

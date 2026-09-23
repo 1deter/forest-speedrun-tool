@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
 using ForestOverlay.Game;
@@ -66,6 +67,15 @@ namespace ForestOverlay.Modules
 
         private string _status = "";
 
+        // Auto-restart (runner maks, author 2026-09-23: one global setting,
+        // off until ticked; it acts for load-mode start states too). The
+        // time shows as a notice and the spot restarts this long after the
+        // end fired - "a 0.4 s text of your time and then you're ready to go
+        // again".
+        private const float AutoRestartDelay = 0.4f;
+        private ConfigEntry<bool> _autoRestart;
+        private float _autoRestartAt;
+
         // Game events: how many of Ctx.Events have been evaluated, and a
         // line for the tab saying the hooks are alive and what fired last.
         private int _eventsSeen;
@@ -106,6 +116,10 @@ namespace ForestOverlay.Modules
             // Pulled only when a state sample is due (5 Hz), not read every
             // frame and thrown away.
             _recorder.StateSource = ReadState;
+
+            _autoRestart = ctx.Config.Bind("Runs", "AutoRestartAtEnd", false,
+                "Restart the spot (as F7 does, start state included) as soon as a timed run finishes. " +
+                "The time shows on screen for a moment.");
         }
 
         private float[] ReadState()
@@ -226,6 +240,20 @@ namespace ForestOverlay.Modules
         {
             BuildEventLine();
             RefreshTabText();
+
+            if (_autoRestartAt > 0f && Time.unscaledTime >= _autoRestartAt)
+            {
+                _autoRestartAt = 0f;
+                // Only if nothing changed meanwhile: still on, still this
+                // segment, no new run started by hand.
+                if (Enabled && _segment != null && _practice != null &&
+                    ReferenceEquals(_practice.CurrentSegment, _segment) &&
+                    _recorder.State != RunRecorder.RunState.Running)
+                {
+                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart.");
+                    _practice.ReturnToSpot();
+                }
+            }
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
@@ -396,10 +424,18 @@ namespace ForestOverlay.Modules
             _status = "finished " + Format(done.Duration) + (isPb ? "   NEW BEST" : "");
             SelectReference();
             ClearRunPreview();
+            Ctx.Log.LogInfo("Run '" + done.AnchorLabel + "': finished in " + Format(done.Duration) + (isPb ? " (best)" : "") + ".");
+
+            if (_autoRestart.Value && _segment != null)
+            {
+                Ctx.Notice.Show(Format(done.Duration) + (isPb ? "   NEW BEST" : ""), 1.2f);
+                _autoRestartAt = Time.unscaledTime + AutoRestartDelay;
+            }
         }
 
         private void AbortRun()
         {
+            _autoRestartAt = 0f;
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
@@ -623,15 +659,19 @@ namespace ForestOverlay.Modules
             bool lines = GUI.Toggle(new Rect(300, 58, 110, 20), _showLines, " run lines");
             if (lines != _showLines) _showLines = lines;
 
+            bool auto = GUI.Toggle(new Rect(0, 82, w, 20), _autoRestart.Value,
+                                   " Auto-restart: restart the spot as soon as a run finishes");
+            if (auto != _autoRestart.Value) _autoRestart.Value = auto;
+
             // Flowing, each line as tall as its text (UiText) - these
             // messages vary in length and clipped at fixed heights.
-            float y = 82f;
+            float y = 106f;
             y += UiText.Draw(0, y, w, _statusText);
             y += UiText.Draw(0, y, w, _diagnoseText);
             y += UiText.Draw(0, y, w, _splitsText);
             y += UiText.Draw(0, y, w, _eventText);
 
-            y = Mathf.Max(y + 4f, 166f);
+            y = Mathf.Max(y + 4f, 190f);
             DrawAttemptList(new Rect(0, y, w, _tabH - y - 4f));
         }
 

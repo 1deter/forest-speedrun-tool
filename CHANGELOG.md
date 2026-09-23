@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.6 - 2026-09-24
+
+- Auto-restart (Runs tab): tick it and a timed spot restarts by itself as
+  soon as you finish - your time flashes on screen, the attempt is saved,
+  and you are back at the start (with its start state, like F7). Off by
+  default.
+
 ## v0.24.5 - 2026-09-24
 
 - Enemies you killed come back after an in-place restore. The game's own
