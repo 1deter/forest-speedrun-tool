@@ -280,6 +280,10 @@ namespace ForestOverlay.Modules
         {
             SavestateFile f = LoadSelected();
             if (f == null) return;
+
+            string mode = ModeMismatch(f);
+            if (mode != null) { SetStatus("restore '" + f.Name + "' refused: " + mode); return; }
+
             HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
             RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, null);
         }
@@ -289,8 +293,8 @@ namespace ForestOverlay.Modules
             SavestateFile f = LoadSelected();
             if (f == null || _busy) return;
 
-            string foreign = ForeignSave(f);
-            if (foreign != null) { SetStatus("restore '" + f.Name + "' refused: " + foreign); return; }
+            string mode = ModeMismatch(f);
+            if (mode != null) { SetStatus("restore '" + f.Name + "' refused: " + mode); return; }
 
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
@@ -480,12 +484,12 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
                                    s.StartState + ") - recapture it to make it so.");
 
+            string mode = ModeMismatch(f);
+            if (mode != null) { done(mode); return; }
+
             string what = "start state of '" + s.Name + "'";
             if (s.StartRestoreWithLoad)
             {
-                string foreign = ForeignSave(f);
-                if (foreign != null) { done(foreign); return; }
-
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
                 StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), done);
@@ -497,11 +501,21 @@ namespace ForestOverlay.Modules
             }
         }
 
-        // In place, the bridge checks this itself before touching anything.
-        private string ForeignSave(SavestateFile f)
+        // A savestate from another save restores - in place the bridge
+        // adopts the saved player, a load rebuilds everything - but not
+        // across game modes: Creative is set up before the game loads and
+        // is not in the save, so a Hard world would come back in Creative
+        // (the author's suggestion, v0.22.1: "perhaps the same game mode").
+        private string ModeMismatch(SavestateFile f)
         {
-            if (!Ctx.Player.Found || !_bridge.Resolve()) return null;
-            return _bridge.ForeignPlayer(f.Data, Ctx.Player.Transform.root);
+            if (!_bridge.Resolve()) return null;
+            string here = _bridge.CurrentDifficulty;
+            if (here.Length == 0 || f.Difficulty.Length == 0) return null;
+            if ((here == "Creative") == (f.Difficulty == "Creative")) return null;
+
+            Ctx.Log.LogWarning("Savestate: refused '" + f.Name + "' - captured in a " + f.Difficulty +
+                               " game, this one is " + here + ".");
+            return "captured in a " + f.Difficulty + " game - this one is " + here + " (Creative and survival do not mix)";
         }
 
         private void CheckPickups()

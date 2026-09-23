@@ -118,6 +118,7 @@ namespace ForestOverlay.Modules
         private Segment _startStateFor;
         private string _startStateForId;
         private readonly GUIContent _startStateLabel = new GUIContent("");
+        private readonly GUIContent _startStatusLabel = new GUIContent("");
         private float _deleteStartArmedUntil;
         private float _captureStartArmedUntil;
 
@@ -365,14 +366,19 @@ namespace ForestOverlay.Modules
                                 (s.StartRestoreWithLoad ? "with a load." : "in place."));
                 _savestates.RestoreStartState(s, delegate(string error)
                 {
-                    if (error != null)
-                    {
-                        Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
-                        _status = "Start state not restored: " + error;
-                    }
                     // A restored state has set the cave state from its file;
                     // the terrain guess below can be wrong at a cave mouth.
                     PlaceAt(s, error != null);
+                    if (error == null) return;
+
+                    // After the teleport, which writes its own status. Shown
+                    // beside the buttons, and on screen when the window is
+                    // closed (F7, a death): the log alone went unseen.
+                    Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
+                    string msg = "Start state not restored - " + error + ". Teleported only.";
+                    _status = msg;
+                    StartStatus(msg);
+                    if (!Host.AnyPanelOpen()) Ctx.Notice.Show(msg, 7f);
                 });
                 return;
             }
@@ -492,12 +498,13 @@ namespace ForestOverlay.Modules
             bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
             if (preview != _showPreview) _showPreview = preview;
 
-            // Its own full-width line, one line high and never wrapped:
-            // beside the toggle a long message wrapped into two lines and
-            // both were cut in half (author, v0.22.0).
-            GUI.Label(new Rect(0, 54, w, 20), _status, _statusStyle);
+            // One line, never wrapped, over the spot panel it is about:
+            // beside the toggle a long message wrapped and both lines were
+            // cut in half (v0.22.0); full width it ran under the list
+            // (v0.22.1). Start-state messages sit under their own buttons.
+            GUI.Label(new Rect(ListWidth + 14, 54, w - ListWidth - 14, 20), _status, _statusStyle);
 
-            DrawList(new Rect(0, 78, ListWidth, _tabH - 82));
+            DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
             DrawEditor(new Rect(ListWidth + 14, 78, w - ListWidth - 14, _tabH - 82));
         }
 
@@ -1063,7 +1070,11 @@ namespace ForestOverlay.Modules
         private float DrawStartState(float y, float cw, Segment s)
         {
             if (_savestates == null) return y;
-            if (!ReferenceEquals(_startStateFor, s) || _startStateForId != s.Id) RefreshStartStateLabel(s);
+            if (!ReferenceEquals(_startStateFor, s) || _startStateForId != s.Id)
+            {
+                if (!ReferenceEquals(_startStateFor, s)) StartStatus("");
+                RefreshStartStateLabel(s);
+            }
 
             // Buttons on the label's row, the description on a full-width
             // line of its own: squeezed beside the buttons it wrapped into
@@ -1084,11 +1095,24 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(80, y, cw - 90, 20), _startStateLabel, _dimStyle);
             y += 22f;
 
+            // What the buttons above just did, right under them. Cleared on
+            // selection change so it never describes another spot.
+            if (_startStatusLabel.text.Length > 0)
+            {
+                GUI.Label(new Rect(80, y, cw - 90, 20), _startStatusLabel, _statusStyle);
+                y += 22f;
+            }
+
             bool load = GUI.Toggle(new Rect(80, y, cw - 90, 20), s.StartRestoreWithLoad,
                                    " Restore with a load (slower, the game's full reset)");
             if (load != s.StartRestoreWithLoad) { s.StartRestoreWithLoad = load; Touch(); }
             y += 28f;
             return y;
+        }
+
+        private void StartStatus(string text)
+        {
+            _startStatusLabel.text = text ?? "";
         }
 
         private void RefreshStartStateLabel(Segment s)
@@ -1102,7 +1126,7 @@ namespace ForestOverlay.Modules
         // a restart then restores and teleports to the same place.
         private void CaptureStartState(Segment s)
         {
-            if (!_library.IsIdAvailable(s.Id, s)) { _status = "Pick a free id first - the start state is named after it."; return; }
+            if (!_library.IsIdAvailable(s.Id, s)) { StartStatus("Pick a free id first - the start state is named after it."); return; }
 
             // A new start state is a new route: times recorded from the old
             // one are retired (author, 2026-09-23) - so say so first.
@@ -1112,7 +1136,7 @@ namespace ForestOverlay.Modules
                 if (warning != null)
                 {
                     _captureStartArmedUntil = Time.unscaledTime + 3f;
-                    _status = warning + " Click Capture again within 3 s.";
+                    StartStatus(warning + " Click Capture again within 3 s.");
                     return;
                 }
             }
@@ -1124,14 +1148,14 @@ namespace ForestOverlay.Modules
             // left another spot current, so F7 teleported there as if no
             // start state existed (author, v0.21.0). Capturing is choosing.
             _current = s;
-            _status = "Capturing the start state...";
+            StartStatus("Capturing...");
             _savestates.CaptureStartState(s, delegate(string error)
             {
                 RefreshStartStateLabel(s);
-                if (error != null) { _status = "Start state not captured: " + error; return; }
+                if (error != null) { StartStatus("Not captured: " + error); return; }
 
                 Touch();
-                _status = "Start state captured - F7 now restarts '" + s.Name + "'. " + SaveStartStateChange(s);
+                StartStatus("Captured - F7 now restarts '" + s.Name + "'. " + SaveStartStateChange(s));
             });
         }
 
@@ -1162,17 +1186,17 @@ namespace ForestOverlay.Modules
             {
                 _deleteStartArmedUntil = Time.unscaledTime + 3f;
                 string warning = RetireWarning(s);
-                _status = (warning != null ? warning + " " : "") + "Click Delete again within 3 s to delete the start state.";
+                StartStatus((warning != null ? warning + " " : "") + "Click Delete again within 3 s.");
                 return;
             }
 
             _deleteStartArmedUntil = 0f;
             string error = _savestates.DeleteStartState(s);
             RefreshStartStateLabel(s);
-            if (error != null) { _status = "Delete failed: " + error; return; }
+            if (error != null) { StartStatus("Delete failed: " + error); return; }
 
             Touch();
-            _status = "Start state deleted - restarts now keep the game as it is. " + SaveStartStateChange(s);
+            StartStatus("Deleted - restarts now keep the game as it is. " + SaveStartStateChange(s));
         }
 
         private void SetSpawnHere(Segment s)

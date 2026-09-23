@@ -17,6 +17,9 @@ namespace ForestOverlay.Core
         public PlayerRef Player;
         public PracticeState Practice;
 
+        /// A few seconds of text on screen, for when no panel is open.
+        public Notice Notice;
+
         /// Named game events (endgame cutscenes etc.) seen by Harmony
         /// postfixes. Read-only log; consumers keep their own position.
         public GameEvents Events;

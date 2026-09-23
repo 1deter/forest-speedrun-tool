@@ -457,10 +457,23 @@ call (without the spawn) before deleting one.
 place a Hard save's state inside a Creative game produced a second player
 beside the first, mirroring input, with its own inventory — Tab closed one
 inventory and opened the other (author, v0.22.0). The player's
-`UniqueIdentifier` id differs between saves, so `LoadNow` does not find the
-saved player and instantiates it from its prefab, while the live one is
-never deleted. The plugin now refuses both restores when the save does not
-contain the live player's shallowest identifier id.
+`UniqueIdentifier` id differs between saves (a GUID, e.g. `9164e836-…`,
+logged in v0.22.1), so `LoadNow` does not find the saved player and
+instantiates it from its prefab, while the live one is never deleted.
+v0.22.1 refused such restores; **v0.22.2 adopts the saved player
+instead**: before `LoadNow`, every identifier under the player that the
+save lacks gets the id of the saved object with the same
+`GameObjectName`, `ClassId` (prefabs) and `ParentName`, shallowest first,
+on a unique match only (`SavestateBridge.AdoptPlayer`). The `Id` setter
+re-registers the object with `SaveGameManager.SetId`.
+
+`LevelSerializer.StoredItem` (IL, `SerializeLevel` lambda): `Name` = the
+object's `UniqueIdentifier.Id`, `GameObjectName` = its name, `ParentName`
+= the **direct parent's** identifier id (none when the parent has no
+identifier), `ClassId` = the `PrefabIdentifier`'s class, prefabs only.
+
+Creative is chosen before the game loads and is not in the save data, so
+restores are refused across Creative and survival (author's suggestion).
 
 Killed enemies do **not** come back with an in-place restore (author,
 v0.22.0). A load restore is the reference for what should.

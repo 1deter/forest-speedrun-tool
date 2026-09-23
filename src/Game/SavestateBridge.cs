@@ -85,6 +85,9 @@ namespace ForestOverlay.Game
         private MethodInfo _deserializeLevelData; // UnitySerializer.Deserialize<LevelData>(byte[])
         private FieldInfo _storedObjectNames;     // LevelData.StoredObjectNames : List<StoredItem>
         private FieldInfo _storedItemName;        // StoredItem.Name
+        private FieldInfo _storedItemGoName;      // StoredItem.GameObjectName
+        private FieldInfo _storedItemParent;      // StoredItem.ParentName = the parent's identifier id
+        private FieldInfo _storedItemClass;       // StoredItem.ClassId (prefabs only)
         private MethodInfo _decompress;           // CompressionHelper.Decompress(string) : byte[]
 
         // Build missions (the "GATHER LOGS 0/4" HUD). Craft_Structure adds
@@ -188,7 +191,13 @@ namespace ForestOverlay.Game
                 Type levelData = ls.GetNestedType("LevelData", BindingFlags.Public | BindingFlags.NonPublic);
                 Type storedItem = ls.GetNestedType("StoredItem", BindingFlags.Public | BindingFlags.NonPublic);
                 if (levelData != null) _storedObjectNames = levelData.GetField("StoredObjectNames", inst);
-                if (storedItem != null) _storedItemName = storedItem.GetField("Name", inst);
+                if (storedItem != null)
+                {
+                    _storedItemName = storedItem.GetField("Name", inst);
+                    _storedItemGoName = storedItem.GetField("GameObjectName", inst);
+                    _storedItemParent = storedItem.GetField("ParentName", inst);
+                    _storedItemClass = storedItem.GetField("ClassId", inst);
+                }
 
                 Type us = GameBridge.FindGameType("Serialization.UnitySerializer");
                 if (us != null)
@@ -358,6 +367,9 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// "Creative", the difficulty's name, or "" when unknown.
+        public string CurrentDifficulty { get { return DifficultyName(); } }
+
         public string CurrentSlot
         {
             get
@@ -473,9 +485,11 @@ namespace ForestOverlay.Game
             if (IsDeserializing) { r.Message = "the game is already loading"; done(r); yield break; }
 
             string diffError;
-            HashSet<string> stored = StoredNames(data, out diffError);
+            List<SavedObject> saved;
+            HashSet<string> stored = StoredNames(data, out diffError, out saved);
 
-            string foreign = stored != null ? ForeignPlayer(stored, keepRoot) : null;
+            string adoptNote = null;
+            string foreign = stored != null ? AdoptPlayer(stored, saved, keepRoot, out adoptNote) : null;
             if (foreign != null) { r.Message = foreign; done(r); yield break; }
 
             StashHands();
@@ -561,6 +575,7 @@ namespace ForestOverlay.Game
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
                 sb.Append(", streaming ").Append(unloadStreaming ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
+                if (adoptNote != null) sb.Append(", ").Append(adoptNote);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -688,7 +703,14 @@ namespace ForestOverlay.Game
         // "NOCOMPRESSION" + base64, or CompressionHelper's format.
         private HashSet<string> StoredNames(string data, out string error)
         {
+            List<SavedObject> unused;
+            return StoredNames(data, out error, out unused);
+        }
+
+        private HashSet<string> StoredNames(string data, out string error, out List<SavedObject> objects)
+        {
             error = null;
+            objects = new List<SavedObject>();
             if (_deserializeLevelData == null || _storedObjectNames == null || _storedItemName == null)
             {
                 error = "level data reader not bound";
@@ -709,8 +731,17 @@ namespace ForestOverlay.Game
                 HashSet<string> names = new HashSet<string>();
                 for (int i = 0; i < items.Count; i++)
                 {
-                    string n = items[i] != null ? _storedItemName.GetValue(items[i]) as string : null;
-                    if (!string.IsNullOrEmpty(n)) names.Add(n);
+                    object it = items[i];
+                    string n = it != null ? _storedItemName.GetValue(it) as string : null;
+                    if (string.IsNullOrEmpty(n)) continue;
+                    names.Add(n);
+
+                    SavedObject o = new SavedObject();
+                    o.Id = n;
+                    o.GameObjectName = _storedItemGoName != null ? _storedItemGoName.GetValue(it) as string : null;
+                    o.ParentId = _storedItemParent != null ? _storedItemParent.GetValue(it) as string : null;
+                    o.ClassId = _storedItemClass != null ? _storedItemClass.GetValue(it) as string : null;
+                    objects.Add(o);
                 }
                 return names;
             }
@@ -721,46 +752,105 @@ namespace ForestOverlay.Game
             }
         }
 
-        /// Null when `data` belongs to the game that is running, otherwise
-        /// why not. A savestate from another save names a different player:
-        /// in place, LoadNow cannot find it, instantiates it from its prefab
-        /// beside the live one, and both take input with two inventories
-        /// (author, v0.22.0: a Hard start state restored in a Creative game).
-        /// A load would swap in the other game under this slot. The player's
-        /// shallowest UniqueIdentifier is its identity; no identifier = no
-        /// verdict, and the restore goes ahead.
-        public string ForeignPlayer(string data, Transform playerRoot)
+        /// Makes the live player the save's player, so a savestate from
+        /// ANOTHER save restores into it. Each game gives its player its own
+        /// UniqueIdentifier id; in place, LoadNow could not find the saved
+        /// one and instantiated it beside the live player - two players, two
+        /// inventories (author, v0.22.0: a Hard start state in a Creative
+        /// game). Every identifier under the player that the save lacks is
+        /// given the id of the saved object with the same GameObject name,
+        /// prefab class and parent id - shallowest first, so a child
+        /// matches against its parent's NEW id - but only on a unique
+        /// match. Returns null when the player is (now) in the save, or why
+        /// the restore must not go ahead. No identifier = no verdict.
+        public string AdoptPlayer(string data, Transform playerRoot, out string note)
         {
+            note = null;
             string error;
-            HashSet<string> stored = StoredNames(data, out error);
-            return stored != null ? ForeignPlayer(stored, playerRoot) : null;
+            List<SavedObject> saved;
+            HashSet<string> stored = StoredNames(data, out error, out saved);
+            return stored != null ? AdoptPlayer(stored, saved, playerRoot, out note) : null;
         }
 
-        private string ForeignPlayer(HashSet<string> stored, Transform playerRoot)
+        private sealed class SavedObject
         {
+            public string Id, GameObjectName, ParentId, ClassId;
+        }
+
+        private sealed class ByDepth : IComparer<KeyValuePair<int, Component>>
+        {
+            public int Compare(KeyValuePair<int, Component> a, KeyValuePair<int, Component> b) { return a.Key.CompareTo(b.Key); }
+        }
+
+        private string AdoptPlayer(HashSet<string> stored, List<SavedObject> saved, Transform playerRoot, out string note)
+        {
+            note = null;
             if (playerRoot == null || _uniqueIdType == null || _uidId == null) return null;
 
             Component[] ids;
             try { ids = playerRoot.GetComponentsInChildren(_uniqueIdType, true); }
             catch (Exception) { return null; }
 
-            Component top = null;
-            int topDepth = int.MaxValue;
+            List<KeyValuePair<int, Component>> order = new List<KeyValuePair<int, Component>>();
             for (int i = 0; i < ids.Length; i++)
             {
                 if (ids[i] == null) continue;
                 int depth = 0;
                 for (Transform t = ids[i].transform; t != playerRoot && t != null; t = t.parent) depth++;
-                if (depth < topDepth) { top = ids[i]; topDepth = depth; }
+                order.Add(new KeyValuePair<int, Component>(depth, ids[i]));
             }
-            if (top == null) return null;
+            if (order.Count == 0) return null;
+            order.Sort(new ByDepth());
 
-            string id = ReadString(_uidId, top);
-            if (string.IsNullOrEmpty(id) || stored.Contains(id)) return null;
+            Component top = order[0].Value;
+            string topBefore = ReadString(_uidId, top);
+            if (string.IsNullOrEmpty(topBefore) || stored.Contains(topBefore)) return null;   // this game's own state
 
-            _log.LogWarning("Savestate: refused - the save does not contain this game's player ('" +
-                            top.gameObject.name + "' " + id + "); it was captured in another save.");
-            return "this savestate is from another save (its player is not this one) - load that save first";
+            HashSet<string> claimed = new HashSet<string>();
+            int remapped = 0, unmatched = 0;
+            for (int i = 0; i < order.Count; i++)
+            {
+                Component u = order[i].Value;
+                string id = ReadString(_uidId, u);
+                if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
+
+                Transform parent = u.transform.parent;
+                Component parentUid = parent != null ? parent.GetComponent(_uniqueIdType) : null;
+                string parentId = parentUid != null ? ReadString(_uidId, parentUid) : null;
+                string classId = ReadString(_uidClassId, u);
+
+                SavedObject match = null;
+                int found = 0;
+                for (int s = 0; s < saved.Count; s++)
+                {
+                    SavedObject o = saved[s];
+                    if (o.GameObjectName != u.gameObject.name || claimed.Contains(o.Id)) continue;
+                    if (!string.IsNullOrEmpty(o.ClassId) && !string.IsNullOrEmpty(classId) && o.ClassId != classId) continue;
+                    if (u != top && (o.ParentId ?? "") != (parentId ?? "")) continue;
+                    match = o;
+                    found++;
+                }
+
+                if (found != 1) { unmatched++; continue; }
+                try { _uidId.SetValue(u, match.Id, null); }
+                catch (Exception) { unmatched++; continue; }
+                claimed.Add(match.Id);
+                remapped++;
+            }
+
+            string topAfter = ReadString(_uidId, top);
+            if (!stored.Contains(topAfter))
+            {
+                _log.LogWarning("Savestate: refused - no saved object matches this game's player ('" +
+                                top.gameObject.name + "' " + topBefore + ").");
+                return "its player could not be matched to yours (see the log)";
+            }
+
+            note = "adopted the save's player, " + remapped + " id(s) remapped" +
+                   (unmatched > 0 ? ", " + unmatched + " unmatched" : "");
+            _log.LogInfo("Savestate: from another save - " + note + " ('" + top.gameObject.name + "' " +
+                         topBefore + " -> " + topAfter + ").");
+            return null;
         }
 
         private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names)

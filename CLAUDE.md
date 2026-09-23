@@ -335,7 +335,7 @@ identity.
 
 ## Current status
 
-**Released: v0.22.1** (2026-09-23). The author runs it via the in-game updater.
+**Released: v0.22.2** (2026-09-23). The author runs it via the in-game updater.
 **174 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
@@ -408,8 +408,14 @@ is open, a 30 s perf log line, self-installing updates, offline IL scanner.
   every restart (F7 / Restart / death revive — not Go) before the usual
   teleport, which then skips its cave guess: the restore sets the cave
   state from the file's `cave` flag (`GameBridge.ForceCaveState`).
-  **Refused when the file is from another save** (its player id is not
-  the live player's) — in place it duplicated the player. **In place by default;
+  **A state from another save restores into your player** (v0.22.2): in
+  place, the live player's identifiers take the saved ids first
+  (`SavestateBridge.AdoptPlayer`) — without that, `LoadNow` built a second
+  player beside the first (v0.22.0). **Refused across Creative and
+  survival** (the mode is not in the save; author's suggestion). A refused
+  or failed restart still teleports, says why under the Start state
+  buttons, and — with the window closed (F7, a death) — in an on-screen
+  notice (`Core/Notice`, `Ctx.Notice`). **In place by default;
   `restore = load` on the segment** for the full reset (author 2026-09-23:
   fastest by default, the validated method as the alternative). Capturing
   moves the spawn to where you stand and makes the segment current. No
@@ -451,14 +457,19 @@ place 132–501 ms with `168 -> 168`, with a load ~11 s).
   with attempts asks for a second click and names the count; afterwards the
   Runs tab shows them as "from another route". Log line:
   `Savestate: start state of '<id>' is now <hash> - route <fp>.`
-- **v0.22.1 fixes:** a restore out of a cave puts the surface state back
-  (the log's restore line ends `| cave: surface state set`); a start state
-  from another save is refused (`Savestate: refused - the save does not
-  contain this game's player ...`) instead of duplicating the player; Go
-  only teleports; the Practice status is one unwrapped line of its own
-  (it was cut in half beside *show zones* on a long delete message).
-- Death at a start-state spot with practice mode off restoring the state
-  — **confirmed** (v0.22.0).
+- **Cross-save restores** (v0.22.2): a Hard state restored in place in
+  another Hard/Normal game should come back with ONE player, logging
+  `Savestate: from another save - adopted the save's player, N id(s)
+  remapped`. Watch for anything under the player that did not match
+  (`unmatched` in that line), and for leftovers in the world. Creative vs
+  survival shows the refusal under the buttons / on screen.
+- **Practice text placement** (v0.22.2): start-state messages on their own
+  line under Capture / Delete / Restart; the general status over the
+  right-hand panel only (v0.22.1 ran it under the spot list).
+- Confirmed in v0.22.1: the restore out of a cave sets the surface state
+  (`| cave: surface state set`); Go only teleports and Restart restores;
+  the cross-save refusal logged as designed. Confirmed in v0.22.0: death
+  at a start-state spot with practice mode off restores the state.
 - **Whether a timed run still arms after an F7 restore** — runs do not log
   arming, so the v0.21.1 log could not show it.
 - **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2 clears the build

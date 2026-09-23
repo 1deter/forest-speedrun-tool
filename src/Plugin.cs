@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.22.1";
+        public const string PluginVersion = "0.22.2";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -41,6 +41,8 @@ namespace ForestOverlay
         private InventoryReader _inventory;
         private PlayerStateReader _playerState;
         private PracticeState _practice;
+        private readonly Notice _notice = new Notice();
+        private GUIStyle _noticeStyle;
         private GameEvents _events;
 
         private GUIStyle _hudLabelStyle;
@@ -90,6 +92,7 @@ namespace ForestOverlay
                 ctx.Inventory = _inventory;
                 ctx.PlayerState = _playerState;
                 ctx.Practice = _practice;
+                ctx.Notice = _notice;
                 ctx.Events = _events;
                 ctx.ConfigDirectory = configDir;
                 ctx.Runner = this;
@@ -200,6 +203,7 @@ namespace ForestOverlay
                 long allocStart = _host.Perf.BeginAlloc();
                 EnsureStyles();
                 if (_host.HudVisible) DrawHud();
+                if (_notice.Active) DrawNotice();
                 _host.DrawPanels();
                 _host.Perf.EndAlloc(allocStart);
             }
@@ -222,6 +226,20 @@ namespace ForestOverlay
             _warnStyle = new GUIStyle(_hudLabelStyle);
             _warnStyle.fontStyle = FontStyle.Bold;
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
+
+            _noticeStyle = new GUIStyle(GUI.skin.box);
+            _noticeStyle.fontSize = 14;
+            _noticeStyle.wordWrap = true;
+            _noticeStyle.alignment = TextAnchor.MiddleCenter;
+            _noticeStyle.normal.textColor = new Color(1f, 0.75f, 0.4f);
+        }
+
+        // Upper middle: clear of the HUD box (top left) and of the game's
+        // own messages (bottom left), and where the eye is while playing.
+        private void DrawNotice()
+        {
+            const float w = 560f, h = 48f;
+            GUI.Box(new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h), _notice.Content, _noticeStyle);
         }
 
         private void DrawHud()
