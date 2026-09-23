@@ -129,5 +129,58 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal(expected, ReleaseJson.CompareVersions(a, b));
         }
+
+        // --- release notes (the version's CHANGELOG.md section) ----------
+
+        [Fact]
+        public void GeneratedFullChangelogLineIsNotNotes()
+        {
+            // The v0.16.1 body is only GitHub's generated compare link.
+            Assert.Null(ReleaseJson.ExtractNotes(Pretty));
+        }
+
+        [Fact]
+        public void NotesAreUnescapedAndPlain()
+        {
+            string json = "{\"tag_name\":\"v0.23.0\",\"assets\":[{\"name\":\"ForestOverlay.dll\"}]," +
+                          "\"name\":\"v0.23.0\",\"body\":\"### Fixed\\r\\n- **Checkpoints** fire in order\\r\\n" +
+                          "* the \\\"end\\\" waits \\u2014 F12 skips\\r\\n\\r\\n\\r\\n`code` gone\\r\\n\\r\\n" +
+                          "**Full Changelog**: https://github.com/x/y/compare/a...b\"}";
+
+            Assert.Equal("Fixed\n- Checkpoints fire in order\n- the \"end\" waits — F12 skips\n\ncode gone",
+                         ReleaseJson.ExtractNotes(json));
+        }
+
+        [Fact]
+        public void HardWrappedBulletsAreJoined()
+        {
+            string md = "- Timed runs: checkpoints can no longer be skipped. The end waits until\n" +
+                        "  every checkpoint has fired.\n" +
+                        "- Inventory tab fills in\n" +
+                        "  as soon as it opens.\n" +
+                        "\n" +
+                        "### Heading\n" +
+                        "Plain text\n" +
+                        "that wraps.";
+
+            Assert.Equal("- Timed runs: checkpoints can no longer be skipped. The end waits until every checkpoint has fired.\n" +
+                         "- Inventory tab fills in as soon as it opens.\n\n" +
+                         "Heading\nPlain text that wraps.",
+                         ReleaseJson.PlainNotes(md));
+        }
+
+        [Fact]
+        public void NoBodyMeansNoNotes()
+        {
+            Assert.Null(ReleaseJson.ExtractNotes(RealAsset.Replace("STATE", "uploaded")));
+            Assert.Null(ReleaseJson.ExtractNotes("{\"tag_name\":\"v1\",\"body\":null}"));
+        }
+
+        [Fact]
+        public void UnescapeLeavesPlainTextAlone()
+        {
+            Assert.Equal("plain", ReleaseJson.Unescape("plain"));
+            Assert.Equal("a\\b/c\td", ReleaseJson.Unescape("a\\\\b\\/c\\td"));
+        }
     }
 }

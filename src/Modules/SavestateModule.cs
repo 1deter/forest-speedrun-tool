@@ -79,7 +79,7 @@ namespace ForestOverlay.Modules
         // Which buttons the status line answers, so it is drawn under them
         // (UI rule: a message goes where the click was). Top = started from
         // elsewhere (a Practice restart), or a timeout.
-        private enum Anchor { Top, Capture, List, Slot, Pickups }
+        private enum Anchor { Top, Capture, List, Slot, Pickups, Memory }
         private Anchor _anchor = Anchor.Top;
         private GUIContent _slotLabel = new GUIContent("");
         private GUIContent _bindLabel = new GUIContent("");
@@ -92,7 +92,16 @@ namespace ForestOverlay.Modules
         private bool _sawLoading;
         private float _loadStarted;
         private string _loadWhat;
-        private int _loadsThisSession;
+
+        // The load leak (CLAUDE.md Next up 1): every load, whoever started
+        // it, is seen here, and a memory census runs shortly after.
+        private readonly LoadWatcher _loads = new LoadWatcher();
+        private MemoryCensus _census;
+        private ConfigEntry<bool> _censusOnLoad;
+        private float _censusDue;
+        private string _censusLabel = "";
+        private readonly GUIContent _censusText = new GUIContent("");
+        private const float CensusDelay = 1.5f;
 
         private Vector2 _scroll;
 
@@ -109,6 +118,11 @@ namespace ForestOverlay.Modules
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
+
+            _census = new MemoryCensus(ctx.Log);
+            _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusOnLoad", true,
+                "After every load, log the Mono heap and which static references hold destroyed objects " +
+                "(the load memory leak investigation). Costs a hitch of up to a second or so, just after a load.");
 
             _allowCrossMode = ctx.Config.Bind("Savestates", "AllowCrossModeRestore", false,
                 "Restore a savestate captured in a Creative game into a survival game, or the other way round. " +
@@ -141,6 +155,7 @@ namespace ForestOverlay.Modules
             }
 
             if (_timingLoad) TimeLoad();
+            WatchLoads();
 
             // A coroutine that dies on an exception never calls back; do not
             // leave every button disabled for the rest of the session.
@@ -165,12 +180,8 @@ namespace ForestOverlay.Modules
             else if (_sawLoading)
             {
                 _timingLoad = false;
-                _loadsThisSession++;
-                // A full collection first, so the heap figure is what survived
-                // the load, not garbage waiting for the GC - one hitch, at the
-                // end of a load.
-                string line = _loadWhat + ": in game after " + elapsed.ToString("0.0") + " s. Loads this session: " +
-                              _loadsThisSession + ", Mono heap after GC " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB.";
+                // The heap figure now comes from WatchLoads, for every load.
+                string line = _loadWhat + ": in game after " + elapsed.ToString("0.0") + " s.";
                 Ctx.Log.LogInfo("Savestate " + line);
                 SetStatus(line);
                 Continue(null);
@@ -184,6 +195,41 @@ namespace ForestOverlay.Modules
                              (_sawLoading ? "never came back" : "never changed") + ")";
                 Ctx.Log.LogWarning("Savestate " + _loadWhat + ": " + why + ".");
                 Continue(why);
+            }
+        }
+
+        private void WatchLoads()
+        {
+            if (_loads.Tick())
+            {
+                _censusLabel = "load " + _loads.Loads + (_loads.LastFromOtherScene ? " (from the title screen)" : " (game scene reloaded)");
+                if (_censusOnLoad.Value)
+                {
+                    // A moment later: the activation sequence's last frames
+                    // and the plugin's own rebinding are done by then.
+                    _censusDue = Time.unscaledTime + CensusDelay;
+                }
+                else
+                {
+                    Ctx.Log.LogInfo("Load " + _loads.Loads + " finished" + (_loads.LastFromOtherScene ? " (from the title screen)" : "") +
+                                    ": Mono heap after GC " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB.");
+                }
+            }
+
+            if (_censusDue > 0f && Time.unscaledTime >= _censusDue)
+            {
+                _censusDue = 0f;
+                RunCensus(_censusLabel);
+            }
+        }
+
+        private void RunCensus(string label)
+        {
+            try { _censusText.text = _census.Run(label); }
+            catch (Exception ex)
+            {
+                _censusText.text = "memory census failed: " + ex.Message;
+                Ctx.Log.LogWarning("Memory census failed: " + ex);
             }
         }
 
@@ -733,6 +779,22 @@ namespace ForestOverlay.Modules
             y += StatusIf(Anchor.Pickups, y, w);
             for (int i = 0; i < _diagLabels.Count; i++)
                 y += UiText.Draw(8, y, w - 8, _diagLabels[i]);
+            y += 6f;
+
+            // The load leak: what each load leaves behind.
+            bool census = GUI.Toggle(new Rect(0, y, w, 22), _censusOnLoad.Value,
+                                     " Memory census after every load (log; a short hitch after the load)");
+            if (census != _censusOnLoad.Value) _censusOnLoad.Value = census;
+            y += 26f;
+            // Run from Tick, never inside OnGUI.
+            if (GUI.Button(new Rect(0, y, 200, 22), "Memory census now"))
+            {
+                _censusLabel = "a click (" + _loads.Loads + " loads so far)";
+                _censusDue = Time.unscaledTime;
+                _censusText.text = "running...";
+            }
+            y += 26f;
+            y += UiText.Draw(0, y, w, _censusText);
 
             y += 6f;
             y += UiText.DrawDim(0, y, w, _bindLabel);

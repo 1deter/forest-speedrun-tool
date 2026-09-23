@@ -57,6 +57,99 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        /// The release's notes ("body" - the version's CHANGELOG.md section,
+        /// put there by CI) as plain text for an IMGUI label, or null when
+        /// there are none. Assets and uploaders carry no "body", so the
+        /// first one is the release's.
+        public static string ExtractNotes(string json)
+        {
+            string raw = ExtractString(json, "body");
+            return string.IsNullOrEmpty(raw) ? null : PlainNotes(Unescape(raw));
+        }
+
+        /// JSON string escapes: \n \r \t \" \\ \/ \b \f \uXXXX.
+        public static string Unescape(string s)
+        {
+            if (s.IndexOf('\\') < 0) return s;
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(s.Length);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c != '\\' || i + 1 >= s.Length) { sb.Append(c); continue; }
+
+                char e = s[++i];
+                switch (e)
+                {
+                    case 'n': sb.Append('\n'); break;
+                    case 'r': sb.Append('\r'); break;
+                    case 't': sb.Append('\t'); break;
+                    case 'b': sb.Append('\b'); break;
+                    case 'f': sb.Append('\f'); break;
+                    case 'u':
+                        int code;
+                        if (i + 4 < s.Length &&
+                            int.TryParse(s.Substring(i + 1, 4), System.Globalization.NumberStyles.HexNumber,
+                                         System.Globalization.CultureInfo.InvariantCulture, out code))
+                        {
+                            sb.Append((char)code);
+                            i += 4;
+                        }
+                        else sb.Append('u');
+                        break;
+                    default: sb.Append(e); break;   // \" \\ \/
+                }
+            }
+            return sb.ToString();
+        }
+
+        /// Markdown to plain text, lightly: headings lose their #, bold and
+        /// code marks go, `*` bullets become `-`, and GitHub's generated
+        /// tail ("## What's Changed", "**Full Changelog**: ...") is cut.
+        public static string PlainNotes(string markdown)
+        {
+            if (string.IsNullOrEmpty(markdown)) return null;
+
+            string[] lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            bool blank = true;
+            bool afterHeading = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].TrimEnd();
+                if (line.StartsWith("**Full Changelog**", StringComparison.Ordinal) ||
+                    line.StartsWith("## What's Changed", StringComparison.Ordinal)) break;
+
+                string trimmed = line.TrimStart();
+                if (trimmed.StartsWith("#", StringComparison.Ordinal)) line = trimmed.TrimStart('#').Trim();
+                else if (trimmed.StartsWith("* ", StringComparison.Ordinal))
+                    line = line.Substring(0, line.Length - trimmed.Length) + "- " + trimmed.Substring(2);
+                line = line.Replace("**", "").Replace("`", "");
+
+                if (line.Length == 0)
+                {
+                    if (!blank) sb.Append('\n');
+                    blank = true;
+                    continue;
+                }
+
+                // A hard-wrapped line continues the one above: joined, so
+                // the label wraps it to the tab's width instead.
+                string start = line.TrimStart();
+                bool heading = trimmed.StartsWith("#", StringComparison.Ordinal);
+                bool continues = !blank && !afterHeading && !heading &&
+                                 !start.StartsWith("- ", StringComparison.Ordinal) && sb.Length > 0;
+                if (continues) { sb.Length--; sb.Append(' ').Append(start).Append('\n'); }
+                else sb.Append(line).Append('\n');
+                blank = false;
+                afterHeading = heading;
+            }
+
+            string text = sb.ToString().Trim();
+            return text.Length == 0 ? null : text;
+        }
+
         /// Why a response carried no release, in words a runner can act on.
         /// GitHub answers errors with {"message": "..."}; the common one is
         /// the anonymous limit of 60 API calls per hour per IP address,

@@ -102,7 +102,9 @@ Where things live:
 | Quick-load / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
-| Updates | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson`, `Core/UpdaterInstaller`, `patcher/` |
+| Updates, changelog | `Core/UpdateChecker`, `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
+| Load leak diagnostics | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static roots holding destroyed objects, Unity objects by type), run from `Modules/SavestateModule` |
+| Timed run split order | `Data/SplitSequence` (pure, tested) |
 
 ### Rules for modules
 
@@ -172,6 +174,14 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 - **Version lives in two places** — `ForestOverlay.csproj` and
   `Plugin.PluginVersion`. They must match; the updater compares against the
   latter.
+- **Every release has a `CHANGELOG.md` section** (author, 2026-09-23: "for
+  all future updates"). `## vX.Y.Z - date`, a few short runner-facing
+  bullets. CI copies the tag's section into the GitHub release body
+  (`body_path`) and **fails the release if the section is missing**; the
+  plugin's Updates tab reads the body from the release JSON it already
+  fetches (`ReleaseJson.ExtractNotes`) and shows it - "What's new in vX"
+  for an update, "(installed)" once it is the running version. Write it in
+  plain words; hard-wrapped lines are joined in game.
 - **A tag publishes before its DLL is attached.** Wait for the asset, not the
   release, before telling anyone to update. The plugin reads a release with no
   DLL as "still being published" and re-checks every minute.
@@ -374,8 +384,8 @@ identity.
 
 ## Current status
 
-**Released: v0.22.7** (2026-09-23). The author runs it via the in-game updater.
-**186 tests.**
+**Released: v0.23.0** (2026-09-23). The author runs it via the in-game updater.
+**191 tests.**
 
 Working: module host with tabbed UI, rebindable hotkeys, HUD, velocity,
 per-item inventory, 100% checklist + nature guide + To Do list, type explorer,
@@ -590,17 +600,26 @@ list so we can move onto expanding more features".
    author: the leak predates the tool and hits every load (menu loads, cave
    streaming) - runners used to quit to the menu. Working theory: a larger
    Mono heap makes every GC (non-generational, marks everything) slower, so
-   everything allocation-heavy slows with it. **Next:**
-   - log that line for **every** load — hook the game's own load completion
-     (quick-load, menu load, load restore) rather than one module;
-   - add a one-off object census per load (`Resources.FindObjectsOfTypeAll`
-     counted by type — once per load, never on a timer; gotcha 11) so a
-     session of repeated loads shows which types grow;
-   - suspects from IL: a menu load loads the game scene **twice** (the
-     no-menu paths cut one); `LevelLoader` only unloads assets when its
-     time-scale argument is 0; the `DontDestroyOnLoad` `LevelLoader` — does
-     it destroy itself?; static `EventRegistry` subscriptions from destroyed
-     objects. Measure first, then fix what the census shows.
+   everything allocation-heavy slows with it.
+   **IL lead:** the title scene's `ClearStaticVars.Awake` (`MainScene`
+   false) clears statics the game scene's copy skips - notably
+   `InsideCheck._grid` (a static grid of wall chunks and `IRoof` building
+   components). Unproven: roofs may unregister in `OnDestroy`. game-notes
+   *The load leak* has the full list.
+   **v0.23.0 instruments it:** `Game/LoadWatcher` sees every load
+   (`Scene.FinishGameLoad` rising edge); 1.5 s later `Game/MemoryCensus`
+   logs `Memory census N after load N (...)`: heap, objects reached from
+   statics, **destroyed Unity objects still referenced** (the leak's
+   signature) per static root with growth, and Unity objects by type.
+   Savestates tab: *Memory census now* (for in-place restores), switch
+   `Diagnostics.MemoryCensusOnLoad` (on). **Next:** get a log of several
+   load restores in a row (and some in-place restores + a manual census),
+   read which roots grow, then fix those - clear or prune the static at the
+   right moment - and keep the census to prove it. Other suspects from IL:
+   `LevelLoader` only unloads assets when its time-scale argument is 0; the
+   `DontDestroyOnLoad` `LevelLoader`; static `EventRegistry` subscriptions;
+   our own statics (`DeathHooks._lastStats` keeps the last dead player's
+   `PlayerStats` - one generation, not cumulative).
 2. **Savestates, remaining:**
    - **In-place restore does not revive killed enemies** (author). Enemies
      are spawned and pooled by the game's spawn managers, most likely outside
@@ -724,7 +743,8 @@ cursor fix, the fall-revive landing fix.
 The author tests in game and reports back with the `LogOutput.log` path; they
 answer design questions quickly and mid-turn. After each change that builds
 and passes tests: bump the version (csproj `Version`/`AssemblyVersion`/
-`FileVersion` **and** `Plugin.PluginVersion`), commit, push, tag, then watch
+`FileVersion` **and** `Plugin.PluginVersion`), **add its `CHANGELOG.md`
+section**, commit, push, tag, then watch
 the asset URL with a background `Monitor` and say when it is attached — never
 `api.github.com`. Do not deploy into the game folder. Mark decisions made with
 the author in this file, with who decided. The log is replaced on every game

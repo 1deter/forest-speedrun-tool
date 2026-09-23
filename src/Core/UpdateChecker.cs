@@ -45,6 +45,10 @@ namespace ForestOverlay.Core
         public string Message { get; private set; }
         public string DownloadUrl { get; private set; }
 
+        /// The latest release's notes - its CHANGELOG.md section, which CI
+        /// puts in the release - as plain text; null when it has none.
+        public string ReleaseNotes { get; private set; }
+
         // What this session already downloaded, so a later Check does not
         // offer the same version again (author, v0.22.2: Check after a
         // Download re-offered it, endlessly).
@@ -85,6 +89,7 @@ namespace ForestOverlay.Core
 
             LatestVersion = tag.TrimStart('v', 'V');
             DownloadUrl = ReleaseJson.ExtractAssetUrl(json, "ForestOverlay.dll");
+            ReleaseNotes = ReleaseJson.ExtractNotes(json);
 
             int cmp = ReleaseJson.CompareVersions(LatestVersion, _currentVersion);
 

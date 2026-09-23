@@ -43,6 +43,23 @@ jobs:
           path: bin/Release/net35/ForestOverlay.dll
           if-no-files-found: error
 
+      # The release's notes are the tag's section of CHANGELOG.md (from its
+      # "## vX.Y.Z" heading to the next one). The plugin's Updates tab shows
+      # them, so a tag without a section fails here rather than publishing
+      # a release that says nothing.
+      - name: Release notes from CHANGELOG.md
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          awk -v tag="$GITHUB_REF_NAME" '
+            /^## / { if (found) exit; if ($2 == tag) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "CHANGELOG.md has no section for $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          cat release-notes.md
+
       # Tagging a commit v0.4.0 (etc.) publishes a downloadable release,
       # so a working DLL is always one click away without building.
       - name: Publish release
@@ -50,4 +67,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: bin/Release/net35/ForestOverlay.dll
-          generate_release_notes: true
+          body_path: release-notes.md

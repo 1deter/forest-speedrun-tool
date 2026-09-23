@@ -536,6 +536,34 @@ v0.22.0). A load restore is the reference for what should.
 
 ---
 
+## The load leak
+
+Runner logs (2026-09-23): every reload of the game scene keeps ~100 MB of
+Mono heap (20 load restores: 340 -> 2293 MB, 6.4 -> 15.2 s each); two loads
+through the title screen gave most of it back (~600 MB). The author: it
+predates the tool and hits every load, cave streaming included.
+
+**`Scene.FinishGameLoad`** (`TheForest.Utils.Scene`, static bool) is the
+load signal: cleared by `LoadSave.Awake` (game scene starting) and by
+`ClearStaticVars.Awake` in the title scene, set when `LoadSave`'s
+activation sequence ends. The plugin's `LoadWatcher` watches it.
+
+**`ClearStaticVars.Awake`** (IL) - a component in both scenes, told apart
+by its `MainScene` field:
+
+| Always | Title scene only (`MainScene` false) |
+|---|---|
+| `BuildMission.ActiveMissions.Clear()`, `Clock.Day = 0`, `AssetBundleManager.Initialize()`, `Time.timeScale = 1` | `RainEffigy.RainAdd = 0`, `Scene.FinishGameLoad = false`, `LoadingProgress.Progress = 0`, **`InsideCheck.ClearStaticVars()`** (clears the static `_grid`), `SteamClientDSConfig.Clear()`, `CoopLobby.HostGuid = null`, `OverlayIconManager.Clear()`, `Cheats.SetAllowed(true)` |
+
+So a same-scene reload (`LoadSavedLevel` / `Resume`, a quick-load, a load
+restore) never clears `InsideCheck._grid`: a
+`Dictionary<GridPosition, GridCell>` of wall chunks
+(`AddWallChunk(start, end, height)` -> token, `RemoveWallChunk(token)`) and
+`IRoof`s (`AddRoof` / `RemoveRoof`) - building pieces. A lead, not a
+verdict: whether pieces unregister on scene unload is not checked, and the
+magnitude is unknown. The census (`Game/MemoryCensus`) is meant to settle
+it.
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a

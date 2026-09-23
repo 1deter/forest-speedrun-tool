@@ -29,6 +29,14 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _statusText = new GUIContent("");
         private readonly GUIContent _downloadText = new GUIContent("Download");
         private string _messageShown, _latestShown;
+
+        // The latest release's changelog: what an update brings, or - once
+        // installed - what this version changed (author's request).
+        private readonly GUIContent _notesHeading = new GUIContent("");
+        private readonly GUIContent _notesText = new GUIContent("");
+        private string _notesShown;
+        private Vector2 _notesScroll;
+        private float _notesHeight;
         private string _autoInstallLabel = "";
 
         public override void Initialise(ModuleContext ctx)
@@ -70,10 +78,18 @@ namespace ForestOverlay.Modules
                 _messageShown = _checker.Message;
                 _statusText.text = "Status: " + _messageShown;
             }
-            if (!ReferenceEquals(_checker.LatestVersion, _latestShown))
+            if (!ReferenceEquals(_checker.LatestVersion, _latestShown) || !ReferenceEquals(_checker.ReleaseNotes, _notesShown))
             {
                 _latestShown = _checker.LatestVersion;
+                _notesShown = _checker.ReleaseNotes;
                 _downloadText.text = "Download v" + (_latestShown ?? "?");
+
+                bool installed = _latestShown != null &&
+                                 Data.ReleaseJson.CompareVersions(_latestShown, OverlayPlugin.PluginVersion) <= 0;
+                _notesHeading.text = _latestShown == null ? ""
+                    : installed ? "What's new in v" + _latestShown + " (installed)"
+                                : "What's new in v" + _latestShown;
+                _notesText.text = _notesShown ?? (_latestShown != null ? "No changelog for this version." : "");
             }
 
             // A release caught mid-publish has no DLL yet; ask again rather
@@ -162,11 +178,23 @@ namespace ForestOverlay.Modules
             y += 34f;
 
             if (_checker.State == UpdateChecker.Status.Staged)
-                UiText.Draw(12, y, w - 24, _checker.Message);
+                y += UiText.Draw(12, y, w - 24, _checker.Message);
             else
-                UiText.Draw(12, y, w - 24,
-                            UpdaterInstaller.Installed ? "Downloaded updates install on the next game start."
-                                                       : "Auto-install is unavailable - downloads must be swapped in by hand.");
+                y += UiText.Draw(12, y, w - 24,
+                                 UpdaterInstaller.Installed ? "Downloaded updates install on the next game start."
+                                                            : "Auto-install is unavailable - downloads must be swapped in by hand.");
+
+            // The changelog, scrolled: it can be longer than the tab.
+            if (_notesHeading.text.Length == 0) return;
+            y += 8f;
+            GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
+            y += 22f;
+
+            Rect view = new Rect(12, y, w - 24, Mathf.Max(60f, _tabH - y - 8f));
+            float inner = view.width - 20f;
+            _notesScroll = GUI.BeginScrollView(view, _notesScroll, new Rect(0, 0, inner, Mathf.Max(_notesHeight, 20f)));
+            _notesHeight = UiText.DrawDim(0, 0, inner, _notesText);
+            GUI.EndScrollView();
 
         }
     }
