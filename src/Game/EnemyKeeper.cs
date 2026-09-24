@@ -414,7 +414,8 @@ namespace ForestOverlay.Game
             // The spawn routines yield between members.
             yield return new WaitForSecondsRealtime(1.5f);
 
-            int placed = 0, extra = 0, missing = 0;
+            int placed = 0, extra = 0, missing = 0, grounded = 0;
+            float maxDrop = 0f;
             List<Cannibal> sleepers = new List<Cannibal>();
             List<Vector3> sleepAt = new List<Vector3>();
             foreach (KeyValuePair<int, MonoBehaviour> kv in built)
@@ -448,9 +449,12 @@ namespace ForestOverlay.Game
                 {
                     if (match[i] < 0) { missing++; continue; }
                     used[match[i]] = true;
-                    Place(kv.Value, have[match[i]], want[i]);
+                    Vector3 at = Ground(want[i].Position);
+                    float drop = want[i].Position.y - at.y;
+                    if (drop > 0.3f) { grounded++; if (drop > maxDrop) maxDrop = drop; }
+                    Place(kv.Value, have[match[i]], want[i], at);
                     placed++;
-                    if (want[i].Asleep) { sleepers.Add(have[match[i]]); sleepAt.Add(want[i].Position); }
+                    if (want[i].Asleep) { sleepers.Add(have[match[i]]); sleepAt.Add(at); }
                 }
                 // Members the capture did not have (killed before it).
                 for (int i = 0; i < have.Count; i++)
@@ -477,6 +481,7 @@ namespace ForestOverlay.Game
             done("families: " + setupNote + ", " + made + " rebuilt" + (cave > 0 ? ", " + cave + " cave" : "") +
                  (failed > 0 ? ", " + failed + " not found / failed" : "") +
                  " | positions: " + placed + " of " + members.Count + " placed" +
+                 (grounded > 0 ? " (" + grounded + " captured in the air, put on the ground - up to " + maxDrop.ToString("0.0", CultureInfo.InvariantCulture) + " m)" : "") +
                  (sleepers.Count > 0 ? ", " + slept + " of " + sleepers.Count + " put back to sleep" : "") +
                  (missing > 0 ? ", " + missing + " not spawned" : "") +
                  (extra > 0 ? ", " + extra + " extra despawned" : "") +
@@ -617,17 +622,44 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
-        private void Place(MonoBehaviour host, Cannibal c, EnemyRecord r)
+        private void Place(MonoBehaviour host, Cannibal c, EnemyRecord r, Vector3 at)
         {
             Transform t = c.Go.transform;
             t.rotation = Quaternion.Euler(0f, r.Yaw, 0f);
             if (host != null && host.isActiveAndEnabled)
             {
-                IEnumerator routine = _fixPosition.Invoke(host, new object[] { t, r.Position }) as IEnumerator;
+                IEnumerator routine = _fixPosition.Invoke(host, new object[] { t, at }) as IEnumerator;
                 if (routine != null) host.StartCoroutine(routine);
             }
-            else t.position = r.Position;
+            else t.position = at;
             WriteHealth(c.Setup, r.Health);
+        }
+
+        /// The ground under a captured position. The game's own spawn can
+        /// stack a cannibal on another's head (a female 4.4 m up, seen live,
+        /// v0.24.19); placed there, her sleepPos is in the air, she runs
+        /// instead of sleeping and wakes her family. Other cannibals, the
+        /// player and triggers are not ground. Only ever moves down.
+        private static Vector3 Ground(Vector3 p)
+        {
+            try
+            {
+                RaycastHit[] hits = Physics.RaycastAll(p + Vector3.up * 0.5f, Vector3.down, 30f,
+                    Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                float best = float.MaxValue;
+                Vector3 found = p;
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    Collider col = hits[i].collider;
+                    if (col == null || hits[i].distance >= best) continue;
+                    Transform root = col.transform.root;
+                    if (root.name.StartsWith("mutant_", StringComparison.Ordinal) || root.CompareTag("Player")) continue;
+                    best = hits[i].distance;
+                    found = hits[i].point;
+                }
+                return found.y < p.y ? found : p;
+            }
+            catch (Exception) { return p; }
         }
 
         // ------------------------------------------------------------------
@@ -671,7 +703,7 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < captured.Count; i++)
                 {
                     if (match[i] < 0) continue;
-                    Place(live[match[i]].Spawner, live[match[i]], captured[i]);
+                    Place(live[match[i]].Spawner, live[match[i]], captured[i], Ground(captured[i].Position));
                     placed++;
                 }
                 return "positions (by type, a v0.24.16 file): " + placed + " of " + captured.Count + " placed";

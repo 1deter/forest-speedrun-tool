@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.20 - 2026-09-24
+
+- A cannibal the game had spawned standing on another's head is put on
+  the ground by an in-place restore. Left in the air it could not get
+  back to sleep, ran off and woke its whole family.
+
 ## v0.24.19 - 2026-09-24
 
 - Cannibals that were asleep when you captured a savestate go back to
