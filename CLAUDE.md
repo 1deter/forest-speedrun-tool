@@ -443,6 +443,10 @@ auto-restart and ordered checkpoints in real runs; the held-item log
 off, **respect the game's state** - the runner chose that save; do not
 spawn cave or world enemies there (as v0.24.10 does).
 
+**First, before the fix list: the live test bridge** (author, 2026-09-24:
+"start there next session - something dynamic would be great as this
+builds in scope"). See the design below; then use it on the fix list.
+
 **Fix list, in order** (before Next up 5):
 
 1. **In-place restore leaves chopped trees and bushes** (author): a
@@ -502,16 +506,18 @@ restarting the spot.`); limb / head removal; the body-candidates line;
 the title screen no longer runs the nature guide's object scan every 5 s
 (it logged `Slow tick: 'collectibles'` ~12 ms there).
 
-**Proposed by the author, 2026-09-24: live testing through the running
-game** (dynamic analysis; everything so far is static IL + logs). Design
-answered in chat, not yet approved or built: a file bridge - the plugin
+**Live testing through the running game - APPROVED, build it first**
+(author, 2026-09-24; dynamic analysis - everything so far is static IL +
+logs). Design as proposed in chat: a file bridge - the plugin
 polls `config/ForestOverlay/bridge/in.txt` for commands written from
 here (inspect an object's hierarchy / fields by reflection, list objects
 of a type near the player, call the overlay's own actions: capture,
 restore, teleport, dumps), executes them on the main thread and appends
 results to `out.txt`; the author watches the game and does what needs
 hands (combat, chopping). Practice-only, off by default, one log line per
-command. Ask the author whether it goes before the fix list above.
+command. Keep the results plain text so they can be read straight back
+here; guard every command (a bad reflection path returns an error line,
+never throws into the game).
 
 **Then, still Next up 3, before Next up 5** (author, 2026-09-24):
 - **Stats-only start state** (runner): a spot option restoring only thirst,
