@@ -468,7 +468,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.40** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.41** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
@@ -514,9 +514,12 @@ option (the escape hatch for states Quick load has no patch for).
       is not in the save; after a ride the car stayed at the overlook with
       `_useCount` 1 (limit 1). Resetting both by hand worked (author).
       v0.24.40 `Game/ElevatorKeeper` (`elevators` header) does it on a
-      Quick load - **awaiting a test** (a new capture is needed). Author:
-      maks wants the visuals as at capture (textures unloaded when they
-      were) - check the endgame / Sahara visuals after the fix.
+      Quick load - confirmed (author: ridable again). The hallway's
+      textures came back after a Quick load (bad - author: maks wants them
+      as at capture): the endgame's active area, fixed by v0.24.41
+      `Game/AreaKeeper` (`activearea` header), awaiting a test. Details in
+      game-notes *The red elevator and the endgame areas*. Still to check:
+      the Sahara half-load / endgame cave visuals maks reported.
    e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next

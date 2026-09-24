@@ -61,6 +61,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ActiveAreaRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).ActiveArea);
+
+            SavestateFile s = Sample();
+            s.ActiveArea = "none";
+            Assert.Equal("none", SavestateFile.Parse(s.Write(), out error).ActiveArea);
+            s.ActiveArea = "Sections/HellCorridor";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.ActiveArea, back.ActiveArea);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void MeganRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

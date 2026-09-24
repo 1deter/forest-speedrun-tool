@@ -439,14 +439,28 @@ there leaves the endgame out: the runner fell through the map, the area
 report read `endgame no` without `endgame_streaming` after every load
 restore (at capture: `endgame yes`, with it). In place was fine. A load
 restore now force-loads it when the capture had it (`Game/EndgameLoader`).
-Still open (same runner): after the red elevator an in-place restore leaves
-the elevator at the overlook, half-loads the Sahara and drops the endgame
-cave visuals (areas: `same as at capture`) - the elevator ride's effects
-are scene state, not scenes. `LocalPlayer.IsInOverlookArea` (set by scene
-objects via `SetInOverlookArea`; read every frame by `TheForestAtmosphere`,
-`CullDistanceManager`, `IsInClosedArea`) was once left `yes` after an
-in-place restore and is cleared since v0.24.26, but a later runner log had
-it `no` with the elevator still broken - not the cause.
+**The red elevator and the endgame areas after a Quick load** (bridge +
+IL, 2026-09-24). Neither is in the save; the ride's effects are scene
+state, not scenes (areas: `same as at capture`).
+- `TheForest.World.ElevatorSystem` (`Sections/HellCorridor/Elevator_01a/
+  Trigger_Elevator`; also `ControlRoom/Elevator_ToSnowCave EG`): the ride
+  (`Goto` coroutine) sets `_useCount` (`_useLimit` 1), moves the kinematic
+  car `_rb` to the other stop in one step (`_downPosition` p2 is up at the
+  overlook, y 705) and ends with `_moving` false. Its UnityEvents only do
+  sound, the icons filter, the door and a keycard light. Kept by
+  `Game/ElevatorKeeper` (v0.24.40, confirmed: ridable again).
+- The endgame `Sections/*` carry `TheForest.World.Areas.Area` +
+  `AreaMembers` (renderers, lights, probes). `OnEnter` makes an area the
+  static `Area.ActiveArea` and `Load()`s it and its `_neighbours`
+  (`NeighbourTokens`); `OnLeave` unloads those whose tokens reach 0.
+  `Area.Awake` re-enters the area in `LocalPlayer.ActiveAreaInfo` on a
+  saved game (hence a Full load is right). The "invisible section" has
+  **no** active area (the hallway's textures are off; colliders work). After the ride a
+  Quick load kept `ControlRoom` active, so its neighbour `HellCorridor`
+  stayed loaded (textured). `ControlRoom.OnLeave(null)` unloaded it (author
+  confirmed). Kept by `Game/AreaKeeper` (v0.24.41).
+- `LocalPlayer.IsInOverlookArea` is not the cause (cleared since v0.24.26
+  anyway).
 
 **A Full load drops the player before the endgame is there.** "In game"
 comes before streaming ends, and `ForceLoad` on the endgame trigger goes

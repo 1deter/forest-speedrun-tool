@@ -61,6 +61,7 @@ namespace ForestOverlay.Modules
         private BossHold _bossHold;
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
+        private AreaKeeper _area;
         private EnemyKeeper _enemies;
         private string _dir;
 
@@ -135,6 +136,7 @@ namespace ForestOverlay.Modules
             _bossHold.Install(OverlayPlugin.PluginGuid);
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
+            _area = new AreaKeeper(ctx.Log);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
@@ -347,6 +349,7 @@ namespace ForestOverlay.Modules
             float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
             string megan = _megan.Capture();
             string elevators = _elevators.Capture();
+            string activeArea = _area.Capture();
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -367,14 +370,14 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, areas, enemies, families, enemyNote);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, areas, enemies, families, enemyNote);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string megan, string elevators, string areas, List<string> enemies,
+                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string areas, List<string> enemies,
                                   List<string> families, string enemyNote)
         {
             _busy = false;
@@ -404,6 +407,7 @@ namespace ForestOverlay.Modules
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
                 f.Megan = megan;
                 f.Elevators = elevators;
+                f.ActiveArea = activeArea;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -643,6 +647,9 @@ namespace ForestOverlay.Modules
 
                 // The elevators are outside the save too (ElevatorKeeper).
                 string elevatorNote = r.Ok && file != null ? _elevators.Restore(file.Elevators) : "";
+                // So is the endgame's active area, which switches the
+                // sections' renderers (AreaKeeper).
+                string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
 
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
@@ -665,6 +672,7 @@ namespace ForestOverlay.Modules
                               (panelNote.Length == 0 ? "" : " | " + panelNote) +
                               (meganNote.Length == 0 ? "" : " | " + meganNote) +
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
+                              (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);

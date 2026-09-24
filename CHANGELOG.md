@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.41 - 2026-09-24
+
+- Quick load after the red elevator: the hallway looks as it did at the
+  savestate again (it came back textured when it was invisible). Needs a
+  savestate taken on this version.
+
 ## v0.24.40 - 2026-09-24
 
 - Quick load puts the red elevator back where it was at the savestate, so
