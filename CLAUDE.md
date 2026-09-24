@@ -456,8 +456,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.16** (2026-09-24). The author runs it via the in-game
-updater. **254 tests.**
+**Released: v0.24.17** (2026-09-24). The author runs it via the in-game
+updater. **261 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
 
@@ -501,10 +501,22 @@ header; capture line `, n cannibal(s) in m families`; the after-restore
 line ends `| positions: n of m placed (k families matched whole, l
 live)`). Verified by hand first: a cannibal moved with
 `spawnMutants.fixMutantPosition` slept standing, woke when approached
-and fought normally (author). Next: place them sooner than 6-12 s
-after the restore; the cannibals the game did not rebuild (spawn the
-missing ones - `spawnMutants` / the family setup); the same after a load
-restore
+and fought normally (author). **But (author):** the placed ones were
+the wrong kind (weaker skinny ones where big family ones with clubs had
+been) and stood almost inside each other: `enemyType.Type` is not the
+kind, the spawner is. **v0.24.17 (awaiting a check)** records each
+family's spawner (`families` header, `FamilyRecord`: position, kind
+lists, every Int32/Boolean/Single setting) and each member's real kind
+(`<prefab>/<storeMutantType>[/s][/p]`), and ~2 s after an in-place
+restore on the surface runs the game's setup, builds the captured
+families itself (`EnemyKeeper.Rebuild`: `Instantiate(spawnGo)`,
+settings, kind list + counters, `invokeSpawn`, `addToWorldSpawns`,
+`doSpawn` with `alreadySpawned`), places members by kind, despawns extras.
+Log: `| families: setup run, n rebuilt | positions: n of m placed[, k not
+spawned][, j extra despawned]`. Open: whether `updateSpawns` adds a
+random family when the captured count is below its target; weapons
+(clubs) are whatever the spawn gives; cave captures still use the
+v0.24.16 path; load restores
 (one `Savestate after restoring ... in place: plane: ... | enemies: ...`
 line 6-12 s after each in-place restore, `| blood: washed` on the restore
 line, `bodies: n removed`). Game-side tricks used: `set static:Cheats

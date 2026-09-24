@@ -35,6 +35,11 @@ namespace ForestOverlay.Tests
             SavestateFile back = SavestateFile.Parse(s.Write(), out error);
             Assert.Null(error);
             Assert.Equal(s.Enemies, back.Enemies);
+            Assert.Null(back.Families);
+
+            s.Families = new System.Collections.Generic.List<string> { "0|1,2,3|0|allRegularSpawns|amount_male=2,leader=True" };
+            back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Equal(s.Families, back.Families);
             Assert.Equal(Sample().Data, back.Data);
 
             Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Enemies);

@@ -65,6 +65,50 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void FamilyRoundTrip()
+        {
+            FamilyRecord f = new FamilyRecord();
+            f.Index = 2;
+            f.Position = new Vector3(522.9f, 56.74f, -10.7f);
+            f.Yaw = 45f;
+            f.List = "allRegularSpawns";
+            f.Settings.Add(new KeyValuePair<string, string>("amount_male", "2"));
+            f.Settings.Add(new KeyValuePair<string, string>("leader", "True"));
+            f.Settings.Add(new KeyValuePair<string, string>("range", "1.5"));
+            string text = f.Encode();
+            Assert.Equal("2|522.9,56.74,-10.7|45|allRegularSpawns|amount_male=2,leader=True,range=1.5", text);
+
+            FamilyRecord back;
+            Assert.True(FamilyRecord.TryDecode(text, out back));
+            Assert.Equal(2, back.Index);
+            Assert.Equal(-10.7f, back.Position.z, 3);
+            Assert.Equal("allRegularSpawns", back.List);
+            Assert.Equal(3, back.Settings.Count);
+            Assert.Equal("leader", back.Settings[1].Key);
+            Assert.Equal("True", back.Settings[1].Value);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("0|1,2,3|0|list")]
+        [InlineData("x|1,2,3|0|list|a=1")]
+        [InlineData("0|1,2|0|list|a=1")]
+        [InlineData("0|1,2,3|0|list|=1")]
+        public void BadFamiliesAreRefused(string text)
+        {
+            FamilyRecord f;
+            Assert.False(FamilyRecord.TryDecode(text, out f));
+        }
+
+        [Fact]
+        public void FamilyWithNoSettingsIsValid()
+        {
+            FamilyRecord f;
+            Assert.True(FamilyRecord.TryDecode("0|1,2,3|0|allCaveSpawns|", out f));
+            Assert.Empty(f.Settings);
+        }
+
+        [Fact]
         public void WholeFamiliesKeepTheirMembersTogether()
         {
             // Captured: family 0 = two males, family 1 = male + female.

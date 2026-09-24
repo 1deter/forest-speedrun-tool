@@ -160,4 +160,67 @@ namespace ForestOverlay.Data
             return string.Join(",", types.ToArray());
         }
     }
+
+    // ------------------------------------------------------------------
+    // A family at capture: its spawner (spawnMutants) - where it stood,
+    // which of mutantController's kind lists held it, and its settings
+    // (the amount_* counts, leader, pale, paintedTribe, sleepingSpawn, ...
+    // - every Int32 / Boolean / Single field but the runtime state). The
+    // game rolls a family's make-up at random (setupRegularSpawn: 1-3
+    // males, 0-2 females, a leader sometimes), so a restore cannot ask it
+    // for "the same family": it builds one from these settings. Seen live
+    // (2026-09-24): after a restore the game put a skinny pair where a
+    // regular leader pair had been - the kind lives in the spawner.
+    //
+    //   <index>|<x>,<y>,<z>|<yaw>|<list>|<name>=<value>,...
+    //   0|522.9,56.74,-10.7|0|allRegularSpawns|amount_male=2,leader=True,...
+    // ------------------------------------------------------------------
+    public sealed class FamilyRecord
+    {
+        public int Index;
+        public Vector3 Position;
+        public float Yaw;
+        public string List = "";
+        public readonly List<KeyValuePair<string, string>> Settings = new List<KeyValuePair<string, string>>();
+
+        public string Encode()
+        {
+            string[] kv = new string[Settings.Count];
+            for (int i = 0; i < Settings.Count; i++) kv[i] = Settings[i].Key + "=" + Settings[i].Value;
+            return Index.ToString(CultureInfo.InvariantCulture) + "|" +
+                   F(Position.x) + "," + F(Position.y) + "," + F(Position.z) + "|" + F(Yaw) + "|" +
+                   List + "|" + string.Join(",", kv);
+        }
+
+        private static string F(float f)
+        {
+            return f.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        public static bool TryDecode(string text, out FamilyRecord r)
+        {
+            r = null;
+            if (string.IsNullOrEmpty(text)) return false;
+            string[] parts = text.Split('|');
+            if (parts.Length != 5) return false;
+
+            FamilyRecord f = new FamilyRecord();
+            if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out f.Index)) return false;
+            Vector3 p;
+            if (!BridgeCommand.TryParseVector3(parts[1], out p)) return false;
+            f.Position = p;
+            if (!BridgeCommand.TryParseFloat(parts[2], out f.Yaw)) return false;
+            f.List = parts[3];
+
+            string[] kv = parts[4].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < kv.Length; i++)
+            {
+                int eq = kv[i].IndexOf('=');
+                if (eq <= 0) return false;
+                f.Settings.Add(new KeyValuePair<string, string>(kv[i].Substring(0, eq), kv[i].Substring(eq + 1)));
+            }
+            r = f;
+            return true;
+        }
+    }
 }

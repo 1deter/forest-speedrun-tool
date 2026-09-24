@@ -545,6 +545,31 @@ position, yaw, `EnemyHealth.Health`) and after an in-place restore moves
 the game's cannibals there - whole families matched by make-up first so
 leaders keep followers (`Game/EnemyKeeper`). The AI state is not set.
 
+### Cannibal kinds and families (bridge + IL, 2026-09-24)
+
+`enemyType.Type` is **not** a cannibal's kind: a skinny one read
+`regularMale` (a pooled leftover), and a "regularMale"'s body said
+`skinnyMale`. All males are the pooled `mutant_male` prefab (females
+`mutant_female`, pool `"enemies"`); the family's spawner makes each its
+kind by message (`spawnMaleSkinny` -> `setMaleSkinny`,
+`setSkinnyLeader`, ...), which leaves `mutantTypeSetup.storeSkinnyBool`,
+`storePaleMutantBool`, `storeMutantType`. The family kind is the
+spawner's settings, rolled at random by `mutantController.setup<Kind>Spawn`
+(`setupRegularSpawn`: `amount_male` 1-3, `amount_female` 0-2 (0-3 in one
+branch), firemen in Hard, `leader` by chance; then
+`numActiveRegularSpawns++`, `numActiveSpawns++`; the spawner goes into the
+kind list, e.g. `allRegularSpawns`). `updateSpawns` builds a family:
+`Instantiate(spawnGo, pos, rot)`, `setup<Kind>Spawn(spawn)`, list add,
+`enabled = true`, `invokeSpawn()` (`InvokeRepeating("checkSpawn", 0, 3)`),
+`addToWorldSpawns()`. `checkSpawn` starts `doSpawn` only with the player
+beyond 130 m (`checkPlayerDist`) and `!alreadySpawned`; `doSpawn` clears
+`allMembers`, sets `doLeader` and starts one routine per kind, each
+spawning from the pool at the spawner within `range` and placing with
+`fixMutantPosition`. Teardown: `mutantController.despawnGo(go)` (pool
+despawn + `activeCannibals.Remove`); `setupFamilies` just `Destroy`s world
+spawners (`spawnMutants.OnDestroy` only cancels its invokes).
+v0.24.17 rebuilds captured families this way (`Game/EnemyKeeper`).
+
 ## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
 
 `PlaneCrashController.OnDeserialized` does `Invoke("setupCrashedPlane",
