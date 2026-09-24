@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.31 - 2026-09-24
+
+- Cutting a swing on a restart is smoother: your arms go straight back
+  to how you hold the weapon, without the one-frame look into your
+  character's neck, and the reset no longer swallows your next swing.
+
 ## v0.24.30 - 2026-09-24
 
 - Developer test tools only (the test bridge): an animation recorder

@@ -554,7 +554,7 @@ namespace ForestOverlay.Modules
             // could land the old fall at the restored spot.
             string fall = Ctx.Bridge.EndFall();
             // A swing / action in progress is cut (runner maks).
-            string anim = Ctx.Bridge.CancelPlayerAnimation();
+            string anim = AnimReset.Cancel();
             if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;

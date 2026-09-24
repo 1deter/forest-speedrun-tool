@@ -481,10 +481,17 @@ namespace ForestOverlay.Modules
                 }
                 case "anim":
                 {
-                    if (a.Count == 0) return AnimProbe.Snapshot(o);
+                    if (a.Count == 0) { o.Add(AnimReset.Describe()); return AnimProbe.Snapshot(o); }
+                    if (a[0] == "reset")
+                    {
+                        string why = AnimReset.Cancel();
+                        Mark("animation reset");
+                        o.Add(why.Length == 0 ? "reset (" + AnimReset.Describe() + ")" : why);
+                        return null;
+                    }
                     float s;
                     if (a[0] != "watch" || a.Count < 2 || !BridgeCommand.TryParseFloat(a[1], out s))
-                        return "anim | anim watch <seconds>";
+                        return "anim | anim watch <seconds> | anim reset";
                     if (AnimProbe.PlayerAnimator() == null) return "no player animator";
                     _anim.BeginWatch();
                     _animUntil = Time.realtimeSinceStartup + s;
@@ -531,7 +538,7 @@ namespace ForestOverlay.Modules
             "savestates | capture <name> | restore <name> [load]   (capture / restore wait until done)",
             "spots [filter] | go <id> | restart [id] (waits until idle) | tp x y z [yaw] | dump",
             "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
-            "anim | anim watch <seconds>   - the player's animator: layers, states, clips, parameters (watch: every change, in the background)",
+            "anim | anim watch <seconds> | anim reset   - the player's animator: layers, states (tags), clips, parameters; watch: every change, in the background; reset: what a restart does to an action",
             "shot [name]   - a screenshot into the bridge folder",
         };
 

@@ -546,13 +546,43 @@ escape hatch for states Quick load has no patch for.
      plugin, items with Pass / Fail / Note, the proving log line, and
      auto-ticked where the plugin can see that line; results go into the
      report. Never let runners run bridge scripts (arbitrary calls).
+- **maks on v0.24.29 (2026-09-24 night)** - confirmed: lab Full load
+  lands on the floor; Megan Full load incl. the spear (`2 of 2 slot(s)
+  set back`); cannibals back after a Full load. Open, in order:
+  1. **Megan Quick load mid-cutscene does nothing**: the old
+     `girlMutant(Clone)` stays, seated Megan / the boss trigger are not
+     back, no cutscene starts (log: `no cutscene began within 20 s`).
+     Endgame scene state outside `LoadNow` - use maks's Slot4 save.
+  2. **Coins after a Full load still come back** (his log removed only
+     `bone x8, Booze x1`) - likely activated after the single removal
+     pass: repeat it for several seconds; ask him where the coins were.
+  3. **Cannibals appear ~6 s after control returns** - hold the player
+     until the rebuild has placed them.
+  4. **Quick / Full load toggle is unclear**: make it a two-button switch
+     that shows the active mode at once; Restart says which it does.
+  5. Megan's music (late / wrong) - still annoying him.
+  6. His lab / red-elevator save: `C:\Users\deter\Downloads\slot5.zip`
+     (keep until the elevator is done).
 - **Animation cancel** (maks: plane axe swing plays through a reset):
   v0.24.29 fires `playerAnimatorControl.resetAnimator` (resetTrigger) -
   cuts the swing (author) but shows the headless body for a frame
   (camera placement fine). Snapping only `upperBody.idle` did nothing.
-  Author wants it exact ("get it right once"): v0.24.29's bridge `anim
-  watch N` logs every layer / parameter change - run it during a swing,
-  then reset only the layer(s) and parameters the swing uses.
+  Author wants it exact ("get it right once"). **Found (bridge `anim
+  watch`, screenshot):** resetTrigger sends upperBody / fullBodyActions
+  to their UNARMED idles with fullBodyActions at weight 1 - the body
+  stands unarmed under the swing's camera (the neck view); and the
+  trigger stays set at rest (would cut the next swing). Swings: arms
+  layer `stickHeavyAttackWindup` / `swingLeftReturn` / `swingRight`
+  (`stickAttack`, `chargingBool`, `doAttackHeavyBool`, `hitDirection`);
+  smash: fullBodyActions `axeAttackGround1` (`smashBool`). The game tags
+  states `idling` / `held` / `attacking` / `smash` / `block`.
+  v0.24.31 `Game/AnimReset`: learns each action layer's rest state and
+  the off bools while the arms rest in a held / idling state
+  (`Track()` every frame), and on a reset blends action layers back to
+  that rest in 0.1 s, switches off bools off at rest, clears triggers;
+  nothing learned -> the game's reset + trigger cleared 2 frames later.
+  Bridge: `anim` shows tags and the learned rest, `anim reset` runs it.
+  Awaiting the author's test.
 - **Bridge `mark`** (v0.24.27, **confirmed** - seen through walls; author: "I don't have a compass"): `mark
   <target> | mark x y z | mark clear` puts a magenta beacon on a thing -
   use it instead of compass directions when asking the author to find

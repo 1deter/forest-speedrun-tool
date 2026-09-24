@@ -123,7 +123,7 @@ namespace ForestOverlay.Game
             AnimatorStateInfo s = an.GetCurrentAnimatorStateInfo(i);
             StringBuilder sb = new StringBuilder();
             sb.Append('L').Append(i).Append(" '").Append(an.GetLayerName(i)).Append("' w=").Append(Weight(an, i))
-              .Append(" state=").Append(s.fullPathHash)
+              .Append(" state=").Append(s.fullPathHash).Append(TagName(s.tagHash))
               .Append(" t=").Append(s.normalizedTime.ToString("0.00", CultureInfo.InvariantCulture))
               .Append(" clips: ").Append(Clips(an.GetCurrentAnimatorClipInfo(i)));
             if (an.IsInTransition(i))
@@ -132,6 +132,17 @@ namespace ForestOverlay.Game
                 sb.Append("  -> state=").Append(n.fullPathHash).Append(" clips: ").Append(Clips(an.GetNextAnimatorClipInfo(i)));
             }
             return sb.ToString();
+        }
+
+        // The tags playerAnimatorControl.Start hashes; others by number.
+        private static readonly string[] KnownTags = { "idling", "held", "attacking", "smash", "block" };
+
+        private static string TagName(int tagHash)
+        {
+            if (tagHash == 0) return "";
+            for (int i = 0; i < KnownTags.Length; i++)
+                if (Animator.StringToHash(KnownTags[i]) == tagHash) return " [" + KnownTags[i] + "]";
+            return " [tag " + tagHash + "]";
         }
 
         private static string Weight(Animator an, int i)
