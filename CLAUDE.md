@@ -470,12 +470,13 @@ Peaceful and was put back after this session's swap.
 
 **Next, in order:**
 1. **Test v0.24.24 with the Megan save** (slot 4): load, walk into the
-   trigger, capture through the bridge ~55 s into the cutscene (watch the
+   trigger, capture 2-3 s before the player stands up (maks's ask; the cutscene is
+   well under a minute - the old "~55 s" here was a guess) (watch the
    log for `Game event: megan-transform`), then `restore <name> load`.
    Expect `BossHold: Megan's transformation held - Megan not there yet`,
    ~7 s later `BossHold: Megan is there after x s - starting the
    transformation.`, then `cutscene 'megan-transform' fast-forwarded to
-   ~55 s ... in ~2-3 s real time`, and the fight starts normally. 25x from
+   x s (captured at x s) in y s real time`, and the fight starts normally. 25x from
    the cutscene's start was already run live - the author saw Megan
    transform (a clip went to maks for his verdict).
 2. **The red elevator + in-place restore** (runner, below): not started.
