@@ -468,7 +468,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.38** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.39** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
@@ -478,8 +478,8 @@ fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
 confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
 he runs it currently and knows the exact cutscene audio (the author has
 not played in a while). Next after sending it: *Next, in order* 1a.
-**maks's v0.24.38 test list** is drafted in
-[`docs/tests/2026-09-24-maks-v0.24.38.md`](docs/tests/2026-09-24-maks-v0.24.38.md)
+**maks's v0.24.39 test list** is drafted in
+[`docs/tests/2026-09-24-maks-v0.24.39.md`](docs/tests/2026-09-24-maks-v0.24.39.md)
 (not yet sent; the author sends it). **Slot4 is the author's own again**
 (swapped back 2026-09-24). maks's saves for testing: his Megan save in
 `C:\Users\deter\Downloads\Slot4`, lab / invisible section / red elevator
@@ -497,11 +497,10 @@ option (the escape hatch for states Quick load has no patch for).
 **Next, in order:**
 1. **maks's other open items** (his v0.24.29 round):
    a. **Coins come back after a Full load** - cave 5, the first pile by
-      the drop. His log removed only `bone x8, Booze x1`: the cave's
-      pickups probably activate after the single removal pass
-      (`SavestateModule.RemoveTakenPickups`, run once at the end of
-      `HoldUntilLoaded`) - repeat it for ~10 s, or check they are
-      `(Clone)`s / have identifiers. Test in cave 5.
+      the drop. v0.24.39 repeats the removal once a second for 10 s
+      (`RemoveLatePickups`) and logs `Not at capture but kept: N with an
+      identifier, N clone(s), N in scenes not loaded at capture` - if the
+      coins still come back, that line says why. Awaiting a cave 5 test.
    b. **Cannibals ~6 s after control returns after a Full load** - maks
       thinks a 6 s hold is too long; do NOT just extend the hold. Ideas:
       suppress the game's own family setup after a Full load so the

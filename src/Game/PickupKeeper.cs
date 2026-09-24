@@ -239,7 +239,10 @@ namespace ForestOverlay.Game
         /// that were loaded at capture (the list covers only those), never
         /// pooled or spawned copies (`(Clone)` - greebles already come back
         /// as captured). `counts` gets item id -> how many.
-        public int RemoveTakenAfterLoad(HashSet<string> present, ICollection<string> scenesAtCapture, Dictionary<int, int> counts)
+        /// `skipped` (optional, 3 long): kept because they have an identifier,
+        /// are clones, or lie in a scene not loaded at capture.
+        public int RemoveTakenAfterLoad(HashSet<string> present, ICollection<string> scenesAtCapture, Dictionary<int, int> counts,
+                                        int[] skipped)
         {
             if (_destroyTarget == null || _itemId == null) return 0;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
@@ -255,11 +258,12 @@ namespace ForestOverlay.Game
                 try { target = _destroyTarget.GetValue(c) as GameObject; }
                 catch (Exception) { }
                 if (target == null) target = c.gameObject;
-                if (!target.activeInHierarchy || HasIdentifier(target)) continue;
-                if (target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
-                    c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0) continue;
-                if (!scenesAtCapture.Contains(target.scene.name)) continue;
+                if (!target.activeInHierarchy) continue;
                 if (present.Contains(KeyFor(c, target))) continue;
+                if (HasIdentifier(target)) { if (skipped != null) skipped[0]++; continue; }
+                if (target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
+                    c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0) { if (skipped != null) skipped[1]++; continue; }
+                if (!scenesAtCapture.Contains(target.scene.name)) { if (skipped != null) skipped[2]++; continue; }
 
                 int id = 0;
                 try { id = (int)_itemId.GetValue(c); }

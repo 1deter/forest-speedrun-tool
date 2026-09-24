@@ -1014,11 +1014,25 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Savestate after the load: held the player at the captured spot for " +
                             (Time.realtimeSinceStartup - start).ToString("F1") + " s" +
                             (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") + ".");
-            RemoveTakenPickups(f);
+            RemoveTakenPickups(f, false);
+            Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
             if (after != null) after(null);
         }
 
-        private void RemoveTakenPickups(SavestateFile f)
+        // A cave's pickups can switch on after the first pass (maks: cave 5's
+        // coins came back while bones and booze were removed), and
+        // FindObjectsOfType sees active objects only - so look again.
+        private IEnumerator RemoveLatePickups(SavestateFile f)
+        {
+            if (f == null || f.Pickups == null || f.Pickups.Count == 0 || f.Areas.Length == 0) yield break;
+            for (int i = 0; i < 10; i++)
+            {
+                yield return new WaitForSeconds(1f);
+                RemoveTakenPickups(f, true);
+            }
+        }
+
+        private void RemoveTakenPickups(SavestateFile f, bool late)
         {
             if (f == null || f.Pickups == null || f.Pickups.Count == 0 || f.Areas.Length == 0) return;
             try
@@ -1026,12 +1040,21 @@ namespace ForestOverlay.Modules
                 HashSet<string> scenes = ScenesIn(f.Areas);
                 if (scenes.Count == 0) return;
                 Dictionary<int, int> counts = new Dictionary<int, int>();
-                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(f.Pickups), scenes, counts);
-                if (n == 0) { Ctx.Log.LogInfo("Savestate after the load: pickups - none back that were taken before the capture."); return; }
+                int[] skipped = new int[3];
+                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(f.Pickups), scenes, counts, skipped);
+                string kept = skipped[0] + skipped[1] + skipped[2] == 0 ? "" :
+                    " Not at capture but kept: " + skipped[0] + " with an identifier, " + skipped[1] +
+                    " clone(s), " + skipped[2] + " in scenes not loaded at capture.";
+                if (n == 0)
+                {
+                    if (!late) Ctx.Log.LogInfo("Savestate after the load: pickups - none back that were taken before the capture." + kept);
+                    return;
+                }
                 StringBuilder sb = new StringBuilder();
                 foreach (KeyValuePair<int, int> kv in counts)
                     sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
-                Ctx.Log.LogInfo("Savestate after the load: pickups - removed " + n + " the load brought back (taken before the capture: " + sb + ").");
+                Ctx.Log.LogInfo("Savestate after the load: pickups - removed " + n + (late ? " that appeared late" : "") +
+                                " the load brought back (taken before the capture: " + sb + ")." + (late ? "" : kept));
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate after the load: removing taken pickups failed: " + ex.Message); }
         }

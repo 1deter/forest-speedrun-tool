@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.39 - 2026-09-24
+
+- Full load: pickups taken before the savestate are now also removed when
+  they appear a few seconds after the load (cave coins came back).
+
 ## v0.24.38 - 2026-09-24
 
 - Practice editor: Quick load / Full load is now a two-button switch, so
