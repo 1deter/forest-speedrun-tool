@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.23 - 2026-09-24
+
+- Cave panels look whole again after an in-place restore. Their health
+  was already put back (they break on the same hit as before); now the
+  boards that each hit knocks crooked are straightened too, also on a
+  panel that was broken and rebuilt. A panel already chipped when you
+  captured keeps its look.
+
 ## v0.24.22 - 2026-09-24
 
 - Cannibals asleep at capture fall asleep right after an in-place restore

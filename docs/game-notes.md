@@ -654,7 +654,13 @@ intact panel under an inactive holder (so the copy does not wake) before
 the game breaks it; an in-place restore sets the health back and moves a
 kept copy into place (and into `Planks`), deleting the flying pieces. A
 load restore only sets health. Whether panels carry a `UniqueIdentifier`
-is unknown. Not yet confirmed in game.
+is unknown. Health restore seen acting in maks's v0.24.13 log (`7 healed`,
+`7 rebuilt`), but the panels still **looked** damaged: `LocalizedHit`
+(throttled to one per 0.5 s real time) turns every `Renderer` transform
+under the panel within 4 m of the hit by `Euler(Random.Range(-1,1) x3)`
+(ints: -1 or 0 degrees per axis) and nothing turns them back - the look is
+not state, `Health` alone decides the break. v0.24.23 records the boards'
+rotations at a panel's first hit and straightens them on restore.
 
 ## The ESC menu and the player lock
 

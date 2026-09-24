@@ -30,6 +30,15 @@ namespace ForestOverlay.Game
     // in-place restore then sets each listed panel's health, and for one
     // that broke since, moves its copy back into place and deletes the
     // flying pieces. A load restore only sets health.
+    //
+    // THE LOOK (IL, v0.24.23; runner maks: "panel stays damaged"): Hit only
+    // subtracts Health; LocalizedHit turns every board (renderer) within
+    // 4 m of the hit by -1..0 degrees per axis, and nothing turns it back.
+    // So a healed panel had full health and crooked boards. Prefixes on
+    // Hit / LocalizedHit record a panel's health and board rotations the
+    // first time it is hit (untouched); a restore straightens a panel -
+    // or a rebuilt copy - that was untouched at capture (captured health
+    // = that health). A panel chipped before the capture keeps its tilt.
     // ------------------------------------------------------------------
     public sealed class PanelKeeper
     {
@@ -43,9 +52,21 @@ namespace ForestOverlay.Game
             public int Index;
             public string Key;
             public GameObject[] Pieces;
+            public Untouched Look;
+        }
+
+        /// A panel before its first hit: health and every board's rotation,
+        /// by path under the panel (so a copy can be straightened too).
+        private sealed class Untouched
+        {
+            public Component Panel;
+            public int Health;
+            public string[] Paths;
+            public Quaternion[] Rotations;
         }
 
         private static readonly List<Kept> KeptList = new List<Kept>();
+        private static readonly Dictionary<int, Untouched> Looks = new Dictionary<int, Untouched>();
         private static ManualLogSource _log;
         private static GameObject _holder;
 
@@ -81,6 +102,11 @@ namespace ForestOverlay.Game
             _planks = planks.GetField("Planks", inst);
 
             MethodInfo cutDown = _woodType.GetMethod("CutDown", inst, null, Type.EmptyTypes, null);
+            MethodInfo hit = _woodType.GetMethod("Hit", inst, null, new[] { typeof(int) }, null);
+            MethodInfo localizedHit = null;
+            MethodInfo[] all = _woodType.GetMethods(inst);
+            for (int i = 0; i < all.Length; i++)
+                if (all[i].Name == "LocalizedHit" && all[i].GetParameters().Length == 1) localizedHit = all[i];
             if (cutDown == null || _health == null || _instance == null || _planks == null)
             {
                 Status = "CutDown / fields not found";
@@ -93,7 +119,12 @@ namespace ForestOverlay.Game
                 _harmony = new Harmony(harmonyId + ".panels");
                 _harmony.Patch(cutDown, new HarmonyMethod(typeof(PanelKeeper).GetMethod("CutDownPrefix",
                     BindingFlags.Static | BindingFlags.NonPublic)));
-                Status = "hooked";
+                HarmonyMethod record = new HarmonyMethod(typeof(PanelKeeper).GetMethod("RecordPrefix",
+                    BindingFlags.Static | BindingFlags.NonPublic));
+                int looks = 0;
+                if (hit != null) { _harmony.Patch(hit, record); looks++; }
+                if (localizedHit != null) { _harmony.Patch(localizedHit, record); looks++; }
+                Status = "hooked (look " + looks + "/2)";
             }
             catch (Exception ex)
             {
@@ -107,6 +138,64 @@ namespace ForestOverlay.Game
             try { if (_harmony != null) _harmony.UnpatchSelf(); }
             catch (Exception) { }
             KeptList.Clear();
+            Looks.Clear();
+        }
+
+        // Before the first hit changes anything. Never throws into the game.
+        private static void RecordPrefix(object __instance)
+        {
+            if (!PickupKeeper.Armed) return;
+            try
+            {
+                Component wood = __instance as Component;
+                if (wood == null || Looks.ContainsKey(wood.GetInstanceID())) return;
+                Transform root = wood.transform;
+                Renderer[] rs = root.GetComponentsInChildren<Renderer>();
+                Untouched u = new Untouched();
+                u.Panel = wood;
+                u.Health = (int)_health.GetValue(wood);
+                u.Paths = new string[rs.Length];
+                u.Rotations = new Quaternion[rs.Length];
+                for (int i = 0; i < rs.Length; i++)
+                {
+                    u.Paths[i] = PathUnder(rs[i].transform, root);
+                    u.Rotations[i] = rs[i].transform.localRotation;
+                }
+                Looks[wood.GetInstanceID()] = u;
+            }
+            catch (Exception) { }
+        }
+
+        private static string PathUnder(Transform t, Transform root)
+        {
+            string path = "";
+            for (Transform c = t; c != null && c != root; c = c.parent)
+                path = c.GetSiblingIndex().ToString(CultureInfo.InvariantCulture) + (path.Length > 0 ? "/" + path : "");
+            return path;
+        }
+
+        /// Sets the recorded board rotations on `root` (the panel or its
+        /// copy). Returns whether anything was turned back.
+        private static bool Straighten(Transform root, Untouched u)
+        {
+            bool any = false;
+            for (int i = 0; i < u.Paths.Length; i++)
+            {
+                Transform t = root;
+                if (u.Paths[i].Length > 0)
+                {
+                    string[] steps = u.Paths[i].Split('/');
+                    for (int s = 0; s < steps.Length && t != null; s++)
+                    {
+                        int idx = int.Parse(steps[s], CultureInfo.InvariantCulture);
+                        t = idx < t.childCount ? t.GetChild(idx) : null;
+                    }
+                }
+                if (t == null || t.localRotation == u.Rotations[i]) continue;
+                t.localRotation = u.Rotations[i];
+                any = true;
+            }
+            return any;
         }
 
         // Never throws into the game; never skips the original.
@@ -136,6 +225,8 @@ namespace ForestOverlay.Game
                 k.LocalScale = t.localScale;
                 k.Index = IndexOf(wood);
                 k.Key = Key(t.position);
+                Looks.TryGetValue(wood.GetInstanceID(), out k.Look);
+                Looks.Remove(wood.GetInstanceID());
                 k.Pieces = new GameObject[_cuts.Length];
                 for (int i = 0; i < _cuts.Length; i++)
                     if (_cuts[i] != null) k.Pieces[i] = _cuts[i].GetValue(__instance) as GameObject;
@@ -244,7 +335,7 @@ namespace ForestOverlay.Game
                 want[e.Substring(at + 1)] = h;
             }
 
-            int healed = 0, rebuilt = 0;
+            int healed = 0, rebuilt = 0, straightened = 0;
             HashSet<string> seen = new HashSet<string>();
 
             for (int i = 0; i < planks.Length; i++)
@@ -256,6 +347,9 @@ namespace ForestOverlay.Game
 
                 int h;
                 if (!want.TryGetValue(key, out h)) continue;
+                Untouched u;
+                if (Looks.TryGetValue(p.GetInstanceID(), out u) && u.Health == h && Straighten(p.transform, u))
+                    straightened++;
                 if ((int)_health.GetValue(p) == h) continue;
                 _health.SetValue(p, h);
                 healed++;
@@ -284,6 +378,14 @@ namespace ForestOverlay.Game
                     }
                     for (int c = 0; c < k.Pieces.Length; c++)
                         if (k.Pieces[c] != null) UnityEngine.Object.Destroy(k.Pieces[c]);
+                    if (k.Look != null && k.Look.Health == h && Straighten(t, k.Look)) straightened++;
+                    if (k.Look != null && wood != null)
+                    {
+                        // The copy is the panel now; a later hit and restore
+                        // straightens it the same way.
+                        k.Look.Panel = wood;
+                        Looks[wood.GetInstanceID()] = k.Look;
+                    }
 
                     seen.Add(k.Key);
                     KeptList.RemoveAt(i);
@@ -295,8 +397,8 @@ namespace ForestOverlay.Game
             foreach (string key in want.Keys)
                 if (!seen.Contains(key)) missing++;
 
-            if (healed == 0 && rebuilt == 0 && missing == 0) return "";
-            return "panels: " + healed + " healed, " + rebuilt + " rebuilt" +
+            if (healed == 0 && rebuilt == 0 && missing == 0 && straightened == 0) return "";
+            return "panels: " + healed + " healed, " + rebuilt + " rebuilt, " + straightened + " straightened" +
                    (missing > 0 ? ", " + missing + " broken and not kept" : "");
         }
 
@@ -305,6 +407,10 @@ namespace ForestOverlay.Game
         public int PruneDestroyed()
         {
             int n = 0;
+            List<int> dead = new List<int>();
+            foreach (KeyValuePair<int, Untouched> kv in Looks)
+                if (kv.Value.Panel == null) dead.Add(kv.Key);
+            for (int i = 0; i < dead.Count; i++) Looks.Remove(dead[i]);
             for (int i = KeptList.Count - 1; i >= 0; i--)
             {
                 if (KeptList[i].Spare != null) continue;
