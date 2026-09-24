@@ -485,9 +485,9 @@ fix).
 
 **maks's v0.24.43 test list** is drafted in
 [`docs/tests/2026-09-24-maks-v0.24.43.md`](docs/tests/2026-09-24-maks-v0.24.43.md)
-(not yet sent; the author sends it): Megan (1-5, v0.24.35-37), the switch
-(6), cave 5 coins (7), the red elevator / Go out of the endgame / held
-items after a Full load (8-10). maks has not tested v0.24.35+ yet.
+(not yet sent; the author sends it): only what the author has not
+confirmed - Megan's cutscene audio (1, his ear), the Quick / Full switch
+(2), cave 5 coins (3). maks has not tested v0.24.35+ yet.
 
 **Saves:** every slot is the author's own (Slot5 swapped back
 2026-09-24 night, sizes checked). maks's saves for testing: his Megan
