@@ -476,7 +476,8 @@ updater. **265 tests.**
 **State:** v0.24.37 runs in the author's game. Megan's Quick load, the
 fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
 confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
-he knows what the cutscene should sound like (the author does not).
+he runs it currently and knows the exact cutscene audio (the author has
+not played in a while). Next after sending it: *Next, in order* 1a.
 **maks's v0.24.37 Megan test list** is drafted in
 [`docs/tests/2026-09-24-maks-v0.24.37.md`](docs/tests/2026-09-24-maks-v0.24.37.md)
 (not yet sent; the author sends it). **Slot4 is the author's own again**
