@@ -463,17 +463,19 @@ identity.
 **Released: v0.24.34** (2026-09-24). The author runs it via the in-game
 updater. **264 tests.**
 
-### Pick up here (handoff of 2026-09-24 night, v0.24.32 downloaded into the game)
+### Pick up here (handoff of 2026-09-24 late, v0.24.34 staged in the game)
 
-**State:** v0.24.31 runs in the author's game; **v0.24.32** (the
-animation-reset fix below) is tagged and downloaded into it
-(`ForestOverlay.dll.pending`, installs on the next launch). The author's
-current save is a Normal game at the plane. maks's saves:
-`C:\Users\deter\Downloads\Slot4` (Megan, Normal) and
-`C:\Users\deter\Downloads\slot5.zip` (lab / invisible section / red
-elevator) - keep both until those items are done; to use one, swap it in
-for a slot temporarily (author's permission) and put the author's slot
-back after.
+**State:** v0.24.33 runs in the author's game; **v0.24.34** is downloaded
+into it (`.pending`, installs on the next launch - the author was told
+to relaunch at the title screen). **Slot4 is swapped:** maks's Megan save
+(Normal, from `C:\Users\deter\Downloads\Slot4`) is in
+`%USERPROFILE%\AppData\LocalLow\SKS\TheForest\76561197966559397\SinglePlayer\Slot4`;
+the author's own Slot4 is in `Slot4.deter-backup` beside it. **Put it
+back when the Megan work is done** (delete Slot4, rename the backup;
+compare sizes: `__RESUME__` 334556 bytes, `thumb.png.png`). Steam Cloud is
+off (author). maks's other save: `C:\Users\deter\Downloads\slot5.zip`
+(lab / invisible section / red elevator) - same swap routine, keep both
+until their items are done.
 
 **Naming (author, done v0.24.27, UI only - config keys and log lines
 unchanged):** **Quick load** = restore in place, **Full load** = restore
@@ -482,67 +484,61 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **Check v0.24.34 on a real restart** (author): F7 mid-swing and
-   mid-smash; the log's `Restart` / `Teleport` line should say `ended
-   attack state '...'` and the next click swing at once. The bridge
-   already showed it (`anim reset` + `toReset2`, 3 of 3). The "down into
-   my body" after a smash cut is the normal look-down pose (author: fine
-   for now).
-   **Found so far:** the game's `resetTrigger` goes through the UNARMED
-   idles with the full-body layer at weight 1 (the one-frame neck view;
-   screenshot) and stays set at rest (would eat the next swing). Swings:
-   arms layer `stickHeavyAttackWindup` / `swingLeftReturn` / `swingRight`
-   (`stickAttack`, `chargingBool`, `doAttackHeavyBool`, `hitDirection`);
-   the smash is the full-body layer alone (`axeAttackGround1`, `smashBool`,
-   an unknown tag `-1474250830`), arms still `held`. State tags the game
-   hashes: `idling`, `held`, `attacking`, `smash`, `block`.
-   `Game/AnimReset`: learns rest (arms `held`/`idling`, full-body weight
-   <= 0.05) every frame from `PracticeModule.Tick`; on a reset blends an
-   action layer back in 0.1 s, switches off bools that were off at rest,
-   clears triggers; nothing learned -> the game's reset, trigger cleared
-   2 frames later. Called after every in-place restore and teleport.
-2. **maks's open items** (his v0.24.29 round):
-   a. **Megan Quick load mid-cutscene does nothing** - the previous
-      `girlMutant(Clone)` stays, seated Megan / the boss trigger are not
-      back, no cutscene (`no cutscene began within 20 s`). Endgame scene
-      state outside `LoadNow`; investigate with Slot4 + the bridge
-      (`find girl`, the trigger `activateGirlTransform`, `setupEndBoss
-      disableBossTrigger`, `creepyAnimatorControl.activateGirlMutant`).
-   b. **Coins come back after a Full load** - cave 5, the first pile by
-      the drop (maks). His log removed only `bone x8, Booze x1`: the
-      cave's pickups probably activate after the single removal pass
+1. **Megan Quick load mid-cutscene does nothing** (maks) - starting now
+   with Slot4. The previous `girlMutant(Clone)` stays, seated Megan / the
+   boss trigger are not back, no cutscene (`no cutscene began within
+   20 s`). Endgame scene state outside `LoadNow`. Plan: author loads
+   Slot4 and stays away from Megan; read the scene (`find girl`, the
+   trigger `activateGirlTransform`, `setupEndBoss disableBossTrigger`,
+   `creepyAnimatorControl.activateGirlMutant`, `Scene.SceneTracker
+   .EndgameBoss`); prompt the author on screen into the cutscene,
+   `capture` a few s in, let it finish, `restore` (Quick) and diff what
+   is missing. Background: game-notes *Savestates during an endgame
+   cutscene* (fast-forward, `BossHold`, Megan's 7 s after a load).
+2. **maks's other open items** (his v0.24.29 round):
+   a. **Coins come back after a Full load** - cave 5, the first pile by
+      the drop. His log removed only `bone x8, Booze x1`: the cave's
+      pickups probably activate after the single removal pass
       (`SavestateModule.RemoveTakenPickups`, run once at the end of
       `HoldUntilLoaded`) - repeat it for ~10 s, or check they are
       `(Clone)`s / have identifiers. Test in cave 5.
-   c. **Cannibals ~6 s after control returns after a Full load** - maks
+   b. **Cannibals ~6 s after control returns after a Full load** - maks
       thinks a 6 s hold is too long; do NOT just extend the hold. Ideas:
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   d. **Quick / Full load toggle is unclear** (Practice editor, *Start
+   c. **Quick / Full load toggle is unclear** (Practice editor, *Start
       state* row): a two-button switch showing the active mode at once;
       Restart says which it does.
-   e. **Megan's music** plays late / during the fight - make it match a
-      normal run, or mute it (maks).
-   f. **Red elevator, Quick load**: the overlook flag is not the cause
+   d. **Megan's music** plays late / during the fight - make it match a
+      normal run, or mute it.
+   e. **Red elevator, Quick load**: the overlook flag is not the cause
       (maks's log: `same as at capture`, overlook `no`); the elevator's
       scene objects are (`HellCorridor/Elevator_01a`, `ElevatorSystem`).
       Full load is fine. Use slot5.zip + bridge.
-3. **QA tooling** (author: "let's do all of them"), after 1-2:
-   ~~bridge `shot`~~ (done v0.24.30, confirmed); keep previous sessions'
-   `LogOutput.log` (timestamped copies on startup, last few); a
-   **QA tab**: each test list shipped in the plugin, items with Pass /
-   Fail / Note, the proving log line and auto-tick where the plugin sees
-   it, a "something weird happened" key (`MARK:` line with time,
-   position, spot, optional note) and a one-click report (zip of logs +
-   the savestate / segment files under test, on the desktop). Never let
-   runners run bridge scripts (arbitrary calls).
-4. Auto-restart: better display of the flashed time (maks); then the
+   f. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
+      **flashed time display**, his background **performance** (read his
+      `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
+      up 4, *Open threads*.
+3. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24):
+   swing / smash cut on F7 (Quick and Full load), next click swings at
+   once, the log line's `ended attack state '...'`, plus the nature
+   guide dump. Not yet seen in a real F7 log line - check the wording in
+   the first log that has one (the author's or maks's).
+4. **QA tooling** (author: "let's do all of them"), after 1-2: keep
+   previous sessions' `LogOutput.log` (timestamped copies on startup,
+   last few); a **QA tab**: each test list shipped in the plugin, items
+   with Pass / Fail / Note, the proving log line and auto-tick where the
+   plugin sees it, a "something weird happened" key (`MARK:` line with
+   time, position, spot, optional note) and a one-click report (zip of
+   logs + the savestate / segment files under test, on the desktop).
+   Never let runners run bridge scripts (arbitrary calls).
+5. Auto-restart: better display of the flashed time (maks); then the
    **Fix list** (trees first).
 
 (Everything confirmed so far is in *Confirmed in game* below.)
 **Bridge tools confirmed:** `mark` (beacon through walls), `shot`,
-`anim` / `anim watch` (background).
+`anim` / `anim watch` (background), `anim reset`.
 
 **How these sessions run:** the author loads the
 save and says so; from here: `tp 523 56.3 10 180` (20 m north of a
@@ -555,18 +551,25 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 (`BepInEx_Manager`, often `#-88` - it can change per launch), then
 `call #<h> OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, `wait 10`, `get ..._checker.Message`
-("downloaded - restart"); the author restarts.
+("downloaded - restart"); the author restarts. Works at the title screen.
 **Bridge habits (2026-09-24):** point the author at things with `mark`
 (never compass directions); look with `shot <name>` and Read the png in
-`BepInEx/config/ForestOverlay/bridge/`; `anim watch N` runs in the
-background, so a `wait` and an action can follow it; give the author a
-long window (20-25 s) for anything timed - "go" reaches them late.
+`BepInEx/config/ForestOverlay/bridge/` (a shot on the frame of an action
+shows that frame, not its outcome - wait a few tenths); `anim watch N`
+runs in the background, so a `wait` and an action can follow it.
 **Instructions go on the game screen, not in chat** (author, 2026-09-24:
 "super useful"): `call #<plugin h> OverlayPlugin._notice.Show "text" <s>`
 (upper middle). Script a timed test as notices + waits in a `-f` file
 ("Retest in 10 s", "SMASH NOW", "RESET - now swing once", "Done"), so the
 author never reads chat mid-test. **At least 6-8 s per notice** (author:
-"a bit quick" at 2-4 s); explain the test in chat before starting it.
+"a bit quick" at 2-4 s); explain the test in chat before starting it;
+the author reacts ~1 s after a prompt, so repeat actions ("keep
+swinging") beat a single timed one. **PlayMaker FSMs** read live: `get
+static:TheForest.Utils.LocalPlayer ScriptSetup.pmControl.ActiveStateName`;
+a state's name / transitions / actions by index (`FsmStates[i].name`,
+`.transitions[j].EventName` / `.ToState`, `fields ....actions[k]`; map
+names to indexes with a generated `-f` file of 164 `get`s); fire an event
+with `call ... SendEvent "<event>"`.
 Test lists for maks go in a plain-text code block numbered `1)`
 (memory `tester-lists-plain-text`).
 
@@ -945,9 +948,10 @@ and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
 checkpoints, the changelog, the load leak fixed (v0.22.7-0.23.6), updates
 under any file name (v0.23.7), the Practice list fix and savestate
 completeness (v0.23.8-0.24.7), the live test bridge and everything found
-with it (v0.24.13-0.24.32: cannibals rebuilt as captured, Megan's
+with it (v0.24.13-0.24.34: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
-pickups removed, Quick / Full load naming, the swing cut on a reset).
+pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
+attack FSM ended).
 
 ### How a session goes
 
