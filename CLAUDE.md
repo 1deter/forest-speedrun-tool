@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.7** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.8** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
@@ -445,27 +445,20 @@ switches freely (`Practice: selected ...` lines).
 **Fix list for the next session, in order** (the author wants these
 before Next up 5):
 
-1. **In-place restore breaks hits - top priority.** After an in-place
-   restore the axe swings but nothing registers: no tree chop, no bush /
-   foliage hit, no enemy hit sound, cave panels pass through (their
-   collider exists). A load restore is fine. Not known whether it predates
-   v0.24.1 (which added the wait for the hands' put-away, ~495 ms each
-   restore, and re-equip). Suspects: the held weapon's hit detection (the
-   weapon view / its trigger collider / `FakeParent` re-parent -
-   `ReParentHeld`), `StashHands` + the game's `OnDeserialized`
-   `HideAllEquiped` / `Equip`, or the adoption step. **Author
-   (2026-09-24): unequipping and re-equipping the axe by hand does NOT
-   bring hits back** - so not our re-equip / the held view alone; look at
-   what the restore does to the player's hit machinery (the adoption of
-   ids, objects deleted or duplicated, the animator / hit trigger under
-   the player's arms). Read how a hit is
-   detected (`ilscan` the axe's weapon script: `weaponInfo`, its
-   `OnTriggerEnter`, what enables `mainTrigger`), compare with what the
-   restore does to the held item, and log the weapon's trigger / collider
-   state after a restore. Probably the same cause: after a **load**
-   restore, picking up a story item did not play the arm "show item"
-   animation (author pressed G at once; normally the animation still
-   plays) - read the pickup-show path too.
+1. ~~**In-place restore breaks hits**~~ **fixed in v0.24.8** (awaiting a
+   check; game-notes *Held weapons and the hit trigger*). The delete step
+   destroyed the held weapons' `collide` objects (their `weaponInfo`) -
+   held models not in hand sit at the scene root (`FakeParent`), outside
+   the player - so the main hit trigger lost its `currentWeaponScript`.
+   Found from the author's log of 2026-09-24 01:39 (`deleted 20 not in the
+   save (collide, collide (3), ...)` on a cross-save restore) plus the
+   savestate's data; it fits the author's answer that re-equipping does
+   nothing. Check: restore a start state from **another save** in place,
+   chop - the restore line says `kept n held-item object(s) of the player
+   the save lacks`. Still open from this item: after a **load** restore,
+   picking up a story item did not play the arm "show item" animation
+   (author pressed G at once) - read the pickup-show path; likely
+   unrelated.
 2. **Book page: nothing is captured.** Log: `book: no pages found under
    the player` - the book's `SelectPageNumber`s are not under
    `LocalPlayer.GameObject`. Find the book's real root (a `LocalPlayer`

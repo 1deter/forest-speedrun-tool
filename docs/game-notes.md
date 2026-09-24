@@ -400,6 +400,29 @@ unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
 ids to the file (`held = ...`), and 0.3 s after the restore
 `SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
 
+### Held weapons and the hit trigger (IL + save + log, v0.24.8)
+
+A hit is one trigger, `hitTrigger` under the player's arm: its
+`weaponInfo` has `mainTrigger = true`, and its collider
+(`animEventsManager.mainWeaponCollider`, wired in the prefab -
+`SetUpWeapons` returns while playing) is switched on and off by the swing's
+animation events (`enableWeapon` / `disableWeapon`). `OnTriggerEnter`
+returns at once when `currentWeaponScript` is null. That field is set by
+the **held weapon's own** `weaponInfo` (`setupHeldWeapon`, from its
+`OnEnable`: `mainTriggerScript.currentWeaponScript = this`), which sits on
+a child named `collide (n)` (Transform, MeshFilter, SphereCollider,
+Rigidbody, touchBendingPlayerListener, weaponInfo, StoreInformation - read
+from a savestate's data). A held model that is not in hand is **unparented
+to the scene root** (`FakeParent.UnParent`: `parent = null`; `OnEnable`
+re-parents it under `target` with its saved local pose), so it is outside
+the player's hierarchy. The in-place restore's delete step (objects whose
+id the save lacks, skipping the player) deleted ~20 of these `collide`
+objects on a cross-save restore (author's log, v0.24.7), and hits stopped
+for the rest of the session - re-equipping cannot bring back a destroyed
+`weaponInfo`, a load rebuilds it. Since v0.24.8 the delete step skips
+anything under a `FakeParent` whose `target` is under the player
+(`kept n held-item object(s)` on the restore line).
+
 ## Savestates during an endgame cutscene (v0.24.3)
 
 The endgame cutscenes are coroutines on the player's action scripts

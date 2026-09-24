@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.8 - 2026-09-24
+
+- Fixed: after restoring a savestate in place, the axe (or any weapon)
+  swung but hit nothing - no chopping, no enemy hits, cave panels passed
+  through. The restore was deleting the hit parts of the weapons you were
+  not holding. If a session is already broken, restore with a load once.
+
 ## v0.24.7 - 2026-09-24
 
 - Two practice toggles in the Deaths tab, each on its own and off by

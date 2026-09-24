@@ -152,6 +152,7 @@ namespace ForestOverlay.Game
         private FieldInfo _itemSlots;
         private FieldInfo _available;
         private Type _fakeParentType;
+        private FieldInfo _fakeParentTarget;     // FakeParent.target (the hand bone it belongs under)
         private MethodInfo _reParent;
         private MethodInfo _unParent;
         private FieldInfo _animControl;
@@ -365,6 +366,7 @@ namespace ForestOverlay.Game
             {
                 _reParent = _fakeParentType.GetMethod("ReParent", inst, null, Type.EmptyTypes, null);
                 _unParent = _fakeParentType.GetMethod("UnParent", inst, null, Type.EmptyTypes, null);
+                _fakeParentTarget = _fakeParentType.GetField("target", inst);
             }
 
             Type anim = GameBridge.FindGameType("playerAnimatorControl");
@@ -388,7 +390,7 @@ namespace ForestOverlay.Game
                      " enemies:" + (_mutantControler != null && _restartEnemies != null) +
                      " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
-                     " fakeParent:" + (_reParent != null) +
+                     " fakeParent:" + (_reParent != null && _fakeParentTarget != null) +
                      " init:" + (_setInitType != null && _initContinue != null);
             _log.LogInfo("Savestates bound. " + Status);
             return _serializeLevel != null;
@@ -561,8 +563,8 @@ namespace ForestOverlay.Game
 
             // LoadNow never deletes for a full-level save; do it here.
             List<string> deletedNames = new List<string>();
-            int keptReceivers = 0;
-            int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames, ref keptReceivers) : 0;
+            int keptReceivers = 0, keptHeld = 0;
+            int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames, ref keptReceivers, ref keptHeld) : 0;
             if (deleted > 0) yield return null;   // let Destroy land before the loader looks
 
             _loadDone = false;
@@ -629,6 +631,7 @@ namespace ForestOverlay.Game
                     for (int i = 0; i < deletedNames.Count && i < 6; i++) sb.Append(i == 0 ? " (" : ", ").Append(deletedNames[i]);
                     if (deletedNames.Count > 0) sb.Append(deletedNames.Count > 6 ? ", ...)" : ")");
                     if (keptReceivers > 0) sb.Append(", kept ").Append(keptReceivers).Append(" weapon-upgrade receiver(s) the save lacks");
+                    if (keptHeld > 0) sb.Append(", kept ").Append(keptHeld).Append(" held-item object(s) of the player the save lacks");
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
@@ -1043,7 +1046,17 @@ namespace ForestOverlay.Game
         // implant into until a real load. Unmatched, they keep this game's
         // upgrades; the save's own copies come back as stand-ins and destroy
         // themselves.
-        private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names, ref int keptReceivers)
+        // Held items are exempt too. A held model that is not in hand is
+        // unparented to the scene root (FakeParent.UnParent: parent = null),
+        // so it is outside the player while it waits. Its "collide" child
+        // carries the weapon's weaponInfo; deleting it (v0.24.7, author:
+        // every in-place restore of a cross-save state deleted ~20
+        // "collide" objects) left the main hit trigger's
+        // currentWeaponScript destroyed, and weaponInfo.OnTriggerEnter
+        // returns at once when it is null: no chop, no hit, no panel -
+        // and re-equipping could not help, because the script that links
+        // the held weapon (setupHeldWeapon, on its OnEnable) was gone.
+        private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names, ref int keptReceivers, ref int keptHeld)
         {
             if (_allIdentifiers == null || _uidId == null) return 0;
 
@@ -1066,13 +1079,32 @@ namespace ForestOverlay.Game
                 string id = ReadString(_uidId, u);
                 if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
                 if (_upgradeReceiverType != null && u.GetComponent(_upgradeReceiverType) != null) { keptReceivers++; continue; }
+                if (HeldByPlayer(u.transform, keepRoot)) { keptHeld++; continue; }
 
-                names.Add(u.gameObject.name);
+                Transform parent = u.transform.parent;
+                names.Add(parent != null ? parent.name + "/" + u.gameObject.name : u.gameObject.name);
                 CancelBuildMissions(u.gameObject);
                 UnityEngine.Object.Destroy(u.gameObject);
                 n++;
             }
             return n;
+        }
+
+        // True when t, or an object above it, is a FakeParent whose hand
+        // bone is under the player.
+        private bool HeldByPlayer(Transform t, Transform keepRoot)
+        {
+            if (keepRoot == null || _fakeParentType == null || _fakeParentTarget == null) return false;
+            for (Transform p = t; p != null; p = p.parent)
+            {
+                Component fp = p.GetComponent(_fakeParentType);
+                if (fp == null) continue;
+                Transform target = null;
+                try { target = _fakeParentTarget.GetValue(fp) as Transform; }
+                catch (Exception) { }
+                if (target != null && target.IsChildOf(keepRoot)) return true;
+            }
+            return false;
         }
 
         // What Craft_Structure.SpawnBackIngredients does for the HUD, without
