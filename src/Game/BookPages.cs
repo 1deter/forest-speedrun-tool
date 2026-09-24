@@ -21,8 +21,11 @@ namespace ForestOverlay.Game
     // shown while it opens and closes. So the state is which page objects
     // are active, and restoring it is what a click does.
     //
-    // Found under the player each time (capture and restore only - never
-    // per frame): a load replaces every object.
+    // Found each time (capture and restore only - never per frame): a load
+    // replaces every object. The book is NOT under the player:
+    // survivalBookController.Awake re-parents `survivalBookReal` out of
+    // the player's hierarchy (v0.24.0-0.24.9 logged "no pages found under
+    // the player"), so it is reached through the controller, which is.
     // ------------------------------------------------------------------
     public sealed class BookPages
     {
@@ -35,6 +38,8 @@ namespace ForestOverlay.Game
         private FieldInfo _myPageNew;      // GameObject
         private FieldInfo _animatedBook;   // static SkinnedMeshRenderer on LocalPlayer
         private FieldInfo _playerGo;       // static GameObject on LocalPlayer
+        private Type _controllerType;      // survivalBookController (on the player)
+        private FieldInfo _bookReal;       // survivalBookController.survivalBookReal
 
         public BookPages(ManualLogSource log)
         {
@@ -57,6 +62,9 @@ namespace ForestOverlay.Game
                     _myPageNew = _selectType.GetField("MyPageNew", inst);
                 }
 
+                _controllerType = GameBridge.FindGameType("survivalBookController");
+                if (_controllerType != null) _bookReal = _controllerType.GetField("survivalBookReal", inst);
+
                 Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
                 if (lp != null)
                 {
@@ -66,7 +74,8 @@ namespace ForestOverlay.Game
 
                 _log.LogInfo("BookPages bound. select:" + (_selectType != null) + " pages:" + (_pages != null) +
                              " index:" + (_indexPage != null) + " myPage:" + (_myPageNew != null) +
-                             " animatedBook:" + (_animatedBook != null) + " player:" + (_playerGo != null));
+                             " animatedBook:" + (_animatedBook != null) + " player:" + (_playerGo != null) +
+                             " realBook:" + (_bookReal != null));
             }
             return _selectType != null && _pages != null && _myPageNew != null && _playerGo != null;
         }
@@ -97,7 +106,8 @@ namespace ForestOverlay.Game
         /// Puts the pages back as captured. Returns a note for the log line.
         public string Apply(string state)
         {
-            if (string.IsNullOrEmpty(state)) return "book: not in this savestate (captured before v0.24.0)";
+            if (string.IsNullOrEmpty(state))
+                return "book: not captured in this savestate (made before v0.24.0, or the book was not found at capture)";
 
             try
             {
@@ -143,8 +153,15 @@ namespace ForestOverlay.Game
             GameObject player = _playerGo.GetValue(null) as GameObject;
             if (player == null) { note = "book: no player"; return null; }
 
-            selectors = player.GetComponentsInChildren(_selectType, true);
-            if (selectors.Length == 0) { note = "book: no pages found under the player"; return null; }
+            GameObject book = RealBook(player);
+            GameObject root = book != null ? book : player;
+            selectors = root.GetComponentsInChildren(_selectType, true);
+            if (selectors.Length == 0)
+            {
+                note = book != null ? "book: no page links in '" + book.name + "'"
+                                    : "book: the book was not found (no survivalBookController under the player)";
+                return null;
+            }
 
             List<GameObject> pages = new List<GameObject>();
             HashSet<int> seen = new HashSet<int>();
@@ -174,6 +191,13 @@ namespace ForestOverlay.Game
 
             if (pages.Count == 0) { note = "book: " + selectors.Length + " page links but no pages"; return null; }
             return pages;
+        }
+
+        private GameObject RealBook(GameObject player)
+        {
+            if (_controllerType == null || _bookReal == null) return null;
+            Component controller = player.GetComponentInChildren(_controllerType, true);
+            return controller != null ? _bookReal.GetValue(controller) as GameObject : null;
         }
 
         // What a click does last: the book model seen while opening and

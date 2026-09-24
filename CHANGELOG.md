@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.10 - 2026-09-24
+
+- Fixed: restoring in place no longer removes every enemy in a Creative
+  game with "Allow enemies" off. With enemies on, the ones you killed
+  come back the game's own way.
+- Restoring in place now clears dead bodies left since the capture.
+- Savestates now really keep the survival book's page - the book was
+  never found before. Capture a new savestate to get it.
+- The restore log no longer says "Equip refused" for held items the game
+  put back in your hands a moment later.
+
 ## v0.24.9 - 2026-09-24
 
 - Practice list: changing a spot's category to one that already exists

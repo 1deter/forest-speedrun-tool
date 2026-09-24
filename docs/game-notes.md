@@ -441,25 +441,45 @@ replays the game's own script, so it lands in the same state every time
 after a restore (the log says so if not), and that 6x keeps root-motion
 positions identical.
 
-## Enemies across an in-place restore (IL, v0.24.5)
+## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
 Enemies are spawned and despawned by `mutantController` (static
 `Scene.MutantControler`), not kept by the serializer: families
 (`activeFamilies`, `allWorldSpawns`), cave spawners (`allCaveSpawns`, each a
 `spawnMutants`), `activeCannibals`, day-based setup (`setDayConditions`,
-`updateSpawns` / `updateCaveSpawns`). `setupFamilies` (started by
-`startSetupFamilies`, skipped in horde mode) despawns every active
-cannibal (`despawnGo`), destroys the world spawns, disables the cave
-spawners' `spawnMutants`, sets the day's conditions and restarts
-`updateSpawns`. `restartEnemiesFromPauseMenu` - run by
-`RefreshMaxActiveMutants` in Creative when the enemy option changes -
-returns at once behind a loading screen or while `doingRestartEnemies`,
-waits out the pause view, then `startSetupFamilies()` when
-`currentMaxActiveMutants > 0`, else `removeAllEnemies()`. That is the
-game's own "enemies as after a load", and v0.24.5 starts it on the
-controller after every in-place restore (`SavestateBridge.RespawnEnemies`,
-setting `Savestates.RespawnEnemiesInPlace`, on). Not the captured
-positions - nothing records those. Not yet confirmed in game.
+`updateSpawns` / `updateCaveSpawns`). `startSetupFamilies` (returns in horde
+mode) starts `setupFamilies`, which despawns every active cannibal
+(`despawnGo`), destroys the world spawns, disables the cave spawners'
+`spawnMutants`, sets the day's conditions and restarts `updateSpawns`. It
+has **no guard against a second run** beside the first.
+
+`restartEnemiesFromPauseMenu` (run by `RefreshMaxActiveMutants` when
+Creative's enemy option changes) waits out the pause view, then
+`startSetupFamilies()` when `currentMaxActiveMutants > 0`, **else
+`removeAllEnemies()`**. `currentMaxActiveMutants` is `Cheats.NoEnemies ? 0 :
+maxActiveMutants` (`setDayConditions`, `RefreshMaxActiveMutants`; every
+`maxActiveMutants` branch is 15-20). `Cheats.NoEnemies` = the internal
+cheat, or peaceful mode, or **in Creative `!PlayerPreferences
+.AllowEnemiesCreative`** (registry `AllowEnemiesCreative_h...`; the author's
+is 0). v0.24.5 ran that routine after every in-place restore, so in the
+author's Creative game (enemies off, yet fighting cave enemies) every
+restore removed them. Since v0.24.10 (`SavestateBridge.RespawnEnemies`):
+enemies off -> nothing; else when the restore sent `NotInACave` (a surface
+state) and `PlayerStats.delayedMutantSpawnCheck` is false, the game already
+ran `startSetupFamilies` (`PlayerStats.NotInACave`: with the delayed check
+set it only runs `removeCaveMutants`) -> nothing more; else
+`startSetupFamilies()`. Not the captured positions - nothing records those.
+
+**Bodies.** A dead cannibal is `Instantiate(clsragdollify.vargamragdoll)`
+at the scene root (`clsragdollify.metgoragdoll`), with no save identifier,
+so LoadNow and the delete step never touch it. v0.24.10 collects the
+ragdoll prefabs' names from every loaded `clsragdollify`
+(`Resources.FindObjectsOfTypeAll`, once a session) and destroys root objects
+named `<prefab>(Clone)` without an identifier (`bodies: n removed`).
+Severed limbs are cut from the ragdoll's mesh at runtime
+(`clsurgutils.metdismemberpart`, not a prefab); whether they stay children
+of the ragdoll root is unconfirmed - the restore logs world pickups not at
+capture 0.5 s later (`n world pickup(s) not at capture (...)`).
 
 ## Cave wooden panels (IL, v0.24.2)
 

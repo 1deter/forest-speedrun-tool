@@ -160,8 +160,9 @@ namespace ForestOverlay.Modules
                 "For testing: the game mode is not in the save, so the world comes back in this game's mode.");
 
             _respawnEnemies = ctx.Config.Bind("Savestates", "RespawnEnemiesInPlace", true,
-                "After an in-place restore, run the game's own enemy restart so enemies killed since the capture " +
-                "come back. They spawn where the game places them, as after a load - not exactly where they stood.");
+                "After an in-place restore, enemies as after a load: the game's own family setup respawns enemies " +
+                "killed since the capture (where the game places them, not exactly where they stood), and dead " +
+                "bodies left since the capture are cleared. Nothing is spawned when the game has enemies off.");
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -507,12 +508,16 @@ namespace ForestOverlay.Modules
                 // streaming), so a flag test sees nothing to change. The
                 // file knows where it was captured: send that state outright.
                 string cave = "";
+                bool surfaceSent = false;
                 if (r.Ok && Ctx.Player.Found)
                 {
                     try
                     {
                         cave = savedInCave >= 0 ? Ctx.Bridge.ForceCaveState(savedInCave == 1)
                                                 : Ctx.Bridge.SyncCaveState(Ctx.Player.Transform.position);
+                        // NotInACave (sent for a surface state) restarts the
+                        // enemy families itself - see RespawnEnemies.
+                        surfaceSent = savedInCave == 0 && cave == "surface state set";
                     }
                     catch (Exception) { }
                 }
@@ -520,7 +525,8 @@ namespace ForestOverlay.Modules
                 string bookNote = r.Ok && file != null ? _book.Apply(file.Book) : "";
 
                 // A slot reload in place too: every in-place restore.
-                string enemyNote = r.Ok && _respawnEnemies.Value ? _bridge.RespawnEnemies() : "";
+                string enemyNote = r.Ok && _respawnEnemies.Value ? _bridge.RespawnEnemies(surfaceSent) : "";
+                if (r.Ok && _respawnEnemies.Value) enemyNote += " | " + _bridge.ClearCorpses();
 
                 string panelNote = "";
                 if (r.Ok && file != null)
@@ -550,6 +556,7 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
+                if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
                 SetStatus(line);
 
                 if (after != null)
@@ -633,6 +640,42 @@ namespace ForestOverlay.Modules
             if (f == null || f.Areas.Length == 0) { Ctx.Log.LogInfo("Savestate areas after the restore: " + now); yield break; }
             Ctx.Log.LogInfo("Savestate areas after the restore: " +
                             (now == f.Areas ? "same as at capture (" + now + ")" : now + " || at capture: " + f.Areas));
+        }
+
+        // World pickups there now that the capture did not list (keyed by
+        // item and position). Diagnostic for what an in-place restore leaves
+        // behind - severed limbs (author, v0.24.7), and greeble sticks and
+        // rocks that came back elsewhere (fix list 4). Once, 0.5 s after the
+        // restore, when the bodies it cleared are gone.
+        private IEnumerator LogNewPickups(HashSet<string> present, string what)
+        {
+            yield return new WaitForSecondsRealtime(0.5f);
+            List<string> now = new List<string>();
+            try { _keeper.Snapshot(now); }
+            catch (Exception) { yield break; }
+
+            Dictionary<int, int> byItem = new Dictionary<int, int>();
+            int n = 0;
+            for (int i = 0; i < now.Count; i++)
+            {
+                if (present.Contains(now[i])) continue;
+                n++;
+                int at = now[i].IndexOf('@');
+                int id;
+                if (at > 0 && int.TryParse(now[i].Substring(0, at), out id))
+                {
+                    int c;
+                    byItem.TryGetValue(id, out c);
+                    byItem[id] = c + 1;
+                }
+            }
+            if (n == 0) { Ctx.Log.LogInfo("Savestate restore " + what + ": every world pickup matches the capture."); yield break; }
+
+            StringBuilder sb = new StringBuilder();
+            foreach (KeyValuePair<int, int> kv in byItem)
+                sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
+            Ctx.Log.LogInfo("Savestate restore " + what + ": " + n + " world pickup(s) not at capture (" + sb +
+                            ") - moved, or new since the capture.");
         }
 
         private string NameOfItem(int id)
@@ -948,7 +991,7 @@ namespace ForestOverlay.Modules
             y += 26f;
 
             bool respawn = GUI.Toggle(new Rect(0, y, w, 22), _respawnEnemies.Value,
-                                      " Respawn enemies after an in-place restore (as a load would)");
+                                      " Enemies after an in-place restore as a load would (respawn, clear bodies)");
             if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;
             y += 26f;
 

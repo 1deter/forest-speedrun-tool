@@ -121,8 +121,14 @@ namespace ForestOverlay.Game
 
         // Enemies (v0.24.5): the game's own enemy restart.
         private FieldInfo _mutantControler;       // static Scene.MutantControler
-        private MethodInfo _restartEnemies;       // mutantController.restartEnemiesFromPauseMenu()
-        private FieldInfo _maxActiveMutants;      // mutantController.currentMaxActiveMutants
+        private MethodInfo _startSetupFamilies;   // mutantController.startSetupFamilies()
+        private FieldInfo _hordeActive;           // mutantController.hordeModeActive
+        private PropertyInfo _noEnemies;          // static Cheats.NoEnemies
+        private FieldInfo _playerStats;           // static LocalPlayer.Stats
+        private FieldInfo _delayedSpawnCheck;     // PlayerStats.delayedMutantSpawnCheck
+        private Type _ragdollifyType;             // clsragdollify
+        private FieldInfo _ragdollPrefab;         // clsragdollify.vargamragdoll (Transform prefab)
+        private HashSet<string> _ragdollNames;    // "<prefab>(Clone)"
 
         // Identifiers
         private Type _uniqueIdType;
@@ -354,9 +360,17 @@ namespace ForestOverlay.Game
             Type mutants = GameBridge.FindGameType("mutantController");
             if (mutants != null)
             {
-                _restartEnemies = mutants.GetMethod("restartEnemiesFromPauseMenu", inst, null, Type.EmptyTypes, null);
-                _maxActiveMutants = mutants.GetField("currentMaxActiveMutants", inst);
+                _startSetupFamilies = mutants.GetMethod("startSetupFamilies", inst, null, Type.EmptyTypes, null);
+                _hordeActive = mutants.GetField("hordeModeActive", inst);
             }
+            Type cheats = GameBridge.FindGameType("Cheats");
+            if (cheats != null) _noEnemies = cheats.GetProperty("NoEnemies", stat);
+            Type localPlayer = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            if (localPlayer != null) _playerStats = localPlayer.GetField("Stats", stat);
+            Type playerStats = GameBridge.FindGameType("PlayerStats");
+            if (playerStats != null) _delayedSpawnCheck = playerStats.GetField("delayedMutantSpawnCheck", inst);
+            _ragdollifyType = GameBridge.FindGameType("clsragdollify");
+            if (_ragdollifyType != null) _ragdollPrefab = _ragdollifyType.GetField("vargamragdoll", inst);
 
             Type slotType = GameBridge.FindGameType("itemConstrainToHand");
             if (slotType != null) _available = slotType.GetField("Available", inst);
@@ -387,7 +401,8 @@ namespace ForestOverlay.Game
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
                      " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
-                     " enemies:" + (_mutantControler != null && _restartEnemies != null) +
+                     " enemies:" + (_mutantControler != null && _startSetupFamilies != null && _noEnemies != null) +
+                     " bodies:" + (_ragdollPrefab != null) +
                      " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null && _fakeParentTarget != null) +
@@ -1173,6 +1188,13 @@ namespace ForestOverlay.Game
             }
         }
 
+        private static bool HoldsAll(List<int> held, List<int> wanted)
+        {
+            for (int i = 0; i < wanted.Count; i++)
+                if (!held.Contains(wanted[i])) return false;
+            return true;
+        }
+
         private bool HandsBusy()
         {
             try
@@ -1214,8 +1236,11 @@ namespace ForestOverlay.Game
         /// After an in-place restore: equips each item held at capture that
         /// is not held now, the way the game's own load does
         /// (PlayerInventory.OnDeserialized: Equip(id, ...)). A short wait
-        /// first, so the restore's own OnDeserialized routines have run.
-        /// `done` gets one line for the log.
+        /// first, so the restore's own OnDeserialized routines have run, then
+        /// up to 2 s for the game's own equip: it lands later than 0.3 s, and
+        /// v0.24.1-0.24.9 called Equip meanwhile and logged "Equip refused"
+        /// for items that came back anyway (author's log). `done` gets one
+        /// line for the log.
         public IEnumerator ReEquip(List<int> wanted, Func<int, string> nameOf, Action<string> done)
         {
             yield return new WaitForSecondsRealtime(0.3f);
@@ -1223,16 +1248,25 @@ namespace ForestOverlay.Game
             float start = Time.realtimeSinceStartup;
             while (HandsBusy() && Time.realtimeSinceStartup - start < 2f) yield return null;
 
+            List<int> first = HeldIds();
+            List<int> now = first;
+            start = Time.realtimeSinceStartup;
+            while (!HoldsAll(now, wanted) && Time.realtimeSinceStartup - start < 2f)
+            {
+                yield return new WaitForSecondsRealtime(0.1f);
+                now = HeldIds();
+            }
+
             StringBuilder sb = new StringBuilder("held at capture:");
             try
             {
                 object inv = _inventory != null ? _inventory.GetValue(null) : null;
-                List<int> now = HeldIds();
                 for (int i = 0; i < wanted.Count; i++)
                 {
                     int id = wanted[i];
                     sb.Append(i == 0 ? " " : ", ").Append(nameOf(id));
-                    if (now.Contains(id)) { sb.Append(" (held)"); continue; }
+                    if (first.Contains(id)) { sb.Append(" (held)"); continue; }
+                    if (now.Contains(id)) { sb.Append(" (re-equipped by the game)"); continue; }
                     if (inv == null || _equipById == null) { sb.Append(" (cannot equip: not bound)"); continue; }
 
                     bool ok = (bool)_equipById.Invoke(inv, new object[] { id, false });
@@ -1246,34 +1280,100 @@ namespace ForestOverlay.Game
             done(sb.ToString());
         }
 
-        /// After an in-place restore: the game's own enemy restart, so enemies
-        /// killed since the capture are back (author). Enemies are spawned
-        /// by mutantController, not kept by the serializer.
-        /// restartEnemiesFromPauseMenu is what the game runs when Creative's
-        /// enemy option changes: it waits out the pause menu and a loading
-        /// screen, then setupFamilies despawns every active cannibal,
-        /// destroys the world spawns, resets the cave spawners and spawns
-        /// again for the day - what a load does. So they come back where
-        /// the game's spawn logic puts them, as after a load, not exactly
-        /// where they stood at capture. Returns a note for the log.
-        public string RespawnEnemies()
+        // After an in-place restore, enemies as after a load (game-notes
+        // *Enemies across an in-place restore*). v0.24.5-0.24.9 ran
+        // restartEnemiesFromPauseMenu, which REMOVES every enemy when
+        // currentMaxActiveMutants is 0 - and that is 0 whenever
+        // Cheats.NoEnemies holds, which in Creative is "Allow enemies" off
+        // (PlayerPreferences.AllowEnemiesCreative; the author's game had it
+        // off while fighting cave enemies, and every restore removed them).
+        // Now: enemies off -> leave them; the restore's own NotInACave
+        // already restarted the families (PlayerStats.NotInACave calls
+        // startSetupFamilies unless delayedMutantSpawnCheck) -> nothing
+        // more, a second setupFamilies would run beside the first;
+        // otherwise the game's startSetupFamilies.
+        public string RespawnEnemies(bool surfaceMessageSent)
         {
-            if (!Resolve() || _mutantControler == null || _restartEnemies == null) return "enemies: not bound";
+            if (!Resolve() || _mutantControler == null || _startSetupFamilies == null) return "enemies: not bound";
             try
             {
                 MonoBehaviour ctrl = _mutantControler.GetValue(null) as MonoBehaviour;
                 if (ctrl == null) return "enemies: no spawn controller in this scene";
 
-                IEnumerator routine = _restartEnemies.Invoke(ctrl, null) as IEnumerator;
-                if (routine == null) return "enemies: the restart routine returned nothing";
-                ctrl.StartCoroutine(routine);
+                if (_hordeActive != null && (bool)_hordeActive.GetValue(ctrl)) return "enemies: horde mode - left to the game";
 
-                int max = _maxActiveMutants != null ? (int)_maxActiveMutants.GetValue(ctrl) : -1;
-                return max == 0 ? "enemies: off in this game - removed" : "enemies: respawned (the game's enemy restart)";
+                bool off = false;
+                try { off = _noEnemies != null && (bool)_noEnemies.GetValue(null, null); }
+                catch (Exception) { }
+                if (off) return "enemies: off in this game (Creative: 'Allow enemies' off) - left as they are";
+
+                if (surfaceMessageSent && !DelayedMutantSpawnCheck())
+                    return "enemies: families restarted by the game (leaving the cave state)";
+
+                _startSetupFamilies.Invoke(ctrl, null);
+                return "enemies: families restarted (the game's setup)";
             }
             catch (Exception ex)
             {
                 return "enemies: respawn failed (" + (ex.InnerException ?? ex).Message + ")";
+            }
+        }
+
+        private bool DelayedMutantSpawnCheck()
+        {
+            try
+            {
+                object stats = _playerStats != null ? _playerStats.GetValue(null) : null;
+                return stats != null && _delayedSpawnCheck != null && (bool)_delayedSpawnCheck.GetValue(stats);
+            }
+            catch (Exception) { return false; }
+        }
+
+        // Dead cannibals are clones of clsragdollify.vargamragdoll made at
+        // death (clsragdollify.metgoragdoll: Instantiate at the scene root),
+        // with no save identifier, so neither LoadNow nor the delete step
+        // touches them (author, v0.24.7: bodies and severed limbs stayed
+        // after an in-place restore). Author, 2026-09-24: an in-place
+        // restore clears them. Clones that DO carry an identifier are the
+        // serializer's and are left alone.
+        public string ClearCorpses()
+        {
+            if (!Resolve() || _ragdollifyType == null || _ragdollPrefab == null) return "bodies: not bound";
+            try
+            {
+                if (_ragdollNames == null || _ragdollNames.Count == 0)
+                {
+                    HashSet<string> names = new HashSet<string>();
+                    UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_ragdollifyType);
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        Transform prefab = all[i] != null ? _ragdollPrefab.GetValue(all[i]) as Transform : null;
+                        if (prefab != null) names.Add(prefab.name + "(Clone)");
+                    }
+                    if (names.Count == 0) return "bodies: no ragdoll prefab loaded";
+                    _ragdollNames = names;
+                }
+
+                int removed = 0, kept = 0;
+                for (int s = 0; s < SceneManager.sceneCount; s++)
+                {
+                    UnityEngine.SceneManagement.Scene scene = SceneManager.GetSceneAt(s);
+                    if (!scene.isLoaded) continue;
+                    GameObject[] roots = scene.GetRootGameObjects();
+                    for (int i = 0; i < roots.Length; i++)
+                    {
+                        GameObject go = roots[i];
+                        if (go == null || !_ragdollNames.Contains(go.name)) continue;
+                        if (_uniqueIdType != null && go.GetComponentsInChildren(_uniqueIdType, true).Length > 0) { kept++; continue; }
+                        UnityEngine.Object.Destroy(go);
+                        removed++;
+                    }
+                }
+                return "bodies: " + removed + " removed" + (kept > 0 ? ", " + kept + " with a save id kept" : "");
+            }
+            catch (Exception ex)
+            {
+                return "bodies: clearing failed (" + (ex.InnerException ?? ex).Message + ")";
             }
         }
 

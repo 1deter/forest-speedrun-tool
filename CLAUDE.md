@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.9** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.10** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
@@ -459,27 +459,26 @@ before Next up 5):
    picking up a story item did not play the arm "show item" animation
    (author pressed G at once) - read the pickup-show path; likely
    unrelated.
-2. **Book page: nothing is captured.** Log: `book: no pages found under
-   the player` - the book's `SelectPageNumber`s are not under
-   `LocalPlayer.GameObject`. Find the book's real root (a `LocalPlayer`
-   static? `survivalBookController.survivalBookReal`? else
-   `Resources.FindObjectsOfTypeAll(SelectPageNumber)` once per capture /
-   restore, scene objects only). Also the restore note wrongly says
-   "captured before v0.24.0" for a file whose capture found no book -
-   say "not captured (...)" instead. Author's results matched this
-   exactly: in place = the page open before the restore, load = the index.
-3. **Enemies: the restart REMOVED them.** Every in-place restore logged
-   `enemies: off in this game - removed` in a game with enemies:
-   `currentMaxActiveMutants` read 0, so `restartEnemiesFromPauseMenu` took
-   its `removeAllEnemies` branch. Find where `currentMaxActiveMutants` is
-   set (only `RefreshMaxActiveMutants`, i.e. only on an option change?) -
-   likely call `startSetupFamilies()` directly when `maxActiveMutants > 0`
-   and `!Cheats.NoEnemies`. Also after the restore, killed enemies' bodies
-   and severed limbs stayed: bodies with no pick-up animation, limbs with
-   the arm pickup icon that cannot be picked up (still collidable). Those
-   are objects the save lacks. **Author (2026-09-24): yes, an in-place
-   restore clears leftover bodies and severed limbs.** The author: a load does respawn
-   enemies ("better than before").
+2. ~~**Book page: nothing is captured**~~ **fixed in v0.24.10** (awaiting
+   a check): `survivalBookController.Awake` re-parents `survivalBookReal`
+   out of the player; `BookPages` reaches it through the controller (on
+   the player). Old files have an empty `book` - capture again. The note
+   for an empty one now says "not captured (made before v0.24.0, or the
+   book was not found at capture)".
+3. ~~**Enemies: the restart REMOVED them**~~ **fixed in v0.24.10**
+   (awaiting a check; game-notes *Enemies across an in-place restore*).
+   Cause: the author's Creative game has **"Allow enemies" off**
+   (`AllowEnemiesCreative = 0` in the registry) -> `Cheats.NoEnemies` ->
+   cap 0 -> `restartEnemiesFromPauseMenu` removed all. Now: enemies off ->
+   left alone; the surface `NotInACave` already restarts families ->
+   nothing more; else `startSetupFamilies`. **Bodies** (author: clear
+   them): ragdoll clones removed (`bodies: n removed`). **Limbs**: not
+   confirmed - read the new `n world pickup(s) not at capture (...)` line
+   after a restore where limbs were cut; if limbs survive, delete them by
+   what that line names. **Open question for the author:** in Creative
+   with enemies off, cave enemies still spawn and a load brings them back
+   - should an in-place restore respawn cave enemies too (the cave
+   spawners' path, `updateCaveSpawns`, unread)?
 4. **Pickups move on every restore (both kinds).** Small pickups - sticks,
    rocks - come back at random positions. They are spawned by the greeble
    system (`GreebleZonesManager` / `GreebleZone`, force-unloaded around
@@ -518,11 +517,9 @@ before Next up 5):
    captured before v0.24.9 may still log "differs" once - its `areas` line
    was unsorted and had no streamed list). The lab / hellcave case itself
    is **pending on the author** (keep).
-9. **Held-item log is wrong**: `held at capture: Axe Plane (Equip
-   refused), Lighter (Equip refused)` while both came back (the game's own
-   `OnDeserialized` equips them later than our 0.3 s check). Re-read after
-   the game's equip settles (poll until held or ~2 s) and only then call
-   `Equip`; log `(re-equipped by the game)`.
+9. ~~**Held-item log is wrong**~~ **fixed in v0.24.10**: `ReEquip` waits
+   up to 2 s for the game's own equip, then equips only what is missing;
+   log `(held)` / `(re-equipped by the game)` / `(re-equipped)`.
 
 **Then, still Next up 3, before Next up 5** (author, 2026-09-24):
 - **Stats-only start state** (runner): a spot option restoring only thirst,
