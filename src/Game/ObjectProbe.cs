@@ -342,7 +342,7 @@ namespace ForestOverlay.Game
             into.Add(hits.Count + " object(s)" + (Player == null ? " (no player: unsorted, no radius)" : ", nearest first"));
         }
 
-        public string Roots(string filter, List<string> into)
+        public string Roots(string filter, int max, List<string> into)
         {
             for (int s = 0; s < SceneManager.sceneCount; s++)
             {
@@ -350,13 +350,17 @@ namespace ForestOverlay.Game
                 if (!scene.isLoaded) { into.Add("scene '" + scene.name + "' (not loaded)"); continue; }
                 GameObject[] roots = scene.GetRootGameObjects();
                 into.Add("scene '" + scene.name + "': " + roots.Length + " root(s)");
+                int shown = 0, matched = 0;
                 for (int i = 0; i < roots.Length; i++)
                 {
                     GameObject g = roots[i];
                     if (!string.IsNullOrEmpty(filter) && g.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (matched++ >= max) continue;
+                    shown++;
                     into.Add("  " + Handle(g) + "  " + g.name + "  " + Vec(g.transform.position) +
                              "  children " + g.transform.childCount + (g.activeSelf ? "" : "  [inactive]"));
                 }
+                if (matched > shown) into.Add("  (" + (matched - shown) + " more - max=N or a filter)");
             }
             return null;
         }

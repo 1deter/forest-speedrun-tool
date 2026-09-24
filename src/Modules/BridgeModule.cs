@@ -327,7 +327,11 @@ namespace ForestOverlay.Modules
                     if (a.Count > 1 && !BridgeCommand.TryParseFloat(a[1], out radius)) return "radius must be a number";
                     return _probe.FindByType(t, radius, all, max, o);
                 }
-                case "roots": return _probe.Roots(a.Count > 0 ? a[0] : null, o);
+                case "roots":
+                {
+                    int max = MaxOption(a, 60);
+                    return _probe.Roots(a.Count > 0 ? a[0] : null, max, o);
+                }
                 case "types":
                 {
                     int max = MaxOption(a, 50);
@@ -479,7 +483,7 @@ namespace ForestOverlay.Modules
             "wait <s> | waitidle [timeout]  - hold the queue (the game keeps running)",
             "find <name part|*> [radius] [all] [max=N]  - GameObjects, nearest first; all = inactive too",
             "type <Type> [radius] [all] [max=N]  - objects carrying that component",
-            "roots [filter] | types <text> | members <Type> [filter]",
+            "roots [filter] [max=N] | types <text> | members <Type> [filter]",
             "inspect <target> [depth] | fields <target> [path] | get <target> <path>",
             "set <target> <path> <value> | call <target> <path.Method> [args] | destroy <target>   (practice)",
             "  values: numbers, true/false, enum names, x,y,z, null, #handle; an IEnumerator method starts as a coroutine",

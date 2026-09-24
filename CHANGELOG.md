@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.14 - 2026-09-24
+
+- Restoring a savestate in place no longer leaves the world without
+  cannibals: if none came back a few seconds later, the game's own setup
+  runs again.
+- Restoring in place clears dead cannibal bodies, washes blood off you
+  and your weapon, and no longer piles up extra copies of the plane wreck
+  (with an extra plane axe each time).
+
 ## v0.24.13 - 2026-09-24
 
 - New developer tool, off by default: a **test bridge** (Settings) that

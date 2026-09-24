@@ -123,6 +123,12 @@ namespace ForestOverlay.Game
         private FieldInfo _mutantControler;       // static Scene.MutantControler
         private MethodInfo _startSetupFamilies;   // mutantController.startSetupFamilies()
         private FieldInfo _hordeActive;           // mutantController.hordeModeActive
+        private FieldInfo _activeCannibals;       // mutantController.activeCannibals
+        private FieldInfo _allWorldSpawns;        // mutantController.allWorldSpawns
+        private FieldInfo _planeCrash;            // static Scene.PlaneCrash
+        private FieldInfo _spawnedHull;           // PlaneCrashController.spawnedHullPrefab
+        private MethodInfo _gotCleanReal;         // PlayerStats.GotCleanReal()
+        private PropertyInfo _isBloody;           // PlayerStats.IsBloody
         private PropertyInfo _noEnemies;          // static Cheats.NoEnemies
         private FieldInfo _playerStats;           // static LocalPlayer.Stats
         private FieldInfo _delayedSpawnCheck;     // PlayerStats.delayedMutantSpawnCheck
@@ -362,13 +368,23 @@ namespace ForestOverlay.Game
             {
                 _startSetupFamilies = mutants.GetMethod("startSetupFamilies", inst, null, Type.EmptyTypes, null);
                 _hordeActive = mutants.GetField("hordeModeActive", inst);
+                _activeCannibals = mutants.GetField("activeCannibals", inst);
+                _allWorldSpawns = mutants.GetField("allWorldSpawns", inst);
             }
+            if (sceneStatics != null) _planeCrash = sceneStatics.GetField("PlaneCrash", stat);
+            Type planeCrash = GameBridge.FindGameType("PlaneCrashController");
+            if (planeCrash != null) _spawnedHull = planeCrash.GetField("spawnedHullPrefab", inst);
             Type cheats = GameBridge.FindGameType("Cheats");
             if (cheats != null) _noEnemies = cheats.GetProperty("NoEnemies", stat);
             Type localPlayer = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
             if (localPlayer != null) _playerStats = localPlayer.GetField("Stats", stat);
             Type playerStats = GameBridge.FindGameType("PlayerStats");
-            if (playerStats != null) _delayedSpawnCheck = playerStats.GetField("delayedMutantSpawnCheck", inst);
+            if (playerStats != null)
+            {
+                _delayedSpawnCheck = playerStats.GetField("delayedMutantSpawnCheck", inst);
+                _gotCleanReal = playerStats.GetMethod("GotCleanReal", inst, null, Type.EmptyTypes, null);
+                _isBloody = playerStats.GetProperty("IsBloody", inst);
+            }
             _ragdollifyType = GameBridge.FindGameType("clsragdollify");
             if (_ragdollifyType != null) _ragdollPrefab = _ragdollifyType.GetField("vargamragdoll", inst);
 
@@ -403,6 +419,9 @@ namespace ForestOverlay.Game
                      " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
                      " enemies:" + (_mutantControler != null && _startSetupFamilies != null && _noEnemies != null) +
                      " bodies:" + (_ragdollPrefab != null) +
+                     " respawnCheck:" + (_activeCannibals != null && _allWorldSpawns != null) +
+                     " plane:" + (_planeCrash != null && _spawnedHull != null) +
+                     " wash:" + (_gotCleanReal != null && _isBloody != null) +
                      " missions:" + (_requiredIngredients != null && _presentIngredients != null && _addNeededToMission != null) +
                      " streaming:" + (_greebleForcedUnload != null && _caveForcedUnload != null) +
                      " fakeParent:" + (_reParent != null && _fakeParentTarget != null) +
@@ -1338,10 +1357,10 @@ namespace ForestOverlay.Game
         // serializer's and are left alone.
         public string ClearCorpses()
         {
-            if (!Resolve() || _ragdollifyType == null || _ragdollPrefab == null) return "bodies: not bound";
+            if (!Resolve()) return "bodies: not bound";
             try
             {
-                if (_ragdollNames == null || _ragdollNames.Count == 0)
+                if ((_ragdollNames == null || _ragdollNames.Count == 0) && _ragdollifyType != null && _ragdollPrefab != null)
                 {
                     HashSet<string> names = new HashSet<string>();
                     UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_ragdollifyType);
@@ -1350,8 +1369,7 @@ namespace ForestOverlay.Game
                         Transform prefab = all[i] != null ? _ragdollPrefab.GetValue(all[i]) as Transform : null;
                         if (prefab != null) names.Add(prefab.name + "(Clone)");
                     }
-                    if (names.Count == 0) return "bodies: no ragdoll prefab loaded";
-                    _ragdollNames = names;
+                    if (names.Count > 0) _ragdollNames = names;
                 }
 
                 int removed = 0, kept = 0;
@@ -1363,7 +1381,7 @@ namespace ForestOverlay.Game
                     for (int i = 0; i < roots.Length; i++)
                     {
                         GameObject go = roots[i];
-                        if (go == null || !_ragdollNames.Contains(go.name)) continue;
+                        if (go == null || !IsBody(go.name)) continue;
                         if (_uniqueIdType != null && go.GetComponentsInChildren(_uniqueIdType, true).Length > 0) { kept++; continue; }
                         UnityEngine.Object.Destroy(go);
                         removed++;
@@ -1375,6 +1393,124 @@ namespace ForestOverlay.Game
             {
                 return "bodies: clearing failed (" + (ex.InnerException ?? ex).Message + ")";
             }
+        }
+
+        // A body is a scene-root clone of mutantTypeSetup.dummyMutant -
+        // "mutant_male_Dummy(Clone)" and its kin (seen live through the test
+        // bridge, 2026-09-24: dummyTypeSetup, destroyAfter, setupFeeding, no
+        // save identifier). The ragdoll clones are the older rule.
+        private bool IsBody(string name)
+        {
+            if (name.EndsWith("_Dummy(Clone)", StringComparison.Ordinal)) return true;
+            return _ragdollNames != null && _ragdollNames.Contains(name);
+        }
+
+        /// The plane wreck: PlaneCrashController.OnDeserialized schedules
+        /// setupCrashedPlane (0.3 s), and loadCrashPlane instantiates a new
+        /// Hull(Clone) into spawnedHullPrefab without destroying the old one
+        /// - a load starts from none, an in-place restore added one more each
+        /// time, with every wreck pickup (the growing "Axe Plane xN").
+        /// Call a second or so after the restore: removes the other wrecks.
+        public string ClearOldPlaneHulls()
+        {
+            if (_planeCrash == null || _spawnedHull == null) return "plane: not bound";
+            try
+            {
+                object ctrl = _planeCrash.GetValue(null);
+                GameObject current = ctrl != null ? _spawnedHull.GetValue(ctrl) as GameObject : null;
+                if (current == null) return "plane: no wreck";
+
+                int removed = 0;
+                for (int s = 0; s < SceneManager.sceneCount; s++)
+                {
+                    UnityEngine.SceneManagement.Scene scene = SceneManager.GetSceneAt(s);
+                    if (!scene.isLoaded) continue;
+                    GameObject[] roots = scene.GetRootGameObjects();
+                    for (int i = 0; i < roots.Length; i++)
+                    {
+                        GameObject go = roots[i];
+                        if (go == null || go == current || go.name != current.name) continue;
+                        UnityEngine.Object.Destroy(go);
+                        removed++;
+                    }
+                }
+                return "plane: " + (removed > 0 ? removed + " old wreck(s) removed" : "one wreck");
+            }
+            catch (Exception ex) { return "plane: failed (" + (ex.InnerException ?? ex).Message + ")"; }
+        }
+
+        /// Blood on the player is PlayerStats.IsBloody plus the skin and
+        /// weapon it painted; the save does not hold it. The game's own wash
+        /// (GotCleanReal, what water does) clears it - and mud and burning
+        /// too. Confirmed in game through the bridge (author, 2026-09-24).
+        public string Wash()
+        {
+            if (_gotCleanReal == null || _isBloody == null || _playerStats == null) return "blood: not bound";
+            try
+            {
+                object stats = _playerStats.GetValue(null);
+                if (stats == null) return "blood: no player";
+                bool before = (bool)_isBloody.GetValue(stats, null);
+                _gotCleanReal.Invoke(stats, null);
+                bool after = (bool)_isBloody.GetValue(stats, null);
+                if (!before) return "";
+                return after ? "blood: still bloody (the game refused the wash)" : "blood: washed";
+            }
+            catch (Exception ex) { return "blood: wash failed (" + (ex.InnerException ?? ex).Message + ")"; }
+        }
+
+        /// Live cannibals and live family spawners, or -1 when unknown.
+        public void CountEnemies(out int cannibals, out int families)
+        {
+            cannibals = families = -1;
+            try
+            {
+                object ctrl = _mutantControler != null ? _mutantControler.GetValue(null) : null;
+                if (ctrl == null || _activeCannibals == null || _allWorldSpawns == null) return;
+                cannibals = CountLive(_activeCannibals.GetValue(ctrl) as IList);
+                families = CountLive(_allWorldSpawns.GetValue(ctrl) as IList);
+            }
+            catch (Exception) { }
+        }
+
+        private static int CountLive(IList list)
+        {
+            if (list == null) return -1;
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                UnityEngine.Object o = list[i] as UnityEngine.Object;
+                if (o != null) n++;
+            }
+            return n;
+        }
+
+        /// The families' setup that an in-place restore starts dies partway
+        /// (seen live, 2026-09-24): it despawns every cannibal and destroys
+        /// the spawners, and updateSpawns never runs - the world stayed empty
+        /// for minutes, while the same call a few seconds later worked. Call
+        /// once the restore has settled: with nothing alive, run it again.
+        public string EnsureEnemies()
+        {
+            if (_startSetupFamilies == null) return "enemies: not bound";
+            try
+            {
+                MonoBehaviour ctrl = _mutantControler != null ? _mutantControler.GetValue(null) as MonoBehaviour : null;
+                if (ctrl == null) return "enemies: no spawn controller";
+                if (_hordeActive != null && (bool)_hordeActive.GetValue(ctrl)) return "enemies: horde mode";
+                bool off = false;
+                try { off = _noEnemies != null && (bool)_noEnemies.GetValue(null, null); }
+                catch (Exception) { }
+                if (off) return "enemies: off in this game";
+
+                int cannibals, families;
+                CountEnemies(out cannibals, out families);
+                if (cannibals != 0 || families != 0)
+                    return "enemies: " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies");
+                _startSetupFamilies.Invoke(ctrl, null);
+                return "enemies: none came back - the game's setup run again";
+            }
+            catch (Exception ex) { return "enemies: check failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }
 
         /// Diagnostic: scene-root objects whose name suggests a dead enemy

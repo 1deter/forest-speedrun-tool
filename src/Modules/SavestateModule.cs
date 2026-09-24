@@ -572,6 +572,8 @@ namespace ForestOverlay.Modules
                 }
 
                 string bookNote = r.Ok && file != null ? _book.Apply(file.Book) : "";
+                // Blood on the player's body and weapon is not in the save.
+                string washNote = r.Ok ? _bridge.Wash() : "";
 
                 // A slot reload in place too: every in-place restore.
                 string enemyNote = r.Ok && _respawnEnemies.Value ? _bridge.RespawnEnemies(surfaceSent) : "";
@@ -606,11 +608,13 @@ namespace ForestOverlay.Modules
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
                               (fall.Length == 0 ? "" : " | " + fall) +
                               (bookNote.Length == 0 ? "" : " | " + bookNote) +
+                              (washNote.Length == 0 ? "" : " | " + washNote) +
                               (panelNote.Length == 0 ? "" : " | " + panelNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
+                if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value));
                 if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
                 SetStatus(line);
 
@@ -688,6 +692,36 @@ namespace ForestOverlay.Modules
         // beside what is loaded now, once the restore has finished - the
         // difference is what a fix has to put back. Two seconds later:
         // streamed sections load asynchronously after a restore.
+        // What settles after an in-place restore, found live through the
+        // test bridge (2026-09-24): the plane wreck the game re-creates 0.3 s
+        // after deserializing (the old one stays - fix list 4), and the
+        // enemy setup that dies partway and leaves no cannibals at all (fix
+        // list 2). One log line when it is done.
+        private const float EnemyCheckDelay = 6f;
+
+        private IEnumerator AfterInPlace(string what, bool enemies)
+        {
+            yield return new WaitForSecondsRealtime(1.5f);
+            string plane = _bridge.ClearOldPlaneHulls();
+            if (!enemies)
+            {
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + ".");
+                yield break;
+            }
+
+            yield return new WaitForSecondsRealtime(EnemyCheckDelay - 1.5f);
+            string check = _bridge.EnsureEnemies();
+            bool rerun = check.IndexOf("run again", StringComparison.Ordinal) >= 0;
+            if (rerun)
+            {
+                yield return new WaitForSecondsRealtime(6f);
+                int cannibals, families;
+                _bridge.CountEnemies(out cannibals, out families);
+                check += " -> " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies") + " 6 s later";
+            }
+            Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check + ".");
+        }
+
         private IEnumerator LogAreas(SavestateFile f)
         {
             yield return new WaitForSecondsRealtime(2f);

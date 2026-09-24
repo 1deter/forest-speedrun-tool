@@ -456,7 +456,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.13** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.14** (2026-09-24). The author runs it via the in-game
 updater. **243 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
@@ -480,11 +480,16 @@ auto-restart and ordered checkpoints in real runs; the held-item log
 off, **respect the game's state** - the runner chose that save; do not
 spawn cave or world enemies there (as v0.24.10 does).
 
-**The live test bridge is built (v0.24.13)** - see *The live test
-bridge*. Not yet used against the real game: the first session with it
-checks `status` / `find` / `inspect` / `get` on the author's install,
-then uses it on the fix list (bodies: `find _Dummy`, `inspect #id`;
-enemies: `find mutant_ 100`, then `inspect` one; `members mutantController`).
+**The live test bridge works in game (v0.24.13, 2026-09-24)** - see
+*The live test bridge*. First session with it: one kill in the author's
+Hard save plus two in-place restores found the causes of fix list 2-5
+(game-notes *Seen live through the test bridge*, *The plane wreck*,
+*Blood on the player*); v0.24.14 ships the fixes, **awaiting a check**
+(one `Savestate after restoring ... in place: plane: ... | enemies: ...`
+line 6-12 s after each in-place restore, `| blood: washed` on the restore
+line, `bodies: n removed`). Game-side tricks used: `set static:Cheats
+GodMode true` and `set player PlayerStats.Health 100` (the author asked
+for it to survive a fight); `tp`; `capture` / `restore`.
 
 **Fix list, in order** (before Next up 5):
 
@@ -500,7 +505,13 @@ enemies: `find mutant_ 100`, then `inspect` one; `members mutantController`).
    vs in place (`ilscan body`, gotcha 17). Logs / sticks lying about could
    go the way of limbs (`PickupKeeper.RemoveNew` by item) once the trees
    come back - not before, or a route loses logs it cut before capture.
-2. **Enemies do not come back in place in a Normal game** (author): the
+2. **Enemies do not come back in place in a Normal game** (author).
+   **Found live (bridge):** worse - the restore's family setup dies
+   partway and leaves **no cannibal anywhere** for minutes; v0.24.14
+   re-runs it (awaiting a check). Still open: the captured positions
+   (below). The bridge showed what to record: `activeCannibals`, each one's
+   `enemyType.Type`, `EnemyHealth.Health`, `mutantTypeSetup.spawner` and
+   that spawner's `spawnMutants` settings. Old notes: the
    restore logs `enemies: families restarted by the game (leaving the cave
    state)` (the surface `NotInACave` -> `startSetupFamilies`), and the
    v0.24.12 log shows families spawning after some restores
@@ -516,7 +527,9 @@ enemies: `find mutant_ 100`, then `inspect` one; `members mutantController`).
    setup instantiate one (`SpawnMutantsSerializerManager` is in the save:
    read what it stores and whether a load uses it for positions). Use the
    test bridge to list live `mutant_*` objects and their components first.
-3. **Bodies stay** (author, v0.24.12: limbs are cleared, bodies not).
+3. **Bodies stay** - **fixed in v0.24.14, awaiting a check**
+   (`*_Dummy(Clone)` roots without a save id; bridge-confirmed shape in
+   game-notes). Old notes (author, v0.24.12: limbs are cleared, bodies not).
    **Found (v0.24.12 log):** a dead body is a scene-root
    **`mutant_male_Dummy(Clone)`** (x1, then x2 over restores - they pile
    up; expect `mutant_female_Dummy(Clone)` etc. too). v0.24.10's
@@ -529,13 +542,17 @@ enemies: `find mutant_ 100`, then `inspect` one; `members mutantController`).
    `cannibalVillages`, `mutantWorldPosition`) - never touch those.
    Limbs / heads: **confirmed cleared** (`removed 2 limb / head
    pickup(s)`).
-4. **An extra `Axe Plane` world pickup each in-place restore?** The "not
+4. **An extra `Axe Plane`** - **cause found, fixed in v0.24.14, awaiting
+   a check**: each in-place restore added another plane wreck
+   (`Hull(Clone)`, game-notes *The plane wreck*). Old notes: The "not
    at capture" line counted `Axe Plane x2, x3, x4, x5` over consecutive
    restores (back to x2 after a load). Something drops or spawns a plane
    axe pickup per restore - `StashHands` / the game's re-equip, or the
    serializer bringing back a pickup. Find those objects (position vs the
    player) before they pile up.
-5. **Blood on the player stays after an in-place restore** (author,
+5. **Blood on the player** - **fixed in v0.24.14, awaiting a check**:
+   the game's wash `PlayerStats.GotCleanReal()` after every in-place
+   restore (confirmed by hand through the bridge). Old notes (author,
    2026-09-24): blood from killing cannibals remains on the player's
    body / arms. Not the `BleedBehavior` screen overlay (Deaths tab) - the
    player model's bloodiness; find what sets it (`ilscan` for the player's

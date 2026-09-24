@@ -481,6 +481,70 @@ Severed limbs are cut from the ragdoll's mesh at runtime
 of the ragdoll root is unconfirmed - the restore logs world pickups not at
 capture 0.5 s later (`n world pickup(s) not at capture (...)`).
 
+### Seen live through the test bridge (2026-09-24, Hard, one kill)
+
+- **The live cannibal** is a root `mutant_male(Clone)NNN` (tag
+  `enemyRoot`, layer `enemy`): `mutantTypeSetup` (`spawner` = its
+  `spawnMutants`, `dummyMutant` = the body prefab, `health`), `enemyType`
+  (`Type = regularMale`), `mutantFamilyFunctions`; the AI and
+  `EnemyHealth` (`Health` / `maxHealth` 130) on the `mutant_male_BASE`
+  child. Each has root helpers `mutantWorldPosition`, `lastPlayerSighting`,
+  `currentWaypoint`. **A kill deactivates the cannibal, it is not
+  destroyed**; it leaves `activeCannibals` and the pool reuses the object
+  on the next setup (renamed, e.g. `...0040` -> `...00400`).
+- **The body** is `Instantiate(mutantTypeSetup.dummyMutant)`: a root
+  `mutant_male_Dummy(Clone)` with `dummyTypeSetup` (`_type`), `destroyAfter`
+  (`destroyTime 600`, `destroyDistance 35`), `setupFeeding`,
+  `spawnEncounter`, `CoopMutantDummy` (present in single player too), no
+  save identifier; a child `encounterFeedingGoFake(Clone)` (another
+  cannibal family's feeding scene). v0.24.14 clears `*_Dummy(Clone)` roots
+  without an identifier after an in-place restore.
+- **A family** is a root `mutantSpawner(Clone)` (tag `mutantSpawn`) with
+  `spawnMutants`: `amount_male` / `amount_female` / ..., `leader`, `pale`,
+  `paintedTribe`, `skinnedTribe`, `sleepingSpawn`, `allMembers`,
+  `leaderGo`. `mutantController` (on `_mutantSetup`, static
+  `Scene.MutantControler`): `activeCannibals` (the live list),
+  `allWorldSpawns` (the families), `allSpawnPoints` (23),
+  `maxActiveMutants` 15. Families follow the player: a 1 km teleport
+  moved one family's members ~150 m within a minute.
+- **The families' setup dies inside an in-place restore.** The restore's
+  `NotInACave` -> `startSetupFamilies` -> `setupFamilies` ran (setupBreak
+  set, every cannibal despawned, every spawner destroyed within 1 s), but
+  `updateSpawns` never ran - its first step removes destroyed entries from
+  `allWorldSpawns`, and 7 destroyed entries stayed for minutes, with no
+  cannibal anywhere. Calling `startSetupFamilies()` again a few seconds
+  later (from the bridge) rebuilt 6 families / 12-17 cannibals within 5 s,
+  twice. Which frame kills the coroutine is not known (both run on
+  `Scene.ActiveMB` = `LoadSave`); v0.24.14 re-runs the setup 6 s after an
+  in-place restore when nothing is alive, and logs the count 6 s later.
+  `setupBreak` clears itself after 1 s (`Invoke("resetSetupBreak", 1)`).
+- `Cheats.GodMode` is what `PlayerStats.Hit` / `CheckDeath` read;
+  `DebugConsole._godmode on` also runs `_setstat full`, `_survival off`,
+  `_energyhack on`. The `DebugConsole` component only exists with the
+  title screen's `developermodeon` (author) - set the static directly.
+
+## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
+
+`PlaneCrashController.OnDeserialized` does `Invoke("setupCrashedPlane",
+0.3)`; `loadCrashPlane` instantiates `savedHullPrefab` at `savePos` into
+`spawnedHullPrefab` - it never destroys the previous one. A load starts
+from none; every in-place restore added one more root `Hull(Clone)` (three
+after two restores), each with its own copy of every wreck pickup - the
+growing `Axe Plane xN` in the "not at capture" line. The roots have no
+save identifier. v0.24.14 destroys every root named like the current
+`spawnedHullPrefab` except that one, 1.5 s after an in-place restore.
+
+## Blood on the player (bridge + IL, 2026-09-24)
+
+`PlayerStats.IsBloody` (a plain auto-property) set by `GotBloody()`,
+which repaints the skin (`CoopPlayerVariations.UpdateSkinVariation(bloody,
+mud, red, cold)`) and the weapon (`PlayerInventory.BloodyWeapon()`). The
+save does not restore it. The wash is `GotCleanReal()`: `resetSkinDamage`,
+`CleanWeapon`, `StopBurning`, `CloseBloodyTut`, `coveredInMud = false`,
+`IsBloody = false` - it does nothing while `BuildingWarmth != 0`.
+Confirmed in game through the bridge: body and axe clean (author).
+v0.24.14 washes after every in-place restore (mud too).
+
 ## Greebles (IL, 2026-09-24)
 
 Small world pickups (sticks, rocks) come from `GreebleZone`s. Positions are
