@@ -138,6 +138,12 @@ namespace ForestOverlay.Game
 
         private Component FindHost()
         {
+            // The title screen has no nature guide, and the full object scan
+            // below cost ~12 ms every 5 s there (author's v0.24.11 log:
+            // repeated "Slow tick: 'collectibles'" at the menu). No player
+            // inventory = no game loaded = nothing to find.
+            if (!GameLoaded()) return null;
+
             UnityEngine.Object[] found;
             try { found = Resources.FindObjectsOfTypeAll(_hostType); }
             catch (Exception) { return null; }
@@ -152,6 +158,22 @@ namespace ForestOverlay.Game
             }
 
             return null;
+        }
+
+        private FieldInfo _playerInventory;   // static LocalPlayer.Inventory
+        private bool _inventoryResolved;
+
+        private bool GameLoaded()
+        {
+            if (!_inventoryResolved)
+            {
+                _inventoryResolved = true;
+                Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                if (local != null) _playerInventory = local.GetField("Inventory", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            }
+            if (_playerInventory == null) return true;   // cannot tell: search as before
+            try { return _playerInventory.GetValue(null) as UnityEngine.Object != null; }
+            catch (Exception) { return true; }
         }
 
         private void BuildStructure()

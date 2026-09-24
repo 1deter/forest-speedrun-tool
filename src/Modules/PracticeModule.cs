@@ -70,6 +70,11 @@ namespace ForestOverlay.Modules
         /// can arm without this module knowing the timer exists.
         public Action OnPlacedAtSpot;
 
+        /// Raised when a start-state restore begins, before the world
+        /// changes: a run in progress is void from here (author, v0.24.11:
+        /// the clock ran on through a load restore until it finished).
+        public Action OnRestartStarting;
+
         private float _tabW;
         private float _tabH;
         private Vector2 _listScroll;
@@ -392,6 +397,7 @@ namespace ForestOverlay.Modules
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
 
                 _current = s;
+                if (OnRestartStarting != null) OnRestartStarting();
                 StartStatus("Restoring" + (s.StartRestoreWithLoad ? " with a load..." : "..."));
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (s.StartRestoreWithLoad ? "with a load." : "in place."));

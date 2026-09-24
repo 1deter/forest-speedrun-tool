@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.12 - 2026-09-24
+
+- Restarting a spot (F7, auto-restart, a death) now stops the running
+  timer at once, instead of letting it run on through the restore.
+- Restoring in place clears severed arms, legs and heads left by kills
+  since the capture.
+- Fixed a small stutter every few seconds at the title screen.
+
 ## v0.24.11 - 2026-09-24
 
 - Quitting to the title screen now stops a timed run (not saved) and

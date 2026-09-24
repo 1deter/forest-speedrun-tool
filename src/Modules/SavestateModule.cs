@@ -662,6 +662,24 @@ namespace ForestOverlay.Modules
         private IEnumerator LogNewPickups(HashSet<string> present, string what)
         {
             yield return new WaitForSecondsRealtime(0.5f);
+
+            // Limbs and heads from kills since the capture (author: clear
+            // what the kills left). By item name - Arm / Leg / Head.
+            int limbs = 0;
+            if (_respawnEnemies.Value)
+            {
+                try { limbs = _keeper.RemoveNew(present, IsBodyPartItem); }
+                catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing limbs failed: " + ex.Message); }
+                if (limbs > 0) Ctx.Log.LogInfo("Savestate restore " + what + ": removed " + limbs + " limb / head pickup(s) left since the capture.");
+                try
+                {
+                    string bodies = _bridge.DescribeBodyCandidates();
+                    if (bodies != null) Ctx.Log.LogInfo("Savestate restore " + what + ": body candidates after the restore: " + bodies);
+                }
+                catch (Exception) { }
+                yield return null;   // let Destroy land before the listing below
+            }
+
             List<string> now = new List<string>();
             try { _keeper.Snapshot(now); }
             catch (Exception) { yield break; }
@@ -688,6 +706,12 @@ namespace ForestOverlay.Modules
                 sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
             Ctx.Log.LogInfo("Savestate restore " + what + ": " + n + " world pickup(s) not at capture (" + sb +
                             ") - moved, or new since the capture.");
+        }
+
+        private bool IsBodyPartItem(int id)
+        {
+            string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
+            return n == "Arm" || n == "Leg" || n == "Head";
         }
 
         private string NameOfItem(int id)

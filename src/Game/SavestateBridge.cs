@@ -1377,6 +1377,41 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// Diagnostic: scene-root objects whose name suggests a dead enemy
+        /// (body / ragdoll / dead / mutant / cannibal), counted by name.
+        /// v0.24.10's ragdoll-clone rule removed nothing in the author's
+        /// Normal game while bodies stayed, so the bodies are something
+        /// else - this names them for the next fix.
+        public string DescribeBodyCandidates()
+        {
+            Dictionary<string, int> counts = new Dictionary<string, int>();
+            for (int s = 0; s < SceneManager.sceneCount; s++)
+            {
+                UnityEngine.SceneManagement.Scene scene = SceneManager.GetSceneAt(s);
+                if (!scene.isLoaded) continue;
+                GameObject[] roots = scene.GetRootGameObjects();
+                for (int i = 0; i < roots.Length; i++)
+                {
+                    if (roots[i] == null || !roots[i].activeInHierarchy) continue;
+                    string n = roots[i].name;
+                    string l = n.ToLowerInvariant();
+                    if (l.IndexOf("body") < 0 && l.IndexOf("ragdoll") < 0 && l.IndexOf("dead") < 0 &&
+                        l.IndexOf("mutant") < 0 && l.IndexOf("cannibal") < 0 && l.IndexOf("corpse") < 0) continue;
+                    int c;
+                    counts.TryGetValue(n, out c);
+                    counts[n] = c + 1;
+                }
+            }
+            if (counts.Count == 0) return null;
+            StringBuilder sb = new StringBuilder();
+            foreach (KeyValuePair<string, int> kv in counts)
+            {
+                if (sb.Length > 900) { sb.Append(", ..."); break; }
+                sb.Append(sb.Length == 0 ? "" : ", ").Append(kv.Key).Append(" x").Append(kv.Value);
+            }
+            return sb.ToString();
+        }
+
         public bool MemorySafeSaveMode { get { return ReadStaticBool(_memorySafe); } }
 
         // ------------------------------------------------------------------

@@ -481,6 +481,19 @@ Severed limbs are cut from the ragdoll's mesh at runtime
 of the ragdoll root is unconfirmed - the restore logs world pickups not at
 capture 0.5 s later (`n world pickup(s) not at capture (...)`).
 
+## Greebles (IL, 2026-09-24)
+
+Small world pickups (sticks, rocks) come from `GreebleZone`s. Positions are
+**seeded**, not random per spawn: `SpawnIndex(i)` sets `Random.seed =
+GetRandomSeed() + i`, where the zone seed is `GreebleZonesManager.GZData
+._seed` (set once from the zone's position + `RandomSeed`; the manager is
+in the save), then draws the position with `Random.Range`
+(`GreebleUtility.ProceduralValue`). What can differ between spawns: the
+type pick `ProceduralGreebleType(defs, AllowRegrowth && Destroyed,
+Clock.ElapsedGameTime - CreationTime)` (a regrowing instance can draw a
+different number of randoms), the per-instance `Destroyed` flags, and the
+ground raycast. Unconfirmed which one moves a stick in game.
+
 ## Cave wooden panels (IL, v0.24.2)
 
 A panel is `BreakWoodSimple`: `int Health`; `Hit(damage)` subtracts and at

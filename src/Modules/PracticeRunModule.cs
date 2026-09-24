@@ -112,7 +112,11 @@ namespace ForestOverlay.Modules
             _live = new LiveItemCounts(ctx.Inventory);
 
             _practice = Host.Find<PracticeModule>();
-            if (_practice != null) _practice.OnPlacedAtSpot = OnPlacedAtSpot;
+            if (_practice != null)
+            {
+                _practice.OnPlacedAtSpot = OnPlacedAtSpot;
+                _practice.OnRestartStarting = OnRestartStarting;
+            }
             else ctx.Log.LogWarning("PracticeRunModule: no PracticeModule found.");
 
             _lineHost = new GameObject("ForestOverlay_RunLines");
@@ -457,6 +461,18 @@ namespace ForestOverlay.Modules
         // Left the level (title screen): the run is not finished and not
         // saved, and nothing of it is drawn. Going back to the spot (F7,
         // Go) arms it again.
+        // A restart voids the run at once; OnPlacedAtSpot arms it again
+        // once the spot is ready.
+        private void OnRestartStarting()
+        {
+            _autoRestartAt = 0f;
+            if (_recorder.State == RunRecorder.RunState.Running && _segment != null)
+                Ctx.Log.LogInfo("Run '" + _segment.Id + "': aborted - restarting the spot.");
+            _recorder.Abort();
+            _hasDelta = false;
+            ClearRunPreview();
+        }
+
         private void LeaveLevel()
         {
             bool running = _recorder.State == RunRecorder.RunState.Running;

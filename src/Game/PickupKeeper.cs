@@ -197,6 +197,40 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// Destroys loaded world pickups (no identifier) that the capture
+        /// did not list and whose item `remove` accepts - severed limbs and
+        /// heads left by kills since the capture (author's v0.24.11 log:
+        /// `Head x1, Arm x1` not at capture after a restore). Returns how many.
+        public int RemoveNew(HashSet<string> present, Func<int, bool> remove)
+        {
+            if (_destroyTarget == null || _itemId == null) return 0;
+            Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
+            if (pickUp == null) return 0;
+
+            int n = 0;
+            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(pickUp);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Component c = all[i] as Component;
+                if (c == null) continue;
+                int id;
+                try { id = (int)_itemId.GetValue(c); }
+                catch (Exception) { continue; }
+                if (!remove(id)) continue;
+
+                GameObject target = null;
+                try { target = _destroyTarget.GetValue(c) as GameObject; }
+                catch (Exception) { }
+                if (target == null) target = c.gameObject;
+                if (!target.activeInHierarchy || HasIdentifier(target)) continue;
+                if (present.Contains(KeyFor(c, target))) continue;
+
+                UnityEngine.Object.Destroy(target);
+                n++;
+            }
+            return n;
+        }
+
         private static string KeyFor(Component pickup, GameObject target)
         {
             int id = 0;

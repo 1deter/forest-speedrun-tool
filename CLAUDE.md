@@ -419,115 +419,99 @@ identity.
 
 ## Current status
 
-**Released: v0.24.11** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.12** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
-### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
+### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
 
-The session of 2026-09-23/24 cross-checked the author's ideas file against
-this file, then shipped **v0.23.8 - v0.24.7** (Practice list fix, `EndFall`,
-book page, held items, cave panels, cutscene fast-forward, area report,
-enemy respawn, auto-restart, no blood / no stagger). The savestate file
-gained `book`, `held`, `panels`, `cutscene`, `areas` header lines - all
-outside the start-state hash. The author tested v0.24.7 in **Creative**
-(cave 5 spot, start state captured in the same Creative save; the first
-restore of the session was a Hard state restored cross-mode). Their log was
-`G:\SteamLibrary\...\BepInEx\LogOutput.log` of 2026-09-24 (gone at the next
-launch; its findings are below).
+Sessions of 2026-09-24 shipped **v0.23.8 - v0.24.12**. The author tested
+v0.24.11 in a **Normal** (survival) game, restoring the Creative-captured
+start state `spot.my.new-spot-3` cross-mode (`AllowCrossModeRestore` on)
+plus a fresh start state `spot.my.new-spot` captured in that game. The log
+(`G:\SteamLibrary\...\BepInEx\LogOutput.log`, 2026-09-24) is gone at the
+next launch; its findings are below.
 
-**Confirmed working (author):** no blood + no stagger in Creative (cave 5
-drop, `No stagger: hard landing cancelled.` each landing); auto-restart
-("really cool"; in place and with a load); lighter **and axe** come back
-equipped after an in-place restore and "CANNOT CARRY ANY MORE LIGHTERS" is
-gone; a **load** restore repairs the cave panels; the Practice list
-switches freely (`Practice: selected ...` lines).
+**Confirmed working (author, v0.24.11):** hits after an in-place restore
+(`kept 18 held-item object(s)`; chopping bushes / trees works); the book
+page, in place and with a load (`book: showing ... (2 page object(s)
+switched)`; files captured before v0.24.10 have none); quitting to the
+title screen clears the run line (`Run '...': disarmed - left the level`);
+auto-restart and ordered checkpoints in real runs; the held-item log
+(`re-equipped by the game`).
 
-**Fix list for the next session, in order** (the author wants these
-before Next up 5). **Session of 2026-09-24 (later) shipped v0.24.8 -
-v0.24.11**: fixes 1, 2, 3, 6, 7, 8, 9 done and awaiting the author's
-test; 4 and 5 shipped their diagnostic log lines and wait on a log. Also
-that session: the conversation history exported to Markdown for a runner
-(`Desktop/forest-conversations`, converter script not kept in the repo).
-Ask the author for the v0.24.11 test log first.
+**Decided (author, 2026-09-24):** in a Creative game with "Allow enemies"
+off, **respect the game's state** - the runner chose that save; do not
+spawn cave or world enemies there (as v0.24.10 does).
 
-1. ~~**In-place restore breaks hits**~~ **fixed in v0.24.8** (awaiting a
-   check; game-notes *Held weapons and the hit trigger*). The delete step
-   destroyed the held weapons' `collide` objects (their `weaponInfo`) -
-   held models not in hand sit at the scene root (`FakeParent`), outside
-   the player - so the main hit trigger lost its `currentWeaponScript`.
-   Found from the author's log of 2026-09-24 01:39 (`deleted 20 not in the
-   save (collide, collide (3), ...)` on a cross-save restore) plus the
-   savestate's data; it fits the author's answer that re-equipping does
-   nothing. Check: restore a start state from **another save** in place,
-   chop - the restore line says `kept n held-item object(s) of the player
-   the save lacks`. Still open from this item: after a **load** restore,
-   picking up a story item did not play the arm "show item" animation
-   (author pressed G at once) - read the pickup-show path; likely
-   unrelated.
-2. ~~**Book page: nothing is captured**~~ **fixed in v0.24.10** (awaiting
-   a check): `survivalBookController.Awake` re-parents `survivalBookReal`
-   out of the player; `BookPages` reaches it through the controller (on
-   the player). Old files have an empty `book` - capture again. The note
-   for an empty one now says "not captured (made before v0.24.0, or the
-   book was not found at capture)".
-3. ~~**Enemies: the restart REMOVED them**~~ **fixed in v0.24.10**
-   (awaiting a check; game-notes *Enemies across an in-place restore*).
-   Cause: the author's Creative game has **"Allow enemies" off**
-   (`AllowEnemiesCreative = 0` in the registry) -> `Cheats.NoEnemies` ->
-   cap 0 -> `restartEnemiesFromPauseMenu` removed all. Now: enemies off ->
-   left alone; the surface `NotInACave` already restarts families ->
-   nothing more; else `startSetupFamilies`. **Bodies** (author: clear
-   them): ragdoll clones removed (`bodies: n removed`). **Limbs**: not
-   confirmed - read the new `n world pickup(s) not at capture (...)` line
-   after a restore where limbs were cut; if limbs survive, delete them by
-   what that line names. **Open question for the author:** in Creative
-   with enemies off, cave enemies still spawn and a load brings them back
-   - should an in-place restore respawn cave enemies too (the cave
-   spawners' path, `updateCaveSpawns`, unread)?
-4. **Pickups move on every restore (both kinds)** - waiting on a log.
-   IL (2026-09-24): positions are NOT seeded randomly - `SpawnIndex` sets
-   `Random.seed = GetRandomSeed() + index`, the zone seed lives in
-   `GreebleZonesManager.GZData._seed` (the manager is in the save), and
-   the position comes from `Random.Range` after that. What varies: the
-   type pick `GreebleUtility.ProceduralGreebleType(defs, AllowRegrowth &&
-   Destroyed, Clock.ElapsedGameTime - CreationTime)` for regrowing
-   instances (a different number of Random draws shifts the position),
-   the per-instance `Destroyed` flags, and the ground raycast. Unconfirmed
-   - so v0.24.10 logs `n world pickup(s) not at capture (Stick xN, Rock
-   xN)` 0.5 s after an in-place restore. Next: get that line from the
-   author (stand near sticks, capture, pick some up, restore), then
-   compare instance data at capture and after.
-5. **Cave panels in place** - waiting on a log. The save holds no panel
-   (no `BreakWoodSimple` / `CoopWoodPlanks` in a savestate's data) and
-   `BreakWoodSimple` is the only breakable of its kind, so the
-   "half-repaired" panel (crooked, crossed boards on the floor) was most
-   likely a panel whose loose child boards were knocked off - health
-   reset, boards not; its non-collidable part was fix 1. v0.24.11 logs
-   `Savestate: nearest cave panel at capture: ...` and `... after the
-   restore: ...` (hierarchy, local positions, rigidbodies) - compare the
-   two after hitting a panel between capture and restore, then record
-   and reset the moving children's local poses.
-6. ~~**Practice list category grouping**~~ **fixed in v0.24.9** (awaiting
-   a check): `PracticeModule.RebuildVisible` sorts its own copy
-   (`SegmentLibrary.Compare`, now public) and groups with
-   `SegmentLibrary.SameCategory` (ignores case and surrounding spaces;
-   collapse state keyed the same way); a Name / Category edit regroups
-   0.6 s after typing pauses (`_regroupAt`, in `Tick`).
-7. ~~**Run lines and runs outlive their spot**~~ **fixed in v0.24.11**
-   (awaiting a check): a run remembers the level's build index when it
-   arms; a different active scene (title screen) aborts it unsaved,
-   drops the segment and clears lines (`Run '<id>': aborted - left the
-   level (not saved).`); a load restore keeps the index. Lines show only
-   while the Practice list's selected entry is the run's segment
-   (`PracticeModule.SelectedSegment`; author, 2026-09-24).
-8. ~~**Area report binds nothing**~~ **fixed in v0.24.9**: binds
-   `TheForest.Utils.Scene`, and sorts the scene and streamed names (a file
-   captured before v0.24.9 may still log "differs" once - its `areas` line
-   was unsorted and had no streamed list). The lab / hellcave case itself
-   is **pending on the author** (keep).
-9. ~~**Held-item log is wrong**~~ **fixed in v0.24.10**: `ReEquip` waits
-   up to 2 s for the game's own equip, then equips only what is missing;
-   log `(held)` / `(re-equipped by the game)` / `(re-equipped)`.
+**Fix list, in order** (before Next up 5):
+
+1. **In-place restore leaves chopped trees and bushes** (author): a
+   chopped tree stays a stump, its logs and the sticks from a cut stick
+   bush stay on the ground (`Log x5`, `Stick x3` in the "not at capture"
+   line), the bush does not come back. A load restores all of it; coins /
+   cash pickups respawn fine in place. Tree state is outside `LoadNow`'s
+   reach for a full-level save - start from what the save holds:
+   `MassDestructionSaveManager` (`mass_v016` in the savestate data),
+   `GlobalDataSaver`, `TreeHealth` / the LOD tree grid (`TreeLodGrid`,
+   `LOD_Trees`, `CutDown`), and what their `OnDeserialized` does on a load
+   vs in place (`ilscan body`, gotcha 17). Logs / sticks lying about could
+   go the way of limbs (`PickupKeeper.RemoveNew` by item) once the trees
+   come back - not before, or a route loses logs it cut before capture.
+2. **Enemies do not come back in place in a Normal game** (author): the
+   restore logs `enemies: families restarted by the game (leaving the cave
+   state)` (the surface `NotInACave` -> `startSetupFamilies`), yet killed
+   ones stay dead; a load brings them back. So `setupFamilies` respawns
+   *families the spawn manager still counts*, and the save's spawn state
+   is what a load restores: read `SpawnMutantsSerializerManager` (in the
+   savestate data) and `mutantSpawnManager` (`setMutantSpawnAmounts`) -
+   what they store, and whether their deserialize path runs for LoadNow
+   in place. Also check nothing doubles up.
+3. **Bodies stay** (author): v0.24.10's rule (scene-root clones of
+   `clsragdollify.vargamragdoll`) removed 0 every time, so a dead body is
+   something else. v0.24.12 logs `body candidates after the restore:
+   <root objects named body / ragdoll / dead / mutant / cannibal /
+   corpse> xN` 0.5 s after an in-place restore - read it after killing
+   (the bodies may also be children of a holder, not roots). **Limbs and
+   heads** are world pickups (`Head x1, Arm x1` in the author's log);
+   v0.24.12 destroys Arm / Leg / Head pickups the capture did not list
+   (`removed n limb / head pickup(s)`) - awaiting a check.
+4. **An extra `Axe Plane` world pickup each in-place restore?** The "not
+   at capture" line counted `Axe Plane x2, x3, x4, x5` over consecutive
+   restores (back to x2 after a load). Something drops or spawns a plane
+   axe pickup per restore - `StashHands` / the game's re-equip, or the
+   serializer bringing back a pickup. Find those objects (position vs the
+   player) before they pile up.
+5. **Phantom stick** (author, once, during practice runs after in-place
+   restores): picked up a stick, it vanished, nothing in the inventory, no
+   "picked up" text. Suspects: a `PickupKeeper` copy (disabled instead of
+   destroyed, then re-enabled) or a greeble instance despawned by the
+   streaming reload under the hand. Watch for it; the stick oddity in
+   *Awaiting* is probably the same.
+6. **Pickups move** (old fix 4): the "not at capture" lines show few
+   sticks / rocks (`Stick x3`, `Rock x1`) - most of the list is logs,
+   cloth, boards and plane axes. Re-test after 1 and 4; greeble IL notes
+   are in game-notes *Greebles* (positions are seeded; type pick depends
+   on regrowth time).
+7. **Cave panels** (old fix 5): no `nearest cave panel` line yet - it
+   needs a capture within 30 m of a panel, a few hits, an in-place
+   restore.
+
+Shipped in v0.24.12 (awaiting a check): a restart voids the running
+timer at once (`OnRestartStarting`; log `Run '<id>': aborted -
+restarting the spot.`); limb / head removal; the body-candidates line;
+the title screen no longer runs the nature guide's object scan every 5 s
+(it logged `Slow tick: 'collectibles'` ~12 ms there).
+
+**Proposed by the author, 2026-09-24: live testing through the running
+game** (dynamic analysis; everything so far is static IL + logs). Design
+answered in chat, not yet approved or built: a file bridge - the plugin
+polls `config/ForestOverlay/bridge/in.txt` for commands written from
+here (inspect an object's hierarchy / fields by reflection, list objects
+of a type near the player, call the overlay's own actions: capture,
+restore, teleport, dumps), executes them on the main thread and appends
+results to `out.txt`; the author watches the game and does what needs
+hands (combat, chopping). Practice-only, off by default, one log line per
+command. Ask the author whether it goes before the fix list above.
 
 **Then, still Next up 3, before Next up 5** (author, 2026-09-24):
 - **Stats-only start state** (runner): a spot option restoring only thirst,
@@ -546,11 +530,9 @@ Ask the author for the v0.24.11 test log first.
 - The lab / hellcave fix waits for the author's log (pending).
 
 **Still awaiting an in-game check** (the author did not get to them):
-the Megan cutscene fast-forward (v0.24.3), mid-air restore (v0.23.9 - the
+(the old list) the Megan cutscene fast-forward (v0.24.3), mid-air restore (v0.23.9 - the
 log's `fall ended (1.2 s in the air, 0 m/s)` after every load restore's
-teleport is the loaded player's own air time, harmless), enemies in a
-**survival** game, the book page after fix 2, the panels after fixes 1
-and 5, renamed-plugin updates (v0.23.7), the keycard checkpoint, the
+teleport is the loaded player's own air time, harmless), the panels, renamed-plugin updates (v0.23.7), the keycard checkpoint, the
 in-place restore timing (~155 ms on this heap - fine), and maks: the
 Practice list (v0.23.8) - he still runs v0.23.1 and should update.
 
