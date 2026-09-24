@@ -39,6 +39,7 @@ namespace ForestOverlay.Game
         private const int Arms = 1;          // upperBody
         private const int FullBody = 2;      // fullBodyActions
         private const float Blend = 0.1f;
+        private const float RestWeight = 0.05f;
 
         private static Animator _animator;
         private static AnimatorControllerParameter[] _params;   // cached: the property allocates
@@ -76,6 +77,10 @@ namespace ForestOverlay.Game
             if (an.layerCount <= FullBody || an.IsInTransition(Arms) || an.IsInTransition(FullBody)) return;
             AnimatorStateInfo arms = an.GetCurrentAnimatorStateInfo(Arms);
             if (arms.tagHash != TagHeld && arms.tagHash != TagIdling) return;
+            // A smash runs on the full-body layer alone, the arms still
+            // "held" (bridge: v0.24.31 learned the smash as the rest). At
+            // rest that layer is switched off (weight 0).
+            if (an.GetLayerWeight(FullBody) > RestWeight) return;
             if (Time.frameCount < _nextSnapshotFrame) return;
             _nextSnapshotFrame = Time.frameCount + 10;
 
@@ -100,7 +105,10 @@ namespace ForestOverlay.Game
                     AnimatorStateInfo s = an.IsInTransition(l) ? an.GetNextAnimatorStateInfo(l) : an.GetCurrentAnimatorStateInfo(l);
                     bool action = s.tagHash == TagAttacking || s.tagHash == TagSmash || s.tagHash == TagBlock;
                     bool resting = s.tagHash == TagHeld || s.tagHash == TagIdling;
-                    if (action || (!resting && s.fullPathHash != _restState[l]))
+                    // The full-body layer is only in use during an action
+                    // (a smash: weight 1, its own tag).
+                    bool fullBodyOn = l == FullBody && an.GetLayerWeight(FullBody) > RestWeight;
+                    if (action || fullBodyOn || (!resting && s.fullPathHash != _restState[l]))
                         an.CrossFade(_restState[l], Blend, l, 0f);
                 }
                 for (int i = 0; i < _params.Length; i++)

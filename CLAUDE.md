@@ -105,7 +105,8 @@ Where things live:
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
-| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
+| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
+| Cutting a player action on a reset | `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
 
@@ -186,7 +187,10 @@ inactive too, `max=N`, nearest first), `roots`, `types`, `members`
 `destroy` (mark practice; an `IEnumerator` method is started as a
 coroutine), and the overlay's own actions: `savestates`, `capture`,
 `restore <name> [load]` (wait until done), `spots`, `go`, `restart`
-(waits until idle), `tp`, `dump`, plus `wait` / `waitidle`.
+(waits until idle), `tp`, `dump`, plus `wait` / `waitidle`; since
+v0.24.27-0.24.31 also `mark` (a magenta beacon through walls), `shot`
+(a screenshot into the bridge folder), `anim` / `anim watch N`
+(background) / `anim reset` (the player's animator).
 The author does what needs hands (combat, chopping) while a session
 drives the rest. A bad path is an error line, never an exception.
 `in.txt` still present after a call = the game is not reading (not
@@ -456,149 +460,99 @@ identity.
 
 ## Current status
 
-**Released: v0.24.25** (2026-09-24). The author runs it via the in-game
-updater. **263 tests.**
+**Released: v0.24.32** (2026-09-24). The author runs it via the in-game
+updater. **264 tests.**
 
-### Pick up here (maks's test round of 2026-09-24 late evening, v0.24.25)
+### Pick up here (handoff of 2026-09-24 night, v0.24.32 downloaded into the game)
 
-**State of the author's machine:** v0.24.25 installed. Runner maks's Megan
-practice save (Normal, just short of Megan's trigger) is at
-`C:\Users\deter\Downloads\Slot4`; swap it in for a slot temporarily
-(author's permission, 2026-09-24) - the author's slot 4 is Peaceful, put
-it back after.
+**State:** v0.24.31 runs in the author's game; **v0.24.32** (the
+animation-reset fix below) is tagged and downloaded into it
+(`ForestOverlay.dll.pending`, installs on the next launch). The author's
+current save is a Normal game at the plane. maks's saves:
+`C:\Users\deter\Downloads\Slot4` (Megan, Normal) and
+`C:\Users\deter\Downloads\slot5.zip` (lab / invisible section / red
+elevator) - keep both until those items are done; to use one, swap it in
+for a slot temporarily (author's permission) and put the author's slot
+back after.
 
-**Naming (author, 2026-09-24; done in v0.24.27, UI only - config keys and
-log lines unchanged):** **Quick load** = restore in place, **Full load** =
-restore with a scene load ("save, load"); the death feature is **Reload
-save on death** (was "Quick-load on death"). Plan (author): polish Quick
-load to parity, then keep Full load as a separate option for full save
-reloads (e.g. a death in a full practice run) - kept, not deleted, as the
-escape hatch for states Quick load has no patch for.
+**Naming (author, done v0.24.27, UI only - config keys and log lines
+unchanged):** **Quick load** = restore in place, **Full load** = restore
+with a scene load; the death option is **Reload save on death**. Plan
+(author): polish Quick load to parity, keep Full load as a separate
+option (the escape hatch for states Quick load has no patch for).
 
-**maks's results on v0.24.25** (via the author):
-- **Confirmed:** cave panels (straightened), mid-air restore, the lighter,
-  the book page, auto-restart, the Practice list, the keycard checkpoint
-  in order, Megan held until she exists + fast-forward ("works good"),
-  the endgame area after a load restore (v0.24.25), the red elevator put
-  back **by a load restore** ("flawlessly").
-- **New / open, roughly by weight:**
-  1. **Enemies after a Full load** - found live (bridge): the load rolls
-     the world families afresh at other spawners (16 cannibals 10 s after,
-     the captured family gone, none near the player). v0.24.27 runs the
-     captured-family rebuild after a Full load once the game's own setup
-     has made its families (`EnemiesAfterLoad`, log `Savestate after the
-     load: enemies - the game rolled n families ...`) - awaiting a check.
-     In place in a cave: they stay dead (maks's log: `positions (by type,
-     a v0.24.16 file): 0 of 5 placed`, once `no spawn controller`) - cave
-     captures still use the old by-type path; open. (maks's "Creative"
-     lines were other saves in the same session - loads 9-13; his enemy
-     tests were Normal.)
-  2. **Red elevator, in place:** v0.24.26 clears the overlook flag the
-     ride leaves set (maks's log: `overlook yes` after, `no` at capture);
-     the elevator's position / Sahara are still open. Full load is fine.
-  3. **Full load drops the player before the geometry has loaded.**
-     v0.24.26's hold never engaged in maks's log (no `held the player`
-     line): `EndgameLoader`'s `ForceLoad` goes through the trigger's 0.5 s
-     `_loadDelay`, so nothing was loading yet. v0.24.28 pins the player
-     at the file's captured position until every scene loaded at capture
-     is loaded again, at least 1 s, 30 s cap (log `held the player at the
-     captured spot for x s ...`) - awaiting maks.
-     Elevator note from the same log: an in-place restore after the ride
-     read `same as at capture`, overlook `no` - the overlook flag is not
-     the cause; the elevator's scene objects are. Needs a save near the
-     red elevator (ask maks for his lab save) and a bridge session.
-  4. **A restore should cancel a player animation** in progress (e.g. the
-     plane axe's swing plays on through a reset).
-  5. **Megan:** (I) the player can walk while `BossHold` waits for her -
-     freeze him until the cutscene starts; (II) the spear held before the
-     cutscene is not re-equipped after it, as the game would; (III)
-     Megan's end-of-transformation audio sometimes plays late, during the
-     fight - make it match a normal run, or mute it if that is impossible
-     (maks).
-  6. **Auto-restart:** improve the UI of the flashed time.
-     (I) done in v0.24.26 (pinned while held) - **confirmed** (maks).
-     (II) the spear: the cutscene's `HideAllEquiped` -> `MemorizeItem`
-     stores the held weapon in `PlayerInventory._equipmentSlotsPrevious`
-     and its `ShowAllEquiped` -> `EquipPreviousWeapon` re-equips it; not in
-     the save, so a restored replay memorized empty hands. v0.24.28 writes
-     it to the file (`heldbefore`, "slot:id") and sets it back every frame
-     of the fast-forward (log `..., held before it: n of m slot(s) set
-     back for its end`; capture line `held nothing (before that: Spear)`)
-     - needs a **new capture**, awaiting maks. (III) audio: not started.
-  7. **Placed pickups taken before the capture came back after a Full
-     load** (maks: coins, taken before capturing; bridge: `PickUps/Cash`
-     x3 and a `Tape_Roll` back, greeble cash stays gone). The game's own
-     behaviour - placed pickups are not in the save, any load re-creates
-     them. v0.24.27 removes, once the load has finished, placed pickups
-     the capture did not list, only in scenes loaded at capture, never
-     `(Clone)`s (`PickupKeeper.RemoveTakenAfterLoad`, log `pickups -
-     removed n ...`) - awaiting a check.
-- **QA tooling (author, 2026-09-24: "let's do all of them"),** after the
-  animation-cancel fix, in this order:
-  1. bridge `shot` - a screenshot Claude reads (sparingly; reduced size);
-  2. keep previous sessions' `LogOutput.log` (timestamped copies on
-     startup, last few kept) - the log is replaced every launch;
-  3. a "something weird happened" key: `MARK:` line with time, position,
-     spot and an optional typed note;
-  4. one-click report: zip of current + previous logs and the savestate /
-     segment files under test, on the desktop;
-  5. a **QA tab** holding 3 and 4 too: each test list shipped in the
-     plugin, items with Pass / Fail / Note, the proving log line, and
-     auto-ticked where the plugin can see that line; results go into the
-     report. Never let runners run bridge scripts (arbitrary calls).
-- **maks on v0.24.29 (2026-09-24 night)** - confirmed: lab Full load
-  lands on the floor; Megan Full load incl. the spear (`2 of 2 slot(s)
-  set back`); cannibals back after a Full load. Open, in order:
-  1. **Megan Quick load mid-cutscene does nothing**: the old
-     `girlMutant(Clone)` stays, seated Megan / the boss trigger are not
-     back, no cutscene starts (log: `no cutscene began within 20 s`).
-     Endgame scene state outside `LoadNow` - use maks's Slot4 save.
-  2. **Coins after a Full load still come back** (his log removed only
-     `bone x8, Booze x1`) - likely activated after the single removal
-     pass: repeat it for several seconds; ask him where the coins were.
-  3. **Cannibals appear ~6 s after control returns** - hold the player
-     until the rebuild has placed them.
-  4. **Quick / Full load toggle is unclear**: make it a two-button switch
-     that shows the active mode at once; Restart says which it does.
-  5. Megan's music (late / wrong) - still annoying him.
-  6. His lab / red-elevator save: `C:\Users\deter\Downloads\slot5.zip`
-     (keep until the elevator is done).
-- **Animation cancel** (maks: plane axe swing plays through a reset):
-  v0.24.29 fires `playerAnimatorControl.resetAnimator` (resetTrigger) -
-  cuts the swing (author) but shows the headless body for a frame
-  (camera placement fine). Snapping only `upperBody.idle` did nothing.
-  Author wants it exact ("get it right once"). **Found (bridge `anim
-  watch`, screenshot):** resetTrigger sends upperBody / fullBodyActions
-  to their UNARMED idles with fullBodyActions at weight 1 - the body
-  stands unarmed under the swing's camera (the neck view); and the
-  trigger stays set at rest (would cut the next swing). Swings: arms
-  layer `stickHeavyAttackWindup` / `swingLeftReturn` / `swingRight`
-  (`stickAttack`, `chargingBool`, `doAttackHeavyBool`, `hitDirection`);
-  smash: fullBodyActions `axeAttackGround1` (`smashBool`). The game tags
-  states `idling` / `held` / `attacking` / `smash` / `block`.
-  v0.24.31 `Game/AnimReset`: learns each action layer's rest state and
-  the off bools while the arms rest in a held / idling state
-  (`Track()` every frame), and on a reset blends action layers back to
-  that rest in 0.1 s, switches off bools off at rest, clears triggers;
-  nothing learned -> the game's reset + trigger cleared 2 frames later.
-  Bridge: `anim` shows tags and the learned rest, `anim reset` runs it.
-  Awaiting the author's test.
-- **Bridge `mark`** (v0.24.27, **confirmed** - seen through walls; author: "I don't have a compass"): `mark
-  <target> | mark x y z | mark clear` puts a magenta beacon on a thing -
-  use it instead of compass directions when asking the author to find
-  something.
-- **Red elevator** (runner): trigger it, then F7 / restore in place: the
-  elevator leaves its shaft for the overlook area (a hole left behind, its
-  button stays - and a second button at the overlook), parts of the Sahara
-  load (half the textures), the endgame cave visuals vanish while
-  collisions stay, and the player is put in a cave state. The area report
-  says `same as at capture` - scenes are not the difference; the elevator
-  ride's effects are scene objects (read `ElevatorSystem.Goto` and the
-  elevator's move / activate calls with `ilscan body`, then the bridge on
-  `HellCorridor/Elevator_01a`). Runners want **the exact state before the
-  elevator**: Sahara only partly loaded (its triggers skipped out of
-  bounds), elevator in place, the same textures.
-- Then the **Fix list** (trees first).
+**Next, in order:**
+1. **Test v0.24.32's animation reset** (author, bridge): restart, load,
+   plane axe out, stand still a second (it learns the rest), then:
+   `anim` (expect `rest: arms 1388274476, full body -721604655` - the
+   full-body rest must be `stickIdle`, NOT the smash `1025032374`),
+   `anim watch 16`, `wait 6`, `anim reset`, `shot resetN`, `wait 10`
+   while the author smashes / swings; check the swing is cut, no neck
+   view in the screenshot, and the next swing works. The handle-free
+   `anim reset` runs exactly what a restart does.
+   **Found so far:** the game's `resetTrigger` goes through the UNARMED
+   idles with the full-body layer at weight 1 (the one-frame neck view;
+   screenshot) and stays set at rest (would eat the next swing). Swings:
+   arms layer `stickHeavyAttackWindup` / `swingLeftReturn` / `swingRight`
+   (`stickAttack`, `chargingBool`, `doAttackHeavyBool`, `hitDirection`);
+   the smash is the full-body layer alone (`axeAttackGround1`, `smashBool`,
+   an unknown tag `-1474250830`), arms still `held`. State tags the game
+   hashes: `idling`, `held`, `attacking`, `smash`, `block`.
+   `Game/AnimReset`: learns rest (arms `held`/`idling`, full-body weight
+   <= 0.05) every frame from `PracticeModule.Tick`; on a reset blends an
+   action layer back in 0.1 s, switches off bools that were off at rest,
+   clears triggers; nothing learned -> the game's reset, trigger cleared
+   2 frames later. Called after every in-place restore and teleport.
+2. **maks's open items** (his v0.24.29 round):
+   a. **Megan Quick load mid-cutscene does nothing** - the previous
+      `girlMutant(Clone)` stays, seated Megan / the boss trigger are not
+      back, no cutscene (`no cutscene began within 20 s`). Endgame scene
+      state outside `LoadNow`; investigate with Slot4 + the bridge
+      (`find girl`, the trigger `activateGirlTransform`, `setupEndBoss
+      disableBossTrigger`, `creepyAnimatorControl.activateGirlMutant`).
+   b. **Coins come back after a Full load** - cave 5, the first pile by
+      the drop (maks). His log removed only `bone x8, Booze x1`: the
+      cave's pickups probably activate after the single removal pass
+      (`SavestateModule.RemoveTakenPickups`, run once at the end of
+      `HoldUntilLoaded`) - repeat it for ~10 s, or check they are
+      `(Clone)`s / have identifiers. Test in cave 5.
+   c. **Cannibals ~6 s after control returns after a Full load** - maks
+      thinks a 6 s hold is too long; do NOT just extend the hold. Ideas:
+      suppress the game's own family setup after a Full load so the
+      rebuild can run at once (it waits for the game's setup, 3.8 s,
+      +1.5 s lock, +1.5 s placement), or hold only as long as needed.
+   d. **Quick / Full load toggle is unclear** (Practice editor, *Start
+      state* row): a two-button switch showing the active mode at once;
+      Restart says which it does.
+   e. **Megan's music** plays late / during the fight - make it match a
+      normal run, or mute it (maks).
+   f. **Red elevator, Quick load**: the overlook flag is not the cause
+      (maks's log: `same as at capture`, overlook `no`); the elevator's
+      scene objects are (`HellCorridor/Elevator_01a`, `ElevatorSystem`).
+      Full load is fine. Use slot5.zip + bridge.
+3. **QA tooling** (author: "let's do all of them"), after 1-2:
+   ~~bridge `shot`~~ (done v0.24.30, confirmed); keep previous sessions'
+   `LogOutput.log` (timestamped copies on startup, last few); a
+   **QA tab**: each test list shipped in the plugin, items with Pass /
+   Fail / Note, the proving log line and auto-tick where the plugin sees
+   it, a "something weird happened" key (`MARK:` line with time,
+   position, spot, optional note) and a one-click report (zip of logs +
+   the savestate / segment files under test, on the desktop). Never let
+   runners run bridge scripts (arbitrary calls).
+4. Auto-restart: better display of the flashed time (maks); then the
+   **Fix list** (trees first).
+
+**maks, confirmed on v0.24.25-v0.24.29:** cave panels straightened,
+mid-air restore, the lighter, the book page, auto-restart, the Practice
+list, the keycard checkpoint in order, Megan held until she exists +
+frozen while held + fast-forward, the spear after a Full load mid-Megan
+(`heldbefore`), the endgame area after a Full load, the lab floor after
+a Full load (held at the captured spot until the captured scenes load),
+the red elevator put back by a Full load, cannibals back after a Full
+load (also bridge: 14 of 14), pickups taken before a capture removed
+after a Full load (bridge: plane cash + tape; not yet cave 5).
+**Bridge tools confirmed:** `mark` (beacon through walls), `shot`,
+`anim` / `anim watch` (background).
 
 **How these sessions run:** the author loads the
 save and says so; from here: `tp 523 56.3 10 180` (20 m north of a
@@ -611,6 +565,14 @@ through the bridge:** `type OverlayPlugin all` (the plugin is `#-88`
 `BepInEx_Manager`), `call #-88 OverlayPlugin._host._modules[1]._checker.Check`,
 then `..._checker.Download "<plugin path>"` once `Message` says available
 (the API lags the asset by a minute or two); the author restarts.
+The plugin's handle changes each launch - `type OverlayPlugin all` first.
+**Bridge habits (2026-09-24):** point the author at things with `mark`
+(never compass directions); look with `shot <name>` and Read the png in
+`BepInEx/config/ForestOverlay/bridge/`; `anim watch N` runs in the
+background, so a `wait` and an action can follow it; give the author a
+long window (20-25 s) for anything timed - "go" reaches them late.
+Test lists for maks go in a plain-text code block numbered `1)`
+(memory `tester-lists-plain-text`).
 
 The author is on high effort for this work; say when medium is enough
 again (memory `effort-level-switching`). The bridge made this session's
@@ -679,7 +641,7 @@ spawn cave or world enemies there (as v0.24.10 does).
 2. **Enemies do not come back in place in a Normal game** (author).
    **Found live (bridge):** worse - the restore's family setup dies
    partway and leaves **no cannibal anywhere** for minutes; v0.24.14
-   re-runs it (awaiting a check). Still open: the captured positions
+   re-runs it (confirmed). Still open: the captured positions
    (below). The bridge showed what to record: `activeCannibals`, each one's
    `enemyType.Type`, `EnemyHealth.Health`, `mutantTypeSetup.spawner` and
    that spawner's `spawnMutants` settings. Old notes: the
@@ -769,14 +731,10 @@ replies, every command guarded).
   `.fosave` + optionally its attempts with samples), plain text / JSON-like
   so a web page can read it; Export and Import buttons in the Practice
   editor; import never overwrites an existing id silently.
-- The lab / hellcave fix waits for the author's log (pending).
 
-**Still awaiting an in-game check** (the author did not get to them):
-(the old list) the Megan cutscene fast-forward (v0.24.3), mid-air restore (v0.23.9 - the
-log's `fall ended (1.2 s in the air, 0 m/s)` after every load restore's
-teleport is the loaded player's own air time, harmless), the panels, renamed-plugin updates (v0.23.7), the keycard checkpoint, the
-in-place restore timing (~155 ms on this heap - fine), and maks: the
-Practice list (v0.23.8) - he still runs v0.23.1 and should update.
+**Still awaiting an in-game check** (old list): renamed-plugin updates
+(v0.23.7) - a runner on an older build under another name must rename
+once.
 
 Then continue with **Next up**, in order. The author wants Next up finished
 before QoL/UX work; the runner feedback below is deferred unless critical
@@ -936,60 +894,28 @@ load leak fixed** (v0.23.3-0.23.5: threads flat, heap flat, loads ~5 s;
 building, chopping and killing across reloads fine); the menu route (exit
 to title -> Continue) flat too, 10 trips (v0.23.7).
 
-**Awaiting an in-game check** — ask before building on these:
-- ~~The Practice list's unsaved reminder~~ **confirmed** (runner, 2026-09-24).
-- **The Practice list never sticks** (v0.23.8): switch with unsaved
-  edits, "(unsaved)" on the row, "Save (n)" saves them all.
-- **No blood / no stagger** (v0.24.7): in Creative and survival - fall
-  hard with no stagger on (moving and jumping at once), take damage with
-  no blood on (no red overlay).
-- **Auto-restart** (v0.24.6): tick it in the Runs tab, finish a timed
-  spot - the time flashes and the spot restarts; with a load-mode start
-  state too.
-- **Enemies respawn after an in-place restore** (v0.24.5): kill a few,
-  restore in place - they are back (elsewhere is expected). Also check
-  nothing doubles up and caves still spawn. `Savestates bound. ...
-  enemies:True`.
-- **Lab / hellcave area report** (v0.24.4): the runner's red-elevator case -
-  capture in the lab, trigger the overlook, restore both ways; read the
-  `Savestate areas ...` lines (Next up 3).
-- **Megan cutscene savestate** (v0.24.3): capture ~2 s before the end of
-  Megan's transformation, restore both ways. Capture line: `during
-  cutscene 'megan-transform' at x s`; after the restore: `cutscene
-  'megan-transform' fast-forwarded to x s (captured at x s) in y s real
-  time`, or why not (`no cutscene began within 20 s` - then the cutscene
-  does not restart after a restore and the approach needs rethinking).
-  Maks: same stand-up spot every time?
-- **Cave panels kept by savestates** (v0.24.2): capture in a cave, axe
-  clip a panel a few times (or break it), restore in place - the line
-  says `panels: 1 healed` (or `1 rebuilt`) and the panel is whole.
-  `PanelKeeper: hooked.` at startup.
-- **The lighter kept by in-place restores** (v0.24.1): capture with the
-  lighter out and lit, restore in place. Capture line: `held Lighter`;
-  restore: `held at capture: Lighter (held)` or `(re-equipped)`, and no
-  "CANNOT CARRY" message. Is it lit? `hands put away in N ms` on the
-  restore line shows the wait. `Savestates bound. ... held:True`.
-- **The book page kept by savestates** (v0.24.0): capture on a page,
-  flip to another, restore both ways - the capture line's `book:` names
-  the page, the restore line says it was switched back. `BookPages
-  bound. ...` must be all True.
-- **No landing damage after a mid-air restore** (v0.23.9): F7 or a
-  Savestates-tab restore while falling; the restore line ends `| fall
-  ended (...)`.
+Confirmed by runners / the author on 2026-09-24 (v0.22.0-v0.24.30): the
+retire warning on a new start state, the Practice list (unsaved reminder,
+never sticks, "Save (n)"), no blood / no stagger, auto-restart (the flash
+display to be improved), cannibals rebuilt as captured after a Quick load
+(surface) and a Full load, cave panels healed and straightened, the
+lighter, the book page, no landing damage / stagger after a mid-air
+restore, checkpoints in order (keycard), Megan's cutscene fast-forward
+after a Full load (held until she exists, player frozen, the spear back),
+the endgame area and the lab floor after a Full load, the red elevator put
+back by a Full load, pickups taken before a capture removed after a Full
+load (surface), the Updates tab's "downloaded - restart to install".
+
+**Awaiting an in-game check** — ask before building on these (the
+current items are in *Pick up here*):
 - **v0.23.6's census off by default** - no hitch after a load.
-- **Checkpoints in order** (v0.22.7) - the keycard case, see *Pick up here*.
-- **Changelog in the Updates tab** (v0.23.0): "What's new in v0.23.1
+- **Changelog in the Updates tab** (v0.23.0): "What's new in vX
   (installed)" after updating.
 - **Run lines cleared** on a plain spot / another segment and the
   **Inventory tab** filled on first open (v0.22.7).
 - **Weapon-upgrade receivers kept** on a cross-save restore (v0.22.7): the
   restore line says `kept N weapon-upgrade receiver(s)`; the adoption line
   lists `other misses:` - read it to see why they did not adopt.
-- **Updates tab**: Check again after a Download says "downloaded - restart
-  to install" instead of offering the same version (v0.22.3).
-- ~~Retiring times on a new start state~~ **confirmed** (runner, 2026-09-24:
-  double click, names the count). Old note (v0.22.0): capture on a segment
-  with attempts asks for a second click and names the count.
 - **Whether a timed run still arms after an F7 restore** — runs do not log
   arming; add a log line if it is ever in doubt.
 - **"GATHER LOGS 0/4"** after an in-place restore (v0.20.2).
@@ -1007,7 +933,7 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
   `ForestOverlay.dll` once, game closed; tell them if they report being
   offered the same update every launch.
 - **Spots stop switching** *(runner maks, seen ~3 times)* - **fixed in
-  v0.23.8**, awaiting maks. The Practice
+  v0.23.8**, confirmed (maks). The Practice
   tab stays stuck on one spot ("logboosts") and clicking another does
   nothing, until a new spot is created and deleted. A core-flow bug, not
   QoL. Almost certainly the **unsaved-changes guard**
@@ -1068,7 +994,7 @@ list so we can move onto expanding more features".
 2. ~~Updater: any plugin file name~~ **done** (v0.23.7). Left: the in-game
    check at the next release (Pick up here 2).
 3. **Savestates, remaining** (with the runner feedback that belongs here):
-   - ~~**Falling state carries over**~~ **done** (v0.23.9, awaiting a
+   - ~~**Falling state carries over**~~ **done** (v0.23.9, confirmed; was awaiting a
      check) *(runner)*: restoring while in mid-air kept the fall and dealt
      landing damage. `GameBridge.EndFall` (before and after every in-place
      restore, and after every teleport) zeroes the body's velocity and
@@ -1077,7 +1003,7 @@ list so we can move onto expanding more features".
      (damage needs `prevVelocity > 28` and air time `> 0.75 s`; game-notes
      *Deaths*). Log: `... | fall ended (x s in the air, y m/s)` on the
      restore line, or on `Teleport to '<name>': ...`.
-   - ~~**The survival book's page**~~ **done** (v0.24.0, awaiting a check)
+   - ~~**The survival book's page**~~ **done** (v0.24.0, confirmed)
      *(runner)*: an in-place restore did not keep the page, a load restore
      reset it. **Author's call (2026-09-23): a savestate keeps the page it
      was captured on, in place or with a load; a quick-load keeps the
@@ -1090,7 +1016,7 @@ list so we can move onto expanding more features".
      on an in-place restore; `Savestate after the load: book: ...`.
      Files from before v0.24.0 leave the book as it is.
    - **Lab + hellcave not restored, even with a load** *(runner)* -
-     **2026-09-24: the load half is fixed in v0.24.25 (awaiting the
+     **2026-09-24: the load half is fixed in v0.24.25 (confirmed by the
      runner), the red-elevator in-place half is open; see *Pick up here*.**
      Old notes: after the
      red elevator loaded the overlook area, the last lab section (collision
@@ -1110,7 +1036,7 @@ list so we can move onto expanding more features".
      Note: capture is refused inside the overlook area (the game's own
      save rule, `SavestateBridge`).
    - ~~**In-place restore does not revive killed enemies**~~ **done**
-     (v0.24.5, awaiting a check; game-notes *Enemies across an in-place
+     (v0.24.5, confirmed and since replaced by the captured-family rebuild; game-notes *Enemies across an in-place
      restore*) (author). After every in-place restore the game's own enemy
      restart runs (`mutantController.restartEnemiesFromPauseMenu` ->
      `setupFamilies`), switch `Savestates.RespawnEnemiesInPlace` (on,
@@ -1120,7 +1046,7 @@ list so we can move onto expanding more features".
      position/type at capture and placing the respawns. Log: `| enemies:
      respawned (the game's enemy restart)` on the restore line.
    - ~~**The lighter is put away by an in-place restore**~~ **done**
-     (v0.24.1, awaiting a check; game-notes *Held items across an in-place
+     (v0.24.1, confirmed; game-notes *Held items across an in-place
      restore*) *(runner maks)*:
      captured with the lighter out and lit, every in-place restore leaves
      it away, so it has to be taken out again each reset (cave 6,
@@ -1132,7 +1058,7 @@ list so we can move onto expanding more features".
      message (author) is probably the same path - `LogControler` has
      `_lighterItemId` and an `OnDeserialized` routine; check its IL too.
    - ~~**A savestate taken during the Megan cutscene**~~ **done**
-     (v0.24.3, awaiting a check; game-notes *Savestates during an endgame
+     (v0.24.3, confirmed for a Full load; Quick load open - *Pick up here*; game-notes *Savestates during an endgame
      cutscene*: the capture notes the cutscene and game seconds into it,
      the restore fast-forwards its replay there) *(runner maks)*:
      capturing while Megan transforms into the boss and restoring (in
@@ -1148,7 +1074,7 @@ list so we can move onto expanding more features".
      gotcha 1 - or the animators' speed) and return to normal speed a few
      seconds early. Replaying the game's own script keeps it identical
      every time; resuming a coroutine mid-way is not possible.
-   - ~~**Cave panels keep their damage**~~ **done** (v0.24.2, awaiting a
+   - ~~**Cave panels keep their damage**~~ **done** (v0.24.2, confirmed; was awaiting a
      check; game-notes *Cave wooden panels*) *(runner maks)*: the wooden
      panels in caves (`BreakWoodSimple.Health`) lose health with every axe
      clip and eventually break; an in-place restore did not put it back.
@@ -1166,7 +1092,7 @@ list so we can move onto expanding more features".
      Savestates tab's *Reload slot save in place* does exactly that).
 4. **Practice QoL the runners asked for** (author, 2026-09-23):
    - ~~**Auto-restart at the end of a timed spot**~~ **done** (v0.24.6,
-     awaiting a check: `Runs.AutoRestartAtEnd`, off; checkbox on its own
+     confirmed: `Runs.AutoRestartAtEnd`, off; checkbox on its own
      line in the Runs tab; `FinishRun` shows the time as a 1.2 s notice and
      `ReturnToSpot` runs 0.4 s later unless the run was aborted, the spot
      changed or a new run started; log `Run '<id>': finished in m:ss` and
@@ -1178,7 +1104,7 @@ list so we can move onto expanding more features".
      it acts for load-mode start states too (~5 s) - runners untick it if
      they do not want that (author).
    - ~~**No blood** and **no stagger** toggles~~ **done** (v0.24.7,
-     awaiting a check: `Deaths.NoBlood` / `Deaths.NoStagger`, off,
+     confirmed: `Deaths.NoBlood` / `Deaths.NoStagger`, off,
      checkboxes in the Deaths tab; no blood clears `BleedBehavior` every
      tick; no stagger reuses the fall revive's cancel in the
      `HandleLanded` postfix whenever `jumpLand` went false -> true in that
