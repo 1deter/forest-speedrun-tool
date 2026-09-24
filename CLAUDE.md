@@ -460,7 +460,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.32** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.33** (2026-09-24). The author runs it via the in-game
 updater. **264 tests.**
 
 ### Pick up here (handoff of 2026-09-24 night, v0.24.32 downloaded into the game)
@@ -482,14 +482,16 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **Test v0.24.32's animation reset** (author, bridge): restart, load,
-   plane axe out, stand still a second (it learns the rest), then:
-   `anim` (expect `rest: arms 1388274476, full body -721604655` - the
-   full-body rest must be `stickIdle`, NOT the smash `1025032374`),
-   `anim watch 16`, `wait 6`, `anim reset`, `shot resetN`, `wait 10`
-   while the author smashes / swings; check the swing is cut, no neck
-   view in the screenshot, and the next swing works. The handle-free
-   `anim reset` runs exactly what a restart does.
+1. **Test v0.24.33's swing reset** (author, bridge, prompts on screen):
+   v0.24.32 confirmed the smash cut (rest learned right, blends to the
+   held idle, next swing / smash works, the FSM walks on by itself); a
+   reset 15 ms into a swing left it running (windup tagged `held`,
+   game-notes). v0.24.33 learns rest only after 0.4 s in one state and
+   cuts any arms state off the learned rest. Test: `anim`, then a
+   prompted `SWING NOW` with `anim reset` ~0.1-0.3 s in, a few times;
+   the swing must stop. Open: the author saw "down into my body"
+   after a smash reset - the normal look-down pose (`lookDownBlend`
+   follows pitch)? Ask whether a plain look-down looks the same.
    **Found so far:** the game's `resetTrigger` goes through the UNARMED
    idles with the full-body layer at weight 1 (the one-frame neck view;
    screenshot) and stays set at rest (would eat the next swing). Swings:
@@ -563,6 +565,12 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 `BepInEx/config/ForestOverlay/bridge/`; `anim watch N` runs in the
 background, so a `wait` and an action can follow it; give the author a
 long window (20-25 s) for anything timed - "go" reaches them late.
+**Instructions go on the game screen, not in chat** (author, 2026-09-24:
+"super useful"): `call #<plugin h> OverlayPlugin._notice.Show "text" <s>`
+(upper middle). Script a timed test as notices + waits in a `-f` file
+("Retest in 10 s", "SMASH NOW", "RESET - now swing once", "Done"), so the
+author never reads chat mid-test. **At least 6-8 s per notice** (author:
+"a bit quick" at 2-4 s); explain the test in chat before starting it.
 Test lists for maks go in a plain-text code block numbered `1)`
 (memory `tester-lists-plain-text`).
 

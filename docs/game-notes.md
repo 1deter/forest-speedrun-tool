@@ -494,6 +494,21 @@ camera (you look into the neck) - and it stays set when nothing consumes
 it (at rest), so it would cut the next swing. `Game/AnimReset` blends
 back to the learned armed rest instead.
 
+The swing's windup (`stickHeavyAttackWindup`, arms 1979354121 / full body
+2015270653) is tagged **`held`** like the idle - a tag check alone reads a
+swing's first ~0.2 s as rest (a v0.24.32 reset 15 ms into a swing left it
+running). The attacks run in the player's PlayMaker FSM
+`playerScriptSetup.pmControl` (`controlFSM`; bridge: `get
+static:TheForest.Utils.LocalPlayer ScriptSetup.pmControl.ActiveStateName`):
+rest `waitForInput`; smash `checkAngle 2` -> `waitForCombo2` ->
+`axeSmashAttack 2|3` -> `resetSpine 2` -> `waitForIdle2` / `waitForReset3 2`;
+swing `doCharge` -> `resetDelayLyr2`. After a reset mid-smash it walks on to
+`waitForInput` by itself and the next swing works (bridge, v0.24.32).
+During a smash the `spineAddititve2` layer is at weight 0 (`resetSpine`
+puts it back). `lookDownBlend` is not smash state: `playerAnimatorControl.
+Update` lerps it to `clamp(normCamX * 12, 0, 10)` - the look pitch - every
+frame; a smash needs you to look down, so after a cut you still do.
+
 ## Savestates during an endgame cutscene (v0.24.3)
 
 The endgame cutscenes are coroutines on the player's action scripts

@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.33 - 2026-09-24
+
+- A restart right as a swing starts now cuts the swing too (it could
+  play on).
+- The cut blends back to the resting pose in 0.1 s (was about 0.25 s).
+
 ## v0.24.32 - 2026-09-24
 
 - The swing cut on a restart now also handles the downward smash (it

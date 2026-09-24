@@ -26,6 +26,13 @@ namespace ForestOverlay.Game
     // 0.1 s, switches off the bools that are on now but were off at rest,
     // and clears the triggers. Nothing learned yet (just after a load):
     // the game's reset, and its trigger cleared two frames later.
+    //
+    // A swing's windup (stickHeavyAttackWindup) is tagged "held" like the
+    // idle (bridge, v0.24.32: a reset 15 ms into a swing left it running).
+    // So the rest is learned only once the arms have sat in one state for
+    // RestSettle, and on a reset any arms state other than the learned
+    // rest counts as an action - unless the hands changed since (a bool
+    // on at rest, e.g. axeHeld, is now off), when only tagged actions do.
     // ------------------------------------------------------------------
     public static class AnimReset
     {
@@ -40,6 +47,7 @@ namespace ForestOverlay.Game
         private const int FullBody = 2;      // fullBodyActions
         private const float Blend = 0.1f;
         private const float RestWeight = 0.05f;
+        private const float RestSettle = 0.4f;   // a windup lasts ~0.2 s
 
         private static Animator _animator;
         private static AnimatorControllerParameter[] _params;   // cached: the property allocates
@@ -47,6 +55,8 @@ namespace ForestOverlay.Game
         private static readonly int[] _restState = new int[3];
         private static bool _known;
         private static int _nextSnapshotFrame;
+        private static int _settleState;
+        private static float _settleSince;
         private static int _clearTriggerAt = -1;
 
         private static FieldInfo _animControl;     // static LocalPlayer.AnimControl
@@ -74,13 +84,20 @@ namespace ForestOverlay.Game
                 an.ResetTrigger(ResetTriggerHash);
             }
 
-            if (an.layerCount <= FullBody || an.IsInTransition(Arms) || an.IsInTransition(FullBody)) return;
+            if (an.layerCount <= FullBody || an.IsInTransition(Arms) || an.IsInTransition(FullBody)) { _settleState = 0; return; }
             AnimatorStateInfo arms = an.GetCurrentAnimatorStateInfo(Arms);
-            if (arms.tagHash != TagHeld && arms.tagHash != TagIdling) return;
+            if (arms.tagHash != TagHeld && arms.tagHash != TagIdling) { _settleState = 0; return; }
             // A smash runs on the full-body layer alone, the arms still
             // "held" (bridge: v0.24.31 learned the smash as the rest). At
             // rest that layer is switched off (weight 0).
-            if (an.GetLayerWeight(FullBody) > RestWeight) return;
+            if (an.GetLayerWeight(FullBody) > RestWeight) { _settleState = 0; return; }
+            if (arms.fullPathHash != _settleState)
+            {
+                _settleState = arms.fullPathHash;
+                _settleSince = Time.time;
+                return;
+            }
+            if (Time.time - _settleSince < RestSettle) return;
             if (Time.frameCount < _nextSnapshotFrame) return;
             _nextSnapshotFrame = Time.frameCount + 10;
 
@@ -100,16 +117,22 @@ namespace ForestOverlay.Game
                 if (an == null) return "animation reset: no player animator";
                 if (!ReferenceEquals(an, _animator) || !_known) return GameReset(an);
 
+                // Same hands as at rest: every bool on then is still on.
+                bool sameHands = true;
+                for (int i = 0; i < _params.Length && sameHands; i++)
+                    if (_restBools[i] && !an.GetBool(_params[i].nameHash)) sameHands = false;
+
                 for (int l = Arms; l <= FullBody; l++)
                 {
                     AnimatorStateInfo s = an.IsInTransition(l) ? an.GetNextAnimatorStateInfo(l) : an.GetCurrentAnimatorStateInfo(l);
                     bool action = s.tagHash == TagAttacking || s.tagHash == TagSmash || s.tagHash == TagBlock;
                     bool resting = s.tagHash == TagHeld || s.tagHash == TagIdling;
+                    bool offRest = s.fullPathHash != _restState[l];
                     // The full-body layer is only in use during an action
                     // (a smash: weight 1, its own tag).
                     bool fullBodyOn = l == FullBody && an.GetLayerWeight(FullBody) > RestWeight;
-                    if (action || fullBodyOn || (!resting && s.fullPathHash != _restState[l]))
-                        an.CrossFade(_restState[l], Blend, l, 0f);
+                    if (action || fullBodyOn || (offRest && (sameHands || !resting)))
+                        an.CrossFadeInFixedTime(_restState[l], Blend, l, 0f);
                 }
                 for (int i = 0; i < _params.Length; i++)
                 {
