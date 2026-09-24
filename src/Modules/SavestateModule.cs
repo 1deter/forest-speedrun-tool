@@ -588,6 +588,7 @@ namespace ForestOverlay.Modules
                     catch (Exception) { }
                 }
 
+                string overlookNote = r.Ok ? AreaReport.LeaveOverlook() : "";
                 string bookNote = r.Ok && file != null ? _book.Apply(file.Book) : "";
                 // Blood on the player's body and weapon is not in the save.
                 string washNote = r.Ok ? _bridge.Wash() : "";
@@ -624,6 +625,7 @@ namespace ForestOverlay.Modules
                               (presentPickups == null ? " (all kept)" : "") +
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
                               (fall.Length == 0 ? "" : " | " + fall) +
+                              (overlookNote.Length == 0 ? "" : " | " + overlookNote) +
                               (bookNote.Length == 0 ? "" : " | " + bookNote) +
                               (washNote.Length == 0 ? "" : " | " + washNote) +
                               (panelNote.Length == 0 ? "" : " | " + panelNote) +
@@ -862,9 +864,43 @@ namespace ForestOverlay.Modules
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     if (f.CutsceneAt >= 0f)
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
+                    Ctx.Runner.StartCoroutine(HoldUntilLoaded(after));
+                    return;
                 }
                 if (after != null) after(error);
             };
+        }
+
+        /// "In game" comes before the world has finished loading: the
+        /// streamed cave props and a force-loaded endgame load for seconds
+        /// more, and the restart's teleport dropped the runner into the lab
+        /// floor before it existed (maks, v0.24.25: "I land inside the
+        /// textures"). Keep the player where the save put him until no
+        /// scene is still loading (at most 20 s), then carry on.
+        private IEnumerator HoldUntilLoaded(Action<string> after)
+        {
+            float start = Time.realtimeSinceStartup;
+            Vector3 at = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
+            int waited = 0;
+            while (Time.realtimeSinceStartup - start < 20f)
+            {
+                int loading = 0;
+                try
+                {
+                    for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+                        if (!UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isLoaded) loading++;
+                }
+                catch (Exception) { }
+                if (loading == 0) break;
+                if (waited == 0) waited = loading;
+                if (Ctx.Player.Found) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+                yield return null;
+            }
+            if (waited > 0)
+                Ctx.Log.LogInfo("Savestate after the load: held the player " +
+                                (Time.realtimeSinceStartup - start).ToString("F1") + " s while " + waited +
+                                " scene(s) finished loading.");
+            if (after != null) after(null);
         }
 
         private void StartLoad(string what, string error, Action<string> after)

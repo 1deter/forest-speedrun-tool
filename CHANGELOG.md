@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.26 - 2026-09-24
+
+- An in-place restore after the red elevator clears the overlook-area
+  state the ride leaves behind (it changes what the game draws). The
+  elevator itself still needs a restore with a load - more to come.
+- A restore with a load holds you in place until the world has finished
+  loading, so you no longer drop into the floor before it exists.
+- While Megan's transformation waits for Megan after a restore, you are
+  held where you entered instead of being able to walk off.
+
 ## v0.24.25 - 2026-09-24
 
 - A savestate in the invisible section after the lab, restored with a

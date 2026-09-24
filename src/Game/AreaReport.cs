@@ -110,6 +110,30 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// The overlook flag (`LocalPlayer.SetInOverlookArea`, set by scene
+        /// objects on the red elevator's ride) is not in the save, and the
+        /// game reads it every frame (atmosphere, cull distances,
+        /// IsInClosedArea). Capture is refused while it is set, so every
+        /// savestate was taken outside: an in-place restore clears it
+        /// (runner's log: `overlook yes` after the restore, `no` at capture).
+        public static string LeaveOverlook()
+        {
+            try
+            {
+                Resolve();
+                if (_inOverlook == null) return "";
+                if (!(bool)_inOverlook.GetValue(null, null)) return "";
+                MethodInfo set = _inOverlook.GetSetMethod(true);
+                if (set == null) return "overlook: still set (no setter)";
+                set.Invoke(null, new object[] { false });
+                return "overlook: left (set by the elevator ride, not at capture)";
+            }
+            catch (Exception ex)
+            {
+                return "overlook: clearing failed (" + ex.Message + ")";
+            }
+        }
+
         private static string Flag(PropertyInfo p)
         {
             if (p == null) return "?";

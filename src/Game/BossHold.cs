@@ -23,7 +23,9 @@ namespace ForestOverlay.Game
     // WHAT: for a minute after a savestate restore (Arm), a prefix skips the
     // trigger's enter while EndgameBoss is null and enters it again, with
     // the same collider, once Megan is there. Nothing changes outside that
-    // minute: a plain load keeps the game's own behaviour.
+    // minute: a plain load keeps the game's own behaviour. While it waits
+    // the player is held where he entered (maks, v0.24.25: he could walk
+    // off while Megan was missing).
     // ------------------------------------------------------------------
     public sealed class BossHold
     {
@@ -116,10 +118,25 @@ namespace ForestOverlay.Game
             catch (Exception) { return true; }
         }
 
+        private static void Pin(Rigidbody body, Vector3 at)
+        {
+            if (body == null) return;
+            try
+            {
+                body.velocity = Vector3.zero;
+                body.position = at;
+                body.transform.position = at;
+            }
+            catch (Exception) { }
+        }
+
         private static IEnumerator EnterWhenReady(Component trigger, Collider other)
         {
             float start = Time.realtimeSinceStartup;
-            while (!BossThere())
+            Rigidbody body = other != null ? other.attachedRigidbody : null;
+            Vector3 at = body != null ? body.position : Vector3.zero;
+            float ready = -1f;
+            while (ready < 0f || Time.realtimeSinceStartup - ready < AfterBoss)
             {
                 if (trigger == null || Time.realtimeSinceStartup - start > 30f)
                 {
@@ -127,9 +144,10 @@ namespace ForestOverlay.Game
                     _log.LogWarning("BossHold: Megan did not appear within 30 s - the transformation was not started.");
                     yield break;
                 }
+                if (ready < 0f && BossThere()) ready = Time.realtimeSinceStartup;
+                Pin(body, at);
                 yield return null;
             }
-            yield return new WaitForSecondsRealtime(AfterBoss);
             _waiting = false;
             if (trigger == null || other == null) yield break;
             _log.LogInfo("BossHold: Megan is there after " + (Time.realtimeSinceStartup - start).ToString("0.0") +
