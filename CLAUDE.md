@@ -422,54 +422,138 @@ identity.
 **Released: v0.24.7** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
-### Pick up here (handoff of 2026-09-24, the Next up 3 + 4 session)
+### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
 
 The session of 2026-09-23/24 cross-checked the author's ideas file against
-this file (every lost item is now in Next up / Open threads / Deferred),
-then shipped **v0.23.8 - v0.24.7**, all awaiting an in-game check (see
-*Awaiting an in-game check* - each entry names the log line to read):
+this file, then shipped **v0.23.8 - v0.24.7** (Practice list fix, `EndFall`,
+book page, held items, cave panels, cutscene fast-forward, area report,
+enemy respawn, auto-restart, no blood / no stagger). The savestate file
+gained `book`, `held`, `panels`, `cutscene`, `areas` header lines - all
+outside the start-state hash. The author tested v0.24.7 in **Creative**
+(cave 5 spot, start state captured in the same Creative save; the first
+restore of the session was a Hard state restored cross-mode). Their log was
+`G:\SteamLibrary\...\BepInEx\LogOutput.log` of 2026-09-24 (gone at the next
+launch; its findings are below).
 
-- v0.23.8 the Practice list never sticks (unsaved-changes guard);
-- v0.23.9 no landing damage after a mid-air restore (`EndFall`);
-- v0.24.0 savestates keep the survival book page (`book` header);
-- v0.24.1 in-place restores keep the lighter / held items (`held`);
-- v0.24.2 cave panels healed and rebuilt (`PanelKeeper`, `panels`);
-- v0.24.3 a capture during an endgame cutscene restores to its moment
-  (fast-forward, `cutscene`);
-- v0.24.4 lab / hellcave **diagnostic only** (`AreaReport`, `areas`);
-- v0.24.5 enemies respawn after an in-place restore (the game's restart);
-- v0.24.6 auto-restart at the end of a timed spot;
-- v0.24.7 no-blood / no-stagger practice toggles.
+**Confirmed working (author):** no blood + no stagger in Creative (cave 5
+drop, `No stagger: hard landing cancelled.` each landing); auto-restart
+("really cool"; in place and with a load); lighter **and axe** come back
+equipped after an in-place restore and "CANNOT CARRY ANY MORE LIGHTERS" is
+gone; a **load** restore repairs the cave panels; the Practice list
+switches freely (`Practice: selected ...` lines).
 
-The savestate file gained five header lines (`book`, `held`, `panels`,
-`cutscene`, `areas`) - all outside the start-state hash, so no times were
-retired; files captured before them simply lack those features.
+**Fix list for the next session, in order** (the author wants these
+before Next up 5):
 
-**Next session:** read the author's / runners' logs for the checks above
-first - several are IL-only theories (gotcha 25), especially the
-cutscene fast-forward, the panel copies and the enemy restart. Then
-**Next up 3's remainder**: the lab / hellcave fix (needs the
-`Savestate areas ...` log from the runner's case), **sharing** (bundle a
-segment with its `.fosave` - format not decided with the author yet),
-the optional items; then **Next up 5** (performance). Older open checks:
+1. **In-place restore breaks hits - top priority.** After an in-place
+   restore the axe swings but nothing registers: no tree chop, no bush /
+   foliage hit, no enemy hit sound, cave panels pass through (their
+   collider exists). A load restore is fine. Not known whether it predates
+   v0.24.1 (which added the wait for the hands' put-away, ~495 ms each
+   restore, and re-equip). Suspects: the held weapon's hit detection (the
+   weapon view / its trigger collider / `FakeParent` re-parent -
+   `ReParentHeld`), `StashHands` + the game's `OnDeserialized`
+   `HideAllEquiped` / `Equip`, or the adoption step. First ask the author
+   one question: after an in-place restore, does **unequipping and
+   re-equipping the axe by hand** make hits work? Then read how a hit is
+   detected (`ilscan` the axe's weapon script: `weaponInfo`, its
+   `OnTriggerEnter`, what enables `mainTrigger`), compare with what the
+   restore does to the held item, and log the weapon's trigger / collider
+   state after a restore. Probably the same cause: after a **load**
+   restore, picking up a story item did not play the arm "show item"
+   animation (author pressed G at once; normally the animation still
+   plays) - read the pickup-show path too.
+2. **Book page: nothing is captured.** Log: `book: no pages found under
+   the player` - the book's `SelectPageNumber`s are not under
+   `LocalPlayer.GameObject`. Find the book's real root (a `LocalPlayer`
+   static? `survivalBookController.survivalBookReal`? else
+   `Resources.FindObjectsOfTypeAll(SelectPageNumber)` once per capture /
+   restore, scene objects only). Also the restore note wrongly says
+   "captured before v0.24.0" for a file whose capture found no book -
+   say "not captured (...)" instead. Author's results matched this
+   exactly: in place = the page open before the restore, load = the index.
+3. **Enemies: the restart REMOVED them.** Every in-place restore logged
+   `enemies: off in this game - removed` in a game with enemies:
+   `currentMaxActiveMutants` read 0, so `restartEnemiesFromPauseMenu` took
+   its `removeAllEnemies` branch. Find where `currentMaxActiveMutants` is
+   set (only `RefreshMaxActiveMutants`, i.e. only on an option change?) -
+   likely call `startSetupFamilies()` directly when `maxActiveMutants > 0`
+   and `!Cheats.NoEnemies`. Also after the restore, killed enemies' bodies
+   and severed limbs stayed: bodies with no pick-up animation, limbs with
+   the arm pickup icon that cannot be picked up (still collidable). Those
+   are objects the save lacks - decide whether the delete step should
+   remove ragdolls / body parts, or the enemy restart's despawn covers
+   them once it runs the right branch. The author: a load does respawn
+   enemies ("better than before").
+4. **Pickups move on every restore (both kinds).** Small pickups - sticks,
+   rocks - come back at random positions. They are spawned by the greeble
+   system (`GreebleZonesManager` / `GreebleZone`, force-unloaded around
+   every capture and restore), probably seeded randomly per spawn. Find
+   the seed / random use in the greeble spawn (`ilscan`), and either keep
+   the seed stable (capture it) or record positions at capture and place
+   the respawned ones. The author wants this fixed.
+5. **Cave panels in place**: a restore after breaking some left them
+   "half-repaired" - still looking damaged / crooked, the crossed boards
+   on the floor (normally on the panel, knocked off by the first hit) -
+   and non-collidable to hits (fix 1). No `panels:` note was logged on
+   those restores, so `PanelKeeper` changed nothing - check whether the
+   broken ones were kept (`PanelKeeper: panel ... broke` never appeared in
+   the log - was the keeper armed? it arms on the first capture/restore,
+   and the breaking was done after a load, which clears the keeper) and
+   what the crossed boards are (another breakable, not `BreakWoodSimple`?
+   dump a panel's hierarchy).
+6. **Practice list category grouping.** Changing an entry's category to
+   an existing one ("Caves") made a second "Caves" header at the bottom,
+   and both open/close together. `RebuildVisible` assumes the library is
+   sorted by category (a header per change) and nothing re-sorts after a
+   category edit; collapse state is keyed by name. Sort (category, name)
+   in `RebuildVisible` or have `SegmentLibrary` re-sort on edit / save.
+7. **Run lines and runs outlive their spot.** With practice mode on after
+   a timed segment, selecting another spot clears the zones (the preview
+   follows the editor's selection) but not the blue reference line (it
+   follows the *current* segment). And quitting to the title screen kept
+   drawing the line there, with the spot still selected and the run timer
+   running. Fix: clear lines / abort (without saving) at the title screen
+   and on a scene change (this is the deferred "runs continue at the main
+   menu" item - now reported again, do it), and decide with the author
+   whether selecting a different entry should clear the current run's
+   lines (likely yes: show lines only for the selected entry when it is
+   the current one).
+8. **Area report binds nothing**: `streamed: (none bound)` - `AreaReport`
+   looks up type `"Scene"`, but it is `TheForest.Utils.Scene` (as
+   `SavestateBridge` binds it) - a one-line fix. Also sort the scene names:
+   the same set in another order logged as "differs". The lab / hellcave
+   case itself is **pending on the author** (keep).
+9. **Held-item log is wrong**: `held at capture: Axe Plane (Equip
+   refused), Lighter (Equip refused)` while both came back (the game's own
+   `OnDeserialized` equips them later than our 0.3 s check). Re-read after
+   the game's equip settles (poll until held or ~2 s) and only then call
+   `Equip`; log `(re-equipped by the game)`.
 
-1. v0.23.6+: no hitch ~1.5 s after a load; *Memory census now* still logs.
-2. **Renamed plugin updates** (v0.23.7) - testable now that newer releases
-   exist: rename `ForestOverlay.dll` to `ForestOverlay(1).dll` (game
-   closed), launch, Download. Log: `Update: this plugin runs as
-   ForestOverlay(1).dll ... moved it to ForestOverlay.dll.bak`; after the
-   restart the patcher logs `Installed staged update` and the plugins
-   folder holds one `ForestOverlay.dll` plus `.bak`.
-3. **The keycard checkpoint** (v0.22.7): a checkpoint `item 210 >= 1`,
-   re-tested with a quick reload after picking the keycard up. Log:
-   `Run '<id>': checkpoint n/m at mm:ss`, or `... end reached with
-   checkpoint n (...) outstanding; holding x, y at the start`. Maks's
-   v0.23.1 log had checkpoint 1/1 firing 4 ms after every start on a test
-   spot - probably his spawn inside the checkpoint zone; ask him.
-4. In-place restore timing on a fixed heap: ~20 in-place restores from a
-   fresh launch, read each `done in N ms` (was ~150 ms, then ~330 ms from
-   the 13th - a step, not a leak).
-5. Maks runs v0.23.1 (his log): he should update - the leak is fixed.
+**Then, still Next up 3, before Next up 5** (author, 2026-09-24):
+- **Stats-only start state** (runner): a spot option restoring only thirst,
+  hunger, stamina, energy (and health?) - an instant revive with no
+  restore freeze. Author: "get them done before 5".
+- **Time of day without cycling through the night**: the author thinks
+  the cycle is the game's own resync after a load; try only if a clean
+  way exists (read what sets the time after `LoadNow` / a load).
+- **Sharing** - author: "whichever you think fits best with my future
+  website" (it will visualise runs, character info etc.); "we'll refactor
+  if I don't like it". Design it as the website's export format: one
+  self-describing file per segment (segment definition + its start state
+  `.fosave` + optionally its attempts with samples), plain text / JSON-like
+  so a web page can read it; Export and Import buttons in the Practice
+  editor; import never overwrites an existing id silently.
+- The lab / hellcave fix waits for the author's log (pending).
+
+**Still awaiting an in-game check** (the author did not get to them):
+the Megan cutscene fast-forward (v0.24.3), mid-air restore (v0.23.9 - the
+log's `fall ended (1.2 s in the air, 0 m/s)` after every load restore's
+teleport is the loaded player's own air time, harmless), enemies in a
+**survival** game, the book page after fix 2, the panels after fixes 1
+and 5, renamed-plugin updates (v0.23.7), the keycard checkpoint, the
+in-place restore timing (~155 ms on this heap - fine), and maks: the
+Practice list (v0.23.8) - he still runs v0.23.1 and should update.
 
 Then continue with **Next up**, in order. The author wants Next up finished
 before QoL/UX work; the runner feedback below is deferred unless critical
