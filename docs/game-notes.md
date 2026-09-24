@@ -459,8 +459,14 @@ state, not scenes (areas: `same as at capture`).
   Quick load kept `ControlRoom` active, so its neighbour `HellCorridor`
   stayed loaded (textured). `ControlRoom.OnLeave(null)` unloaded it (author
   confirmed). Kept by `Game/AreaKeeper` (v0.24.41).
-- `LocalPlayer.IsInOverlookArea` is not the cause (cleared since v0.24.26
-  anyway).
+- `LocalPlayer.IsInOverlookArea` is not the elevator's cause (cleared by a
+  restore since v0.24.26), but it **hides the Sahara cave's outside**
+  (its corridors show through the ControlRoom area instead). After the
+  ride a Go to the vault door cave looked wrong and the rock outside the
+  Sahara cave was invisible; clearing the flag brought the outside back,
+  leaving ControlRoom removed the corridors (bridge screenshots, author
+  confirmed). A Go landing outside every section's renderers clears both
+  (`AreaKeeper.ForTeleport`, v0.24.42).
 
 **A Full load drops the player before the endgame is there.** "In game"
 comes before streaming ends, and `ForceLoad` on the endgame trigger goes

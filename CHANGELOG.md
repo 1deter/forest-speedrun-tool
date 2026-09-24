@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.42 - 2026-09-24
+
+- Go out of the endgame after the red elevator ride: the vault door cave
+  and the Sahara cave's outside look normal again (the ride's overlook
+  state stayed on after the teleport).
+
 ## v0.24.41 - 2026-09-24
 
 - Quick load after the red elevator: the hallway looks as it did at the

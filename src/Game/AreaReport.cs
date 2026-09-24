@@ -116,6 +116,16 @@ namespace ForestOverlay.Game
         /// IsInClosedArea). Capture is refused while it is set, so every
         /// savestate was taken outside: an in-place restore clears it
         /// (runner's log: `overlook yes` after the restore, `no` at capture).
+        public static bool InOverlook()
+        {
+            try
+            {
+                Resolve();
+                return _inOverlook != null && (bool)_inOverlook.GetValue(null, null);
+            }
+            catch (Exception) { return false; }
+        }
+
         public static string LeaveOverlook()
         {
             try

@@ -24,6 +24,14 @@ namespace ForestOverlay.Game
     // WHAT: capture writes `activearea = <path>` or `none`; a Quick load
     // that finds another area active leaves it (captured `none`) or enters
     // the captured one (OnEnter leaves the current one itself).
+    //
+    // A plain teleport (Go) out of the endgame kept both the area and the
+    // overlook flag the elevator ride set: the vault door cave looked wrong
+    // and the Sahara cave's outside was invisible while its corridors
+    // showed. Clearing both by hand fixed it (author, v0.24.42). So a
+    // teleport landing outside every section's renderers leaves the active
+    // area and clears the overlook flag; one landing inside a section is
+    // left alone (the gates re-enter areas as you walk).
     // ------------------------------------------------------------------
     internal sealed class AreaKeeper
     {
@@ -67,6 +75,65 @@ namespace ForestOverlay.Game
                 return live != null ? ObjectProbe.PathOf(live.transform) : None;
             }
             catch (Exception ex) { _log.LogWarning("AreaKeeper: capture failed: " + ex.Message); return ""; }
+        }
+
+        /// Before a plain teleport to `dest`; returns the log note ("" when
+        /// nothing to do). Cheap when no area is active and no overlook.
+        public string ForTeleport(Vector3 dest)
+        {
+            try
+            {
+                if (!Bind()) return "";
+                Component live = Live();
+                bool overlook = AreaReport.InOverlook();
+                if (live == null && !overlook) return "";
+                if (InsideASection(dest)) return "";
+
+                string note = "";
+                if (live != null)
+                {
+                    note = "area: left '" + ObjectProbe.PathOf(live.transform) + "'";
+                    _onLeave.Invoke(live, new object[] { null });
+                }
+                if (overlook)
+                {
+                    string o = AreaReport.LeaveOverlook();
+                    if (o.Length > 0) note += (note.Length > 0 ? ", " : "") + "overlook flag cleared";
+                }
+                return note.Length > 0 ? note + " (outside the endgame sections)" : "";
+            }
+            catch (Exception ex)
+            {
+                while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
+                return "area: teleport sync failed (" + ex.Message + ")";
+            }
+        }
+
+        private Type _members;
+        private FieldInfo _renderers;
+
+        private bool InsideASection(Vector3 p)
+        {
+            if (_members == null)
+            {
+                _members = GameBridge.FindGameType("TheForest.World.Areas.AreaMembers");
+                if (_members != null) _renderers = _members.GetField("_renderers", Inst);
+            }
+            if (_members == null || _renderers == null) return true;   // unknown: leave it
+            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_members);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer[] rs = _renderers.GetValue(all[i]) as Renderer[];
+                if (rs == null) continue;
+                for (int j = 0; j < rs.Length; j++)
+                {
+                    if (rs[j] == null) continue;
+                    Bounds b = rs[j].bounds;   // valid while disabled too
+                    b.Expand(2f);
+                    if (b.Contains(p)) return true;
+                }
+            }
+            return false;
         }
 
         /// After a Quick load; returns the log note ("" when nothing to do).

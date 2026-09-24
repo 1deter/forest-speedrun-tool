@@ -139,6 +139,7 @@ namespace ForestOverlay.Modules
         // the editor. The label is rebuilt on selection change or after a
         // capture/delete, never per frame.
         private SavestateModule _savestates;
+        private AreaKeeper _areas;
         private Segment _startStateFor;
         private string _startStateForId;
         private readonly GUIContent _startStateLabel = new GUIContent("");
@@ -162,6 +163,7 @@ namespace ForestOverlay.Modules
             Reload();
 
             _savestates = Host.Find<SavestateModule>();
+            _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
 
             _previewHost = new GameObject("ForestOverlay_ZonePreview");
@@ -446,6 +448,10 @@ namespace ForestOverlay.Modules
             // cave needs the cave state (no terrain collision, cave
             // lighting), or you arrive under the terrain in the dark.
             string cave = Ctx.Player.Found && syncCave ? Ctx.Bridge.SyncCaveState(s.SpawnPosition) : "";
+            // The endgame's area and overlook flag (the red elevator's ride)
+            // outlive leaving the endgame (AreaKeeper). A restore sets its own.
+            string area = syncCave ? _areas.ForTeleport(s.SpawnPosition) : "";
+            if (area.Length > 0) cave += (cave.Length > 0 ? ", " : "") + area;
 
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 
