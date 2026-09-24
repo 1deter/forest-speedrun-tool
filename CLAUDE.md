@@ -957,6 +957,21 @@ decisions made with the author in this file, with who decided. The log is
 replaced on every game launch — read it before the author starts the game
 again. Before a handoff, rewrite *Pick up here*.
 
+**Documentation standard (author, 2026-09-24: "so it doesn't clog up
+documentation any further").** This file is loaded into every session -
+keep it to what the next session needs:
+- **One home per fact.** Game internals -> `docs/game-notes.md`;
+  runner-facing changes -> `CHANGELOG.md`; the why of a change -> its
+  commit message; stable rules and the current state -> here. Link, never
+  copy.
+- **Finished work shrinks to one line** here (what, version, where the
+  detail lives); no "old notes" kept beside a fix.
+- **Confirmed -> moved, not marked:** delete the item from every to-test
+  list and add a few words to *Confirmed in game*; never leave a
+  ~~struck~~ or "confirmed" entry in a to-do list.
+- **Pick up here is replaced at each handoff**, never appended to.
+- **Budget: under ~1,000 lines.** Adding a section means trimming one.
+
 Build with the path read explicitly (the env var is User-scope):
 `dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed"`.
 
