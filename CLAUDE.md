@@ -533,6 +533,26 @@ escape hatch for states Quick load has no patch for.
      the capture did not list, only in scenes loaded at capture, never
      `(Clone)`s (`PickupKeeper.RemoveTakenAfterLoad`, log `pickups -
      removed n ...`) - awaiting a check.
+- **QA tooling (author, 2026-09-24: "let's do all of them"),** after the
+  animation-cancel fix, in this order:
+  1. bridge `shot` - a screenshot Claude reads (sparingly; reduced size);
+  2. keep previous sessions' `LogOutput.log` (timestamped copies on
+     startup, last few kept) - the log is replaced every launch;
+  3. a "something weird happened" key: `MARK:` line with time, position,
+     spot and an optional typed note;
+  4. one-click report: zip of current + previous logs and the savestate /
+     segment files under test, on the desktop;
+  5. a **QA tab** holding 3 and 4 too: each test list shipped in the
+     plugin, items with Pass / Fail / Note, the proving log line, and
+     auto-ticked where the plugin can see that line; results go into the
+     report. Never let runners run bridge scripts (arbitrary calls).
+- **Animation cancel** (maks: plane axe swing plays through a reset):
+  v0.24.29 fires `playerAnimatorControl.resetAnimator` (resetTrigger) -
+  cuts the swing (author) but shows the headless body for a frame
+  (camera placement fine). Snapping only `upperBody.idle` did nothing.
+  Author wants it exact ("get it right once"): v0.24.29's bridge `anim
+  watch N` logs every layer / parameter change - run it during a swing,
+  then reset only the layer(s) and parameters the swing uses.
 - **Bridge `mark`** (v0.24.27, **confirmed** - seen through walls; author: "I don't have a compass"): `mark
   <target> | mark x y z | mark clear` puts a magenta beacon on a thing -
   use it instead of compass directions when asking the author to find
