@@ -467,12 +467,13 @@ practice save (Normal, just short of Megan's trigger) is at
 (author's permission, 2026-09-24) - the author's slot 4 is Peaceful, put
 it back after.
 
-**Naming (author, 2026-09-24):** the two restores get renamed - maks found
-"with a load" unclear. Author's words: "full load" = restore with a load,
-"quick load" = unticked; both stay while testing, the goal is one good
-fast restore with the full load kept for e.g. a death in a full practice
-run. **Clash:** "quick-load" already names the death feature (the game's
-own load of the save) - pick names that do not collide before renaming.
+**Naming (author, 2026-09-24; done in v0.24.27, UI only - config keys and
+log lines unchanged):** **Quick load** = restore in place, **Full load** =
+restore with a scene load ("save, load"); the death feature is **Reload
+save on death** (was "Quick-load on death"). Plan (author): polish Quick
+load to parity, then keep Full load as a separate option for full save
+reloads (e.g. a death in a full practice run) - kept, not deleted, as the
+escape hatch for states Quick load has no patch for.
 
 **maks's results on v0.24.25** (via the author):
 - **Confirmed:** cave panels (straightened), mid-air restore, the lighter,
@@ -481,17 +482,23 @@ own load of the save) - pick names that do not collide before renaming.
   the endgame area after a load restore (v0.24.25), the red elevator put
   back **by a load restore** ("flawlessly").
 - **New / open, roughly by weight:**
-  1. **Enemies after a load restore do not spawn at all** (overworld).
-     In place overworld: killed ones come back (as intended). In place in
-     a cave: they stay dead, bodies removed (cave captures still use the
-     old path - not rebuilt). Nothing in the load path touches enemies
-     (`SavestateModule.AfterLoad`); reproduce with the bridge (`restore
-     <name> load`, then `find "_male(Clone)" 200`, `get static:...
-     activeCannibals`) before theorising.
-  2. **Red elevator, in place:** unchanged (see below). Load is fine.
-  3. **Load restore drops the player before the geometry has loaded** -
-     he lands inside it instead of on top. Delay the start teleport until
-     streaming settles.
+  1. **Enemies after a Full load** - found live (bridge): the load rolls
+     the world families afresh at other spawners (16 cannibals 10 s after,
+     the captured family gone, none near the player). v0.24.27 runs the
+     captured-family rebuild after a Full load once the game's own setup
+     has made its families (`EnemiesAfterLoad`, log `Savestate after the
+     load: enemies - the game rolled n families ...`) - awaiting a check.
+     In place in a cave: they stay dead (maks's log: `positions (by type,
+     a v0.24.16 file): 0 of 5 placed`, once `no spawn controller`) - cave
+     captures still use the old by-type path; open. (maks's "Creative"
+     lines were other saves in the same session - loads 9-13; his enemy
+     tests were Normal.)
+  2. **Red elevator, in place:** v0.24.26 clears the overlook flag the
+     ride leaves set (maks's log: `overlook yes` after, `no` at capture);
+     the elevator's position / Sahara are still open. Full load is fine.
+  3. ~~Full load drops the player before the geometry has loaded~~
+     v0.24.26 holds him until every scene has loaded (`held the player x
+     s while n scene(s) ...`) - awaiting maks.
   4. **A restore should cancel a player animation** in progress (e.g. the
      plane axe's swing plays on through a reset).
   5. **Megan:** (I) the player can walk while `BossHold` waits for her -
@@ -501,8 +508,19 @@ own load of the save) - pick names that do not collide before renaming.
      fight - make it match a normal run, or mute it if that is impossible
      (maks).
   6. **Auto-restart:** improve the UI of the flashed time.
-  7. **Coins respawn after a load restore** - unclear whether that is
-     wrong (coins taken before the capture?) - ask.
+     (I) done in v0.24.26 (pinned while held) - awaiting maks.
+  7. **Placed pickups taken before the capture came back after a Full
+     load** (maks: coins, taken before capturing; bridge: `PickUps/Cash`
+     x3 and a `Tape_Roll` back, greeble cash stays gone). The game's own
+     behaviour - placed pickups are not in the save, any load re-creates
+     them. v0.24.27 removes, once the load has finished, placed pickups
+     the capture did not list, only in scenes loaded at capture, never
+     `(Clone)`s (`PickupKeeper.RemoveTakenAfterLoad`, log `pickups -
+     removed n ...`) - awaiting a check.
+- **Bridge `mark`** (v0.24.27; author: "I don't have a compass"): `mark
+  <target> | mark x y z | mark clear` puts a magenta beacon on a thing -
+  use it instead of compass directions when asking the author to find
+  something.
 - **Red elevator** (runner): trigger it, then F7 / restore in place: the
   elevator leaves its shaft for the overlook area (a hole left behind, its
   button stays - and a second button at the overlook), parts of the Sahara

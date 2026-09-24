@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.27 - 2026-09-24
+
+- New names: **Quick load** (restore in place) and **Full load** (restore
+  with a scene load). The Deaths tab's option is now **Reload save on
+  death**.
+- A Full load puts the cannibals back where they were at capture. Before,
+  the load rolled new families elsewhere and none were near you.
+- A Full load no longer brings back pickups you took before the capture
+  (cash, tape and the like - the game re-creates them on every load).
+
 ## v0.24.26 - 2026-09-24
 
 - An in-place restore after the red elevator clears the overlook-area
