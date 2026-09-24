@@ -191,7 +191,8 @@ namespace ForestOverlay.Game
             }
             if (_activeState == null || _sendEvent == null) return "attack state: not bound";
             string state = _activeState.GetValue(fsm, null) as string;
-            if (state == FsmRest) return "";
+            // No active state: the FSM is idle (seen during Megan's cutscene).
+            if (string.IsNullOrEmpty(state) || state == FsmRest) return "";
             _sendEvent.Invoke(fsm, new object[] { FsmEndAttack });
             return "ended attack state '" + state + "'";
         }

@@ -460,14 +460,15 @@ identity.
 
 ## Current status
 
-**Released: v0.24.34** (2026-09-24). The author runs it via the in-game
-updater. **264 tests.**
+**Released: v0.24.35** (2026-09-24). The author runs it via the in-game
+updater. **265 tests.**
 
-### Pick up here (handoff of 2026-09-24 late, v0.24.34 staged in the game)
+### Pick up here (2026-09-24 late, v0.24.35 in the game)
 
-**State:** v0.24.33 runs in the author's game; **v0.24.34** is downloaded
-into it (`.pending`, installs on the next launch - the author was told
-to relaunch at the title screen). **Slot4 is swapped:** maks's Megan save
+**State:** v0.24.35 runs in the author's game (Megan Quick load fixed
+and confirmed). **Unreleased on main:** `AnimReset.EndAttack` treats an
+FSM with no active state as at rest (the `ended attack state ''` seen on
+a mid-cutscene restore) - ship it with the next release. **Slot4 is swapped:** maks's Megan save
 (Normal, from `C:\Users\deter\Downloads\Slot4`) is in
 `%USERPROFILE%\AppData\LocalLow\SKS\TheForest\76561197966559397\SinglePlayer\Slot4`;
 the author's own Slot4 is in `Slot4.deter-backup` beside it. **Put it
@@ -484,17 +485,12 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **Megan Quick load mid-cutscene does nothing** (maks) - starting now
-   with Slot4. The previous `girlMutant(Clone)` stays, seated Megan / the
-   boss trigger are not back, no cutscene (`no cutscene began within
-   20 s`). Endgame scene state outside `LoadNow`. Plan: author loads
-   Slot4 and stays away from Megan; read the scene (`find girl`, the
-   trigger `activateGirlTransform`, `setupEndBoss disableBossTrigger`,
-   `creepyAnimatorControl.activateGirlMutant`, `Scene.SceneTracker
-   .EndgameBoss`); prompt the author on screen into the cutscene,
-   `capture` a few s in, let it finish, `restore` (Quick) and diff what
-   is missing. Background: game-notes *Savestates during an endgame
-   cutscene* (fast-forward, `BossHold`, Megan's 7 s after a load).
+1. **Thrown spears stay after a Quick load** (author's fight, 2026-09-24):
+   the inventory comes back with its spears and the thrown ones
+   (`SpearThrown_Dynamic(Clone)`) stay on the floor - the restore already
+   lists them as `not at capture`. Asked the author whether to remove
+   thrown weapons new since the capture (the Fix list's logs / sticks are
+   the same kind). Megan's own reset: game-notes *Megan after a Quick load*.
 2. **maks's other open items** (his v0.24.29 round):
    a. **Coins come back after a Full load** - cave 5, the first pile by
       the drop. His log removed only `bone x8, Booze x1`: the cave's
@@ -525,8 +521,8 @@ option (the escape hatch for states Quick load has no patch for).
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
    **When the author pastes maks's answers, they are numbered against
    that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf).
-   Not yet seen in a real log: `ended attack state '...'` on the
-   `Teleport to` line - check the wording in the first log that has one.
+   `ended attack state '...'` on the `Teleport to` line: seen empty on a
+   mid-cutscene restore (fixed on main); a real attack name not yet seen.
 4. **QA tooling** (author: "let's do all of them"), after 1-2: keep
    previous sessions' `LogOutput.log` (timestamped copies on startup,
    last few); a **QA tab**: each test list shipped in the plugin, items
@@ -809,7 +805,9 @@ the endgame area and the lab floor after a Full load, the red elevator put
 back by a Full load, pickups taken before a capture removed after a Full
 load (surface), the Updates tab's "downloaded - restart to install";
 the smash and swing cut on a reset, next swing at once (bridge,
-v0.24.32-0.24.34).
+v0.24.32-0.24.34); Megan after a Quick load - taken before, during or
+after her transformation, babies and body cleared, the cutscene replayed
+and fast-forwarded (bridge + author, v0.24.35).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
