@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.30 - 2026-09-24
+
+- Developer test tools only (the test bridge): an animation recorder
+  that runs alongside other commands, and screenshots. Nothing changes
+  for runners.
+
 ## v0.24.29 - 2026-09-24
 
 - A restart, a Quick load or a teleport cuts a swing or other action in

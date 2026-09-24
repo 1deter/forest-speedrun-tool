@@ -60,7 +60,7 @@ namespace ForestOverlay.Modules
         private bool _waitIdle;            // waitidle / restart: until savestates are idle
         private int _idleFrames;
         private bool _waitCallback;        // capture / restore: until their callback
-        private bool _waitAnim;            // anim watch: sample the player's animator every frame
+        private float _animUntil;          // anim watch: sampling the player's animator until (realtime), 0 = off
         private readonly AnimProbe _anim = new AnimProbe();
         private string _callbackResult;
         private bool _callbackDone;
@@ -106,6 +106,17 @@ namespace ForestOverlay.Modules
                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ==\n");
                 Ctx.Log.LogInfo("Bridge: on, watching " + _inPath);
                 RebuildStatus();
+            }
+
+            // anim watch records in the background: the commands after it
+            // (a wait, a reset) run while it samples.
+            if (_animUntil > 0f)
+            {
+                List<string> lines = new List<string>();
+                try { _anim.Sample(lines); }
+                catch (Exception ex) { lines.Add("sample threw " + ex.GetType().Name + ": " + ex.Message); }
+                if (Time.realtimeSinceStartup >= _animUntil) { _animUntil = 0f; lines.Add("anim watch: done"); }
+                if (lines.Count > 0) Append(string.Join("\n", lines.ToArray()) + "\n");
             }
 
             if (_pendingId != 0) { TickPending(); return; }
@@ -217,14 +228,6 @@ namespace ForestOverlay.Modules
                 _idleFrames = idle ? _idleFrames + 1 : 0;
                 done = _idleFrames >= 3;
             }
-            else if (_waitAnim)
-            {
-                List<string> lines = new List<string>();
-                try { _anim.Sample(lines); }
-                catch (Exception ex) { lines.Add("sample threw " + ex.GetType().Name + ": " + ex.Message); }
-                if (lines.Count > 0) Append(string.Join("\n", lines.ToArray()) + "\n");
-                done = now >= _waitUntil;
-            }
             else done = now >= _waitUntil;
 
             if (!done && (_waitCallback || _waitIdle) && now >= _waitUntil)
@@ -236,7 +239,7 @@ namespace ForestOverlay.Modules
 
             int id = _pendingId;
             _pendingId = 0;
-            _waitCallback = _waitIdle = _callbackDone = _waitAnim = false;
+            _waitCallback = _waitIdle = _callbackDone = false;
             _callbackResult = null;
 
             string took = (now - _pendingStart).ToString("0.00", CultureInfo.InvariantCulture) + " s";
@@ -462,6 +465,20 @@ namespace ForestOverlay.Modules
                 }
                 case "tp": return Teleport(a, o);
                 case "mark": return MarkCommand(a, o);
+                case "shot":
+                {
+                    // Written at the end of the frame by Unity; the wait
+                    // lets it land before the reply names it.
+                    string name = a.Count > 0 ? a[0] : "shot-" + DateTime.Now.ToString("HHmmss");
+                    foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                    string path = Path.Combine(_dir, name + ".png");
+                    Application.CaptureScreenshot(path);
+                    Mark("screenshot");
+                    WaitFor(1f);
+                    waits = true;
+                    o.Add("screenshot -> " + path + " (" + Screen.width + "x" + Screen.height + ")");
+                    return null;
+                }
                 case "anim":
                 {
                     if (a.Count == 0) return AnimProbe.Snapshot(o);
@@ -470,10 +487,9 @@ namespace ForestOverlay.Modules
                         return "anim | anim watch <seconds>";
                     if (AnimProbe.PlayerAnimator() == null) return "no player animator";
                     _anim.BeginWatch();
-                    _waitAnim = true;
-                    WaitFor(s);
-                    waits = true;
-                    o.Add("watching the player's animator for " + s + " s - every change to a layer or a bool / int parameter");
+                    _animUntil = Time.realtimeSinceStartup + s;
+                    o.Add("watching the player's animator for " + s + " s in the background - every change to a layer's " +
+                          "state / clips or a bool / int parameter; the next commands run meanwhile");
                     return null;
                 }
                 case "dump":
@@ -515,7 +531,8 @@ namespace ForestOverlay.Modules
             "savestates | capture <name> | restore <name> [load]   (capture / restore wait until done)",
             "spots [filter] | go <id> | restart [id] (waits until idle) | tp x y z [yaw] | dump",
             "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
-            "anim | anim watch <seconds>   - the player's animator: layers, states, clips, parameters (watch: every change)",
+            "anim | anim watch <seconds>   - the player's animator: layers, states, clips, parameters (watch: every change, in the background)",
+            "shot [name]   - a screenshot into the bridge folder",
         };
 
         private static void Help(List<string> o)

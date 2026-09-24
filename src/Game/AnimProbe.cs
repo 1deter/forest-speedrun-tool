@@ -108,8 +108,12 @@ namespace ForestOverlay.Game
         // playing time, which changes every frame.
         private static string LayerSignature(Animator an, int i)
         {
+            // Clip names without their blend weights, the layer weight to
+            // 0.1: a blend or a fade is one line, not one per frame (the
+            // first watch was 360 lines of turning in place).
             AnimatorStateInfo s = an.GetCurrentAnimatorStateInfo(i);
-            string sig = s.fullPathHash + "|" + Clips(an.GetCurrentAnimatorClipInfo(i)) + "|" + Weight(an, i);
+            string sig = s.fullPathHash + "|" + ClipNames(an.GetCurrentAnimatorClipInfo(i)) + "|" +
+                         an.GetLayerWeight(i).ToString("0.0", CultureInfo.InvariantCulture);
             if (an.IsInTransition(i)) sig += "|-> " + an.GetNextAnimatorStateInfo(i).fullPathHash;
             return sig;
         }
@@ -133,6 +137,19 @@ namespace ForestOverlay.Game
         private static string Weight(Animator an, int i)
         {
             return an.GetLayerWeight(i).ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        private static string ClipNames(AnimatorClipInfo[] clips)
+        {
+            if (clips == null || clips.Length == 0) return "-";
+            List<string> names = new List<string>();
+            for (int i = 0; i < clips.Length; i++)
+            {
+                string n = clips[i].clip != null ? clips[i].clip.name : "?";
+                if (!names.Contains(n)) names.Add(n);
+            }
+            names.Sort(StringComparer.Ordinal);
+            return string.Join(",", names.ToArray());
         }
 
         private static string Clips(AnimatorClipInfo[] clips)
