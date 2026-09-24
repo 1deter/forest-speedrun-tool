@@ -59,6 +59,7 @@ namespace ForestOverlay.Modules
         private BookPages _book;
         private PanelKeeper _panels;
         private BossHold _bossHold;
+        private MeganKeeper _megan;
         private EnemyKeeper _enemies;
         private string _dir;
 
@@ -131,6 +132,7 @@ namespace ForestOverlay.Modules
             _panels.Install(OverlayPlugin.PluginGuid);
             _bossHold = new BossHold(ctx.Log, ctx.Runner);
             _bossHold.Install(OverlayPlugin.PluginGuid);
+            _megan = new MeganKeeper(ctx.Log);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
@@ -339,6 +341,7 @@ namespace ForestOverlay.Modules
             // so a restore can fast-forward the replay to this moment.
             string cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
             float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
+            string megan = _megan.Capture();
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -359,14 +362,14 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, areas, enemies, families, enemyNote);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, areas, enemies, families, enemyNote);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string areas, List<string> enemies,
+                                  string cutscene, float cutsceneAt, string megan, string areas, List<string> enemies,
                                   List<string> families, string enemyNote)
         {
             _busy = false;
@@ -394,6 +397,7 @@ namespace ForestOverlay.Modules
                 f.HeldBefore = heldBefore;
                 f.Panels = panels;
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
+                f.Megan = megan;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -414,6 +418,7 @@ namespace ForestOverlay.Modules
                               (heldBefore != null && heldBefore.Count > 0 ? " (before that: " + HeldBeforeNames(heldBefore) + ")" : "") +
                               (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
                               (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "") +
+                              (megan.Length > 0 ? ", Megan " + megan : "") +
                               (enemyNote.Length > 0 ? ", " + enemyNote : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
@@ -542,6 +547,7 @@ namespace ForestOverlay.Modules
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
+            bool transformRunning = Ctx.Events != null && Ctx.Events.CutsceneRunning == MeganKeeper.TransformEvent;
             Ctx.Practice.Mark("savestate restore (in place)");
             PickupKeeper.Armed = true;
             BossHold.Arm();
@@ -616,6 +622,18 @@ namespace ForestOverlay.Modules
                     catch (Exception) { }
                 }
 
+                // Megan and her trigger are outside the save (MeganKeeper);
+                // before the fast-forward, which waits for her cutscene.
+                // Files from before v0.24.35 have no megan line: a capture
+                // during her transformation had her seated.
+                string meganNote = "";
+                if (r.Ok && file != null)
+                {
+                    string megan = file.Megan.Length > 0 ? file.Megan
+                                 : file.Cutscene == MeganKeeper.TransformEvent ? MeganKeeper.Seated : "";
+                    meganNote = _megan.Restore(megan, transformRunning);
+                }
+
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
                 // and unlit). Its own log line, a moment later.
@@ -635,6 +653,7 @@ namespace ForestOverlay.Modules
                               (bookNote.Length == 0 ? "" : " | " + bookNote) +
                               (washNote.Length == 0 ? "" : " | " + washNote) +
                               (panelNote.Length == 0 ? "" : " | " + panelNote) +
+                              (meganNote.Length == 0 ? "" : " | " + meganNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);

@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.35 - 2026-09-24
+
+- Quick load in Megan's boss room puts seated Megan back: a savestate
+  taken before or during her transformation now plays the cutscene again
+  (fast-forwarded to the captured moment), instead of leaving the boss,
+  her body or her babies behind. Older savestates taken during the
+  cutscene work too.
+
 ## v0.24.34 - 2026-09-24
 
 - After a restart cuts a swing, the next click swings at once (it could

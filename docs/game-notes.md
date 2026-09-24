@@ -554,6 +554,27 @@ a savestate restore) and enters again once she is there. The cutscene ran
 at 25x `timeScale` from its start (bridge) and Megan transformed with the
 player (author).
 
+**Megan after a Quick load (bridge + IL, v0.24.35, `Game/MeganKeeper`).**
+Single player's boss Megan comes from `setupGirlMutant` on
+`girlTransformPrefab1` (scene `endgame_animPrefabs`): within 350 m its
+`Update` instantiates `realPrefab` (`girlMutant`) at `placedPrefab`,
+destroys the placeholder, sets the trigger's `girlAnimator`, turns itself
+off (the Bolt branch is multiplayer only). The trigger
+(`girlTransformPrefab1/Trigger`, a 29 m sphere) sets `pickup` and turns its
+collider off on enter; the `AnimationSequence` goes from stage -1 to 0. The
+cutscene transforms **the same** `girlMutant(Clone)` into the boss
+(`creepyAnimatorControl.activateGirlMutant`: `girlFullyTransformed`, a new
+`girlSpawnGo` root at her seat, `girlStartPos`). None of it is in the save.
+She spawns babies as `bossBabySpawner(Clone)` + `mutant_baby(Clone)NNNN`
+roots (`girlMutantAiManager.spawnedBabies` = the spawners); they die a
+moment after her. Her death leaves `girlMutant_RAGDOLL(Clone)` +
+`girl_Pickup(Clone)` and destroys `girlMutant(Clone)`; destroying her
+directly drops nothing (`creepyAnimEvents.OnDisable` stops the boss music).
+Resetting the trigger / sequence and re-arming `setupGirlMutant` with a new
+placeholder gave a seated Megan and a normal cutscene and fight (bridge).
+The overworld Megan is a different path (`spawnMutants.spawnGirl` ->
+`activateGirlMutantInWorld`).
+
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
 Enemies are spawned and despawned by `mutantController` (static

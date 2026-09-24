@@ -46,6 +46,20 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void MeganRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Megan);
+
+            SavestateFile s = Sample();
+            s.Megan = "seated -397.90 -352.04 396.48 180.00";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Megan, back.Megan);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RoundTripKeepsEveryField()
         {
             string error;

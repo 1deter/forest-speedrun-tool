@@ -26,6 +26,7 @@ namespace ForestOverlay.Data
     //   enemies = 0:mutant_male/0@524.1,54.4,0.2/90/130;...
     //   families = 0|522.9,56.74,-10.7|0|allRegularSpawns|amount_male=2,...;...
     //   cutscene = megan-transform@12.40
+    //   megan = seated -397.90 -352.04 396.48 180.00
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -46,8 +47,11 @@ namespace ForestOverlay.Data
     // restore can say what differs (v0.24.4). `enemies` lists the live
     // cannibals at capture (EnemyRecord), put back after an in-place
     // restore; absent before v0.24.16. `families` their spawners
-    // (FamilyRecord), rebuilt by the restore; absent before v0.24.17. None of these is in the start-state
-    // hash (only `data` is).
+    // (FamilyRecord), rebuilt by the restore; absent before v0.24.17.
+    // `megan` is the endgame boss at capture (Game/MeganKeeper: `seated`
+    // with her seat, `transformed`, `gone`); absent outside the endgame and
+    // before v0.24.35. None of these is in the start-state hash (only
+    // `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -100,6 +104,9 @@ namespace ForestOverlay.Data
         public string Cutscene = "";
         public float CutsceneAt = -1f;
 
+        /// Game/MeganKeeper's value at capture; "" when absent.
+        public string Megan = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -132,6 +139,7 @@ namespace ForestOverlay.Data
             if (Areas.Length > 0) Line(sb, "areas", Areas);
             if (Cutscene.Length > 0 && CutsceneAt >= 0f)
                 Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
+            if (Megan.Length > 0) Line(sb, "megan", Megan);
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -180,6 +188,7 @@ namespace ForestOverlay.Data
                         }
                     case "book": s.Book = value; break;
                     case "areas": s.Areas = value; break;
+                    case "megan": s.Megan = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');
