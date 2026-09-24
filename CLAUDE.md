@@ -453,9 +453,12 @@ before Next up 5):
    restore, and re-equip). Suspects: the held weapon's hit detection (the
    weapon view / its trigger collider / `FakeParent` re-parent -
    `ReParentHeld`), `StashHands` + the game's `OnDeserialized`
-   `HideAllEquiped` / `Equip`, or the adoption step. First ask the author
-   one question: after an in-place restore, does **unequipping and
-   re-equipping the axe by hand** make hits work? Then read how a hit is
+   `HideAllEquiped` / `Equip`, or the adoption step. **Author
+   (2026-09-24): unequipping and re-equipping the axe by hand does NOT
+   bring hits back** - so not our re-equip / the held view alone; look at
+   what the restore does to the player's hit machinery (the adoption of
+   ids, objects deleted or duplicated, the animator / hit trigger under
+   the player's arms). Read how a hit is
    detected (`ilscan` the axe's weapon script: `weaponInfo`, its
    `OnTriggerEnter`, what enables `mainTrigger`), compare with what the
    restore does to the held item, and log the weapon's trigger / collider
@@ -481,9 +484,8 @@ before Next up 5):
    and `!Cheats.NoEnemies`. Also after the restore, killed enemies' bodies
    and severed limbs stayed: bodies with no pick-up animation, limbs with
    the arm pickup icon that cannot be picked up (still collidable). Those
-   are objects the save lacks - decide whether the delete step should
-   remove ragdolls / body parts, or the enemy restart's despawn covers
-   them once it runs the right branch. The author: a load does respawn
+   are objects the save lacks. **Author (2026-09-24): yes, an in-place
+   restore clears leftover bodies and severed limbs.** The author: a load does respawn
    enemies ("better than before").
 4. **Pickups move on every restore (both kinds).** Small pickups - sticks,
    rocks - come back at random positions. They are spawned by the greeble
@@ -515,10 +517,9 @@ before Next up 5):
    drawing the line there, with the spot still selected and the run timer
    running. Fix: clear lines / abort (without saving) at the title screen
    and on a scene change (this is the deferred "runs continue at the main
-   menu" item - now reported again, do it), and decide with the author
-   whether selecting a different entry should clear the current run's
-   lines (likely yes: show lines only for the selected entry when it is
-   the current one).
+   menu" item - now reported again, do it). **Author (2026-09-24):
+   selecting a different entry clears the current run's lines** - lines
+   show only for the selected entry when it is the current one.
 8. **Area report binds nothing**: `streamed: (none bound)` - `AreaReport`
    looks up type `"Scene"`, but it is `TheForest.Utils.Scene` (as
    `SavestateBridge` binds it) - a one-line fix. Also sort the scene names:
