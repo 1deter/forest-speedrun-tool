@@ -23,6 +23,7 @@ namespace ForestOverlay.Data
     //   book = 23:00000100000000000000001
     //   held = 53
     //   panels = 30@120.5,-80.1,33.0;...
+    //   enemies = 0:regularMale@524.1,54.4,0.2/90/130;...
     //   cutscene = megan-transform@12.40
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
@@ -41,7 +42,10 @@ namespace ForestOverlay.Data
     // cutscene running at capture (a GameEvents event) and how far into it
     // (game seconds from the cutscene flag's rising edge); absent when none.
     // `areas` is Game/AreaReport's line at capture - for the log, so a
-    // restore can say what differs (v0.24.4).
+    // restore can say what differs (v0.24.4). `enemies` lists the live
+    // cannibals at capture (EnemyRecord), put back after an in-place
+    // restore; absent before v0.24.16. None of these is in the start-state
+    // hash (only `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
     // beside a segment, and a writer/parser disagreement would corrupt
@@ -75,6 +79,10 @@ namespace ForestOverlay.Data
         /// Null when the file has no panels line (before v0.24.2).
         public List<string> Panels;
 
+        /// Null when the file has no enemies line (before v0.24.16);
+        /// EnemyRecord entries.
+        public List<string> Enemies;
+
         /// The cutscene running at capture, "" for none; CutsceneAt is how
         /// far into it, in game seconds (-1 for none).
         public string Cutscene = "";
@@ -106,6 +114,7 @@ namespace ForestOverlay.Data
                 Line(sb, "held", string.Join(",", ids));
             }
             if (Panels != null) Line(sb, "panels", string.Join(";", Panels.ToArray()));
+            if (Enemies != null) Line(sb, "enemies", string.Join(";", Enemies.ToArray()));
             if (Areas.Length > 0) Line(sb, "areas", Areas);
             if (Cutscene.Length > 0 && CutsceneAt >= 0f)
                 Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
@@ -173,6 +182,13 @@ namespace ForestOverlay.Data
                             s.Panels = new List<string>();
                             string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                             for (int k = 0; k < keys.Length; k++) s.Panels.Add(keys[k].Trim());
+                            break;
+                        }
+                    case "enemies":
+                        {
+                            s.Enemies = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.Enemies.Add(keys[k].Trim());
                             break;
                         }
                     case "held":

@@ -456,8 +456,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.15** (2026-09-24). The author runs it via the in-game
-updater. **243 tests.**
+**Released: v0.24.16** (2026-09-24). The author runs it via the in-game
+updater. **254 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
 
@@ -492,7 +492,14 @@ back, twice (v0.24.15 re-runs the setup when fewer families than before
 the restore) - **v0.24.15 confirmed in game (bridge, 2026-09-24): body
 removed, blood washed, one wreck, 6 families / 13 cannibals back after
 the game's own setup brought back none.** Item 2's remaining part - the
-captured positions - is next
+captured positions - **built in v0.24.16, awaiting a check**
+(`Data/EnemyRecord` + `Game/EnemyKeeper`; the savestate's `enemies`
+header; capture line `, n cannibal(s) in m families`; the after-restore
+line ends `| positions: n of m placed (k families matched whole, l
+live)`). Verified by hand first: a cannibal moved with
+`spawnMutants.fixMutantPosition` slept standing, woke when approached
+and fought normally (author). Next once confirmed: place them sooner
+than 6-12 s after the restore; also after a load restore
 (one `Savestate after restoring ... in place: plane: ... | enemies: ...`
 line 6-12 s after each in-place restore, `| blood: washed` on the restore
 line, `bodies: n removed`). Game-side tricks used: `set static:Cheats

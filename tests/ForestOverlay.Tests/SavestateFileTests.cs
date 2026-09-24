@@ -27,6 +27,20 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void EnemiesRoundTripAndAreAbsentFromOldFiles()
+        {
+            SavestateFile s = Sample();
+            s.Enemies = new System.Collections.Generic.List<string> { "0:regularMale@1,2,3/90/130", "1:skinnyFemale@4,5,6/0/80" };
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Enemies, back.Enemies);
+            Assert.Equal(Sample().Data, back.Data);
+
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Enemies);
+        }
+
+        [Fact]
         public void RoundTripKeepsEveryField()
         {
             string error;

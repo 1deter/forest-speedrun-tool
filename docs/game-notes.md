@@ -528,6 +528,23 @@ capture 0.5 s later (`n world pickup(s) not at capture (...)`).
   `_energyhack on`. The `DebugConsole` component only exists with the
   title screen's `developermodeon` (author) - set the static directly.
 
+### Putting cannibals back where they stood (v0.24.16)
+
+The game's rebuilt families spawn at spawn points of its choosing. Seen
+live: `spawnMutants.fixMutantPosition(Transform m, Vector3 newPos)` (a
+coroutine: sets the position every frame for ~1 s and sends
+`updateWorldTransformPosition`) moved a sleeping family leader 745 m to
+the player; he stood asleep (`global_brainFSM` `setSleeping`,
+`action_sleepingFSM` `sleeping`), woke when approached (`aggressive`,
+`action_combatFSM` attacks), stalked, climbed a tree and came back - a
+normal cannibal. The AI state lives in PlayMaker FSMs on `_BASE`
+(`action_combatFSM`, `global_brainFSM`, `action_sleepingFSM`,
+`action_encounterFSM`; `PlayMakerFSM.ActiveStateName`). v0.24.16 records
+each live cannibal at capture (`Data/EnemyRecord`: family, `enemyType.Type`,
+position, yaw, `EnemyHealth.Health`) and after an in-place restore moves
+the game's cannibals there - whole families matched by make-up first so
+leaders keep followers (`Game/EnemyKeeper`). The AI state is not set.
+
 ## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
 
 `PlaneCrashController.OnDeserialized` does `Invoke("setupCrashedPlane",

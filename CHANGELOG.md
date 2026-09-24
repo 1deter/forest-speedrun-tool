@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.16 - 2026-09-24
+
+- Savestates now remember where each cannibal was. After restoring in
+  place, the cannibals are moved back to where they stood at capture, with
+  the health they had (a few seconds after the restore, once the game has
+  brought its families back). Only for savestates captured from this
+  version on.
+
 ## v0.24.15 - 2026-09-24
 
 - Restoring in place now really clears dead cannibal bodies (v0.24.14

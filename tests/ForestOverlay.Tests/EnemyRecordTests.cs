@@ -1,0 +1,114 @@
+using System.Collections.Generic;
+using ForestOverlay.Data;
+using UnityEngine;
+using Xunit;
+
+namespace ForestOverlay.Tests
+{
+    // ------------------------------------------------------------------
+    // Cannibals recorded at a capture are put back by moving the game's
+    // own respawned ones. A wrong match splits a family (a leader without
+    // its followers) or moves the wrong kind of enemy.
+    // ------------------------------------------------------------------
+    public class EnemyRecordTests
+    {
+        private static EnemyRecord Cap(int family, string type)
+        {
+            EnemyRecord r = new EnemyRecord();
+            r.Family = family;
+            r.Type = type;
+            r.Position = new Vector3(1f, 2f, 3f);
+            r.Health = 100;
+            return r;
+        }
+
+        private static EnemyRecord.Live L(int family, string type)
+        {
+            EnemyRecord.Live l;
+            l.Family = family;
+            l.Type = type;
+            return l;
+        }
+
+        [Fact]
+        public void RoundTrip()
+        {
+            EnemyRecord r = new EnemyRecord();
+            r.Family = 3;
+            r.Type = "regularMale";
+            r.Position = new Vector3(524.13f, -54.4f, 0.2f);
+            r.Yaw = 90.5f;
+            r.Health = 130;
+            string text = r.Encode();
+            Assert.Equal("3:regularMale@524.13,-54.4,0.2/90.5/130", text);
+
+            EnemyRecord back;
+            Assert.True(EnemyRecord.TryDecode(text, out back));
+            Assert.Equal(3, back.Family);
+            Assert.Equal("regularMale", back.Type);
+            Assert.Equal(-54.4f, back.Position.y, 3);
+            Assert.Equal(90.5f, back.Yaw, 3);
+            Assert.Equal(130, back.Health);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("regularMale@1,2,3/0/1")]
+        [InlineData("x:regularMale@1,2,3/0/1")]
+        [InlineData("1:@1,2,3/0/1")]
+        [InlineData("1:regularMale@1,2/0/1")]
+        [InlineData("1:regularMale@1,2,3/0")]
+        public void BadEntriesAreRefused(string text)
+        {
+            EnemyRecord r;
+            Assert.False(EnemyRecord.TryDecode(text, out r));
+        }
+
+        [Fact]
+        public void WholeFamiliesKeepTheirMembersTogether()
+        {
+            // Captured: family 0 = two males, family 1 = male + female.
+            List<EnemyRecord> cap = new List<EnemyRecord> { Cap(0, "m"), Cap(1, "m"), Cap(0, "m"), Cap(1, "f") };
+            // Live: family 7 = male + female, family 9 = two males.
+            List<EnemyRecord.Live> live = new List<EnemyRecord.Live> { L(9, "m"), L(7, "f"), L(9, "m"), L(7, "m") };
+
+            int whole;
+            int[] m = EnemyRecord.Match(cap, live, out whole);
+            Assert.Equal(2, whole);
+            Assert.Equal(9, live[m[0]].Family);
+            Assert.Equal(9, live[m[2]].Family);
+            Assert.Equal(7, live[m[1]].Family);
+            Assert.Equal("m", live[m[1]].Type);
+            Assert.Equal(1, m[3]);
+            Assert.NotEqual(m[0], m[2]);
+        }
+
+        [Fact]
+        public void LeftoversMatchByTypeAndNeverReuse()
+        {
+            // No live family has the captured make-up; take by type.
+            List<EnemyRecord> cap = new List<EnemyRecord> { Cap(0, "m"), Cap(0, "f"), Cap(0, "pale") };
+            List<EnemyRecord.Live> live = new List<EnemyRecord.Live> { L(1, "m"), L(2, "f"), L(2, "m") };
+
+            int whole;
+            int[] m = EnemyRecord.Match(cap, live, out whole);
+            Assert.Equal(0, whole);
+            Assert.Equal(0, m[0]);
+            Assert.Equal(1, m[1]);
+            Assert.Equal(-1, m[2]);
+        }
+
+        [Fact]
+        public void LiveFamiliesMatchedWholeAreNotRaidedForLeftovers()
+        {
+            List<EnemyRecord> cap = new List<EnemyRecord> { Cap(0, "m"), Cap(1, "m") };
+            List<EnemyRecord.Live> live = new List<EnemyRecord.Live> { L(5, "m") };
+
+            int whole;
+            int[] m = EnemyRecord.Match(cap, live, out whole);
+            Assert.Equal(1, whole);
+            Assert.Equal(0, m[0]);
+            Assert.Equal(-1, m[1]);
+        }
+    }
+}

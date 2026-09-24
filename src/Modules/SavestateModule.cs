@@ -58,6 +58,7 @@ namespace ForestOverlay.Modules
         private PickupKeeper _keeper;
         private BookPages _book;
         private PanelKeeper _panels;
+        private EnemyKeeper _enemies;
         private string _dir;
 
         private bool _busy;
@@ -124,6 +125,7 @@ namespace ForestOverlay.Modules
             _keeper = new PickupKeeper(ctx.Log);
             _book = new BookPages(ctx.Log);
             _panels = new PanelKeeper(ctx.Log);
+            _enemies = new EnemyKeeper(ctx.Log);
             _keeper.Install(OverlayPlugin.PluginGuid);
             _panels.Install(OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
@@ -336,6 +338,8 @@ namespace ForestOverlay.Modules
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
             string areas = AreaReport.Describe();
+            string enemyNote;
+            List<string> enemies = _enemies.Capture(out enemyNote);
             List<string> panels = new List<string>();
             try { _panels.Snapshot(panels); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel snapshot failed: " + ex.Message); }
@@ -348,14 +352,14 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt, areas);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt, areas, enemies, enemyNote);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> panels,
-                                  string cutscene, float cutsceneAt, string areas)
+                                  string cutscene, float cutsceneAt, string areas, List<string> enemies, string enemyNote)
         {
             _busy = false;
             if (!r.Ok)
@@ -382,6 +386,7 @@ namespace ForestOverlay.Modules
                 f.Panels = panels;
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
                 f.Areas = areas;
+                f.Enemies = enemies;
                 f.Data = r.Data;
 
                 if (path == null)
@@ -397,7 +402,8 @@ namespace ForestOverlay.Modules
                               ", " + pickups.Count + " world pickups listed, " + bookNote +
                               ", held " + HeldNames(held) +
                               (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
-                              (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "");
+                              (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "") +
+                              (enemyNote.Length > 0 ? ", " + enemyNote : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
                 SetStatus(line);
@@ -616,7 +622,7 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
-                if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore));
+                if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore, file != null ? file.Enemies : null));
                 if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
                 SetStatus(line);
 
@@ -701,7 +707,7 @@ namespace ForestOverlay.Modules
         // list 2). One log line when it is done.
         private const float EnemyCheckDelay = 6f;
 
-        private IEnumerator AfterInPlace(string what, bool enemies, int familiesBefore)
+        private IEnumerator AfterInPlace(string what, bool enemies, int familiesBefore, List<string> captured)
         {
             yield return new WaitForSecondsRealtime(1.5f);
             string plane = _bridge.ClearOldPlaneHulls();
@@ -721,7 +727,11 @@ namespace ForestOverlay.Modules
                 _bridge.CountEnemies(out cannibals, out families);
                 check += " -> " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies") + " 6 s later";
             }
-            Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check + ".");
+            // Once the families are back: the captured cannibals' places
+            // (fix list 2 - author: "ideally in the same position").
+            string positions = captured != null ? _enemies.Restore(captured) : "";
+            Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
+                            (positions.Length > 0 ? " | " + positions : "") + ".");
         }
 
         private IEnumerator LogAreas(SavestateFile f)
