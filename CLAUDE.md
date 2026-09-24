@@ -462,13 +462,11 @@ updater. **263 tests.**
 ### Pick up here (handoff of 2026-09-24 evening, v0.24.25 downloaded, not yet run)
 
 **State of the author's machine:** v0.24.25 is downloaded into the game
-(`ForestOverlay.dll.pending`, installs on the next launch). **Save slot 4
-is swapped:** it holds runner maks's Megan practice save (Normal, standing
-just short of Megan's trigger; source `C:\Users\deter\Downloads\Slot4`);
-the author's own Peaceful slot 4 is kept as `SinglePlayer\Slot4 BACKUP
-peaceful` (under `%USERPROFILE%\AppData\LocalLow\SKS\TheForest\<steamid>`).
-**Put it back** (delete `Slot4`, rename the backup to `Slot4`) once the
-Megan tests are done - the author agreed to a temporary swap.
+(`ForestOverlay.dll.pending`, installs on the next launch). Runner maks's
+Megan practice save (Normal, standing just short of Megan's trigger) is at
+`C:\Users\deter\Downloads\Slot4`; to test with it, swap it in for a slot
+temporarily (author's permission, 2026-09-24) - the author's slot 4 is
+Peaceful and was put back after this session's swap.
 
 **Next, in order:**
 1. **Test v0.24.24 with the Megan save** (slot 4): load, walk into the
