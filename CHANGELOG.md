@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.9 - 2026-09-24
+
+- Practice list: changing a spot's category to one that already exists
+  now moves it under that heading, instead of making a second heading of
+  the same name at the bottom. Capital letters and stray spaces in a
+  category no longer split it either.
+- The savestate area report (for the lab / red elevator case) now lists
+  the streamed areas; it listed none before.
+
 ## v0.24.8 - 2026-09-24
 
 - Fixed: after restoring a savestate in place, the axe (or any weapon)

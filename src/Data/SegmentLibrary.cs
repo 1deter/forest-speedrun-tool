@@ -186,11 +186,23 @@ namespace ForestOverlay.Data
             return slug.Length == 0 ? "unnamed" : slug;
         }
 
-        private static int Compare(Segment a, Segment b)
+        /// Category, then name, both ignoring case and surrounding spaces -
+        /// the Practice list groups by the same rule (SameCategory).
+        public static int Compare(Segment a, Segment b)
         {
-            int c = string.Compare(a.Category, b.Category, StringComparison.OrdinalIgnoreCase);
+            int c = string.Compare(CategoryKey(a.Category), CategoryKey(b.Category), StringComparison.OrdinalIgnoreCase);
             if (c != 0) return c;
             return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string CategoryKey(string category)
+        {
+            return category == null ? "" : category.Trim();
+        }
+
+        public static bool SameCategory(string a, string b)
+        {
+            return string.Equals(CategoryKey(a), CategoryKey(b), StringComparison.OrdinalIgnoreCase);
         }
 
         public Segment ById(string id)

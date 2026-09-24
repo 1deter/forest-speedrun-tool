@@ -91,8 +91,19 @@ namespace ForestOverlay.Modules
 
         private readonly List<Row> _rows = new List<Row>();
         private readonly List<GUIContent> _rowLabels = new List<GUIContent>();
-        private readonly Dictionary<string, bool> _collapsed = new Dictionary<string, bool>();
+        private readonly Dictionary<string, bool> _collapsed = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         private int _entryCount;
+
+        // The list in display order. The library is sorted only when it
+        // loads, so an entry whose category was edited to an existing one
+        // ("Caves") made a second "Caves" header at the bottom that opened
+        // and closed with the first (author, v0.24.7).
+        private readonly List<Segment> _sorted = new List<Segment>();
+        private static readonly Comparison<Segment> ByCategoryThenName = SegmentLibrary.Compare;
+
+        // A name / category edit regroups the list once typing pauses, not
+        // on every keystroke (the row would jump while being typed).
+        private float _regroupAt = -1f;
 
         // Zone preview.
         private GameObject _previewHost;
@@ -175,6 +186,12 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             UpdatePreview();
+
+            if (_regroupAt > 0f && Time.realtimeSinceStartup >= _regroupAt)
+            {
+                _regroupAt = -1f;
+                RebuildVisible();
+            }
         }
 
         public override void Shutdown()
@@ -189,25 +206,28 @@ namespace ForestOverlay.Modules
             _entryCount = 0;
 
             string f = _filter.Length > 0 ? _filter.ToLowerInvariant() : null;
-            IList<Segment> all = _library.All;
 
-            // The library sorts by category then name, so a single pass
-            // emits a header whenever the category changes.
+            // Sorted here by category then name, so a single pass emits a
+            // header whenever the category changes.
+            _sorted.Clear();
+            _sorted.AddRange(_library.All);
+            _sorted.Sort(ByCategoryThenName);
+
             string current = null;
             bool collapsed = false;
 
-            for (int i = 0; i < all.Count; i++)
+            for (int i = 0; i < _sorted.Count; i++)
             {
-                Segment e = all[i];
+                Segment e = _sorted[i];
 
                 if (f != null &&
                     e.Name.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0 &&
                     e.Category.ToLowerInvariant().IndexOf(f, StringComparison.Ordinal) < 0)
                     continue;
 
-                if (e.Category != current)
+                if (current == null || !SegmentLibrary.SameCategory(e.Category, current))
                 {
-                    current = e.Category;
+                    current = SegmentLibrary.CategoryKey(e.Category);
                     collapsed = IsCollapsed(current);
 
                     Row header;
@@ -263,7 +283,7 @@ namespace ForestOverlay.Modules
             int n = 0;
 
             for (int i = 0; i < all.Count; i++)
-                if (all[i].Category == category) n++;
+                if (SegmentLibrary.SameCategory(all[i].Category, category)) n++;
 
             return n;
         }
@@ -615,8 +635,10 @@ namespace ForestOverlay.Modules
             float y = 4f;
             float cw = content.width;
 
+            string name = s.Name, category = s.Category;
             y = Field(y, cw, "Name", ref s.Name);
             y = Field(y, cw, "Category", ref s.Category);
+            if (s.Name != name || s.Category != category) _regroupAt = Time.realtimeSinceStartup + 0.6f;
             y = Field(y, cw, "Id", ref s.Id);
 
             if (!_library.IsIdAvailable(s.Id, s))

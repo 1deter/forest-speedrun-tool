@@ -44,7 +44,9 @@ namespace ForestOverlay.Game
                 _inOverlook = local.GetProperty("IsInOverlookArea", stat);
             }
 
-            Type scene = GameBridge.FindGameType("Scene");
+            // The full name: a bare "Scene" found nothing (v0.24.4-0.24.8
+            // logged "streamed: (none bound)").
+            Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _loaders = scene.GetField("SceneLoaders", stat);
 
             Type loader = GameBridge.FindGameType("TheForest.World.SceneUnloadInCave");
@@ -66,33 +68,39 @@ namespace ForestOverlay.Game
                   .Append(", endgame ").Append(Flag(_inEndgame))
                   .Append(", overlook ").Append(Flag(_inOverlook));
 
-                sb.Append(" | scenes:");
+                // Sorted: the same set in another load order is the same
+                // state, and the capture / restore lines are compared as text.
+                List<string> scenes = new List<string>();
                 for (int i = 0; i < SceneManager.sceneCount; i++)
                 {
                     UnityEngine.SceneManagement.Scene s = SceneManager.GetSceneAt(i);
-                    sb.Append(i == 0 ? " " : ", ").Append(s.name);
-                    if (!s.isLoaded) sb.Append(" (loading)");
+                    scenes.Add(s.isLoaded ? s.name : s.name + " (loading)");
                 }
+                scenes.Sort(StringComparer.Ordinal);
+                sb.Append(" | scenes: ").Append(string.Join(", ", scenes.ToArray()));
 
                 Array loaders = _loaders != null ? _loaders.GetValue(null) as Array : null;
                 sb.Append(" | streamed:");
                 if (loaders == null) sb.Append(" (none bound)");
                 else
                 {
+                    List<string> streamed = new List<string>();
                     for (int i = 0; i < loaders.Length; i++)
                     {
                         object l = loaders.GetValue(i);
                         UnityEngine.Object alive = l as UnityEngine.Object;
-                        if (alive == null) { sb.Append(i == 0 ? " " : ", ").Append("(destroyed)"); continue; }
+                        if (alive == null) { streamed.Add("(destroyed)"); continue; }
 
                         string name = _sceneName != null ? _sceneName.GetValue(l) as string : null;
                         GameObject root = _root != null ? _root.GetValue(l) as GameObject : null;
                         bool forced = _forced != null && (bool)_forced.GetValue(l);
 
-                        sb.Append(i == 0 ? " " : ", ").Append(string.IsNullOrEmpty(name) ? ((Component)l).name : name)
-                          .Append(root == null ? " unloaded" : (root.activeInHierarchy ? " loaded" : " loaded-inactive"));
-                        if (forced) sb.Append(" (forced unload)");
+                        streamed.Add((string.IsNullOrEmpty(name) ? ((Component)l).name : name) +
+                                     (root == null ? " unloaded" : (root.activeInHierarchy ? " loaded" : " loaded-inactive")) +
+                                     (forced ? " (forced unload)" : ""));
                     }
+                    streamed.Sort(StringComparer.Ordinal);
+                    sb.Append(streamed.Count == 0 ? " (none)" : " " + string.Join(", ", streamed.ToArray()));
                 }
                 return sb.ToString();
             }

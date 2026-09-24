@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.8** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.9** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
@@ -497,12 +497,12 @@ before Next up 5):
    and the breaking was done after a load, which clears the keeper) and
    what the crossed boards are (another breakable, not `BreakWoodSimple`?
    dump a panel's hierarchy).
-6. **Practice list category grouping.** Changing an entry's category to
-   an existing one ("Caves") made a second "Caves" header at the bottom,
-   and both open/close together. `RebuildVisible` assumes the library is
-   sorted by category (a header per change) and nothing re-sorts after a
-   category edit; collapse state is keyed by name. Sort (category, name)
-   in `RebuildVisible` or have `SegmentLibrary` re-sort on edit / save.
+6. ~~**Practice list category grouping**~~ **fixed in v0.24.9** (awaiting
+   a check): `PracticeModule.RebuildVisible` sorts its own copy
+   (`SegmentLibrary.Compare`, now public) and groups with
+   `SegmentLibrary.SameCategory` (ignores case and surrounding spaces;
+   collapse state keyed the same way); a Name / Category edit regroups
+   0.6 s after typing pauses (`_regroupAt`, in `Tick`).
 7. **Run lines and runs outlive their spot.** With practice mode on after
    a timed segment, selecting another spot clears the zones (the preview
    follows the editor's selection) but not the blue reference line (it
@@ -513,11 +513,11 @@ before Next up 5):
    menu" item - now reported again, do it). **Author (2026-09-24):
    selecting a different entry clears the current run's lines** - lines
    show only for the selected entry when it is the current one.
-8. **Area report binds nothing**: `streamed: (none bound)` - `AreaReport`
-   looks up type `"Scene"`, but it is `TheForest.Utils.Scene` (as
-   `SavestateBridge` binds it) - a one-line fix. Also sort the scene names:
-   the same set in another order logged as "differs". The lab / hellcave
-   case itself is **pending on the author** (keep).
+8. ~~**Area report binds nothing**~~ **fixed in v0.24.9**: binds
+   `TheForest.Utils.Scene`, and sorts the scene and streamed names (a file
+   captured before v0.24.9 may still log "differs" once - its `areas` line
+   was unsorted and had no streamed list). The lab / hellcave case itself
+   is **pending on the author** (keep).
 9. **Held-item log is wrong**: `held at capture: Axe Plane (Equip
    refused), Lighter (Equip refused)` while both came back (the game's own
    `OnDeserialized` equips them later than our 0.3 s check). Re-read after
