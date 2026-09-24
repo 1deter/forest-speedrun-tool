@@ -477,7 +477,9 @@ to 1 only in a `held`-tagged state and fades it to 0 towards `idle`, so
 the arm layers stayed at 0. `StashEquipedWeapon(false)` +
 `StashLeftHand()` then `Equip(id, false)` set the flags and the layers
 came back; the Full load does that at its end (`SavestateBridge.
-RefreshHeld`, v0.24.43).
+RefreshHeld`, v0.24.43, confirmed). Author's theory, unproven: the second
+load after the scene load (here the endgame force-load, `EndgameLoader`)
+freezes the arms.
 
 **A Full load drops the player before the endgame is there.** "In game"
 comes before streaming ends, and `ForceLoad` on the endgame trigger goes

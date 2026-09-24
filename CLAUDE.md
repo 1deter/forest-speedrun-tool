@@ -510,21 +510,8 @@ option (the escape hatch for states Quick load has no patch for).
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   d. **Red elevator, Quick load**: found with the bridge - `ElevatorSystem`
-      is not in the save; after a ride the car stayed at the overlook with
-      `_useCount` 1 (limit 1). Resetting both by hand worked (author).
-      v0.24.40 `Game/ElevatorKeeper` (`elevators` header) does it on a
-      Quick load - confirmed (author: ridable again). The hallway's
-      textures came back after a Quick load (bad - author: maks wants them
-      as at capture): the endgame's active area, fixed by v0.24.41
-      `Game/AreaKeeper` (`activearea` header), awaiting a test. Details in
-      game-notes *The red elevator and the endgame areas*. v0.24.41
-      confirmed (hallway invisible again after the Quick load). The Sahara
-      half-load / hell cave visuals maks reported were the overlook flag +
-      area outliving a Go out of the endgame: v0.24.42 clears both on a Go
-      landing outside the sections - confirmed (author). A Full load left
-      the axe / lighter equipped but not usable (animator flags off):
-      v0.24.43 re-equips them at its end - awaiting a test.
+   d. ~~Red elevator~~ done and confirmed (v0.24.40-0.24.43); see
+      *Confirmed in game*.
    e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
@@ -836,7 +823,11 @@ and fast-forwarded (bridge + author, v0.24.35), also straight after a
 load from the title screen (v0.24.37); the fast-forwarded cutscene's
 sounds put in step (log: `music_transformation` moved to 41.7 s; author:
 "sounded perfect", v0.24.36); spears thrown since the capture removed
-(v0.24.36).
+(v0.24.36); the red elevator after a Quick load (car back and ridable,
+the hallway as at capture - `ElevatorKeeper`, `AreaKeeper`), a Go out of
+the endgame after the ride (vault door cave and Sahara outside normal),
+held axe / lighter usable after a Full load (v0.24.40-0.24.43, author
+with the bridge; game-notes *The red elevator and the endgame areas*).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -984,7 +975,7 @@ with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
 attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks)).
+thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)).
 
 ### How a session goes
 
