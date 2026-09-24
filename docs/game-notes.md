@@ -442,7 +442,57 @@ restore now force-loads it when the capture had it (`Game/EndgameLoader`).
 Still open (same runner): after the red elevator an in-place restore leaves
 the elevator at the overlook, half-loads the Sahara and drops the endgame
 cave visuals (areas: `same as at capture`) - the elevator ride's effects
-are scene state, not scenes.
+are scene state, not scenes. `LocalPlayer.IsInOverlookArea` (set by scene
+objects via `SetInOverlookArea`; read every frame by `TheForestAtmosphere`,
+`CullDistanceManager`, `IsInClosedArea`) was once left `yes` after an
+in-place restore and is cleared since v0.24.26, but a later runner log had
+it `no` with the elevator still broken - not the cause.
+
+**A Full load drops the player before the endgame is there.** "In game"
+comes before streaming ends, and `ForceLoad` on the endgame trigger goes
+through its 0.5 s `_loadDelay`, so right after it nothing is loading yet.
+The player is held at the captured spot until every scene loaded at
+capture is loaded again (v0.24.28; confirmed by the runner).
+
+## Placed pickups across a load (bridge, 2026-09-24)
+
+Placed world pickups (`PickUps/Cash (n)`, `WorldStorySpots/.../Tape_Roll`)
+are not in the save: every load re-creates them, so cash taken before a
+capture came back after a Full load. Pooled greeble pickups
+(`Pooling/Pool_Greebles/Cash(Clone)00n`) did not. Since v0.24.27 a Full
+load removes placed pickups the capture's list lacks, in scenes loaded at
+capture, never `(Clone)`s. Cave 5's first coin pile by the drop still came
+back (runner) - probably activated after the one removal pass.
+
+## The weapon across a cutscene (IL, v0.24.28)
+
+Megan's transformation (`doGirlTransformRoutine`) calls
+`PlayerInventory.HideAllEquiped` at its start - `MemorizeItem(slot)`
+copies each held item into `_equipmentSlotsPrevious` and unequips - and
+`ShowAllEquiped` at its end, which runs `EquipPreviousWeapon` /
+`EquipPreviousUtility` from that memory. The memory is not in the save; a
+savestate records it (`heldbefore`, "slot:itemId") and writes it back
+during the replayed cutscene (confirmed: the spear comes back).
+
+## The player's animator (bridge `anim watch`, 2026-09-24)
+
+`LocalPlayer.Animator`, 6 layers: `Base Layer`, `upperBody` (arms),
+`fullBodyActions`, `leftArm`, `spineAddititve2`, `ClientPredictionLayer`.
+`playerAnimatorControl.Start` hashes state **tags** `idling`, `held` (the
+armed idle), `attacking`, `smash`, `block`. Plane axe: arms rest in
+`stickIdle` (`held`, 1388274476); a swing is the arms layer
+(`stickHeavyAttackWindup` / `stickHeavyAttack` / `swingLeftReturn` /
+`swingRight`; bools `stickAttack`, `chargingBool`, `doAttackHeavyBool`,
+int `hitDirection`); the downward smash is the full-body layer alone at
+weight 1 (`axeAttackGround1`, tag hash -1474250830, bool `smashBool`) with
+the arms still `held`; at rest the full-body layer sits in `stickIdle`
+(-721604655) at weight 0. `playerAnimatorControl.resetAnimator` fires
+`resetTrigger` (also used by `PlayerStats.WakeFromKnockOut`): it sends
+the arms and full-body layers to their UNARMED idles with the full-body
+layer still at weight 1 - a frame of the unarmed pose under the swing's
+camera (you look into the neck) - and it stays set when nothing consumes
+it (at rest), so it would cut the next swing. `Game/AnimReset` blends
+back to the learned armed rest instead.
 
 ## Savestates during an endgame cutscene (v0.24.3)
 

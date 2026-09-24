@@ -99,7 +99,7 @@ Where things live:
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
-| Quick-load / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
+| Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
@@ -542,15 +542,7 @@ option (the escape hatch for states Quick load has no patch for).
 4. Auto-restart: better display of the flashed time (maks); then the
    **Fix list** (trees first).
 
-**maks, confirmed on v0.24.25-v0.24.29:** cave panels straightened,
-mid-air restore, the lighter, the book page, auto-restart, the Practice
-list, the keycard checkpoint in order, Megan held until she exists +
-frozen while held + fast-forward, the spear after a Full load mid-Megan
-(`heldbefore`), the endgame area after a Full load, the lab floor after
-a Full load (held at the captured spot until the captured scenes load),
-the red elevator put back by a Full load, cannibals back after a Full
-load (also bridge: 14 of 14), pickups taken before a capture removed
-after a Full load (bridge: plane cash + tape; not yet cave 5).
+(Everything confirmed so far is in *Confirmed in game* below.)
 **Bridge tools confirmed:** `mark` (beacon through walls), `shot`,
 `anim` / `anim watch` (background).
 
@@ -561,11 +553,11 @@ two-to-three-male regular family at spawner (522.9, 56.74, -10.7)),
 `capture test-vX`; the author kills and walks off; `restore test-vX`,
 then `find "_male(Clone)" 40`, the after-restore log line, and the FSM
 states (`get #<_BASE> PlayMakerFSM[1|2].ActiveStateName`). **Updates
-through the bridge:** `type OverlayPlugin all` (the plugin is `#-88`
-`BepInEx_Manager`), `call #-88 OverlayPlugin._host._modules[1]._checker.Check`,
-then `..._checker.Download "<plugin path>"` once `Message` says available
-(the API lags the asset by a minute or two); the author restarts.
-The plugin's handle changes each launch - `type OverlayPlugin all` first.
+through the bridge:** `type OverlayPlugin all` gives the plugin's handle
+(`BepInEx_Manager`, often `#-88` - it can change per launch), then
+`call #<h> OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
+`..._checker.Download "<plugin path>"`, `wait 10`, `get ..._checker.Message`
+("downloaded - restart"); the author restarts.
 **Bridge habits (2026-09-24):** point the author at things with `mark`
 (never compass directions); look with `shot <name>` and Read the png in
 `BepInEx/config/ForestOverlay/bridge/`; `anim watch N` runs in the
@@ -578,166 +570,59 @@ The author is on high effort for this work; say when medium is enough
 again (memory `effort-level-switching`). The bridge made this session's
 fixes fast: prefer a live read over an IL theory (gotcha 25).
 
-**Enemies after an in-place restore - where it stands** (fix list 2;
-game-notes *Seen live through the test bridge*, *Cannibal kinds and
-families*, *Putting cannibals back*):
-- **Confirmed:** bodies removed (v0.24.15), blood washed (v0.24.14), one
-  plane wreck (v0.24.14), the families' setup re-run so enemies exist at
-  all (v0.24.15); captured families rebuilt at their spawners with the
-  right kind - "looked like the large family type" (author, v0.24.17);
-  every captured cannibal placed to the cm with its health, no duplicate
-  spawn (v0.24.18); **sleepers come back asleep on their spot and wake and
-  fight when approached** (author, v0.24.22 - "walked around for a sec,
-  then went into sleep mode"). v0.24.20 puts a cannibal captured in the
-  air (the game stacks them, or captured at the spawner's height before
-  dropping) on the ground under it; v0.24.21 clears the pooled
-  `sleepBlocker` and marks sleeper families `sleepingSpawn`; v0.24.22
-  calls `initWakeUp` at placement and sets sleepers back on their spot
-  after the game's own call (game-notes *Who decides sleep*). Polish left:
-  the ~1.5 s awake between spawn and placement.
-- **How:** capture writes `families` (`FamilyRecord`: spawner position,
-  kind lists, every Int32/Boolean/Single `spawnMutants` setting) and
-  `enemies` (`EnemyRecord`: family, kind `<prefab>/<storeMutantType>[/s][/p][/L]`,
-  position, yaw, health, `/s` asleep). ~1.5 s after an in-place restore on
-  the surface `EnemyKeeper.Rebuild` runs the game's `startSetupFamilies`,
-  builds each captured family (`Instantiate(spawnGo)`, settings, kind list
-  + counters, `invokeSpawn` - whose first `checkSpawn` spawns it -
-  `addToWorldSpawns`), 1.5 s later places members by kind with
-  `fixMutantPosition`, despawns extras, and 1.2 s later puts the sleepers
-  back to sleep (v0.24.22: `initWakeUp` at placement, set back on the spot
-  4.5 s later; `switchToSleep` only for one still awake). v0.24.16 files (no
-  `families`) fall back to a by-`enemyType` move; cave captures still use
-  the old path (setup re-run + by-type move).
-- **Open:** does `updateSpawns` add a random family when the captured
-  count is below its target (watch `roots mutantSpawner` a minute after)?
-  weapons (clubs / sticks) are whatever the spawn gives - record the
-  prop if the author wants it; cave captures; load restores; the AI state
-  beyond asleep (awake ones come back searching).
-
-**Confirmed working (author, v0.24.11):** hits after an in-place restore
-(`kept 18 held-item object(s)`; chopping bushes / trees works); the book
-page, in place and with a load; quitting to the title screen clears the
-run line; auto-restart and ordered checkpoints in real runs; the
-held-item log (`re-equipped by the game`).
+**Enemies across a restore** (game-notes *Cannibal kinds and families*,
+*Putting cannibals back*, *Who decides sleep*): capture writes `families`
+(`FamilyRecord`) and `enemies` (`EnemyRecord`); after a Quick load on the
+surface, and since v0.24.27 after a Full load, `EnemyKeeper.Rebuild` runs
+the game's `startSetupFamilies`, builds each captured family, places every
+member by kind with its health and puts sleepers back to sleep on their
+spot (all confirmed). Open: cave captures (still the old by-type move -
+maks: `0 of 5 placed`); does `updateSpawns` top up a random family when
+below target; weapons are whatever the spawn gives; awake ones come back
+searching; the ~1.5 s awake before placement; the Full load delay
+(*Pick up here* 2c).
 
 **Decided (author, 2026-09-24):** in a Creative game with "Allow enemies"
-off, **respect the game's state** - the runner chose that save; do not
-spawn cave or world enemies there (as v0.24.10 does).
+off (or Peaceful), **respect the game's state** - no cave or world enemies
+are spawned there.
 
 **Fix list, in order** (before Next up 5):
-
-1. **In-place restore leaves chopped trees and bushes** (author): a
-   chopped tree stays a stump, its logs and the sticks from a cut stick
-   bush stay on the ground (`Log x5`, `Stick x3` in the "not at capture"
-   line), the bush does not come back. A load restores all of it; coins /
-   cash pickups respawn fine in place. Tree state is outside `LoadNow`'s
-   reach for a full-level save - start from what the save holds:
-   `MassDestructionSaveManager` (`mass_v016` in the savestate data),
+1. **Quick load leaves chopped trees and bushes** (author): a chopped tree
+   stays a stump, its logs / a cut stick bush's sticks stay on the ground,
+   the bush does not come back; a Full load restores all of it. Tree state
+   is outside `LoadNow`'s reach for a full-level save - start from what
+   the save holds: `MassDestructionSaveManager` (`mass_v016`),
    `GlobalDataSaver`, `TreeHealth` / the LOD tree grid (`TreeLodGrid`,
-   `LOD_Trees`, `CutDown`), and what their `OnDeserialized` does on a load
-   vs in place (`ilscan body`, gotcha 17). Logs / sticks lying about could
-   go the way of limbs (`PickupKeeper.RemoveNew` by item) once the trees
-   come back - not before, or a route loses logs it cut before capture.
-2. **Enemies do not come back in place in a Normal game** (author).
-   **Found live (bridge):** worse - the restore's family setup dies
-   partway and leaves **no cannibal anywhere** for minutes; v0.24.14
-   re-runs it (confirmed). Still open: the captured positions
-   (below). The bridge showed what to record: `activeCannibals`, each one's
-   `enemyType.Type`, `EnemyHealth.Health`, `mutantTypeSetup.spawner` and
-   that spawner's `spawnMutants` settings. Old notes: the
-   restore logs `enemies: families restarted by the game (leaving the cave
-   state)` (the surface `NotInACave` -> `startSetupFamilies`), and the
-   v0.24.12 log shows families spawning after some restores
-   (`mutant_male(Clone)0010 ... mutant_female(Clone)0011`, 8-12 of them,
-   plus `mutantSpawner(Clone) x6`), yet the killed ones do not come back
-   where they were; a load brings them back. **Author (2026-09-24):
-   enemies should respawn, ideally in the same position and state as at
-   capture** ("I know that's difficult"). So: record each live cannibal
-   at capture (prefab / type, position, rotation, family / spawner, health,
-   AI state if cheap) into a new header line (outside the start-state
-   hash), and after an in-place restore despawn what is there and spawn
-   those - read how `mutantSpawnManager` / `spawnMutants` / the family
-   setup instantiate one (`SpawnMutantsSerializerManager` is in the save:
-   read what it stores and whether a load uses it for positions). Use the
-   test bridge to list live `mutant_*` objects and their components first.
-3. **Bodies stay** - **fixed and confirmed (v0.24.15)**
-   (`*_Dummy(Clone)` roots without a save id; bridge-confirmed shape in
-   game-notes). Old notes (author, v0.24.12: limbs are cleared, bodies not).
-   **Found (v0.24.12 log):** a dead body is a scene-root
-   **`mutant_male_Dummy(Clone)`** (x1, then x2 over restores - they pile
-   up; expect `mutant_female_Dummy(Clone)` etc. too). v0.24.10's
-   ragdoll-clone rule (`clsragdollify.vargamragdoll` names) removed 0.
-   Next: confirm with the bridge what component a Dummy carries (the
-   `*Dummy*` types, e.g. `CoopMutantDummy` is multiplayer - find the SP
-   one) and destroy root objects named `*_Dummy(Clone)` without a save id
-   after an in-place restore (in `ClearCorpses`). Other roots in that
-   line are the game's managers (`_mutantSetup`, `DeadSpots`,
-   `cannibalVillages`, `mutantWorldPosition`) - never touch those.
-   Limbs / heads: **confirmed cleared** (`removed 2 limb / head
-   pickup(s)`).
-4. **An extra `Axe Plane`** - **fixed and confirmed (v0.24.14)**: each in-place restore added another plane wreck
-   (`Hull(Clone)`, game-notes *The plane wreck*). Old notes: The "not
-   at capture" line counted `Axe Plane x2, x3, x4, x5` over consecutive
-   restores (back to x2 after a load). Something drops or spawns a plane
-   axe pickup per restore - `StashHands` / the game's re-equip, or the
-   serializer bringing back a pickup. Find those objects (position vs the
-   player) before they pile up.
-5. **Blood on the player** - **fixed and confirmed (v0.24.14)**:
-   the game's wash `PlayerStats.GotCleanReal()` after every in-place
-   restore (confirmed by hand through the bridge). Old notes (author,
-   2026-09-24): blood from killing cannibals remains on the player's
-   body / arms. Not the `BleedBehavior` screen overlay (Deaths tab) - the
-   player model's bloodiness; find what sets it (`ilscan` for the player's
-   blood / "bloody" material or property block, e.g. `PlayerStats` blood
-   amount, a `BloodyPlayer`-like component, a wash in water) and reset it
-   after an in-place restore the way washing does.
-6. **Phantom stick** (author, once, during practice runs after in-place
-   restores): picked up a stick, it vanished, nothing in the inventory, no
-   "picked up" text. Suspects: a `PickupKeeper` copy (disabled instead of
-   destroyed, then re-enabled) or a greeble instance despawned by the
-   streaming reload under the hand. Watch for it; the stick oddity in
-   *Awaiting* is probably the same.
-7. **Pickups move** (old fix 4): the "not at capture" lines show few
-   sticks / rocks (`Stick x3`, `Rock x1`) - most of the list is logs,
-   cloth, boards and plane axes. Re-test after 1 and 4; greeble IL notes
-   are in game-notes *Greebles* (positions are seeded; type pick depends
+   `LOD_Trees`, `CutDown`), and their `OnDeserialized` on a load vs in
+   place (`ilscan body`, gotcha 17). Logs / sticks lying about could go
+   the way of limbs (`PickupKeeper.RemoveNew` by item) once the trees come
+   back - not before, or a route loses logs it cut before capture.
+2. **Phantom stick** (author, once, after Quick loads): a picked-up stick
+   vanished, nothing in the inventory. Suspects: a `PickupKeeper` copy
+   re-enabled, or a greeble despawned by the streaming reload. Watch for
+   it (same as the stick oddity in *Awaiting*).
+3. **Pickups move**: the "not at capture" lines show a few sticks / rocks;
+   greeble notes in game-notes *Greebles* (positions seeded; type depends
    on regrowth time).
-8. **Cave panels** (old fix 5): no `nearest cave panel` line yet - it
-   needs a capture within 30 m of a panel, a few hits, an in-place
-   restore.
 
-Shipped in v0.24.12, **confirmed (author)**: a restart voids the running
-timer at once (`OnRestartStarting`; log `Run '<id>': aborted -
-restarting the spot.`); limb / head removal; the body-candidates line;
-the title screen no longer runs the nature guide's object scan every 5 s
-(it logged `Slow tick: 'collectibles'` ~12 ms there).
-
-**Live testing through the running game** - **built in v0.24.13**
-(author approved 2026-09-24; design as proposed: a file bridge,
-practice-only, off by default, one log line per command, plain-text
-replies, every command guarded).
-
-**Then, still Next up 3, before Next up 5** (author, 2026-09-24):
+**Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
 - **Stats-only start state** (runner): a spot option restoring only thirst,
-  hunger, stamina, energy (and health?) - an instant revive with no
-  restore freeze. Author: "get them done before 5".
-- **Time of day without cycling through the night**: the author thinks
-  the cycle is the game's own resync after a load; try only if a clean
-  way exists (read what sets the time after `LoadNow` / a load).
+  hunger, stamina, energy (and health?) - an instant revive, no restore
+  freeze.
+- **Time of day without cycling through the night**: probably the game's
+  own resync after a load; only if a clean way exists.
 - **Sharing** - author: "whichever you think fits best with my future
-  website" (it will visualise runs, character info etc.); "we'll refactor
-  if I don't like it". Design it as the website's export format: one
-  self-describing file per segment (segment definition + its start state
-  `.fosave` + optionally its attempts with samples), plain text / JSON-like
-  so a web page can read it; Export and Import buttons in the Practice
-  editor; import never overwrites an existing id silently.
+  website"; "we'll refactor if I don't like it". The website's export
+  format: one self-describing file per segment (definition + its start
+  state `.fosave` + optionally its attempts with samples), plain text /
+  JSON-like; Export / Import in the Practice editor; import never
+  overwrites an existing id silently.
 
-**Still awaiting an in-game check** (old list): renamed-plugin updates
-(v0.23.7) - a runner on an older build under another name must rename
-once.
+**Still awaiting an in-game check** (old): renamed-plugin updates
+(v0.23.7) - a runner on an older build under another name must rename once.
 
 Then continue with **Next up**, in order. The author wants Next up finished
-before QoL/UX work; the runner feedback below is deferred unless critical
+before QoL/UX work; the deferred runner feedback waits unless critical
 (judge it, and say so).
 
 ### What works
@@ -795,12 +680,13 @@ scanner.
      death"; a load-mode state = a full load per death);
   2. practice mode on + a current spot → **revive** at the spot (health
      100, blood cleared, no reload, marks practice);
-  3. otherwise **quick-load** (toggle, on) — every death, the first-death
+  3. otherwise **Reload save on death** (was "quick-load"; toggle, on;
+     config keys still `QuickLoad*`) — every death, the first-death
      capture and the boss-fight wake-up each with their own toggle (both on;
      the boss toggle is the author's call). Never permadeath or multiplayer.
-  Quick-load **skips the title screen** by default (`QuickLoadSkipMenu`,
+  The reload **skips the title screen** by default (`QuickLoadSkipMenu`,
   author: "faster load with no compromise") via `LevelSerializer.Resume()`,
-  falling back to the menu path. The author rules quick-load **allowed in
+  falling back to the menu path. The author rules it **allowed in
   normal runs**: it is the game's own load of the same save.
   A revive from a fatal hard landing cancels the landing's aftermath (a
   postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
@@ -809,7 +695,7 @@ scanner.
   (`LevelSerializer.SerializeLevel`) written to
   `config/ForestOverlay/savestates/*.fosave` — never a save slot or Steam
   Cloud. Capture mirrors the game's save routine. Two restores:
-  - **in place** (~0.15 s on a fresh heap, no load): `LoadNow`, plus what
+  - **Quick load** = in place (~0.15 s on a fresh heap, no load): `LoadNow`, plus what
     `LoadNow` does not do for a full-level save — delete objects not in the
     save (walls built since; **never weapon-upgrade receivers**, v0.22.7),
     clear their build-mission HUD line, stash held items — and
@@ -817,8 +703,13 @@ scanner.
     **cave state is sent outright from the file's `cave` flag**
     (`GameBridge.ForceCaveState`): the serializer restores the flag without
     its effects.
-  - **with a load** (~5 s): `LoadSavedLevel` — the second half of the
-    game's own load. Full reset, proven.
+  - **Full load** = with a scene load (~5-15 s): `LoadSavedLevel` — the
+    second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
+    player is held at the captured spot until every scene loaded at
+    capture is back, the endgame area is force-loaded if the capture had
+    it, placed pickups taken before the capture are removed, the captured
+    cannibal families are rebuilt, and a cutscene capture is
+    fast-forwarded with the held weapon's memory put back (`heldbefore`).
   **From another save** (sharing): every game gives its objects its own
   `UniqueIdentifier` ids, so an in-place restore first **adopts** the saved
   ids — every live identifier the save lacks takes the id of the saved
@@ -927,59 +818,28 @@ current items are in *Pick up here*):
 
 ### Open threads
 
-- **A renamed plugin never updated** *(runner)* - fixed in v0.23.7 for
-  every install from v0.23.7 on. A runner still on an older version under
-  another name (`ForestOverlay(1).dll`) must rename it to
-  `ForestOverlay.dll` once, game closed; tell them if they report being
-  offered the same update every launch.
-- **Spots stop switching** *(runner maks, seen ~3 times)* - **fixed in
-  v0.23.8**, confirmed (maks). The Practice
-  tab stays stuck on one spot ("logboosts") and clicking another does
-  nothing, until a new spot is created and deleted. A core-flow bug, not
-  QoL. Almost certainly the **unsaved-changes guard**
-  (`PracticeModule.DrawList`: with `_dirty` set, a row click only sets
-  `_status = "Unsaved changes - Save or Reload first."`). The message is
-  easy to miss at the top and does not change on a second click, so it
-  looks like nothing happens; *Delete* writes the file and clears
-  `_dirty`, hence the workaround. Anything that calls `Touch()` sets it -
-  a slider nudged, *Restore with a load* ticked. Suspect too: slider
-  defaults (`SphereFields` / `BoxFields` show 3 m / DefaultRadius for a
-  zero size and write it back, so merely *viewing* such a zone dirties
-  it). Fix (v0.23.8, author approved): selecting always works (edits
-  stay in memory on the `Segment`); `_unsaved` lists edited entries, the
-  row says "(unsaved)", the button "Save (n)", and Save writes every
-  unsaved entry (refusing, with the entry selected, if one is invalid);
-  leaving an unsaved entry says so in the status line. Every write goes
-  through `WriteFile`, which clears that file's entries. Sliders write
-  only when dragged. Log: `Practice: selected '<id>'[, '<id>' left
-  unsaved] (n unsaved).` and `Practice: saved n unsaved entries to ...`. Selection is
-  not logged, so maks's log (v0.23.1) could not show it; the author
-  recalls maks often forgot to save, which fits.
-- **Game stopped responding** (runner, v0.22.6, third log of 2026-09-23):
-  about 30 in-place restores of a sinkhole start state, each after a fall
-  death + revive, then the first **load** restore started **from a death**
-  (`Restart ... with a load` right after `Death: revived from a fall`), and
-  the log ends. Every earlier load restore in these logs came from F7, not a
-  death. Unknown whether it is the death path or the degraded session (a
-  leaked heap). Needs the Unity log (`TheForest_Data/output_log.txt`,
-  replaced each launch) if it recurs.
-- **Another runner's slowdown with ghost lines / recording.** Not reproducible
-  on the author's machine (4080 Super / 7800X3D). Read that runner's
-  `Perf (30 s):` lines before changing anything - and note the load leak
-  (fixed in v0.23.5) slowed everything on long sessions.
-- **Background performance (maks).** Waiting on maks's `LogOutput.log`; read
-  `Perf (30 s):` and `Slow tick:` first.
-- **Author's own perf:** overlay tick ≤ 0.02 ms, GC 0–1 per 30 s in play.
-  One-off `Slow tick:` lines for `collectibles` / `inventory` (15–100 ms)
-  while the player binds during a load, and `deaths` (~150–490 ms) while a
-  quick-load or load restore starts, are the load itself — left alone.
+- **A renamed plugin** (`ForestOverlay(1).dll`) on a version older than
+  v0.23.7 never updates - the runner renames it to `ForestOverlay.dll`
+  once, game closed.
+- **Game stopped responding** (runner, v0.22.6): ~30 in-place restores of
+  a sinkhole start state after fall deaths, then the first **load**
+  restore started **from a death**, and the log ends. Death path or a
+  degraded (leaked) session - unknown. Needs the Unity log
+  (`TheForest_Data/output_log.txt`, replaced each launch) if it recurs.
+- **Performance reports**: another runner's slowdown with ghost lines /
+  recording (not reproducible here, 4080 Super / 7800X3D), maks's
+  background performance - read their `Perf (30 s):` / `Slow tick:` lines
+  before changing anything. Author's own: overlay tick <= 0.02 ms, GC 0-1
+  per 30 s; one-off `Slow tick:` lines for `collectibles` / `inventory`
+  (15-100 ms) while the player binds during a load, and `deaths` /
+  `savestates` (~100-490 ms) while a load starts, are the load itself -
+  left alone.
 - **Nature guide page names are unverified** (`Data/PageGrouping.cs`); maks
   should send a `natureguide_*.txt` from the 100% tab's **Write dumps**.
 - **Installs older than v0.16.2 cannot download updates**; older than
   v0.19.2 can hit the post-release 404 (click Download again later).
-- `gh` is not installed on this machine: release pages cannot be edited from
-  here (v0.22.7's page has only GitHub's generated notes). CI writes every
-  later release's notes from `CHANGELOG.md`.
+- `gh` is not installed on this machine: release pages cannot be edited
+  from here. CI writes every release's notes from `CHANGELOG.md`.
 
 ### Next up
 
@@ -989,259 +849,99 @@ author. This is all dev/alpha: nothing is used in real runs until the admins
 rule, and a few runners act as QA. The author: "work through the current
 list so we can move onto expanding more features".
 
-1. ~~Finish the load leak~~ **done** (v0.23.3-0.23.6). Left: in-place
-   restore timing on a fixed heap (Pick up here 4).
-2. ~~Updater: any plugin file name~~ **done** (v0.23.7). Left: the in-game
-   check at the next release (Pick up here 2).
-3. **Savestates, remaining** (with the runner feedback that belongs here):
-   - ~~**Falling state carries over**~~ **done** (v0.23.9, confirmed; was awaiting a
-     check) *(runner)*: restoring while in mid-air kept the fall and dealt
-     landing damage. `GameBridge.EndFall` (before and after every in-place
-     restore, and after every teleport) zeroes the body's velocity and
-     `FirstPersonCharacter.prevVelocity` / `prevVelocityXZ` /
-     `jumpingTimer`; the game's own `HandleLanded` then lands softly
-     (damage needs `prevVelocity > 28` and air time `> 0.75 s`; game-notes
-     *Deaths*). Log: `... | fall ended (x s in the air, y m/s)` on the
-     restore line, or on `Teleport to '<name>': ...`.
-   - ~~**The survival book's page**~~ **done** (v0.24.0, confirmed)
-     *(runner)*: an in-place restore did not keep the page, a load restore
-     reset it. **Author's call (2026-09-23): a savestate keeps the page it
-     was captured on, in place or with a load; a quick-load keeps the
-     game's default.** The page is which page objects are active
-     (game-notes *The open page*): `Game/BookPages` captures it into the
-     file's `book` header (`Data/BookPageState`, tested; not part of the
-     start-state hash) and applies it after an in-place restore and once in
-     game after a load (`AfterLoad`). Log: `..., book: showing 'x' (of n)`
-     on capture; `| book: showing 'x' (of n) (k page object(s) switched)`
-     on an in-place restore; `Savestate after the load: book: ...`.
-     Files from before v0.24.0 leave the book as it is.
-   - **Lab + hellcave not restored, even with a load** *(runner)* -
-     **2026-09-24: the load half is fixed in v0.24.25 (confirmed by the
-     runner), the red-elevator in-place half is open; see *Pick up here*.**
-     Old notes: after the
-     red elevator loaded the overlook area, the last lab section (collision
-     loaded, invisible) must stay as it was at capture - runners do it
-     "blind". Streaming / area state outside the serializer. **v0.24.4
-     ships the diagnostic first (gotcha 25):** IL cannot show which object
-     holds it - `LocalPlayer.SetInOverlookArea` has no code callers (scene
-     objects / PlayMaker), no C# loader names the lab. `Game/AreaReport`
-     logs `Savestate areas at capture: caves / endgame / overlook | scenes:
-     ... | streamed: <each Scene.SceneLoaders entry> loaded / unloaded /
-     loaded-inactive` and, 2 s after every restore, `Savestate areas after
-     the restore: <now> || at capture: <then>` (stored as the `areas`
-     header). **Next step: get that log from the runner's case**, then
-     restore what differs. If scenes and loaders match but the lab still
-     differs, the state lives in scene objects: dump the lab's active
-     GameObjects / colliders at capture and after (F11 or a new report).
-     Note: capture is refused inside the overlook area (the game's own
-     save rule, `SavestateBridge`).
-   - ~~**In-place restore does not revive killed enemies**~~ **done**
-     (v0.24.5, confirmed and since replaced by the captured-family rebuild; game-notes *Enemies across an in-place
-     restore*) (author). After every in-place restore the game's own enemy
-     restart runs (`mutantController.restartEnemiesFromPauseMenu` ->
-     `setupFamilies`), switch `Savestates.RespawnEnemiesInPlace` (on,
-     checkbox in the Savestates tab). Enemies come back where the game
-     spawns them, as after a load - **not the captured positions**; if a
-     route needs those, the next step is recording each cannibal's
-     position/type at capture and placing the respawns. Log: `| enemies:
-     respawned (the game's enemy restart)` on the restore line.
-   - ~~**The lighter is put away by an in-place restore**~~ **done**
-     (v0.24.1, confirmed; game-notes *Held items across an in-place
-     restore*) *(runner maks)*:
-     captured with the lighter out and lit, every in-place restore leaves
-     it away, so it has to be taken out again each reset (cave 6,
-     sinkhole; load restores are fine). **Our own doing:** the restore
-     calls `StashHands()` -> `PlayerInventory.StashLeftHand()`
-     (`SavestateBridge`), and the lighter is a left-hand item. Record what
-     each hand held at capture and re-equip it after the restore (lit if
-     it was lit). The harmless **"CANNOT CARRY ANY MORE LIGHTERS"**
-     message (author) is probably the same path - `LogControler` has
-     `_lighterItemId` and an `OnDeserialized` routine; check its IL too.
-   - ~~**A savestate taken during the Megan cutscene**~~ **done**
-     (v0.24.3, confirmed for a Full load; Quick load open - *Pick up here*; game-notes *Savestates during an endgame
-     cutscene*: the capture notes the cutscene and game seconds into it,
-     the restore fast-forwards its replay there) *(runner maks)*:
-     capturing while Megan transforms into the boss and restoring (in
-     place or with a load) starts the cutscene over from its beginning;
-     cutscene progress is outside the serializer. Maks practises the boss
-     kill from the exact spot the player stands up, in a tight window, and
-     wants the **last 2-3 s of the cutscene** kept as a reference point,
-     "always same variables". Do not refuse the capture (author). Aim:
-     restore to the captured moment. Approach to check in IL first: note
-     how far into the cutscene the capture was (its clock / animator
-     normalized time), restore as now (cutscene from the start), then
-     **fast-forward** it to that point (the game's own time scale flag -
-     gotcha 1 - or the animators' speed) and return to normal speed a few
-     seconds early. Replaying the game's own script keeps it identical
-     every time; resuming a coroutine mid-way is not possible.
-   - ~~**Cave panels keep their damage**~~ **done** (v0.24.2, confirmed; was awaiting a
-     check; game-notes *Cave wooden panels*) *(runner maks)*: the wooden
-     panels in caves (`BreakWoodSimple.Health`) lose health with every axe
-     clip and eventually break; an in-place restore did not put it back.
-     `Game/PanelKeeper` writes every panel's health to the `panels`
-     header, sets it back after both restores, and (armed, in place) keeps
-     a copy of a panel before it breaks and puts it back. Log: `..., n
-     cave panels` on capture; `| panels: n healed, m rebuilt[, k broken
-     and not kept]` on the restore line; `PanelKeeper: panel <pos> broke;
-     kept for a restore`.
-   - **Sharing**: nothing bundles a segment file with its `.fosave` yet.
-   - Optional *(runner)*: time of day restored without cycling through the
-     night; a **stats-only start state** (thirst, hunger, stamina, energy -
-     an instant revive with no restore freeze).
-   - Author's idea, still open: reload the slot **in place** on death (the
-     Savestates tab's *Reload slot save in place* does exactly that).
-4. **Practice QoL the runners asked for** (author, 2026-09-23):
-   - ~~**Auto-restart at the end of a timed spot**~~ **done** (v0.24.6,
-     confirmed: `Runs.AutoRestartAtEnd`, off; checkbox on its own
-     line in the Runs tab; `FinishRun` shows the time as a 1.2 s notice and
-     `ReturnToSpot` runs 0.4 s later unless the run was aborted, the spot
-     changed or a new run started; log `Run '<id>': finished in m:ss` and
-     `Run '<id>': auto-restart.`) *(runner maks)*: a
-     tickable option; the moment the end condition fires, the time shows
-     briefly (~0.4 s, "like those games") and the spot restarts at once,
-     exactly as F7 would (start state if it has one). The attempt is saved
-     first, like any finished run. **One global setting** (author), and
-     it acts for load-mode start states too (~5 s) - runners untick it if
-     they do not want that (author).
-   - ~~**No blood** and **no stagger** toggles~~ **done** (v0.24.7,
-     confirmed: `Deaths.NoBlood` / `Deaths.NoStagger`, off,
-     checkboxes in the Deaths tab; no blood clears `BleedBehavior` every
-     tick; no stagger reuses the fall revive's cancel in the
-     `HandleLanded` postfix whenever `jumpLand` went false -> true in that
-     call (the hard-landing branch); log `No stagger: hard landing
-     cancelled.`, `Deaths: practice toggles on - ...`) (author): *no blood* keeps
-     the blood overlay cleared all the time while ticked (`BleedBehavior`,
-     game-notes *Deaths*); *no stagger* skips the hard-landing stagger and
-     its animations (what the fall revive already undoes in
-     `HandleLanded`). Each on its own, off by default, practice-only;
-     survival keeps its own feel. **This is also the answer for Creative**,
-     where the player never dies: there is no "death" to detect there, so
-     the toggles do it instead (author). The death revive keeps doing both
-     on death, as now.
+1-2. ~~The load leak, updates under any file name~~ done (v0.23.3-0.23.7).
+3. **Savestates, remaining** - *Pick up here* holds the current work
+   (Megan Quick load, cave coins, the Full load enemy delay, the red
+   elevator in place, the Quick / Full toggle, Megan's music), then the
+   Fix list and *Then, before Next up 5* above (stats-only start state,
+   time of day, sharing). Author's idea, still open: reload the slot **in
+   place** on death (the Savestates tab's *Quick load the slot's save*
+   does exactly that). Done and confirmed (details in game-notes): fall
+   carried over, the book page, the endgame area / lab floor after a Full
+   load, enemies, the lighter / held items, the Megan cutscene moment
+   (Full load), cave panels.
+4. ~~Practice QoL~~ done and confirmed: auto-restart at the end of a timed
+   spot (`Runs.AutoRestartAtEnd`, one global setting, load-mode start
+   states too - author), no blood / no stagger (`Deaths.NoBlood` /
+   `Deaths.NoStagger`, off, practice-only - also the answer for Creative,
+   where nobody dies). Left: the flashed time's display (maks).
 5. **Performance: can patches make the game itself faster?** (author,
-   2026-09-23, after the leak fix). The leak hunt showed the game doing
-   avoidable work - dead subscribers were called on every publish, worker
-   threads never ended - so there may be more. Measure first, change
-   second:
-   - **Baseline**: the `Perf (30 s):` line (fps, worst frame, frames over
-     50 ms, GC count, heap KB/s). The author's v0.23.4 log at idle: ~175
-     fps, **heap +1091 KB/s** with the overlay at +5 KB/s - the game
-     allocates ~1 MB/s, and Unity 5.6's Boehm GC is non-generational, so
-     every collection walks the whole heap (why a leaked heap made
-     everything slower). GC count and worst frame are the numbers to move.
-   - **Find hot spots offline**: `ilscan` over `Update` / `LateUpdate` /
-     `FixedUpdate` / `OnGUI` bodies for per-frame `FindObjectsOfType`,
+   2026-09-23). Measure first, change second:
+   - **Baseline**: the `Perf (30 s):` line. v0.23.4 at idle: ~175 fps,
+     **heap +1091 KB/s** (overlay +5 KB/s) - the game allocates ~1 MB/s and
+     Unity 5.6's Boehm GC walks the whole heap each collection. GC count
+     and worst frame are the numbers to move.
+   - **Hot spots offline**: `ilscan` over `Update` / `LateUpdate` /
+     `FixedUpdate` / `OnGUI` for per-frame `FindObjectsOfType`,
      `GameObject.Find`, `GetComponent(s)`, `SendMessage`, string building,
-     `UniLinq`, `new List`/closures; `strings` for per-frame `SendMessage`.
-     Candidates already seen: `MecanimEventManager.globalLastStates` and
-     `TreeWindSfxManager` lists growing, `WorkScheduler.ProcessArea`,
-     `AdvancedTerrainGrass.GrassManager`, enemy AI updates.
-   - **Measure in game**: a debug toggle (Debug views tab) that wraps a
-     named list of game methods in Harmony prefix/postfix `Stopwatch`
-     timing and logs the top N by ms per 30 s - the log is the test
-     harness (gotcha 16). Never leave timing patches on by default.
-   - **Rules**: only behaviour-preserving patches (cache a lookup, skip a
-     no-op, pool an allocation); each with its own switch and one log line
-     when it acts; before/after `Perf` lines from the author. A patch that
-     changes game timing or outcomes is a gameplay change - label it
-     honestly (`IsPracticeOnly` / the run-legality split) like everything
-     else; the admins have not ruled.
+     `UniLinq`, `new List` / closures. Seen: `MecanimEventManager.
+     globalLastStates` and `TreeWindSfxManager` lists growing,
+     `WorkScheduler.ProcessArea`, `AdvancedTerrainGrass.GrassManager`,
+     enemy AI updates.
+   - **In game**: a debug toggle (Debug views) wrapping a named list of
+     game methods in Harmony `Stopwatch` timing, top N per 30 s in the log;
+     never on by default.
+   - **Rules**: behaviour-preserving patches only (cache a lookup, skip a
+     no-op, pool an allocation), each with its own switch and one log line;
+     before / after `Perf` lines from the author. Anything changing timing
+     or outcomes is a gameplay change - label it honestly.
 6. **The author's list of 2026-09-23:**
-   - **100%: passengers.** The tab shows the passenger To Do task but not
-     which passengers were found or how many. Find where the game tracks
-     each passenger (IL) and list them like the nature guide. (Note the
-     `PassengerManifest` objects on the player — three of them.)
+   - **100%: passengers** - list which were found, like the nature guide
+     (IL; note the three `PassengerManifest` objects on the player).
    - **Logs in the inventory** *(runner sxczurass, clarified with the
-     author)*: picked-up tree logs go into the inventory with a counter
-     like any item, up to a cap (runner wants 5; author wants it
-     configurable — slider or text box, editable in the GUI). **Not** held
-     in the arms, not infinite stacking in the hands. Rendering them in the
-     inventory is optional. A gameplay mod, not practice tooling — label it
-     honestly. **IL starting points:** item `Log` is id 78; carrying is
+     author)*: picked-up logs go into the inventory with a counter up to a
+     cap (runner 5; author: configurable in the GUI); not held in the
+     arms. A gameplay mod - label it honestly. IL: item `Log` = 78;
      `TheForest.Items.Special.LogControler` (`PlayerInventory.Logs`):
-     `_logs`, `_logsHeld` (the shoulder models), `Lift()`,
-     `PutDown(fake, drop, equipPrevious, preSpawned)`, `RemoveLog`,
-     `UpdateLogCount`, `Amount`, `HasLogs`, and `_infiniteLogHack` — set by
-     the game's own console command `DebugConsole._loghack on|off`. Still to
-     map: what calls `Lift` on a pickup, how building takes logs
-     (`Craft_Structure` ingredients vs `LogControler`), and dropping.
-   - Idea (author): a **god mode** toggle for practice, the other answer to
-     deaths without a start state — the game's console has `_godmode`
-     (`DebugConsole`, invokable by reflection).
-7. **Freecam keeps the game's lighting.** With freecam on the game goes
-   darker everywhere, normal the instant it is off (author). Freecam is a new
-   `Camera` from `CopyFrom`, which does not copy the image-effect components
-   on the game's camera — the likely cause, unchecked. Dump the main
+     `_logs`, `_logsHeld`, `Lift()`, `PutDown(...)`, `RemoveLog`,
+     `UpdateLogCount`, `_infiniteLogHack` (console `_loghack`). To map: what
+     calls `Lift` on a pickup, how building takes logs, dropping.
+   - Idea: a **god mode** toggle for practice (console `_godmode`,
+     `DebugConsole`; the bridge sets `Cheats.GodMode` directly).
+7. **Freecam keeps the game's lighting.** Freecam goes darker (author);
+   `CopyFrom` does not copy the game camera's image effects - dump the main
    camera's components first.
-8. **LiveSplit split file import** (`.lss`/`.lsl`) — needed to replace
-   LiveSplit rather than sit beside it. Plus HUD/layout customisation. The
-   author's autosplitter is the reference (memory `autosplitter-repo`).
-9. **forest.deter.cloud — shared runs and a web viewer** *(runner)*.
-   Local-first, export always; comparison keys on segment id + route
-   fingerprint (now including the start state). Web panel: everyone's runs
-   vs yours (look at Momentum Mod); 3D terrain from the `Terrain` heightmap,
-   caves need a geometry dump; scrub bar and annotations.
-10. **TAS** — exploratory only. Builds on savestates and the recorder.
+8. **LiveSplit split file import** (`.lss`/`.lsl`) plus HUD / layout
+   customisation; the author's autosplitter is the reference (memory
+   `autosplitter-repo`).
+9. **forest.deter.cloud - shared runs and a web viewer** *(runner)*.
+   Local-first, export always; keyed on segment id + route fingerprint.
+   Everyone's runs vs yours (Momentum Mod), 3D terrain from the heightmap,
+   caves need a geometry dump, scrub bar and annotations.
+10. **TAS** - exploratory only, on savestates and the recorder.
 11. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
-   zone shapes.
+    zone shapes.
 
 ### Deferred runner feedback (voice call, 2026-09-23)
 
-Collected by the author testing v0.22.6 with a runner. **Deferred** until
-Next up is done (author: finish the list, then QoL/UX), unless critical.
-Already done: checkpoints bypassed, stale run lines, Inventory tab empty on
-first open (v0.22.7), the renamed DLL (v0.23.7). The savestate items are
-in Next up 3.
+**Deferred** until Next up is done (author: finish the list, then QoL/UX),
+unless critical.
 
-Deaths / UX:
-- **Revive is confusing**, worse with practice mode on and another spot
-  selected. Wants one clear choice of what a death does: quick-load, restore
-  the start state (in place / load), revive, or reload the whole save.
-- The no-blood / no-stagger toggles moved to Next up 4 (author decided).
+- **Deaths:** revive is confusing, worse with practice mode on and another
+  spot selected - one clear choice of what a death does (reload the save,
+  restore the start state Quick / Full, revive).
+- **Runs:** checkpoint boxes should rotate (new ones facing the look
+  direction); hide zones individually or show only the next; Runs tab:
+  when each time was set, more detail, the HUD shows the **previous** time
+  too; **runs continue at the main menu** - abort automatically; ghost: a
+  custom model, buildings in the replay; **checkpoint savestates**
+  ("saveloc", like KSF surf) - capturing on the fly without a hitch.
+- **Settings / HUD:** settings do not persist (run lines, practice mode...)
+  - persist all; more control over the top-left HUD, less clutter.
+- **Debug views:** more detailed colliders (hitboxes), a better collider
+  filter (items share generic names); colliders that change between
+  attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
+  cave stalagmite drop, keycard cave body slide, wall climbs).
 
-Runs:
-- Checkpoint **boxes should rotate**; new ones could face the look direction.
-- Hide zones individually, or show only the next one.
-- Runs tab: when each time was set, more detail; the HUD should show the
-  **previous** time, not only the best.
-- **Runs continue at the main menu** - abort / invalidate automatically.
-- Ghost: a custom model; buildings in the replay (a ghost of what was built).
-- **Checkpoint savestates** ("saveloc", like KSF surf): reload from the last
-  checkpoint of a mapped route. Problem: capturing on the fly without a
-  hitch.
-
-Settings / HUD:
-- **Settings do not persist** (run lines, practice mode etc. re-toggled
-  every launch) - persist all of them.
-- More control over the top-left HUD; remove duplicated clutter (UX pass).
-
-Debug views:
-- More detailed colliders (hitboxes); a better collider filter - items share
-  generic names.
-- Investigate colliders that change between attempts and make no-fall-damage
-  tech inconsistent (cave drop, rebreather cave stalagmite drop, keycard cave
-  body slide, wall climbs - landing on bodies a certain way makes wall climbs
-  consistent).
-
-Shipped: practice QoL (v0.17.0–0.17.1), separate endgame splits
-(v0.18.0–0.18.2), deaths and caves (v0.19.0–0.19.1), nature guide (v0.15.0),
-savestates phase 0 → 1 and no-menu quick-load (v0.20.0–0.21.1), start
-states, cross-save restores and UI standards (v0.22.0–0.22.6), and the
-session of 2026-09-23 afternoon (v0.22.7–0.23.1): ordered checkpoints
-(`Data/SplitSequence`), stale run lines, Inventory tab refresh, upgrade
-receivers kept, no string building in any `DrawTab`, messages under their
-buttons everywhere, `TabShowing`, the changelog (repo, release, Updates
-tab), the load watcher and memory census; v0.23.1-0.23.6 **the load leak
-fixed** (pathfinding ruled out, two leaked threads stopped, dead event
-subscribers pruned, census off by default); v0.23.7 updates under any
-plugin file name; v0.23.8-0.24.7 (2026-09-24) the Practice list fix,
-savestate completeness (fall, book page, held items, cave panels,
-cutscene moment, enemies, the area report) and Next up 4 (auto-restart,
-no blood / no stagger); v0.24.13-0.24.25 (2026-09-24, with the test
-bridge) the live test bridge, cannibals rebuilt as captured and asleep
-on their spot (confirmed), panels straightened, no stagger after a
-mid-air restore, Megan held until she exists + 25x fast-forward, the
-endgame area loaded after an out-of-bounds load restore.
+Shipped (summary): practice QoL (v0.17), endgame splits (v0.18), deaths
+and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
+(v0.20-0.21), start states and cross-save restores (v0.22), ordered
+checkpoints, the changelog, the load leak fixed (v0.22.7-0.23.6), updates
+under any file name (v0.23.7), the Practice list fix and savestate
+completeness (v0.23.8-0.24.7), the live test bridge and everything found
+with it (v0.24.13-0.24.32: cannibals rebuilt as captured, Megan's
+cutscene after a Full load, the endgame / lab after a Full load, taken
+pickups removed, Quick / Full load naming, the swing cut on a reset).
 
 ### How a session goes
 
