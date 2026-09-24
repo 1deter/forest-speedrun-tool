@@ -510,8 +510,6 @@ option (the escape hatch for states Quick load has no patch for).
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   d. ~~Red elevator~~ done and confirmed (v0.24.40-0.24.43); see
-      *Confirmed in game*.
    e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
