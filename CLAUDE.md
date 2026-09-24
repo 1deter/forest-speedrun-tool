@@ -468,7 +468,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.39** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.40** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
@@ -510,10 +510,13 @@ option (the escape hatch for states Quick load has no patch for).
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   d. **Red elevator, Quick load**: the overlook flag is not the cause
-      (maks's log: `same as at capture`, overlook `no`); the elevator's
-      scene objects are (`HellCorridor/Elevator_01a`, `ElevatorSystem`).
-      Full load is fine. Use slot5.zip + bridge.
+   d. **Red elevator, Quick load**: found with the bridge - `ElevatorSystem`
+      is not in the save; after a ride the car stayed at the overlook with
+      `_useCount` 1 (limit 1). Resetting both by hand worked (author).
+      v0.24.40 `Game/ElevatorKeeper` (`elevators` header) does it on a
+      Quick load - **awaiting a test** (a new capture is needed). Author:
+      maks wants the visuals as at capture (textures unloaded when they
+      were) - check the endgame / Sahara visuals after the fix.
    e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next

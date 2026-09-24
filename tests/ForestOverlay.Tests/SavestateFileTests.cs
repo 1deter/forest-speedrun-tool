@@ -46,6 +46,21 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ElevatorsRoundTripAndAreEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Elevators);
+
+            SavestateFile s = Sample();
+            s.Elevators = "Sections/HellCorridor/Elevator_01a/Trigger_Elevator|0|-714.8,-433.32,967|0,90,0;" +
+                          "Sections/ControlRoom/Elevator_ToSnowCave EG/Elevator_01a (1)/Trigger_Elevator|1|1,2,3|0,0,0";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Elevators, back.Elevators);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void MeganRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

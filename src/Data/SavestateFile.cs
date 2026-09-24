@@ -27,6 +27,7 @@ namespace ForestOverlay.Data
     //   families = 0|522.9,56.74,-10.7|0|allRegularSpawns|amount_male=2,...;...
     //   cutscene = megan-transform@12.40
     //   megan = seated -397.90 -352.04 396.48 180.00
+    //   elevators = Sections/HellCorridor/Elevator_01a/Trigger_Elevator|0|-714.8,-433.32,967|0,90,0;...
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -50,7 +51,8 @@ namespace ForestOverlay.Data
     // (FamilyRecord), rebuilt by the restore; absent before v0.24.17.
     // `megan` is the endgame boss at capture (Game/MeganKeeper: `seated`
     // with her seat, `transformed`, `gone`); absent outside the endgame and
-    // before v0.24.35. None of these is in the start-state hash (only
+    // before v0.24.35. `elevators` the loaded endgame elevators' cars and
+    // use counts (Game/ElevatorKeeper); absent before v0.24.40. None of these is in the start-state hash (only
     // `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
@@ -107,6 +109,9 @@ namespace ForestOverlay.Data
         /// Game/MeganKeeper's value at capture; "" when absent.
         public string Megan = "";
 
+        /// Game/ElevatorKeeper's value at capture; "" when absent.
+        public string Elevators = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -140,6 +145,7 @@ namespace ForestOverlay.Data
             if (Cutscene.Length > 0 && CutsceneAt >= 0f)
                 Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
             if (Megan.Length > 0) Line(sb, "megan", Megan);
+            if (Elevators.Length > 0) Line(sb, "elevators", Elevators);
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -189,6 +195,7 @@ namespace ForestOverlay.Data
                     case "book": s.Book = value; break;
                     case "areas": s.Areas = value; break;
                     case "megan": s.Megan = value; break;
+                    case "elevators": s.Elevators = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

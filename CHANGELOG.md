@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.40 - 2026-09-24
+
+- Quick load puts the red elevator back where it was at the savestate, so
+  it can be ridden again (it stayed at the top). Needs a savestate taken
+  on this version.
+
 ## v0.24.39 - 2026-09-24
 
 - Full load: pickups taken before the savestate are now also removed when
