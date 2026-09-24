@@ -529,6 +529,8 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = true;
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
+            int cannibalsBefore, familiesBefore;
+            _bridge.CountEnemies(out cannibalsBefore, out familiesBefore);
 
             // Before as well as after: a physics step during the restore
             // could land the old fall at the restored spot.
@@ -614,7 +616,7 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
-                if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value));
+                if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore));
                 if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
                 SetStatus(line);
 
@@ -699,7 +701,7 @@ namespace ForestOverlay.Modules
         // list 2). One log line when it is done.
         private const float EnemyCheckDelay = 6f;
 
-        private IEnumerator AfterInPlace(string what, bool enemies)
+        private IEnumerator AfterInPlace(string what, bool enemies, int familiesBefore)
         {
             yield return new WaitForSecondsRealtime(1.5f);
             string plane = _bridge.ClearOldPlaneHulls();
@@ -710,7 +712,7 @@ namespace ForestOverlay.Modules
             }
 
             yield return new WaitForSecondsRealtime(EnemyCheckDelay - 1.5f);
-            string check = _bridge.EnsureEnemies();
+            string check = _bridge.EnsureEnemies(familiesBefore);
             bool rerun = check.IndexOf("run again", StringComparison.Ordinal) >= 0;
             if (rerun)
             {

@@ -517,6 +517,11 @@ capture 0.5 s later (`n world pickup(s) not at capture (...)`).
   twice. Which frame kills the coroutine is not known (both run on
   `Scene.ActiveMB` = `LoadSave`); v0.24.14 re-runs the setup 6 s after an
   in-place restore when nothing is alive, and logs the count 6 s later.
+  In the v0.24.14 test the setup died after **one** family (of 5-6), twice;
+  v0.24.15 re-runs it when fewer families are alive than just before the
+  restore. A body's weapon prop carries a `StoreInformation` deep inside
+  (`.../LeftHandWeapon/FireStick/StickFlame/Sparks`), so the bodies rule
+  checks only the root's own identifier (v0.24.15).
   `setupBreak` clears itself after 1 s (`Invoke("resetSetupBreak", 1)`).
 - `Cheats.GodMode` is what `PlayerStats.Hit` / `CheckDeath` read;
   `DebugConsole._godmode on` also runs `_setstat full`, `_survival off`,

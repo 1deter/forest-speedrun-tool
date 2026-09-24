@@ -1382,7 +1382,10 @@ namespace ForestOverlay.Game
                     {
                         GameObject go = roots[i];
                         if (go == null || !IsBody(go.name)) continue;
-                        if (_uniqueIdType != null && go.GetComponentsInChildren(_uniqueIdType, true).Length > 0) { kept++; continue; }
+                        // The root's own id only: a body's weapon prop carries
+                        // one deep inside (FireStick/StickFlame/Sparks, seen
+                        // live 2026-09-24), which kept every body.
+                        if (_uniqueIdType != null && go.GetComponent(_uniqueIdType) != null) { kept++; continue; }
                         UnityEngine.Object.Destroy(go);
                         removed++;
                     }
@@ -1487,10 +1490,11 @@ namespace ForestOverlay.Game
 
         /// The families' setup that an in-place restore starts dies partway
         /// (seen live, 2026-09-24): it despawns every cannibal and destroys
-        /// the spawners, and updateSpawns never runs - the world stayed empty
-        /// for minutes, while the same call a few seconds later worked. Call
-        /// once the restore has settled: with nothing alive, run it again.
-        public string EnsureEnemies()
+        /// the spawners, then spawned none (first test) or one family of six
+        /// (second) and stopped, while the same call a few seconds later
+        /// rebuilt them all. Call once the restore has settled, with the
+        /// live family count from just before it: fewer now -> run it again.
+        public string EnsureEnemies(int familiesBefore)
         {
             if (_startSetupFamilies == null) return "enemies: not bound";
             try
@@ -1505,10 +1509,11 @@ namespace ForestOverlay.Game
 
                 int cannibals, families;
                 CountEnemies(out cannibals, out families);
-                if (cannibals != 0 || families != 0)
-                    return "enemies: " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies");
+                string now = cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies");
+                bool short_ = (cannibals == 0 && families == 0) || (familiesBefore > 0 && families >= 0 && families < familiesBefore);
+                if (!short_) return "enemies: " + now + " (" + familiesBefore + " before)";
                 _startSetupFamilies.Invoke(ctrl, null);
-                return "enemies: none came back - the game's setup run again";
+                return "enemies: " + now + " of " + familiesBefore + " families before - the game's setup run again";
             }
             catch (Exception ex) { return "enemies: check failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }

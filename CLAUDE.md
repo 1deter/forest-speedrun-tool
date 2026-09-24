@@ -456,7 +456,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.14** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.15** (2026-09-24). The author runs it via the in-game
 updater. **243 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
@@ -484,7 +484,12 @@ spawn cave or world enemies there (as v0.24.10 does).
 *The live test bridge*. First session with it: one kill in the author's
 Hard save plus two in-place restores found the causes of fix list 2-5
 (game-notes *Seen live through the test bridge*, *The plane wreck*,
-*Blood on the player*); v0.24.14 ships the fixes, **awaiting a check**
+*Blood on the player*); v0.24.14 shipped the fixes. **Tested in game
+through the bridge (v0.24.14):** blood washed and the extra wreck removed
+- **confirmed**; bodies kept (a weapon prop deep in the dummy carries a
+save id - v0.24.15 checks the root only) and only 1 of 5-6 families came
+back, twice (v0.24.15 re-runs the setup when fewer families than before
+the restore) - **v0.24.15 awaiting a check**
 (one `Savestate after restoring ... in place: plane: ... | enemies: ...`
 line 6-12 s after each in-place restore, `| blood: washed` on the restore
 line, `bodies: n removed`). Game-side tricks used: `set static:Cheats

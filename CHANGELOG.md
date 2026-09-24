@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.15 - 2026-09-24
+
+- Restoring in place now really clears dead cannibal bodies (v0.24.14
+  kept them).
+- Restoring in place now brings back all the cannibal families, not just
+  one: if fewer come back than were there before, the game's setup runs
+  again a few seconds later.
+
 ## v0.24.14 - 2026-09-24
 
 - Restoring a savestate in place no longer leaves the world without
