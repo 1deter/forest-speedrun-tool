@@ -459,57 +459,50 @@ identity.
 **Released: v0.24.25** (2026-09-24). The author runs it via the in-game
 updater. **263 tests.**
 
-### Pick up here (handoff of 2026-09-24 evening, v0.24.25 downloaded, not yet run)
+### Pick up here (maks's test round of 2026-09-24 late evening, v0.24.25)
 
-**State of the author's machine:** v0.24.25 is downloaded into the game
-(`ForestOverlay.dll.pending`, installs on the next launch). Runner maks's
-Megan practice save (Normal, standing just short of Megan's trigger) is at
-`C:\Users\deter\Downloads\Slot4`; to test with it, swap it in for a slot
-temporarily (author's permission, 2026-09-24) - the author's slot 4 is
-Peaceful and was put back after this session's swap.
+**State of the author's machine:** v0.24.25 installed. Runner maks's Megan
+practice save (Normal, just short of Megan's trigger) is at
+`C:\Users\deter\Downloads\Slot4`; swap it in for a slot temporarily
+(author's permission, 2026-09-24) - the author's slot 4 is Peaceful, put
+it back after.
 
-**Next, in order:**
-1. **Test v0.24.24 with the Megan save** (slot 4): load, walk into the
-   trigger, capture 2-3 s before the player stands up (maks's ask; the cutscene is
-   well under a minute - the old "~55 s" here was a guess) (watch the
-   log for `Game event: megan-transform`), then `restore <name> load`.
-   Expect `BossHold: Megan's transformation held - Megan not there yet`,
-   ~7 s later `BossHold: Megan is there after x s - starting the
-   transformation.`, then `cutscene 'megan-transform' fast-forwarded to
-   x s (captured at x s) in y s real time`, and the fight starts normally. 25x from
-   the cutscene's start was already run live - the author saw Megan
-   transform (a clip went to maks for his verdict).
-2. **The red elevator + in-place restore** (runner, below): not started.
-3. **v0.24.25's endgame load** and **v0.24.23's panels** and **v0.24.21's
-   landing** need maks (his invisible-section save; a cave).
-4. Then back to the **Fix list** (trees first).
+**Naming (author, 2026-09-24):** the two restores get renamed - maks found
+"with a load" unclear. Author's words: "full load" = restore with a load,
+"quick load" = unticked; both stay while testing, the goal is one good
+fast restore with the full load kept for e.g. a death in a full practice
+run. **Clash:** "quick-load" already names the death feature (the game's
+own load of the save) - pick names that do not collide before renaming.
 
-**Runner feedback of 2026-09-24 evening** (via the author):
-- **Confirmed:** no blood / no stagger toggles, the lighter (no message),
-  the retire warning on a new start state (double click, names the count;
-  v0.22.0), the Practice list's unsaved reminder (v0.23.8).
-- **Panels** (maks: "stays damaged"): health was restored all along
-  (`healed` / `rebuilt` in his log); `LocalizedHit` knocks boards a degree
-  crooked per hit and nothing straightens them. v0.24.23 records a panel's
-  boards at its first hit and straightens them on restore (log `panels: n
-  healed, m rebuilt, k straightened`) - awaiting maks.
-- **Mid-air restore stagger:** v0.24.21 cancels the landing's stagger
-  after any restore / teleport that caught the player in the air (log
-  `Landing after a mid-air restore / teleport: stagger cancelled.`) -
-  awaiting maks.
-- **Megan** (maks): after a load the boss (`girl_base`, set as
-  `Scene.SceneTracker.EndgameBoss` by its `mutantAI.Start`) is missing for
-  7.0 s (bridge, author's game); a restore starts the cutscene inside it at
-  once, so Megan never transforms and the run ends stuck. v0.24.24
-  `Game/BossHold` holds the trigger until she is there (60 s after a
-  restore only) and the fast-forward goes to 25x (was 6x, ~10 s).
-- **Invisible section after the lab** (runner's log `LogOutput INVIS.log`,
-  v0.24.19): a load restore there loses `endgame_streaming` (no floor, fall
-  through) because the game's load force-loads the endgame only with an
-  active area, and out of bounds there is none. v0.24.25
-  `Game/EndgameLoader` force-loads it after a load restore when the
-  capture had it (log `... | endgame: loaded at capture, not by the load -
-  loading it`) - awaiting the runner.
+**maks's results on v0.24.25** (via the author):
+- **Confirmed:** cave panels (straightened), mid-air restore, the lighter,
+  the book page, auto-restart, the Practice list, the keycard checkpoint
+  in order, Megan held until she exists + fast-forward ("works good"),
+  the endgame area after a load restore (v0.24.25), the red elevator put
+  back **by a load restore** ("flawlessly").
+- **New / open, roughly by weight:**
+  1. **Enemies after a load restore do not spawn at all** (overworld).
+     In place overworld: killed ones come back (as intended). In place in
+     a cave: they stay dead, bodies removed (cave captures still use the
+     old path - not rebuilt). Nothing in the load path touches enemies
+     (`SavestateModule.AfterLoad`); reproduce with the bridge (`restore
+     <name> load`, then `find "_male(Clone)" 200`, `get static:...
+     activeCannibals`) before theorising.
+  2. **Red elevator, in place:** unchanged (see below). Load is fine.
+  3. **Load restore drops the player before the geometry has loaded** -
+     he lands inside it instead of on top. Delay the start teleport until
+     streaming settles.
+  4. **A restore should cancel a player animation** in progress (e.g. the
+     plane axe's swing plays on through a reset).
+  5. **Megan:** (I) the player can walk while `BossHold` waits for her -
+     freeze him until the cutscene starts; (II) the spear held before the
+     cutscene is not re-equipped after it, as the game would; (III)
+     Megan's end-of-transformation audio sometimes plays late, during the
+     fight - make it match a normal run, or mute it if that is impossible
+     (maks).
+  6. **Auto-restart:** improve the UI of the flashed time.
+  7. **Coins respawn after a load restore** - unclear whether that is
+     wrong (coins taken before the capture?) - ask.
 - **Red elevator** (runner): trigger it, then F7 / restore in place: the
   elevator leaves its shaft for the overlook area (a hole left behind, its
   button stays - and a second button at the overlook), parts of the Sahara
@@ -521,6 +514,7 @@ Peaceful and was put back after this session's swap.
   `HellCorridor/Elevator_01a`). Runners want **the exact state before the
   elevator**: Sahara only partly loaded (its triggers skipped out of
   bounds), elevator in place, the same textures.
+- Then the **Fix list** (trees first).
 
 **How these sessions run:** the author loads the
 save and says so; from here: `tp 523 56.3 10 180` (20 m north of a
