@@ -520,11 +520,13 @@ option (the escape hatch for states Quick load has no patch for).
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
       up 4, *Open threads*.
-3. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24):
-   swing / smash cut on F7 (Quick and Full load), next click swings at
-   once, the log line's `ended attack state '...'`, plus the nature
-   guide dump. Not yet seen in a real F7 log line - check the wording in
-   the first log that has one (the author's or maks's).
+3. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
+   saved verbatim with what each item checks in
+   [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
+   **When the author pastes maks's answers, they are numbered against
+   that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf).
+   Not yet seen in a real log: `ended attack state '...'` on the
+   `Teleport to` line - check the wording in the first log that has one.
 4. **QA tooling** (author: "let's do all of them"), after 1-2: keep
    previous sessions' `LogOutput.log` (timestamped copies on startup,
    last few); a **QA tab**: each test list shipped in the plugin, items
@@ -571,7 +573,10 @@ a state's name / transitions / actions by index (`FsmStates[i].name`,
 names to indexes with a generated `-f` file of 164 `get`s); fire an event
 with `call ... SendEvent "<event>"`.
 Test lists for maks go in a plain-text code block numbered `1)`
-(memory `tester-lists-plain-text`).
+(memory `tester-lists-plain-text`), and **every list sent is saved
+verbatim in `docs/tests/<date>-<tester>-<version>.md`** with a note per
+item on what it checks (author: so a later session is not confused by
+the answers). Delete a file once all its answers are dealt with.
 
 The author is on high effort for this work; say when medium is enough
 again (memory `effort-level-switching`). The bridge made this session's
@@ -980,7 +985,11 @@ keep it to what the next session needs:
   list and add a few words to *Confirmed in game*; never leave a
   ~~struck~~ or "confirmed" entry in a to-do list.
 - **Pick up here is replaced at each handoff**, never appended to.
-- **Budget: under ~1,000 lines.** Adding a section means trimming one.
+- **Size: aim for under ~1,000 lines, but never trim for the number**
+  (author, 2026-09-24: "don't trim claude.md pointlessly, if there's
+  genuinely only useful information in there don't mind keeping it").
+  Cut duplicates, finished detail and history; keep whatever the next
+  session needs, even past the target.
 
 Build with the path read explicitly (the env var is User-scope):
 `dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed"`.
