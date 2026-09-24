@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.36 - 2026-09-24
+
+- Quick load removes spears thrown or dropped since the savestate (they
+  stayed on the floor while the inventory had them back).
+- A cutscene fast-forwarded after a restore keeps its sounds in step:
+  they are muted while it skips, then picked up where a normal run would
+  have them, instead of starting late and running on into the fight.
+
 ## v0.24.35 - 2026-09-24
 
 - Quick load in Megan's boss room puts seated Megan back: a savestate

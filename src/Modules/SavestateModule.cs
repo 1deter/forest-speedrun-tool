@@ -133,6 +133,7 @@ namespace ForestOverlay.Modules
             _bossHold = new BossHold(ctx.Log, ctx.Runner);
             _bossHold.Install(OverlayPlugin.PluginGuid);
             _megan = new MeganKeeper(ctx.Log);
+            CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
@@ -186,6 +187,7 @@ namespace ForestOverlay.Modules
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
+            CutsceneAudio.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
 
@@ -711,6 +713,9 @@ namespace ForestOverlay.Modules
 
             float realStart = Time.realtimeSinceStartup;
             int prevSet = 0;
+            // Its sounds play in real time: muted while it runs, then put
+            // where a normal run would have them (maks: they ran on late).
+            CutsceneAudio.Begin();
             while (ev.CutsceneRunning != null)
             {
                 // The replay memorized empty hands at its start; put back
@@ -730,6 +735,7 @@ namespace ForestOverlay.Modules
                 yield return null;
             }
             if (Time.timeScale > 0f) Time.timeScale = 1f;
+            string sounds = CutsceneAudio.End();
 
             float reached = ev.CutsceneRunning != null ? Time.time - ev.CutsceneStartedAt : -1f;
             Ctx.Log.LogInfo("Savestate " + what + ": cutscene '" + (running ?? f.Cutscene) + "' " +
@@ -738,7 +744,8 @@ namespace ForestOverlay.Modules
                                 : "ended before the captured " + f.CutsceneAt.ToString("0.00") + " s") +
                             " in " + (Time.realtimeSinceStartup - realStart).ToString("0.0") + " s real time" +
                             (f.HeldBefore == null ? "" : f.HeldBefore.Count == 0 ? ", nothing held before it"
-                                : ", held before it: " + prevSet + " of " + f.HeldBefore.Count + " slot(s) set back for its end") + ".");
+                                : ", held before it: " + prevSet + " of " + f.HeldBefore.Count + " slot(s) set back for its end") +
+                            (sounds.Length > 0 ? "; " + sounds : "") + ".");
         }
 
         // The lab / hellcave report (Next up 3): what was loaded at capture
@@ -810,6 +817,15 @@ namespace ForestOverlay.Modules
         {
             yield return new WaitForSecondsRealtime(0.5f);
 
+            // Spears thrown or dropped since the capture (author, 2026-09-24:
+            // Megan's fight left them on the floor while the restored
+            // inventory had them back). Never a greeble, so a new one is
+            // always a leftover.
+            int spears = 0;
+            try { spears = _keeper.RemoveNew(present, IsSpearItem); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing thrown spears failed: " + ex.Message); }
+            if (spears > 0) Ctx.Log.LogInfo("Savestate restore " + what + ": removed " + spears + " spear(s) thrown or dropped since the capture.");
+
             // Limbs and heads from kills since the capture (author: clear
             // what the kills left). By item name - Arm / Leg / Head.
             int limbs = 0;
@@ -824,8 +840,8 @@ namespace ForestOverlay.Modules
                     if (bodies != null) Ctx.Log.LogInfo("Savestate restore " + what + ": body candidates after the restore: " + bodies);
                 }
                 catch (Exception) { }
-                yield return null;   // let Destroy land before the listing below
             }
+            if (spears > 0 || limbs > 0) yield return null;   // let Destroy land before the listing below
 
             List<string> now = new List<string>();
             try { _keeper.Snapshot(now); }
@@ -853,6 +869,12 @@ namespace ForestOverlay.Modules
                 sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
             Ctx.Log.LogInfo("Savestate restore " + what + ": " + n + " world pickup(s) not at capture (" + sb +
                             ") - moved, or new since the capture.");
+        }
+
+        private bool IsSpearItem(int id)
+        {
+            string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
+            return n == "Spear";
         }
 
         private bool IsBodyPartItem(int id)
