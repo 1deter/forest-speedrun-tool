@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.43 - 2026-09-24
+
+- Full load: the axe and lighter you held are usable again straight
+  away (the axe hung at your side and the lighter clicked without light).
+
 ## v0.24.42 - 2026-09-24
 
 - Go out of the endgame after the red elevator ride: the vault door cave

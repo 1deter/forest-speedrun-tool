@@ -1032,6 +1032,10 @@ namespace ForestOverlay.Modules
                             (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") + ".");
             RemoveTakenPickups(f, false);
             Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
+            // A cutscene capture's hands are the fast-forward's business.
+            if (f.Held != null && f.Held.Count > 0 && f.CutsceneAt < 0f)
+                Ctx.Runner.StartCoroutine(_bridge.RefreshHeld(f.Held, NameOfItem,
+                    delegate(string note) { Ctx.Log.LogInfo("Savestate after the load: " + note + "."); }));
             if (after != null) after(null);
         }
 

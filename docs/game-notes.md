@@ -468,6 +468,17 @@ state, not scenes (areas: `same as at capture`).
   confirmed). A Go landing outside every section's renderers clears both
   (`AreaKeeper.ForTeleport`, v0.24.42).
 
+**Held items after a Full load** (bridge + IL, 2026-09-24). After a Full
+load the inventory had the axe and lighter equipped (`RightHand` /
+`LeftHand`, held models active) but the animator's item flags were off
+(`axeHeld`, `lighterHeld`): the axe hung at the side, the lighter clicked
+without light. `playerAnimatorControl.Update` sets layer 1 (`upperBody`)
+to 1 only in a `held`-tagged state and fades it to 0 towards `idle`, so
+the arm layers stayed at 0. `StashEquipedWeapon(false)` +
+`StashLeftHand()` then `Equip(id, false)` set the flags and the layers
+came back; the Full load does that at its end (`SavestateBridge.
+RefreshHeld`, v0.24.43).
+
 **A Full load drops the player before the endgame is there.** "In game"
 comes before streaming ends, and `ForceLoad` on the endgame trigger goes
 through its 0.5 s `_loadDelay`, so right after it nothing is loading yet.

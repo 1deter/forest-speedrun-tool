@@ -468,7 +468,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.42** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.43** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
@@ -522,7 +522,9 @@ option (the escape hatch for states Quick load has no patch for).
       confirmed (hallway invisible again after the Quick load). The Sahara
       half-load / hell cave visuals maks reported were the overlook flag +
       area outliving a Go out of the endgame: v0.24.42 clears both on a Go
-      landing outside the sections - awaiting a test.
+      landing outside the sections - confirmed (author). A Full load left
+      the axe / lighter equipped but not usable (animator flags off):
+      v0.24.43 re-equips them at its end - awaiting a test.
    e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next

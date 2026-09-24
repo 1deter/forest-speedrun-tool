@@ -1360,6 +1360,48 @@ namespace ForestOverlay.Game
             done(sb.ToString());
         }
 
+        /// After a Full load: puts away and equips again what the hands held
+        /// at capture. The load equips them while the player is still being
+        /// set up, and the animator never got the item's flag (`axeHeld`,
+        /// `lighterHeld` off): the axe hung at the side, the lighter clicked
+        /// without light (author, v0.24.43). A stash and Equip through the
+        /// bridge set the flags and the arm layers came back.
+        public IEnumerator RefreshHeld(List<int> wanted, Func<int, string> nameOf, Action<string> done)
+        {
+            yield return new WaitForSecondsRealtime(0.3f);
+            float start = Time.realtimeSinceStartup;
+            while (HandsBusy() && Time.realtimeSinceStartup - start < 2f) yield return null;
+
+            object inv = _inventory != null ? _inventory.GetValue(null) : null;
+            if (inv == null || _equipById == null || _stashWeapon == null || _stashLeftHand == null)
+            {
+                done("held at capture: not refreshed (not bound)");
+                yield break;
+            }
+            string error = null;
+            try
+            {
+                _stashWeapon.Invoke(inv, new object[] { false });
+                _stashLeftHand.Invoke(inv, null);
+            }
+            catch (Exception ex) { error = (ex.InnerException ?? ex).Message; }
+            if (error != null) { done("held at capture: putting away failed (" + error + ")"); yield break; }
+
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            StringBuilder sb = new StringBuilder("held at capture, equipped again for the animator:");
+            try
+            {
+                for (int i = 0; i < wanted.Count; i++)
+                {
+                    bool ok = (bool)_equipById.Invoke(inv, new object[] { wanted[i], false });
+                    sb.Append(i == 0 ? " " : ", ").Append(nameOf(wanted[i])).Append(ok ? "" : " (Equip refused)");
+                }
+            }
+            catch (Exception ex) { sb.Append(" | failed: ").Append((ex.InnerException ?? ex).Message); }
+            done(sb.ToString());
+        }
+
         // After an in-place restore, enemies as after a load (game-notes
         // *Enemies across an in-place restore*). v0.24.5-0.24.9 ran
         // restartEnemiesFromPauseMenu, which REMOVES every enemy when
