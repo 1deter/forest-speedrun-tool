@@ -489,7 +489,10 @@ through the bridge (v0.24.14):** blood washed and the extra wreck removed
 - **confirmed**; bodies kept (a weapon prop deep in the dummy carries a
 save id - v0.24.15 checks the root only) and only 1 of 5-6 families came
 back, twice (v0.24.15 re-runs the setup when fewer families than before
-the restore) - **v0.24.15 awaiting a check**
+the restore) - **v0.24.15 confirmed in game (bridge, 2026-09-24): body
+removed, blood washed, one wreck, 6 families / 13 cannibals back after
+the game's own setup brought back none.** Item 2's remaining part - the
+captured positions - is next
 (one `Savestate after restoring ... in place: plane: ... | enemies: ...`
 line 6-12 s after each in-place restore, `| blood: washed` on the restore
 line, `bodies: n removed`). Game-side tricks used: `set static:Cheats
@@ -532,7 +535,7 @@ for it to survive a fight); `tp`; `capture` / `restore`.
    setup instantiate one (`SpawnMutantsSerializerManager` is in the save:
    read what it stores and whether a load uses it for positions). Use the
    test bridge to list live `mutant_*` objects and their components first.
-3. **Bodies stay** - **fixed in v0.24.14, awaiting a check**
+3. **Bodies stay** - **fixed and confirmed (v0.24.15)**
    (`*_Dummy(Clone)` roots without a save id; bridge-confirmed shape in
    game-notes). Old notes (author, v0.24.12: limbs are cleared, bodies not).
    **Found (v0.24.12 log):** a dead body is a scene-root
@@ -547,15 +550,14 @@ for it to survive a fight); `tp`; `capture` / `restore`.
    `cannibalVillages`, `mutantWorldPosition`) - never touch those.
    Limbs / heads: **confirmed cleared** (`removed 2 limb / head
    pickup(s)`).
-4. **An extra `Axe Plane`** - **cause found, fixed in v0.24.14, awaiting
-   a check**: each in-place restore added another plane wreck
+4. **An extra `Axe Plane`** - **fixed and confirmed (v0.24.14)**: each in-place restore added another plane wreck
    (`Hull(Clone)`, game-notes *The plane wreck*). Old notes: The "not
    at capture" line counted `Axe Plane x2, x3, x4, x5` over consecutive
    restores (back to x2 after a load). Something drops or spawns a plane
    axe pickup per restore - `StashHands` / the game's re-equip, or the
    serializer bringing back a pickup. Find those objects (position vs the
    player) before they pile up.
-5. **Blood on the player** - **fixed in v0.24.14, awaiting a check**:
+5. **Blood on the player** - **fixed and confirmed (v0.24.14)**:
    the game's wash `PlayerStats.GotCleanReal()` after every in-place
    restore (confirmed by hand through the bridge). Old notes (author,
    2026-09-24): blood from killing cannibals remains on the player's
