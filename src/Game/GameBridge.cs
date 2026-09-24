@@ -203,6 +203,7 @@ namespace ForestOverlay.Game
                 if (_prevVelocityField != null) _prevVelocityField.SetValue(_fpc, 0f);
                 if (_prevVelocityXZField != null) _prevVelocityXZField.SetValue(_fpc, Vector3.zero);
                 if (_jumpingTimerField != null) _jumpingTimerField.SetValue(_fpc, 0f);
+                if (inAir) DeathHooks.ArmLandingCancel();
 
                 if (!inAir && speed < 1f) return "";
                 return "fall ended (" + (inAir ? air.ToString("F1") + " s in the air, " : "") +

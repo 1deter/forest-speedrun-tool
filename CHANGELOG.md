@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.21 - 2026-09-24
+
+- Cannibals that were asleep at capture stay asleep after an in-place
+  restore. The game reuses cannibals, and one that had been searching
+  earlier woke up again a few seconds after the restore.
+- Restoring or teleporting while in the air: the landing that follows
+  no longer plays the stagger, even with "No stagger" off (it already
+  did no damage).
+
 ## v0.24.20 - 2026-09-24
 
 - A cannibal the game had spawned standing on another's head is put on

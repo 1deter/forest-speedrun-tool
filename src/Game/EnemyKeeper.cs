@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 using BepInEx.Logging;
 using ForestOverlay.Data;
 using UnityEngine;
@@ -90,6 +91,9 @@ namespace ForestOverlay.Game
         private Type _follower;             // mutantFollowerFunctions
         private MethodInfo _switchToSleep;  // mutantFollowerFunctions.switchToSleep()
         private FieldInfo _alreadySpawned;
+        private FieldInfo _sleepingSpawn;   // spawnMutants.sleepingSpawn
+        private Type _dayCycle;             // mutantDayCycle
+        private FieldInfo _sleepBlocker;    // mutantDayCycle.sleepBlocker
         private MethodInfo _fixPosition, _invokeSpawn, _addToWorldSpawns;
         private readonly List<FieldInfo> _settings = new List<FieldInfo>();
 
@@ -142,6 +146,8 @@ namespace ForestOverlay.Game
             }
             _follower = GameBridge.FindGameType("mutantFollowerFunctions");
             if (_follower != null) _switchToSleep = _follower.GetMethod("switchToSleep", inst, null, Type.EmptyTypes, null);
+            _dayCycle = GameBridge.FindGameType("mutantDayCycle");
+            if (_dayCycle != null) _sleepBlocker = _dayCycle.GetField("sleepBlocker", inst);
             Type health = GameBridge.FindGameType("EnemyHealth");
             if (health != null) _healthValue = health.GetField("Health", inst);
             _enemyType = GameBridge.FindGameType("enemyType");
@@ -153,6 +159,7 @@ namespace ForestOverlay.Game
                 _members = _spawnType.GetField("allMembers", inst);
                 _leaderGo = _spawnType.GetField("leaderGo", inst);
                 _alreadySpawned = _spawnType.GetField("alreadySpawned", inst);
+                _sleepingSpawn = _spawnType.GetField("sleepingSpawn", inst);
                 _fixPosition = _spawnType.GetMethod("fixMutantPosition", inst, null, new[] { typeof(Transform), typeof(Vector3) }, null);
                 _invokeSpawn = _spawnType.GetMethod("invokeSpawn", inst, null, Type.EmptyTypes, null);
                 _addToWorldSpawns = _spawnType.GetMethod("addToWorldSpawns", inst, null, Type.EmptyTypes, null);
@@ -171,7 +178,7 @@ namespace ForestOverlay.Game
                      " health:" + (_health != null && _healthValue != null) +
                      " build:" + (_spawnGo != null && _invokeSpawn != null && _addToWorldSpawns != null && _alreadySpawned != null) +
                      " clear:" + (_startSetup != null && _despawnGo != null) +
-                     " place:" + (_fixPosition != null) + " sleep:" + (_switchToSleep != null) +
+                     " place:" + (_fixPosition != null) + " sleep:" + (_switchToSleep != null && _sleepingSpawn != null && _sleepBlocker != null) +
                      " leader:" + (_leaderGo != null) + " settings:" + _settings.Count;
             _log.LogInfo("EnemyKeeper bound. " + Status);
             return Ready;
@@ -414,8 +421,8 @@ namespace ForestOverlay.Game
             // The spawn routines yield between members.
             yield return new WaitForSecondsRealtime(1.5f);
 
-            int placed = 0, extra = 0, missing = 0, grounded = 0;
-            float maxDrop = 0f;
+            int placed = 0, extra = 0, missing = 0, grounded = 0, unblocked = 0, sleepFamilies = 0;
+            StringBuilder drops = new StringBuilder();
             List<Cannibal> sleepers = new List<Cannibal>();
             List<Vector3> sleepAt = new List<Vector3>();
             foreach (KeyValuePair<int, MonoBehaviour> kv in built)
@@ -445,13 +452,30 @@ namespace ForestOverlay.Game
                 int whole;
                 int[] match = EnemyRecord.Match(want, keys, out whole);
                 bool[] used = new bool[have.Count];
+
+                // invokeSpawn re-rolls sleepingSpawn (updateSpawnConditions);
+                // a family with sleepers at capture is a sleeping family, so
+                // the game's own initWakeUp (5 s after a member is enabled)
+                // keeps them asleep instead of waking them (game-notes).
+                bool anyAsleep = false;
+                for (int i = 0; i < want.Count; i++) if (want[i].Asleep) anyAsleep = true;
+                if (anyAsleep && _sleepingSpawn != null && kv.Value != null)
+                {
+                    try { _sleepingSpawn.SetValue(kv.Value, true); sleepFamilies++; } catch (Exception) { }
+                }
                 for (int i = 0; i < want.Count; i++)
                 {
                     if (match[i] < 0) { missing++; continue; }
                     used[match[i]] = true;
                     Vector3 at = Ground(want[i].Position);
                     float drop = want[i].Position.y - at.y;
-                    if (drop > 0.3f) { grounded++; if (drop > maxDrop) maxDrop = drop; }
+                    if (drop > 0.3f)
+                    {
+                        grounded++;
+                        drops.Append(drops.Length > 0 ? ", " : "").Append("family ").Append(kv.Key).Append(' ')
+                             .Append(drop.ToString("0.0", CultureInfo.InvariantCulture)).Append(" m");
+                    }
+                    if (ClearSleepBlocker(have[match[i]].Go)) unblocked++;
                     Place(kv.Value, have[match[i]], want[i], at);
                     placed++;
                     if (want[i].Asleep) { sleepers.Add(have[match[i]]); sleepAt.Add(at); }
@@ -481,7 +505,8 @@ namespace ForestOverlay.Game
             done("families: " + setupNote + ", " + made + " rebuilt" + (cave > 0 ? ", " + cave + " cave" : "") +
                  (failed > 0 ? ", " + failed + " not found / failed" : "") +
                  " | positions: " + placed + " of " + members.Count + " placed" +
-                 (grounded > 0 ? " (" + grounded + " captured in the air, put on the ground - up to " + maxDrop.ToString("0.0", CultureInfo.InvariantCulture) + " m)" : "") +
+                 (grounded > 0 ? " (" + grounded + " captured in the air, put on the ground: " + drops + ")" : "") +
+                 ", " + unblocked + " sleep blocker(s) cleared, " + sleepFamilies + " sleeping famil" + (sleepFamilies == 1 ? "y" : "ies") +
                  (sleepers.Count > 0 ? ", " + slept + " of " + sleepers.Count + " put back to sleep" : "") +
                  (missing > 0 ? ", " + missing + " not spawned" : "") +
                  (extra > 0 ? ", " + extra + " extra despawned" : "") +
@@ -593,6 +618,23 @@ namespace ForestOverlay.Game
                 Component fsm = Fsm(go, "action_sleepingFSM");
                 PropertyInfo state = fsm != null ? fsm.GetType().GetProperty("ActiveStateName") : null;
                 return state != null && (state.GetValue(fsm, null) as string) == "sleeping";
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// mutantDayCycle.sleepBlocker is only ever set (by the search
+        /// routines), never cleared: a pooled cannibal that once searched
+        /// wakes at its next initWakeUp. A load starts a fresh pool.
+        private bool ClearSleepBlocker(GameObject go)
+        {
+            if (go == null || _dayCycle == null || _sleepBlocker == null) return false;
+            try
+            {
+                Component dc = go.GetComponentInChildren(_dayCycle);
+                if (dc == null) return false;
+                bool was = (bool)_sleepBlocker.GetValue(dc);
+                _sleepBlocker.SetValue(dc, false);
+                return was;
             }
             catch (Exception) { return false; }
         }

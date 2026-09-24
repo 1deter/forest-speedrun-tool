@@ -270,6 +270,19 @@ namespace ForestOverlay.Game
         /// revive does; NoBlood is applied per tick by the Deaths module.
         public static bool NoStagger;
         private static bool _jumpLandBefore;
+
+        /// A restore or teleport that caught the player in the air (EndFall)
+        /// arms this: the next landing is that fall's, and its stagger is
+        /// cancelled even with NoStagger off - the damage already is (runner
+        /// maks, v0.24.13). Any landing disarms it; it expires after 30 s.
+        private static bool _landingArmed;
+        private static float _landingArmedAt;
+
+        public static void ArmLandingCancel()
+        {
+            _landingArmed = true;
+            _landingArmedAt = Time.realtimeSinceStartup;
+        }
         private static readonly object BoxedZero = 0f;
         private static readonly object BoxedOne = 1f;
         private static FieldInfo _hitReactions;     // static LocalPlayer.HitReactions
@@ -331,18 +344,22 @@ namespace ForestOverlay.Game
         private static void LandedPostfix(object __instance, int __state)
         {
             bool revived = _revives != __state;
+            bool armed = _landingArmed && Time.realtimeSinceStartup - _landingArmedAt < 30f;
+            _landingArmed = false;
 
             // HandleLanded sets jumpLand only on the hard-landing branch
             // (the one that plays the stagger), so a false -> true change is
             // a hard landing.
             bool hard = false;
-            if (!revived && NoStagger)
+            if (!revived && (NoStagger || armed))
             {
                 try { hard = !_jumpLandBefore && _jumpLand != null && (bool)_jumpLand.GetValue(__instance); }
                 catch (Exception) { hard = false; }
             }
             if (!revived && !hard) return;
-            CancelHardLanding(__instance, revived ? "Death: revived from a fall - hard landing cancelled." : "No stagger: hard landing cancelled.");
+            CancelHardLanding(__instance, revived ? "Death: revived from a fall - hard landing cancelled."
+                : NoStagger ? "No stagger: hard landing cancelled."
+                : "Landing after a mid-air restore / teleport: stagger cancelled.");
         }
 
         private static void CancelHardLanding(object __instance, string logLine)
