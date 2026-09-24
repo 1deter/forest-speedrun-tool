@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.28 - 2026-09-24
+
+- A Full load now really holds you in place until the world is loaded:
+  at the spot you captured, until every area loaded at capture is back
+  (the invisible lab section after the lab had its floor load half a
+  second too late and you still fell through).
+- A savestate taken during Megan's transformation gives your weapon
+  back when the cutscene ends, as the game does - capture it again with
+  this version, older files do not know what you held before.
+
 ## v0.24.27 - 2026-09-24
 
 - New names: **Quick load** (restore in place) and **Full load** (restore

@@ -66,6 +66,23 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SavestateHeaderCarriesHeldBefore()
+        {
+            SavestateFile s = new SavestateFile();
+            s.HeldBefore = new System.Collections.Generic.List<string> { "0:56", "1:53" };
+            s.Data = "abc";
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(new[] { "0:56", "1:53" }, back.HeldBefore);
+
+            SavestateFile plain = new SavestateFile();
+            plain.Data = "abc";
+            SavestateFile old = SavestateFile.Parse(plain.Write(), out error);
+            Assert.Null(old.HeldBefore);
+        }
+
+        [Fact]
         public void SavestateHeaderCarriesHeldItems()
         {
             SavestateFile s = new SavestateFile();

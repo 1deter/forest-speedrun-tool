@@ -496,9 +496,17 @@ escape hatch for states Quick load has no patch for.
   2. **Red elevator, in place:** v0.24.26 clears the overlook flag the
      ride leaves set (maks's log: `overlook yes` after, `no` at capture);
      the elevator's position / Sahara are still open. Full load is fine.
-  3. ~~Full load drops the player before the geometry has loaded~~
-     v0.24.26 holds him until every scene has loaded (`held the player x
-     s while n scene(s) ...`) - awaiting maks.
+  3. **Full load drops the player before the geometry has loaded.**
+     v0.24.26's hold never engaged in maks's log (no `held the player`
+     line): `EndgameLoader`'s `ForceLoad` goes through the trigger's 0.5 s
+     `_loadDelay`, so nothing was loading yet. v0.24.28 pins the player
+     at the file's captured position until every scene loaded at capture
+     is loaded again, at least 1 s, 30 s cap (log `held the player at the
+     captured spot for x s ...`) - awaiting maks.
+     Elevator note from the same log: an in-place restore after the ride
+     read `same as at capture`, overlook `no` - the overlook flag is not
+     the cause; the elevator's scene objects are. Needs a save near the
+     red elevator (ask maks for his lab save) and a bridge session.
   4. **A restore should cancel a player animation** in progress (e.g. the
      plane axe's swing plays on through a reset).
   5. **Megan:** (I) the player can walk while `BossHold` waits for her -
@@ -508,7 +516,15 @@ escape hatch for states Quick load has no patch for.
      fight - make it match a normal run, or mute it if that is impossible
      (maks).
   6. **Auto-restart:** improve the UI of the flashed time.
-     (I) done in v0.24.26 (pinned while held) - awaiting maks.
+     (I) done in v0.24.26 (pinned while held) - **confirmed** (maks).
+     (II) the spear: the cutscene's `HideAllEquiped` -> `MemorizeItem`
+     stores the held weapon in `PlayerInventory._equipmentSlotsPrevious`
+     and its `ShowAllEquiped` -> `EquipPreviousWeapon` re-equips it; not in
+     the save, so a restored replay memorized empty hands. v0.24.28 writes
+     it to the file (`heldbefore`, "slot:id") and sets it back every frame
+     of the fast-forward (log `..., held before it: n of m slot(s) set
+     back for its end`; capture line `held nothing (before that: Spear)`)
+     - needs a **new capture**, awaiting maks. (III) audio: not started.
   7. **Placed pickups taken before the capture came back after a Full
      load** (maks: coins, taken before capturing; bridge: `PickUps/Cash`
      x3 and a `Tape_Roll` back, greeble cash stays gone). The game's own

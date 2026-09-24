@@ -333,6 +333,7 @@ namespace ForestOverlay.Modules
             string bookNote;
             string book = _book.Capture(out bookNote);
             List<int> held = _bridge.HeldIds();
+            List<string> heldBefore = _bridge.PreviousHeld();
 
             // Captured during an endgame cutscene: note which and how far in,
             // so a restore can fast-forward the replay to this moment.
@@ -358,13 +359,13 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, panels, cutscene, cutsceneAt, areas, enemies, families, enemyNote);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, areas, enemies, families, enemyNote);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
-                                  string book, string bookNote, List<int> held, List<string> panels,
+                                  string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string areas, List<string> enemies,
                                   List<string> families, string enemyNote)
         {
@@ -390,6 +391,7 @@ namespace ForestOverlay.Modules
                 f.Pickups = pickups;
                 f.Book = book;
                 f.Held = held;
+                f.HeldBefore = heldBefore;
                 f.Panels = panels;
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
                 f.Areas = areas;
@@ -409,6 +411,7 @@ namespace ForestOverlay.Modules
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
                               ", " + pickups.Count + " world pickups listed, " + bookNote +
                               ", held " + HeldNames(held) +
+                              (heldBefore != null && heldBefore.Count > 0 ? " (before that: " + HeldBeforeNames(heldBefore) + ")" : "") +
                               (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
                               (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "") +
                               (enemyNote.Length > 0 ? ", " + enemyNote : "");
@@ -685,8 +688,14 @@ namespace ForestOverlay.Modules
             }
 
             float realStart = Time.realtimeSinceStartup;
+            int prevSet = 0;
             while (ev.CutsceneRunning != null)
             {
+                // The replay memorized empty hands at its start; put back
+                // what the captured one memorized, so its end re-equips it
+                // (every frame: its start runs a frame or two after the event).
+                if (f.HeldBefore != null && f.HeldBefore.Count > 0) prevSet = _bridge.SetPreviousHeld(f.HeldBefore);
+
                 float remaining = f.CutsceneAt - (Time.time - ev.CutsceneStartedAt);
                 if (remaining <= 0f) break;
 
@@ -705,7 +714,9 @@ namespace ForestOverlay.Modules
                             (reached >= 0f
                                 ? "fast-forwarded to " + reached.ToString("0.00") + " s (captured at " + f.CutsceneAt.ToString("0.00") + " s)"
                                 : "ended before the captured " + f.CutsceneAt.ToString("0.00") + " s") +
-                            " in " + (Time.realtimeSinceStartup - realStart).ToString("0.0") + " s real time.");
+                            " in " + (Time.realtimeSinceStartup - realStart).ToString("0.0") + " s real time" +
+                            (f.HeldBefore == null ? "" : f.HeldBefore.Count == 0 ? ", nothing held before it"
+                                : ", held before it: " + prevSet + " of " + f.HeldBefore.Count + " slot(s) set back for its end") + ".");
         }
 
         // The lab / hellcave report (Next up 3): what was loaded at capture
@@ -834,6 +845,18 @@ namespace ForestOverlay.Modules
             return string.IsNullOrEmpty(n) ? "item " + id : n;
         }
 
+        private string HeldBeforeNames(List<string> entries)
+        {
+            string[] names = new string[entries.Count];
+            for (int i = 0; i < entries.Count; i++)
+            {
+                int at = entries[i].IndexOf(':');
+                int id;
+                names[i] = at > 0 && int.TryParse(entries[i].Substring(at + 1), out id) ? NameOfItem(id) : entries[i];
+            }
+            return string.Join(", ", names);
+        }
+
         private string HeldNames(List<int> held)
         {
             if (held == null || held.Count == 0) return "nothing";
@@ -912,27 +935,40 @@ namespace ForestOverlay.Modules
         /// scene is still loading (at most 20 s), then carry on.
         private IEnumerator HoldUntilLoaded(SavestateFile f, Action<string> after)
         {
+            // v0.24.26 held only while a scene was mid-load, at wherever the
+            // player was: the endgame's own trigger starts its load 0.5 s
+            // after ForceLoad, so nothing was loading yet, the hold let go
+            // at once and maks still fell through (v0.24.26, "the player
+            // still moves / falls during the loading"). Now: held at the
+            // captured spot until every scene loaded at capture is loaded
+            // again, and at least 1 s.
             float start = Time.realtimeSinceStartup;
-            Vector3 at = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
-            int waited = 0;
-            while (Time.realtimeSinceStartup - start < 20f)
+            Vector3 at = new Vector3(f.X, f.Y, f.Z);
+            bool pin = Ctx.Player.Found && at != Vector3.zero;
+            HashSet<string> needed = f.Areas.Length > 0 ? ScenesIn(f.Areas) : new HashSet<string>();
+            string missing = "";
+            while (Time.realtimeSinceStartup - start < 30f)
             {
+                missing = "";
                 int loading = 0;
                 try
                 {
+                    foreach (string name in needed)
+                        if (!UnityEngine.SceneManagement.SceneManager.GetSceneByName(name).isLoaded)
+                            missing += (missing.Length == 0 ? "" : ", ") + name;
                     for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
                         if (!UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isLoaded) loading++;
                 }
                 catch (Exception) { }
-                if (loading == 0) break;
-                if (waited == 0) waited = loading;
-                if (Ctx.Player.Found) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+                bool minimum = Time.realtimeSinceStartup - start >= 1f;
+                if (minimum && missing.Length == 0 && loading == 0) break;
+                if (pin && Ctx.Player.Found) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
                 yield return null;
             }
-            if (waited > 0)
-                Ctx.Log.LogInfo("Savestate after the load: held the player " +
-                                (Time.realtimeSinceStartup - start).ToString("F1") + " s while " + waited +
-                                " scene(s) finished loading.");
+            if (pin && Ctx.Player.Found) { Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation); Ctx.Bridge.EndFall(); }
+            Ctx.Log.LogInfo("Savestate after the load: held the player at the captured spot for " +
+                            (Time.realtimeSinceStartup - start).ToString("F1") + " s" +
+                            (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") + ".");
             RemoveTakenPickups(f);
             if (after != null) after(null);
         }

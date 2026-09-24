@@ -113,6 +113,8 @@ namespace ForestOverlay.Game
         // after an in-place restore.
         private FieldInfo _equipmentSlots;        // PlayerInventory._equipmentSlots (InventoryItemView[])
         private FieldInfo _noEquipedItem;         // PlayerInventory._noEquipedItem - the "empty" view
+        private FieldInfo _equipmentSlotsPrevious; // PlayerInventory._equipmentSlotsPrevious (InventoryItemView[])
+        private FieldInfo _itemViewsCache;        // PlayerInventory._inventoryItemViewsCache (id -> views)
         private FieldInfo _viewItemId;            // InventoryItemView._itemId
         private MethodInfo _equipById;            // PlayerInventory.Equip(int, bool)
         private MethodInfo _isSlotLocked;         // PlayerInventory.IsSlotLocked(EquipmentSlot)
@@ -348,6 +350,8 @@ namespace ForestOverlay.Game
                 _stashLeftHand = inv.GetMethod("StashLeftHand", inst, null, Type.EmptyTypes, null);
                 _equipmentSlots = inv.GetField("_equipmentSlots", inst);
                 _noEquipedItem = inv.GetField("_noEquipedItem", inst);
+                _equipmentSlotsPrevious = inv.GetField("_equipmentSlotsPrevious", inst);
+                _itemViewsCache = inv.GetField("_inventoryItemViewsCache", inst);
                 _equipById = inv.GetMethod("Equip", inst, null, new[] { typeof(int), typeof(bool) }, null);
                 _isSlotLocked = inv.GetMethod("IsSlotLocked", inst);
                 if (_isSlotLocked != null)
@@ -1250,6 +1254,63 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex) { _log.LogWarning("Savestate: reading held items failed: " + ex.Message); }
             return ids;
+        }
+
+        /// The inventory's "previously equipped" memory, "slot:itemId" per
+        /// slot that holds one. A cutscene's HideAllEquiped writes the held
+        /// weapon there (MemorizeItem) and its ShowAllEquiped re-equips it
+        /// (EquipPreviousWeapon / EquipPreviousUtility); the save does not
+        /// hold it, so a restored Megan cutscene ended empty-handed (maks,
+        /// v0.24.25: "spear not pulled out").
+        public List<string> PreviousHeld()
+        {
+            List<string> list = new List<string>();
+            if (!Resolve() || _equipmentSlotsPrevious == null || _viewItemId == null) return list;
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                Array slots = inv != null ? _equipmentSlotsPrevious.GetValue(inv) as Array : null;
+                if (slots == null) return list;
+                object none = _noEquipedItem != null ? _noEquipedItem.GetValue(inv) : null;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    UnityEngine.Object v = slots.GetValue(i) as UnityEngine.Object;
+                    if (v == null || ReferenceEquals(v, none)) continue;
+                    int id = (int)_viewItemId.GetValue(v);
+                    if (id > 0) list.Add(i.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" +
+                                         id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            catch (Exception ex) { _log.LogWarning("Savestate: reading the previously equipped items failed: " + ex.Message); }
+            return list;
+        }
+
+        /// Writes PreviousHeld() entries back; returns how many slots were set.
+        public int SetPreviousHeld(List<string> entries)
+        {
+            if (entries == null || entries.Count == 0) return 0;
+            if (!Resolve() || _equipmentSlotsPrevious == null || _itemViewsCache == null) return 0;
+            int n = 0;
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                Array slots = inv != null ? _equipmentSlotsPrevious.GetValue(inv) as Array : null;
+                IDictionary cache = inv != null ? _itemViewsCache.GetValue(inv) as IDictionary : null;
+                if (slots == null || cache == null) return 0;
+                for (int k = 0; k < entries.Count; k++)
+                {
+                    string[] parts = entries[k].Split(':');
+                    int slot, id;
+                    if (parts.Length != 2 || !int.TryParse(parts[0], out slot) || !int.TryParse(parts[1], out id)) continue;
+                    if (slot < 0 || slot >= slots.Length || !cache.Contains(id)) continue;
+                    IList views = cache[id] as IList;
+                    if (views == null || views.Count == 0 || (views[0] as UnityEngine.Object) == null) continue;
+                    slots.SetValue(views[0], slot);
+                    n++;
+                }
+            }
+            catch (Exception ex) { _log.LogWarning("Savestate: writing the previously equipped items failed: " + ex.Message); }
+            return n;
         }
 
         /// After an in-place restore: equips each item held at capture that

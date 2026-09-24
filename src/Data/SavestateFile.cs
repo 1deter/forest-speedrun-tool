@@ -78,6 +78,12 @@ namespace ForestOverlay.Data
         /// Null when the file has no held line (before v0.24.1).
         public List<int> Held;
 
+        /// The inventory's "previously equipped" memory at capture,
+        /// "slot:itemId" entries (PlayerInventory._equipmentSlotsPrevious);
+        /// null before v0.24.28. A cutscene stores the held weapon there
+        /// and re-equips it at its end.
+        public List<string> HeldBefore;
+
         /// Null when the file has no panels line (before v0.24.2).
         public List<string> Panels;
 
@@ -119,6 +125,7 @@ namespace ForestOverlay.Data
                 for (int i = 0; i < Held.Count; i++) ids[i] = Held[i].ToString(CultureInfo.InvariantCulture);
                 Line(sb, "held", string.Join(",", ids));
             }
+            if (HeldBefore != null) Line(sb, "heldbefore", string.Join(";", HeldBefore.ToArray()));
             if (Panels != null) Line(sb, "panels", string.Join(";", Panels.ToArray()));
             if (Enemies != null) Line(sb, "enemies", string.Join(";", Enemies.ToArray()));
             if (Families != null) Line(sb, "families", string.Join(";", Families.ToArray()));
@@ -196,6 +203,13 @@ namespace ForestOverlay.Data
                             s.Families = new List<string>();
                             string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                             for (int k = 0; k < keys.Length; k++) s.Families.Add(keys[k].Trim());
+                            break;
+                        }
+                    case "heldbefore":
+                        {
+                            s.HeldBefore = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.HeldBefore.Add(keys[k].Trim());
                             break;
                         }
                     case "enemies":
