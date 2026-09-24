@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.38 - 2026-09-24
+
+- Practice editor: Quick load / Full load is now a two-button switch, so
+  the active mode is clear at a glance. The Restart button says which one
+  it does.
+
 ## v0.24.37 - 2026-09-24
 
 - Fixed: a Quick load into Megan's cutscene with Megan still seated (for

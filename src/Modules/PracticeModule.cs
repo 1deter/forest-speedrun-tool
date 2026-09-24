@@ -143,6 +143,10 @@ namespace ForestOverlay.Modules
         private string _startStateForId;
         private readonly GUIContent _startStateLabel = new GUIContent("");
         private readonly GUIContent _startStatusLabel = new GUIContent("");
+        private static readonly GUIContent QuickLoadHint =
+            new GUIContent("Quick load: in place, fastest. Full load is the game's full reset (a scene load) for states Quick load misses.");
+        private static readonly GUIContent FullLoadHint =
+            new GUIContent("Full load: the game's full reset with a scene load, slower. Quick load is in place and fastest.");
         private float _deleteStartArmedUntil;
         private float _captureStartArmedUntil;
 
@@ -1215,7 +1219,9 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(196, y - 2, 70, 22),
                            Time.unscaledTime <= _deleteStartArmedUntil ? "Sure?" : "Delete")) DeleteStartState(s);
             GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s) && s.HasSpawn;
-            if (GUI.Button(new Rect(272, y - 2, 70, 22), "Restart")) Restart(s);
+            // Says which load it does (maks: the old toggle was unclear).
+            if (GUI.Button(new Rect(272, y - 2, 110, 22),
+                           s.StartRestoreWithLoad ? "Restart (Full)" : "Restart (Quick)")) Restart(s);
             GUI.enabled = true;
             y += 26f;
 
@@ -1225,10 +1231,15 @@ namespace ForestOverlay.Modules
             // selection change so it never describes another spot.
             y += UiText.Draw(80, y, cw - 90, _startStatusLabel);
 
-            bool load = GUI.Toggle(new Rect(80, y, cw - 90, 20), s.StartRestoreWithLoad,
-                                   " Full load (slower, the game's full reset; off = quick load)");
-            if (load != s.StartRestoreWithLoad) { s.StartRestoreWithLoad = load; Touch(); }
-            y += 28f;
+            // A two-button switch: the active mode shows pressed at a glance.
+            GUI.Label(new Rect(80, y, 70, 20), "Restore by");
+            bool quick = GUI.Toggle(new Rect(152, y - 2, 100, 22), !s.StartRestoreWithLoad, "Quick load", GUI.skin.button);
+            bool full = GUI.Toggle(new Rect(256, y - 2, 100, 22), s.StartRestoreWithLoad, "Full load", GUI.skin.button);
+            if (quick && s.StartRestoreWithLoad) { s.StartRestoreWithLoad = false; Touch(); }
+            else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
+            y += 26f;
+            y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
+            y += 6f;
             return y;
         }
 

@@ -468,7 +468,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.37** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.38** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
@@ -507,9 +507,6 @@ option (the escape hatch for states Quick load has no patch for).
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   c. **Quick / Full load toggle is unclear** (Practice editor, *Start
-      state* row): a two-button switch showing the active mode at once;
-      Restart says which it does.
    d. **Red elevator, Quick load**: the overlook flag is not the cause
       (maks's log: `same as at capture`, overlook `no`); the elevator's
       scene objects are (`HellCorridor/Elevator_01a`, `ElevatorSystem`).
@@ -973,7 +970,7 @@ with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
 attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed).
+thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks)).
 
 ### How a session goes
 
