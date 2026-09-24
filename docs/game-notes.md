@@ -561,8 +561,11 @@ branch), firemen in Hard, `leader` by chance; then
 kind list, e.g. `allRegularSpawns`). `updateSpawns` builds a family:
 `Instantiate(spawnGo, pos, rot)`, `setup<Kind>Spawn(spawn)`, list add,
 `enabled = true`, `invokeSpawn()` (`InvokeRepeating("checkSpawn", 0, 3)`),
-`addToWorldSpawns()`. `checkSpawn` starts `doSpawn` only with the player
-beyond 130 m (`checkPlayerDist`) and `!alreadySpawned`; `doSpawn` clears
+`addToWorldSpawns()`. `checkSpawn`: a **cave** family (`spawnInCave`)
+spawns with a player in the caves within 130 m and `!alreadySpawned`, a
+sinkhole family within 200 m; a **surface** family spawns at once, on the
+first call, whatever `alreadySpawned` says, then cancels its invoke
+(v0.24.17 also started `doSpawn` and got every member twice). `doSpawn` clears
 `allMembers`, sets `doLeader` and starts one routine per kind, each
 spawning from the pool at the spawner within `range` and placing with
 `fixMutantPosition`. Teardown: `mutantController.despawnGo(go)` (pool

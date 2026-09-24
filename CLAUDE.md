@@ -456,7 +456,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.17** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.18** (2026-09-24). The author runs it via the in-game
 updater. **261 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
@@ -511,7 +511,13 @@ lists, every Int32/Boolean/Single setting) and each member's real kind
 restore on the surface runs the game's setup, builds the captured
 families itself (`EnemyKeeper.Rebuild`: `Instantiate(spawnGo)`,
 settings, kind list + counters, `invokeSpawn`, `addToWorldSpawns`,
-`doSpawn` with `alreadySpawned`), places members by kind, despawns extras.
+the first `checkSpawn` spawns a surface family - v0.24.17 also started
+`doSpawn` and spawned every member twice, `15 extra despawned`, fixed in
+v0.24.18), places members by kind, despawns extras. **Tested v0.24.17
+(author):** 6 families rebuilt at their spawners, 15 of 15 placed; the
+family came back as regular ones with head clubs (a woman, a male, a
+leader), but awake and fleeing where they had slept - re-test on
+v0.24.18 without the duplicate spawn.
 Log: `| families: setup run, n rebuilt | positions: n of m placed[, k not
 spawned][, j extra despawned]`. Open: whether `updateSpawns` adds a
 random family when the captured count is below its target; weapons

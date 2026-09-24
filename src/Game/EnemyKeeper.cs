@@ -28,10 +28,11 @@ namespace ForestOverlay.Game
     //   came back as other kinds. So the restore builds the captured
     //   families itself, the way updateSpawns does: Instantiate(spawnGo),
     //   settings, the kind list and counters (numActive<Kind>Spawns,
-    //   numActiveSpawns), enabled, invokeSpawn(), addToWorldSpawns() - and
-    //   starts doSpawn itself, since checkSpawn only spawns with the player
-    //   beyond 130 m. Members spawn from the "enemies" pool at the spawner;
-    //   spawnMutants.fixMutantPosition moves one (a moved cannibal slept,
+    //   numActiveSpawns), enabled, invokeSpawn(), addToWorldSpawns();
+    //   invokeSpawn's first checkSpawn spawns a surface family at once.
+    //   Cave families spawn only with a player in the caves within 130 m,
+    //   so those are started directly. Members spawn from the "enemies"
+    //   pool at the spawner; spawnMutants.fixMutantPosition moves one (a moved cannibal slept,
     //   woke when approached and fought normally - author).
     // ------------------------------------------------------------------
     public sealed class EnemyKeeper
@@ -184,7 +185,8 @@ namespace ForestOverlay.Game
             string prefab = clone > 0 ? name.Substring(0, clone) : name;
             try
             {
-                int type = _mutantType != null ? (int)_mutantType.GetValue(setup) : 0;
+                // An enum: a plain (int) cast threw and dropped the kind (v0.24.17).
+                int type = _mutantType != null ? Convert.ToInt32(_mutantType.GetValue(setup), CultureInfo.InvariantCulture) : 0;
                 bool skinny = _skinny != null && (bool)_skinny.GetValue(setup);
                 bool pale = _pale != null && (bool)_pale.GetValue(setup);
                 return prefab + "/" + type.ToString(CultureInfo.InvariantCulture) + (skinny ? "/s" : "") + (pale ? "/p" : "");
@@ -476,15 +478,18 @@ namespace ForestOverlay.Game
             }
             Bump(ctrl, "numActiveSpawns");
 
+            // invokeSpawn's first checkSpawn spawns a surface family at once
+            // (the 130 m rule is for cave families) - starting doSpawn too
+            // spawned every member twice (v0.24.17: "15 extra despawned").
             sm.enabled = true;
             _invokeSpawn.Invoke(sm, null);
             _addToWorldSpawns.Invoke(sm, null);
-            StartSpawn(sm);
             return sm;
         }
 
-        /// checkSpawn spawns only with the player beyond 130 m; start the
-        /// members now, and mark it spawned so checkSpawn never repeats it.
+        /// A cave family's checkSpawn spawns only with a player in the caves
+        /// within 130 m; start its members now, and mark it spawned so
+        /// checkSpawn never repeats it.
         private void StartSpawn(MonoBehaviour sm)
         {
             if (_alreadySpawned != null) _alreadySpawned.SetValue(sm, true);

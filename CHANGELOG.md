@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.18 - 2026-09-24
+
+- Fixed: restoring in place spawned every cannibal twice for a moment
+  (the extras were removed at once, right in front of you).
+
 ## v0.24.17 - 2026-09-24
 
 - Restoring a savestate in place now brings back the same cannibal
