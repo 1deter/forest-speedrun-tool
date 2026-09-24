@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.13 - 2026-09-24
+
+- New developer tool, off by default: a **test bridge** (Settings) that
+  lets a helper outside the game look at and change the running game
+  through a text file. Runners can leave it off; it marks the session
+  as practice when it changes anything.
+
 ## v0.24.12 - 2026-09-24
 
 - Restarting a spot (F7, auto-restart, a death) now stops the running

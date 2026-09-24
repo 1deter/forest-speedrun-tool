@@ -24,7 +24,7 @@ namespace ForestOverlay.Modules
             map.Add("dump.write", KeyCode.F11, "Write dump files", WriteDumps);
         }
 
-        private void WriteDumps()
+        public void WriteDumps()
         {
             _status = "dumping...";
 

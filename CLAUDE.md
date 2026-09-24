@@ -105,6 +105,7 @@ Where things live:
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
+| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
 
 ### Rules for modules
 
@@ -157,6 +158,39 @@ Settings shows *Game input: blocked* when that is working.
 `F1` is deliberately free — the game's own dev console uses it.
 All keys are rebindable in **Settings**, or in
 `BepInEx/config/com.deter.forestoverlay.cfg`.
+
+### The live test bridge (v0.24.13)
+
+Dynamic analysis: the running game answers questions from here. Off by
+default; the author ticks **Settings -> Test bridge** (or
+`[Diagnostics] TestBridge = true`, persists). The plugin polls
+`BepInEx/config/ForestOverlay/bridge/in.txt`, runs one line a frame on
+the main thread (a waiting command holds the queue, so a batch reads as
+a script), appends replies to `out.txt` (`> #n cmd`, result lines,
+`< #n ok (t)` / `< #n error: ...`) and logs one `Bridge #n: ...` line
+per command. From here:
+
+```bash
+scripts/bridge.sh 'status' 'find _Dummy 100'
+scripts/bridge.sh -t 300 'restore my-state' 'wait 2' 'find mutant_ 80'
+scripts/bridge.sh -f commands.txt
+```
+
+`help` lists the commands. Targets: `#<handle>` (printed by every
+listing; the instance id), `player`, `camera`, `static:<Type>`, or a
+GameObject name/path. Paths: on a GameObject the first step is a
+component (`GameObject` = itself, `Comp[1]` = the second), then fields /
+properties, `[n]` indexes lists. `find` / `type` (radius, `all` =
+inactive too, `max=N`, nearest first), `roots`, `types`, `members`
+(live `ilscan type`), `inspect`, `fields`, `get`, `set` / `call` /
+`destroy` (mark practice; an `IEnumerator` method is started as a
+coroutine), and the overlay's own actions: `savestates`, `capture`,
+`restore <name> [load]` (wait until done), `spots`, `go`, `restart`
+(waits until idle), `tp`, `dump`, plus `wait` / `waitidle`.
+The author does what needs hands (combat, chopping) while a session
+drives the rest. A bad path is an error line, never an exception.
+`in.txt` still present after a call = the game is not reading (not
+running, bridge off).
 
 ### Releases and updates
 
@@ -294,7 +328,10 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 15. **Unity 5.6's `UnityWebRequest` does not treat a 404 as an error.** Check
     `responseCode` yourself; a 404 body arrives as ordinary data.
 
-16. **The runner's `LogOutput.log` is the test harness.** There is no game
+16. **The runner's `LogOutput.log` is the test harness** - and since
+    v0.24.13 the **live test bridge** is the other one (see *The live
+    test bridge*): ask the running game directly instead of guessing
+    from IL. There is no game
     here to run. The author tests in game and gives the path
     `G:\SteamLibrary\steamapps\common\The Forest\BepInEx\LogOutput.log` —
     read it directly. So every new mechanism logs one line when it acts
@@ -419,8 +456,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.12** (2026-09-24). The author runs it via the in-game
-updater. **224 tests.**
+**Released: v0.24.13** (2026-09-24). The author runs it via the in-game
+updater. **243 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
 
@@ -443,9 +480,11 @@ auto-restart and ordered checkpoints in real runs; the held-item log
 off, **respect the game's state** - the runner chose that save; do not
 spawn cave or world enemies there (as v0.24.10 does).
 
-**First, before the fix list: the live test bridge** (author, 2026-09-24:
-"start there next session - something dynamic would be great as this
-builds in scope"). See the design below; then use it on the fix list.
+**The live test bridge is built (v0.24.13)** - see *The live test
+bridge*. Not yet used against the real game: the first session with it
+checks `status` / `find` / `inspect` / `get` on the author's install,
+then uses it on the fix list (bodies: `find _Dummy`, `inspect #id`;
+enemies: `find mutant_ 100`, then `inspect` one; `members mutantController`).
 
 **Fix list, in order** (before Next up 5):
 
@@ -524,18 +563,10 @@ restarting the spot.`); limb / head removal; the body-candidates line;
 the title screen no longer runs the nature guide's object scan every 5 s
 (it logged `Slow tick: 'collectibles'` ~12 ms there).
 
-**Live testing through the running game - APPROVED, build it first**
-(author, 2026-09-24; dynamic analysis - everything so far is static IL +
-logs). Design as proposed in chat: a file bridge - the plugin
-polls `config/ForestOverlay/bridge/in.txt` for commands written from
-here (inspect an object's hierarchy / fields by reflection, list objects
-of a type near the player, call the overlay's own actions: capture,
-restore, teleport, dumps), executes them on the main thread and appends
-results to `out.txt`; the author watches the game and does what needs
-hands (combat, chopping). Practice-only, off by default, one log line per
-command. Keep the results plain text so they can be read straight back
-here; guard every command (a bad reflection path returns an error line,
-never throws into the game).
+**Live testing through the running game** - **built in v0.24.13**
+(author approved 2026-09-24; design as proposed: a file bridge,
+practice-only, off by default, one log line per command, plain-text
+replies, every command guarded).
 
 **Then, still Next up 3, before Next up 5** (author, 2026-09-24):
 - **Stats-only start state** (runner): a spot option restoring only thirst,

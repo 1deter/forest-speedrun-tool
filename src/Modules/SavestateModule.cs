@@ -418,29 +418,72 @@ namespace ForestOverlay.Modules
         private void RestoreSelectedInPlace()
         {
             _anchor = Anchor.List;
-            SavestateFile f = LoadSelected();
-            if (f == null) return;
-
-            string mode = ModeMismatch(f);
-            if (mode != null) { SetStatus("restore '" + f.Name + "' refused: " + mode); return; }
-
-            HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
-            RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, f, null);
+            RestoreFile(LoadSelected(), false, null);
         }
 
         private void RestoreSelectedWithLoad()
         {
             _anchor = Anchor.List;
-            SavestateFile f = LoadSelected();
-            if (f == null || _busy) return;
+            RestoreFile(LoadSelected(), true, null);
+        }
+
+        /// `done` gets null on success or the reason (not called for an
+        /// unreadable file - LoadSelected has said why).
+        private void RestoreFile(SavestateFile f, bool load, Action<string> done)
+        {
+            if (f == null) { if (done != null) done("could not read the file - " + _status.text); return; }
+            if (_busy) { if (done != null) done("a savestate action is still running"); return; }
 
             string mode = ModeMismatch(f);
-            if (mode != null) { SetStatus("restore '" + f.Name + "' refused: " + mode); return; }
+            if (mode != null)
+            {
+                SetStatus("restore '" + f.Name + "' refused: " + mode);
+                if (done != null) done("refused: " + mode);
+                return;
+            }
+
+            if (!load)
+            {
+                HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
+                RestoreInPlace(f.Data, f.StreamingUnloaded, present, "'" + f.Name + "'", f.InCave ? 1 : 0, f, done);
+                return;
+            }
 
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
-            StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, null));
+            StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, done));
+        }
+
+        // ------------------------------------------------------------------
+        // The test bridge (Modules/BridgeModule).
+
+        /// "name  (size, date)" per savestate file (not the segment ones).
+        public void ListFiles(List<string> into)
+        {
+            RefreshFiles();
+            for (int i = 0; i < _fileLabels.Count; i++) into.Add(_fileLabels[i].text);
+        }
+
+        public void CaptureNamed(string name, Action<string> done)
+        {
+            _anchor = Anchor.Capture;
+            CaptureTo(name, null, done);
+        }
+
+        /// By file name without the extension, case-insensitive; selects
+        /// it in the list as a click would.
+        public void RestoreNamed(string name, bool load, Action<string> done)
+        {
+            RefreshFiles();
+            int found = -1;
+            for (int i = 0; i < _files.Count; i++)
+                if (string.Equals(Path.GetFileNameWithoutExtension(_files[i]), name, StringComparison.OrdinalIgnoreCase)) found = i;
+            if (found < 0) { done("no savestate '" + name + "' (savestates lists them)"); return; }
+
+            _selected = found;
+            _anchor = Anchor.List;
+            RestoreFile(LoadSelected(), load, done);
         }
 
         private void SlotInPlace()

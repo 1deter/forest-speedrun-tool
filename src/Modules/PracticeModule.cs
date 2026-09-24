@@ -469,6 +469,27 @@ namespace ForestOverlay.Modules
             Restart(_current);
         }
 
+        // The test bridge (Modules/BridgeModule): null, or why not.
+        public string BridgeGo(string id)
+        {
+            Segment s = _library.ById(id);
+            if (s == null) return "no practice entry '" + id + "' (spots lists them)";
+            if (!s.HasSpawn) return "'" + id + "' has no spawn point";
+            Teleport(s);
+            return null;
+        }
+
+        /// `id` null: the current spot, as F7.
+        public string BridgeRestart(string id)
+        {
+            Segment s = id == null ? _current : _library.ById(id);
+            if (s == null) return id == null ? "no current spot" : "no practice entry '" + id + "' (spots lists them)";
+            if (!s.HasSpawn) return "'" + s.Id + "' has no spawn point";
+            if (_savestates != null && _savestates.Busy) return "a savestate action is still running";
+            Restart(s);
+            return null;
+        }
+
         /// Saves where you stand as a new entry and selects it.
         private void QuickSaveSpot()
         {

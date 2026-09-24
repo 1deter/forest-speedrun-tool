@@ -101,6 +101,18 @@ namespace ForestOverlay.Modules
                 _message = "Keys reset to defaults.";
             }
 
+            // The live test bridge (developer tool): toggle and what it is doing.
+            float y = 54f;
+            BridgeModule bridge = Host.Find<BridgeModule>();
+            if (bridge != null)
+            {
+                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), bridge.Enabled,
+                                     " Test bridge (developer tool): run commands from bridge/in.txt");
+                if (on != bridge.Enabled) bridge.Enabled = on;
+                y += 24f;
+                y += UiText.DrawDim(12, y, w - 24, bridge.StatusText);
+            }
+
             bool rebinding = map.AwaitingRebind != null;
             if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
             {
@@ -119,9 +131,9 @@ namespace ForestOverlay.Modules
                 ? 0f
                 : Mathf.Max(20f, promptStyle.CalcHeight(_prompt, promptW));
 
-            GUI.Label(new Rect(12, 54, promptW, promptH), _prompt, promptStyle);
+            GUI.Label(new Rect(12, y, promptW, promptH), _prompt, promptStyle);
 
-            float listY = 58f + promptH;
+            float listY = y + 4f + promptH;
             DrawBindList(new Rect(8, listY, w - 16, _tabH - listY - 10f), map);
 
             // Capture has to run before DragWindow, or dragging swallows
