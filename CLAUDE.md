@@ -95,7 +95,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/CutsceneAudio` (fast-forward sounds), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -469,28 +469,35 @@ identity.
 ## Current status
 
 **Released: v0.24.43** (2026-09-24). The author runs it via the in-game
-updater. **265 tests.**
+updater. **267 tests.**
 
-### Pick up here (2026-09-24 late, v0.24.37 in the game)
+### Pick up here (2026-09-24 night, v0.24.43 in the game)
 
-**State (end of 2026-09-24, author out of usage):** v0.24.38 (Quick /
-Full load switch, item 1c done) and v0.24.39 (late pickup removal for
-1a) are released but not yet seen in game; the author's game was on
-v0.24.37. maks's list now covers both (items 6-7). Resume with 1b or 1d.
-Before that: v0.24.37 runs in the author's game. Megan's Quick load, the
-fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
-confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
-he runs it currently and knows the exact cutscene audio (the author has
-not played in a while). Next after sending it: *Next, in order* 1a.
-**maks's v0.24.39 test list** is drafted in
-[`docs/tests/2026-09-24-maks-v0.24.39.md`](docs/tests/2026-09-24-maks-v0.24.39.md)
-(not yet sent; the author sends it). **SWAPPED NOW: Slot5 holds maks's slot5.zip save; the author's is `Slot5.deter-backup` - swap back at the title screen (2026-09-24 late).** **Slot4 is the author's own again**
-(swapped back 2026-09-24). maks's saves for testing: his Megan save in
-`C:\Users\deter\Downloads\Slot4`, lab / invisible section / red elevator
-in `C:\Users\deter\Downloads\slot5.zip`. Swap routine, at the title
-screen only: rename the author's slot to `SlotN.deter-backup`, copy
-maks's in, and afterwards delete it and rename the backup back (check
-sizes match). Steam Cloud is off (author).
+**State:** v0.24.43 runs in the author's game. This session (details in
+*Confirmed in game* and game-notes *The red elevator and the endgame
+areas*): v0.24.38 the Quick / Full load switch (was 1c), v0.24.39 late
+pickup removal (1a, untested), v0.24.40-43 the red elevator after a Quick
+load, the endgame's active area, Go out of the endgame after the ride and
+the held axe / lighter after a Full load (was 1d; all confirmed by the
+author with the bridge on maks's slot5 save). New savestate header lines:
+`elevators`, `activearea` (older files lack them: those restores skip the
+fix).
+
+**maks's v0.24.43 test list** is drafted in
+[`docs/tests/2026-09-24-maks-v0.24.43.md`](docs/tests/2026-09-24-maks-v0.24.43.md)
+(not yet sent; the author sends it): Megan (1-5, v0.24.35-37), the switch
+(6), cave 5 coins (7), the red elevator / Go out of the endgame / held
+items after a Full load (8-10). maks has not tested v0.24.35+ yet.
+
+**Saves:** every slot is the author's own (Slot5 swapped back
+2026-09-24 night, sizes checked). maks's saves for testing: his Megan
+save in `C:\Users\deter\Downloads\Slot4`, lab / invisible section / red
+elevator in `C:\Users\deter\Downloads\slot5` (and `slot5.zip`; the save
+starts at an elevator ~840 m from the red one - the author walks there,
+the gold keycard is not needed: a known game bug). Swap routine, with
+the game closed or at the title screen only: rename the author's slot
+to `SlotN.deter-backup`, copy maks's in, and afterwards delete it and
+rename the backup back (check sizes match). Steam Cloud is off (author).
 
 **Naming (author, done v0.24.27, UI only - config keys and log lines
 unchanged):** **Quick load** = restore in place, **Full load** = restore
@@ -510,7 +517,7 @@ option (the escape hatch for states Quick load has no patch for).
       suppress the game's own family setup after a Full load so the
       rebuild can run at once (it waits for the game's setup, 3.8 s,
       +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
+   c. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
       up 4, *Open threads*.
@@ -548,7 +555,12 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 `call #<h> OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, `wait 10`, `get ..._checker.Message`
 ("downloaded - restart"); the author restarts. Works at the title screen.
-**Bridge habits (2026-09-24):** point the author at things with `mark`
+**Bridge habits (2026-09-24):** `set` takes a vector as `x,y,z` (no
+brackets or spaces). Handles are per launch: a new game run answers
+`unknown handle - list it first` until a `type` / `find` lists them. A
+`tp` into the endgame lands with the sections unloaded (no textures,
+colliders fine - the Area system, game-notes); walk there when the look
+matters. Point the author at things with `mark`
 (never compass directions); look with `shot <name>` and Read the png in
 `BepInEx/config/ForestOverlay/bridge/` (a shot on the frame of an action
 shows that frame, not its outcome - wait a few tenths); `anim watch N`
@@ -718,13 +730,15 @@ scanner.
     its effects. Spears and limbs left since the capture are removed; boss
     Megan is put back seated when she was at capture (`megan` header,
     `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
-    load*).
+    load*); the endgame elevators and active area as at capture
+    (`ElevatorKeeper`, `AreaKeeper`, v0.24.40-41).
   - **Full load** = with a scene load (~5-15 s): `LoadSavedLevel` — the
     second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
     player is held at the captured spot until every scene loaded at
     capture is back, the endgame area is force-loaded if the capture had
     it, placed pickups taken before the capture are removed, the captured
-    cannibal families are rebuilt.
+    cannibal families are rebuilt, the held items are equipped again
+    for the animator (v0.24.43).
   Both: a cutscene capture is fast-forwarded (25x) with the held weapon's
   memory put back (`heldbefore`) and its sounds kept in step
   (`Game/CutsceneAudio`, v0.24.36).
