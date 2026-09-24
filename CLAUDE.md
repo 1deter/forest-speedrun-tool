@@ -463,44 +463,62 @@ builds in scope"). See the design below; then use it on the fix list.
    come back - not before, or a route loses logs it cut before capture.
 2. **Enemies do not come back in place in a Normal game** (author): the
    restore logs `enemies: families restarted by the game (leaving the cave
-   state)` (the surface `NotInACave` -> `startSetupFamilies`), yet killed
-   ones stay dead; a load brings them back. So `setupFamilies` respawns
-   *families the spawn manager still counts*, and the save's spawn state
-   is what a load restores: read `SpawnMutantsSerializerManager` (in the
-   savestate data) and `mutantSpawnManager` (`setMutantSpawnAmounts`) -
-   what they store, and whether their deserialize path runs for LoadNow
-   in place. Also check nothing doubles up.
-3. **Bodies stay** (author): v0.24.10's rule (scene-root clones of
-   `clsragdollify.vargamragdoll`) removed 0 every time, so a dead body is
-   something else. v0.24.12 logs `body candidates after the restore:
-   <root objects named body / ragdoll / dead / mutant / cannibal /
-   corpse> xN` 0.5 s after an in-place restore - read it after killing
-   (the bodies may also be children of a holder, not roots). **Limbs and
-   heads** are world pickups (`Head x1, Arm x1` in the author's log);
-   v0.24.12 destroys Arm / Leg / Head pickups the capture did not list
-   (`removed n limb / head pickup(s)`) - awaiting a check.
+   state)` (the surface `NotInACave` -> `startSetupFamilies`), and the
+   v0.24.12 log shows families spawning after some restores
+   (`mutant_male(Clone)0010 ... mutant_female(Clone)0011`, 8-12 of them,
+   plus `mutantSpawner(Clone) x6`), yet the killed ones do not come back
+   where they were; a load brings them back. **Author (2026-09-24):
+   enemies should respawn, ideally in the same position and state as at
+   capture** ("I know that's difficult"). So: record each live cannibal
+   at capture (prefab / type, position, rotation, family / spawner, health,
+   AI state if cheap) into a new header line (outside the start-state
+   hash), and after an in-place restore despawn what is there and spawn
+   those - read how `mutantSpawnManager` / `spawnMutants` / the family
+   setup instantiate one (`SpawnMutantsSerializerManager` is in the save:
+   read what it stores and whether a load uses it for positions). Use the
+   test bridge to list live `mutant_*` objects and their components first.
+3. **Bodies stay** (author, v0.24.12: limbs are cleared, bodies not).
+   **Found (v0.24.12 log):** a dead body is a scene-root
+   **`mutant_male_Dummy(Clone)`** (x1, then x2 over restores - they pile
+   up; expect `mutant_female_Dummy(Clone)` etc. too). v0.24.10's
+   ragdoll-clone rule (`clsragdollify.vargamragdoll` names) removed 0.
+   Next: confirm with the bridge what component a Dummy carries (the
+   `*Dummy*` types, e.g. `CoopMutantDummy` is multiplayer - find the SP
+   one) and destroy root objects named `*_Dummy(Clone)` without a save id
+   after an in-place restore (in `ClearCorpses`). Other roots in that
+   line are the game's managers (`_mutantSetup`, `DeadSpots`,
+   `cannibalVillages`, `mutantWorldPosition`) - never touch those.
+   Limbs / heads: **confirmed cleared** (`removed 2 limb / head
+   pickup(s)`).
 4. **An extra `Axe Plane` world pickup each in-place restore?** The "not
    at capture" line counted `Axe Plane x2, x3, x4, x5` over consecutive
    restores (back to x2 after a load). Something drops or spawns a plane
    axe pickup per restore - `StashHands` / the game's re-equip, or the
    serializer bringing back a pickup. Find those objects (position vs the
    player) before they pile up.
-5. **Phantom stick** (author, once, during practice runs after in-place
+5. **Blood on the player stays after an in-place restore** (author,
+   2026-09-24): blood from killing cannibals remains on the player's
+   body / arms. Not the `BleedBehavior` screen overlay (Deaths tab) - the
+   player model's bloodiness; find what sets it (`ilscan` for the player's
+   blood / "bloody" material or property block, e.g. `PlayerStats` blood
+   amount, a `BloodyPlayer`-like component, a wash in water) and reset it
+   after an in-place restore the way washing does.
+6. **Phantom stick** (author, once, during practice runs after in-place
    restores): picked up a stick, it vanished, nothing in the inventory, no
    "picked up" text. Suspects: a `PickupKeeper` copy (disabled instead of
    destroyed, then re-enabled) or a greeble instance despawned by the
    streaming reload under the hand. Watch for it; the stick oddity in
    *Awaiting* is probably the same.
-6. **Pickups move** (old fix 4): the "not at capture" lines show few
+7. **Pickups move** (old fix 4): the "not at capture" lines show few
    sticks / rocks (`Stick x3`, `Rock x1`) - most of the list is logs,
    cloth, boards and plane axes. Re-test after 1 and 4; greeble IL notes
    are in game-notes *Greebles* (positions are seeded; type pick depends
    on regrowth time).
-7. **Cave panels** (old fix 5): no `nearest cave panel` line yet - it
+8. **Cave panels** (old fix 5): no `nearest cave panel` line yet - it
    needs a capture within 30 m of a panel, a few hits, an in-place
    restore.
 
-Shipped in v0.24.12 (awaiting a check): a restart voids the running
+Shipped in v0.24.12, **confirmed (author)**: a restart voids the running
 timer at once (`OnRestartStarting`; log `Run '<id>': aborted -
 restarting the spot.`); limb / head removal; the body-candidates line;
 the title screen no longer runs the nature guide's object scan every 5 s
