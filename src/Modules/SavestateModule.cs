@@ -339,6 +339,12 @@ namespace ForestOverlay.Modules
             List<string> panels = new List<string>();
             try { _panels.Snapshot(panels); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel snapshot failed: " + ex.Message); }
+            try
+            {
+                string near = Ctx.Player.Found ? _panels.DescribeNearest(Ctx.Player.Transform.position) : null;
+                if (near != null) Ctx.Log.LogInfo("Savestate: nearest cave panel at capture: " + near);
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel description failed: " + ex.Message); }
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
@@ -533,6 +539,12 @@ namespace ForestOverlay.Modules
                 {
                     try { panelNote = _panels.Restore(file.Panels, true); }
                     catch (Exception ex) { panelNote = "panels: restore failed (" + ex.Message + ")"; }
+                    try
+                    {
+                        string near = Ctx.Player.Found ? _panels.DescribeNearest(Ctx.Player.Transform.position) : null;
+                        if (near != null) Ctx.Log.LogInfo("Savestate: nearest cave panel after the restore: " + near);
+                    }
+                    catch (Exception) { }
                 }
 
                 // The hands were emptied for the restore; put back what they

@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.11 - 2026-09-24
+
+- Quitting to the title screen now stops a timed run (not saved) and
+  clears its line; go to the spot again to run it.
+- A timed spot's lines only show while that spot is selected in the
+  Practice list.
+
 ## v0.24.10 - 2026-09-24
 
 - Fixed: restoring in place no longer removes every enemy in a Creative

@@ -4,6 +4,7 @@ using ForestOverlay.Core;
 using ForestOverlay.Data;
 using ForestOverlay.Game;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ForestOverlay.Modules
 {
@@ -46,6 +47,12 @@ namespace ForestOverlay.Modules
         private Segment _segment;
         private string _loadedSegmentId;
         private int _armedRevision;
+
+        // The level a run was armed in (build index: an int, no string per
+        // tick). Quitting to the title screen kept the run's clock going and
+        // its line drawn there (author, v0.24.7); a load restore reloads the
+        // same level, so its index does not change.
+        private int _armedScene = -1;
         private string _armedRoute = "";
         private int _otherRouteCount;
 
@@ -204,6 +211,7 @@ namespace ForestOverlay.Modules
             _baseline.Capture(_live, _referencedItemIds);
 
             _armedRevision = _segment.Revision;
+            _armedScene = SceneManager.GetActiveScene().buildIndex;
             _armedRoute = _segment.RouteFingerprint();
 
             _recorder.StateChannels = Ctx.PlayerState.Channels;
@@ -254,6 +262,8 @@ namespace ForestOverlay.Modules
                     _practice.ReturnToSpot();
                 }
             }
+
+            if (_segment != null && SceneManager.GetActiveScene().buildIndex != _armedScene) LeaveLevel();
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
@@ -444,6 +454,23 @@ namespace ForestOverlay.Modules
             if (_segment != null) ArmRun();
         }
 
+        // Left the level (title screen): the run is not finished and not
+        // saved, and nothing of it is drawn. Going back to the spot (F7,
+        // Go) arms it again.
+        private void LeaveLevel()
+        {
+            bool running = _recorder.State == RunRecorder.RunState.Running;
+            Ctx.Log.LogInfo("Run '" + _segment.Id + "': " + (running ? "aborted" : "disarmed") +
+                            " - left the level (not saved).");
+            _autoRestartAt = 0f;
+            _recorder.Abort();
+            _hasDelta = false;
+            _segment = null;
+            ClearLines();
+            ClearRunPreview();
+            _status = "left the level - go to the spot again to run it";
+        }
+
         private void LoadAttemptsFor(Segment s)
         {
             string route = s.RouteFingerprint();
@@ -547,7 +574,11 @@ namespace ForestOverlay.Modules
         {
             if (_lines == null) return;
 
-            _lines.Show = _showLines && Enabled;
+            // Lines belong to the selected entry only when it is the one
+            // being run (author, 2026-09-24): selecting another entry hid
+            // its zones but left this segment's line drawn.
+            _lines.Show = _showLines && Enabled &&
+                          (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
             if (!_lines.Show) return;
 
             if (!ReferenceEquals(_lineSource, _reference))

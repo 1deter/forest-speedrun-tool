@@ -167,6 +167,63 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// One line describing the panel nearest `from` and everything under
+        /// it: path, active, components, rigidbodies. Diagnostic for the
+        /// author's "half-repaired" panels (v0.24.7): after a restore a hit
+        /// panel still looked crooked, its crossed boards on the floor, and
+        /// nothing in IL but BreakWoodSimple breaks a panel - so which
+        /// children move, and are they physics bodies?
+        public string DescribeNearest(Vector3 from)
+        {
+            Array planks = Planks();
+            if (planks == null) return null;
+
+            Component best = null;
+            float bestSq = 30f * 30f;
+            for (int i = 0; i < planks.Length; i++)
+            {
+                Component p = planks.GetValue(i) as Component;
+                if (p == null) continue;
+                float d = (p.transform.position - from).sqrMagnitude;
+                if (d < bestSq) { bestSq = d; best = p; }
+            }
+            if (best == null) return null;
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append("health ").Append((int)_health.GetValue(best)).Append(", ")
+              .Append(Mathf.Sqrt(bestSq).ToString("0.0", CultureInfo.InvariantCulture)).Append(" m away: ");
+            Transform root = best.transform;
+            if (root.parent != null) sb.Append("parent '").Append(root.parent.name).Append("' ");
+            Describe(root, root, sb, 0);
+            return sb.ToString();
+        }
+
+        private static void Describe(Transform t, Transform root, System.Text.StringBuilder sb, int depth)
+        {
+            if (depth > 4) return;
+            sb.Append(depth == 0 ? "" : "; ").Append(new string('>', depth)).Append(t.name);
+            if (!t.gameObject.activeSelf) sb.Append(" (off)");
+            if (t != root)
+            {
+                Vector3 lp = t.localPosition;
+                sb.Append(" @").Append(lp.x.ToString("0.00", CultureInfo.InvariantCulture)).Append(',')
+                  .Append(lp.y.ToString("0.00", CultureInfo.InvariantCulture)).Append(',')
+                  .Append(lp.z.ToString("0.00", CultureInfo.InvariantCulture));
+            }
+            Component[] cs = t.GetComponents<Component>();
+            sb.Append(" [");
+            for (int i = 0; i < cs.Length; i++)
+            {
+                if (cs[i] == null || cs[i] is Transform) continue;
+                sb.Append(cs[i].GetType().Name);
+                Rigidbody rb = cs[i] as Rigidbody;
+                if (rb != null) sb.Append(rb.isKinematic ? "(kinematic)" : "(dynamic)");
+                sb.Append(' ');
+            }
+            sb.Append(']');
+            for (int c = 0; c < t.childCount; c++) Describe(t.GetChild(c), root, sb, depth + 1);
+        }
+
         /// Sets each captured panel's health; with `rebuild`, also puts back
         /// the ones that broke since (in place only - a load has fresh
         /// panels). Returns a note for the log line, "" when there is

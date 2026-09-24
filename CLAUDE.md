@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.10** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.11** (2026-09-24). The author runs it via the in-game
 updater. **224 tests.**
 
 ### Pick up here (handoff of 2026-09-24, after the author tested v0.24.7)
@@ -443,7 +443,12 @@ gone; a **load** restore repairs the cave panels; the Practice list
 switches freely (`Practice: selected ...` lines).
 
 **Fix list for the next session, in order** (the author wants these
-before Next up 5):
+before Next up 5). **Session of 2026-09-24 (later) shipped v0.24.8 -
+v0.24.11**: fixes 1, 2, 3, 6, 7, 8, 9 done and awaiting the author's
+test; 4 and 5 shipped their diagnostic log lines and wait on a log. Also
+that session: the conversation history exported to Markdown for a runner
+(`Desktop/forest-conversations`, converter script not kept in the repo).
+Ask the author for the v0.24.11 test log first.
 
 1. ~~**In-place restore breaks hits**~~ **fixed in v0.24.8** (awaiting a
    check; game-notes *Held weapons and the hit trigger*). The delete step
@@ -479,39 +484,42 @@ before Next up 5):
    with enemies off, cave enemies still spawn and a load brings them back
    - should an in-place restore respawn cave enemies too (the cave
    spawners' path, `updateCaveSpawns`, unread)?
-4. **Pickups move on every restore (both kinds).** Small pickups - sticks,
-   rocks - come back at random positions. They are spawned by the greeble
-   system (`GreebleZonesManager` / `GreebleZone`, force-unloaded around
-   every capture and restore), probably seeded randomly per spawn. Find
-   the seed / random use in the greeble spawn (`ilscan`), and either keep
-   the seed stable (capture it) or record positions at capture and place
-   the respawned ones. The author wants this fixed.
-5. **Cave panels in place**: a restore after breaking some left them
-   "half-repaired" - still looking damaged / crooked, the crossed boards
-   on the floor (normally on the panel, knocked off by the first hit) -
-   and non-collidable to hits (fix 1). No `panels:` note was logged on
-   those restores, so `PanelKeeper` changed nothing - check whether the
-   broken ones were kept (`PanelKeeper: panel ... broke` never appeared in
-   the log - was the keeper armed? it arms on the first capture/restore,
-   and the breaking was done after a load, which clears the keeper) and
-   what the crossed boards are (another breakable, not `BreakWoodSimple`?
-   dump a panel's hierarchy).
+4. **Pickups move on every restore (both kinds)** - waiting on a log.
+   IL (2026-09-24): positions are NOT seeded randomly - `SpawnIndex` sets
+   `Random.seed = GetRandomSeed() + index`, the zone seed lives in
+   `GreebleZonesManager.GZData._seed` (the manager is in the save), and
+   the position comes from `Random.Range` after that. What varies: the
+   type pick `GreebleUtility.ProceduralGreebleType(defs, AllowRegrowth &&
+   Destroyed, Clock.ElapsedGameTime - CreationTime)` for regrowing
+   instances (a different number of Random draws shifts the position),
+   the per-instance `Destroyed` flags, and the ground raycast. Unconfirmed
+   - so v0.24.10 logs `n world pickup(s) not at capture (Stick xN, Rock
+   xN)` 0.5 s after an in-place restore. Next: get that line from the
+   author (stand near sticks, capture, pick some up, restore), then
+   compare instance data at capture and after.
+5. **Cave panels in place** - waiting on a log. The save holds no panel
+   (no `BreakWoodSimple` / `CoopWoodPlanks` in a savestate's data) and
+   `BreakWoodSimple` is the only breakable of its kind, so the
+   "half-repaired" panel (crooked, crossed boards on the floor) was most
+   likely a panel whose loose child boards were knocked off - health
+   reset, boards not; its non-collidable part was fix 1. v0.24.11 logs
+   `Savestate: nearest cave panel at capture: ...` and `... after the
+   restore: ...` (hierarchy, local positions, rigidbodies) - compare the
+   two after hitting a panel between capture and restore, then record
+   and reset the moving children's local poses.
 6. ~~**Practice list category grouping**~~ **fixed in v0.24.9** (awaiting
    a check): `PracticeModule.RebuildVisible` sorts its own copy
    (`SegmentLibrary.Compare`, now public) and groups with
    `SegmentLibrary.SameCategory` (ignores case and surrounding spaces;
    collapse state keyed the same way); a Name / Category edit regroups
    0.6 s after typing pauses (`_regroupAt`, in `Tick`).
-7. **Run lines and runs outlive their spot.** With practice mode on after
-   a timed segment, selecting another spot clears the zones (the preview
-   follows the editor's selection) but not the blue reference line (it
-   follows the *current* segment). And quitting to the title screen kept
-   drawing the line there, with the spot still selected and the run timer
-   running. Fix: clear lines / abort (without saving) at the title screen
-   and on a scene change (this is the deferred "runs continue at the main
-   menu" item - now reported again, do it). **Author (2026-09-24):
-   selecting a different entry clears the current run's lines** - lines
-   show only for the selected entry when it is the current one.
+7. ~~**Run lines and runs outlive their spot**~~ **fixed in v0.24.11**
+   (awaiting a check): a run remembers the level's build index when it
+   arms; a different active scene (title screen) aborts it unsaved,
+   drops the segment and clears lines (`Run '<id>': aborted - left the
+   level (not saved).`); a load restore keeps the index. Lines show only
+   while the Practice list's selected entry is the run's segment
+   (`PracticeModule.SelectedSegment`; author, 2026-09-24).
 8. ~~**Area report binds nothing**~~ **fixed in v0.24.9**: binds
    `TheForest.Utils.Scene`, and sorts the scene and streamed names (a file
    captured before v0.24.9 may still log "differs" once - its `areas` line

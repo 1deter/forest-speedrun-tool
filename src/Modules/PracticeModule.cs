@@ -57,6 +57,9 @@ namespace ForestOverlay.Modules
         public string SpotLabel { get { return _current != null ? _current.Name : ""; } }
         public Segment CurrentSegment { get { return _current; } }
 
+        /// The entry selected in the editor list (not necessarily current).
+        public Segment SelectedSegment { get { return _selected; } }
+
         /// A file check - for a death, not per frame.
         public bool CurrentHasStartState
         {
