@@ -459,80 +459,66 @@ identity.
 **Released: v0.24.19** (2026-09-24). The author runs it via the in-game
 updater. **261 tests.**
 
-### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
+### Pick up here (handoff of 2026-09-24 night, v0.24.19 downloaded, not yet tested)
 
-Sessions of 2026-09-24 shipped **v0.23.8 - v0.24.12**. The author tested
-v0.24.11 in a **Normal** (survival) game, restoring the Creative-captured
-start state `spot.my.new-spot-3` cross-mode (`AllowCrossModeRestore` on)
-plus a fresh start state `spot.my.new-spot` captured in that game. The log
-(`G:\SteamLibrary\...\BepInEx\LogOutput.log`, 2026-09-24) is gone at the
-next launch; its findings are below.
+**The session of 2026-09-24 night** built the live test bridge (v0.24.13)
+and used it with the author in their Hard save (`scripts/bridge.sh`; the
+author does the fighting, everything else is driven from here). Shipped
+v0.24.13 - v0.24.19. **How these sessions run:** the author loads the
+save and says so; from here: `tp 523 56.3 10 180` (20 m north of a
+two-to-three-male regular family at spawner (522.9, 56.74, -10.7)),
+`set static:Cheats GodMode true`, `set static:Cheats InfiniteEnergy true`,
+`capture test-vX`; the author kills and walks off; `restore test-vX`,
+then `find "_male(Clone)" 40`, the after-restore log line, and the FSM
+states (`get #<_BASE> PlayMakerFSM[1|2].ActiveStateName`). **Updates
+through the bridge:** `type OverlayPlugin all` (the plugin is `#-88`
+`BepInEx_Manager`), `call #-88 OverlayPlugin._host._modules[1]._checker.Check`,
+then `..._checker.Download "<plugin path>"` once `Message` says available
+(the API lags the asset by a minute or two); the author restarts.
+
+**Next: test v0.24.19** (downloaded into the author's game, needs a
+restart): the family should come back **asleep** on the spot and the
+leader on the leader's spot. Log: `families: setup run, 6 rebuilt |
+positions: n of n placed, k of k put back to sleep`. The author is on
+high effort for this work; say when medium is enough again (memory
+`effort-level-switching`).
+
+**Enemies after an in-place restore - where it stands** (fix list 2;
+game-notes *Seen live through the test bridge*, *Cannibal kinds and
+families*, *Putting cannibals back*):
+- **Confirmed:** bodies removed (v0.24.15), blood washed (v0.24.14), one
+  plane wreck (v0.24.14), the families' setup re-run so enemies exist at
+  all (v0.24.15); captured families rebuilt at their spawners with the
+  right kind - "looked like the large family type" (author, v0.24.17);
+  every captured cannibal placed to the cm with its health, no duplicate
+  spawn (v0.24.18).
+- **How:** capture writes `families` (`FamilyRecord`: spawner position,
+  kind lists, every Int32/Boolean/Single `spawnMutants` setting) and
+  `enemies` (`EnemyRecord`: family, kind `<prefab>/<storeMutantType>[/s][/p][/L]`,
+  position, yaw, health, `/s` asleep). ~1.5 s after an in-place restore on
+  the surface `EnemyKeeper.Rebuild` runs the game's `startSetupFamilies`,
+  builds each captured family (`Instantiate(spawnGo)`, settings, kind list
+  + counters, `invokeSpawn` - whose first `checkSpawn` spawns it -
+  `addToWorldSpawns`), 1.5 s later places members by kind with
+  `fixMutantPosition`, despawns extras, and 1.2 s later puts the sleepers
+  back to sleep (`sleepPos` + `switchToSleep`). v0.24.16 files (no
+  `families`) fall back to a by-`enemyType` move; cave captures still use
+  the old path (setup re-run + by-type move).
+- **Open:** does `updateSpawns` add a random family when the captured
+  count is below its target (watch `roots mutantSpawner` a minute after)?
+  weapons (clubs / sticks) are whatever the spawn gives - record the
+  prop if the author wants it; cave captures; load restores; the AI state
+  beyond asleep (awake ones come back searching).
 
 **Confirmed working (author, v0.24.11):** hits after an in-place restore
 (`kept 18 held-item object(s)`; chopping bushes / trees works); the book
-page, in place and with a load (`book: showing ... (2 page object(s)
-switched)`; files captured before v0.24.10 have none); quitting to the
-title screen clears the run line (`Run '...': disarmed - left the level`);
-auto-restart and ordered checkpoints in real runs; the held-item log
-(`re-equipped by the game`).
+page, in place and with a load; quitting to the title screen clears the
+run line; auto-restart and ordered checkpoints in real runs; the
+held-item log (`re-equipped by the game`).
 
 **Decided (author, 2026-09-24):** in a Creative game with "Allow enemies"
 off, **respect the game's state** - the runner chose that save; do not
 spawn cave or world enemies there (as v0.24.10 does).
-
-**The live test bridge works in game (v0.24.13, 2026-09-24)** - see
-*The live test bridge*. First session with it: one kill in the author's
-Hard save plus two in-place restores found the causes of fix list 2-5
-(game-notes *Seen live through the test bridge*, *The plane wreck*,
-*Blood on the player*); v0.24.14 shipped the fixes. **Tested in game
-through the bridge (v0.24.14):** blood washed and the extra wreck removed
-- **confirmed**; bodies kept (a weapon prop deep in the dummy carries a
-save id - v0.24.15 checks the root only) and only 1 of 5-6 families came
-back, twice (v0.24.15 re-runs the setup when fewer families than before
-the restore) - **v0.24.15 confirmed in game (bridge, 2026-09-24): body
-removed, blood washed, one wreck, 6 families / 13 cannibals back after
-the game's own setup brought back none.** Item 2's remaining part - the
-captured positions - **built in v0.24.16, confirmed in game (bridge,
-2026-09-24): both killed males back at their captured spots to the cm,
-with their captured health (91 / 130); `positions: 8 of 13 placed (3
-families matched whole, 9 live)` - the game rebuilt only 9 of 13**
-(`Data/EnemyRecord` + `Game/EnemyKeeper`; the savestate's `enemies`
-header; capture line `, n cannibal(s) in m families`; the after-restore
-line ends `| positions: n of m placed (k families matched whole, l
-live)`). Verified by hand first: a cannibal moved with
-`spawnMutants.fixMutantPosition` slept standing, woke when approached
-and fought normally (author). **But (author):** the placed ones were
-the wrong kind (weaker skinny ones where big family ones with clubs had
-been) and stood almost inside each other: `enemyType.Type` is not the
-kind, the spawner is. **v0.24.17 (awaiting a check)** records each
-family's spawner (`families` header, `FamilyRecord`: position, kind
-lists, every Int32/Boolean/Single setting) and each member's real kind
-(`<prefab>/<storeMutantType>[/s][/p]`), and ~2 s after an in-place
-restore on the surface runs the game's setup, builds the captured
-families itself (`EnemyKeeper.Rebuild`: `Instantiate(spawnGo)`,
-settings, kind list + counters, `invokeSpawn`, `addToWorldSpawns`,
-the first `checkSpawn` spawns a surface family - v0.24.17 also started
-`doSpawn` and spawned every member twice, `15 extra despawned`, fixed in
-v0.24.18), places members by kind, despawns extras. **Tested v0.24.17
-(author):** 6 families rebuilt at their spawners, 15 of 15 placed; the
-family came back as regular ones with head clubs (a woman, a male, a
-leader), but awake and fleeing where they had slept. **v0.24.18
-confirmed:** `positions: 15 of 15 placed`, no duplicates - still awake
-(passive / searching). **v0.24.19 (awaiting a check):** asleep at capture
-(`action_sleepingFSM` = `sleeping`, the `/s` flag) -> after placing, set
-that FSM's `sleepPos` to the spot and `switchToSleep()` (sleeps on the
-spot - bridge-verified); the leader (`spawnMutants.leaderGo`) is part of
-the kind (`/L`). Log: `, n of m put back to sleep`.
-Log: `| families: setup run, n rebuilt | positions: n of m placed[, k not
-spawned][, j extra despawned]`. Open: whether `updateSpawns` adds a
-random family when the captured count is below its target; weapons
-(clubs) are whatever the spawn gives; cave captures still use the
-v0.24.16 path; load restores
-(one `Savestate after restoring ... in place: plane: ... | enemies: ...`
-line 6-12 s after each in-place restore, `| blood: washed` on the restore
-line, `bodies: n removed`). Game-side tricks used: `set static:Cheats
-GodMode true` and `set player PlayerStats.Health 100` (the author asked
-for it to survive a fight); `tp`; `capture` / `restore`.
 
 **Fix list, in order** (before Next up 5):
 
