@@ -460,7 +460,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.33** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.34** (2026-09-24). The author runs it via the in-game
 updater. **264 tests.**
 
 ### Pick up here (handoff of 2026-09-24 night, v0.24.32 downloaded into the game)
@@ -482,16 +482,12 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **Test v0.24.33's swing reset** (author, bridge, prompts on screen):
-   v0.24.32 confirmed the smash cut (rest learned right, blends to the
-   held idle, next swing / smash works, the FSM walks on by itself); a
-   reset 15 ms into a swing left it running (windup tagged `held`,
-   game-notes). v0.24.33 learns rest only after 0.4 s in one state and
-   cuts any arms state off the learned rest. Test: `anim`, then a
-   prompted `SWING NOW` with `anim reset` ~0.1-0.3 s in, a few times;
-   the swing must stop. Open: the author saw "down into my body"
-   after a smash reset - the normal look-down pose (`lookDownBlend`
-   follows pitch)? Ask whether a plain look-down looks the same.
+1. **Check v0.24.34 on a real restart** (author): F7 mid-swing and
+   mid-smash; the log's `Restart` / `Teleport` line should say `ended
+   attack state '...'` and the next click swing at once. The bridge
+   already showed it (`anim reset` + `toReset2`, 3 of 3). The "down into
+   my body" after a smash cut is the normal look-down pose (author: fine
+   for now).
    **Found so far:** the game's `resetTrigger` goes through the UNARMED
    idles with the full-body layer at weight 1 (the one-frame neck view;
    screenshot) and stays set at rest (would eat the next swing). Swings:
@@ -803,7 +799,9 @@ restore, checkpoints in order (keycard), Megan's cutscene fast-forward
 after a Full load (held until she exists, player frozen, the spear back),
 the endgame area and the lab floor after a Full load, the red elevator put
 back by a Full load, pickups taken before a capture removed after a Full
-load (surface), the Updates tab's "downloaded - restart to install".
+load (surface), the Updates tab's "downloaded - restart to install";
+the smash and swing cut on a reset, next swing at once (bridge,
+v0.24.32-0.24.34).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):

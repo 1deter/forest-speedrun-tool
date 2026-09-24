@@ -33,6 +33,14 @@ namespace ForestOverlay.Game
     // RestSettle, and on a reset any arms state other than the learned
     // rest counts as an action - unless the hands changed since (a bool
     // on at rest, e.g. axeHeld, is now off), when only tagged actions do.
+    //
+    // The attack itself runs in the player's PlayMaker FSM (controlFSM):
+    // cut in its windup, it waits in "stickAttack" for the animation that
+    // never comes, 3 s, and eats clicks meanwhile (bridge, v0.24.33). So
+    // after a cut the FSM is sent "toReset2" - the global event into
+    // resetDelayLyr2, the state every attack ends in (spine layer back,
+    // action bools off, then waitForInput). Not "toResetPlayer": that
+    // runs the game's resetAnimator first (the neck view above).
     // ------------------------------------------------------------------
     public static class AnimReset
     {
@@ -59,7 +67,14 @@ namespace ForestOverlay.Game
         private static float _settleSince;
         private static int _clearTriggerAt = -1;
 
+        private const string FsmRest = "waitForInput";
+        private const string FsmEndAttack = "toReset2";
+
         private static FieldInfo _animControl;     // static LocalPlayer.AnimControl
+        private static FieldInfo _scriptSetup;     // static LocalPlayer.ScriptSetup
+        private static FieldInfo _pmControl;       // playerScriptSetup.pmControl
+        private static PropertyInfo _activeState;  // PlayMakerFSM.ActiveStateName
+        private static MethodInfo _sendEvent;      // PlayMakerFSM.SendEvent(string)
         private static MethodInfo _resetAnimator;  // playerAnimatorControl.resetAnimator()
         private static bool _resolved;
 
@@ -108,7 +123,9 @@ namespace ForestOverlay.Game
             _known = true;
         }
 
-        /// Returns "" when it acted or had nothing to do, else why not.
+        /// Returns "" when it had nothing to report, "ended attack state
+        /// 'x'" when it also ended the FSM's attack, else why not (callers
+        /// add it to their log line).
         public static string Cancel()
         {
             try
@@ -119,6 +136,7 @@ namespace ForestOverlay.Game
 
                 // Same hands as at rest: every bool on then is still on.
                 bool sameHands = true;
+                bool cut = false;
                 for (int i = 0; i < _params.Length && sameHands; i++)
                     if (_restBools[i] && !an.GetBool(_params[i].nameHash)) sameHands = false;
 
@@ -132,7 +150,10 @@ namespace ForestOverlay.Game
                     // (a smash: weight 1, its own tag).
                     bool fullBodyOn = l == FullBody && an.GetLayerWeight(FullBody) > RestWeight;
                     if (action || fullBodyOn || (offRest && (sameHands || !resting)))
+                    {
                         an.CrossFadeInFixedTime(_restState[l], Blend, l, 0f);
+                        cut = true;
+                    }
                 }
                 for (int i = 0; i < _params.Length; i++)
                 {
@@ -141,12 +162,38 @@ namespace ForestOverlay.Game
                     else if (p.type == AnimatorControllerParameterType.Bool && !_restBools[i] && an.GetBool(p.nameHash))
                         an.SetBool(p.nameHash, false);
                 }
-                return "";
+                return cut ? EndAttack() : "";
             }
             catch (Exception ex)
             {
                 return "animation reset failed: " + (ex.InnerException ?? ex).Message;
             }
+        }
+
+        // The cut animation's FSM side: out of the attack state the way
+        // every attack ends. Says what it ended; "" when the FSM was at rest.
+        private static string EndAttack()
+        {
+            Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            if (_scriptSetup == null && local != null)
+                _scriptSetup = local.GetField("ScriptSetup", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            object setup = _scriptSetup != null ? _scriptSetup.GetValue(null) : null;
+            if (setup == null) return "attack state: no player setup";
+            if (_pmControl == null)
+                _pmControl = setup.GetType().GetField("pmControl", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            UnityEngine.Object fsm = _pmControl != null ? _pmControl.GetValue(setup) as UnityEngine.Object : null;
+            if (fsm == null) return "attack state: no control FSM";
+            if (_sendEvent == null)
+            {
+                Type t = fsm.GetType();
+                _activeState = t.GetProperty("ActiveStateName", BindingFlags.Instance | BindingFlags.Public);
+                _sendEvent = t.GetMethod("SendEvent", BindingFlags.Instance | BindingFlags.Public, null, new Type[] { typeof(string) }, null);
+            }
+            if (_activeState == null || _sendEvent == null) return "attack state: not bound";
+            string state = _activeState.GetValue(fsm, null) as string;
+            if (state == FsmRest) return "";
+            _sendEvent.Invoke(fsm, new object[] { FsmEndAttack });
+            return "ended attack state '" + state + "'";
         }
 
         // Nothing learned for this animator yet: the game's own reset, and

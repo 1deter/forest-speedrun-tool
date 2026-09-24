@@ -509,6 +509,17 @@ puts it back). `lookDownBlend` is not smash state: `playerAnimatorControl.
 Update` lerps it to `clamp(normCamX * 12, 0, 10)` - the look pitch - every
 frame; a smash needs you to look down, so after a cut you still do.
 
+`stickAttack` (state 1 of 164) leaves on `goToStickCombo` (sent as the
+swing's animation plays), `toSmash`, `toChargeAttack`, or a 3 s `Wait`
+(its finish event is `goToStickCombo` too); it polls `Fire1`. A swing cut
+in its windup never sends it, so clicks are eaten for 3 s. The FSM's
+global event `toReset2` enters `resetDelayLyr2` - the end of every attack:
+spine layer (4) weight 1, ~30 action bools off (`doAttackHeavyBool`,
+`chargingBool`, `clampSpine`, ...), `FINISHED` -> `waitForInput`. Sent
+after a cut it gives an immediate next swing (bridge, 3 of 3).
+`toResetPlayer` -> `resetAnimator` calls the game's animator reset first,
+then `toReset2`.
+
 ## Savestates during an endgame cutscene (v0.24.3)
 
 The endgame cutscenes are coroutines on the player's action scripts
