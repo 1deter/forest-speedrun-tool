@@ -456,10 +456,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.19** (2026-09-24). The author runs it via the in-game
-updater. **261 tests.**
+**Released: v0.24.22** (2026-09-24). The author runs it via the in-game
+updater. **263 tests.**
 
-### Pick up here (handoff of 2026-09-24 night, v0.24.19 downloaded, not yet tested)
+### Pick up here (2026-09-24 evening, v0.24.22 confirmed)
 
 **The session of 2026-09-24 night** built the live test bridge (v0.24.13)
 and used it with the author in their Hard save (`scripts/bridge.sh`; the
@@ -476,12 +476,20 @@ through the bridge:** `type OverlayPlugin all` (the plugin is `#-88`
 then `..._checker.Download "<plugin path>"` once `Message` says available
 (the API lags the asset by a minute or two); the author restarts.
 
-**Next: test v0.24.19** (downloaded into the author's game, needs a
-restart): the family should come back **asleep** on the spot and the
-leader on the leader's spot. Log: `families: setup run, 6 rebuilt |
-positions: n of n placed, k of k put back to sleep`. The author is on
-high effort for this work; say when medium is enough again (memory
-`effort-level-switching`).
+**Next: runner maks's feedback of 2026-09-24** (on v0.24.13): **panels**
+stay damaged after an in-place restore (the `healed` line acts - the look
+does not follow the health; a panel kept before breaking comes back in its
+damaged look) and **Megan** (below). Confirmed by maks: no blood / no
+stagger, the lighter (no message). Mid-air restore stagger: v0.24.21
+cancels the next hard landing after an `EndFall` that found the player in
+the air - awaiting maks. **Megan** (maks): a load restore replays the
+cutscene at once, but after a load Megan needs ~7-8 s in the boss room
+before the cutscene works (runners walk about first) - started earlier,
+she stays in her pre-cutscene swing while the player plays it and ends
+stuck; also the fast-forward took 9.9-10.5 s real time, maks wants ~1 s.
+Find what Megan waits for after a load, hold the replay until then, and
+fast-forward much harder. The author is on high effort for this work; say
+when medium is enough again (memory `effort-level-switching`).
 
 **Enemies after an in-place restore - where it stands** (fix list 2;
 game-notes *Seen live through the test bridge*, *Cannibal kinds and
@@ -491,7 +499,15 @@ families*, *Putting cannibals back*):
   all (v0.24.15); captured families rebuilt at their spawners with the
   right kind - "looked like the large family type" (author, v0.24.17);
   every captured cannibal placed to the cm with its health, no duplicate
-  spawn (v0.24.18).
+  spawn (v0.24.18); **sleepers come back asleep on their spot and wake and
+  fight when approached** (author, v0.24.22 - "walked around for a sec,
+  then went into sleep mode"). v0.24.20 puts a cannibal captured in the
+  air (the game stacks them, or captured at the spawner's height before
+  dropping) on the ground under it; v0.24.21 clears the pooled
+  `sleepBlocker` and marks sleeper families `sleepingSpawn`; v0.24.22
+  calls `initWakeUp` at placement and sets sleepers back on their spot
+  after the game's own call (game-notes *Who decides sleep*). Polish left:
+  the ~1.5 s awake between spawn and placement.
 - **How:** capture writes `families` (`FamilyRecord`: spawner position,
   kind lists, every Int32/Boolean/Single `spawnMutants` setting) and
   `enemies` (`EnemyRecord`: family, kind `<prefab>/<storeMutantType>[/s][/p][/L]`,
@@ -501,7 +517,8 @@ families*, *Putting cannibals back*):
   + counters, `invokeSpawn` - whose first `checkSpawn` spawns it -
   `addToWorldSpawns`), 1.5 s later places members by kind with
   `fixMutantPosition`, despawns extras, and 1.2 s later puts the sleepers
-  back to sleep (`sleepPos` + `switchToSleep`). v0.24.16 files (no
+  back to sleep (v0.24.22: `initWakeUp` at placement, set back on the spot
+  4.5 s later; `switchToSleep` only for one still awake). v0.24.16 files (no
   `families`) fall back to a by-`enemyType` move; cave captures still use
   the old path (setup re-run + by-type move).
 - **Open:** does `updateSpawns` add a random family when the captured
