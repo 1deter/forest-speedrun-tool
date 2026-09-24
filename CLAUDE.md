@@ -473,7 +473,11 @@ updater. **265 tests.**
 
 ### Pick up here (2026-09-24 late, v0.24.37 in the game)
 
-**State:** v0.24.37 runs in the author's game. Megan's Quick load, the
+**State (end of 2026-09-24, author out of usage):** v0.24.38 (Quick /
+Full load switch, item 1c done) and v0.24.39 (late pickup removal for
+1a) are released but not yet seen in game; the author's game was on
+v0.24.37. maks's list now covers both (items 6-7). Resume with 1b or 1d.
+Before that: v0.24.37 runs in the author's game. Megan's Quick load, the
 fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
 confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
 he runs it currently and knows the exact cutscene audio (the author has
