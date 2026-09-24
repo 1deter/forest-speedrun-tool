@@ -183,6 +183,40 @@ namespace ForestOverlay.Game
         /// which still stops the timer, the shake and the jump animation.
         /// The coroutine is left running: a real fall after the restore
         /// still counts, from zero. Returns what it ended, or "".
+        private static FieldInfo _animControl;     // static LocalPlayer.AnimControl
+        private static MethodInfo _resetAnimator;  // playerAnimatorControl.resetAnimator()
+        private static bool _animResolved;
+
+        /// Cuts a player action in progress (runner maks: the plane axe's
+        /// swing played on through a reset). The game's own reset:
+        /// playerAnimatorControl.resetAnimator fires the animator's
+        /// "resetTrigger", as PlayerStats does when waking from a knockout
+        /// (bridge, 2026-09-24: it cut the author's swings). Returns "" or
+        /// why it could not.
+        public string CancelPlayerAnimation()
+        {
+            try
+            {
+                if (!_animResolved)
+                {
+                    _animResolved = true;
+                    Type local = FindGameType("TheForest.Utils.LocalPlayer");
+                    Type ctrl = FindGameType("playerAnimatorControl");
+                    if (local != null) _animControl = local.GetField("AnimControl", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (ctrl != null) _resetAnimator = ctrl.GetMethod("resetAnimator", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                }
+                if (_animControl == null || _resetAnimator == null) return "animation reset: not bound";
+                UnityEngine.Object c = _animControl.GetValue(null) as UnityEngine.Object;
+                if (c == null) return "animation reset: no player animator";
+                _resetAnimator.Invoke(c, null);
+                return "";
+            }
+            catch (Exception ex)
+            {
+                return "animation reset failed: " + (ex.InnerException ?? ex).Message;
+            }
+        }
+
         public string EndFall()
         {
             if (!Live()) return "";

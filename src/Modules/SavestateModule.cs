@@ -553,6 +553,9 @@ namespace ForestOverlay.Modules
             // Before as well as after: a physics step during the restore
             // could land the old fall at the restored spot.
             string fall = Ctx.Bridge.EndFall();
+            // A swing / action in progress is cut (runner maks).
+            string anim = Ctx.Bridge.CancelPlayerAnimation();
+            if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)

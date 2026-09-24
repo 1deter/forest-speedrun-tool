@@ -447,6 +447,9 @@ namespace ForestOverlay.Modules
             // speed live in the game's controller, and a Go in mid-air kept
             // them for the landing.
             string fall = Ctx.Bridge.EndFall();
+            // A swing / action in progress is cut (runner maks).
+            string anim = Ctx.Bridge.CancelPlayerAnimation();
+            if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
 
             Ctx.Bridge.ApplyLook(Ctx.Player.Transform, s.SpawnYaw, s.SpawnPitch);
             Ctx.Practice.Mark("teleport: " + s.Name);

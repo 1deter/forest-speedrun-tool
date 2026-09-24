@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.29 - 2026-09-24
+
+- A restart, a Quick load or a teleport cuts a swing or other action in
+  progress instead of letting it play on. (For now you may see into your
+  character's head for one frame when it does - being refined.)
+
 ## v0.24.28 - 2026-09-24
 
 - A Full load now really holds you in place until the world is loaded:
