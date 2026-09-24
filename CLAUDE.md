@@ -478,8 +478,8 @@ fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
 confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
 he runs it currently and knows the exact cutscene audio (the author has
 not played in a while). Next after sending it: *Next, in order* 1a.
-**maks's v0.24.37 Megan test list** is drafted in
-[`docs/tests/2026-09-24-maks-v0.24.37.md`](docs/tests/2026-09-24-maks-v0.24.37.md)
+**maks's v0.24.38 test list** is drafted in
+[`docs/tests/2026-09-24-maks-v0.24.38.md`](docs/tests/2026-09-24-maks-v0.24.38.md)
 (not yet sent; the author sends it). **Slot4 is the author's own again**
 (swapped back 2026-09-24). maks's saves for testing: his Megan save in
 `C:\Users\deter\Downloads\Slot4`, lab / invisible section / red elevator
