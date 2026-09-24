@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.25 - 2026-09-24
+
+- A savestate in the invisible section after the lab, restored with a
+  load, loads the endgame area again instead of dropping you through the
+  map. Out of bounds there the game's own load skips the endgame; the
+  restore now asks the game to load it when it was loaded at capture.
+
 ## v0.24.24 - 2026-09-24
 
 - Megan practice: after restoring a savestate, Megan's transformation

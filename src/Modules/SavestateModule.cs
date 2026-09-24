@@ -855,8 +855,10 @@ namespace ForestOverlay.Modules
                     string panels = "";
                     try { panels = _panels.Restore(f.Panels, false); }
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
+                    string endgame = EndgameLoader.EnsureLoaded(f.Areas);
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
-                                    (panels.Length > 0 ? " | " + panels : "") + ".");
+                                    (panels.Length > 0 ? " | " + panels : "") +
+                                    (endgame.Length > 0 ? " | " + endgame : "") + ".");
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     if (f.CutsceneAt >= 0f)
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));

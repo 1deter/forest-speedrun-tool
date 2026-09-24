@@ -423,6 +423,27 @@ for the rest of the session - re-equipping cannot bring back a destroyed
 anything under a `FakeParent` whose `target` is under the player
 (`kept n held-item object(s)` on the restore line).
 
+## Loading the endgame area (IL + bridge + a runner's log, v0.24.25)
+
+The endgame is one additive scene, `endgame_streaming` (root `Sections`,
+plus `endgame_animPrefabs` for the boss), loaded by the world's only
+`TheForest.World.SceneLoadTrigger`: `EndgameEntrance/LoadEndgame`, tag
+`EndgameLoader`, `DelayedLoad` forwards / `DelayedUnload` backwards
+(`OnTriggerExit` + a dot product with its forward), `_loadDelay` 0.5. After a
+load, `LoadSave.Activation` calls `SetCanLoad(true)` + `ForceLoad()` on it
+only if `LocalPlayer.ActiveAreaInfo.HasActiveEndgameArea` - `_isInEndgame`
+(saved from `LocalPlayer.IsInEndgame` in `OnSerializing`) **and** an active
+area hash (`Area.GetActiveAreaHash()`, `long.MinValue` = none). Out of
+bounds in the invisible section after the lab no area is active, so a load
+there leaves the endgame out: the runner fell through the map, the area
+report read `endgame no` without `endgame_streaming` after every load
+restore (at capture: `endgame yes`, with it). In place was fine. A load
+restore now force-loads it when the capture had it (`Game/EndgameLoader`).
+Still open (same runner): after the red elevator an in-place restore leaves
+the elevator at the overlook, half-loads the Sahara and drops the endgame
+cave visuals (areas: `same as at capture`) - the elevator ride's effects
+are scene state, not scenes.
+
 ## Savestates during an endgame cutscene (v0.24.3)
 
 The endgame cutscenes are coroutines on the player's action scripts
