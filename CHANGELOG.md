@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.22 - 2026-09-24
+
+- Cannibals asleep at capture fall asleep right after an in-place restore
+  instead of running about for a few seconds first, and any that wandered
+  off before sleeping are put back on their spot.
+
 ## v0.24.21 - 2026-09-24
 
 - Cannibals that were asleep at capture stay asleep after an in-place

@@ -580,7 +580,25 @@ way). `mutantFollowerFunctions.switchToSleep()` sends `toSetSleep`
 `runToCave` to the sleeping FSM's `sleepPos` (Vector3 variable; the
 spawner's area by default; also `sleepAngle`) and sleeps. Set `sleepPos`
 to where it stands first and it sleeps on the spot (bridge, 2026-09-24).
-`mutantTypeSetup.setSleeping` sets the FSM bool `sleepOnAwake` at spawn.
+`mutantTypeSetup.setSleeping` sets the FSM bool `sleepOnAwake` at spawn
+(creepies only).
+
+**Who decides sleep (IL + bridge, v0.24.21-22).** `mutantDayCycle.OnEnable`
+does `Invoke("initWakeUp", 5)` (from `Start` too). `initWakeUp`, for a
+non-creepy: family `spawnMutants.sleepingSpawn` -> `fsmSleep = true`,
+brain `toActivateFSM` (asleep, stays asleep); otherwise on **day 0**, in
+daylight, no horde, not `instantSpawn` -> `sendWakeUp(250)` (asleep, wakes
+after 250 s - why a fresh game's families all sleep); any other day or
+dark -> `sendWakeUp(0)`; and **`sleepBlocker` set -> `sendWakeUp(0)`**.
+`sleepBlocker` is set by `pmSearchReplace`'s search routines /
+`enableSleepBlocker` and **never cleared** - a pooled cannibal that once
+searched wakes on every later spawn (read `True` on all three of a rebuilt
+family). `invokeSpawn` -> `updateSpawnConditions` re-rolls `sleepingSpawn`
+(about half the world families, not in the dark), and the periodic
+`updateSpawns` SendMessages it again. For the first 5 s a spawned member
+is awake, sees a player 20 m away and runs about. `switchToSleep` on one
+already `sleeping` does nothing; **setting `Transform.position` on an
+asleep one keeps it asleep there** (bridge, 10 s watched).
 
 ## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
 
