@@ -398,7 +398,7 @@ namespace ForestOverlay.Modules
 
                 _current = s;
                 if (OnRestartStarting != null) OnRestartStarting();
-                StartStatus("Restoring" + (s.StartRestoreWithLoad ? " with a load..." : "..."));
+                StartStatus(s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (s.StartRestoreWithLoad ? "with a load." : "in place."));
                 _savestates.RestoreStartState(s, delegate(string error)
@@ -1221,7 +1221,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(80, y, cw - 90, _startStatusLabel);
 
             bool load = GUI.Toggle(new Rect(80, y, cw - 90, 20), s.StartRestoreWithLoad,
-                                   " Restore with a load (slower, the game's full reset)");
+                                   " Full load (slower, the game's full reset; off = quick load)");
             if (load != s.StartRestoreWithLoad) { s.StartRestoreWithLoad = load; Touch(); }
             y += 28f;
             return y;

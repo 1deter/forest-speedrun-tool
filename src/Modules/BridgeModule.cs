@@ -451,6 +451,7 @@ namespace ForestOverlay.Modules
                     return null;
                 }
                 case "tp": return Teleport(a, o);
+                case "mark": return MarkCommand(a, o);
                 case "dump":
                 {
                     DumpModule d = Host.Find<DumpModule>();
@@ -489,6 +490,7 @@ namespace ForestOverlay.Modules
             "  values: numbers, true/false, enum names, x,y,z, null, #handle; an IEnumerator method starts as a coroutine",
             "savestates | capture <name> | restore <name> [load]   (capture / restore wait until done)",
             "spots [filter] | go <id> | restart [id] (waits until idle) | tp x y z [yaw] | dump",
+            "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
         };
 
         private static void Help(List<string> o)
@@ -541,6 +543,46 @@ namespace ForestOverlay.Modules
                       (p.CurrentSegment == seg ? "  [current]" : ""));
             }
             o.Add(n + " entr" + (n == 1 ? "y" : "ies"));
+            return null;
+        }
+
+        private MarkerBehaviour _markers;
+
+        private string MarkCommand(List<string> a, List<string> o)
+        {
+            if (a.Count < 1) return "mark <target> | mark x y z | mark clear";
+            if (_markers == null)
+            {
+                GameObject host = new GameObject("ForestOverlay_BridgeMarkers");
+                host.hideFlags = HideFlags.HideAndDontSave;
+                UnityEngine.Object.DontDestroyOnLoad(host);
+                _markers = host.AddComponent<MarkerBehaviour>();
+            }
+            if (a[0] == "clear")
+            {
+                o.Add("cleared " + _markers.Count + " marker(s)");
+                _markers.Count = 0;
+                return null;
+            }
+
+            Vector3 p;
+            float x, y, z;
+            if (a.Count >= 3 && BridgeCommand.TryParseFloat(a[0], out x) && BridgeCommand.TryParseFloat(a[1], out y) &&
+                BridgeCommand.TryParseFloat(a[2], out z))
+                p = new Vector3(x, y, z);
+            else
+            {
+                object target; Type st;
+                string err = _probe.ResolveTarget(a[0], out target, out st);
+                if (err != null) return err;
+                GameObject go = target as GameObject;
+                if (go == null && target is Component) go = ((Component)target).gameObject;
+                if (go == null) return "'" + a[0] + "' is not a GameObject or component";
+                p = go.transform.position;
+            }
+            if (!_markers.Add(p)) return "already " + MarkerBehaviour.Max + " markers - mark clear first";
+            string dist = Ctx.Player.Found ? ", " + Vector3.Distance(Ctx.Player.Transform.position, p).ToString("0.0") + " m away" : "";
+            o.Add("marked " + ObjectProbe.Vec(p) + dist + " (" + _markers.Count + " marker(s))");
             return null;
         }
 

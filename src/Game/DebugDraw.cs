@@ -377,6 +377,62 @@ namespace ForestOverlay.Game
     // Positions are handed in as plain point lists rather than Attempts so
     // this stays a dumb renderer with no knowledge of the run model.
     // ------------------------------------------------------------------
+    // Beacons the test bridge puts on things for the author to find
+    // (`mark`): a tall post with a cross at its foot, drawn through
+    // terrain and walls. Author, 2026-09-24: "I don't have a compass" -
+    // told to pick up cash "7 m east", he could not tell where to look.
+    public sealed class MarkerBehaviour : MonoBehaviour
+    {
+        public const int Max = 16;
+        public readonly Vector3[] Points = new Vector3[Max];
+        public int Count;
+
+        private Material _material;
+        private static readonly Color Colour = new Color(1f, 0.2f, 1f, 1f);
+
+        public bool Add(Vector3 p)
+        {
+            if (Count >= Max) return false;
+            Points[Count++] = p;
+            return true;
+        }
+
+        private void OnRenderObject()
+        {
+            if (Count == 0 || !DrawTarget.ShouldDraw()) return;
+            if (_material == null)
+            {
+                Shader shader = Shader.Find("Hidden/Internal-Colored");
+                if (shader == null) return;
+                _material = new Material(shader);
+                _material.hideFlags = HideFlags.HideAndDontSave;
+                _material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                _material.SetInt("_ZWrite", 0);
+                _material.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+            }
+
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            _material.SetPass(0);
+            GL.PushMatrix();
+            GL.Begin(GL.LINES);
+            GL.Color(Colour);
+            for (int i = 0; i < Count; i++)
+            {
+                Vector3 p = Points[i];
+                const float h = 0.6f;
+                GL.Vertex(p); GL.Vertex(new Vector3(p.x, p.y + 30f, p.z));
+                GL.Vertex(new Vector3(p.x - h, p.y, p.z)); GL.Vertex(new Vector3(p.x + h, p.y, p.z));
+                GL.Vertex(new Vector3(p.x, p.y, p.z - h)); GL.Vertex(new Vector3(p.x, p.y, p.z + h));
+                GL.Vertex(new Vector3(p.x - h, p.y + 1f, p.z)); GL.Vertex(new Vector3(p.x + h, p.y + 1f, p.z));
+            }
+            GL.End();
+            GL.PopMatrix();
+            DrawTarget.Record(start, 8 * Count);
+        }
+    }
+
     public sealed class RunLineBehaviour : MonoBehaviour
     {
         public bool Show = true;

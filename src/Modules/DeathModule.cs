@@ -110,15 +110,15 @@ namespace ForestOverlay.Modules
                 "instead of playing the death animation and returning to the menu.");
 
             _quickLoadCaptureCfg = Ctx.Config.Bind("Deaths", "QuickLoadOnCapture", true,
-                "Quick-load also on the first death, which the game otherwise turns into the capture " +
+                "Reload the save also on the first death, which the game otherwise turns into the capture " +
                 "(waking up in a cave). Off keeps the capture.");
 
             _quickLoadBossCfg = Ctx.Config.Bind("Deaths", "QuickLoadInBossFight", true,
-                "Quick-load also on a death in the endgame boss fight, which the game otherwise turns into " +
+                "Reload the save also on a death in the endgame boss fight, which the game otherwise turns into " +
                 "waking up in the boss room. Off keeps the game's wake-up.");
 
             _skipMenuCfg = Ctx.Config.Bind("Deaths", "QuickLoadSkipMenu", true,
-                "Quick-load from in game (LevelSerializer.Resume) instead of through the title screen: " +
+                "Reload the save from in game (LevelSerializer.Resume) instead of through the title screen: " +
                 "the same load, one scene load fewer. Off uses the menu path.");
             // Practice toggles, separate from what a death does (author,
             // 2026-09-23): off by default, so survival keeps the game's
@@ -187,14 +187,14 @@ namespace ForestOverlay.Modules
             if (action == DeathAction.QuickLoadInGame)
             {
                 _pendingInGameLoad = true;
-                _status = "quick-loading slot " + _quickLoadSlot + " without the menu...";
+                _status = "reloading slot " + _quickLoadSlot + " without the menu...";
             }
             if (action == DeathAction.QuickLoad)
             {
                 _pendingQuickLoad = true;
                 _quickLoadStarted = Time.unscaledTime;
                 _titleSeenFrame = -1;
-                _status = "quick-loading slot " + _quickLoadSlot + "...";
+                _status = "reloading slot " + _quickLoadSlot + "...";
             }
         }
 
@@ -233,7 +233,7 @@ namespace ForestOverlay.Modules
             string err = _loader.LoadSlotWithoutMenu();
             if (err == null)
             {
-                _status = "quick-loaded slot " + _quickLoadSlot + " without the menu";
+                _status = "reloaded slot " + _quickLoadSlot + " without the menu";
                 Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " from in game (no menu).");
                 return;
             }
@@ -246,11 +246,11 @@ namespace ForestOverlay.Modules
                 _pendingQuickLoad = true;
                 _quickLoadStarted = Time.unscaledTime;
                 _titleSeenFrame = -1;
-                _status = "quick-loading slot " + _quickLoadSlot + " via the menu (in-game load failed)...";
+                _status = "reloading slot " + _quickLoadSlot + " via the menu (in-game load failed)...";
             }
             else
             {
-                _status = "quick-load failed: " + err + " - load from the menu";
+                _status = "reload failed: " + err + " - load from the menu";
             }
         }
 
@@ -259,7 +259,7 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime - _quickLoadStarted > TitleTimeout)
             {
                 _pendingQuickLoad = false;
-                _status = "quick-load gave up: title screen never appeared - load from the menu";
+                _status = "reload gave up: title screen never appeared - load from the menu";
                 Ctx.Log.LogWarning("Quick-load: " + _status);
                 return;
             }
@@ -281,12 +281,12 @@ namespace ForestOverlay.Modules
                 _onSinglePlayer.Invoke(title, null);
                 _onLoad.Invoke(title, null);
                 _onSlotSelection.Invoke(title, new object[] { _quickLoadSlot });
-                _status = "quick-loaded slot " + _quickLoadSlot;
+                _status = "reloaded slot " + _quickLoadSlot;
                 Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " via the title screen.");
             }
             catch (Exception ex)
             {
-                _status = "quick-load failed: " + ex.Message + " - load from the menu";
+                _status = "reload failed: " + ex.Message + " - load from the menu";
                 Ctx.Log.LogWarning("Quick-load: " + ex);
             }
         }
@@ -309,7 +309,7 @@ namespace ForestOverlay.Modules
             if (_titleInstance == null || _onSinglePlayer == null || _onLoad == null || _onSlotSelection == null)
             {
                 _titleInstance = null;
-                _status = "quick-load unavailable: TitleScreen methods not found";
+                _status = "reload unavailable: TitleScreen methods not found";
                 Ctx.Log.LogWarning("Quick-load: " + _status);
             }
         }
@@ -351,7 +351,7 @@ namespace ForestOverlay.Modules
             float w = area.width;
             float y = 4f;
 
-            bool ql = GUI.Toggle(new Rect(0, y, w, 22), _quickLoadCfg.Value, " Quick-load on death");
+            bool ql = GUI.Toggle(new Rect(0, y, w, 22), _quickLoadCfg.Value, " Reload save on death");
             if (ql != _quickLoadCfg.Value) _quickLoadCfg.Value = ql;
             y += 26f;
 

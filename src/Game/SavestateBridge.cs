@@ -1324,7 +1324,7 @@ namespace ForestOverlay.Game
                 bool off = false;
                 try { off = _noEnemies != null && (bool)_noEnemies.GetValue(null, null); }
                 catch (Exception) { }
-                if (off) return "enemies: off in this game (Creative: 'Allow enemies' off) - left as they are";
+                if (off) return "enemies: off in this game (Peaceful, or Creative with 'Allow enemies' off) - left as they are";
 
                 if (surfaceMessageSent && !DelayedMutantSpawnCheck())
                     return "enemies: families restarted by the game (leaving the cave state)";

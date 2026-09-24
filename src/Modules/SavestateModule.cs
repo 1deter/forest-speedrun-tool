@@ -174,8 +174,8 @@ namespace ForestOverlay.Modules
         {
             map.Add("tab.savestates", KeyCode.None, "Open Savestates tab", OpenMyTab);
             map.Add("savestate.capture", KeyCode.None, "Savestate: capture here", Capture);
-            map.Add("savestate.restoreInPlace", KeyCode.None, "Savestate: restore selected in place", RestoreSelectedInPlace);
-            map.Add("savestate.restoreLoad", KeyCode.None, "Savestate: restore selected with load", RestoreSelectedWithLoad);
+            map.Add("savestate.restoreInPlace", KeyCode.None, "Savestate: quick load selected", RestoreSelectedInPlace);
+            map.Add("savestate.restoreLoad", KeyCode.None, "Savestate: full load selected", RestoreSelectedWithLoad);
         }
 
         public override void Shutdown()
@@ -864,11 +864,44 @@ namespace ForestOverlay.Modules
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     if (f.CutsceneAt >= 0f)
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
-                    Ctx.Runner.StartCoroutine(HoldUntilLoaded(after));
+                    if (_respawnEnemies.Value && f.Families != null && f.Families.Count > 0 && !f.InCave)
+                        Ctx.Runner.StartCoroutine(EnemiesAfterLoad(f));
+                    Ctx.Runner.StartCoroutine(HoldUntilLoaded(f, after));
                     return;
                 }
                 if (after != null) after(error);
             };
+        }
+
+        /// A load rolls the world families afresh: at other spawners, none
+        /// near the player (bridge, 2026-09-24: 16 cannibals 10 s after the
+        /// load, our captured family gone; maks: "with load they don't even
+        /// spawn"). Once the game's own setup has made its families (two
+        /// setups at once break each other) and its 1 s lock is clear, the
+        /// captured families are rebuilt as after an in-place restore.
+        private IEnumerator EnemiesAfterLoad(SavestateFile f)
+        {
+            float start = Time.realtimeSinceStartup;
+            int cannibals = -1, families = -1;
+            while (Time.realtimeSinceStartup - start < 30f)
+            {
+                _bridge.CountEnemies(out cannibals, out families);
+                if (families > 0) break;
+                yield return new WaitForSecondsRealtime(0.25f);
+            }
+            if (families <= 0)
+            {
+                Ctx.Log.LogInfo("Savestate after the load: enemies - the game made no families within 30 s; captured ones not rebuilt.");
+                yield break;
+            }
+            float waited = Time.realtimeSinceStartup - start;
+            yield return new WaitForSecondsRealtime(1.5f);
+            string rebuilt = null;
+            yield return Ctx.Runner.StartCoroutine(_enemies.Rebuild(f.Families, f.Enemies ?? new List<string>(),
+                                                                    delegate(string note) { rebuilt = note; }));
+            Ctx.Log.LogInfo("Savestate after the load: enemies - the game rolled " + families + " famil" +
+                            (families == 1 ? "y" : "ies") + " (" + cannibals + " cannibals) after " + waited.ToString("0.0") +
+                            " s; replaced with the captured ones | " + rebuilt + ".");
         }
 
         /// "In game" comes before the world has finished loading: the
@@ -877,7 +910,7 @@ namespace ForestOverlay.Modules
         /// floor before it existed (maks, v0.24.25: "I land inside the
         /// textures"). Keep the player where the save put him until no
         /// scene is still loading (at most 20 s), then carry on.
-        private IEnumerator HoldUntilLoaded(Action<string> after)
+        private IEnumerator HoldUntilLoaded(SavestateFile f, Action<string> after)
         {
             float start = Time.realtimeSinceStartup;
             Vector3 at = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
@@ -900,7 +933,45 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Savestate after the load: held the player " +
                                 (Time.realtimeSinceStartup - start).ToString("F1") + " s while " + waited +
                                 " scene(s) finished loading.");
+            RemoveTakenPickups(f);
             if (after != null) after(null);
+        }
+
+        private void RemoveTakenPickups(SavestateFile f)
+        {
+            if (f == null || f.Pickups == null || f.Pickups.Count == 0 || f.Areas.Length == 0) return;
+            try
+            {
+                HashSet<string> scenes = ScenesIn(f.Areas);
+                if (scenes.Count == 0) return;
+                Dictionary<int, int> counts = new Dictionary<int, int>();
+                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(f.Pickups), scenes, counts);
+                if (n == 0) { Ctx.Log.LogInfo("Savestate after the load: pickups - none back that were taken before the capture."); return; }
+                StringBuilder sb = new StringBuilder();
+                foreach (KeyValuePair<int, int> kv in counts)
+                    sb.Append(sb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
+                Ctx.Log.LogInfo("Savestate after the load: pickups - removed " + n + " the load brought back (taken before the capture: " + sb + ").");
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate after the load: removing taken pickups failed: " + ex.Message); }
+        }
+
+        /// The loaded scenes in an area line ("... | scenes: a, b (loading), c | ...").
+        private static HashSet<string> ScenesIn(string areas)
+        {
+            HashSet<string> set = new HashSet<string>();
+            int at = areas.IndexOf("| scenes: ", StringComparison.Ordinal);
+            if (at < 0) return set;
+            at += "| scenes: ".Length;
+            int end = areas.IndexOf(" |", at, StringComparison.Ordinal);
+            string list = end < 0 ? areas.Substring(at) : areas.Substring(at, end - at);
+            string[] parts = list.Split(',');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string s = parts[i].Trim();
+                if (s.Length == 0 || s.EndsWith(" (loading)", StringComparison.Ordinal)) continue;
+                set.Add(s);
+            }
+            return set;
         }
 
         private void StartLoad(string what, string error, Action<string> after)
@@ -1211,9 +1282,9 @@ namespace ForestOverlay.Modules
             y += 30f;
 
             GUI.enabled = !_busy && _selected >= 0;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Restore in place (no load)")) RestoreSelectedInPlace();
+            if (GUI.Button(new Rect(0, y, 260, 24), "Quick load (in place)")) RestoreSelectedInPlace();
             y += 28f;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Restore with load")) RestoreSelectedWithLoad();
+            if (GUI.Button(new Rect(0, y, 260, 24), "Full load (scene reload)")) RestoreSelectedWithLoad();
             y += 28f;
             if (GUI.Button(new Rect(0, y, 120, 22), Time.unscaledTime <= _deleteArmedUntil ? "Delete - sure?" : "Delete")) DeleteSelected();
             GUI.enabled = true;
@@ -1224,9 +1295,9 @@ namespace ForestOverlay.Modules
             // The slot the game is running on
             y += UiText.Draw(0, y, w, _slotLabel);
             GUI.enabled = !_busy;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Reload slot save in place (no load)")) SlotInPlace();
+            if (GUI.Button(new Rect(0, y, 260, 24), "Quick load the slot's save")) SlotInPlace();
             y += 28f;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Load slot save without the menu")) SlotWithoutMenu();
+            if (GUI.Button(new Rect(0, y, 260, 24), "Full load the slot's save (no menu)")) SlotWithoutMenu();
             GUI.enabled = true;
             y += 28f;
             y += StatusIf(Anchor.Slot, y, w);
