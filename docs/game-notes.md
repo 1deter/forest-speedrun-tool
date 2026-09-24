@@ -441,6 +441,22 @@ replays the game's own script, so it lands in the same state every time
 after a restore (the log says so if not), and that 6x keeps root-motion
 positions identical.
 
+**Megan needs ~7 s after a load (bridge + IL, v0.24.24).**
+`activateGirlTransform.OnTriggerEnter` -> `DoActorAnimation` -> `InitAnim`
+sends `setGirlAnimator` (its own `girlAnimator`, else
+`Scene.SceneTracker.EndgameBoss`'s Animator) and `doGirlTransformRoutine`
+to `LocalPlayer.SpecialActions`; the routine crossfades Megan to
+`Base Layer.transform` when the player reaches
+`fullBodyActions.girlTransformReaction`. `EndgameBoss` is set only by the
+boss's `mutantAI.Start` (`creepy_boss`, object `girl_base`) - seen live
+**null for 7.0 s after a load**, then set. A cutscene started before that
+has no Megan: she keeps her pre-cutscene swing, the player plays it alone
+and ends stuck (runner maks; why runners walk about the boss room first).
+`Game/BossHold` skips the trigger's enter while it is null (for 60 s after
+a savestate restore) and enters again once she is there. The cutscene ran
+at 25x `timeScale` from its start (bridge) and Megan transformed with the
+player (author).
+
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
 Enemies are spawned and despawned by `mutantController` (static

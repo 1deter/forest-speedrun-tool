@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.24 - 2026-09-24
+
+- Megan practice: after restoring a savestate, Megan's transformation
+  waits until the game has set Megan up (about 7 s after a load) instead
+  of starting without her and leaving you stuck. No more walking around
+  the boss room first.
+- A savestate taken during the transformation now fast-forwards to its
+  moment at up to 25x speed instead of 6x - about 2-3 s instead of 10.
+
 ## v0.24.23 - 2026-09-24
 
 - Cave panels look whole again after an in-place restore. Their health

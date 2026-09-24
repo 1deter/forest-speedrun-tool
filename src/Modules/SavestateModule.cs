@@ -58,6 +58,7 @@ namespace ForestOverlay.Modules
         private PickupKeeper _keeper;
         private BookPages _book;
         private PanelKeeper _panels;
+        private BossHold _bossHold;
         private EnemyKeeper _enemies;
         private string _dir;
 
@@ -128,6 +129,8 @@ namespace ForestOverlay.Modules
             _enemies = new EnemyKeeper(ctx.Log);
             _keeper.Install(OverlayPlugin.PluginGuid);
             _panels.Install(OverlayPlugin.PluginGuid);
+            _bossHold = new BossHold(ctx.Log, ctx.Runner);
+            _bossHold.Install(OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
@@ -180,6 +183,7 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = false;
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
+            if (_bossHold != null) _bossHold.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
 
@@ -537,6 +541,7 @@ namespace ForestOverlay.Modules
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
             Ctx.Practice.Mark("savestate restore (in place)");
             PickupKeeper.Armed = true;
+            BossHold.Arm();
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
             int cannibalsBefore, familiesBefore;
@@ -648,7 +653,8 @@ namespace ForestOverlay.Modules
         // timeScale is safe here: InventoryItemView.Update writes it only
         // when an item is equipped from the open inventory (game-notes
         // *timeScale*). Near the mark it slows so it lands on it.
-        private const float CutsceneSpeed = 6f;
+        // 6x took ~10 s for Megan's 60 s (runner maks: "within ~1 second").
+        private const float CutsceneSpeed = 25f;
         private const float CutsceneWait = 20f;
 
         private IEnumerator FastForwardCutscene(SavestateFile f, int startsBefore, string what)
@@ -840,8 +846,10 @@ namespace ForestOverlay.Modules
         private Action<string> AfterLoad(SavestateFile f, Action<string> after)
         {
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
+            BossHold.Arm();
             return delegate(string error)
             {
+                BossHold.Arm();
                 if (error == null)
                 {
                     string panels = "";
