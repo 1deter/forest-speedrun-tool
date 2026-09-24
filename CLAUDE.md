@@ -456,15 +456,74 @@ identity.
 
 ## Current status
 
-**Released: v0.24.22** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.25** (2026-09-24). The author runs it via the in-game
 updater. **263 tests.**
 
-### Pick up here (2026-09-24 evening, v0.24.22 confirmed)
+### Pick up here (handoff of 2026-09-24 evening, v0.24.25 downloaded, not yet run)
 
-**The session of 2026-09-24 night** built the live test bridge (v0.24.13)
-and used it with the author in their Hard save (`scripts/bridge.sh`; the
-author does the fighting, everything else is driven from here). Shipped
-v0.24.13 - v0.24.19. **How these sessions run:** the author loads the
+**State of the author's machine:** v0.24.25 is downloaded into the game
+(`ForestOverlay.dll.pending`, installs on the next launch). **Save slot 4
+is swapped:** it holds runner maks's Megan practice save (Normal, standing
+just short of Megan's trigger; source `C:\Users\deter\Downloads\Slot4`);
+the author's own Peaceful slot 4 is kept as `SinglePlayer\Slot4 BACKUP
+peaceful` (under `%USERPROFILE%\AppData\LocalLow\SKS\TheForest\<steamid>`).
+**Put it back** (delete `Slot4`, rename the backup to `Slot4`) once the
+Megan tests are done - the author agreed to a temporary swap.
+
+**Next, in order:**
+1. **Test v0.24.24 with the Megan save** (slot 4): load, walk into the
+   trigger, capture through the bridge ~55 s into the cutscene (watch the
+   log for `Game event: megan-transform`), then `restore <name> load`.
+   Expect `BossHold: Megan's transformation held - Megan not there yet`,
+   ~7 s later `BossHold: Megan is there after x s - starting the
+   transformation.`, then `cutscene 'megan-transform' fast-forwarded to
+   ~55 s ... in ~2-3 s real time`, and the fight starts normally. 25x from
+   the cutscene's start was already run live - the author saw Megan
+   transform (a clip went to maks for his verdict).
+2. **The red elevator + in-place restore** (runner, below): not started.
+3. **v0.24.25's endgame load** and **v0.24.23's panels** and **v0.24.21's
+   landing** need maks (his invisible-section save; a cave).
+4. Then back to the **Fix list** (trees first).
+
+**Runner feedback of 2026-09-24 evening** (via the author):
+- **Confirmed:** no blood / no stagger toggles, the lighter (no message),
+  the retire warning on a new start state (double click, names the count;
+  v0.22.0), the Practice list's unsaved reminder (v0.23.8).
+- **Panels** (maks: "stays damaged"): health was restored all along
+  (`healed` / `rebuilt` in his log); `LocalizedHit` knocks boards a degree
+  crooked per hit and nothing straightens them. v0.24.23 records a panel's
+  boards at its first hit and straightens them on restore (log `panels: n
+  healed, m rebuilt, k straightened`) - awaiting maks.
+- **Mid-air restore stagger:** v0.24.21 cancels the landing's stagger
+  after any restore / teleport that caught the player in the air (log
+  `Landing after a mid-air restore / teleport: stagger cancelled.`) -
+  awaiting maks.
+- **Megan** (maks): after a load the boss (`girl_base`, set as
+  `Scene.SceneTracker.EndgameBoss` by its `mutantAI.Start`) is missing for
+  7.0 s (bridge, author's game); a restore starts the cutscene inside it at
+  once, so Megan never transforms and the run ends stuck. v0.24.24
+  `Game/BossHold` holds the trigger until she is there (60 s after a
+  restore only) and the fast-forward goes to 25x (was 6x, ~10 s).
+- **Invisible section after the lab** (runner's log `LogOutput INVIS.log`,
+  v0.24.19): a load restore there loses `endgame_streaming` (no floor, fall
+  through) because the game's load force-loads the endgame only with an
+  active area, and out of bounds there is none. v0.24.25
+  `Game/EndgameLoader` force-loads it after a load restore when the
+  capture had it (log `... | endgame: loaded at capture, not by the load -
+  loading it`) - awaiting the runner.
+- **Red elevator** (runner): trigger it, then F7 / restore in place: the
+  elevator leaves its shaft for the overlook area (a hole left behind, its
+  button stays - and a second button at the overlook), parts of the Sahara
+  load (half the textures), the endgame cave visuals vanish while
+  collisions stay, and the player is put in a cave state. The area report
+  says `same as at capture` - scenes are not the difference; the elevator
+  ride's effects are scene objects (read `ElevatorSystem.Goto` and the
+  elevator's move / activate calls with `ilscan body`, then the bridge on
+  `HellCorridor/Elevator_01a`). Runners want **the exact state before the
+  elevator**: Sahara only partly loaded (its triggers skipped out of
+  bounds), elevator in place, the same textures.
+
+**How these sessions run:** the author loads the
 save and says so; from here: `tp 523 56.3 10 180` (20 m north of a
 two-to-three-male regular family at spawner (522.9, 56.74, -10.7)),
 `set static:Cheats GodMode true`, `set static:Cheats InfiniteEnergy true`,
@@ -476,20 +535,9 @@ through the bridge:** `type OverlayPlugin all` (the plugin is `#-88`
 then `..._checker.Download "<plugin path>"` once `Message` says available
 (the API lags the asset by a minute or two); the author restarts.
 
-**Next: runner maks's feedback of 2026-09-24** (on v0.24.13): **panels**
-stay damaged after an in-place restore (the `healed` line acts - the look
-does not follow the health; a panel kept before breaking comes back in its
-damaged look) and **Megan** (below). Confirmed by maks: no blood / no
-stagger, the lighter (no message). Mid-air restore stagger: v0.24.21
-cancels the next hard landing after an `EndFall` that found the player in
-the air - awaiting maks. **Megan** (maks): a load restore replays the
-cutscene at once, but after a load Megan needs ~7-8 s in the boss room
-before the cutscene works (runners walk about first) - started earlier,
-she stays in her pre-cutscene swing while the player plays it and ends
-stuck; also the fast-forward took 9.9-10.5 s real time, maks wants ~1 s.
-Find what Megan waits for after a load, hold the replay until then, and
-fast-forward much harder. The author is on high effort for this work; say
-when medium is enough again (memory `effort-level-switching`).
+The author is on high effort for this work; say when medium is enough
+again (memory `effort-level-switching`). The bridge made this session's
+fixes fast: prefer a live read over an IL theory (gotcha 25).
 
 **Enemies after an in-place restore - where it stands** (fix list 2;
 game-notes *Seen live through the test bridge*, *Cannibal kinds and
@@ -812,6 +860,7 @@ building, chopping and killing across reloads fine); the menu route (exit
 to title -> Continue) flat too, 10 trips (v0.23.7).
 
 **Awaiting an in-game check** — ask before building on these:
+- ~~The Practice list's unsaved reminder~~ **confirmed** (runner, 2026-09-24).
 - **The Practice list never sticks** (v0.23.8): switch with unsaved
   edits, "(unsaved)" on the row, "Save (n)" saves them all.
 - **No blood / no stagger** (v0.24.7): in Creative and survival - fall
@@ -861,7 +910,8 @@ to title -> Continue) flat too, 10 trips (v0.23.7).
   lists `other misses:` - read it to see why they did not adopt.
 - **Updates tab**: Check again after a Download says "downloaded - restart
   to install" instead of offering the same version (v0.22.3).
-- **Retiring times on a new start state** (v0.22.0): capture on a segment
+- ~~Retiring times on a new start state~~ **confirmed** (runner, 2026-09-24:
+  double click, names the count). Old note (v0.22.0): capture on a segment
   with attempts asks for a second click and names the count.
 - **Whether a timed run still arms after an F7 restore** — runs do not log
   arming; add a log line if it is ever in doubt.
@@ -962,7 +1012,10 @@ list so we can move onto expanding more features".
      on capture; `| book: showing 'x' (of n) (k page object(s) switched)`
      on an in-place restore; `Savestate after the load: book: ...`.
      Files from before v0.24.0 leave the book as it is.
-   - **Lab + hellcave not restored, even with a load** *(runner)*: after the
+   - **Lab + hellcave not restored, even with a load** *(runner)* -
+     **2026-09-24: the load half is fixed in v0.24.25 (awaiting the
+     runner), the red-elevator in-place half is open; see *Pick up here*.**
+     Old notes: after the
      red elevator loaded the overlook area, the last lab section (collision
      loaded, invisible) must stay as it was at capture - runners do it
      "blind". Streaming / area state outside the serializer. **v0.24.4
@@ -1181,7 +1234,11 @@ subscribers pruned, census off by default); v0.23.7 updates under any
 plugin file name; v0.23.8-0.24.7 (2026-09-24) the Practice list fix,
 savestate completeness (fall, book page, held items, cave panels,
 cutscene moment, enemies, the area report) and Next up 4 (auto-restart,
-no blood / no stagger).
+no blood / no stagger); v0.24.13-0.24.25 (2026-09-24, with the test
+bridge) the live test bridge, cannibals rebuilt as captured and asleep
+on their spot (confirmed), panels straightened, no stagger after a
+mid-air restore, Megan held until she exists + 25x fast-forward, the
+endgame area loaded after an out-of-bounds load restore.
 
 ### How a session goes
 
