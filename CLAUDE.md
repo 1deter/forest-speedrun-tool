@@ -484,7 +484,7 @@ he runs it currently and knows the exact cutscene audio (the author has
 not played in a while). Next after sending it: *Next, in order* 1a.
 **maks's v0.24.39 test list** is drafted in
 [`docs/tests/2026-09-24-maks-v0.24.39.md`](docs/tests/2026-09-24-maks-v0.24.39.md)
-(not yet sent; the author sends it). **Slot4 is the author's own again**
+(not yet sent; the author sends it). **SWAPPED NOW: Slot5 holds maks's slot5.zip save; the author's is `Slot5.deter-backup` - swap back at the title screen (2026-09-24 late).** **Slot4 is the author's own again**
 (swapped back 2026-09-24). maks's saves for testing: his Megan save in
 `C:\Users\deter\Downloads\Slot4`, lab / invisible section / red elevator
 in `C:\Users\deter\Downloads\slot5.zip`. Swap routine, at the title
