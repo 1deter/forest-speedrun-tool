@@ -32,8 +32,16 @@ namespace ForestOverlay.Game
     //   invokeSpawn's first checkSpawn spawns a surface family at once.
     //   Cave families spawn only with a player in the caves within 130 m,
     //   so those are started directly. Members spawn from the "enemies"
-    //   pool at the spawner; spawnMutants.fixMutantPosition moves one (a moved cannibal slept,
-    //   woke when approached and fought normally - author).
+    //   pool at the spawner; spawnMutants.fixMutantPosition moves one (a
+    //   moved cannibal slept, woke when approached and fought normally -
+    //   author).
+    //   Sleep: a family rebuilt 20 m from the player came back awake. The
+    //   AI is PlayMaker FSMs on the _BASE child; asleep = action_sleepingFSM
+    //   in "sleeping". mutantFollowerFunctions.switchToSleep() sends
+    //   "toSetSleep": the cannibal walks to action_sleepingFSM's sleepPos
+    //   (the spawner by default) and sleeps - set sleepPos to where it
+    //   stands first and it sleeps on the spot (seen live, v0.24.18).
+    //   The leader is spawnMutants.leaderGo; its kind gets "/L".
     // ------------------------------------------------------------------
     public sealed class EnemyKeeper
     {
@@ -78,6 +86,9 @@ namespace ForestOverlay.Game
         private PropertyInfo _enemyTypeValue; // enemyType.Type (old files only)
         private Type _spawnType;            // spawnMutants
         private FieldInfo _members;         // spawnMutants.allMembers
+        private FieldInfo _leaderGo;        // spawnMutants.leaderGo
+        private Type _follower;             // mutantFollowerFunctions
+        private MethodInfo _switchToSleep;  // mutantFollowerFunctions.switchToSleep()
         private FieldInfo _alreadySpawned;
         private MethodInfo _fixPosition, _invokeSpawn, _addToWorldSpawns;
         private readonly List<FieldInfo> _settings = new List<FieldInfo>();
@@ -129,6 +140,8 @@ namespace ForestOverlay.Game
                 _pale = _typeSetup.GetField("storePaleMutantBool", inst);
                 _mutantType = _typeSetup.GetField("storeMutantType", inst);
             }
+            _follower = GameBridge.FindGameType("mutantFollowerFunctions");
+            if (_follower != null) _switchToSleep = _follower.GetMethod("switchToSleep", inst, null, Type.EmptyTypes, null);
             Type health = GameBridge.FindGameType("EnemyHealth");
             if (health != null) _healthValue = health.GetField("Health", inst);
             _enemyType = GameBridge.FindGameType("enemyType");
@@ -138,6 +151,7 @@ namespace ForestOverlay.Game
             if (_spawnType != null)
             {
                 _members = _spawnType.GetField("allMembers", inst);
+                _leaderGo = _spawnType.GetField("leaderGo", inst);
                 _alreadySpawned = _spawnType.GetField("alreadySpawned", inst);
                 _fixPosition = _spawnType.GetMethod("fixMutantPosition", inst, null, new[] { typeof(Transform), typeof(Vector3) }, null);
                 _invokeSpawn = _spawnType.GetMethod("invokeSpawn", inst, null, Type.EmptyTypes, null);
@@ -157,7 +171,8 @@ namespace ForestOverlay.Game
                      " health:" + (_health != null && _healthValue != null) +
                      " build:" + (_spawnGo != null && _invokeSpawn != null && _addToWorldSpawns != null && _alreadySpawned != null) +
                      " clear:" + (_startSetup != null && _despawnGo != null) +
-                     " place:" + (_fixPosition != null) + " settings:" + _settings.Count;
+                     " place:" + (_fixPosition != null) + " sleep:" + (_switchToSleep != null) +
+                     " leader:" + (_leaderGo != null) + " settings:" + _settings.Count;
             _log.LogInfo("EnemyKeeper bound. " + Status);
             return Ready;
         }
@@ -202,6 +217,12 @@ namespace ForestOverlay.Game
             if (c.Setup == null) return c;
             c.Spawner = _spawner.GetValue(c.Setup) as MonoBehaviour;
             c.Kind = KindOf(go, c.Setup);
+            try
+            {
+                GameObject leader = c.Spawner != null && _leaderGo != null ? _leaderGo.GetValue(c.Spawner) as GameObject : null;
+                if (leader != null && leader == go) c.Kind += "/L";
+            }
+            catch (Exception) { }
             return c;
         }
 
@@ -263,6 +284,7 @@ namespace ForestOverlay.Game
                     r.Position = c.Go.transform.position;
                     r.Yaw = c.Go.transform.eulerAngles.y;
                     r.Health = ReadHealth(c.Setup);
+                    r.Asleep = IsAsleep(c.Go);
                     members.Add(r.Encode());
                 }
                 note = live.Count + " cannibal(s) in " + index.Count + " famil" + (index.Count == 1 ? "y" : "ies");
@@ -393,6 +415,8 @@ namespace ForestOverlay.Game
             yield return new WaitForSecondsRealtime(1.5f);
 
             int placed = 0, extra = 0, missing = 0;
+            List<Cannibal> sleepers = new List<Cannibal>();
+            List<Vector3> sleepAt = new List<Vector3>();
             foreach (KeyValuePair<int, MonoBehaviour> kv in built)
             {
                 List<EnemyRecord> want = new List<EnemyRecord>();
@@ -426,6 +450,7 @@ namespace ForestOverlay.Game
                     used[match[i]] = true;
                     Place(kv.Value, have[match[i]], want[i]);
                     placed++;
+                    if (want[i].Asleep) { sleepers.Add(have[match[i]]); sleepAt.Add(want[i].Position); }
                 }
                 // Members the capture did not have (killed before it).
                 for (int i = 0; i < have.Count; i++)
@@ -436,12 +461,23 @@ namespace ForestOverlay.Game
                 }
             }
 
+            // fixMutantPosition holds the position ~1 s; then back to sleep,
+            // on the spot.
+            int slept = 0;
+            if (sleepers.Count > 0)
+            {
+                yield return new WaitForSecondsRealtime(1.2f);
+                for (int i = 0; i < sleepers.Count; i++)
+                    if (PutToSleep(sleepers[i].Go, sleepAt[i])) slept++;
+            }
+
             int noFamily = 0;
             for (int i = 0; i < members.Count; i++) if (members[i].Family >= 1000) noFamily++;
 
             done("families: " + setupNote + ", " + made + " rebuilt" + (cave > 0 ? ", " + cave + " cave" : "") +
                  (failed > 0 ? ", " + failed + " not found / failed" : "") +
                  " | positions: " + placed + " of " + members.Count + " placed" +
+                 (sleepers.Count > 0 ? ", " + slept + " of " + sleepers.Count + " put back to sleep" : "") +
                  (missing > 0 ? ", " + missing + " not spawned" : "") +
                  (extra > 0 ? ", " + extra + " extra despawned" : "") +
                  (noFamily > 0 ? ", " + noFamily + " without a family" : ""));
@@ -525,6 +561,60 @@ namespace ForestOverlay.Game
                 return go.GetComponent(_spawnType) as MonoBehaviour;
             }
             return null;
+        }
+
+        // ------------------------------------------------------------------
+        // Sleep (PlayMaker FSMs on the _BASE child, by reflection: PlayMaker
+        // is its own assembly and nothing here references it).
+
+        private Component Fsm(GameObject go, string name)
+        {
+            if (go == null) return null;
+            Component[] all = go.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Component c = all[i];
+                if (c == null || c.GetType().Name != "PlayMakerFSM") continue;
+                PropertyInfo p = c.GetType().GetProperty("FsmName");
+                if (p != null && (p.GetValue(c, null) as string) == name) return c;
+            }
+            return null;
+        }
+
+        private bool IsAsleep(GameObject go)
+        {
+            try
+            {
+                Component fsm = Fsm(go, "action_sleepingFSM");
+                PropertyInfo state = fsm != null ? fsm.GetType().GetProperty("ActiveStateName") : null;
+                return state != null && (state.GetValue(fsm, null) as string) == "sleeping";
+            }
+            catch (Exception) { return false; }
+        }
+
+        private bool PutToSleep(GameObject go, Vector3 at)
+        {
+            if (go == null || !go.activeInHierarchy || _switchToSleep == null) return false;
+            try
+            {
+                Component fsm = Fsm(go, "action_sleepingFSM");
+                if (fsm != null)
+                {
+                    object vars = fsm.GetType().GetProperty("FsmVariables").GetValue(fsm, null);
+                    Array vectors = vars != null ? vars.GetType().GetProperty("Vector3Variables").GetValue(vars, null) as Array : null;
+                    for (int i = 0; vectors != null && i < vectors.Length; i++)
+                    {
+                        object v = vectors.GetValue(i);
+                        if (v == null || (v.GetType().GetProperty("Name").GetValue(v, null) as string) != "sleepPos") continue;
+                        v.GetType().GetProperty("Value").SetValue(v, at, null);
+                    }
+                }
+                Component follower = go.GetComponent(_follower);
+                if (follower == null) return false;
+                _switchToSleep.Invoke(follower, null);
+                return true;
+            }
+            catch (Exception) { return false; }
         }
 
         private void Place(MonoBehaviour host, Cannibal c, EnemyRecord r)

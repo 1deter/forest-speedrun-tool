@@ -51,8 +51,31 @@ namespace ForestOverlay.Tests
             Assert.Equal(130, back.Health);
         }
 
+        [Fact]
+        public void AsleepAndKindWithSlashesRoundTrip()
+        {
+            EnemyRecord r = new EnemyRecord();
+            r.Family = 0;
+            r.Type = "mutant_male/0/L";
+            r.Position = new Vector3(1f, 2f, 3f);
+            r.Health = 130;
+            r.Asleep = true;
+            string text = r.Encode();
+            Assert.Equal("0:mutant_male/0/L@1,2,3/0/130/s", text);
+
+            EnemyRecord back;
+            Assert.True(EnemyRecord.TryDecode(text, out back));
+            Assert.Equal("mutant_male/0/L", back.Type);
+            Assert.True(back.Asleep);
+            Assert.Equal(130, back.Health);
+
+            Assert.True(EnemyRecord.TryDecode("0:mutant_male/0@1,2,3/0/91", out back));
+            Assert.False(back.Asleep);
+        }
+
         [Theory]
         [InlineData("")]
+        [InlineData("1:regularMale@1,2,3/0/1/x")]
         [InlineData("regularMale@1,2,3/0/1")]
         [InlineData("x:regularMale@1,2,3/0/1")]
         [InlineData("1:@1,2,3/0/1")]

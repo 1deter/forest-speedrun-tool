@@ -573,6 +573,15 @@ despawn + `activeCannibals.Remove`); `setupFamilies` just `Destroy`s world
 spawners (`spawnMutants.OnDestroy` only cancels its invokes).
 v0.24.17 rebuilds captured families this way (`Game/EnemyKeeper`).
 
+**Sleep.** A family rebuilt 20 m from the player spawns awake. Asleep
+= `action_sleepingFSM` in `sleeping` (`global_brainFSM` `setSleeping` on the
+way). `mutantFollowerFunctions.switchToSleep()` sends `toSetSleep`
+(`sendSleepEvent` does a whole family): the cannibal goes `gotoCave` /
+`runToCave` to the sleeping FSM's `sleepPos` (Vector3 variable; the
+spawner's area by default; also `sleepAngle`) and sleeps. Set `sleepPos`
+to where it stands first and it sleeps on the spot (bridge, 2026-09-24).
+`mutantTypeSetup.setSleeping` sets the FSM bool `sleepOnAwake` at spawn.
+
 ## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
 
 `PlaneCrashController.OnDeserialized` does `Invoke("setupCrashedPlane",

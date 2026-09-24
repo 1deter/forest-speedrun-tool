@@ -456,7 +456,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.18** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.19** (2026-09-24). The author runs it via the in-game
 updater. **261 tests.**
 
 ### Pick up here (handoff of 2026-09-24 late, after the author tested v0.24.11)
@@ -516,8 +516,13 @@ the first `checkSpawn` spawns a surface family - v0.24.17 also started
 v0.24.18), places members by kind, despawns extras. **Tested v0.24.17
 (author):** 6 families rebuilt at their spawners, 15 of 15 placed; the
 family came back as regular ones with head clubs (a woman, a male, a
-leader), but awake and fleeing where they had slept - re-test on
-v0.24.18 without the duplicate spawn.
+leader), but awake and fleeing where they had slept. **v0.24.18
+confirmed:** `positions: 15 of 15 placed`, no duplicates - still awake
+(passive / searching). **v0.24.19 (awaiting a check):** asleep at capture
+(`action_sleepingFSM` = `sleeping`, the `/s` flag) -> after placing, set
+that FSM's `sleepPos` to the spot and `switchToSleep()` (sleeps on the
+spot - bridge-verified); the leader (`spawnMutants.leaderGo`) is part of
+the kind (`/L`). Log: `, n of m put back to sleep`.
 Log: `| families: setup run, n rebuilt | positions: n of m placed[, k not
 spawned][, j extra despawned]`. Open: whether `updateSpawns` adds a
 random family when the captured count is below its target; weapons

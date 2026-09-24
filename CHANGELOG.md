@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.19 - 2026-09-24
+
+- Cannibals that were asleep when you captured a savestate go back to
+  sleep on the same spot after an in-place restore, and the family leader
+  gets the leader's spot.
+
 ## v0.24.18 - 2026-09-24
 
 - Fixed: restoring in place spawned every cannibal twice for a moment

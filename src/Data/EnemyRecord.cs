@@ -13,8 +13,12 @@ namespace ForestOverlay.Data
     //
     // One entry per live cannibal, in the savestate's `enemies` header:
     //
-    //   <family>:<type>@<x>,<y>,<z>/<yaw>/<health>
-    //   0:regularMale@524.1,54.4,0.2/90/130
+    //   <family>:<kind>@<x>,<y>,<z>/<yaw>/<health>[/s]
+    //   0:mutant_male/0/L@524.1,54.4,0.2/90/130/s
+    //
+    // `kind` is Game/EnemyKeeper's (prefab, mutantTypeSetup flags, /L for
+    // the family's leader); a trailing /s: asleep at capture (v0.24.19).
+    // v0.24.16 files used enemyType names ("regularMale").
     //
     // `family` numbers the cannibals' spawners at capture (one family =
     // one spawnMutants). The game rebuilds families on its own after a
@@ -31,12 +35,13 @@ namespace ForestOverlay.Data
         public Vector3 Position;
         public float Yaw;
         public int Health;
+        public bool Asleep;
 
         public string Encode()
         {
             return Family.ToString(CultureInfo.InvariantCulture) + ":" + Type + "@" +
                    F(Position.x) + "," + F(Position.y) + "," + F(Position.z) + "/" +
-                   F(Yaw) + "/" + Health.ToString(CultureInfo.InvariantCulture);
+                   F(Yaw) + "/" + Health.ToString(CultureInfo.InvariantCulture) + (Asleep ? "/s" : "");
         }
 
         private static string F(float f)
@@ -55,7 +60,12 @@ namespace ForestOverlay.Data
             r.Type = text.Substring(colon + 1, at - colon - 1);
 
             string[] parts = text.Substring(at + 1).Split('/');
-            if (parts.Length != 3) return false;
+            if (parts.Length == 4)
+            {
+                if (parts[3] != "s") return false;
+                r.Asleep = true;
+            }
+            else if (parts.Length != 3) return false;
             Vector3 p;
             if (!BridgeCommand.TryParseVector3(parts[0], out p)) return false;
             r.Position = p;
