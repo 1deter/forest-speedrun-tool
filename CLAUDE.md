@@ -460,15 +460,16 @@ identity.
 
 ## Current status
 
-**Released: v0.24.35** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.37** (2026-09-24). The author runs it via the in-game
 updater. **265 tests.**
 
-### Pick up here (2026-09-24 late, v0.24.35 in the game)
+### Pick up here (2026-09-24 late, v0.24.37 in the game)
 
-**State:** v0.24.35 runs in the author's game (Megan Quick load fixed
-and confirmed). **Unreleased on main:** `AnimReset.EndAttack` treats an
-FSM with no active state as at rest (the `ended attack state ''` seen on
-a mid-cutscene restore) - ship it with the next release. **Slot4 is swapped:** maks's Megan save
+**State:** v0.24.37 runs in the author's game. Megan's Quick load, the
+fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
+confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
+he knows what the cutscene should sound like (the author does not).
+**Slot4 is swapped:** maks's Megan save
 (Normal, from `C:\Users\deter\Downloads\Slot4`) is in
 `%USERPROFILE%\AppData\LocalLow\SKS\TheForest\76561197966559397\SinglePlayer\Slot4`;
 the author's own Slot4 is in `Slot4.deter-backup` beside it. **Put it
@@ -485,13 +486,7 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **Thrown spears stay after a Quick load** (author's fight, 2026-09-24):
-   the inventory comes back with its spears and the thrown ones
-   (`SpearThrown_Dynamic(Clone)`) stay on the floor - the restore already
-   lists them as `not at capture`. Asked the author whether to remove
-   thrown weapons new since the capture (the Fix list's logs / sticks are
-   the same kind). Megan's own reset: game-notes *Megan after a Quick load*.
-2. **maks's other open items** (his v0.24.29 round):
+1. **maks's other open items** (his v0.24.29 round):
    a. **Coins come back after a Full load** - cave 5, the first pile by
       the drop. His log removed only `bone x8, Booze x1`: the cave's
       pickups probably activate after the single removal pass
@@ -506,24 +501,22 @@ option (the escape hatch for states Quick load has no patch for).
    c. **Quick / Full load toggle is unclear** (Practice editor, *Start
       state* row): a two-button switch showing the active mode at once;
       Restart says which it does.
-   d. **Megan's music** plays late / during the fight - make it match a
-      normal run, or mute it.
-   e. **Red elevator, Quick load**: the overlook flag is not the cause
+   d. **Red elevator, Quick load**: the overlook flag is not the cause
       (maks's log: `same as at capture`, overlook `no`); the elevator's
       scene objects are (`HellCorridor/Elevator_01a`, `ElevatorSystem`).
       Full load is fine. Use slot5.zip + bridge.
-   f. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
+   e. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
       up 4, *Open threads*.
-3. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
+2. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
    saved verbatim with what each item checks in
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
    **When the author pastes maks's answers, they are numbered against
    that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf).
    `ended attack state '...'` on the `Teleport to` line: seen empty on a
    mid-cutscene restore (fixed on main); a real attack name not yet seen.
-4. **QA tooling** (author: "let's do all of them"), after 1-2: keep
+3. **QA tooling** (author: "let's do all of them"), after 1: keep
    previous sessions' `LogOutput.log` (timestamped copies on startup,
    last few); a **QA tab**: each test list shipped in the plugin, items
    with Pass / Fail / Note, the proving log line and auto-tick where the
@@ -531,7 +524,7 @@ option (the escape hatch for states Quick load has no patch for).
    time, position, spot, optional note) and a one-click report (zip of
    logs + the savestate / segment files under test, on the desktop).
    Never let runners run bridge scripts (arbitrary calls).
-5. Auto-restart: better display of the flashed time (maks); then the
+4. Auto-restart: better display of the flashed time (maks); then the
    **Fix list** (trees first).
 
 (Everything confirmed so far is in *Confirmed in game* below.)
@@ -807,7 +800,11 @@ load (surface), the Updates tab's "downloaded - restart to install";
 the smash and swing cut on a reset, next swing at once (bridge,
 v0.24.32-0.24.34); Megan after a Quick load - taken before, during or
 after her transformation, babies and body cleared, the cutscene replayed
-and fast-forwarded (bridge + author, v0.24.35).
+and fast-forwarded (bridge + author, v0.24.35), also straight after a
+load from the title screen (v0.24.37); the fast-forwarded cutscene's
+sounds put in step (log: `music_transformation` moved to 41.7 s; author:
+"sounded perfect", v0.24.36); spears thrown since the capture removed
+(v0.24.36).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):

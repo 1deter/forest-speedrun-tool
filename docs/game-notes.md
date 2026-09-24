@@ -575,6 +575,22 @@ placeholder gave a seated Megan and a normal cutscene and fight (bridge).
 The overworld Megan is a different path (`spawnMutants.spawnGirl` ->
 `activateGirlMutantInWorld`).
 
+**Cutscene sounds under a fast-forward (IL + log, v0.24.36,
+`Game/CutsceneAudio`).** FMOD plays in real time whatever `timeScale` is,
+so every sound the skipped part starts begins at its own start.
+`FMODCommon.CleanupOneshotEvents` stops a one-shot flagged `useMaximumAge`
+once `Time.time - startTime > 10` (game time - consistent with a normal
+run); `FMOD_AnimationEventHandler.playFMODEventNoTimeout` skips that. The
+boss music (`event:/endgame/music_endgame/boss_fight_music`) is
+`creepyAnimEvents.startBossFightMusic`, an animation event after the
+transformation; the cutscene's own music is
+`music_endgame/music_transformation` (starts ~8 s in). Megan's seated
+sound is her `girlIdleEmitter` (`sfx_endgame/crying_girl`). A 50 s skip
+starts ~15 sounds; 3 are still due at the captured moment.
+Thrown spears are `SpearThrown_Dynamic(Clone)` roots with a `PickUp`
+(item Spear) on `spear_High/Trigger`; picked back up they stay as
+inactive copies.
+
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
 Enemies are spawned and despawned by `mutantController` (static
