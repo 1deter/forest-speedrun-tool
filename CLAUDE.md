@@ -95,7 +95,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/BookPages` + `Data/BookPageState` (book page), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/CutsceneAudio` (fast-forward sounds), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -417,6 +417,14 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     (or with it), and read the whole lifecycle: `OnApplicationQuit` calling
     `OnDestroy` itself made the only hit a false positive at quit.
 
+26. **A restore runs frames - judge the "before" state before it.** The
+    in-place restore is a coroutine: it puts the player back and physics
+    steps run, so a trigger at the captured spot fires *during* it.
+    v0.24.36 checked Megan's trigger after the restore, saw it spent (by
+    the restore's own trigger enter) and rebuilt her under the cutscene
+    that had just started. Read what a fix-up depends on when the restore
+    starts (`MeganKeeper.LiveSeated`, v0.24.37).
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -469,15 +477,15 @@ updater. **265 tests.**
 fast-forwarded cutscene's sounds and thrown-spear cleanup are fixed and
 confirmed (see *Confirmed in game*). maks has not tested v0.24.35-37 yet;
 he knows what the cutscene should sound like (the author does not).
-**Slot4 is swapped:** maks's Megan save
-(Normal, from `C:\Users\deter\Downloads\Slot4`) is in
-`%USERPROFILE%\AppData\LocalLow\SKS\TheForest\76561197966559397\SinglePlayer\Slot4`;
-the author's own Slot4 is in `Slot4.deter-backup` beside it. **Put it
-back when the Megan work is done** (delete Slot4, rename the backup;
-compare sizes: `__RESUME__` 334556 bytes, `thumb.png.png`). Steam Cloud is
-off (author). maks's other save: `C:\Users\deter\Downloads\slot5.zip`
-(lab / invisible section / red elevator) - same swap routine, keep both
-until their items are done.
+**maks's v0.24.37 Megan test list** is drafted in
+[`docs/tests/2026-09-24-maks-v0.24.37.md`](docs/tests/2026-09-24-maks-v0.24.37.md)
+(not yet sent; the author sends it). **Slot4 is the author's own again**
+(swapped back 2026-09-24). maks's saves for testing: his Megan save in
+`C:\Users\deter\Downloads\Slot4`, lab / invisible section / red elevator
+in `C:\Users\deter\Downloads\slot5.zip`. Swap routine, at the title
+screen only: rename the author's slot to `SlotN.deter-backup`, copy
+maks's in, and afterwards delete it and rename the backup back (check
+sizes match). Steam Cloud is off (author).
 
 **Naming (author, done v0.24.27, UI only - config keys and log lines
 unchanged):** **Quick load** = restore in place, **Full load** = restore
@@ -548,6 +556,13 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 `BepInEx/config/ForestOverlay/bridge/` (a shot on the frame of an action
 shows that frame, not its outcome - wait a few tenths); `anim watch N`
 runs in the background, so a `wait` and an action can follow it.
+Target objects the game respawns **by path** (`girlMutant(Clone)/girl_base`),
+not by handle - a restore or reload changes handles. `TaskStop` on a
+background polling script can leave its loop running and firing bridge
+commands: check `ps -ef | grep <script>` and `kill` it (no `pkill` in
+Git Bash). The author reads a prompt only when not mid-cutscene - a
+scripted step that needs hands must wait for the state (poll it), not a
+fixed delay.
 **Instructions go on the game screen, not in chat** (author, 2026-09-24:
 "super useful"): `call #<plugin h> OverlayPlugin._notice.Show "text" <s>`
 (upper middle). Script a timed test as notices + waits in a `-f` file
@@ -703,14 +718,19 @@ scanner.
     `Game/PickupKeeper` puts taken world pickups back. Afterwards the
     **cave state is sent outright from the file's `cave` flag**
     (`GameBridge.ForceCaveState`): the serializer restores the flag without
-    its effects.
+    its effects. Spears and limbs left since the capture are removed; boss
+    Megan is put back seated when she was at capture (`megan` header,
+    `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
+    load*).
   - **Full load** = with a scene load (~5-15 s): `LoadSavedLevel` — the
     second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
     player is held at the captured spot until every scene loaded at
     capture is back, the endgame area is force-loaded if the capture had
     it, placed pickups taken before the capture are removed, the captured
-    cannibal families are rebuilt, and a cutscene capture is
-    fast-forwarded with the held weapon's memory put back (`heldbefore`).
+    cannibal families are rebuilt.
+  Both: a cutscene capture is fast-forwarded (25x) with the held weapon's
+  memory put back (`heldbefore`) and its sounds kept in step
+  (`Game/CutsceneAudio`, v0.24.36).
   **From another save** (sharing): every game gives its objects its own
   `UniqueIdentifier` ids, so an in-place restore first **adopts** the saved
   ids — every live identifier the save lacks takes the id of the saved
@@ -948,10 +968,11 @@ and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
 checkpoints, the changelog, the load leak fixed (v0.22.7-0.23.6), updates
 under any file name (v0.23.7), the Practice list fix and savestate
 completeness (v0.23.8-0.24.7), the live test bridge and everything found
-with it (v0.24.13-0.24.34: cannibals rebuilt as captured, Megan's
+with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
-attack FSM ended).
+attack FSM ended, Megan after a Quick load, cutscene sounds in step,
+thrown spears removed).
 
 ### How a session goes
 
