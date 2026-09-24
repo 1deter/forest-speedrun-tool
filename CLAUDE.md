@@ -533,7 +533,7 @@ escape hatch for states Quick load has no patch for.
      the capture did not list, only in scenes loaded at capture, never
      `(Clone)`s (`PickupKeeper.RemoveTakenAfterLoad`, log `pickups -
      removed n ...`) - awaiting a check.
-- **Bridge `mark`** (v0.24.27; author: "I don't have a compass"): `mark
+- **Bridge `mark`** (v0.24.27, **confirmed** - seen through walls; author: "I don't have a compass"): `mark
   <target> | mark x y z | mark clear` puts a magenta beacon on a thing -
   use it instead of compass directions when asking the author to find
   something.
