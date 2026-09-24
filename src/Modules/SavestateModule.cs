@@ -550,6 +550,7 @@ namespace ForestOverlay.Modules
             _busySince = Time.realtimeSinceStartup;
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
             bool transformRunning = Ctx.Events != null && Ctx.Events.CutsceneRunning == MeganKeeper.TransformEvent;
+            bool meganSeated = file != null && _megan.LiveSeated();
             Ctx.Practice.Mark("savestate restore (in place)");
             PickupKeeper.Armed = true;
             BossHold.Arm();
@@ -633,7 +634,7 @@ namespace ForestOverlay.Modules
                 {
                     string megan = file.Megan.Length > 0 ? file.Megan
                                  : file.Cutscene == MeganKeeper.TransformEvent ? MeganKeeper.Seated : "";
-                    meganNote = _megan.Restore(megan, transformRunning);
+                    meganNote = _megan.Restore(megan, transformRunning, meganSeated);
                 }
 
                 // The hands were emptied for the restore; put back what they

@@ -164,11 +164,33 @@ namespace ForestOverlay.Game
             return true;
         }
 
+        /// Megan seated and her trigger unused - asked BEFORE a restore
+        /// (v0.24.36 asked after: the restore puts the player in the
+        /// trigger and runs physics frames, so the game had already started
+        /// the cutscene, and the rebuild cut it - author, straight after a
+        /// load from the title screen). False when the boss room is not
+        /// loaded.
+        public bool LiveSeated()
+        {
+            try
+            {
+                Component setup = FindSetup();
+                if (setup == null) return false;
+                object trigger = Get(setup, "activateGirlScript");
+                bool spent = Get(trigger, "pickup") is bool && (bool)Get(trigger, "pickup");
+                if (spent) return false;
+                if ((Get(setup, "placedPrefab") as GameObject) != null) return true;
+                Component girl = LiveGirl(setup);
+                return girl != null && !Transformed_(girl);
+            }
+            catch (Exception) { return false; }
+        }
+
         /// After a Quick load. `saved` is the file's megan value;
         /// `transformRunning`: Megan's transformation was playing when the
-        /// restore began. Returns the log note, "" when there is nothing
-        /// to do.
-        public string Restore(string saved, bool transformRunning)
+        /// restore began; `seatedBefore`: LiveSeated() then. Returns the
+        /// log note, "" when there is nothing to do.
+        public string Restore(string saved, bool transformRunning, bool seatedBefore)
         {
             Vector3 seat = Vector3.zero;
             float yaw = 0f;
@@ -186,10 +208,9 @@ namespace ForestOverlay.Game
                 object trigger = Get(setup, "activateGirlScript");
                 if (trigger == null) return "megan: no trigger on setupGirlMutant - left as it is";
 
-                bool spent = Get(trigger, "pickup") is bool && (bool)Get(trigger, "pickup");
-                if ((Get(setup, "placedPrefab") as GameObject) != null && !spent) return "megan: still to spawn, as at capture";
-                Component girl = LiveGirl(setup);
-                if (girl != null && !spent && !Transformed_(girl)) return "megan: seated, as at capture";
+                // Seated before the restore: the game's own trigger takes it
+                // from here (it may already have started the cutscene).
+                if (seatedBefore) return "megan: seated before the restore, left to the game";
 
                 string stopped = transformRunning ? StopTransformation() : "";
 

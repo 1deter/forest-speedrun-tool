@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.37 - 2026-09-24
+
+- Fixed: a Quick load into Megan's cutscene with Megan still seated (for
+  example straight after loading the game) could break the cutscene and
+  leave you out of it.
+
 ## v0.24.36 - 2026-09-24
 
 - Quick load removes spears thrown or dropped since the savestate (they
