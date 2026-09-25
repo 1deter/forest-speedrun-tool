@@ -1366,6 +1366,11 @@ namespace ForestOverlay.Game
         /// `lighterHeld` off): the axe hung at the side, the lighter clicked
         /// without light (author, v0.24.43). A stash and Equip through the
         /// bridge set the flags and the arm layers came back.
+        /// Putting the lighter away is animated and locks the left hand
+        /// until it ends; swinging through a restart it outlasted a fixed
+        /// 0.5 s and Equip was refused - the lighter gone (runner
+        /// sxczurass, bridge v0.24.45). So wait until the hands are free,
+        /// and retry a refused Equip for a while.
         public IEnumerator RefreshHeld(List<int> wanted, Func<int, string> nameOf, Action<string> done)
         {
             yield return new WaitForSecondsRealtime(0.3f);
@@ -1388,17 +1393,42 @@ namespace ForestOverlay.Game
             if (error != null) { done("held at capture: putting away failed (" + error + ")"); yield break; }
 
             yield return new WaitForSecondsRealtime(0.5f);
+            float freeStart = Time.realtimeSinceStartup;
+            while (HandsBusy() && Time.realtimeSinceStartup - freeStart < 3f) yield return null;
+            float busyFor = Time.realtimeSinceStartup - freeStart;
+
+            // Equip each; a refused one is tried again every 0.1 s for 2 s.
+            bool[] done_ = new bool[wanted.Count];
+            int[] tries = new int[wanted.Count];
+            string failure = null;
+            float equipStart = Time.realtimeSinceStartup;
+            while (true)
+            {
+                bool all = true;
+                try
+                {
+                    for (int i = 0; i < wanted.Count; i++)
+                    {
+                        if (done_[i]) continue;
+                        tries[i]++;
+                        done_[i] = (bool)_equipById.Invoke(inv, new object[] { wanted[i], false });
+                        if (!done_[i]) all = false;
+                    }
+                }
+                catch (Exception ex) { failure = (ex.InnerException ?? ex).Message; break; }
+                if (all || Time.realtimeSinceStartup - equipStart >= 2f) break;
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
 
             StringBuilder sb = new StringBuilder("held at capture, equipped again for the animator:");
-            try
+            for (int i = 0; i < wanted.Count; i++)
             {
-                for (int i = 0; i < wanted.Count; i++)
-                {
-                    bool ok = (bool)_equipById.Invoke(inv, new object[] { wanted[i], false });
-                    sb.Append(i == 0 ? " " : ", ").Append(nameOf(wanted[i])).Append(ok ? "" : " (Equip refused)");
-                }
+                sb.Append(i == 0 ? " " : ", ").Append(nameOf(wanted[i]));
+                if (!done_[i]) sb.Append(" (Equip refused ").Append(tries[i]).Append("x)");
+                else if (tries[i] > 1) sb.Append(" (on try ").Append(tries[i]).Append(')');
             }
-            catch (Exception ex) { sb.Append(" | failed: ").Append((ex.InnerException ?? ex).Message); }
+            if (busyFor >= 0.05f) sb.Append(" - hands busy ").Append(busyFor.ToString("0.0")).Append(" s first");
+            if (failure != null) sb.Append(" | failed: ").Append(failure);
             done(sb.ToString());
         }
 

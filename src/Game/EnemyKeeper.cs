@@ -108,6 +108,10 @@ namespace ForestOverlay.Game
 
         public string Status { get; private set; }
 
+        /// realtimeSinceStartup when the last Rebuild placed its members
+        /// (before its sleep check, which runs ~4.5 s longer).
+        public float PlacedAt { get; private set; }
+
         public EnemyKeeper(ManualLogSource log)
         {
             _log = log;
@@ -523,6 +527,8 @@ namespace ForestOverlay.Game
                     catch (Exception) { }
                 }
             }
+
+            PlacedAt = Time.realtimeSinceStartup;
 
             // After the game's own initWakeUp (5 s after enable): a sleeper
             // may have walked off before it fell asleep; one asleep stays

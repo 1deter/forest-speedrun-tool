@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.46 - 2026-09-25
+
+- Full load: the lighter you held no longer goes missing when you swing
+  through the restart (sxczurass).
+
 ## v0.24.45 - 2026-09-25
 
 - Full load: the cannibals from your savestate are back within about a

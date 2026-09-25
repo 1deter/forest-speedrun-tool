@@ -1003,7 +1003,7 @@ namespace ForestOverlay.Modules
             string rebuilt = null;
             yield return Ctx.Runner.StartCoroutine(_enemies.Rebuild(f.Families, f.Enemies ?? new List<string>(),
                                                                     delegate(string note) { rebuilt = note; }));
-            float total = Time.realtimeSinceStartup - start;
+            float total = _enemies.PlacedAt - start;
             int skippedAtRebuild = SetupHold.Skipped;
             Ctx.Log.LogInfo("Savestate after the load: enemies - " +
                             (asked ? "the game's setup held (asked " + waited.ToString("0.0") + " s after in game)"
