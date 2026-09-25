@@ -514,6 +514,34 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     and look, and push a long value through (`set ..._checker.Message
     "<long>"`) to see how a line wraps.
 
+32. **Look for the game's reverse operation before writing one.** Trees
+    had no "un-cut" in the save code, but `TreeLodGrid` has
+    `RegisterTreeRegrowth` beside `RegisterCutDownTree`, and its one
+    caller (`ShelterTrigger.CheckRegrowTrees`, sleep regrowth) is the
+    exact recipe (v0.24.61). Search the counterpart's name (`Regrow`,
+    `Respawn`, `Reset`, `Restore`) with `ilscan refs` / `type` first.
+
+33. **Copying a scene object: local transform, woken state, copied
+    flags.** `Instantiate(go)` with no parent copies the *local*
+    position, so the copy landed ~450 m away; its `OnEnable` had already
+    cached that position, so moving it later did nothing until it was
+    re-enabled. Copy under an **inactive** holder, `SetActive(false)`,
+    reparent with local values, then activate. A copy taken mid-action
+    also carries the original's runtime flags (`LOD_Base.isSpawned`
+    true with no view = destroys itself on its first refresh): reset
+    them to what `OnDisable` leaves (`NatureKeeper`, `PanelKeeper`).
+
+34. **One teleport, many callers.** Go ran `AreaKeeper.ForTeleport`;
+    the bridge's `tp` never did, so it left the endgame flag set and the
+    surface lit like a cave (v0.24.61). When a fix hangs off a teleport
+    or restore, `grep MoveTo(` and cover every caller.
+
+35. **"Parity with Full load" stops where the save stops.** A Full load
+    regrows every bush because bushes are not in the save - a limit, not
+    a goal. A Quick load can give back the capture exactly (a bush cut
+    before it stays cut, v0.24.62), so it does. Decide against the
+    capture, not against what a Full load happens to do.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -563,27 +591,58 @@ updater. **302 tests.**
 ### Pick up here (2026-09-25, v0.24.62 in the game)
 
 **State:** v0.24.62 runs in the author's game (MCP `update_game`). Fix
-list 1 is **done and bridge-confirmed** (v0.24.61-62, `Game/NatureKeeper`,
-game-notes *Trees, bushes and saplings*): a Quick load regrows trees not
-cut at capture (10 at once, 43 new logs removed), puts back bushes /
-saplings cut after the capture (one cut before stays cut, its sticks
-kept), removes the new logs and sapling sticks; a teleport out of the
-endgame clears `IsInEndgame` (it lit the surface like a cave). The
-author's "small bushes that drop sticks" are **saplings** (`Sapling1_*`).
-The whole session ran without the author at the game: `game` launch,
-the save loaded from the title screen (*Bridge habits*), chopping by
-`TreeHealth.Hit` calls. MCP `capture` / `restore` confirmed in a loaded
-game. No new QA Discord messages checked this session; maks's items
-(Next 3) still wait on his `Perf (30 s):` lines (`qa_post`, author
-approves the text).
-**Next:** Fix list 2-3 below (watch-for items), then *Then, before Next
-up 5* (stats-only start state, time of day, sharing). Small open items
-from this work: a Quick load regrows a **half-chopped** tree fully (as a
-Full load does - the chopped model is not rebuilt); once, one of two new
-sapling sticks was not removed (not matched to anything in the file - the
-game's `destroyAfter` removed it later by distance; cause unknown); the
-"not at capture" line counts **Axe Plane** pickups growing by one per
-Quick load in Slot 1 (the plane wreck re-created? unchecked).
+list 1 (trees / bushes after a Quick load) is done and bridge-confirmed
+(v0.24.61-62, `Game/NatureKeeper`, game-notes *Trees, bushes and
+saplings*); a teleport out of the endgame clears `IsInEndgame`. The whole
+session ran without the author at the game (`game` launch, the save
+loaded from the title screen - *Loading a save yourself* below). MCP
+`capture` / `restore` confirmed in a loaded game. No QA Discord messages
+checked this session; maks's items (Next 3) still wait on his `Perf (30
+s):` lines (`qa_post`, author approves the text).
+
+**Next: the stats-only start state** (author, 2026-09-25: "we can do the
+stats-only start state"). Spec, proposed to the author - **ask the open
+questions before building**:
+- A third start-state kind on a spot, beside Quick / Full load: the
+  Practice editor's *Start state* row gets a **Stats only** choice.
+  Capture writes the vitals **into the segment definition** (plain text,
+  shareable, no `.fosave`): e.g. `stats = health 100, stamina 100, energy
+  100, fullness 0.95, thirst 0.1, ...`. Each value editable in the editor
+  (convention: everything editable in the GUI).
+- Restart (F7, Runs Restart, a death revive at that spot) = the usual
+  teleport + the vitals set directly on `LocalPlayer.Stats`
+  (`PlayerStats`): no LoadNow, no freeze, instant. Plus the cleanups a
+  restart already does (end the fall, cut the action, close the book, wash
+  blood). The world and inventory stay as they are.
+- In the route fingerprint like a start state (a new stats line retires
+  old times, with the same second-click warning).
+- Fields (`ilscan type PlayerStats`): `Health` + `HealthTarget`,
+  `Stamina`, `Energy` (+ `EnergyEx`?), `Fullness` (hunger shown),
+  `Thirst`, `Starvation` / `StarvationCurrentDuration` /
+  `ThirstCurrentDuration`, `BodyTemp` / `Cold` / `ColdAmt`, `Armor` /
+  `ArmorVis`, `BatteryCharge`; sanity lives elsewhere (`PlayerStats.
+  Sanity`, a component). Check each one's writers (`ilscan writes`) - some
+  are recomputed every frame (gotcha 1: set the source, not the result
+  fields `*Result`).
+- **Open questions for the author:** which vitals (health? armor? cold?
+  sanity? battery?); can a spot have a full start state *and* stats-only
+  (stats after the restore - probably pointless: one or the other);
+  should a death at a stats-only spot revive with those stats (proposed:
+  yes, as a start state does).
+Then the rest of *Then, before Next up 5* (time of day, sharing), and Fix
+list 2-3 (watch-for items).
+
+Small open items from the tree work: a Quick load regrows a
+**half-chopped** tree fully (as a Full load does - the chopped model is
+not rebuilt); once, one of two new sapling sticks was not removed (not
+matched to anything in the file; the game's `destroyAfter` removed it
+later by distance; cause unknown); the "not at capture" line counts
+**Axe Plane** pickups growing by one per Quick load in Slot 1 (the plane
+wreck re-created? unchecked).
+
+**Decided (Claude, v0.24.62, author may overrule):** a Quick load gives
+back the capture, not what a Full load does where the save is silent -
+bushes cut before the capture stay cut (gotcha 35).
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -783,9 +842,8 @@ are spawned there.
    on regrowth time).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
-- **Stats-only start state** (runner): a spot option restoring only thirst,
-  hunger, stamina, energy (and health?) - an instant revive, no restore
-  freeze.
+- **Stats-only start state** (runner; next - spec in *Pick up here*):
+  a spot option restoring only the vitals - instant, no restore freeze.
 - **Time of day without cycling through the night**: probably the game's
   own resync after a load; only if a clean way exists.
 - **Sharing** - author: "whichever you think fits best with my future
@@ -880,7 +938,9 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
     `Game/PickupKeeper` puts taken world pickups back. Afterwards the
     **cave state is sent outright from the file's `cave` flag**
     (`GameBridge.ForceCaveState`): the serializer restores the flag without
-    its effects. Spears and limbs left since the capture are removed; boss
+    its effects. Spears and limbs left since the capture are removed;
+    trees chopped since regrow, bushes / saplings cut since come back,
+    and their new logs / sticks go (`Game/NatureKeeper`, v0.24.61-62); boss
     Megan is put back seated when she was at capture (`megan` header,
     `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
     load*); the endgame elevators and active area as at capture
