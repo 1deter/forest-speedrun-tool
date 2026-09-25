@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.58 - 2026-09-25
+
+- The info box (top left) wraps long lines and grows to fit, instead of
+  cutting them off - update messages, long spot names in the PRACTICE
+  line.
+
 ## v0.24.57 - 2026-09-25
 
 - Settings: long key names (Keypad *) are no longer cut off.

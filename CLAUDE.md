@@ -493,7 +493,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.57** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.58** (2026-09-25). The author runs it via the in-game
 updater. **287 tests.**
 
 ### Pick up here (2026-09-25, v0.24.54 in the game)

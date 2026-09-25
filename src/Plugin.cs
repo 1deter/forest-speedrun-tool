@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.57";
+        public const string PluginVersion = "0.24.58";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -238,8 +238,11 @@ namespace ForestOverlay
         {
             if (_hudLabelStyle != null) return;
 
+            // Wraps: a long line (an update message, a spot name in the
+            // practice marker) was cut off at the box edge.
             _hudLabelStyle = new GUIStyle(GUI.skin.label);
             _hudLabelStyle.padding = new RectOffset(0, 0, 0, 0);
+            _hudLabelStyle.wordWrap = true;
 
             _warnStyle = new GUIStyle(_hudLabelStyle);
             _warnStyle.fontStyle = FontStyle.Bold;
@@ -263,26 +266,33 @@ namespace ForestOverlay
 
         private void DrawHud()
         {
-            const int w = 330;
-            const int lineHeight = 18;
+            const float w = 330f;
+            const float lineHeight = 18f;
+            const float textW = w - 24f;
 
+            // Measured every pass (CalcHeight does not allocate) so the box
+            // grows with a wrapped line instead of cutting it off.
             int lines = _host.Hud.Count;
-            int h = 34 + (lines + 1) * lineHeight;
+            GUIStyle practiceStyle = _practice.Used ? _warnStyle : _hudLabelStyle;
+            float textH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
+            for (int i = 0; i < lines; i++)
+                textH += Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
 
-            GUI.Box(new Rect(10, 10, w, h), HudTitle);
+            GUI.Box(new Rect(10, 10, w, 34f + textH), HudTitle);
 
-            int y = 30;
+            float y = 30f;
             for (int i = 0; i < lines; i++)
             {
-                GUI.Label(new Rect(20, y, w - 24, lineHeight), _host.Hud.At(i), _hudLabelStyle);
-                y += lineHeight;
+                GUIContent line = _host.Hud.At(i);
+                float h = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(line, textW));
+                GUI.Label(new Rect(20, y, textW, h), line, _hudLabelStyle);
+                y += h;
             }
 
             // Sticky and last, so it is the line the eye lands on. A run
             // recording must make it obvious that a practice tool was used.
-            GUI.Label(new Rect(20, y, w - 24, lineHeight),
-                      _practice.Label,
-                      _practice.Used ? _warnStyle : _hudLabelStyle);
+            GUI.Label(new Rect(20, y, textW, Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW))),
+                      _practice.Label, practiceStyle);
         }
     }
 }
