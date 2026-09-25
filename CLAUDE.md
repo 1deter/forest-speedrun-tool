@@ -557,7 +557,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.59** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.60** (2026-09-25). The author runs it via the in-game
 updater. **300 tests.**
 
 ### Pick up here (2026-09-25, v0.24.58 in the game)
@@ -574,10 +574,7 @@ proven bridge commands): `capture` / `restore` / `restart_spot` in a
 loaded game, and `update_game` with a real update waiting - watch
 the first one. **First thing next session: approve the `forest` MCP
 server** (project `.mcp.json`) and use its tools instead of
-`scripts/bridge.sh`. v0.24.59 fixed the two quirks seen while
-testing it (`capture` / `tp` refuse at the title screen -
-`PlayerRef.AtTitleScreen`; the notice is a window kept in front) -
-awaiting a bridge check.
+`scripts/bridge.sh`.
 **The QA Discord bot is in the same server** (`qa_read` / `qa_post` /
 `qa_download`, see *The live test bridge*): reading and posting
 confirmed on the real channel (the bot's hello, 2026-09-25). **Suggested next:** maks's items (Next 2-3); send the
@@ -1000,7 +997,9 @@ else removed, and back / gone as captured after a Quick load (v0.24.54,
 bridge); every tab drawn in game, the Inventory tab filled on first open,
 "What's new in v0.24.56 (installed)" in the Updates tab, the QA tab's
 Mark / result / report zip (v0.24.56, bridge tab sweep: `OpenMyTab` on
-each `_modules[i]` + `shot`).
+each `_modules[i]` + `shot`); `capture` / `tp` refused at the title
+screen (v0.24.59, `PlayerRef.AtTitleScreen`) and the notice drawn
+over the main window (v0.24.59-60, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):

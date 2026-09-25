@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.59";
+        public const string PluginVersion = "0.24.60";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -253,6 +253,12 @@ namespace ForestOverlay
             _noticeStyle.wordWrap = true;
             _noticeStyle.alignment = TextAnchor.MiddleCenter;
             _noticeStyle.normal.textColor = new Color(1f, 0.75f, 0.4f);
+            // Opaque: the skin's box is see-through, and over the window
+            // its text read through the notice.
+            Texture2D bg = new Texture2D(1, 1);
+            bg.SetPixel(0, 0, new Color(0.08f, 0.08f, 0.08f, 0.95f));
+            bg.Apply();
+            _noticeStyle.normal.background = bg;
         }
 
         // Upper middle: clear of the HUD box (top left) and of the game's
