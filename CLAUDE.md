@@ -628,8 +628,8 @@ spot (all confirmed); a cave capture's cave families are kept and moved
 back (`RestoreCave`, v0.24.49-50, confirmed). Open: does `updateSpawns`
 top up a random family when
 below target; weapons are whatever the spawn gives; awake ones come back
-searching; the ~1.5 s awake before placement; the Full load delay
-(*Pick up here* 2c).
+searching. (The Full load delay and the time awake before placement
+were cut in v0.24.45.)
 
 **Decided (author, 2026-09-24):** in a Creative game with "Allow enemies"
 off (or Peaceful), **respect the game's state** - no cave or world enemies
