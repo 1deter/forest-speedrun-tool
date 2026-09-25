@@ -41,6 +41,10 @@ namespace ForestOverlay.Data
         public float Radius;          // sphere
         public ZoneShape Shape;
         public Vector3 Extents;       // box half-size
+        /// Box turn about the vertical, degrees (0 = axis-aligned): its
+        /// depth runs along this heading, as a player facing it looks
+        /// (runners: checkpoint boxes across diagonal paths, v0.24.75).
+        public float Yaw;
 
         // Item
         public int ItemId;
@@ -127,9 +131,19 @@ namespace ForestOverlay.Data
                     if (t.Shape == ZoneShape.Box)
                     {
                         Vector3 d = position - t.Position;
-                        return Mathf.Abs(d.x) <= t.Extents.x &&
+                        float lx = d.x, lz = d.z;
+                        if (t.Yaw != 0f)
+                        {
+                            // Into the box's frame: the inverse of a turn
+                            // by Yaw about +Y (Unity's Euler(0, yaw, 0)).
+                            double a = t.Yaw * Math.PI / 180.0;
+                            float c = (float)Math.Cos(a), s = (float)Math.Sin(a);
+                            lx = d.x * c - d.z * s;
+                            lz = d.x * s + d.z * c;
+                        }
+                        return Mathf.Abs(lx) <= t.Extents.x &&
                                Mathf.Abs(d.y) <= t.Extents.y &&
-                               Mathf.Abs(d.z) <= t.Extents.z;
+                               Mathf.Abs(lz) <= t.Extents.z;
                     }
                     return (position - t.Position).sqrMagnitude <= t.Radius * t.Radius;
 
@@ -414,10 +428,15 @@ namespace ForestOverlay.Data
                 if (!F(p[4], out ex) || !F(p[5], out ey) || !F(p[6], out ez)) return false;
                 if (ex <= 0f || ey <= 0f || ez <= 0f) return false;
 
+                // Optional 8th value (v0.24.75); older files have none.
+                float yaw = 0f;
+                if (p.Length > 7 && !F(p[7], out yaw)) return false;
+
                 t.Kind = TriggerKind.Zone;
                 t.Shape = ZoneShape.Box;
                 t.Position = new Vector3(x, y, z);
                 t.Extents = new Vector3(ex, ey, ez);
+                t.Yaw = NormalizeYaw(yaw);
                 return true;
             }
 
@@ -454,15 +473,28 @@ namespace ForestOverlay.Data
         }
 
 
+        /// Degrees into [0, 360), rounded as written (0.01) so a value
+        /// read back compares equal to the one written.
+        public static float NormalizeYaw(float yaw)
+        {
+            float y = yaw % 360f;
+            if (y < 0f) y += 360f;
+            y = (float)Math.Round(y, 2);
+            return y >= 360f ? 0f : y;
+        }
+
         public static string Write(Trigger t)
         {
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
                     if (t.Shape == ZoneShape.Box)
+                        // Yaw only when turned: an unturned box writes (and
+                        // fingerprints) exactly as before, so no times retire.
                         return "box " + Num(t.Position.x) + " " + Num(t.Position.y) + " " +
                                Num(t.Position.z) + " " + Num(t.Extents.x) + " " +
-                               Num(t.Extents.y) + " " + Num(t.Extents.z);
+                               Num(t.Extents.y) + " " + Num(t.Extents.z) +
+                               (t.Yaw != 0f ? " " + Num(t.Yaw) : "");
 
                     return "zone " + Num(t.Position.x) + " " + Num(t.Position.y) + " " +
                            Num(t.Position.z) + " " + Num(t.Radius);

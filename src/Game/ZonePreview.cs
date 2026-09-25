@@ -8,6 +8,7 @@ namespace ForestOverlay.Game
         public float Radius;      // sphere
         public Vector3 Extents;   // box half-size
         public bool IsBox;
+        public float Yaw;         // box turn about the vertical, degrees
         public int Kind;          // 0 start, 1 checkpoint, 2 end
     }
 
@@ -83,7 +84,7 @@ namespace ForestOverlay.Game
 
                 GL.Color(z.Kind == 0 ? StartColour : (z.Kind == 2 ? EndColour : CheckColour));
 
-                if (z.IsBox) WireBox(z.Center, z.Extents);
+                if (z.IsBox) WireBox(z.Center, z.Extents, z.Yaw);
                 else WireSphere(z.Center, z.Radius);
 
                 // A post through the centre makes a zone findable when
@@ -98,16 +99,19 @@ namespace ForestOverlay.Game
             DrawTarget.Record(start, 0);
         }
 
-        private static void WireBox(Vector3 c, Vector3 e)
+        private static void WireBox(Vector3 c, Vector3 e, float yaw)
         {
-            Vector3 p000 = new Vector3(c.x - e.x, c.y - e.y, c.z - e.z);
-            Vector3 p001 = new Vector3(c.x - e.x, c.y - e.y, c.z + e.z);
-            Vector3 p010 = new Vector3(c.x - e.x, c.y + e.y, c.z - e.z);
-            Vector3 p011 = new Vector3(c.x - e.x, c.y + e.y, c.z + e.z);
-            Vector3 p100 = new Vector3(c.x + e.x, c.y - e.y, c.z - e.z);
-            Vector3 p101 = new Vector3(c.x + e.x, c.y - e.y, c.z + e.z);
-            Vector3 p110 = new Vector3(c.x + e.x, c.y + e.y, c.z - e.z);
-            Vector3 p111 = new Vector3(c.x + e.x, c.y + e.y, c.z + e.z);
+            // Corners in the box's frame, turned by yaw about +Y - the
+            // same frame Trigger's containment test uses.
+            Quaternion r = Quaternion.Euler(0f, yaw, 0f);
+            Vector3 p000 = c + r * new Vector3(-e.x, -e.y, -e.z);
+            Vector3 p001 = c + r * new Vector3(-e.x, -e.y, e.z);
+            Vector3 p010 = c + r * new Vector3(-e.x, e.y, -e.z);
+            Vector3 p011 = c + r * new Vector3(-e.x, e.y, e.z);
+            Vector3 p100 = c + r * new Vector3(e.x, -e.y, -e.z);
+            Vector3 p101 = c + r * new Vector3(e.x, -e.y, e.z);
+            Vector3 p110 = c + r * new Vector3(e.x, e.y, -e.z);
+            Vector3 p111 = c + r * new Vector3(e.x, e.y, e.z);
 
             Edge(p000, p001); Edge(p001, p011); Edge(p011, p010); Edge(p010, p000);
             Edge(p100, p101); Edge(p101, p111); Edge(p111, p110); Edge(p110, p100);

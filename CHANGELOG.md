@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.75 - 2026-09-26
+
+- Box zones can turn: a new box, or Here on a box, faces the way you are
+  looking (its depth runs along your view), and a new "turn" slider
+  fine-tunes it. Handy for checkpoints across diagonal paths and
+  doorways. Existing boxes and their times are unchanged.
+
 ## v0.24.74 - 2026-09-26
 
 - The Practice editor no longer shows an Id field: every entry gets a

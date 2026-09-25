@@ -419,6 +419,7 @@ namespace ForestOverlay.Modules
             z.Radius = t.Radius;
             z.Extents = t.Extents;
             z.IsBox = t.Shape == ZoneShape.Box;
+            z.Yaw = t.Yaw;
             z.Kind = kind;
 
             _preview.Zones[n] = z;
@@ -838,7 +839,12 @@ namespace ForestOverlay.Modules
                         if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
                         {
                             Vector3 p;
-                            if (TryPlayerPosition(out p)) { t.Position = p; Touch(); }
+                            if (TryPlayerPosition(out p))
+                            {
+                                t.Position = p;
+                                if (t.Shape == ZoneShape.Box) t.Yaw = PlayerYaw();
+                                Touch();
+                            }
                         }
                         y += 24f;
 
@@ -945,9 +951,17 @@ namespace ForestOverlay.Modules
             e.y = ExtentSlider(y, w, x0, slot, 3, "height", e.y);
             y += 24f;
             e.z = ExtentSlider(y, w, x0, slot, 4, "depth", e.z);
-            y += 26f;
+            y += 24f;
 
             if (e != shown) { t.Extents = e; Touch(); }
+
+            // The turn: Here / switching to box set it from your facing;
+            // this fine-tunes. Depth runs along it.
+            GUI.Label(new Rect(x0, y, 110f, 20), DegreesLabel(slot, 6, "turn", t.Yaw));
+            float sliderX = x0 + 114f;
+            float yaw = GUI.HorizontalSlider(new Rect(sliderX, y + 6f, w - sliderX - 6f, 18f), t.Yaw, 0f, 359f);
+            if (Mathf.Abs(yaw - t.Yaw) > 0.01f) { t.Yaw = TriggerParser.NormalizeYaw(Mathf.Round(yaw)); Touch(); }
+            y += 26f;
             return y;
         }
 
@@ -1059,6 +1073,8 @@ namespace ForestOverlay.Modules
                         if (shape == ZoneShape.Sphere && t.Radius <= 0f) t.Radius = DefaultRadius;
                         if (shape == ZoneShape.Box && t.Extents.x <= 0f)
                             t.Extents = new Vector3(3f, 3f, 3f);
+                        // A new box faces the way you look (runners).
+                        if (shape == ZoneShape.Box) t.Yaw = PlayerYaw();
                     }
 
                     Touch();
@@ -1820,6 +1836,21 @@ namespace ForestOverlay.Modules
             NumLabel l = Num(slot, field, v, out changed);
             if (changed) l.Content.text = Coords(v);
             return l.Content;
+        }
+
+        /// `name` must be the same text every call for a given slot/field.
+        private GUIContent DegreesLabel(int slot, int field, string name, float degrees)
+        {
+            bool changed;
+            NumLabel l = Num(slot, field, new Vector3(degrees, 0f, 0f), out changed);
+            if (changed) l.Content.text = name + " " + degrees.ToString("F0") + " deg";
+            return l.Content;
+        }
+
+        /// The player's heading, as a box's Yaw.
+        private float PlayerYaw()
+        {
+            return Ctx.Player.Found ? TriggerParser.NormalizeYaw(Mathf.Round(Ctx.Player.Transform.eulerAngles.y)) : 0f;
         }
 
         /// `name` must be the same text every call for a given slot/field.
