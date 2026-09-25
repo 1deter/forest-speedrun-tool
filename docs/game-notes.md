@@ -1016,6 +1016,24 @@ LOD object destroyed, which is what the game's cut leaves. Scene bush
 objects are there as soon as the load ends (`Nature_Spawned` is in
 `ForestMain_v08`). Not done: a sapling's two sticks are not put back.
 
+## Time of day and the sun (IL + bridge, 2026-09-25)
+
+`TheForestAtmosphere.Instance.TimeOfDay` (degrees, 0-360; ~12 in the
+morning of the test save) is the clock; the sun's rotation follows
+`DelayedTimeOfDay`. `Update`: when the player's inventory is missing or
+disabled (and a few `CurrentView` cases), when `ForceSunRotationUpdate`
+is set (sleeping sets it each frame) or `Clock.Dark`, it **snaps**
+(`DelayedTimeOfDay = TimeOfDay`, catch-up off). Otherwise it eases: while
+the camera turns or the player stands still, a 5 s `LerpToTimeOfDay`
+(EaseInQuad); more than 5 degrees behind otherwise sets
+`CatchUpTimeOfDay` (EaseInOutQuad, 5 s) - which is the sweep round
+through the night after a jump back. Bridge: a Quick load and a Full
+load from `TimeOfDay` 250 back to 12 both snapped (in step 1 s later),
+and a `set ... TimeOfDay 120` in play snapped within 0.5 s; the sweep was
+not reproduced. `Game/SunSync` (v0.24.67) sets `ForceSunRotationUpdate`
+0.5 s after a restore if the sun is still > 5 degrees off or catching
+up, and logs `sun: ... snapped` only then.
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

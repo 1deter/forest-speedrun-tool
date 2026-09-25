@@ -726,6 +726,7 @@ namespace ForestOverlay.Modules
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
+                if (r.Ok) Ctx.Runner.StartCoroutine(SyncSun("restore " + what));
                 if (r.Ok) Ctx.Runner.StartCoroutine(AfterInPlace(what, _respawnEnemies.Value, familiesBefore, file));
                 if (r.Ok && presentPickups != null) Ctx.Runner.StartCoroutine(LogNewPickups(presentPickups, what));
                 SetStatus(line);
@@ -877,6 +878,15 @@ namespace ForestOverlay.Modules
             string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
                             (positions.Length > 0 ? " | " + positions : "") + ".");
+        }
+
+        // Half a second on, once the game's own snap (inventory off during
+        // the restore) has had its frames; one line only when it acts.
+        private IEnumerator SyncSun(string what)
+        {
+            yield return new WaitForSecondsRealtime(0.5f);
+            string note = SunSync.Check();
+            if (note.Length > 0) Ctx.Log.LogInfo("Savestate " + what + ": " + note + ".");
         }
 
         private IEnumerator LogAreas(SavestateFile f)
@@ -1179,6 +1189,7 @@ namespace ForestOverlay.Modules
             // A load regrows every bush; the ones cut at capture go again.
             string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
             if (again.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + again + ".");
+            Ctx.Runner.StartCoroutine(SyncSun("after the load"));
             // A cutscene capture's hands are the fast-forward's business.
             string pullOut = f.CutsceneAt < 0f ? f.Blueprint : "";
             if (f.Held != null && f.Held.Count > 0 && f.CutsceneAt < 0f)

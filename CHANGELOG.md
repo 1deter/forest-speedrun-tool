@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.67 - 2026-09-25
+
+- After a Quick load or Full load, if the sun is still out of step with the
+  restored time of day, it is snapped into place instead of sweeping round
+  through the night.
+
 ## v0.24.66 - 2026-09-25
 
 - A savestate captured after a Quick load or a Full load now remembers the
