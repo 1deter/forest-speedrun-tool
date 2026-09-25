@@ -560,25 +560,24 @@ identity.
 **Released: v0.24.60** (2026-09-25). The author runs it via the in-game
 updater. **300 tests.**
 
-### Pick up here (2026-09-25, v0.24.58 in the game)
+### Pick up here (2026-09-25, v0.24.60 in the game)
 
-**State:** v0.24.58 runs in the author's game. This session: **the
-bridge MCP server** (Next 1b, `tools/BridgeMcp`, see *The live test
-bridge*) - built and tried end to end against the running game over
-real MCP stdio: every read tool, `run`, screenshots (full and
-cropped), `notice`, `open_tab` (tabs, explorer, close), `log`,
-`ilscan`, `update_game` (up to date: one check), and **`game restart`
-through Steam with the launcher's Play pressed automatically** (title
-screen in ~15 s). Not yet exercised through MCP (thin wrappers over
-proven bridge commands): `capture` / `restore` / `restart_spot` in a
-loaded game, and `update_game` with a real update waiting - watch
-the first one. **First thing next session: approve the `forest` MCP
-server** (project `.mcp.json`) and use its tools instead of
-`scripts/bridge.sh`.
-**The QA Discord bot is in the same server** (`qa_read` / `qa_post` /
-`qa_download`, see *The live test bridge*): reading and posting
-confirmed on the real channel (the bot's hello, 2026-09-25). **Suggested next:** maks's items (Next 2-3); send the
-QA team lists through `qa_post` from now on (author approves each).
+**State:** v0.24.60 runs in the author's game, installed by the MCP
+`update_game` (twice this session: check, download, restart through
+Steam, launcher Play pressed - ~20 s, confirmed end to end). The
+`forest` MCP server is approved and in use - use its tools, not
+`scripts/bridge.sh`. Still not exercised through MCP: `capture` /
+`restore` / `restart_spot` in a loaded game (thin wrappers over proven
+bridge commands - watch the first one). The QA Discord bot works
+(`qa_read` / `qa_post` / `qa_download`); no new tester messages as of
+this handoff. maks's items (Next 3) wait on his `Perf (30 s):` lines -
+ask for them through `qa_post` (author approves the text).
+**Next: Fix list 1 - chopped trees and bushes after a Quick load**
+(author switches to high effort for it). Start from *Fix list* below:
+what the save holds for trees, then how a load applies it vs in place
+(`ilscan body`), then prove it live with the bridge before a fix
+(gotcha 25). Test flow: load a save, chop a tree near the player (the
+author, or find a call), `capture` before and `restore` after.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
