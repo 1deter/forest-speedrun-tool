@@ -271,6 +271,10 @@ namespace ForestOverlay.Game
                 catch (Exception) { }
                 if (target == null) target = c.gameObject;
                 if (!target.activeInHierarchy) continue;
+                // As Snapshot: the serializer owns these, the capture never
+                // lists them - paired, one took a listed pickup's place and
+                // that one was removed (bridge: skulls, a Timmy drawing).
+                if (HasIdentifier(target)) { if (skipped != null) skipped[0]++; continue; }
                 PickupMatch.Entry e;
                 e.Id = 0;
                 try { e.Id = (int)_itemId.GetValue(c); }
@@ -288,7 +292,6 @@ namespace ForestOverlay.Game
                 if (matched[i]) continue;
                 Component c = pickups[i];
                 GameObject target = targets[i];
-                if (HasIdentifier(target)) { if (skipped != null) skipped[0]++; continue; }
                 // Pooled greebles (Pool_Greebles/Cash(Clone), Coins(Clone))
                 // come back on their seeded spots after a load (maks: cave
                 // 5's first pile; bridge: taken cash and coins back at the
