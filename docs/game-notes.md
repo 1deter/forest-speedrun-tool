@@ -276,6 +276,23 @@ records the on/off of every page object (children of each distinct
 `LocalPlayer.GameObject`) as the savestate's `book` header and restores it
 the way a click does. Not yet confirmed in game.
 
+### Opening and closing the book (IL + bridge, v0.24.44)
+
+Open = `PlayerInventory.CurrentView == Book`, `FpCharacter.Locked`, the
+animator's `bookHeld` on, `survivalBookController` active with
+`bookIsOpen` / `realBookOpen` and `survivalBookReal` shown; `setOpenBook`
+also sets `CamRotator.xOffset = -20`, `rotationRange = 0` and
+`dampingOverride = 1`. The book is not equipped, so a Quick load's
+`StashHands` left all of it as it was (bridge, v0.24.43). The game's fast
+close is `Create.CloseBookForInventory()` (opening the inventory from the
+book): `CloseTheBook(true)` -> `showEquipped` at once (view `World`,
+`RestoreEquipement`) and `fastCloseBook` (`resetBook`, controller off after
+0.2 s). Read live 1 s after it: every value above back to normal
+(`xOffset` 0, range 135, `clampSpine` off); `targetAngles.x` stepped -20
+as the game's own `FinalCloseBook` does. The cave hanging and endgame
+wake-up cutscenes close it with `CloseTheBook(false)` (animated, 0.65 s).
+`Game/BookClose` runs the fast close on every reset.
+
 ### Nature guide — `TheForest.Player.TickOffSystem`
 
 The book's tick-off pages (animals, birds, fish, plants). A component on the

@@ -106,7 +106,7 @@ Where things live:
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
-| Cutting a player action on a reset | `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
+| Cutting a player action on a reset | `Game/BookClose` (the survival book, first), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
 
@@ -468,12 +468,12 @@ identity.
 
 ## Current status
 
-**Released: v0.24.43** (2026-09-24). The author runs it via the in-game
+**Released: v0.24.44** (2026-09-25). The author runs it via the in-game
 updater. **267 tests.**
 
 ### Pick up here (2026-09-24 night, v0.24.43 in the game)
 
-**State:** v0.24.43 runs in the author's game. This session (details in
+**State:** v0.24.44 (the survival book closed on every reset - runner sxczurass; bridge-confirmed on 0.24.43 that the book stayed open and that the fast close clears it) is released; v0.24.43 runs in the author's game. This session (details in
 *Confirmed in game* and game-notes *The red elevator and the endgame
 areas*): v0.24.38 the Quick / Full load switch (was 1c), v0.24.39 late
 pickup removal (1a, untested), v0.24.40-43 the red elevator after a Quick

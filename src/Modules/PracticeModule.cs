@@ -459,7 +459,10 @@ namespace ForestOverlay.Modules
             // speed live in the game's controller, and a Go in mid-air kept
             // them for the landing.
             string fall = Ctx.Bridge.EndFall();
-            // A swing / action in progress is cut (runner maks).
+            // The book first (runner sxczurass), then a swing / action in
+            // progress is cut (runner maks).
+            string book = BookClose.IfOpen();
+            if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
             string anim = AnimReset.Cancel();
             if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
 
