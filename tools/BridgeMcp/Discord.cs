@@ -248,6 +248,28 @@ namespace ForestOverlay.BridgeMcp
                       .Append(Size((long?)f["size"] ?? 0)).Append(")\n");
             if (m["embeds"] is JsonArray emb && emb.Count > 0 && content.Length == 0)
                 sb.Append("    (").Append(emb.Count).Append(" embed(s))\n");
+
+            // A forwarded message has no content of its own: the original's
+            // text and files are under message_snapshots (author forwarding
+            // a tester's message, 2026-09-25 - it read as empty).
+            if (m["message_snapshots"] is JsonArray snaps)
+                foreach (JsonNode s in snaps)
+                {
+                    JsonNode fm = s?["message"];
+                    if (fm == null) continue;
+                    string ft = DateTime.TryParse((string)fm["timestamp"], CultureInfo.InvariantCulture, DateTimeStyles.None, out when)
+                        ? when.ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.InvariantCulture) : "?";
+                    sb.Append("    forwarded (sent ").Append(ft).Append("):\n");
+                    string fc = Mentions((string)fm["content"] ?? "", fm);
+                    if (fc.Length > 0)
+                        foreach (string l in fc.Replace("\r\n", "\n").Split('\n')) sb.Append("      ").Append(l).Append('\n');
+                    if (fm["attachments"] is JsonArray fa)
+                        foreach (JsonNode f in fa)
+                            sb.Append("      attachment: ").Append((string)f["filename"]).Append(" (")
+                              .Append(Size((long?)f["size"] ?? 0)).Append(")\n");
+                    if (fm["embeds"] is JsonArray fe && fe.Count > 0 && fc.Length == 0)
+                        sb.Append("      (").Append(fe.Count).Append(" embed(s))\n");
+                }
         }
 
         /// <@id> -> @name, from the message's own mention list.
@@ -341,6 +363,9 @@ namespace ForestOverlay.BridgeMcp
                 new HttpRequestMessage(HttpMethod.Get, Api + "/channels/" + _channel + "/messages/" + Id(id)), ct);
             JsonNode m = await Json(res, ct);
             JsonArray att = m["attachments"] as JsonArray;
+            if ((att == null || att.Count == 0) && m["message_snapshots"] is JsonArray snaps)   // a forwarded message's files
+                foreach (JsonNode s in snaps)
+                    if (s?["message"]?["attachments"] is JsonArray fa && fa.Count > 0) { att = fa; break; }
             if (att == null || att.Count == 0) return ToolResult.Fail("message " + id + " has no attachments");
 
             string who = (string)m["author"]?["username"] ?? "unknown";

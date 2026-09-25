@@ -585,12 +585,21 @@ identity.
 
 ## Current status
 
-**Released: v0.24.63** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.64** (2026-09-25). The author runs it via the in-game
 updater. **302 tests.**
 
-### Pick up here (2026-09-25, v0.24.63 in the game)
+### Pick up here (2026-09-25, v0.24.64 in the game)
 
-**State:** v0.24.63 runs in the author's game (MCP `update_game`). The
+**State:** v0.24.64 runs in the author's game (MCP `update_game`).
+**maks's red elevator report** (Discord, forwarded by the author; his
+log in `Downloads\qa-reports\maks\`, v0.24.52): a restart during the
+ride - or in its 5 s keycard wait - left the ride running, and the car
+(and player) went up afterwards (`elevators: ... 1 left moving`).
+v0.24.64 stops the ride (`ElevatorKeeper.StopRide`); reproduced and
+checked by bridge (`GotoRemotePoint`, restore 2 s in). A forwarded
+Discord message has its text in `message_snapshots`: `qa_read` /
+`qa_download` read it since this session (MCP server rebuilt on the
+next session start - it holds its DLL). The
 "Axe Plane xN not at capture" line after a Quick load was the listing
 reading while both plane wrecks (old + re-created) had their axe active;
 ~1.5 s later the old wreck is cleared and the new one's axe is hidden,

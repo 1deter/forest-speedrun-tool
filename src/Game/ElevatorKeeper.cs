@@ -22,14 +22,26 @@ namespace ForestOverlay.Game
     //
     // WHAT: capture writes `elevators = path|useCount|x,y,z|ex,ey,ez;...`
     // for every loaded elevator; a Quick load moves each car back and sets
-    // its use count. An elevator moving at restore time is left alone.
+    // its use count.
+    //
+    // A ride under way (runner maks, v0.24.52: "works half the time" - the
+    // elevator gone, or the textures unloaded, sometimes 3-7 s later): Goto
+    // waits 5 s for the keycard animation, then moves the car and the player
+    // up in one step and waits `_duration`. v0.24.40 left a moving elevator
+    // alone, so a restart in those 5 s had the pending ride lift the car
+    // (and the player) after the restore. Now the ride is stopped
+    // (StopAllCoroutines - Goto is the only coroutine ElevatorSystem runs)
+    // and its end state applied: `_moving` false, the moving / idle
+    // objects swapped back, motion blur back on, the ride's `_tracker_`
+    // removed; then the car goes back as usual.
     // ------------------------------------------------------------------
     internal sealed class ElevatorKeeper
     {
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private readonly ManualLogSource _log;
         private Type _type;
-        private FieldInfo _rb, _useCount, _moving;
+        private FieldInfo _rb, _useCount, _moving, _movingGos, _idleGos;
+        private MethodInfo _toggle;
 
         public ElevatorKeeper(ManualLogSource log) { _log = log; }
 
@@ -85,7 +97,7 @@ namespace ForestOverlay.Game
                     if (c != null) live[ObjectProbe.PathOf(c.transform)] = c;
                 }
 
-                int back = 0, same = 0, missing = 0, moving = 0;
+                int back = 0, same = 0, missing = 0, stopped = 0;
                 string[] entries = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                 for (int i = 0; i < entries.Length; i++)
                 {
@@ -96,9 +108,9 @@ namespace ForestOverlay.Game
                         !Vec(parts[2], out pos) || !Vec(parts[3], out euler)) continue;
                     Component c;
                     if (!live.TryGetValue(parts[0], out c)) { missing++; continue; }
-                    if (_moving != null && (bool)_moving.GetValue(c)) { moving++; continue; }
                     Rigidbody rb = _rb.GetValue(c) as Rigidbody;
                     if (rb == null) { missing++; continue; }
+                    if (_moving != null && (bool)_moving.GetValue(c)) { StopRide(c, rb); stopped++; }
                     if ((rb.transform.position - pos).sqrMagnitude < 0.01f && (int)_useCount.GetValue(c) == count) { same++; continue; }
                     Quaternion rot = Quaternion.Euler(euler);
                     rb.transform.position = pos;
@@ -108,13 +120,42 @@ namespace ForestOverlay.Game
                     _useCount.SetValue(c, count);
                     back++;
                 }
-                if (back == 0 && moving == 0 && missing == 0) return "";
+                if (back == 0 && stopped == 0 && missing == 0) return "";
                 return "elevators: " + back + " put back" +
                        (same > 0 ? ", " + same + " as at capture" : "") +
-                       (moving > 0 ? ", " + moving + " left moving" : "") +
+                       (stopped > 0 ? ", " + stopped + " ride(s) stopped" : "") +
                        (missing > 0 ? ", " + missing + " not loaded" : "");
             }
             catch (Exception ex) { return "elevators: restore failed (" + ex.Message + ")"; }
+        }
+
+        // Goto's last lines, without its UnityEvents (sound, door, keycard
+        // light - left to the next ride).
+        private void StopRide(Component c, Rigidbody rb)
+        {
+            MonoBehaviour mb = c as MonoBehaviour;
+            if (mb != null) mb.StopAllCoroutines();
+            _moving.SetValue(c, false);
+            if (_toggle == null) _toggle = _type.GetMethod("ToggleGoArray", Inst);
+            if (_toggle != null)
+            {
+                if (_movingGos == null) _movingGos = _type.GetField("_movingGos", Inst);
+                if (_idleGos == null) _idleGos = _type.GetField("_idleGos", Inst);
+                if (_movingGos != null) _toggle.Invoke(c, new object[] { _movingGos.GetValue(c), false });
+                if (_idleGos != null) _toggle.Invoke(c, new object[] { _idleGos.GetValue(c), true });
+            }
+            Transform tracker = rb.transform.Find("_tracker_");
+            if (tracker != null) UnityEngine.Object.Destroy(tracker.gameObject);
+            try
+            {
+                // LocalPlayer.ImageEffectOptimizer.SkipMotionBlur = false
+                Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                FieldInfo f = lp != null ? lp.GetField("ImageEffectOptimizer", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                object opt = f != null ? f.GetValue(null) : null;
+                PropertyInfo skip = opt != null ? opt.GetType().GetProperty("SkipMotionBlur", Inst) : null;
+                if (skip != null) skip.SetValue(opt, false, null);
+            }
+            catch (Exception) { }
         }
 
         private static string F(float f) { return f.ToString("0.###", CultureInfo.InvariantCulture); }

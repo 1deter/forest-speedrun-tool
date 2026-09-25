@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.64 - 2026-09-25
+
+- A restart or Quick load while the red elevator is riding (or during the
+  keycard animation before it moves) now stops the ride and puts the car
+  back. Before, the ride carried on a few seconds later and took the car -
+  and you - up to the top.
+
 ## v0.24.63 - 2026-09-25
 
 - The Quick load log no longer lists the plane axe as "not at capture"

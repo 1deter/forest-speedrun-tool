@@ -481,7 +481,15 @@ state, not scenes (areas: `same as at capture`).
   car `_rb` to the other stop in one step (`_downPosition` p2 is up at the
   overlook, y 705) and ends with `_moving` false. Its UnityEvents only do
   sound, the icons filter, the door and a keycard light. Kept by
-  `Game/ElevatorKeeper` (v0.24.40, confirmed: ridable again).
+  `Game/ElevatorKeeper` (v0.24.40, confirmed: ridable again). `Goto`
+  in full: `_useCount++`, `_moving` true, moving / idle objects swapped,
+  the keycard animation and **5 s wait**, then the car and the player
+  (a `_tracker_` child of the car) moved up in one step, `_duration`
+  (25 s) wait, `_moving` false. A restore inside a ride left it running:
+  the car and player went up after the restore (maks, v0.24.52;
+  reproduced by bridge with `call ... ElevatorSystem.GotoRemotePoint`,
+  which starts the ride - `MoveToDownPosition` only moves the car).
+  v0.24.64 stops it and applies the end state.
 - The endgame `Sections/*` carry `TheForest.World.Areas.Area` +
   `AreaMembers` (renderers, lights, probes). `OnEnter` makes an area the
   static `Area.ActiveArea` and `Load()`s it and its `_neighbours`
