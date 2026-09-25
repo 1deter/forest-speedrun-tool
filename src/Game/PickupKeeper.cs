@@ -261,6 +261,7 @@ namespace ForestOverlay.Game
             List<Component> pickups = new List<Component>();
             List<GameObject> targets = new List<GameObject>();
             List<PickupMatch.Entry> live = new List<PickupMatch.Entry>();
+            HashSet<string> seen = new HashSet<string>();
             UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(pickUp);
             for (int i = 0; i < all.Length; i++)
             {
@@ -280,6 +281,13 @@ namespace ForestOverlay.Game
                 try { e.Id = (int)_itemId.GetValue(c); }
                 catch (Exception) { }
                 e.Position = target.transform.position;
+                // The capture's list is a set of keys: one object with two
+                // PickUp components (skulls, a Timmy drawing, a photo) is
+                // listed once, so it is matched once here too - counted
+                // twice, the "extra" one destroyed the object (bridge,
+                // v0.24.53).
+                string key = SavestateFile.PickupKey(e.Id, e.Position.x, e.Position.y, e.Position.z);
+                if (!seen.Add(key)) continue;
                 pickups.Add(c);
                 targets.Add(target);
                 live.Add(e);

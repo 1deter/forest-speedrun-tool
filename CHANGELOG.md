@@ -5,11 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.54 - 2026-09-25
+
+- Full load: v0.24.52 and v0.24.53 could remove a few items you never
+  took (skulls, a Timmy drawing, a photo) - fixed. They come back with
+  the next load of your save.
+
 ## v0.24.53 - 2026-09-25
 
-- Full load: v0.24.52 could remove a few items you never took (skulls,
-  a Timmy drawing, a photo) - fixed. If you ran a Full load on v0.24.52,
-  those items are back after the next normal load of your save.
+- Full load: a first attempt at the fix above (did not fix it).
 
 ## v0.24.52 - 2026-09-25
 
