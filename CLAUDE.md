@@ -632,12 +632,12 @@ identity.
 
 ## Current status
 
-**Released: v0.24.73** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.74** (2026-09-26). The author runs it via the in-game
 updater. **339 tests.**
 
-### Pick up here (2026-09-26, v0.24.73 in the game)
+### Pick up here (2026-09-26, v0.24.74 in the game)
 
-**State:** v0.24.73 runs in the author's game (MCP `update_game`). This
+**State:** v0.24.74 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
 - **v0.24.72, community packs done** (`Modules/CommunityModule`,
   `Data/CommunityIndex`, repo `community/` + `scripts/community-index.py`,
@@ -662,6 +662,12 @@ session (author on medium effort), all bridge-checked in Slot 1:
   unavailable: no player`); a bridge `restart` there had deserialized
   the save into the menu (`identifiers 0 -> 105`). Confirmed.
 - `_modules[15]` is `community` (registered last).
+- **v0.24.74, hidden ids** (author, 2026-09-26; *Conventions*): no Id
+  field, new entries get `s-` + 12 hex, exports named after the entry,
+  import says "already in your list" by name. Confirmed: F6-style
+  `QuickSaveSpot` gave `s-3bc180564e9f`, editor shows Name / Category /
+  Notes only. The author's own entries keep old ids - seeding a pack
+  from one means a fresh id first (community/README.md step 3).
 - **v0.24.71, sharing done:** `Data/SegmentBundle` - one `<id>.foseg`
   per segment: header, `[segment]` (SegmentFormat's block),
   `[startstate]` (the .fosave verbatim), `[attempt]` sections (.run files
