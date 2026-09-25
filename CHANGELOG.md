@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.48 - 2026-09-25
+
+- Full load: skinny cannibals (the early-game families) are put back
+  where they were at capture again. Since v0.24.45 they were left
+  wherever the game spawned them.
+
 ## v0.24.47 - 2026-09-25
 
 - Savestates: a blueprint you have out is put away on a reset, instead

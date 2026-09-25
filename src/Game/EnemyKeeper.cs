@@ -593,13 +593,29 @@ namespace ForestOverlay.Game
                 if (want == 0) continue;
                 IList list = kv.Value != null ? _members.GetValue(kv.Value) as IList : null;
                 if (list == null) return false;
-                int have = 0;
+                // The kind too, not just the count: mutantTypeSetup stores
+                // it (storeSkinnyBool / storeMutantType, read by KindOf) a
+                // few fixed updates after the spawn, from initDefaultParams.
+                // Read at once, a skinny family matched nothing after a Full
+                // load (bridge, v0.24.48: "0 of 12 placed").
+                List<EnemyRecord> wanted = new List<EnemyRecord>();
+                for (int i = 0; i < members.Count; i++) if (members[i].Family == kv.Key) wanted.Add(members[i]);
+                List<EnemyRecord.Live> keys = new List<EnemyRecord.Live>();
                 for (int i = 0; i < list.Count; i++)
                 {
                     GameObject go = list[i] as GameObject;
-                    if (go != null && go.activeInHierarchy) have++;
+                    if (go == null || !go.activeInHierarchy) continue;
+                    Cannibal c = Read(go);
+                    if (c.Setup == null) continue;
+                    EnemyRecord.Live k;
+                    k.Family = 0;
+                    k.Type = c.Kind;
+                    keys.Add(k);
                 }
-                if (have < want) return false;
+                if (keys.Count < want) return false;
+                int whole;
+                int[] match = EnemyRecord.Match(wanted, keys, out whole);
+                for (int i = 0; i < match.Length; i++) if (match[i] < 0) return false;
             }
             return true;
         }
