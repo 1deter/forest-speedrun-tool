@@ -425,6 +425,30 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     that had just started. Read what a fix-up depends on when the restore
     starts (`MeganKeeper.LiveSeated`, v0.24.37).
 
+27. **Read the whole "removed" line, not just the item you fixed.** A
+    cleanup that removes things can remove the wrong ones. The cave 5 coin
+    fix (v0.24.51-53) also removed a bottle, the modern axe, skulls, a
+    Timmy drawing and a photo; the coins were gone, so the fix looked
+    right. Twice a first theory was wrong, and only the log's full
+    `removed N (...: Cash x4, Coins x6, Skull x5, ...)` showed it. Before
+    a removal ships, check that every item it names was really taken.
+
+28. **Match what you compare the same way on both sides.** The
+    capture's pickup list is a `HashSet` of keys: one object with two
+    `PickUp` components is one entry. The live side counted components,
+    so one of each pair went "unmatched" and destroyed the object
+    (v0.24.54). The capture also skips identifier pickups; the live side
+    must skip them too (v0.24.53). Before pairing two lists, read how
+    each is built (dedup, filters, active-only).
+
+29. **A value the game fills in later reads as a default at first.**
+    `mutantTypeSetup.storeSkinnyBool` / `storeMutantType` are stored by
+    `initDefaultParams` a few fixed updates after a spawn. Read at once
+    (v0.24.45's faster placement), every skinny cannibal looked plain
+    and nothing matched (`0 of 12 placed`); regular ones matched only
+    because their kind is the default. Wait for the value itself, not a
+    count (v0.24.48), and test on more than one kind.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -489,8 +513,8 @@ two-component object (skulls, a Timmy drawing) is never removed.
 v0.24.52-53 wrongly removed skulls / a drawing / a photo on a Full
 load; placed pickups are not in the save, so a normal load restores
 them. Test leftovers deleted (author).
-Suggested next: 1 (maks's remaining items: the flashed time display,
-his performance lines), then 3 (QA tooling).
+Suggested next: 1, the QA tooling (author, 2026-09-25: first, before
+maks's remaining items).
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -519,10 +543,15 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **maks's other open items** (his v0.24.29 round): the auto-restart
-   **flashed time display**, his background **performance** (read his
-   `Perf (30 s):` lines first) - Next up 4, *Open threads*. (Coins and
-   cave captures' enemies done, v0.24.49-54.)
+1. **QA tooling** (author: "let's do all of them"; 2026-09-25: do this
+   first, before maks's items in 3): keep
+   previous sessions' `LogOutput.log` (timestamped copies on startup,
+   last few); a **QA tab**: each test list shipped in the plugin, items
+   with Pass / Fail / Note, the proving log line and auto-tick where the
+   plugin sees it, a "something weird happened" key (`MARK:` line with
+   time, position, spot, optional note) and a one-click report (zip of
+   logs + the savestate / segment files under test, on the desktop).
+   Never let runners run bridge scripts (arbitrary calls).
 2. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
    saved verbatim with what each item checks in
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
@@ -531,16 +560,11 @@ option (the escape hatch for states Quick load has no patch for).
    unless he answers the QA list, which repeats them as 1-5, 15, 19.
    `ended attack state 'stickAttack'` / `'doCharge'` seen (bridge,
    v0.24.45).
-3. **QA tooling** (author: "let's do all of them"), after 1: keep
-   previous sessions' `LogOutput.log` (timestamped copies on startup,
-   last few); a **QA tab**: each test list shipped in the plugin, items
-   with Pass / Fail / Note, the proving log line and auto-tick where the
-   plugin sees it, a "something weird happened" key (`MARK:` line with
-   time, position, spot, optional note) and a one-click report (zip of
-   logs + the savestate / segment files under test, on the desktop).
-   Never let runners run bridge scripts (arbitrary calls).
-4. Auto-restart: better display of the flashed time (maks); then the
-   **Fix list** (trees first).
+3. **maks's other open items** (his v0.24.29 round, pushed back by the
+   author after QA tooling): the auto-restart **flashed time display**,
+   his background **performance** (read his `Perf (30 s):` lines first)
+   - Next up 4, *Open threads*.
+4. The **Fix list** (trees first).
 
 (Everything confirmed so far is in *Confirmed in game* below.)
 **Bridge tools confirmed:** `mark` (beacon through walls), `shot`,
