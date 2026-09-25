@@ -293,6 +293,22 @@ as the game's own `FinalCloseBook` does. The cave hanging and endgame
 wake-up cutscenes close it with `CloseTheBook(false)` (animated, 0.65 s).
 `Game/BookClose` runs the fast close on every reset.
 
+### A blueprint in the hands (IL + bridge, v0.24.47)
+
+Build mode lives on `Create` (`LocalPlayer.Create`): `CreateMode`,
+`_currentBlueprint` (`BuildingBlueprint._type` = `BuildingTypes`) and
+`_currentGhost` - a `Ghost_<X>(Clone)` under
+`player/player_BASE/Build/BuildingPlacerClose`, not in the save. Read live:
+a Quick load leaves it all as it was (the ghost survives the delete of
+unsaved objects); a Full load clears it with the scene. Out =
+`CreateBuilding(BuildingTypes)` (the book's pages via `CreateGui.PollInput`,
+the console's `_selectBlueprint`): ghost instantiated under the placer,
+`CreateMode`/`LockPlace` on, `EquipPreviousUtility(true)`. Away =
+`CancelPlace()` (also `PlayerStats.KillPlayer`): destroy the ghost,
+`ClearReferences(true)` (placer off, construction HUD icons shut,
+`RestoreEquipement`, `CanJump`), `CreateMode` off. `Game/BuildMode` puts
+it away on a Quick load and pulls the captured one out after the hands.
+
 ### Nature guide — `TheForest.Player.TickOffSystem`
 
 The book's tick-off pages (animals, birds, fish, plants). A component on the

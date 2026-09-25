@@ -106,7 +106,7 @@ Where things live:
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
-| Cutting a player action on a reset | `Game/BookClose` (the survival book, first), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
+| Cutting a player action on a reset | `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
 
