@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.52 - 2026-09-25
+
+- Full load: items that land a little differently after a load (a
+  bottle, the modern axe) or at another of their spawn points are no
+  longer mistaken for ones you picked up before capturing and removed.
+
 ## v0.24.51 - 2026-09-25
 
 - Full load: coins and cash you picked up before capturing no longer

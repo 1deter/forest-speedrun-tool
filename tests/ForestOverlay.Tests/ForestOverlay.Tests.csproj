@@ -38,6 +38,7 @@
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />
     <Compile Include="../../src/Data/VolumeFilter.cs" Link="Linked/VolumeFilter.cs" />
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />
+    <Compile Include="../../src/Data/PickupMatch.cs" Link="Linked/PickupMatch.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../src/Data/UpdateStaging.cs" Link="Linked/UpdateStaging.cs" />
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />

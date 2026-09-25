@@ -236,35 +236,31 @@ namespace ForestOverlay.Game
         /// After a load restore: a load re-creates every placed pickup
         /// (they are not in the save), so cash, tape etc. taken before the
         /// capture came back (maks, v0.24.25; bridge, 2026-09-24: three
-        /// `PickUps/Cash` and a `Tape_Roll` back, greeble cash not).
-        /// Destroys placed pickups the capture did not list, only in scenes
-        /// that were loaded at capture (the list covers only those), never
-        /// pooled or spawned copies (`(Clone)` - greebles already come back
-        /// as captured). `counts` gets item id -> how many.
-        /// `skipped` (optional, 3 long): kept because they have an identifier,
-        /// are clones, or lie in a scene not loaded at capture.
+        /// `PickUps/Cash` and a `Tape_Roll` back). Removes the live pickups
+        /// the capture's list does not account for (Data/PickupMatch: by
+        /// item, nearest first - positions move a little across loads);
+        /// placed ones only in scenes that were loaded at capture (the list
+        /// covers only those). `counts` gets item id -> how many.
+        /// `skipped` (optional, 3 long): kept because they have an
+        /// identifier, are clones outside the rule below, or lie in a scene
+        /// not loaded at capture.
         public int RemoveTakenAfterLoad(HashSet<string> present, ICollection<string> scenesAtCapture, Dictionary<int, int> counts,
                                         int[] skipped, Vector3 capturedAt)
         {
-            // Pooled greebles (Pool_Greebles/Cash(Clone), Coins(Clone)) come
-            // back on their seeded spots after a load (maks: cave 5's first
-            // pile; bridge: 4 cash taken before the capture back at the same
-            // positions). A greeble can re-roll its item on a load, so a
-            // clone goes only when the capture had nothing at all at its
-            // position, and only near the captured spot, where its greeble
-            // zone was surely loaded at capture.
-            HashSet<string> spots = new HashSet<string>();
-            foreach (string key in present)
-            {
-                int at = key.IndexOf('@');
-                if (at >= 0) spots.Add(key.Substring(at + 1));
-            }
-
             if (_destroyTarget == null || _itemId == null) return 0;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
             if (pickUp == null) return 0;
 
-            int n = 0;
+            List<PickupMatch.Entry> captured = new List<PickupMatch.Entry>();
+            foreach (string key in present)
+            {
+                PickupMatch.Entry e;
+                if (PickupMatch.TryParse(key, out e)) captured.Add(e);
+            }
+
+            List<Component> pickups = new List<Component>();
+            List<GameObject> targets = new List<GameObject>();
+            List<PickupMatch.Entry> live = new List<PickupMatch.Entry>();
             UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(pickUp);
             for (int i = 0; i < all.Length; i++)
             {
@@ -275,25 +271,43 @@ namespace ForestOverlay.Game
                 catch (Exception) { }
                 if (target == null) target = c.gameObject;
                 if (!target.activeInHierarchy) continue;
-                if (present.Contains(KeyFor(c, target))) continue;
+                PickupMatch.Entry e;
+                e.Id = 0;
+                try { e.Id = (int)_itemId.GetValue(c); }
+                catch (Exception) { }
+                e.Position = target.transform.position;
+                pickups.Add(c);
+                targets.Add(target);
+                live.Add(e);
+            }
+            bool[] matched = PickupMatch.Match(captured, live, MatchNear);
+
+            int n = 0;
+            for (int i = 0; i < live.Count; i++)
+            {
+                if (matched[i]) continue;
+                Component c = pickups[i];
+                GameObject target = targets[i];
                 if (HasIdentifier(target)) { if (skipped != null) skipped[0]++; continue; }
+                // Pooled greebles (Pool_Greebles/Cash(Clone), Coins(Clone))
+                // come back on their seeded spots after a load (maks: cave
+                // 5's first pile; bridge: taken cash and coins back at the
+                // same positions). A greeble can re-roll its item, so a clone
+                // on a spot the capture had anything on stays; and only near
+                // the captured spot, where its zone was surely loaded then.
                 bool clone = target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
                              c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0;
                 if (clone)
                 {
-                    string key = KeyFor(c, target);
-                    bool spotFree = !spots.Contains(key.Substring(key.IndexOf('@') + 1));
-                    bool near = (target.transform.position - capturedAt).sqrMagnitude <= CloneRadius * CloneRadius;
-                    if (!spotFree || !near || _clearOut == null) { if (skipped != null) skipped[1]++; continue; }
+                    bool near = (live[i].Position - capturedAt).sqrMagnitude <= CloneRadius * CloneRadius;
+                    if (!near || _clearOut == null || PickupMatch.SpotTaken(captured, live[i].Position, SameSpot))
+                    { if (skipped != null) skipped[1]++; continue; }
                 }
                 else if (!scenesAtCapture.Contains(target.scene.name)) { if (skipped != null) skipped[2]++; continue; }
 
-                int id = 0;
-                try { id = (int)_itemId.GetValue(c); }
-                catch (Exception) { }
                 int k;
-                counts.TryGetValue(id, out k);
-                counts[id] = k + 1;
+                counts.TryGetValue(live[i].Id, out k);
+                counts[live[i].Id] = k + 1;
                 // A pooled clone goes back to its pool the game's way (as
                 // when picked up); a placed pickup is destroyed.
                 if (clone) _clearOut.Invoke(c, new object[] { false });
@@ -303,6 +317,8 @@ namespace ForestOverlay.Game
             return n;
         }
 
+        private const float MatchNear = 2.5f;
+        private const float SameSpot = 0.1f;
         private const float CloneRadius = 50f;
 
         private static string KeyFor(Component pickup, GameObject target)
