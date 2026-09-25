@@ -542,7 +542,10 @@ plus its `docs/tests/` file.
 **Game data is disposable** (author, 2026-09-25: "i'm the tool dev
 after all"): alpha testing - closing or killing the game with unsaved
 progress, and deleting anything in the author's game or save slots,
-is fine while building or testing; no need to ask. (Still: never
+is fine while building or testing; no need to ask. As a courtesy
+(author: "quality of life"), back up a slot before a test changes it
+(copy to `SlotN.deter-backup`, as in *Saves* below) and put it back
+when done, sizes checked. (Still: never
 deploy a DLL by hand - that hides whether the update path works; and
 testers' saves in Downloads are theirs to keep for retests.)
 
