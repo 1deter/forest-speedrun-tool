@@ -482,6 +482,15 @@ spot when control returns - was ~6 s after, maks); v0.24.46 the held
 lighter kept when swinging through a Full load restart (sxczurass: gone
 3/3; reproduced with scripted swings, 0 of 20 after the fix). Details in
 game-notes *Enemies across a restore* / *Held items after a Full load*.
+Suggested next: 1b (cave captures' enemies), fully scripted through the
+bridge (*Do the in-game actions yourself*) once the author is in a save
+near a cave.
+
+**Asked, not yet answered (author):** delete the older sessions' test
+leftovers in `BepInEx/config/ForestOverlay` - 23 savestates (6 MB:
+`test-v0.24.14`..`test-v22`, `megan-*`, `red-*`, `bridge-*`,
+`test-cash*`, `test-fl`) and 37 `bridge/*.png` (77 MB)?
+`keycard-pickup-testing` (09-23) looks like the author's own - keep.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -515,7 +524,8 @@ option (the escape hatch for states Quick load has no patch for).
       the drop. v0.24.39 repeats the removal once a second for 10 s
       (`RemoveLatePickups`) and logs `Not at capture but kept: N with an
       identifier, N clone(s), N in scenes not loaded at capture` - if the
-      coins still come back, that line says why. Awaiting a cave 5 test.
+      coins still come back, that line says why. Awaiting a cave 5 test
+      (QA list item 7).
    b. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
