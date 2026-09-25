@@ -450,6 +450,20 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     because their kind is the default. Wait for the value itself, not a
     count (v0.24.48), and test on more than one kind.
 
+30. **Check when a file is created before planning to copy it.** The
+    plan was "copy the previous `LogOutput.log` on startup"; BepInEx's
+    preloader truncates it before any patcher or plugin runs, so there
+    is no previous log to copy. `Core/LogKeeper` mirrors the running
+    log instead (v0.24.55).
+
+31. **The UiText rule covers the HUD and every fixed label, not only
+    tabs.** The info box drew 18 px lines in a 330 px box: a wrapped
+    update message showed half its second line (v0.24.58), a key name
+    lost its ends in a fixed button (v0.24.57). The bridge sweep found
+    both in minutes: after UI work, `OpenMyTab` on each module + `shot`
+    and look, and push a long value through (`set ..._checker.Message
+    "<long>"`) to see how a line wraps.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -496,26 +510,19 @@ identity.
 **Released: v0.24.58** (2026-09-25). The author runs it via the in-game
 updater. **287 tests.**
 
-### Pick up here (2026-09-25, v0.24.54 in the game)
+### Pick up here (2026-09-25, v0.24.58 in the game)
 
-**State:** v0.24.54 runs in the author's game (a fresh day-0 save).
-This session, all confirmed live with the bridge (details in
-game-notes *A blueprint in the hands*, *Cave families*, *Placed pickups
-across a load*): v0.24.47 a blueprint put away / brought back on every
-restore (QA: sxczurass, maks); v0.24.48 skinny families placed after a
-Full load (v0.24.45 read their kind too early); v0.24.49-50 cave
-captures' cannibals put back (maks's `0 of 5 placed`), Quick load keeps
-the live cave cannibals (no setup run - the armsy popped in, the babies
-doubled); v0.24.51-54 cave 5's coins / cash taken before a capture
-removed by a Full load (maks, QA item 7 - confirmed here, so only his
-answer is left to read), with pickups matched by item nearest first
-(`Data/PickupMatch`) so a settled bottle, the modern axe or a
-two-component object (skulls, a Timmy drawing) is never removed.
-v0.24.52-53 wrongly removed skulls / a drawing / a photo on a Full
-load; placed pickups are not in the save, so a normal load restores
-them. Test leftovers deleted (author).
-Suggested next: 1, the QA tooling (author, 2026-09-25: first, before
-maks's remaining items).
+**State:** v0.24.58 runs in the author's game (installed through the
+bridge's update calls + an author restart). This session: **QA tooling
+done** (Next 1 below) - v0.24.55 last 3 sessions' logs kept, v0.24.56
+the QA tab (list, answers, `seen` log lines, Mark, report zip),
+v0.24.57-58 fixes from a bridge sweep of every tab (Settings key names
+cut off, "Current save slot: ?" before the first capture, the info box
+cutting long lines). All confirmed in game with the bridge (*Confirmed
+in game*). Test leftovers (answers, tester name, desktop zip) removed.
+**Suggested next: 1b, the bridge MCP server** - the author asked for
+it on **high effort**; say so if the session is on medium. Then maks's
+items (Next 2-3). Nothing is waiting on the author.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -526,6 +533,11 @@ answers come numbered against it, per tester. Future lists go to the
 team, not one runner; keep them light (volunteers): never add what the
 author or the bridge already confirmed. Answers so far: sxczurass 1-5
 (Quick load swing cut fine; Full load lost the lighter - fixed v0.24.46).
+Since v0.24.56 the list is in the **QA tab** (`qa/2026-09-25-qa-v0.24.43.txt`,
+same numbers) and testers send a report zip (`report.txt` = answers by
+number, marks, then logs / config / segments / savestates). A new list:
+a dated `qa/*.txt` (the tab shows the newest, `<` `>` between lists)
+plus its `docs/tests/` file.
 
 **Saves:** every slot is the author's own (Slot5 swapped back
 2026-09-24 night, sizes checked). maks's saves for testing: his Megan
@@ -632,6 +644,15 @@ commands: check `ps -ef | grep <script>` and `kill` it (no `pkill` in
 Git Bash). The author reads a prompt only when not mid-cutscene - a
 scripted step that needs hands must wait for the state (poll it), not a
 fixed delay.
+**UI through the bridge** (v0.24.56): `_modules[i]` is `BuildModules`
+order (0 main window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type
+explorer, 8 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths,
+13 QA, 14 bridge); `call ..._modules[i].OpenMyTab` shows a tab, `call
+..._modules[7].TogglePanel` the explorer. `TogglePanel` **toggles** -
+read `_modules[0].PanelOpen` first and leave the window as found. Every
+`shot` marks practice (the HUD says so; expected). QA answers reload
+from `qa/answers/<id>.txt` on `SelectList`: to clear test answers,
+delete the file first.
 **Instructions go on the game screen, not in chat** (author, 2026-09-24:
 "super useful"): `call #<plugin h> OverlayPlugin._notice.Show "text" <s>`
 (upper middle). Script a timed test as notices + waits in a `-f` file
@@ -1074,7 +1095,12 @@ background and say when it is attached — never `api.github.com`. Docs-only
 changes need no version or tag. Do not deploy into the game folder. Mark
 decisions made with the author in this file, with who decided. The log is
 replaced on every game launch — read it before the author starts the game
-again. Before a handoff, rewrite *Pick up here*.
+again. **Keep the handoff current without being asked** (author,
+2026-09-25: "so i don't have to keep asking before i switch session"):
+after every release or finished piece of work, in the same push,
+rewrite *Pick up here*, move confirmed items, add any lesson as a
+gotcha and update *Next*. The author may switch session at any moment;
+the docs on `main` must always be ready for it.
 
 **Documentation standard (author, 2026-09-24: "so it doesn't clog up
 documentation any further").** This file is loaded into every session -
