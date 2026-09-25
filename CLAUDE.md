@@ -585,33 +585,45 @@ identity.
 
 ## Current status
 
-**Released: v0.24.66** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.67** (2026-09-25). The author runs it via the in-game
 updater. **303 tests.**
 
-### Pick up here (2026-09-25, v0.24.66 in the game)
+### Pick up here (2026-09-25, v0.24.67 in the game)
 
-**State:** v0.24.66 runs in the author's game (MCP `update_game`). This
-session, all bridge-checked in Slot 1 without the author at the game:
+**State:** v0.24.67 runs in the author's game (MCP `update_game`). This
+session (author on medium effort), all bridge-checked in Slot 1 without
+the author at the game:
 - **Axe Plane xN "not at capture"** (v0.24.63): the listing read while
   both plane wrecks had their axe active; nothing was left behind. It
   now waits for the wreck clear.
 - **maks's red elevator report** (Discord, forwarded by the author; his
-  log in `Downloads\qa-reports\maks\`, v0.24.52): a restart during the
-  ride or its 5 s keycard wait left the ride running and the car (and
-  player) went up after it (`1 left moving`). v0.24.64 stops the ride
-  (`ElevatorKeeper.StopRide`); reproduced first with `call <ElevatorSystem>
-  GotoRemotePoint` + restore 2 s / 7 s in. His "textures" part was not
-  judged (a `tp` into the endgame always lands unloaded); the areas line
-  says `same as at capture`. **maks is on v0.24.52** - he needs to update
-  and retest; no reply posted yet (needs the author's OK of the text).
+  log in `Downloads\qa-reports\maks\`, he was on v0.24.52): a restart
+  during the ride or its 5 s keycard wait left the ride running and the
+  car (and player) went up after it (`1 left moving`). v0.24.64 stops the
+  ride (`ElevatorKeeper.StopRide`); reproduced first with `call
+  <ElevatorSystem> GotoRemotePoint` + restore 2 s / 7 s in. His
+  "textures" part was not judged (a `tp` into the endgame lands
+  unloaded). **Reply posted** (author approved): update, then retest
+  1-3, saved in [`docs/tests/2026-09-25-maks-v0.24.66.md`](docs/tests/2026-09-25-maks-v0.24.66.md) -
+  his answers are numbered against it. Read the channel with
+  `qa_read new_only`.
 - **Full load keeps bushes cut at capture** (v0.24.65-66, game-notes
   *A Full load and cut bushes*): `cutbushes` header; sticks of a cut
   sapling are not put back (open).
+- **Time of day** (v0.24.67, game-notes *Time of day and the sun*): the
+  sweep through the night was **not reproduced** - the game snaps the
+  sun while the inventory is off, which a restore does. `Game/SunSync`
+  is a guard: 0.5 s after a restore, a sun still > 5 degrees off gets the
+  game's `ForceSunRotationUpdate`, logged as `sun: ... snapped`. It acted
+  once already (the first Quick load after a title-screen load: 28.7
+  degrees behind, catching up). If the author still sees a sweep, ask
+  for that restore's log lines.
 - **Forwarded Discord messages** carry their text in `message_snapshots`;
-  `qa_read` / `qa_download` read them from the next session (a running
-  MCP server holds its DLL - rebuild with `dotnet build tools/BridgeMcp
-  -c Release` before starting it, if it was not rebuilt yet). Discord's
-  API refuses a request without a `DiscordBot (...)` User-Agent (40333).
+  `qa_read` / `qa_download` read them since `tools/BridgeMcp` was changed
+  this session - **rebuild it before it starts** (`dotnet build
+  tools/BridgeMcp -c Release`; a running server holds its DLL, so this
+  session could not). Discord's API refuses a request without a
+  `DiscordBot (...)` User-Agent (40333).
 
 **Dropped (author, 2026-09-25):** the stats-only start state - "over-
 engineering what we currently have with quick and full load savestates
@@ -619,13 +631,11 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Time of day without cycling through the night** (*Then, before Next
-   up 5*) - only if the game has a clean resync; say so if not.
-2. **Fix list 2-3** - the phantom stick, pickups that move.
-3. **Sharing** (*Then, before Next up 5*) - one self-describing file per
+1. **Fix list 2-3** - the phantom stick, pickups that move.
+2. **Sharing** (*Then, before Next up 5*) - one self-describing file per
    segment, Export / Import in the Practice editor.
-4. **Next up 5, performance** - measure first.
-5. **Next up 6** - passengers on the 100% tab, logs in the inventory
+3. **Next up 5, performance** - measure first.
+4. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 
 Small open items from the tree work: a Quick load regrows a
@@ -839,8 +849,6 @@ are spawned there.
    on regrowth time).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
-- **Time of day without cycling through the night**: probably the game's
-  own resync after a load; only if a clean way exists.
 - **Sharing** - author: "whichever you think fits best with my future
   website"; "we'll refactor if I don't like it". The website's export
   format: one self-describing file per segment (definition + its start
@@ -1127,8 +1135,8 @@ list so we can move onto expanding more features".
 3. **Savestates, remaining** - *Pick up here* holds the current work
    (Megan Quick load, cave coins, the Full load enemy delay, the red
    elevator in place, the Quick / Full toggle, Megan's music), then the
-   Fix list and *Then, before Next up 5* above (time of day,
-   sharing). Author's idea, still open: reload the slot **in
+   Fix list and *Then, before Next up 5* above
+   (sharing). Author's idea, still open: reload the slot **in
    place** on death (the Savestates tab's *Quick load the slot's save*
    does exactly that). Done and confirmed (details in game-notes): fall
    carried over, the book page, the endgame area / lab floor after a Full
