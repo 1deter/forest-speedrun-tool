@@ -600,37 +600,14 @@ loaded from the title screen - *Loading a save yourself* below). MCP
 checked this session; maks's items (Next 3) still wait on his `Perf (30
 s):` lines (`qa_post`, author approves the text).
 
-**Next: the stats-only start state** (author, 2026-09-25: "we can do the
-stats-only start state"). Spec, proposed to the author - **ask the open
-questions before building**:
-- A third start-state kind on a spot, beside Quick / Full load: the
-  Practice editor's *Start state* row gets a **Stats only** choice.
-  Capture writes the vitals **into the segment definition** (plain text,
-  shareable, no `.fosave`): e.g. `stats = health 100, stamina 100, energy
-  100, fullness 0.95, thirst 0.1, ...`. Each value editable in the editor
-  (convention: everything editable in the GUI).
-- Restart (F7, Runs Restart, a death revive at that spot) = the usual
-  teleport + the vitals set directly on `LocalPlayer.Stats`
-  (`PlayerStats`): no LoadNow, no freeze, instant. Plus the cleanups a
-  restart already does (end the fall, cut the action, close the book, wash
-  blood). The world and inventory stay as they are.
-- In the route fingerprint like a start state (a new stats line retires
-  old times, with the same second-click warning).
-- Fields (`ilscan type PlayerStats`): `Health` + `HealthTarget`,
-  `Stamina`, `Energy` (+ `EnergyEx`?), `Fullness` (hunger shown),
-  `Thirst`, `Starvation` / `StarvationCurrentDuration` /
-  `ThirstCurrentDuration`, `BodyTemp` / `Cold` / `ColdAmt`, `Armor` /
-  `ArmorVis`, `BatteryCharge`; sanity lives elsewhere (`PlayerStats.
-  Sanity`, a component). Check each one's writers (`ilscan writes`) - some
-  are recomputed every frame (gotcha 1: set the source, not the result
-  fields `*Result`).
-- **Open questions for the author:** which vitals (health? armor? cold?
-  sanity? battery?); can a spot have a full start state *and* stats-only
-  (stats after the restore - probably pointless: one or the other);
-  should a death at a stats-only spot revive with those stats (proposed:
-  yes, as a start state does).
-Then the rest of *Then, before Next up 5* (time of day, sharing), and Fix
-list 2-3 (watch-for items).
+**Dropped (author, 2026-09-25):** the stats-only start state - "over-
+engineering what we currently have with quick and full load savestates
+... no need to add another button that essentially does what a
+savestate's already supposed to do". Do not propose it again.
+
+**Next:** being chosen with the author (options offered: the Axe Plane
+count below, time of day, sharing, Fix list 2-3, Next up 5 performance,
+Next up 6 items).
 
 Small open items from the tree work: a Quick load regrows a
 **half-chopped** tree fully (as a Full load does - the chopped model is
@@ -640,9 +617,12 @@ later by distance; cause unknown); the "not at capture" line counts
 **Axe Plane** pickups growing by one per Quick load in Slot 1 (the plane
 wreck re-created? unchecked).
 
-**Decided (Claude, v0.24.62, author may overrule):** a Quick load gives
-back the capture, not what a Full load does where the save is silent -
-bushes cut before the capture stay cut (gotcha 35).
+**Decided (author, 2026-09-25: "if a bush is cut and it was saved that
+way, then the savestate should respect that"):** a Quick load gives back
+the capture, not what a Full load does where the save is silent - bushes
+cut before the capture stay cut (v0.24.62, gotcha 35). A Full load still
+regrows them (the game's own load); making a Full load respect it too is
+open.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -842,8 +822,6 @@ are spawned there.
    on regrowth time).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
-- **Stats-only start state** (runner; next - spec in *Pick up here*):
-  a spot option restoring only the vitals - instant, no restore freeze.
 - **Time of day without cycling through the night**: probably the game's
   own resync after a load; only if a clean way exists.
 - **Sharing** - author: "whichever you think fits best with my future
