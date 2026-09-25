@@ -213,6 +213,24 @@ namespace ForestOverlay.Data
         }
 
         // ------------------------------------------------------------------
+        /// Re-reads one file: its segments are dropped and loaded again,
+        /// every other file's (and their unsaved edits) left alone - how
+        /// a community update lands under an open editor.
+        public void ReloadFile(string fileName)
+        {
+            for (int i = _all.Count - 1; i >= 0; i--)
+                if (string.Equals(_all[i].SourceFile, fileName, StringComparison.OrdinalIgnoreCase)) _all.RemoveAt(i);
+            string path = Path.Combine(_folder, fileName);
+            if (File.Exists(path)) LoadFile(path);
+            _all.Sort(Compare);
+        }
+
+        /// A community pack's entry (Data/CommunityIndex): read-only.
+        public static bool IsCommunity(Segment s)
+        {
+            return s != null && string.Equals(s.SourceFile, CommunityIndex.SegmentFile, StringComparison.OrdinalIgnoreCase);
+        }
+
         private bool LoadFile(string path)
         {
             string[] lines;

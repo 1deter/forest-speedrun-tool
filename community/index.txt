@@ -1,0 +1,2 @@
+# ForestOverlay community packs: <file> <hash>. Written by
+# scripts/community-index.py - do not edit by hand.

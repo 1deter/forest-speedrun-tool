@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.72 - 2026-09-26
+
+- Community spots: shared spots and timed segments now download on their
+  own a few seconds after the game starts and show in the Practice list
+  under Community. They are read-only; Duplicate makes your own copy,
+  start state included. Practice -> Import -> Check community now fetches
+  them on demand. Your own spots are never changed.
+- Duplicate now copies an entry's start state too.
+- The Import list wraps long names instead of cutting them off.
+
 ## v0.24.71 - 2026-09-25
 
 - Share spots and timed segments: the Practice editor's new Share row

@@ -174,6 +174,16 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _exportAttemptsLabel = new GUIContent("");
         private readonly GUIContent _shareStatus = new GUIContent("");
 
+        // --- community packs (Modules/CommunityModule): read-only entries ---
+        private Segment _communityFor;
+        private readonly GUIContent _communityInfo = new GUIContent("");
+        private readonly GUIContent _communityNote = new GUIContent(
+            "Community spot (read-only) - it updates with the community packs. Duplicate makes your own copy " +
+            "to edit, start state included.");
+        private readonly GUIContent _communityStatus = new GUIContent("");
+        private string _communityStatusFor;
+        private CommunityModule _community;
+
         // Only to count what a start-state change would retire.
         private AttemptStore _attempts;
 
@@ -186,6 +196,7 @@ namespace ForestOverlay.Modules
             Reload();
 
             _savestates = Host.Find<SavestateModule>();
+            _community = Host.Find<CommunityModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
@@ -589,6 +600,7 @@ namespace ForestOverlay.Modules
 
             GUI.enabled = _selected != null;
             if (GUI.Button(new Rect(74, 0, 80, 24), "Duplicate")) Duplicate();
+            GUI.enabled = _selected != null && !SegmentLibrary.IsCommunity(_selected);
             if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
             if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
@@ -701,6 +713,7 @@ namespace ForestOverlay.Modules
 
             Segment s = _selected;
             float w = area.width;
+            if (SegmentLibrary.IsCommunity(s)) { DrawCommunityEntry(area, s); return; }
 
             // The height drawn last pass - wrapped text makes it vary.
             Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_editHeight, 200f));
@@ -1079,9 +1092,9 @@ namespace ForestOverlay.Modules
             Segment src = _selected;
             Segment s = new Segment();
 
-            s.Id = NextFreeId(src.Id);
+            s.Id = NextFreeId(SegmentLibrary.IsCommunity(src) ? "spot.my." + Slug(src.Name) : src.Id);
             s.Name = src.Name + " (copy)";
-            s.Category = src.Category;
+            s.Category = SegmentLibrary.IsCommunity(src) ? "My spots" : src.Category;
             s.Notes = src.Notes;
             s.HasSpawn = src.HasSpawn;
             s.SpawnPosition = src.SpawnPosition;
@@ -1095,11 +1108,102 @@ namespace ForestOverlay.Modules
             // Copies land in the user's own file, never back in a shared set.
             s.SourceFile = SegmentLibrary.UserFileName;
 
+            // The start state comes along (a community spot is mostly its
+            // start state); same file, same hash - the same route.
+            string copied = "";
+            if (_savestates != null && _savestates.HasStartState(src))
+            {
+                try
+                {
+                    string error = _savestates.WriteStartStateText(s, _savestates.ReadStartStateText(src));
+                    if (error == null) { s.StartState = src.StartState; copied = " with its start state"; }
+                    else copied = " - its start state was not copied (" + error + ")";
+                }
+                catch (Exception ex) { copied = " - its start state was not copied (" + ex.Message + ")"; }
+            }
+
             _library.Add(s);
             _selected = s;
             _importing = false;
             RebuildVisible();
             Touch();
+            _status = "Copied" + copied + " - Save to keep it.";
+        }
+
+        /// The ids of every entry that is not a community one - a pack
+        /// never shadows these.
+        public HashSet<string> OwnIds()
+        {
+            HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _library.All.Count; i++)
+                if (!SegmentLibrary.IsCommunity(_library.All[i])) ids.Add(_library.All[i].Id);
+            return ids;
+        }
+
+        /// A community update rewrote community.txt: reload only that file
+        /// and re-point what referred to its old objects (see Reload).
+        public void ReloadCommunity()
+        {
+            string selectedId = SegmentLibrary.IsCommunity(_selected) ? _selected.Id : null;
+            string currentId = SegmentLibrary.IsCommunity(_current) ? _current.Id : null;
+            _library.ReloadFile(CommunityIndex.SegmentFile);
+            if (selectedId != null) _selected = _library.ById(selectedId);
+            if (currentId != null) _current = _library.ById(currentId);
+            _communityFor = null;
+            RebuildVisible();
+        }
+
+        private void DrawCommunityEntry(Rect area, Segment s)
+        {
+            if (!ReferenceEquals(_communityFor, s))
+            {
+                _communityFor = s;
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                sb.Append(s.Name).Append("   (").Append(s.Id).Append(')');
+                if (s.Notes.Length > 0) sb.Append('\n').Append(s.Notes);
+                if (s.IsTimed)
+                {
+                    sb.Append("\nTimed: start ").Append(TriggerParser.Write(s.Start));
+                    for (int i = 0; i < s.Checkpoints.Count; i++)
+                        sb.Append("\n  checkpoint ").Append(i + 1).Append(": ").Append(TriggerParser.Write(s.Checkpoints[i]));
+                    sb.Append("\n  end ").Append(TriggerParser.Write(s.End));
+                }
+                _communityInfo.text = sb.ToString();
+            }
+
+            float cw = area.width - 20f;
+            Rect content = new Rect(0, 0, cw, Mathf.Max(_editHeight, 200f));
+            _editScroll = GUI.BeginScrollView(area, _editScroll, content);
+            float y = 4f;
+            y += UiText.DrawDim(0, y, cw - 10, _communityNote) + 6f;
+            y += UiText.Draw(0, y, cw - 10, _communityInfo) + 8f;
+
+            GUI.Label(new Rect(0, y, 74, 20), "Spawn");
+            if (s.HasSpawn) GUI.Label(new Rect(80, y, cw - 140, 20), CoordsLabel(SpawnSlot, 0, s.SpawnPosition));
+            GUI.enabled = s.HasSpawn;
+            if (GUI.Button(new Rect(cw - 56, y - 2, 42, 22), "Go")) Teleport(s);
+            GUI.enabled = true;
+            y += 30f;
+
+            if (_savestates != null)
+            {
+                if (!ReferenceEquals(_startStateFor, s) || _startStateForId != s.Id)
+                {
+                    if (!ReferenceEquals(_startStateFor, s)) StartStatus("");
+                    RefreshStartStateLabel(s);
+                }
+                GUI.Label(new Rect(0, y, 74, 20), "Start state");
+                GUI.enabled = !_savestates.Busy && _savestates.HasStartState(s) && s.HasSpawn;
+                if (GUI.Button(new Rect(80, y - 2, 110, 22), s.StartRestoreWithLoad ? "Restart (Full)" : "Restart (Quick)")) Restart(s);
+                GUI.enabled = true;
+                y += 26f;
+                y += UiText.DrawDim(80, y, cw - 90, _startStateLabel);
+                y += UiText.Draw(80, y, cw - 90, _startStatusLabel) + 6f;
+            }
+
+            y = DrawShare(y, cw, s);
+            _editHeight = y + 10f;
+            GUI.EndScrollView();
         }
 
         private void Delete()
@@ -1192,7 +1296,7 @@ namespace ForestOverlay.Modules
 
         private void Touch(Segment s)
         {
-            if (s == null) return;
+            if (s == null || SegmentLibrary.IsCommunity(s)) return;
 
             // Anything holding this segment - a run armed against its
             // start zone - can see that it changed underneath them.
@@ -1504,6 +1608,20 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(74, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
             if (GUI.Button(new Rect(174, y + 2, 60, 22), "Close")) _importing = false;
             y += 28f;
+            if (_community != null)
+            {
+                // Rebuilt only when the module's status string changes.
+                if (!ReferenceEquals(_communityStatusFor, _community.Status))
+                {
+                    _communityStatusFor = _community.Status;
+                    _communityStatus.text = "Community spots: " + _community.Status;
+                }
+                GUI.enabled = !_community.Busy;
+                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Check community now")) _community.CheckNow();
+                GUI.enabled = true;
+                y += 28f;
+                y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
+            }
             y += UiText.Draw(0, y, w - 10, _importStatus) + 4f;
 
             // Wrapped descriptions (UiText), so entries vary in height: the
