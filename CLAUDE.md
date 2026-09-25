@@ -648,11 +648,10 @@ the author at the game:
   degrees behind, catching up). If the author still sees a sweep, ask
   for that restore's log lines.
 - **Forwarded Discord messages** carry their text in `message_snapshots`;
-  `qa_read` / `qa_download` read them since `tools/BridgeMcp` was changed
-  this session - **rebuild it before it starts** (`dotnet build
-  tools/BridgeMcp -c Release`; a running server holds its DLL, so this
-  session could not). Discord's API refuses a request without a
-  `DiscordBot (...)` User-Agent (40333).
+  `qa_read` / `qa_download` read them (server rebuilt at the end of the
+  session, after stopping the three running `forest-bridge-mcp` hosts -
+  the way to rebuild when sessions hold the DLL). Discord's API refuses
+  a request without a `DiscordBot (...)` User-Agent (40333).
 
 **Dropped (author, 2026-09-25):** the stats-only start state - "over-
 engineering what we currently have with quick and full load savestates
