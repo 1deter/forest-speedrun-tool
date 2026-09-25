@@ -557,27 +557,33 @@ identity.
 
 ## Current status
 
-**Released: v0.24.60** (2026-09-25). The author runs it via the in-game
-updater. **300 tests.**
+**Released: v0.24.62** (2026-09-25). The author runs it via the in-game
+updater. **302 tests.**
 
-### Pick up here (2026-09-25, v0.24.60 in the game)
+### Pick up here (2026-09-25, v0.24.62 in the game)
 
-**State:** v0.24.60 runs in the author's game, installed by the MCP
-`update_game` (twice this session: check, download, restart through
-Steam, launcher Play pressed - ~20 s, confirmed end to end). The
-`forest` MCP server is approved and in use - use its tools, not
-`scripts/bridge.sh`. Still not exercised through MCP: `capture` /
-`restore` / `restart_spot` in a loaded game (thin wrappers over proven
-bridge commands - watch the first one). The QA Discord bot works
-(`qa_read` / `qa_post` / `qa_download`); no new tester messages as of
-this handoff. maks's items (Next 3) wait on his `Perf (30 s):` lines -
-ask for them through `qa_post` (author approves the text).
-**Next: Fix list 1 - chopped trees and bushes after a Quick load**
-(author switches to high effort for it). Start from *Fix list* below:
-what the save holds for trees, then how a load applies it vs in place
-(`ilscan body`), then prove it live with the bridge before a fix
-(gotcha 25). Test flow: load a save, chop a tree near the player (the
-author, or find a call), `capture` before and `restore` after.
+**State:** v0.24.62 runs in the author's game (MCP `update_game`). Fix
+list 1 is **done and bridge-confirmed** (v0.24.61-62, `Game/NatureKeeper`,
+game-notes *Trees, bushes and saplings*): a Quick load regrows trees not
+cut at capture (10 at once, 43 new logs removed), puts back bushes /
+saplings cut after the capture (one cut before stays cut, its sticks
+kept), removes the new logs and sapling sticks; a teleport out of the
+endgame clears `IsInEndgame` (it lit the surface like a cave). The
+author's "small bushes that drop sticks" are **saplings** (`Sapling1_*`).
+The whole session ran without the author at the game: `game` launch,
+the save loaded from the title screen (*Bridge habits*), chopping by
+`TreeHealth.Hit` calls. MCP `capture` / `restore` confirmed in a loaded
+game. No new QA Discord messages checked this session; maks's items
+(Next 3) still wait on his `Perf (30 s):` lines (`qa_post`, author
+approves the text).
+**Next:** Fix list 2-3 below (watch-for items), then *Then, before Next
+up 5* (stats-only start state, time of day, sharing). Small open items
+from this work: a Quick load regrows a **half-chopped** tree fully (as a
+Full load does - the chopped model is not rebuilt); once, one of two new
+sapling sticks was not removed (not matched to anything in the file - the
+game's `destroyAfter` removed it later by distance; cause unknown); the
+"not at capture" line counts **Axe Plane** pickups growing by one per
+Quick load in Slot 1 (the plane wreck re-created? unchecked).
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -687,6 +693,14 @@ test spots with `..._library._all.RemoveAt <i>` + `call
 Test away from cannibals (they stagger the player and cut actions).
 Keep only what later sessions need (author).
 
+**Loading a save yourself** (author, 2026-09-25: "you don't need me to
+start the game or load a save"): `game launch`, then at the title screen
+`type TitleScreen` and `call #<h> TitleScreen.OnLoad`, `wait 1`, `call
+#<h> TitleScreen.OnSlotSelection <slot>` (the Continue path), ~25 s.
+Slot 1 is saved in the endgame lab: leave with `tp` (clears the cave and
+endgame state since v0.24.61). A tree / bush spot with no cannibals:
+(428, 78, -4) (pines, a `GreenBush`), saplings at (385, 76, 285).
+
 **Bridge habits (2026-09-24):** `set` takes a vector as `x,y,z` (no
 brackets or spaces). Handles are per launch: a new game run answers
 `unknown handle - list it first` until a `type` / `find` lists them. A
@@ -736,6 +750,11 @@ The author is on high effort for this work; say when medium is enough
 again (memory `effort-level-switching`). The bridge made this session's
 fixes fast: prefer a live read over an IL theory (gotcha 25).
 
+**Chopping through the bridge:** `type TreeHealth <r>` lists tree views;
+`call <view> TreeHealth.Hit` once swaps in the chopped model, then 4 more
+on that model (`LOD_Trees.CurrentView`) fell it; bushes `BushDamage.Hit
+5`, saplings / ferns `CutBush2.Hit 8`.
+
 **Enemies across a restore** (game-notes *Cannibal kinds and families*,
 *Putting cannibals back*, *Who decides sleep*): capture writes `families`
 (`FamilyRecord`) and `enemies` (`EnemyRecord`); after a Quick load on the
@@ -754,16 +773,7 @@ off (or Peaceful), **respect the game's state** - no cave or world enemies
 are spawned there.
 
 **Fix list, in order** (before Next up 5):
-1. **Quick load leaves chopped trees and bushes** (author): a chopped tree
-   stays a stump, its logs / a cut stick bush's sticks stay on the ground,
-   the bush does not come back; a Full load restores all of it. Tree state
-   is outside `LoadNow`'s reach for a full-level save - start from what
-   the save holds: `MassDestructionSaveManager` (`mass_v016`),
-   `GlobalDataSaver`, `TreeHealth` / the LOD tree grid (`TreeLodGrid`,
-   `LOD_Trees`, `CutDown`), and their `OnDeserialized` on a load vs in
-   place (`ilscan body`, gotcha 17). Logs / sticks lying about could go
-   the way of limbs (`PickupKeeper.RemoveNew` by item) once the trees come
-   back - not before, or a route loses logs it cut before capture.
+1. ~~Trees and bushes after a Quick load~~ done (v0.24.61-62, confirmed).
 2. **Phantom stick** (author, once, after Quick loads): a picked-up stick
    vanished, nothing in the inventory. Suspects: a `PickupKeeper` copy
    re-enabled, or a greeble despawned by the streaming reload. Watch for
@@ -998,7 +1008,11 @@ bridge); every tab drawn in game, the Inventory tab filled on first open,
 Mark / result / report zip (v0.24.56, bridge tab sweep: `OpenMyTab` on
 each `_modules[i]` + `shot`); `capture` / `tp` refused at the title
 screen (v0.24.59, `PlayerRef.AtTitleScreen`) and the notice drawn
-over the main window (v0.24.59-60, bridge).
+over the main window (v0.24.59-60, bridge); trees chopped / half-chopped
+since a capture regrown by a Quick load, their logs removed, bushes and
+saplings cut after it back and their sticks removed, ones cut before it
+left cut; a teleport from the lab to the surface clears the endgame
+lighting (v0.24.61-62, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
