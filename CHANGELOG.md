@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.50 - 2026-09-25
+
+- Quick load in a cave: the cave's cannibals stay and are moved back at
+  once, instead of vanishing and popping back in a few seconds later
+  (the armsy, the babies).
+
 ## v0.24.49 - 2026-09-25
 
 - Savestates in a cave: the cave's cannibals are put back where they

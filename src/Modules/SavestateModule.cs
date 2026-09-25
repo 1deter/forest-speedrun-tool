@@ -631,7 +631,14 @@ namespace ForestOverlay.Modules
                 string washNote = r.Ok ? _bridge.Wash() : "";
 
                 // A slot reload in place too: every in-place restore.
-                string enemyNote = r.Ok && _respawnEnemies.Value ? _bridge.RespawnEnemies(surfaceSent) : "";
+                // A cave capture's cannibals are kept and put back
+                // (AfterInPlace): the game's setup would despawn every cave
+                // cannibal and respawn them seconds later (author: the
+                // armsy popped back in).
+                bool caveFamilies = r.Ok && file != null && file.InCave && file.Families != null && file.Families.Count > 0;
+                string enemyNote = !(r.Ok && _respawnEnemies.Value) ? ""
+                                 : caveFamilies ? "enemies: cave capture - the live ones kept"
+                                 : _bridge.RespawnEnemies(surfaceSent);
                 if (r.Ok && _respawnEnemies.Value) enemyNote += " | " + _bridge.ClearCorpses();
 
                 string panelNote = "";
@@ -800,11 +807,24 @@ namespace ForestOverlay.Modules
 
         private IEnumerator AfterInPlace(string what, bool enemies, int familiesBefore, SavestateFile file)
         {
-            yield return new WaitForSecondsRealtime(1.5f);
-            string plane = _bridge.ClearOldPlaneHulls();
-            if (!enemies)
+            // A cave capture (v0.24.17 files): its cave families put back at
+            // once - the live ones kept, no setup run (RestoreCave).
+            float start = Time.realtimeSinceStartup;
+            string cave = null;
+            if (enemies && file != null && file.InCave && file.Families != null && file.Families.Count > 0)
             {
-                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + ".");
+                // The restore's InACave starts updateCaveSpawns, which
+                // enables the spawners over the next fixed updates.
+                yield return new WaitForSecondsRealtime(0.1f);
+                yield return Ctx.Runner.StartCoroutine(_enemies.RestoreCave(file.Families, file.Enemies ?? new List<string>(), 3f,
+                                                                            delegate(string note) { cave = note; }));
+            }
+            float left = 1.5f - (Time.realtimeSinceStartup - start);
+            if (left > 0f) yield return new WaitForSecondsRealtime(left);
+            string plane = _bridge.ClearOldPlaneHulls();
+            if (!enemies || cave != null)
+            {
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + ".");
                 yield break;
             }
 
@@ -832,14 +852,8 @@ namespace ForestOverlay.Modules
                 check += " -> " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies") + " 6 s later";
             }
             // Once the families are back: the captured cannibals' places
-            // (fix list 2 - author: "ideally in the same position"). A cave
-            // capture since v0.24.17 has its families: the cave ones are
-            // put back as on the surface (maks: "0 of 5 placed").
-            string positions = "";
-            if (file != null && file.InCave && file.Families != null && file.Families.Count > 0)
-                yield return Ctx.Runner.StartCoroutine(_enemies.RestoreCave(file.Families, file.Enemies ?? new List<string>(), 1.5f,
-                                                                            delegate(string note) { positions = note; }));
-            else if (file != null && file.Enemies != null) positions = _enemies.RestoreByType(file.Enemies);
+            // (fix list 2 - author: "ideally in the same position").
+            string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
                             (positions.Length > 0 ? " | " + positions : "") + ".");
         }
