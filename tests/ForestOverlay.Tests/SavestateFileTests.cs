@@ -93,6 +93,20 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void GreeblesRoundTripAndAreAbsentFromOldFiles()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Greebles);
+
+            SavestateFile s = Sample();
+            s.Greebles = new List<string> { "501.23,76.37,90.30:11525:fdfdfdfd", "-12.00,3.50,0.10:-7:ff" };
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Greebles, back.Greebles);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void ActiveAreaRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

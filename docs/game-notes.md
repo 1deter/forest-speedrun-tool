@@ -930,6 +930,25 @@ marks a missing or inactive instance `Destroyed` and hands the object to
 returning (regrowth), and a teleport into a cave reset the zones.
 `PickUp.OnSpawned` resets `Used` but not `_disableInsteadOfDestroy`.
 
+**Why sticks move (bridge + IL, 2026-09-25, fix list 3).** Many zones sit
+on **pooled trees** (`Pooling/Pool_Trees/PineTreeMoss_High(Clone)00N/Greeb`),
+not in `GreebleZonesManager`'s arrays. Such a zone has no manager `GZData`:
+`OnEnable` makes its own (`_seed = -1`) once, and the first `GetRandomSeed`
+fixes `_seed` from the position the pool object stood at **then**
+(`(int)x + (int)y + (int)z + RandomSeed`). It is never reset, so the pool
+object carries its first tree's seed to every tree it later serves - and
+its `_instancesState` / `InstanceData.Destroyed` too (`OnDisable` ->
+`Despawn` marks missing or inactive instances destroyed, 255). Which pool
+object serves a tree depends on the order trees spawn, so leaving and
+coming back re-rolls the sticks / rocks around it: the same tree at
+(501.23, 76.37, 90.3) had seed 11525 on `(Clone)002` and 11680 on
+`(Clone)001`, three different stick layouts in three visits, the captured
+sticks inactive. With `AllowRegrowth = false` a taken stick's `Destroyed`
+index follows the pool object to another tree. Vanilla behaviour, not the
+restore's; a restore only makes it visible. Positions: `SpawnIndex(i)`,
+`Random.seed = seed + i`, sphere point (x, z) within `Radius`, ray down
+from `TransformPoint`.
+
 ## Cave wooden panels (IL, v0.24.2)
 
 A panel is `BreakWoodSimple`: `int Health`; `Hit(damage)` subtracts and at

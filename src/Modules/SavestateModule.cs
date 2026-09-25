@@ -64,6 +64,7 @@ namespace ForestOverlay.Modules
         private ElevatorKeeper _elevators;
         private AreaKeeper _area;
         private NatureKeeper _nature;
+        private GreebleKeeper _greebles;
         private EnemyKeeper _enemies;
         private string _dir;
 
@@ -146,6 +147,8 @@ namespace ForestOverlay.Modules
             _area = new AreaKeeper(ctx.Log);
             _nature = new NatureKeeper(ctx.Log);
             _nature.Install(OverlayPlugin.PluginGuid);
+            _greebles = new GreebleKeeper(ctx.Log);
+            _greebles.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
@@ -200,6 +203,7 @@ namespace ForestOverlay.Modules
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
             if (_nature != null) _nature.Uninstall();
+            if (_greebles != null) _greebles.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
@@ -209,6 +213,9 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void Tick()
         {
+            // A waiting greeble record never acts in another game.
+            if (PlayerRef.AtTitleScreen && _greebles != null) _greebles.Clear();
+
             if (Time.unscaledTime >= _nextSlotRefresh)
             {
                 _nextSlotRefresh = Time.unscaledTime + 1f;
@@ -370,6 +377,9 @@ namespace ForestOverlay.Modules
             string blueprint = BuildMode.Capture();
             string bushes = _nature.CaptureMark();
             List<string> cutBushes = _nature.CaptureCuts();
+            List<string> greebles = null;
+            try { greebles = _greebles.Capture(); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: greeble capture failed: " + ex.Message); }
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -390,7 +400,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles);
                 if (after != null) after(error);
             }));
         }
@@ -398,7 +408,8 @@ namespace ForestOverlay.Modules
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string blueprint, string areas, List<string> enemies,
-                                  List<string> families, string enemyNote, string bushes, List<string> cutBushes)
+                                  List<string> families, string enemyNote, string bushes, List<string> cutBushes,
+                                  List<string> greebles)
         {
             _busy = false;
             if (!r.Ok)
@@ -431,6 +442,7 @@ namespace ForestOverlay.Modules
                 f.Blueprint = blueprint;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
+                f.Greebles = greebles;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -507,6 +519,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
+            _greebles.Restore(f.Greebles, false);
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
             StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, done));
         }
@@ -691,6 +704,14 @@ namespace ForestOverlay.Modules
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
+                // The sticks / rocks around trees come from pool objects
+                // that carry their own seed (GreebleKeeper).
+                string greebleNote = "";
+                if (r.Ok && file != null)
+                {
+                    try { greebleNote = _greebles.Restore(file.Greebles, true); }
+                    catch (Exception ex) { greebleNote = "greebles: failed (" + ex.Message + ")"; }
+                }
 
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
@@ -723,6 +744,7 @@ namespace ForestOverlay.Modules
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
+                              (greebleNote.Length == 0 ? "" : " | " + greebleNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
@@ -1215,6 +1237,16 @@ namespace ForestOverlay.Modules
             // A load regrows every bush; the ones cut at capture go again.
             string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
             if (again.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + again + ".");
+            // Zones that spawned during the load took their records in
+            // GreebleKeeper's prefix; the live pass says how many.
+            if (f.Greebles != null)
+            {
+                int late = GreebleKeeper.Late;
+                string greebles;
+                try { greebles = _greebles.Restore(f.Greebles, true); }
+                catch (Exception ex) { greebles = "greebles: failed (" + ex.Message + ")"; }
+                Ctx.Log.LogInfo("Savestate after the load: " + greebles + " (" + late + " set as they spawned in the load).");
+            }
             Ctx.Runner.StartCoroutine(SyncSun("after the load"));
             // A cutscene capture's hands are the fast-forward's business.
             string pullOut = f.CutsceneAt < 0f ? f.Blueprint : "";
@@ -1414,6 +1446,7 @@ namespace ForestOverlay.Modules
             {
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
+                _greebles.Restore(f.Greebles, false);
                 StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), AfterLoad(f, done));
             }
             else

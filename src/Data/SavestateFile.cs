@@ -31,6 +31,7 @@ namespace ForestOverlay.Data
     //   activearea = none
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
+    //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -63,7 +64,11 @@ namespace ForestOverlay.Data
     // bush comes back. `cutbushes` the bushes / saplings cut this scene
     // and still cut at capture, "scene path@x,y,z" (the LOD object); a
     // Full load cuts them again, since a load regrows every bush; absent
-    // before v0.24.65. None of these is in the start-state hash (only
+    // before v0.24.65. `greebles` the greeble zones on pooled trees near
+    // the player (Data/GreebleRecord: place, seed, taken flags), given
+    // back by Game/GreebleKeeper; absent before v0.24.70, and then the
+    // sticks around trees are whatever the pool draws. None of these is
+    // in the start-state hash (only
     // `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
@@ -132,6 +137,10 @@ namespace ForestOverlay.Data
         /// Null when the file has no cutbushes line (before v0.24.65).
         public List<string> CutBushes;
 
+        /// Null when the file has no greebles line (before v0.24.70);
+        /// GreebleRecord entries.
+        public List<string> Greebles;
+
         /// The blueprint out at capture (Game/BuildMode, a BuildingTypes
         /// name); "" for none.
         public string Blueprint = "";
@@ -174,6 +183,7 @@ namespace ForestOverlay.Data
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
+            if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -243,6 +253,13 @@ namespace ForestOverlay.Data
                             s.CutBushes = new List<string>();
                             string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
                             for (int k = 0; k < keys.Length; k++) s.CutBushes.Add(keys[k].Trim());
+                            break;
+                        }
+                    case "greebles":
+                        {
+                            s.Greebles = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.Greebles.Add(keys[k].Trim());
                             break;
                         }
                     case "panels":

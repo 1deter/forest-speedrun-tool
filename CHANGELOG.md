@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.70 - 2026-09-25
+
+- Sticks and rocks around trees come back where they were at capture
+  after a Quick or Full load. Before, leaving an area and restoring
+  could put them in other spots (the game re-rolls them). Only savestates
+  taken on this version or later carry it.
+
 ## v0.24.69 - 2026-09-25
 
 - Opening the window while all UI is hidden (F5) shows the UI again.
