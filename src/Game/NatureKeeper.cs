@@ -32,8 +32,11 @@ namespace ForestOverlay.Game
     // - Bushes / saplings: while armed (savestates in use this session, as
     //   PickupKeeper), a prefix on the cut keeps a copy of the scene object
     //   under an inactive holder - inactive so it does not wake - and a
-    //   Quick load moves every copy back: as after any load, bushes cut
-    //   before the capture come back too.
+    //   Quick load moves back the ones cut after the capture (its `bushes`
+    //   mark: this world, the last cut's number); one cut before it stays
+    //   cut, its sticks where they lay. A file from another world (a load
+    //   since, another launch, a slot) has no usable mark: every copy comes
+    //   back, as after a load, which regrows them all.
     // - The logs and sticks those cuts dropped: SavestateModule removes
     //   the ones not at capture (PickupKeeper.RemoveExtra).
     // ------------------------------------------------------------------
@@ -47,7 +50,12 @@ namespace ForestOverlay.Game
             public Vector3 LocalPosition;
             public Quaternion LocalRotation;
             public Vector3 LocalScale;
+            public int Seq;
         }
+
+        // This launch; a mark from another one never matches.
+        private static readonly string Launch = Guid.NewGuid().ToString("N").Substring(0, 8);
+        private static int _seq;
 
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -208,6 +216,7 @@ namespace ForestOverlay.Game
                 k.LocalPosition = tr.localPosition;
                 k.LocalRotation = tr.localRotation;
                 k.LocalScale = tr.localScale;
+                k.Seq = ++_seq;
                 KeptList.Add(k);
                 KeptIds.Add(go.GetInstanceID());
 
@@ -239,9 +248,26 @@ namespace ForestOverlay.Game
             catch (Exception) { }
         }
 
+        /// This world (the tree save manager lives as long as the scene; a
+        /// Quick load keeps it) and the last cut so far, for the file's
+        /// `bushes` line. "" outside a game.
+        public string CaptureMark()
+        {
+            string w = World();
+            return w.Length == 0 ? "" : w + ":" + _seq.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private string World()
+        {
+            if (_manager == null) return "";
+            UnityEngine.Object m = UnityEngine.Object.FindObjectOfType(_manager);
+            return m == null ? "" : Launch + "-" + m.GetInstanceID().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         /// After a Quick load, once the serializer has put the save's cut
-        /// list back. Returns the log note ("" when nothing changed).
-        public string Restore()
+        /// list back; `mark` is the file's `bushes` line ("" for none).
+        /// Returns the log note ("" when nothing changed).
+        public string Restore(string mark)
         {
             string trees = "", bushes = "";
             try { trees = RegrowTrees(); }
@@ -250,7 +276,17 @@ namespace ForestOverlay.Game
                 while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
                 trees = "trees: regrowing failed (" + ex.Message + ")";
             }
-            try { bushes = PutBushesBack(); }
+            int since = -1;
+            try
+            {
+                int colon = mark != null ? mark.LastIndexOf(':') : -1;
+                int n;
+                if (colon > 0 && mark.Substring(0, colon) == World() &&
+                    int.TryParse(mark.Substring(colon + 1), System.Globalization.NumberStyles.Integer,
+                                 System.Globalization.CultureInfo.InvariantCulture, out n)) since = n;
+            }
+            catch (Exception) { }
+            try { bushes = PutBushesBack(since); }
             catch (Exception ex) { bushes = "bushes: putting back failed (" + ex.Message + ")"; }
             return trees + (trees.Length > 0 && bushes.Length > 0 ? ", " : "") + bushes;
         }
@@ -318,14 +354,17 @@ namespace ForestOverlay.Game
             return "trees: " + regrown + " regrown (not cut at capture" + (midChop > 0 ? "; " + midChop + " half-chopped or falling" : "") + ")";
         }
 
-        private static string PutBushesBack()
+        /// Puts back the copies of cuts after number `since` (-1: all).
+        private static string PutBushesBack(int since)
         {
-            int back = 0, gone = 0;
+            int back = 0, gone = 0, stay = 0;
+            List<Kept> left = new List<Kept>();
             for (int i = 0; i < KeptList.Count; i++)
             {
                 Kept k = KeptList[i];
                 if (k.Spare == null) continue;                      // a load destroyed the holder
                 if (k.Original != null || k.Parent == null) { UnityEngine.Object.Destroy(k.Spare); gone++; continue; }
+                if (k.Seq <= since) { left.Add(k); stay++; continue; }   // cut before the capture
                 Transform t = k.Spare.transform;
                 t.SetParent(k.Parent, false);
                 t.localPosition = k.LocalPosition;
@@ -336,8 +375,11 @@ namespace ForestOverlay.Game
             }
             KeptList.Clear();
             KeptIds.Clear();
-            if (back == 0 && gone == 0) return "";
-            return "bushes: " + back + " back (cut since the scene loaded)" + (gone > 0 ? ", " + gone + " spare(s) dropped" : "");
+            KeptList.AddRange(left);   // their originals are gone: no id to guard
+            if (back == 0 && gone == 0 && stay == 0) return "";
+            return "bushes: " + back + " back" + (since >= 0 ? " (cut since the capture)" : " (every cut this scene - no mark from this world)") +
+                   (stay > 0 ? ", " + stay + " cut before the capture left cut" : "") +
+                   (gone > 0 ? ", " + gone + " spare(s) dropped" : "");
         }
     }
 }

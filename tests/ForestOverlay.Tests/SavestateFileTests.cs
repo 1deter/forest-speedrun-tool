@@ -61,6 +61,20 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void BushesMarkRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Bushes);
+
+            SavestateFile s = Sample();
+            s.Bushes = "3f2a9c1e-41234:7";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Bushes, back.Bushes);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void ActiveAreaRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

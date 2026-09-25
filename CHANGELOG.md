@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.62 - 2026-09-25
+
+- Quick load keeps a bush or sapling that was already cut at capture cut,
+  with its sticks where they lay - only the ones cut after the capture come
+  back.
+
 ## v0.24.61 - 2026-09-25
 
 - Quick load now brings back trees chopped since the capture (half-chopped

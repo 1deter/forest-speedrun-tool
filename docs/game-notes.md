@@ -985,9 +985,12 @@ Full load. A copy of the scene object (under its parent with local values
 like the original (bridge). `NatureKeeper` keeps such a copy under an
 inactive holder at each cut (prefixes on `BushDamage.CutDownReal` /
 `DespawnBush`, `CutBush2.CutDown` / `DespawnBush`; greeble-owned bushes
-under `Pooling` skipped) and a Quick load puts every one back, as any load
-does; the logs and sapling sticks not at capture are removed
-(`PickupKeeper.RemoveExtra`, sticks only under a cut).
+under `Pooling` skipped). A Quick load puts back the ones cut after the
+capture (v0.24.62: the file's `bushes` mark is this world - launch and the
+tree save manager's instance id - and the last cut's number; one cut
+before stays cut, its sticks kept); a file from another world puts every
+copy back, as a load would. The logs and sapling sticks not at capture
+are removed (`PickupKeeper.RemoveExtra`, sticks only under a cut).
 
 ## The ESC menu and the player lock
 

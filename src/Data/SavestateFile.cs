@@ -29,6 +29,7 @@ namespace ForestOverlay.Data
     //   megan = seated -397.90 -352.04 396.48 180.00
     //   elevators = Sections/HellCorridor/Elevator_01a/Trigger_Elevator|0|-714.8,-433.32,967|0,90,0;...
     //   activearea = none
+    //   bushes = 3f2a9c1e-41234:7
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -55,7 +56,10 @@ namespace ForestOverlay.Data
     // before v0.24.35. `elevators` the loaded endgame elevators' cars and
     // use counts (Game/ElevatorKeeper); absent before v0.24.40. `activearea`
     // the endgame's active area (Game/AreaKeeper: a path or `none`); absent
-    // outside the endgame and before v0.24.41. None of these is in the start-state hash (only
+    // outside the endgame and before v0.24.41. `bushes` marks which bush /
+    // sapling cuts came before the capture (Game/NatureKeeper: world, then
+    // the last cut's number); absent before v0.24.62, and then every cut
+    // bush comes back. None of these is in the start-state hash (only
     // `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
@@ -118,6 +122,9 @@ namespace ForestOverlay.Data
         /// Game/AreaKeeper's value at capture; "" when absent.
         public string ActiveArea = "";
 
+        /// Game/NatureKeeper's capture mark; "" when absent.
+        public string Bushes = "";
+
         /// The blueprint out at capture (Game/BuildMode, a BuildingTypes
         /// name); "" for none.
         public string Blueprint = "";
@@ -158,6 +165,7 @@ namespace ForestOverlay.Data
             if (Elevators.Length > 0) Line(sb, "elevators", Elevators);
             if (ActiveArea.Length > 0) Line(sb, "activearea", ActiveArea);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
+            if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -210,6 +218,7 @@ namespace ForestOverlay.Data
                     case "elevators": s.Elevators = value; break;
                     case "activearea": s.ActiveArea = value; break;
                     case "blueprint": s.Blueprint = value; break;
+                    case "bushes": s.Bushes = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');
