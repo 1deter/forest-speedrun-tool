@@ -30,6 +30,7 @@ namespace ForestOverlay.Data
     //   elevators = Sections/HellCorridor/Elevator_01a/Trigger_Elevator|0|-714.8,-433.32,967|0,90,0;...
     //   activearea = none
     //   bushes = 3f2a9c1e-41234:7
+    //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -59,7 +60,10 @@ namespace ForestOverlay.Data
     // outside the endgame and before v0.24.41. `bushes` marks which bush /
     // sapling cuts came before the capture (Game/NatureKeeper: world, then
     // the last cut's number); absent before v0.24.62, and then every cut
-    // bush comes back. None of these is in the start-state hash (only
+    // bush comes back. `cutbushes` the bushes / saplings cut this scene
+    // and still cut at capture, "scene path@x,y,z" (the LOD object); a
+    // Full load cuts them again, since a load regrows every bush; absent
+    // before v0.24.65. None of these is in the start-state hash (only
     // `data` is).
     //
     // Pure so the round trip is tested: a savestate is meant to be shared
@@ -125,6 +129,9 @@ namespace ForestOverlay.Data
         /// Game/NatureKeeper's capture mark; "" when absent.
         public string Bushes = "";
 
+        /// Null when the file has no cutbushes line (before v0.24.65).
+        public List<string> CutBushes;
+
         /// The blueprint out at capture (Game/BuildMode, a BuildingTypes
         /// name); "" for none.
         public string Blueprint = "";
@@ -166,6 +173,7 @@ namespace ForestOverlay.Data
             if (ActiveArea.Length > 0) Line(sb, "activearea", ActiveArea);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
+            if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -228,6 +236,13 @@ namespace ForestOverlay.Data
                                 s.Cutscene = value.Substring(0, at).Trim();
                                 s.CutsceneAt = t;
                             }
+                            break;
+                        }
+                    case "cutbushes":
+                        {
+                            s.CutBushes = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.CutBushes.Add(keys[k].Trim());
                             break;
                         }
                     case "panels":

@@ -39,6 +39,14 @@ namespace ForestOverlay.Game
     //   back, as after a load, which regrows them all.
     // - The logs and sticks those cuts dropped: SavestateModule removes
     //   the ones not at capture (PickupKeeper.RemoveExtra).
+    // - A Full load regrows every bush (author, 2026-09-25: "if a bush is
+    //   cut and it was saved that way, then the savestate should respect
+    //   that"). Every cut this scene is recorded (armed or not) by its
+    //   scene path and place; capture writes the ones still cut
+    //   (`cutbushes`), and after a Full load - or a Quick load from another
+    //   world - ApplyCuts cuts them again: the view despawned, the LOD
+    //   object destroyed, as the game's cut leaves it. Their sticks are not
+    //   put back.
     // ------------------------------------------------------------------
     public sealed class NatureKeeper
     {
@@ -68,6 +76,10 @@ namespace ForestOverlay.Game
         private static readonly Dictionary<Type, FieldInfo> LodFields = new Dictionary<Type, FieldInfo>();
         private static readonly Dictionary<Type, FieldInfo> CutFields = new Dictionary<Type, FieldInfo>();
 
+        // Every cut this scene (world `_cutsWorld`): key "path@x,y,z", Seq.
+        private static readonly List<KeyValuePair<string, int>> Cuts = new List<KeyValuePair<string, int>>();
+        private static string _cutsWorld = "";
+
         private static ManualLogSource _log;
         private static GameObject _holder;
 
@@ -75,7 +87,8 @@ namespace ForestOverlay.Game
         private static FieldInfo _lodTree;             // TreeHealth.LodTree
         private static FieldInfo _isSpawned, _lodTransform, _lodDestroyed, _currentLod;   // LOD_Base
 
-        private Type _lodTrees, _lodStump, _treeId, _manager, _grid;
+        private static Type _manager;
+        private Type _lodBase, _lodTrees, _lodStump, _treeId, _grid;
         private FieldInfo _dontSpawn, _id, _cutIds;
         private PropertyInfo _currentView;
         private MethodInfo _refresh, _despawn, _regrowth;
@@ -93,6 +106,7 @@ namespace ForestOverlay.Game
         public void Install(string harmonyId)
         {
             Type lodBase = GameBridge.FindGameType("LOD_Base");
+            _lodBase = lodBase;
             Type treeHealth = GameBridge.FindGameType("TreeHealth");
             Type bush = GameBridge.FindGameType("BushDamage");
             Type cutBush = GameBridge.FindGameType("CutBush2");
@@ -172,7 +186,6 @@ namespace ForestOverlay.Game
         // game; never skips the original.
         private static void CutPrefix(object __instance)
         {
-            if (!PickupKeeper.Armed) return;
             try
             {
                 Component view = __instance as Component;
@@ -185,6 +198,10 @@ namespace ForestOverlay.Game
                 // A greeble's bush is the greeble system's (a pooled clone).
                 if (go.transform.root.name == "Pooling") return;
                 if (_destroyInstead == null || !(bool)_destroyInstead.GetValue(lod, null)) return;
+
+                int seq = ++_seq;
+                Record(go, seq);
+                if (!PickupKeeper.Armed) return;
 
                 if (_holder == null)
                 {
@@ -216,7 +233,7 @@ namespace ForestOverlay.Game
                 k.LocalPosition = tr.localPosition;
                 k.LocalRotation = tr.localRotation;
                 k.LocalScale = tr.localScale;
-                k.Seq = ++_seq;
+                k.Seq = seq;
                 KeptList.Add(k);
                 KeptIds.Add(go.GetInstanceID());
 
@@ -227,6 +244,107 @@ namespace ForestOverlay.Game
             {
                 _log.LogWarning("NatureKeeper: keeping a bush failed: " + ex.Message);
             }
+        }
+
+        private static string KeyOf(GameObject go)
+        {
+            Vector3 p = go.transform.position;
+            return ObjectProbe.PathOf(go.transform) + "@" + F(p.x) + "," + F(p.y) + "," + F(p.z);
+        }
+
+        private static string F(float f) { return f.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture); }
+
+        private static void Record(GameObject go, int seq)
+        {
+            string w = World();
+            if (w != _cutsWorld) { Cuts.Clear(); _cutsWorld = w; }
+            Cuts.Add(new KeyValuePair<string, int>(KeyOf(go), seq));
+        }
+
+        /// The bushes / saplings cut this scene and still cut, for the
+        /// file's `cutbushes` line.
+        public List<string> CaptureCuts()
+        {
+            List<string> keys = new List<string>();
+            if (World() != _cutsWorld) return keys;
+            for (int i = 0; i < Cuts.Count; i++) keys.Add(Cuts[i].Key);
+            return keys;
+        }
+
+        /// Cuts again the file's `cutbushes` still standing (after a Full
+        /// load, which regrows every bush, or a Quick load from another
+        /// world). Returns the log note ("" when nothing listed).
+        public string ApplyCuts(List<string> keys)
+        {
+            if (keys == null || keys.Count == 0) return "";
+            int cut = 0, absent = 0;
+            try
+            {
+                for (int i = 0; i < keys.Count; i++)
+                {
+                    GameObject go = FindCut(keys[i]);
+                    if (go == null) { absent++; continue; }
+                    Component lod = _lodBase != null ? go.GetComponent(_lodBase) : null;
+                    if (lod != null && _lodTransform != null && _lodTransform.GetValue(lod) != null && _despawn != null)
+                        _despawn.Invoke(lod, null);
+                    Record(go, ++_seq);
+                    UnityEngine.Object.Destroy(go);
+                    cut++;
+                }
+            }
+            catch (Exception ex)
+            {
+                while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
+                return "bushes: cutting again failed after " + cut + " (" + ex.Message + ")";
+            }
+            return "bushes: " + cut + " cut again (cut at capture)" + (absent > 0 ? ", " + absent + " not found" : "");
+        }
+
+        // The object at `path` nearest the key's place, within half a metre
+        // (names repeat: Nature_Spawned/GreenBush_40).
+        private static GameObject FindCut(string key)
+        {
+            int at = key.LastIndexOf('@');
+            if (at <= 0) return null;
+            string path = key.Substring(0, at);
+            string[] p = key.Substring(at + 1).Split(',');
+            float x, y, z;
+            System.Globalization.NumberStyles st = System.Globalization.NumberStyles.Float;
+            System.Globalization.CultureInfo ci = System.Globalization.CultureInfo.InvariantCulture;
+            if (p.Length != 3 || !float.TryParse(p[0], st, ci, out x) || !float.TryParse(p[1], st, ci, out y) ||
+                !float.TryParse(p[2], st, ci, out z)) return null;
+            Vector3 want = new Vector3(x, y, z);
+
+            int slash = path.LastIndexOf('/');
+            string name = slash >= 0 ? path.Substring(slash + 1) : path;
+            List<Transform> candidates = new List<Transform>();
+            if (slash >= 0)
+            {
+                GameObject parent = GameObject.Find(path.Substring(0, slash));
+                if (parent == null) return null;
+                Transform pt = parent.transform;
+                for (int c = 0; c < pt.childCount; c++) candidates.Add(pt.GetChild(c));
+            }
+            else
+            {
+                for (int s = 0; s < UnityEngine.SceneManagement.SceneManager.sceneCount; s++)
+                {
+                    UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(s);
+                    if (!scene.isLoaded) continue;
+                    GameObject[] roots = scene.GetRootGameObjects();
+                    for (int r = 0; r < roots.Length; r++) candidates.Add(roots[r].transform);
+                }
+            }
+            Transform best = null;
+            float bestD = 0.25f;   // (0.5 m)^2
+            for (int c = 0; c < candidates.Count; c++)
+            {
+                Transform t = candidates[c];
+                if (t.name != name) continue;
+                float d = (t.position - want).sqrMagnitude;
+                if (d <= bestD) { bestD = d; best = t; }
+            }
+            return best != null ? best.gameObject : null;
         }
 
         private static FieldInfo Field(Dictionary<Type, FieldInfo> cache, Type t, string name)
@@ -257,7 +375,7 @@ namespace ForestOverlay.Game
             return w.Length == 0 ? "" : w + ":" + _seq.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        private string World()
+        private static string World()
         {
             if (_manager == null) return "";
             UnityEngine.Object m = UnityEngine.Object.FindObjectOfType(_manager);
@@ -267,7 +385,7 @@ namespace ForestOverlay.Game
         /// After a Quick load, once the serializer has put the save's cut
         /// list back; `mark` is the file's `bushes` line ("" for none).
         /// Returns the log note ("" when nothing changed).
-        public string Restore(string mark)
+        public string Restore(string mark, List<string> cutAtCapture)
         {
             string trees = "", bushes = "";
             try { trees = RegrowTrees(); }
@@ -288,6 +406,9 @@ namespace ForestOverlay.Game
             catch (Exception) { }
             try { bushes = PutBushesBack(since); }
             catch (Exception ex) { bushes = "bushes: putting back failed (" + ex.Message + ")"; }
+            // A file from another world: its cuts (every copy came back).
+            string again = since < 0 ? ApplyCuts(cutAtCapture) : "";
+            if (again.Length > 0) bushes += (bushes.Length > 0 ? ", " : "") + again;
             return trees + (trees.Length > 0 && bushes.Length > 0 ? ", " : "") + bushes;
         }
 
@@ -376,6 +497,9 @@ namespace ForestOverlay.Game
             KeptList.Clear();
             KeptIds.Clear();
             KeptList.AddRange(left);   // their originals are gone: no id to guard
+            // The cuts put back are no longer cut.
+            if (since < 0) Cuts.Clear();
+            else Cuts.RemoveAll(delegate(KeyValuePair<string, int> c) { return c.Value > since; });
             if (back == 0 && gone == 0 && stay == 0) return "";
             return "bushes: " + back + " back" + (since >= 0 ? " (cut since the capture)" : " (every cut this scene - no mark from this world)") +
                    (stay > 0 ? ", " + stay + " cut before the capture left cut" : "") +

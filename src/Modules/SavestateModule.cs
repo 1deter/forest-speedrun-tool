@@ -368,6 +368,7 @@ namespace ForestOverlay.Modules
             string activeArea = _area.Capture();
             string blueprint = BuildMode.Capture();
             string bushes = _nature.CaptureMark();
+            List<string> cutBushes = _nature.CaptureCuts();
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -388,7 +389,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote, bushes);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes);
                 if (after != null) after(error);
             }));
         }
@@ -396,7 +397,7 @@ namespace ForestOverlay.Modules
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string blueprint, string areas, List<string> enemies,
-                                  List<string> families, string enemyNote, string bushes)
+                                  List<string> families, string enemyNote, string bushes, List<string> cutBushes)
         {
             _busy = false;
             if (!r.Ok)
@@ -428,6 +429,7 @@ namespace ForestOverlay.Modules
                 f.ActiveArea = activeArea;
                 f.Blueprint = blueprint;
                 f.Bushes = bushes;
+                f.CutBushes = cutBushes;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -687,7 +689,7 @@ namespace ForestOverlay.Modules
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
-                string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "") : "";
+                string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
 
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
@@ -1174,6 +1176,9 @@ namespace ForestOverlay.Modules
                             (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") + ".");
             RemoveTakenPickups(f, false);
             Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
+            // A load regrows every bush; the ones cut at capture go again.
+            string again = f != null ? _nature.ApplyCuts(f.CutBushes) : "";
+            if (again.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + again + ".");
             // A cutscene capture's hands are the fast-forward's business.
             string pullOut = f.CutsceneAt < 0f ? f.Blueprint : "";
             if (f.Held != null && f.Held.Count > 0 && f.CutsceneAt < 0f)

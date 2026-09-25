@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ForestOverlay.Data;
 using Xunit;
 
@@ -72,6 +73,23 @@ namespace ForestOverlay.Tests
             Assert.Null(error);
             Assert.Equal(s.Bushes, back.Bushes);
             Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
+        public void CutBushesRoundTripAndAreAbsentFromOldFiles()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).CutBushes);
+
+            SavestateFile s = Sample();
+            s.CutBushes = new List<string> { "Nature_Spawned/GreenBush_40@426.3,76.09,-6.78", "Nature_Spawned/Sapling 1 (2)@385,76,285" };
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.CutBushes, back.CutBushes);
+            Assert.Equal(s.Data, back.Data);
+
+            s.CutBushes = new List<string>();
+            Assert.Empty(SavestateFile.Parse(s.Write(), out error).CutBushes);
         }
 
         [Fact]

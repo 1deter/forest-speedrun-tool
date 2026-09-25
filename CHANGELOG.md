@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.65 - 2026-09-25
+
+- Full load now keeps bushes and saplings that were cut when the savestate
+  was captured cut, as Quick load already did. (Their sticks are not put
+  back yet.)
+
 ## v0.24.64 - 2026-09-25
 
 - A restart or Quick load while the red elevator is riding (or during the
