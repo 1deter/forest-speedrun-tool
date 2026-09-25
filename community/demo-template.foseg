@@ -1,0 +1,39 @@
+ForestOverlay segment 1
+exported = 2026-09-26 12:00:00
+plugin   = 0.24.76
+#
+# DEMO TEMPLATE - shows how a community pack is laid out. Replace it
+# with real spots (Practice tab -> select -> Share -> Export) and
+# delete this file; then run: python scripts/community-index.py
+#
+# A pack is one segment. Sections, in this order:
+#   [segment]     the entry (as in segments/my-segments.txt)
+#   [startstate]  optional: the entry's savestate, the .fosave file
+#                 verbatim (a restart restores it). Export adds it.
+#   [attempt]     optional, one per recorded run (.run verbatim).
+#                 Community packs ignore these - leave them out.
+#
+# [segment] keys:
+#   id        hidden random key (s- + 12 hex); never edit it - times
+#             are grouped by it
+#   name      what runners see in the list
+#   category  kept in the pack; shown under "Community" for now
+#   spawn     x y z yaw pitch - where Go / Restart put you
+#   start     the trigger that starts the clock (crossing it)
+#   check     checkpoints, in order (zero or more)
+#   end       the trigger that stops the clock (only after every check)
+#   restore   "load" = restart with a Full load (default: Quick load)
+#   startstate  hash of the [startstate] data; written by Capture
+#   notes     one line of text shown under the entry
+# Triggers: zone x y z radius | box x y z halfwidth halfheight halfdepth [yaw]
+#           | item <id> >= [+]n | event <name> | manual
+
+[segment]
+id       = s-a558e9927461
+name     = Demo - plane crash dash
+category = Demo
+spawn    = 360.00 76.00 1050.00 0.00 10.00
+start    = zone 360.00 76.00 1050.00 4.00
+check    = box 360.00 76.00 1075.00 3.00 3.00 1.50 30.00
+end      = zone 360.00 76.00 1100.00 5.00
+notes    = Demo template: run north from the wreck through the turned box.

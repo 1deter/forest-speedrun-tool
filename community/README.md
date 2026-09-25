@@ -6,6 +6,12 @@ community now**). They appear in the Practice list under **Community**,
 read-only; **Duplicate** makes a runner's own editable copy, start state
 included.
 
+## The demo
+
+`demo-template.foseg` is a template, not a real route: its `#` comments
+describe every section and key. It shows under Community as "Demo - plane
+crash dash". Delete it (and re-run the script) once real packs are in.
+
 ## Adding or changing a pack
 
 1. In game, select the entry in the Practice tab and press **Export** (Share
@@ -21,7 +27,9 @@ included.
    start state file to match).
 4. Run `python scripts/community-index.py` - it rewrites `index.txt` (file
    name + hash). The plugin downloads only files whose hash changed.
-5. Commit both. Runners get it on their next start.
+5. Commit both. Runners get it on their next start. CI fails if a pack
+   does not parse, two packs share an id, a pack carries attempts, or the
+   index is stale (`tests/.../CommunityPacksTests.cs`).
 
 Removing a file (and re-running the script) removes the entry from every
 install. A runner who already has an entry with the same id keeps their

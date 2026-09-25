@@ -737,7 +737,12 @@ namespace ForestOverlay.Modules
 
             // --- spawn -----------------------------------------------------
             GUI.Label(new Rect(0, y, 74, 20), "Spawn");
-            if (s.HasSpawn) GUI.Label(new Rect(80, y, cw - 220, 20), CoordsLabel(SpawnSlot, 0, s.SpawnPosition));
+            Vector3 typed;
+            if (s.HasSpawn && CoordsField(new Rect(80, y - 1, cw - 220, 20), SpawnSlot, 0, s.SpawnPosition, true, out typed))
+            {
+                s.SpawnPosition = typed;
+                Touch();
+            }
             else GUI.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
 
             if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
@@ -834,7 +839,12 @@ namespace ForestOverlay.Modules
             {
                 case TriggerKind.Zone:
                     {
-                        GUI.Label(new Rect(x0, y, w - x0 - 70f, 20), CoordsLabel(slot, 0, t.Position));
+                        Vector3 typed;
+                        if (CoordsField(new Rect(x0, y - 1, w - x0 - 70f, 20), slot, 0, t.Position, true, out typed))
+                        {
+                            t.Position = typed;
+                            Touch();
+                        }
 
                         if (GUI.Button(new Rect(w - 64f, y - 2f, 58f, 22f), "Here"))
                         {
@@ -1190,7 +1200,8 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, cw - 10, _communityInfo) + 8f;
 
             GUI.Label(new Rect(0, y, 74, 20), "Spawn");
-            if (s.HasSpawn) GUI.Label(new Rect(80, y, cw - 140, 20), CoordsLabel(SpawnSlot, 0, s.SpawnPosition));
+            Vector3 unused;
+            if (s.HasSpawn) CoordsField(new Rect(80, y - 1, cw - 140, 20), SpawnSlot, 0, s.SpawnPosition, false, out unused);
             GUI.enabled = s.HasSpawn;
             if (GUI.Button(new Rect(cw - 56, y - 2, 42, 22), "Go")) Teleport(s);
             GUI.enabled = true;
@@ -1830,12 +1841,70 @@ namespace ForestOverlay.Modules
             return l;
         }
 
-        private GUIContent CoordsLabel(int slot, int field, Vector3 v)
+        // Coordinates as text fields (maks, 2026-09-26: selectable to copy,
+        // and editable). The text is cached per slot / field and rebuilt
+        // only when the value changes from outside (Here, a reload), so a
+        // half-typed value is never overwritten and OnGUI allocates
+        // nothing while nothing changes.
+        private sealed class CoordField
         {
-            bool changed;
-            NumLabel l = Num(slot, field, v, out changed);
-            if (changed) l.Content.text = Coords(v);
-            return l.Content;
+            public bool Set;
+            public Vector3 Value;
+            public string Text = "";
+            public bool Bad;
+        }
+
+        private readonly Dictionary<int, CoordField> _coordFields = new Dictionary<int, CoordField>();
+
+        /// True, with the value in `typed`, when the runner typed a new
+        /// valid position. `editable` false: selectable (to copy) only.
+        private bool CoordsField(Rect r, int slot, int field, Vector3 v, bool editable, out Vector3 typed)
+        {
+            typed = v;
+            int key = (slot + 8) * 8 + field;
+            CoordField f;
+            if (!_coordFields.TryGetValue(key, out f)) _coordFields[key] = f = new CoordField();
+            if (!f.Set || f.Value != v)
+            {
+                f.Set = true;
+                f.Value = v;
+                f.Text = CoordsText(v);
+                f.Bad = false;
+            }
+
+            Color before = GUI.color;
+            if (f.Bad) GUI.color = new Color(1f, 0.55f, 0.55f);
+            string text = GUI.TextField(r, f.Text);
+            GUI.color = before;
+            if (ReferenceEquals(text, f.Text) || text == f.Text) return false;
+            if (!editable) return false;   // the text stays as it was
+
+            f.Text = text;
+            Vector3 p;
+            if (!TryParseCoords(text, out p)) { f.Bad = true; return false; }
+            f.Bad = false;
+            f.Value = p;
+            typed = p;
+            return true;
+        }
+
+        /// "x y z", two decimals - as the segment file and the bridge's tp
+        /// write it, so a copied value pastes into either.
+        private static string CoordsText(Vector3 v)
+        {
+            return TriggerParser.Num(v.x) + " " + TriggerParser.Num(v.y) + " " + TriggerParser.Num(v.z);
+        }
+
+        /// Three numbers separated by spaces, commas or semicolons, with
+        /// optional brackets: "1 2 3", "1, 2, 3", "(1, 2, 3)".
+        private static bool TryParseCoords(string text, out Vector3 v)
+        {
+            v = Vector3.zero;
+            string[] p = text.Trim().Trim('(', ')', '[', ']').Split(new[] { ' ', ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            float x, y, z;
+            if (p.Length != 3 || !TriggerParser.F(p[0], out x) || !TriggerParser.F(p[1], out y) || !TriggerParser.F(p[2], out z)) return false;
+            v = new Vector3(x, y, z);
+            return true;
         }
 
         /// `name` must be the same text every call for a given slot/field.
@@ -1899,11 +1968,6 @@ namespace ForestOverlay.Modules
                 else _itemResultLabels.Add(new GUIContent(text));
             }
             _noMatchesLabel.text = "no matches  (" + Ctx.Inventory.CatalogStatus + ")";
-        }
-
-        private static string Coords(Vector3 v)
-        {
-            return v.x.ToString("F1") + ", " + v.y.ToString("F1") + ", " + v.z.ToString("F1");
         }
 
         private float Field(float y, float w, string label, ref string value)

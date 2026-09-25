@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.76 - 2026-09-26
+
+- Spot and zone coordinates in the Practice editor are text boxes: select
+  and copy them, or type new ones ("x y z"; commas work too). A box
+  turns red while what you typed is not three numbers. (maks)
+- A demo community spot, "Demo - plane crash dash", shows how community
+  packs work until real ones are added.
+
 ## v0.24.75 - 2026-09-26
 
 - Box zones can turn: a new box, or Here on a box, faces the way you are

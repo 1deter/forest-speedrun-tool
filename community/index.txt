@@ -1,2 +1,3 @@
 # ForestOverlay community packs: <file> <hash>. Written by
 # scripts/community-index.py - do not edit by hand.
+demo-template.foseg 402daaad
