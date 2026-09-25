@@ -605,9 +605,30 @@ engineering what we currently have with quick and full load savestates
 ... no need to add another button that essentially does what a
 savestate's already supposed to do". Do not propose it again.
 
-**Next:** being chosen with the author (options offered: the Axe Plane
-count below, time of day, sharing, Fix list 2-3, Next up 5 performance,
-Next up 6 items).
+**Next, in this order (author, 2026-09-25: "keep it in that order"):**
+1. **Axe Plane count after Quick loads** - in Slot 1 each Quick load's
+   "not at capture" line has one more `Axe Plane` (x1, x2, ...). Likely
+   the plane wreck the game re-creates after an in-place restore
+   (`_bridge.ClearOldPlaneHulls`, game-notes *The plane wreck across an
+   in-place restore*) bringing its axe pickup each time. Confirm live
+   (`find Axe` / `type PickUp` near the wreck before and after two Quick
+   loads), then remove the extra copies. Slot 1 loads from the title
+   screen (*Loading a save yourself*).
+2. **Full load respects cut bushes** - the author's rule ("if a bush is
+   cut and it was saved that way, then the savestate should respect
+   that") holds for Quick load since v0.24.62; a Full load regrows every
+   bush (the game's load). Capture would need the cut bushes' identities
+   (scene path of the destroyed `LOD_Bush` / `LOD_Sapling`, kept by
+   `NatureKeeper`), and the Full load's end would destroy those scene
+   objects again (their sticks as captured - pickups list).
+3. **Time of day without cycling through the night** (*Then, before Next
+   up 5*) - only if the game has a clean resync; say so if not.
+4. **Fix list 2-3** - the phantom stick, pickups that move.
+5. **Sharing** (*Then, before Next up 5*) - one self-describing file per
+   segment, Export / Import in the Practice editor.
+6. **Next up 5, performance** - measure first.
+7. **Next up 6** - passengers on the 100% tab, logs in the inventory
+   (labelled gameplay mod), a god mode toggle.
 
 Small open items from the tree work: a Quick load regrows a
 **half-chopped** tree fully (as a Full load does - the chopped model is
