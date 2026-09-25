@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.63 - 2026-09-25
+
+- The Quick load log no longer lists the plane axe as "not at capture"
+  (it was read while the plane wreck was being rebuilt).
+
 ## v0.24.62 - 2026-09-25
 
 - Quick load keeps a bush or sapling that was already cut at capture cut,

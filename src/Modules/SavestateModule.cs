@@ -70,6 +70,8 @@ namespace ForestOverlay.Modules
         private bool _busy;
         private ConfigEntry<bool> _allowCrossMode;
         private ConfigEntry<bool> _respawnEnemies;
+        // AfterInPlace's wreck clears so far; LogNewPickups lists after one.
+        private int _planeClears;
         private float _contentHeight = 520f;
         private string _lastCaptureHash = "";
         private float _busySince;
@@ -838,6 +840,7 @@ namespace ForestOverlay.Modules
             float left = 1.5f - (Time.realtimeSinceStartup - start);
             if (left > 0f) yield return new WaitForSecondsRealtime(left);
             string plane = _bridge.ClearOldPlaneHulls();
+            _planeClears++;
             if (!enemies || cave != null)
             {
                 Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + ".");
@@ -886,8 +889,9 @@ namespace ForestOverlay.Modules
         // World pickups there now that the capture did not list (keyed by
         // item and position). Diagnostic for what an in-place restore leaves
         // behind - severed limbs (author, v0.24.7), and greeble sticks and
-        // rocks that came back elsewhere (fix list 4). Once, 0.5 s after the
-        // restore, when the bodies it cleared are gone.
+        // rocks that came back elsewhere (fix list 4). The removals 0.5 s
+        // after the restore, when the bodies it cleared are gone; the
+        // listing once the plane wreck has settled.
         private IEnumerator LogNewPickups(HashSet<string> present, string what)
         {
             yield return new WaitForSecondsRealtime(0.5f);
@@ -930,7 +934,14 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Savestate restore " + what + ": removed " + logs + " log(s) and " + sticks +
                                 " sapling stick(s) from cuts since the capture.");
 
-            if (spears > 0 || limbs > 0 || logs > 0 || sticks > 0) yield return null;   // let Destroy land before the listing below
+            // The listing waits for the plane wreck to settle (AfterInPlace):
+            // until the old wreck is cleared, both wrecks' pickups are active
+            // - the plane axe taken before the capture read as "Axe Plane x2"
+            // not at capture (bridge, 2026-09-25), and was gone a second later.
+            int cleared = _planeClears;
+            float waitFrom = Time.realtimeSinceStartup;
+            while (_planeClears == cleared && Time.realtimeSinceStartup - waitFrom < 10f) yield return null;
+            yield return null;   // let Destroy land before the listing below
 
             List<string> now = new List<string>();
             try { _keeper.Snapshot(now); }

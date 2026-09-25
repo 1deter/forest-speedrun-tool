@@ -585,12 +585,17 @@ identity.
 
 ## Current status
 
-**Released: v0.24.62** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.63** (2026-09-25). The author runs it via the in-game
 updater. **302 tests.**
 
-### Pick up here (2026-09-25, v0.24.62 in the game)
+### Pick up here (2026-09-25, v0.24.63 in the game)
 
-**State:** v0.24.62 runs in the author's game (MCP `update_game`). Fix
+**State:** v0.24.63 runs in the author's game (MCP `update_game`). The
+"Axe Plane xN not at capture" line after a Quick load was the listing
+reading while both plane wrecks (old + re-created) had their axe active;
+~1.5 s later the old wreck is cleared and the new one's axe is hidden,
+nothing left in the world. The listing now waits for the wreck clear
+(v0.24.63, bridge). Fix
 list 1 (trees / bushes after a Quick load) is done and bridge-confirmed
 (v0.24.61-62, `Game/NatureKeeper`, game-notes *Trees, bushes and
 saplings*); a teleport out of the endgame clears `IsInEndgame`. The whole
@@ -606,37 +611,27 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Axe Plane count after Quick loads** - in Slot 1 each Quick load's
-   "not at capture" line has one more `Axe Plane` (x1, x2, ...). Likely
-   the plane wreck the game re-creates after an in-place restore
-   (`_bridge.ClearOldPlaneHulls`, game-notes *The plane wreck across an
-   in-place restore*) bringing its axe pickup each time. Confirm live
-   (`find Axe` / `type PickUp` near the wreck before and after two Quick
-   loads), then remove the extra copies. Slot 1 loads from the title
-   screen (*Loading a save yourself*).
-2. **Full load respects cut bushes** - the author's rule ("if a bush is
+1. **Full load respects cut bushes** - the author's rule ("if a bush is
    cut and it was saved that way, then the savestate should respect
    that") holds for Quick load since v0.24.62; a Full load regrows every
    bush (the game's load). Capture would need the cut bushes' identities
    (scene path of the destroyed `LOD_Bush` / `LOD_Sapling`, kept by
    `NatureKeeper`), and the Full load's end would destroy those scene
    objects again (their sticks as captured - pickups list).
-3. **Time of day without cycling through the night** (*Then, before Next
+2. **Time of day without cycling through the night** (*Then, before Next
    up 5*) - only if the game has a clean resync; say so if not.
-4. **Fix list 2-3** - the phantom stick, pickups that move.
-5. **Sharing** (*Then, before Next up 5*) - one self-describing file per
+3. **Fix list 2-3** - the phantom stick, pickups that move.
+4. **Sharing** (*Then, before Next up 5*) - one self-describing file per
    segment, Export / Import in the Practice editor.
-6. **Next up 5, performance** - measure first.
-7. **Next up 6** - passengers on the 100% tab, logs in the inventory
+5. **Next up 5, performance** - measure first.
+6. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 
 Small open items from the tree work: a Quick load regrows a
 **half-chopped** tree fully (as a Full load does - the chopped model is
 not rebuilt); once, one of two new sapling sticks was not removed (not
 matched to anything in the file; the game's `destroyAfter` removed it
-later by distance; cause unknown); the "not at capture" line counts
-**Axe Plane** pickups growing by one per Quick load in Slot 1 (the plane
-wreck re-created? unchecked).
+later by distance; cause unknown).
 
 **Decided (author, 2026-09-25: "if a bush is cut and it was saved that
 way, then the savestate should respect that"):** a Quick load gives back

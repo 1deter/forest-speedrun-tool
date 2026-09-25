@@ -880,6 +880,13 @@ growing `Axe Plane xN` in the "not at capture" line. The roots have no
 save identifier. v0.24.14 destroys every root named like the current
 `spawnedHullPrefab` except that one, 1.5 s after an in-place restore.
 
+Until then (bridge, 2026-09-25, Slot 1, plane axe taken): both wrecks'
+`Axe_Plane_High` are **active**; both go inactive about 1 s later (what
+hides a taken wreck pickup is unchecked), then the old wreck is
+destroyed. Nothing is left, but a pickup listing in that window reads
+`Axe Plane x2` - since v0.24.63 the "not at capture" listing waits for
+the wreck clear.
+
 ## Blood on the player (bridge + IL, 2026-09-24)
 
 `PlayerStats.IsBloody` (a plain auto-property) set by `GotBloody()`,
