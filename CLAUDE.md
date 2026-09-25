@@ -614,44 +614,40 @@ identity.
 
 ## Current status
 
-**Released: v0.24.67** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.68** (2026-09-25). The author runs it via the in-game
 updater. **303 tests.**
 
-### Pick up here (2026-09-25, v0.24.67 in the game)
+### Pick up here (2026-09-25, v0.24.68 in the game)
 
-**State:** v0.24.67 runs in the author's game (MCP `update_game`). This
-session (author on medium effort), all bridge-checked in Slot 1 without
-the author at the game:
-- **Axe Plane xN "not at capture"** (v0.24.63): the listing read while
-  both plane wrecks had their axe active; nothing was left behind. It
-  now waits for the wreck clear.
-- **maks's red elevator report** (Discord, forwarded by the author; his
-  log in `Downloads\qa-reports\maks\`, he was on v0.24.52): a restart
-  during the ride or its 5 s keycard wait left the ride running and the
-  car (and player) went up after it (`1 left moving`). v0.24.64 stops the
-  ride (`ElevatorKeeper.StopRide`); reproduced first with `call
-  <ElevatorSystem> GotoRemotePoint` + restore 2 s / 7 s in. His
-  "textures" part was not judged (a `tp` into the endgame lands
-  unloaded). **Reply posted** (author approved): update, then retest
-  1-3, saved in [`docs/tests/2026-09-25-maks-v0.24.66.md`](docs/tests/2026-09-25-maks-v0.24.66.md) -
-  his answers are numbered against it. Read the channel with
-  `qa_read new_only`.
-- **Full load keeps bushes cut at capture** (v0.24.65-66, game-notes
-  *A Full load and cut bushes*): `cutbushes` header; sticks of a cut
-  sapling are not put back (open).
+**State:** v0.24.68 runs in the author's game (MCP `update_game`). This
+session (author on medium effort), all bridge-checked in Slot 1:
+- **Phantom stick (fix list 2): not reproduced.** Kept greeble sticks
+  behave: in-place pick-up + Quick load (same object back, still
+  `IsSpawned` in the Greebles pool, flags reset), pick it up again,
+  leave for the wreck and return (the zone destroys the kept object, the
+  game regrows the stick), a cave teleport (resets the zones). v0.24.68
+  logs **`Pickup gone, inventory unchanged: <item> ... count a -> b (max
+  m)`** (armed only) - confirmed at the stick max of 10. If the author
+  sees it again, ask for that line. Question put to the author (no answer
+  yet): was the stick count at its max?
+- **The plane axe after a Quick load** (v0.24.68): the re-created wreck
+  brought back every pickup of a fresh wreck - the `Axe Plane x1` not at
+  capture on every restore. Pickups under the current hull
+  (`SavestateBridge.CurrentPlaneHull`) the capture does not account for
+  are removed, by name (`removed 1 plane wreck pickup(s) ... (Axe Plane
+  x1)`, confirmed, nothing else removed).
+- **Open, seen once:** after a title-screen load of Slot 1, every Quick
+  load of `phantom-a` (captured in an older session) lists `19 world
+  pickup(s) not at capture (Small Rock x1, bone x15, Skull x2, Booze x1)`
+  - probably sections loaded now and not at capture; not looked into.
+- maks's red elevator retest (v0.24.64, list in
+  [`docs/tests/2026-09-25-maks-v0.24.66.md`](docs/tests/2026-09-25-maks-v0.24.66.md)):
+  no answer yet - `qa_read new_only`.
 - **Time of day** (v0.24.67, game-notes *Time of day and the sun*): the
-  sweep through the night was **not reproduced** - the game snaps the
-  sun while the inventory is off, which a restore does. `Game/SunSync`
-  is a guard: 0.5 s after a restore, a sun still > 5 degrees off gets the
-  game's `ForceSunRotationUpdate`, logged as `sun: ... snapped`. It acted
-  once already (the first Quick load after a title-screen load: 28.7
-  degrees behind, catching up). If the author still sees a sweep, ask
-  for that restore's log lines.
-- **Forwarded Discord messages** carry their text in `message_snapshots`;
-  `qa_read` / `qa_download` read them (server rebuilt at the end of the
-  session, after stopping the three running `forest-bridge-mcp` hosts -
-  the way to rebuild when sessions hold the DLL). Discord's API refuses
-  a request without a `DiscordBot (...)` User-Agent (40333).
+  sweep was not reproduced; `Game/SunSync` snaps a sun still > 5 degrees
+  off 0.5 s after a restore (`sun: ... snapped`). If the author still
+  sees a sweep, ask for that restore's log lines.
+- Test savestate `phantom-a` (tree spot) can be deleted when done.
 
 **Dropped (author, 2026-09-25):** the stats-only start state - "over-
 engineering what we currently have with quick and full load savestates
@@ -659,7 +655,8 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Fix list 2-3** - the phantom stick, pickups that move.
+1. **Fix list 3** - pickups that move (the phantom stick is waiting
+   on its log line).
 2. **Sharing** (*Then, before Next up 5*) - one self-describing file per
    segment, Export / Import in the Practice editor.
 3. **Next up 5, performance** - measure first.
@@ -878,13 +875,13 @@ are spawned there.
 
 **Fix list, in order** (before Next up 5):
 1. ~~Trees and bushes after a Quick load~~ done (v0.24.61-62, confirmed).
-2. **Phantom stick** (author, once, after Quick loads): a picked-up stick
-   vanished, nothing in the inventory. Suspects: a `PickupKeeper` copy
-   re-enabled, or a greeble despawned by the streaming reload. Watch for
-   it (same as the stick oddity in *Awaiting*).
+2. **Phantom stick** (author, once, after Quick loads): not reproduced
+   (v0.24.68, *Pick up here*); waits for a `Pickup gone, inventory
+   unchanged` line.
 3. **Pickups move**: the "not at capture" lines show a few sticks / rocks;
    greeble notes in game-notes *Greebles* (positions seeded; type depends
-   on regrowth time).
+   on regrowth time; the game itself reuses pool objects elsewhere and
+   regrows taken sticks once the zone reloads).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
 - **Sharing** - author: "whichever you think fits best with my future
@@ -1120,7 +1117,8 @@ lighting (v0.24.61-62, bridge); no false "Axe Plane" pickups after Quick
 loads (v0.24.63), a restore mid red-elevator ride keeps the car and
 player down and the ride works again (v0.24.64), bushes cut at capture
 stay cut after a Full load, also for a capture taken after restores
-(v0.24.65-66) - all bridge.
+(v0.24.65-66), the plane axe taken before a capture not back after a
+Quick load (v0.24.68) - all bridge.
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):

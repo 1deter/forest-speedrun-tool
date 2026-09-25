@@ -919,6 +919,17 @@ Clock.ElapsedGameTime - CreationTime)` (a regrowing instance can draw a
 different number of randoms), the per-instance `Destroyed` flags, and the
 ground raycast. Unconfirmed which one moves a stick in game.
 
+Live (bridge, 2026-09-25): a zone's objects come from the `Greebles`
+`SpawnPool` (`GreeblePlugin.Instantiate` / `Destroy` = `Spawn` /
+`Despawn`), so one object shows up at different spots over time - a
+handle is not an identity, the seeded spot is. A greeble stick's
+`PickUp` has `_poolManagerDespawnCreature = false`, so a normal pick-up
+**destroys** it (`ClearOut`); `GreebleZone.Despawn` (zone out of range)
+marks a missing or inactive instance `Destroyed` and hands the object to
+`GreeblePlugin.Destroy`. Taken sticks came back after leaving and
+returning (regrowth), and a teleport into a cave reset the zones.
+`PickUp.OnSpawned` resets `Used` but not `_disableInsteadOfDestroy`.
+
 ## Cave wooden panels (IL, v0.24.2)
 
 A panel is `BreakWoodSimple`: `int Health`; `Hit(damage)` subtracts and at
