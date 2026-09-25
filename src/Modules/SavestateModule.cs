@@ -501,6 +501,7 @@ namespace ForestOverlay.Modules
         {
             if (f == null) { if (done != null) done("could not read the file - " + _status.text); return; }
             if (_busy) { if (done != null) done("a savestate action is still running"); return; }
+            if (RefusedAtTitle("restore", done)) return;
 
             string mode = ModeMismatch(f);
             if (mode != null)
@@ -587,10 +588,24 @@ namespace ForestOverlay.Modules
         /// `file`: the savestate, for what lives outside the game's data -
         /// the book page, the held items, the cave panels; null for a slot
         /// save, which leaves them as they are.
+        /// A restore at the title screen deserialized the save into the
+        /// menu scene (bridge, v0.24.72: `identifiers 0 -> 105`, no
+        /// player); capture already refused there (v0.24.59).
+        private bool RefusedAtTitle(string what, Action<string> done)
+        {
+            if (!PlayerRef.AtTitleScreen) return false;
+            string why = what + " unavailable: no player (load a game first)";
+            SetStatus(why);
+            Ctx.Log.LogInfo("Savestate: " + why + ".");
+            if (done != null) done(why);
+            return true;
+        }
+
         private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
                                     int savedInCave, SavestateFile file, Action<string> after)
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
+            if (RefusedAtTitle("restore", after)) return;
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
@@ -1441,6 +1456,7 @@ namespace ForestOverlay.Modules
         public void RestoreStartState(Segment s, Action<string> done)
         {
             if (Busy) { done("a savestate action is still running"); return; }
+            if (RefusedAtTitle("restore", done)) return;
             _anchor = Anchor.Top;
 
             SavestateFile f;

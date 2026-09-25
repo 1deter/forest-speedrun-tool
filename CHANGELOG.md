@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.73 - 2026-09-26
+
+- A savestate or start state restore at the title screen is refused
+  (load a game first), as capture already was. Before, it loaded the
+  save into the menu.
+
 ## v0.24.72 - 2026-09-26
 
 - Community spots: shared spots and timed segments now download on their
