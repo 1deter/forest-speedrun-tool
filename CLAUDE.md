@@ -468,29 +468,24 @@ identity.
 
 ## Current status
 
-**Released: v0.24.46** (2026-09-25). The author runs it via the in-game
-updater. **267 tests.**
+**Released: v0.24.48** (2026-09-25). The author runs it via the in-game
+updater. **268 tests.**
 
-### Pick up here (2026-09-25, v0.24.46 in the game)
+### Pick up here (2026-09-25, v0.24.48 in the game)
 
-**State:** v0.24.46 runs in the author's game (a fresh day-0 save).
-This session, all confirmed live with the bridge: v0.24.44 the survival
-book closed on every reset (sxczurass); v0.24.45 the Full load rebuilds
-the captured cannibals at once (`Game/SetupHold`: the game asked 0.7 s
-after "in game", members spawned in 0.08 s, the family asleep on its
-spot when control returns - was ~6 s after, maks); v0.24.46 the held
-lighter kept when swinging through a Full load restart (sxczurass: gone
-3/3; reproduced with scripted swings, 0 of 20 after the fix). Details in
-game-notes *Enemies across a restore* / *Held items after a Full load*.
+**State:** v0.24.48 runs in the author's game (a fresh day-0 save, at
+the plane). This session, all confirmed live with the bridge: v0.24.47
+a blueprint in the hands across a restore (`Game/BuildMode`; QA
+feedback: sxczurass - a Quick load left it out; maks - one out at
+capture never came back): put away on a Quick load, the captured one
+pulled out after Quick load, Full load and an F7 restart; v0.24.48
+skinny cannibal families placed again after a Full load (v0.24.45 read
+their kind before the game stored it: "0 of 12 placed"; now 12 of 12,
+asleep on their spots, 0.8 s after in game). The old test leftovers are
+deleted (author: "whatever is left-over and unneeded").
 Suggested next: 1b (cave captures' enemies), fully scripted through the
-bridge (*Do the in-game actions yourself*) once the author is in a save
-near a cave.
-
-**Asked, not yet answered (author):** delete the older sessions' test
-leftovers in `BepInEx/config/ForestOverlay` - 23 savestates (6 MB:
-`test-v0.24.14`..`test-v22`, `megan-*`, `red-*`, `bridge-*`,
-`test-cash*`, `test-fl`) and 37 `bridge/*.png` (77 MB)?
-`keycard-pickup-testing` (09-23) looks like the author's own - keep.
+bridge (*Do the in-game actions yourself*) - a cave-aware `go` / `tp`
+into a cave from any save, no special save needed.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -874,7 +869,9 @@ the survival book closed by a Quick load (v0.24.44, bridge); the
 captured cannibals back at once after a Full load (v0.24.45, bridge);
 the lighter kept through a Full load restart with swings (v0.24.46,
 bridge, scripted swings); the swing / smash cut on a Quick load
-(sxczurass, QA 1-4).
+(sxczurass, QA 1-4); a blueprint put away / brought back on Quick load,
+Full load and F7 (v0.24.47, bridge); skinny families placed after a
+Full load (v0.24.48, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
