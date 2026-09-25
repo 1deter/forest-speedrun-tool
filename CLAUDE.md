@@ -483,11 +483,13 @@ author with the bridge on maks's slot5 save). New savestate header lines:
 `elevators`, `activearea` (older files lack them: those restores skip the
 fix).
 
-**maks's v0.24.43 test list** is drafted in
-[`docs/tests/2026-09-24-maks-v0.24.43.md`](docs/tests/2026-09-24-maks-v0.24.43.md)
-(not yet sent; the author sends it): only what the author has not
-confirmed - Megan's cutscene audio (1, his ear), the Quick / Full switch
-(2), cave 5 coins (3). maks has not tested v0.24.35+ yet.
+**QA team (author, 2026-09-25):** ~3 runners (maks among them) take
+feature testing and anything the author cannot easily do. The first
+general list is
+[`docs/tests/2026-09-25-qa-v0.24.43.md`](docs/tests/2026-09-25-qa-v0.24.43.md)
+(replaces maks's unsent v0.24.43 draft; repeats his v0.24.34 items):
+answers come numbered against it, per tester. Future lists go to the
+team, not one runner.
 
 **Saves:** every slot is the author's own (Slot5 swapped back
 2026-09-24 night, sizes checked). maks's saves for testing: his Megan
@@ -525,7 +527,8 @@ option (the escape hatch for states Quick load has no patch for).
    saved verbatim with what each item checks in
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
    **When the author pastes maks's answers, they are numbered against
-   that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf).
+   that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf) -
+   unless he answers the QA list, which repeats them as 1-5, 15, 19.
    `ended attack state '...'` on the `Teleport to` line: seen empty on a
    mid-cutscene restore (fixed on main); a real attack name not yet seen.
 3. **QA tooling** (author: "let's do all of them"), after 1: keep
@@ -585,7 +588,7 @@ a state's name / transitions / actions by index (`FsmStates[i].name`,
 `.transitions[j].EventName` / `.ToState`, `fields ....actions[k]`; map
 names to indexes with a generated `-f` file of 164 `get`s); fire an event
 with `call ... SendEvent "<event>"`.
-Test lists for maks go in a plain-text code block numbered `1)`
+Test lists for testers (the QA team) go in a plain-text code block numbered `1)`
 (memory `tester-lists-plain-text`), and **every list sent is saved
 verbatim in `docs/tests/<date>-<tester>-<version>.md`** with a note per
 item on what it checks (author: so a later session is not confused by
