@@ -91,6 +91,21 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void BlueprintRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Blueprint);
+            Assert.DoesNotContain("blueprint", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Blueprint = "Fire";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal("Fire", back.Blueprint);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RoundTripKeepsEveryField()
         {
             string error;

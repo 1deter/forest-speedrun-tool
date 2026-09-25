@@ -118,6 +118,10 @@ namespace ForestOverlay.Data
         /// Game/AreaKeeper's value at capture; "" when absent.
         public string ActiveArea = "";
 
+        /// The blueprint out at capture (Game/BuildMode, a BuildingTypes
+        /// name); "" for none.
+        public string Blueprint = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -153,6 +157,7 @@ namespace ForestOverlay.Data
             if (Megan.Length > 0) Line(sb, "megan", Megan);
             if (Elevators.Length > 0) Line(sb, "elevators", Elevators);
             if (ActiveArea.Length > 0) Line(sb, "activearea", ActiveArea);
+            if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -204,6 +209,7 @@ namespace ForestOverlay.Data
                     case "megan": s.Megan = value; break;
                     case "elevators": s.Elevators = value; break;
                     case "activearea": s.ActiveArea = value; break;
+                    case "blueprint": s.Blueprint = value; break;
                     case "cutscene":
                         {
                             int at = value.LastIndexOf('@');

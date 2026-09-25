@@ -354,6 +354,7 @@ namespace ForestOverlay.Modules
             string megan = _megan.Capture();
             string elevators = _elevators.Capture();
             string activeArea = _area.Capture();
+            string blueprint = BuildMode.Capture();
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -374,14 +375,14 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, areas, enemies, families, enemyNote);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string areas, List<string> enemies,
+                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote)
         {
             _busy = false;
@@ -412,6 +413,7 @@ namespace ForestOverlay.Modules
                 f.Megan = megan;
                 f.Elevators = elevators;
                 f.ActiveArea = activeArea;
+                f.Blueprint = blueprint;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -433,6 +435,7 @@ namespace ForestOverlay.Modules
                               (panels.Count > 0 ? ", " + panels.Count + " cave panels" : "") +
                               (cutscene != null ? ", during cutscene '" + cutscene + "' at " + cutsceneAt.ToString("0.0") + " s" : "") +
                               (megan.Length > 0 ? ", Megan " + megan : "") +
+                              (blueprint.Length > 0 ? ", blueprint " + blueprint + " out" : "") +
                               (enemyNote.Length > 0 ? ", " + enemyNote : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
@@ -580,6 +583,10 @@ namespace ForestOverlay.Modules
             if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
             string anim = AnimReset.Cancel();
             if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
+            // A blueprint in the hands is outside the save (runner
+            // sxczurass: it stayed out); the captured one comes back last.
+            string blueprint = BuildMode.PutAway();
+            if (blueprint.Length > 0) fall += (fall.Length > 0 ? ", " : "") + blueprint;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
@@ -664,9 +671,17 @@ namespace ForestOverlay.Modules
                 if (r.Ok && file != null && file.CutsceneAt >= 0f)
                     Ctx.Runner.StartCoroutine(FastForwardCutscene(file, cutsceneStarts, what));
 
+                // The captured blueprint after the hands (runner maks): the
+                // game's CreateBuilding picks the utility to hold beside it.
+                string pullOut = r.Ok && file != null && file.CutsceneAt < 0f ? file.Blueprint : "";
                 if (r.Ok && file != null && file.Held != null && file.Held.Count > 0)
                     Ctx.Runner.StartCoroutine(_bridge.ReEquip(file.Held, NameOfItem,
-                        delegate(string note) { Ctx.Log.LogInfo("Savestate restore " + what + ": " + note + "."); }));
+                        delegate(string note)
+                        {
+                            Ctx.Log.LogInfo("Savestate restore " + what + ": " + note + ".");
+                            PullOutBlueprint(pullOut, "Savestate restore " + what);
+                        }));
+                else PullOutBlueprint(pullOut, "Savestate restore " + what);
 
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
@@ -1068,10 +1083,31 @@ namespace ForestOverlay.Modules
             RemoveTakenPickups(f, false);
             Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
             // A cutscene capture's hands are the fast-forward's business.
+            string pullOut = f.CutsceneAt < 0f ? f.Blueprint : "";
             if (f.Held != null && f.Held.Count > 0 && f.CutsceneAt < 0f)
                 Ctx.Runner.StartCoroutine(_bridge.RefreshHeld(f.Held, NameOfItem,
-                    delegate(string note) { Ctx.Log.LogInfo("Savestate after the load: " + note + "."); }));
+                    delegate(string note)
+                    {
+                        Ctx.Log.LogInfo("Savestate after the load: " + note + ".");
+                        PullOutBlueprint(pullOut, "Savestate after the load");
+                    }));
+            else PullOutBlueprint(pullOut, "Savestate after the load");
             if (after != null) after(null);
+        }
+
+        /// The captured blueprint back in the hands (Game/BuildMode), with
+        /// its own log line; nothing when none was out. A moment later, as
+        /// the hands are: after a restart's teleport, which cuts actions.
+        private void PullOutBlueprint(string type, string prefix)
+        {
+            if (string.IsNullOrEmpty(type)) return;
+            Ctx.Runner.StartCoroutine(PullOutLater(type, prefix));
+        }
+
+        private IEnumerator PullOutLater(string type, string prefix)
+        {
+            yield return new WaitForSecondsRealtime(0.3f);
+            Ctx.Log.LogInfo(prefix + ": " + BuildMode.PullOut(type) + ".");
         }
 
         // A cave's pickups can switch on after the first pass (maks: cave 5's

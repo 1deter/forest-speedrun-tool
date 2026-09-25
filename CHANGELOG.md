@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.47 - 2026-09-25
+
+- Savestates: a blueprint you have out is put away on a reset, instead
+  of staying in your hands (sxczurass).
+- Savestates: a blueprint out when you capture comes back out after
+  every restart, Quick or Full load (maks).
+
 ## v0.24.46 - 2026-09-25
 
 - Full load: the lighter you held no longer goes missing when you swing
