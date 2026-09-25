@@ -165,6 +165,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _importStatus = new GUIContent("");
         private GUIContent _importHeader = new GUIContent("");
         private Vector2 _importScroll;
+        private float _importListHeight;
         private string _importArmedPath;
         private float _importArmedUntil;
         private bool _exportAttempts;
@@ -1505,22 +1506,25 @@ namespace ForestOverlay.Modules
             y += 28f;
             y += UiText.Draw(0, y, w - 10, _importStatus) + 4f;
 
+            // Wrapped descriptions (UiText), so entries vary in height: the
+            // scroll height is the last pass's. Fixed rows cut a long name
+            // or id off on the right (bridge sweep, v0.24.71).
             Rect list = new Rect(0, y, w, area.height - y);
-            Rect content = new Rect(0, 0, w - 20f, _imports.Count * RowHeight + 4f);
+            Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_importListHeight, 40f));
             _importScroll = GUI.BeginScrollView(list, _importScroll, content);
+            float ry = 2f;
             for (int i = 0; i < _imports.Count; i++)
             {
-                float rowY = 2f + i * RowHeight;
-                if (rowY + RowHeight < _importScroll.y || rowY > _importScroll.y + list.height) continue;
                 ImportEntry e = _imports[i];
-                GUI.Label(new Rect(4f, rowY, content.width - 84f, RowHeight - 2f), e.Label);
                 bool armed = _importArmedPath == e.Path && Time.unscaledTime <= _importArmedUntil;
-                if (GUI.Button(new Rect(content.width - 76f, rowY, 72f, RowHeight - 2f), armed ? "Replace?" : "Import"))
+                if (GUI.Button(new Rect(4f, ry, 80f, 22f), armed ? "Replace?" : "Import"))
                 {
                     Import(e);
                     break;   // the list may have been rebuilt
                 }
+                ry += Mathf.Max(24f, UiText.Draw(90f, ry + 2f, content.width - 94f, e.Label) + 4f) + 4f;
             }
+            _importListHeight = ry;
             GUI.EndScrollView();
             GUI.EndGroup();
         }
