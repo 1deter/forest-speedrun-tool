@@ -569,7 +569,7 @@ namespace ForestOverlay.Modules
             Segment s = new Segment();
             s.Name = name;
             s.Category = "My spots";
-            s.Id = NextFreeId("spot.my." + Slug(name));
+            s.Id = NewId();
             s.SourceFile = SegmentLibrary.UserFileName;
 
             s.SpawnPosition = Ctx.Player.Transform.position;
@@ -728,13 +728,8 @@ namespace ForestOverlay.Modules
             y = Field(y, cw, "Name", ref s.Name);
             y = Field(y, cw, "Category", ref s.Category);
             if (s.Name != name || s.Category != category) _regroupAt = Time.realtimeSinceStartup + 0.6f;
-            y = Field(y, cw, "Id", ref s.Id);
-
-            if (!_library.IsIdAvailable(s.Id, s))
-            {
-                GUI.Label(new Rect(80, y, cw - 90, 18), "id already used - pick another");
-                y += 18f;
-            }
+            // No Id field (author, 2026-09-26: runners never need it): the
+            // id is a hidden key (NewId); the name is what they see.
 
             y = Field(y, cw, "Notes", ref s.Notes);
             y += 6f;
@@ -1092,7 +1087,7 @@ namespace ForestOverlay.Modules
             Segment src = _selected;
             Segment s = new Segment();
 
-            s.Id = NextFreeId(SegmentLibrary.IsCommunity(src) ? "spot.my." + Slug(src.Name) : src.Id);
+            s.Id = NewId();   // a copy is a fork: its own times
             s.Name = src.Name + " (copy)";
             s.Category = SegmentLibrary.IsCommunity(src) ? "My spots" : src.Category;
             s.Notes = src.Notes;
@@ -1159,7 +1154,7 @@ namespace ForestOverlay.Modules
             {
                 _communityFor = s;
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                sb.Append(s.Name).Append("   (").Append(s.Id).Append(')');
+                sb.Append(s.Name);
                 if (s.Notes.Length > 0) sb.Append('\n').Append(s.Notes);
                 if (s.IsTimed)
                 {
@@ -1230,9 +1225,10 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _unsaved.Count; i++)
             {
                 Segment u = _unsaved[i];
-                string why = !_library.IsIdAvailable(u.Id, u) ? "id '" + u.Id + "' is already used"
-                           : !u.IsValid ? "needs an id, and a spawn or a start and end"
-                           : null;
+                // Only a hand-edited file can clash now: a fresh key, no
+                // question to the runner (who never sees ids).
+                if (!_library.IsIdAvailable(u.Id, u)) FreshId(u);
+                string why = !u.IsValid ? "needs a spawn, or a start and an end" : null;
                 if (why == null) continue;
 
                 _selected = u;
@@ -1264,16 +1260,26 @@ namespace ForestOverlay.Modules
             else _status = "Save failed - see log (" + _unsaved.Count + " still unsaved).";
         }
 
-        private string NextFreeId(string basis)
+        /// A new entry's key (author, 2026-09-26: hidden from runners).
+        /// Random, so two players' entries never share one by accident -
+        /// the same id means the same original (an import, a community
+        /// pack), and its times compare. Which times compare within an id
+        /// is still the route fingerprint (zones + start state).
+        private string NewId()
         {
-            if (_library.IsIdAvailable(basis, null)) return basis;
-
-            for (int i = 2; i < 500; i++)
+            for (int i = 0; i < 10; i++)
             {
-                string candidate = basis + "-" + i;
-                if (_library.IsIdAvailable(candidate, null)) return candidate;
+                string id = "s-" + Guid.NewGuid().ToString("N").Substring(0, 12);
+                if (_library.IsIdAvailable(id, null)) return id;
             }
-            return basis + "-" + UnityEngine.Random.Range(1000, 9999);
+            return "s-" + Guid.NewGuid().ToString("N");
+        }
+
+        private void FreshId(Segment s)
+        {
+            string old = s.Id;
+            s.Id = NewId();
+            Ctx.Log.LogInfo("Practice: '" + s.Name + "' had the id '" + old + "' of another entry - now '" + s.Id + "'.");
         }
 
         private static string Slug(string text)
@@ -1404,7 +1410,7 @@ namespace ForestOverlay.Modules
         // a restart then restores and teleports to the same place.
         private void CaptureStartState(Segment s)
         {
-            if (!_library.IsIdAvailable(s.Id, s)) { StartStatus("Pick a free id first - the start state is named after it."); return; }
+            if (!_library.IsIdAvailable(s.Id, s)) FreshId(s);   // the start state is named after it
 
             // A new start state is a new route: times recorded from the old
             // one are retired (author, 2026-09-23) - so say so first.
@@ -1515,7 +1521,7 @@ namespace ForestOverlay.Modules
                 if (_exportAttempts) b.Attempts.AddRange(_attempts.RunTexts(s.Id));
 
                 if (!System.IO.Directory.Exists(_sharedDir)) System.IO.Directory.CreateDirectory(_sharedDir);
-                string file = SavestateFile.SafeFileName(s.Id) + SegmentBundle.Extension;
+                string file = ExportFileName(s);
                 string path = System.IO.Path.Combine(_sharedDir, file);
                 bool replaced = System.IO.File.Exists(path);
                 System.IO.File.WriteAllText(path, b.Write(), System.Text.Encoding.UTF8);
@@ -1531,6 +1537,24 @@ namespace ForestOverlay.Modules
                 _shareStatus.text = "Export failed: " + ex.Message;
                 Ctx.Log.LogWarning("Practice: export of '" + s.Id + "' failed: " + ex);
             }
+        }
+
+        /// "<name>.foseg" - what a runner recognises in the folder. A file
+        /// of that name holding another entry gets the id's tail added.
+        private string ExportFileName(Segment s)
+        {
+            string name = Slug(s.Name);
+            string path = System.IO.Path.Combine(_sharedDir, name + SegmentBundle.Extension);
+            if (!System.IO.File.Exists(path)) return name + SegmentBundle.Extension;
+            try
+            {
+                string error;
+                SegmentBundle other = SegmentBundle.Parse(System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8), out error, null);
+                if (other != null && other.Segment.Id == s.Id) return name + SegmentBundle.Extension;
+            }
+            catch (Exception) { }
+            string tail = s.Id.Length > 6 ? s.Id.Substring(s.Id.Length - 6) : s.Id;
+            return name + "-" + SavestateFile.SafeFileName(tail) + SegmentBundle.Extension;
         }
 
         private void OpenSharedFolder()
@@ -1592,10 +1616,10 @@ namespace ForestOverlay.Modules
         {
             Segment s = b.Segment;
             Segment mine = _library.ById(s.Id);
-            return s.Name + "  (" + s.Id + ")  -  " + (s.IsTimed ? "timed" : "spot") +
+            return s.Name + "  -  " + (s.IsTimed ? "timed" : "spot") +
                    (b.StartState != null ? ", start state" : "") +
                    (b.Attempts.Count > 0 ? ", " + b.Attempts.Count + " attempt" + (b.Attempts.Count == 1 ? "" : "s") : "") +
-                   (mine != null ? "  [you have this id]" : "");
+                   (mine != null ? "  [already in your list]" : "");
         }
 
         private void DrawImport(Rect area)
@@ -1660,7 +1684,7 @@ namespace ForestOverlay.Modules
             {
                 _importArmedPath = e.Path;
                 _importArmedUntil = Time.unscaledTime + 3f;
-                _importStatus.text = "You already have '" + incoming.Id + "' ('" + mine.Name + "'). Click Replace? within 3 s to " +
+                _importStatus.text = "'" + mine.Name + "' is already in your list (the same original). Click Replace? within 3 s to " +
                                      "overwrite it with the file's version (your recorded attempts stay).";
                 return;
             }

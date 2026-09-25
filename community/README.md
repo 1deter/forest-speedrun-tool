@@ -13,9 +13,12 @@ included.
 2. Take the file from `BepInEx/config/ForestOverlay/shared/` and put it in
    this folder. Give it a plain name: letters, digits, `-`, `_`, `.`,
    ending in `.foseg` (other names are ignored by the plugin).
-3. Give the segment a lasting, namespaced id before exporting
-   (`deter/cave5-practice`, not `spot.my.new-spot-3`): the id is how times
-   are compared, and renaming it later orphans every recorded attempt.
+3. Ids are hidden and random since v0.24.74 (`s-7f3a9c2e1b4d`) - nothing
+   to choose. An entry made before that has an old-style id
+   (`spot.my.new-spot-3`) that other runners' own first spots share, and
+   the plugin skips a pack entry whose id a runner already has: give such
+   an entry a fresh random id first (and move its `runs/<id>` folder and
+   start state file to match).
 4. Run `python scripts/community-index.py` - it rewrites `index.txt` (file
    name + hash). The plugin downloads only files whose hash changed.
 5. Commit both. Runners get it on their next start.

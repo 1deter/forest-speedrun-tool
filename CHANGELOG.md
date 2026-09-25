@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.74 - 2026-09-26
+
+- The Practice editor no longer shows an Id field: every entry gets a
+  hidden key of its own, and you only ever see its name. Renaming an
+  entry is always safe. Existing entries and their times are unchanged.
+- Shared files are named after the entry (cave-5-practice-run.foseg), and
+  importing someone's spot no longer clashes with an unrelated one of
+  yours that happened to have the same automatic id.
+
 ## v0.24.73 - 2026-09-26
 
 - A savestate or start state restore at the title screen is refused

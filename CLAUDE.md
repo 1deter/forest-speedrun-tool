@@ -615,10 +615,15 @@ identity.
 - **Everything must be editable in the GUI.** The text formats exist for
   sharing, not as the interface. A data-driven feature without an editor is
   not finished.
-- **Segment ids** are author-namespaced, dot-separated:
-  `deter/route.plane-to-cave5`. They are the comparison key — **no SteamID and
-  no timestamp**, or two people running the same route could never be compared.
-  Renaming one orphans every time recorded against it.
+- **Segment ids are hidden, random keys** (author, 2026-09-26: runners
+  never need them; v0.24.74): `s-` + 12 hex digits, made on New /
+  Duplicate / F6, never shown (no Id field; logs and files keep them).
+  The id groups an entry's attempts; the **route fingerprint** (zones +
+  start state hash) decides which of them compare - a new start state
+  retires old times and lines. The same id means the same original (an
+  import, a community pack); a Duplicate is a fork with its own times.
+  Old entries keep their old ids (`spot.my.new-spot-3`, shared by many
+  runners' first spots) - give one a fresh id before publishing it.
 - **Leaderboards are comparative, not competitive** — lines and ghosts, no
   verified ranking, so client-submitted times need no anti-cheat story.
 - **The in-game timer aims to replace LiveSplit**, not sit beside it.
