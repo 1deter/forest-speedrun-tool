@@ -19,6 +19,7 @@ namespace ForestOverlay.BridgeMcp
             ForestPaths paths = new ForestPaths();
             BridgeClient bridge = new BridgeClient(paths);
             Tools tools = new Tools(paths, bridge);
+            new DiscordTools().Register(tools.All);
 
             if (args.Length > 0 && args[0] == "--tools")
             {

@@ -264,19 +264,19 @@ namespace ForestOverlay.BridgeMcp
             Add(name, description, schema, (a, ct) => run(a)(ct));
         }
 
-        private sealed class Prop
+        internal sealed class Prop
         {
             public string Name, Type, Description;
             public bool Required;
             public string[] Enum;
         }
 
-        private static Prop P(string name, string type, string description, bool required = false, params string[] values)
+        internal static Prop P(string name, string type, string description, bool required = false, params string[] values)
         {
             return new Prop { Name = name, Type = type, Description = description, Required = required, Enum = values };
         }
 
-        private static JsonObject Schema(params Prop[] props)
+        internal static JsonObject Schema(params Prop[] props)
         {
             JsonObject properties = new JsonObject();
             JsonArray required = new JsonArray();

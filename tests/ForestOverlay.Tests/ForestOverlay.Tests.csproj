@@ -52,6 +52,7 @@
     <!-- The bridge MCP server's pure text side (a dev tool, not the plugin). -->
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />
+    <Compile Include="../../tools/BridgeMcp/DiscordText.cs" Link="Linked/DiscordText.cs" />
   </ItemGroup>
 
 </Project>
