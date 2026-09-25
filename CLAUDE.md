@@ -557,7 +557,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.58** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.59** (2026-09-25). The author runs it via the in-game
 updater. **300 tests.**
 
 ### Pick up here (2026-09-25, v0.24.58 in the game)
@@ -574,11 +574,10 @@ proven bridge commands): `capture` / `restore` / `restart_spot` in a
 loaded game, and `update_game` with a real update waiting - watch
 the first one. **First thing next session: approve the `forest` MCP
 server** (project `.mcp.json`) and use its tools instead of
-`scripts/bridge.sh`. Two small plugin quirks seen while testing,
-for the next release: at the title screen `capture` writes an empty
-604-byte savestate and `tp` "succeeds" (moves the menu's FakeCave) -
-both should refuse without a player; and the `notice` text draws
-**under** the main window (drawn before it in `Plugin.OnGUI`).
+`scripts/bridge.sh`. v0.24.59 fixed the two quirks seen while
+testing it (`capture` / `tp` refuse at the title screen -
+`PlayerRef.AtTitleScreen`; the notice is a window kept in front) -
+awaiting a bridge check.
 **The QA Discord bot is in the same server** (`qa_read` / `qa_post` /
 `qa_download`, see *The live test bridge*): reading and posting
 confirmed on the real channel (the bot's hello, 2026-09-25). **Suggested next:** maks's items (Next 2-3); send the

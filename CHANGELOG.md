@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.59 - 2026-09-25
+
+- On-screen notices now show on top of the ForestOverlay window instead of
+  under it.
+- Capturing a savestate at the title screen now says to load a game first,
+  instead of writing an empty file.
+
 ## v0.24.58 - 2026-09-25
 
 - The info box (top left) wraps long lines and grows to fit, instead of

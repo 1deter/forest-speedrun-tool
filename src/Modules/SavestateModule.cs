@@ -320,6 +320,12 @@ namespace ForestOverlay.Modules
         private void CaptureTo(string name, string path, Action<string> after)
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
+            if (PlayerRef.AtTitleScreen)
+            {
+                SetStatus("capture unavailable: no player (load a game first)");
+                if (after != null) after("capture unavailable: no player (load a game first)");
+                return;
+            }
             if (!_bridge.Resolve())
             {
                 SetStatus("capture unavailable: " + _bridge.Status);

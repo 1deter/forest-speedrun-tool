@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.58";
+        public const string PluginVersion = "0.24.59";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -221,8 +221,8 @@ namespace ForestOverlay
                 long allocStart = _host.Perf.BeginAlloc();
                 EnsureStyles();
                 if (_host.HudVisible) DrawHud();
-                if (_notice.Active) DrawNotice();
                 _host.DrawPanels();
+                if (_notice.Active) DrawNotice();
                 _host.Perf.EndAlloc(allocStart);
             }
             catch (Exception ex)
@@ -257,11 +257,25 @@ namespace ForestOverlay
 
         // Upper middle: clear of the HUD box (top left) and of the game's
         // own messages (bottom left), and where the eye is while playing.
+        // A borderless window brought to the front: IMGUI draws every window
+        // after all plain controls, so a plain box sat under the main window.
+        private const int NoticeWindowId = 59_999;
+        private GUI.WindowFunction _noticeWindowFn;
+
         private void DrawNotice()
         {
             const float w = 560f;
             float h = Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, w) + 16f);
-            GUI.Box(new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h), _notice.Content, _noticeStyle);
+            if (_noticeWindowFn == null) _noticeWindowFn = DrawNoticeWindow;
+            GUI.Window(NoticeWindowId, new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h),
+                _noticeWindowFn, GUIContent.none, GUIStyle.none);
+            GUI.BringWindowToFront(NoticeWindowId);
+        }
+
+        private void DrawNoticeWindow(int id)
+        {
+            GUI.Box(new Rect(0f, 0f, 560f, Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, 560f) + 16f)),
+                _notice.Content, _noticeStyle);
         }
 
         private void DrawHud()

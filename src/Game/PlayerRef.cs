@@ -30,6 +30,13 @@ namespace ForestOverlay.Game
         private float _nextSearchTime;
 
         public bool Found { get { return Transform != null; } }
+
+        /// At the title screen LocalPlayer is the menu's FakeCave, so Found
+        /// is true there; anything that captures or moves the player asks this.
+        public static bool AtTitleScreen
+        {
+            get { return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TitleScene"; }
+        }
         public Vector3 Velocity { get; private set; }
         public float Speed { get { return Velocity.magnitude; } }
 
