@@ -627,15 +627,36 @@ identity.
 
 ## Current status
 
-**Released: v0.24.71** (2026-09-25). The author runs it via the in-game
-updater. **326 tests.** `main` has one untagged UI fix since (the import
-list's rows wrapped, not clipped) - it ships with the next release;
-screenshot the Import list then.
+**Released: v0.24.73** (2026-09-26). The author runs it via the in-game
+updater. **339 tests.**
 
-### Pick up here (2026-09-25, v0.24.71 in the game)
+### Pick up here (2026-09-26, v0.24.73 in the game)
 
-**State:** v0.24.71 runs in the author's game (MCP `update_game`). This
+**State:** v0.24.73 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
+- **v0.24.72, community packs done** (`Modules/CommunityModule`,
+  `Data/CommunityIndex`, repo `community/` + `scripts/community-index.py`,
+  how-to in `community/README.md`). 5 s after startup (`Community.
+  UpdateOnStartup`, on) and on **Check community now** (Practice ->
+  Import), it fetches `community/index.txt` from raw.githubusercontent
+  (`Community.Url`), downloads changed packs to `config/ForestOverlay/
+  community/`, writes `segments/community.txt` (category **Community**;
+  author: sub-categories maybe later - the cached packs keep their own
+  category) and the start states. Read-only in the editor (own view,
+  Delete off, never marked unsaved); **Duplicate** copies the start state
+  (any entry, since v0.24.72). The runner's ids win; attempts are not
+  imported. Confirmed (bridge, `Url` pointed at a `file:///` test folder,
+  then back): download + start state written, no re-download, the entry
+  restarts from its start state, removal from the index removes the
+  entry and its start state, GitHub's empty index at startup. **Not seen
+  yet:** the read-only view (needs a click on the entry - the bridge
+  cannot select a Segment). **The repo's index is empty** - ask the
+  author which spots to publish (ids should be renamed to lasting ones,
+  `deter/...`, before export; see community/README.md).
+- **v0.24.73:** a restore at the title screen is refused (`restore
+  unavailable: no player`); a bridge `restart` there had deserialized
+  the save into the menu (`identifiers 0 -> 105`). Confirmed.
+- `_modules[15]` is `community` (registered last).
 - **v0.24.71, sharing done:** `Data/SegmentBundle` - one `<id>.foseg`
   per segment: header, `[segment]` (SegmentFormat's block),
   `[startstate]` (the .fosave verbatim), `[attempt]` sections (.run files
@@ -704,17 +725,8 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Community packs** (author, 2026-09-25: "community spots and timed
-   segments automatically grabbed either off of my site or the github,
-   whatever you think's best, so that new runners have a bunch of good
-   saved spots with practice already good to go"). Plan (proposed, not
-   yet built): `.foseg` files in a `community/` folder of the GitHub repo
-   plus an `index.txt` (file name + hash), fetched from
-   `raw.githubusercontent.com` (not the rate-limited API) at startup /
-   on a button; imported into their own segment file (never the
-   runner's `my-segments.txt`), re-fetched only when a hash changes;
-   reuse PracticeModule's import code. The site can serve the same
-   index later (a second URL).
+1. **Seed the community packs** with the author's chosen spots (their
+   call which; lasting ids).
 2. **Next up 5, performance** - measure first.
 3. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
@@ -877,7 +889,7 @@ fixed delay.
 **UI through the bridge** (v0.24.56): `_modules[i]` is `BuildModules`
 order (0 main window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type
 explorer, 8 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths,
-13 QA, 14 bridge); `call ..._modules[i].OpenMyTab` shows a tab, `call
+13 QA, 14 bridge, 15 community); `call ..._modules[i].OpenMyTab` shows a tab, `call
 ..._modules[7].TogglePanel` the explorer. `TogglePanel` **toggles** -
 read `_modules[0].PanelOpen` first and leave the window as found. Every
 `shot` marks practice (the HUD says so; expected). QA answers reload
