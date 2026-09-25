@@ -392,15 +392,21 @@ namespace ForestOverlay.Game
 
             MonoBehaviour ctrl = Controller();
             string setupNote;
+            int aliveBefore = AliveCount(ctrl);
             try
             {
                 // Despawns every cannibal, destroys the world families, zeroes
-                // the counters and starts updateSpawns (game-notes).
-                _startSetup.Invoke(ctrl, null);
+                // the counters and starts updateSpawns (game-notes). After a
+                // Full load the game's own call is held (SetupHold); this
+                // one passes.
+                SetupHold.RunOwn(delegate { _startSetup.Invoke(ctrl, null); });
                 setupNote = "setup run";
             }
             catch (Exception ex) { done("positions: the game's setup failed (" + (ex.InnerException ?? ex).Message + ")"); yield break; }
-            yield return new WaitForSecondsRealtime(0.5f);
+            // The despawns are coroutines; with nothing alive (a Full load
+            // with the game's setup held) there is nothing to wait for.
+            if (aliveBefore != 0) yield return new WaitForSecondsRealtime(0.5f);
+            else yield return null;
 
             // Build every captured world family; cave families are scene
             // objects that stay - found again by position.
@@ -431,8 +437,16 @@ namespace ForestOverlay.Game
                 else failed++;
             }
 
-            // The spawn routines yield between members.
-            yield return new WaitForSecondsRealtime(1.5f);
+            // A surface family spawns on its first checkSpawn (invoked at
+            // once), every member in the spawn routine's first frame (IL,
+            // v0.24.45). Wait until each family has its captured members,
+            // at most 1.5 s (the old fixed wait): meanwhile they stand awake
+            // at the spawner.
+            float spawnStart = Time.realtimeSinceStartup;
+            yield return null;
+            while (Time.realtimeSinceStartup - spawnStart < 1.5f && !AllSpawned(built, members))
+                yield return null;
+            float spawnWait = Time.realtimeSinceStartup - spawnStart;
 
             int placed = 0, extra = 0, missing = 0, grounded = 0, unblocked = 0, sleepFamilies = 0;
             StringBuilder drops = new StringBuilder();
@@ -544,7 +558,44 @@ namespace ForestOverlay.Game
                                        (ordered > 0 ? " (" + ordered + " still awake, sent to sleep)" : "") : "") +
                  (missing > 0 ? ", " + missing + " not spawned" : "") +
                  (extra > 0 ? ", " + extra + " extra despawned" : "") +
-                 (noFamily > 0 ? ", " + noFamily + " without a family" : ""));
+                 (noFamily > 0 ? ", " + noFamily + " without a family" : "") +
+                 ", members spawned in " + spawnWait.ToString("0.00", CultureInfo.InvariantCulture) + " s");
+        }
+
+        // Live cannibals in activeCannibals; -1 when unreadable.
+        private int AliveCount(MonoBehaviour ctrl)
+        {
+            try
+            {
+                IList list = _active != null && ctrl != null ? _active.GetValue(ctrl) as IList : null;
+                if (list == null) return -1;
+                int n = 0;
+                for (int i = 0; i < list.Count; i++) if ((list[i] as UnityEngine.Object) != null) n++;
+                return n;
+            }
+            catch (Exception) { return -1; }
+        }
+
+        // Every rebuilt family has at least as many active members as were
+        // captured in it.
+        private bool AllSpawned(Dictionary<int, MonoBehaviour> built, List<EnemyRecord> members)
+        {
+            foreach (KeyValuePair<int, MonoBehaviour> kv in built)
+            {
+                int want = 0;
+                for (int i = 0; i < members.Count; i++) if (members[i].Family == kv.Key) want++;
+                if (want == 0) continue;
+                IList list = kv.Value != null ? _members.GetValue(kv.Value) as IList : null;
+                if (list == null) return false;
+                int have = 0;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    GameObject go = list[i] as GameObject;
+                    if (go != null && go.activeInHierarchy) have++;
+                }
+                if (have < want) return false;
+            }
+            return true;
         }
 
         private MonoBehaviour BuildFamily(MonoBehaviour ctrl, FamilyRecord f)

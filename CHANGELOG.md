@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.45 - 2026-09-25
+
+- Full load: the cannibals from your savestate are back within about a
+  second of the load, not ~6 s after you get control (maks).
+- Quick and Full load: they no longer stand around awake at their camp
+  for a moment before being put back in place.
+
 ## v0.24.44 - 2026-09-25
 
 - Restarting with the survival book open closes it: before, the book

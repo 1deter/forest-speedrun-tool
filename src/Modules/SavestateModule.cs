@@ -59,6 +59,7 @@ namespace ForestOverlay.Modules
         private BookPages _book;
         private PanelKeeper _panels;
         private BossHold _bossHold;
+        private SetupHold _setupHold;
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
         private AreaKeeper _area;
@@ -134,6 +135,8 @@ namespace ForestOverlay.Modules
             _panels.Install(OverlayPlugin.PluginGuid);
             _bossHold = new BossHold(ctx.Log, ctx.Runner);
             _bossHold.Install(OverlayPlugin.PluginGuid);
+            _setupHold = new SetupHold(ctx.Log);
+            _setupHold.Install(OverlayPlugin.PluginGuid);
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
             _area = new AreaKeeper(ctx.Log);
@@ -191,6 +194,7 @@ namespace ForestOverlay.Modules
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
+            if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
@@ -963,32 +967,60 @@ namespace ForestOverlay.Modules
         /// A load rolls the world families afresh: at other spawners, none
         /// near the player (bridge, 2026-09-24: 16 cannibals 10 s after the
         /// load, our captured family gone; maks: "with load they don't even
-        /// spawn"). Once the game's own setup has made its families (two
-        /// setups at once break each other) and its 1 s lock is clear, the
-        /// captured families are rebuilt as after an in-place restore.
+        /// spawn"). The captured families are rebuilt as after an in-place
+        /// restore - as soon as the game asks for its own setup, which is
+        /// held meanwhile (Game/SetupHold, v0.24.45; waiting for the game's
+        /// families and its lock took ~5 s more - maks). If the game's setup
+        /// slipped through, the old way: its families, its 1 s lock, then
+        /// the rebuild (two setups at once break each other).
         private IEnumerator EnemiesAfterLoad(SavestateFile f)
         {
             float start = Time.realtimeSinceStartup;
+            bool held = _enemies.CannotRebuild() == null;
+            if (held) SetupHold.Arm();
             int cannibals = -1, families = -1;
             while (Time.realtimeSinceStartup - start < 30f)
             {
+                if (held && SetupHold.Requested) break;
                 _bridge.CountEnemies(out cannibals, out families);
                 if (families > 0) break;
-                yield return new WaitForSecondsRealtime(0.25f);
+                yield return null;
             }
-            if (families <= 0)
+            bool asked = held && SetupHold.Requested;
+            float waited = Time.realtimeSinceStartup - start;
+            if (!asked && families <= 0)
             {
+                SetupHold.Release();
                 Ctx.Log.LogInfo("Savestate after the load: enemies - the game made no families within 30 s; captured ones not rebuilt.");
                 yield break;
             }
-            float waited = Time.realtimeSinceStartup - start;
-            yield return new WaitForSecondsRealtime(1.5f);
+            if (!asked)
+            {
+                SetupHold.Release();
+                yield return new WaitForSecondsRealtime(1.5f);
+            }
+            // The rebuild's own setup run passes the hold.
             string rebuilt = null;
             yield return Ctx.Runner.StartCoroutine(_enemies.Rebuild(f.Families, f.Enemies ?? new List<string>(),
                                                                     delegate(string note) { rebuilt = note; }));
-            Ctx.Log.LogInfo("Savestate after the load: enemies - the game rolled " + families + " famil" +
-                            (families == 1 ? "y" : "ies") + " (" + cannibals + " cannibals) after " + waited.ToString("0.0") +
-                            " s; replaced with the captured ones | " + rebuilt + ".");
+            float total = Time.realtimeSinceStartup - start;
+            int skippedAtRebuild = SetupHold.Skipped;
+            Ctx.Log.LogInfo("Savestate after the load: enemies - " +
+                            (asked ? "the game's setup held (asked " + waited.ToString("0.0") + " s after in game)"
+                                   : "the game rolled " + families + " famil" + (families == 1 ? "y" : "ies") + " (" + cannibals +
+                                     " cannibals) after " + waited.ToString("0.0") + " s" + (held ? ", its setup not held" : "")) +
+                            "; the captured ones placed " + total.ToString("0.0") + " s after in game | " + rebuilt + ".");
+
+            // The hold stays on a few seconds more: a later setup call of
+            // the game's would throw the rebuilt families away. Said once
+            // the window closes, if any came (the proof it is needed).
+            if (!asked) yield break;
+            float left = SetupHold.Left();
+            if (left > 0f) yield return new WaitForSecondsRealtime(left);
+            if (SetupHold.Skipped > skippedAtRebuild)
+                Ctx.Log.LogInfo("Savestate after the load: enemies - the game's setup was skipped " + SetupHold.Skips() +
+                                " after in game, " + (SetupHold.Skipped - skippedAtRebuild) + " of them after the rebuild.");
+            SetupHold.Release();
         }
 
         /// "In game" comes before the world has finished loading: the
