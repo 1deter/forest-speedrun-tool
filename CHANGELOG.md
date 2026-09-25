@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.57 - 2026-09-25
+
+- Settings: long key names (Keypad *) are no longer cut off.
+- Savestates tab: "Current save slot" shows the slot straight away
+  instead of "?" until the first capture.
+
 ## v0.24.56 - 2026-09-25
 
 - New **QA** tab for testers: the current test list, with Pass / Fail /

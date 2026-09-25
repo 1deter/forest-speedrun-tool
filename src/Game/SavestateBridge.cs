@@ -459,6 +459,9 @@ namespace ForestOverlay.Game
         {
             get
             {
+                // Resolved on first use; the tab read "?" until the first
+                // capture or restore bound everything.
+                Resolve();
                 if (_slot == null) return "?";
                 try { return _slot.GetValue(null, null).ToString(); }
                 catch (Exception) { return "?"; }

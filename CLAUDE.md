@@ -493,8 +493,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.54** (2026-09-25). The author runs it via the in-game
-updater. **274 tests.**
+**Released: v0.24.57** (2026-09-25). The author runs it via the in-game
+updater. **287 tests.**
 
 ### Pick up here (2026-09-25, v0.24.54 in the game)
 
@@ -544,15 +544,17 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **QA tooling** (author: "let's do all of them"; 2026-09-25: do this
-   first, before maks's items in 3): keep
-   previous sessions' `LogOutput.log` (timestamped copies on startup,
-   last few); a **QA tab**: each test list shipped in the plugin, items
-   with Pass / Fail / Note, the proving log line and auto-tick where the
-   plugin sees it, a "something weird happened" key (`MARK:` line with
-   time, position, spot, optional note) and a one-click report (zip of
-   logs + the savestate / segment files under test, on the desktop).
-   Never let runners run bridge scripts (arbitrary calls).
+1. **QA tooling** - built and bridge-checked in game (v0.24.55-56):
+   the last 3 sessions' logs mirrored as they run (BepInEx truncates
+   `LogOutput.log` in its preloader, so there is nothing to copy at
+   startup; `KeptLogs`, author: 3), the **QA** tab (shipped list, Pass /
+   Fail / Skip / note, the latest `seen` log line under an item -
+   evidence, never a pass), **Mark** (`MARK #n:` line; key `qa.mark`
+   unbound) and **Write report** (stored zip on the desktop). A new list
+   = a dated `qa/*.txt` (format in `Data/QaList`), numbered as sent.
+   Never let runners run bridge scripts (arbitrary calls). Next step the
+   author floated: the bridge as an MCP server (see *The live test
+   bridge*).
 2. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
    saved verbatim with what each item checks in
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
@@ -899,15 +901,15 @@ Full load (v0.24.48, bridge); cave cannibals put back after Quick and
 Full load, babies not doubled (v0.24.49-50, bridge, cave 6); cave 5's
 coins / cash taken before a capture gone after a Full load, nothing
 else removed, and back / gone as captured after a Quick load (v0.24.54,
-bridge).
+bridge); every tab drawn in game, the Inventory tab filled on first open,
+"What's new in v0.24.56 (installed)" in the Updates tab, the QA tab's
+Mark / result / report zip (v0.24.56, bridge tab sweep: `OpenMyTab` on
+each `_modules[i]` + `shot`).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
 - **v0.23.6's census off by default** - no hitch after a load.
-- **Changelog in the Updates tab** (v0.23.0): "What's new in vX
-  (installed)" after updating.
-- **Run lines cleared** on a plain spot / another segment and the
-  **Inventory tab** filled on first open (v0.22.7).
+- **Run lines cleared** on a plain spot / another segment (v0.22.7).
 - **Weapon-upgrade receivers kept** on a cross-save restore (v0.22.7): the
   restore line says `kept N weapon-upgrade receiver(s)`; the adoption line
   lists `other misses:` - read it to see why they did not adopt.
@@ -928,8 +930,9 @@ current items are in *Pick up here*):
 - **Game stopped responding** (runner, v0.22.6): ~30 in-place restores of
   a sinkhole start state after fall deaths, then the first **load**
   restore started **from a death**, and the log ends. Death path or a
-  degraded (leaked) session - unknown. Needs the Unity log
-  (`TheForest_Data/output_log.txt`, replaced each launch) if it recurs.
+  degraded (leaked) session - unknown. The Unity log would help, but the
+  author's install writes none (no `TheForest_Data/output_log.txt`, none
+  under `LocalLow/SKS`); the QA report adds it when it exists.
 - **Performance reports**: another runner's slowdown with ghost lines /
   recording (not reproducible here, 4080 Super / 7800X3D), maks's
   background performance - read their `Perf (30 s):` / `Slow tick:` lines

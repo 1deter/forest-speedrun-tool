@@ -169,18 +169,19 @@ namespace ForestOverlay.Modules
                 HotkeyMap.Binding b = binds[i];
                 float y = i * RowHeight;
 
-                GUI.Label(new Rect(4, y, content.width - 200f, RowHeight), b.Description, _labelStyle);
+                GUI.Label(new Rect(4, y, content.width - 244f, RowHeight), b.Description, _labelStyle);
 
                 HotkeyMap.Binding clash = map.Conflict(b.Key, b);
                 if (clash != null)
                 {
-                    GUI.Label(new Rect(content.width - 196f, y, 60f, RowHeight), "clash", _warnStyle);
+                    GUI.Label(new Rect(content.width - 236f, y, 60f, RowHeight), "clash", _warnStyle);
                 }
 
                 bool waiting = map.AwaitingRebind == b;
                 GUIContent label = waiting ? PressText : (b.Key == KeyCode.None ? UnboundText : KeyLabel(b.Key));
 
-                if (GUI.Button(new Rect(content.width - 132f, y + 2f, 84f, RowHeight - 6f), label))
+                // Wide enough for the longest key name (KeypadMultiply was cut off).
+                if (GUI.Button(new Rect(content.width - 172f, y + 2f, 124f, RowHeight - 6f), label))
                     map.AwaitingRebind = waiting ? null : b;
 
                 if (GUI.Button(new Rect(content.width - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
