@@ -473,7 +473,7 @@ updater. **267 tests.**
 
 ### Pick up here (2026-09-24 night, v0.24.43 in the game)
 
-**State:** v0.24.44 (the survival book closed on every reset - runner sxczurass; bridge-confirmed on 0.24.43 that the book stayed open and that the fast close clears it) is released; v0.24.43 runs in the author's game. This session (details in
+**State:** v0.24.44 runs in the author's game (the survival book closed on every reset - runner sxczurass; confirmed with the bridge). This session (details in
 *Confirmed in game* and game-notes *The red elevator and the endgame
 areas*): v0.24.38 the Quick / Full load switch (was 1c), v0.24.39 late
 pickup removal (1a, untested), v0.24.40-43 the red elevator after a Quick
@@ -842,7 +842,9 @@ sounds put in step (log: `music_transformation` moved to 41.7 s; author:
 the hallway as at capture - `ElevatorKeeper`, `AreaKeeper`), a Go out of
 the endgame after the ride (vault door cave and Sahara outside normal),
 held axe / lighter usable after a Full load (v0.24.40-0.24.43, author
-with the bridge; game-notes *The red elevator and the endgame areas*).
+with the bridge; game-notes *The red elevator and the endgame areas*);
+the survival book closed by a Quick load (v0.24.44, bridge: opened with
+`call static:TheForest.Utils.LocalPlayer Create.OpenBook`).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
