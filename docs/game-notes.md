@@ -1007,6 +1007,15 @@ before stays cut, its sticks kept); a file from another world puts every
 copy back, as a load would. The logs and sapling sticks not at capture
 are removed (`PickupKeeper.RemoveExtra`, sticks only under a cut).
 
+**A Full load and cut bushes** (v0.24.65-66, bridge): every cut this scene
+is recorded by scene path and place (`Nature_Spawned/GreenBush_40@x,y,z` -
+names repeat, so the nearest within 0.5 m); capture writes the ones still
+cut (`cutbushes`). After a Full load - and a Quick load from another
+world - each is cut again: `DespawnCurrent` if its view is up, then the
+LOD object destroyed, which is what the game's cut leaves. Scene bush
+objects are there as soon as the load ends (`Nature_Spawned` is in
+`ForestMain_v08`). Not done: a sapling's two sticks are not put back.
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

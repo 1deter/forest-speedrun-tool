@@ -585,34 +585,33 @@ identity.
 
 ## Current status
 
-**Released: v0.24.64** (2026-09-25). The author runs it via the in-game
-updater. **302 tests.**
+**Released: v0.24.66** (2026-09-25). The author runs it via the in-game
+updater. **303 tests.**
 
-### Pick up here (2026-09-25, v0.24.64 in the game)
+### Pick up here (2026-09-25, v0.24.66 in the game)
 
-**State:** v0.24.64 runs in the author's game (MCP `update_game`).
-**maks's red elevator report** (Discord, forwarded by the author; his
-log in `Downloads\qa-reports\maks\`, v0.24.52): a restart during the
-ride - or in its 5 s keycard wait - left the ride running, and the car
-(and player) went up afterwards (`elevators: ... 1 left moving`).
-v0.24.64 stops the ride (`ElevatorKeeper.StopRide`); reproduced and
-checked by bridge (`GotoRemotePoint`, restore 2 s in). A forwarded
-Discord message has its text in `message_snapshots`: `qa_read` /
-`qa_download` read it since this session (MCP server rebuilt on the
-next session start - it holds its DLL). The
-"Axe Plane xN not at capture" line after a Quick load was the listing
-reading while both plane wrecks (old + re-created) had their axe active;
-~1.5 s later the old wreck is cleared and the new one's axe is hidden,
-nothing left in the world. The listing now waits for the wreck clear
-(v0.24.63, bridge). Fix
-list 1 (trees / bushes after a Quick load) is done and bridge-confirmed
-(v0.24.61-62, `Game/NatureKeeper`, game-notes *Trees, bushes and
-saplings*); a teleport out of the endgame clears `IsInEndgame`. The whole
-session ran without the author at the game (`game` launch, the save
-loaded from the title screen - *Loading a save yourself* below). MCP
-`capture` / `restore` confirmed in a loaded game. No QA Discord messages
-checked this session; maks's items (Next 3) still wait on his `Perf (30
-s):` lines (`qa_post`, author approves the text).
+**State:** v0.24.66 runs in the author's game (MCP `update_game`). This
+session, all bridge-checked in Slot 1 without the author at the game:
+- **Axe Plane xN "not at capture"** (v0.24.63): the listing read while
+  both plane wrecks had their axe active; nothing was left behind. It
+  now waits for the wreck clear.
+- **maks's red elevator report** (Discord, forwarded by the author; his
+  log in `Downloads\qa-reports\maks\`, v0.24.52): a restart during the
+  ride or its 5 s keycard wait left the ride running and the car (and
+  player) went up after it (`1 left moving`). v0.24.64 stops the ride
+  (`ElevatorKeeper.StopRide`); reproduced first with `call <ElevatorSystem>
+  GotoRemotePoint` + restore 2 s / 7 s in. His "textures" part was not
+  judged (a `tp` into the endgame always lands unloaded); the areas line
+  says `same as at capture`. **maks is on v0.24.52** - he needs to update
+  and retest; no reply posted yet (needs the author's OK of the text).
+- **Full load keeps bushes cut at capture** (v0.24.65-66, game-notes
+  *A Full load and cut bushes*): `cutbushes` header; sticks of a cut
+  sapling are not put back (open).
+- **Forwarded Discord messages** carry their text in `message_snapshots`;
+  `qa_read` / `qa_download` read them from the next session (a running
+  MCP server holds its DLL - rebuild with `dotnet build tools/BridgeMcp
+  -c Release` before starting it, if it was not rebuilt yet). Discord's
+  API refuses a request without a `DiscordBot (...)` User-Agent (40333).
 
 **Dropped (author, 2026-09-25):** the stats-only start state - "over-
 engineering what we currently have with quick and full load savestates
@@ -620,34 +619,27 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Full load respects cut bushes** - the author's rule ("if a bush is
-   cut and it was saved that way, then the savestate should respect
-   that") holds for Quick load since v0.24.62; a Full load regrows every
-   bush (the game's load). Capture would need the cut bushes' identities
-   (scene path of the destroyed `LOD_Bush` / `LOD_Sapling`, kept by
-   `NatureKeeper`), and the Full load's end would destroy those scene
-   objects again (their sticks as captured - pickups list).
-2. **Time of day without cycling through the night** (*Then, before Next
+1. **Time of day without cycling through the night** (*Then, before Next
    up 5*) - only if the game has a clean resync; say so if not.
-3. **Fix list 2-3** - the phantom stick, pickups that move.
-4. **Sharing** (*Then, before Next up 5*) - one self-describing file per
+2. **Fix list 2-3** - the phantom stick, pickups that move.
+3. **Sharing** (*Then, before Next up 5*) - one self-describing file per
    segment, Export / Import in the Practice editor.
-5. **Next up 5, performance** - measure first.
-6. **Next up 6** - passengers on the 100% tab, logs in the inventory
+4. **Next up 5, performance** - measure first.
+5. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 
 Small open items from the tree work: a Quick load regrows a
 **half-chopped** tree fully (as a Full load does - the chopped model is
 not rebuilt); once, one of two new sapling sticks was not removed (not
 matched to anything in the file; the game's `destroyAfter` removed it
-later by distance; cause unknown).
+later by distance; cause unknown); a Full load does not put back a cut
+sapling's sticks.
 
 **Decided (author, 2026-09-25: "if a bush is cut and it was saved that
 way, then the savestate should respect that"):** a Quick load gives back
 the capture, not what a Full load does where the save is silent - bushes
 cut before the capture stay cut (v0.24.62, gotcha 35). A Full load still
-regrows them (the game's own load); making a Full load respect it too is
-open.
+regrows them (the game's own load) - since v0.24.65 it cuts them again.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -1075,7 +1067,11 @@ over the main window (v0.24.59-60, bridge); trees chopped / half-chopped
 since a capture regrown by a Quick load, their logs removed, bushes and
 saplings cut after it back and their sticks removed, ones cut before it
 left cut; a teleport from the lab to the surface clears the endgame
-lighting (v0.24.61-62, bridge).
+lighting (v0.24.61-62, bridge); no false "Axe Plane" pickups after Quick
+loads (v0.24.63), a restore mid red-elevator ride keeps the car and
+player down and the ride works again (v0.24.64), bushes cut at capture
+stay cut after a Full load, also for a capture taken after restores
+(v0.24.65-66) - all bridge.
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
