@@ -1106,7 +1106,7 @@ list so we can move onto expanding more features".
 3. **Savestates, remaining** - *Pick up here* holds the current work
    (Megan Quick load, cave coins, the Full load enemy delay, the red
    elevator in place, the Quick / Full toggle, Megan's music), then the
-   Fix list and *Then, before Next up 5* above (stats-only start state,
+   Fix list and *Then, before Next up 5* above (time of day,
    time of day, sharing). Author's idea, still open: reload the slot **in
    place** on death (the Savestates tab's *Quick load the slot's save*
    does exactly that). Done and confirmed (details in game-notes): fall
