@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.68 - 2026-09-25
+
+- A Quick load no longer leaves a second plane axe at the plane wreck when
+  the axe was already taken at capture.
+- If a pickup disappears without reaching the inventory while savestates
+  are in use, the log says so (`Pickup gone, inventory unchanged`) - send
+  that line if a stick ever vanishes on you.
+
 ## v0.24.67 - 2026-09-25
 
 - After a Quick load or Full load, if the sun is still out of step with the

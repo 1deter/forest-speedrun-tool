@@ -135,6 +135,7 @@ namespace ForestOverlay.Modules
             _panels = new PanelKeeper(ctx.Log);
             _enemies = new EnemyKeeper(ctx.Log);
             _keeper.Install(OverlayPlugin.PluginGuid);
+            PickupKeeper.NameOf = NameOfItem;
             _panels.Install(OverlayPlugin.PluginGuid);
             _bossHold = new BossHold(ctx.Log, ctx.Runner);
             _bossHold.Install(OverlayPlugin.PluginGuid);
@@ -954,6 +955,31 @@ namespace ForestOverlay.Modules
             float waitFrom = Time.realtimeSinceStartup;
             while (_planeClears == cleared && Time.realtimeSinceStartup - waitFrom < 10f) yield return null;
             yield return null;   // let Destroy land before the listing below
+
+            // The wreck the restore re-created comes with every pickup of a
+            // fresh wreck: ones taken before the capture were back - the
+            // plane axe, `Axe Plane x1` not at capture after every Quick
+            // load, and picking it up gave nothing at its max of 1 (bridge,
+            // 2026-09-25).
+            GameObject hull = _bridge.CurrentPlaneHull();
+            if (hull != null)
+            {
+                Dictionary<int, int> taken = new Dictionary<int, int>();
+                int wreck = 0;
+                Transform root = hull.transform;
+                try { wreck = _keeper.RemoveExtra(present, delegate(int id) { return true; },
+                                                  delegate(GameObject g) { return g.transform.IsChildOf(root); }, false, taken); }
+                catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing wreck pickups failed: " + ex.Message); }
+                if (wreck > 0)
+                {
+                    StringBuilder wsb = new StringBuilder();
+                    foreach (KeyValuePair<int, int> kv in taken)
+                        wsb.Append(wsb.Length == 0 ? "" : ", ").Append(NameOfItem(kv.Key)).Append(" x").Append(kv.Value);
+                    Ctx.Log.LogInfo("Savestate restore " + what + ": removed " + wreck + " plane wreck pickup(s) taken before the capture (" +
+                                    wsb + ").");
+                    yield return null;
+                }
+            }
 
             List<string> now = new List<string>();
             try { _keeper.Snapshot(now); }

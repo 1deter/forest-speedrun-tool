@@ -53,6 +53,22 @@ namespace ForestOverlay.Game
         private static PropertyInfo _used;
         private static MethodInfo _clearOut;
 
+        // The phantom stick (fix list 2, author, once after Quick loads): a
+        // stick picked up, gone, nothing in the inventory. Never reproduced
+        // through the bridge; a PickUp.Collect that clears the pickup while
+        // the item's count does not rise logs one line (the plane axe a
+        // Quick load re-created did exactly that at its max of 1).
+        private static FieldInfo _localInventory;
+        private static MethodInfo _amountOf;
+        private static MethodInfo _maxAmountOf;
+        private static bool _inCollect;
+        private static bool _clearedInCollect;
+        private static int _collectItem;
+        private static int _countBefore;
+
+        /// Item id -> name for log lines (set by the owner; may be null).
+        public static Func<int, string> NameOf;
+
         private Harmony _harmony;
 
         public string Status { get; private set; }
@@ -92,6 +108,23 @@ namespace ForestOverlay.Game
                 _harmony.Patch(clearOut, new HarmonyMethod(typeof(PickupKeeper).GetMethod("ClearOutPrefix",
                     BindingFlags.Static | BindingFlags.NonPublic)));
                 Status = "hooked";
+
+                MethodInfo collect = pickUp.GetMethod("Collect", inst, null, Type.EmptyTypes, null);
+                Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                Type inv = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
+                if (local != null) _localInventory = local.GetField("Inventory", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (inv != null)
+                {
+                    _amountOf = inv.GetMethod("AmountOf", inst, null, new[] { typeof(int), typeof(bool) }, null);
+                    _maxAmountOf = inv.GetMethod("GetMaxAmountOf", inst, null, new[] { typeof(int) }, null);
+                }
+                if (collect != null && _localInventory != null && _amountOf != null && _itemId != null)
+                {
+                    _harmony.Patch(collect,
+                        new HarmonyMethod(typeof(PickupKeeper).GetMethod("CollectPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                        new HarmonyMethod(typeof(PickupKeeper).GetMethod("CollectPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+                    Status += ", collect watched";
+                }
             }
             catch (Exception ex)
             {
@@ -110,6 +143,7 @@ namespace ForestOverlay.Game
         // Never throws into the game; never skips the original.
         private static void ClearOutPrefix(object __instance, bool fakeDrop)
         {
+            if (_inCollect) _clearedInCollect = true;
             if (!Armed || fakeDrop) return;
             try
             {
@@ -130,6 +164,60 @@ namespace ForestOverlay.Game
                 TakenList.Add(t);
             }
             catch (Exception) { }
+        }
+
+        // Only while armed (savestates in use), like the keeping itself.
+        private static void CollectPrefix(object __instance)
+        {
+            _inCollect = false;
+            if (!Armed) return;
+            try
+            {
+                _collectItem = (int)_itemId.GetValue(__instance);
+                _countBefore = AmountOf(_collectItem);
+                _clearedInCollect = false;
+                _inCollect = true;
+            }
+            catch (Exception) { }
+        }
+
+        private static void CollectPostfix(object __instance)
+        {
+            if (!_inCollect) return;
+            _inCollect = false;
+            if (!_clearedInCollect) return;
+            try
+            {
+                int after = AmountOf(_collectItem);
+                if (after < 0 || after > _countBefore) return;
+                int max = -1;
+                object inv = _localInventory.GetValue(null);
+                if (_maxAmountOf != null && inv != null) max = (int)_maxAmountOf.Invoke(inv, new object[] { _collectItem });
+                if (max == 0) return;                                          // eaten / used on the spot, never carried
+
+                Component c = __instance as Component;
+                GameObject target = _destroyTarget.GetValue(__instance) as GameObject;
+                if (target == null && c != null) target = c.gameObject;
+                string name = NameOf != null ? NameOf(_collectItem) : null;
+                _log.LogWarning("Pickup gone, inventory unchanged: " + (name ?? "item") + " (" + _collectItem + ") at " +
+                                (target != null ? target.transform.position.ToString() + " '" + PathOf(target.transform) + "'" : "?") +
+                                ", count " + _countBefore + " -> " + after + " (max " + max + ").");
+            }
+            catch (Exception) { }
+        }
+
+        private static int AmountOf(int itemId)
+        {
+            object inv = _localInventory.GetValue(null);
+            if (inv == null) return -1;
+            return (int)_amountOf.Invoke(inv, new object[] { itemId, false });
+        }
+
+        private static string PathOf(Transform t)
+        {
+            string path = t.name;
+            for (Transform p = t.parent; p != null; p = p.parent) path = p.name + "/" + path;
+            return path;
         }
 
         /// Drops entries whose objects a load destroyed (only an in-place
@@ -243,6 +331,13 @@ namespace ForestOverlay.Game
         /// destroyed. Returns how many.
         public int RemoveExtra(HashSet<string> present, Func<int, bool> item, Func<GameObject, bool> where, bool farToo)
         {
+            return RemoveExtra(present, item, where, farToo, null);
+        }
+
+        /// As above; `counts` (optional) gets item id -> how many removed.
+        public int RemoveExtra(HashSet<string> present, Func<int, bool> item, Func<GameObject, bool> where, bool farToo,
+                               Dictionary<int, int> counts)
+        {
             if (_destroyTarget == null || _itemId == null) return 0;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
             if (pickUp == null) return 0;
@@ -294,6 +389,12 @@ namespace ForestOverlay.Game
                     finally { Armed = armed; }
                 }
                 else UnityEngine.Object.Destroy(targets[i]);
+                if (counts != null)
+                {
+                    int k;
+                    counts.TryGetValue(live[i].Id, out k);
+                    counts[live[i].Id] = k + 1;
+                }
                 n++;
             }
             return n;

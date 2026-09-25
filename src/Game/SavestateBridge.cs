@@ -1578,6 +1578,19 @@ namespace ForestOverlay.Game
             catch (Exception ex) { return "plane: failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }
 
+        /// The wreck the game keeps (PlaneCrashController.spawnedHullPrefab),
+        /// or null.
+        public GameObject CurrentPlaneHull()
+        {
+            if (_planeCrash == null || _spawnedHull == null) return null;
+            try
+            {
+                object ctrl = _planeCrash.GetValue(null);
+                return ctrl != null ? _spawnedHull.GetValue(ctrl) as GameObject : null;
+            }
+            catch (Exception) { return null; }
+        }
+
         /// Blood on the player is PlayerStats.IsBloody plus the skin and
         /// weapon it painted; the save does not hold it. The game's own wash
         /// (GotCleanReal, what water does) clears it - and mud and burning
