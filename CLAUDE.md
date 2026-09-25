@@ -539,6 +539,13 @@ number, marks, then logs / config / segments / savestates). A new list:
 a dated `qa/*.txt` (the tab shows the newest, `<` `>` between lists)
 plus its `docs/tests/` file.
 
+**Game data is disposable** (author, 2026-09-25: "i'm the tool dev
+after all"): alpha testing - closing or killing the game with unsaved
+progress, and deleting anything in the author's game or save slots,
+is fine while building or testing; no need to ask. (Still: never
+deploy a DLL by hand - that hides whether the update path works; and
+testers' saves in Downloads are theirs to keep for retests.)
+
 **Saves:** every slot is the author's own (Slot5 swapped back
 2026-09-24 night, sizes checked). maks's saves for testing: his Megan
 save in `C:\Users\deter\Downloads\Slot4`, lab / invisible section / red
@@ -570,8 +577,8 @@ option (the escape hatch for states Quick load has no patch for).
    `in.txt` / `out.txt` protocol, no plugin change: typed tools for
    commands, open a tab by name, notices, screenshots returned as
    images, log grep; **update + restart the game** (stage via the
-   checker, close the game, relaunch through Steam - only at the title
-   screen or with the author's go, a kill loses unsaved progress).
+   checker, close the game, relaunch through Steam - any time, no need
+   to ask: see *Game data is disposable*).
    Then a **Discord bot** in the QA group chat (its own bot account,
    the author creates it and holds the token): read testers' messages;
    post new QA lists and questions. Every post is outward-facing:
