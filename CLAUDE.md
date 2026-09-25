@@ -627,13 +627,32 @@ identity.
 
 ## Current status
 
-**Released: v0.24.70** (2026-09-25). The author runs it via the in-game
-updater. **315 tests.**
+**Released: v0.24.71** (2026-09-25). The author runs it via the in-game
+updater. **326 tests.** `main` has one untagged UI fix since (the import
+list's rows wrapped, not clipped) - it ships with the next release;
+screenshot the Import list then.
 
-### Pick up here (2026-09-25, v0.24.70 in the game)
+### Pick up here (2026-09-25, v0.24.71 in the game)
 
-**State:** v0.24.70 runs in the author's game (MCP `update_game`). This
+**State:** v0.24.71 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
+- **v0.24.71, sharing done:** `Data/SegmentBundle` - one `<id>.foseg`
+  per segment: header, `[segment]` (SegmentFormat's block),
+  `[startstate]` (the .fosave verbatim), `[attempt]` sections (.run files
+  verbatim). Author, 2026-09-25: the website will be built by Claude, "do
+  whatever's easiest" - so the site reads these files too. Practice
+  editor: **Share** row (Export, "with my attempts (n)", Open folder) ->
+  `config/ForestOverlay/shared/`; toolbar **Import** lists that folder
+  (no file picker in Unity 5.6); an existing id needs a second click
+  (**Replace?**), attempts already there are skipped, a start state not
+  matching the segment's hash is imported and said so. Confirmed
+  (author's clicks + bridge): export 315 KB with all three sections, a
+  new id imported (`imported '...' (start state, 1 attempt(s) added)`),
+  a replace (`1 already there`), the imported start state restores
+  under an id with `/` (cross-save adoption). The bridge cannot pass a
+  Segment as a `call` argument, so Export / Import clicks need the
+  author (`QuickSaveSpot` selects a new spot; `ToggleImport` opens the
+  list).
 - **v0.24.70, fix list 3 done (pickups that move):** sticks / rocks
   around pooled trees re-rolled per visit (game-notes *Greebles*, gotcha
   39). Restore-only fix (author's choice over "always the same", which
@@ -685,8 +704,17 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Sharing** (*Then, before Next up 5*) - one self-describing file per
-   segment, Export / Import in the Practice editor.
+1. **Community packs** (author, 2026-09-25: "community spots and timed
+   segments automatically grabbed either off of my site or the github,
+   whatever you think's best, so that new runners have a bunch of good
+   saved spots with practice already good to go"). Plan (proposed, not
+   yet built): `.foseg` files in a `community/` folder of the GitHub repo
+   plus an `index.txt` (file name + hash), fetched from
+   `raw.githubusercontent.com` (not the rate-limited API) at startup /
+   on a button; imported into their own segment file (never the
+   runner's `my-segments.txt`), re-fetched only when a hash changes;
+   reuse PracticeModule's import code. The site can serve the same
+   index later (a second URL).
 2. **Next up 5, performance** - measure first.
 3. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
@@ -910,12 +938,7 @@ are spawned there.
 3. ~~Pickups move~~ done (v0.24.70, confirmed).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
-- **Sharing** - author: "whichever you think fits best with my future
-  website"; "we'll refactor if I don't like it". The website's export
-  format: one self-describing file per segment (definition + its start
-  state `.fosave` + optionally its attempts with samples), plain text /
-  JSON-like; Export / Import in the Practice editor; import never
-  overwrites an existing id silently.
+- ~~Sharing~~ done (v0.24.71, confirmed; *Pick up here*).
 
 **Still awaiting an in-game check** (old): renamed-plugin updates
 (v0.23.7) - a runner on an older build under another name must rename once.
