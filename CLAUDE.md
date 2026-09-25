@@ -291,6 +291,11 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
   instead; downloads are not API calls:
   `curl -s -o /dev/null -w '%{http_code}' -L https://github.com/1deter/forest-speedrun-tool/releases/download/vX.Y.Z/ForestOverlay.dll`
   (200 = attached).
+- **A runner's data all lives in `BepInEx/config/`** (`ForestOverlay/segments/my-segments.txt`,
+  older `locations/my-spots.txt`, `savestates/`, `runs/`, plus
+  `com.deter.forestoverlay.cfg`): moving or replacing the BepInEx folder
+  takes it along (maks, 2026-09-25, lost his spots that way) - copy
+  `config/ForestOverlay` back with the game closed.
 - **Rollback:** close the game, delete `ForestOverlay.dll`, rename
   `ForestOverlay.dll.bak` to `ForestOverlay.dll`. A download that is not the
   ForestOverlay assembly is renamed `.rejected` and never installed; if
