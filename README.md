@@ -161,3 +161,8 @@ assume any of it is permitted in submitted runs until they have.
 `tools/ILScan` is an offline IL query tool over the game assembly; it answers
 behavioural questions ("what writes this every frame?") that the in-game
 reflection dump cannot.
+
+`tools/BridgeMcp` is an MCP server (registered in `.mcp.json`) over the
+plugin's live test bridge: it lets a Claude Code session inspect and drive the
+running game, take screenshots, search the logs, restart / update the game and
+talk to the QA team's Discord channel. Dev-time only, never shipped.

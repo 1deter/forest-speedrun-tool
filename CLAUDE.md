@@ -38,6 +38,9 @@ logged warning instead of a compile break.
 dotnet build -c Release -p:ForestManagedPath="<path>\TheForest_Data\Managed"
 
 dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj
+
+# The bridge MCP server (.mcp.json: forest) - stop a running one first
+dotnet build tools/BridgeMcp -c Release
 ```
 
 ```powershell
@@ -107,7 +110,7 @@ Where things live:
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
-| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end) |
+| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
 | Cutting a player action on a reset | `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
@@ -809,7 +812,8 @@ triggers / wireframe, with size and name filters), game input blocked while
 the window is open, an on-screen notice, a 30 s perf log line,
 self-installing updates **with a changelog in the Updates tab**, a
 **memory census on every load**, offline IL
-scanner.
+scanner, the live test bridge with its **MCP server** (drive the game,
+screenshots, logs, restart / update the game) and the **QA Discord bot**.
 
 ### Key concepts
 
