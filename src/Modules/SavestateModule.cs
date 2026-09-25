@@ -1171,7 +1171,7 @@ namespace ForestOverlay.Modules
                 if (scenes.Count == 0) return;
                 Dictionary<int, int> counts = new Dictionary<int, int>();
                 int[] skipped = new int[3];
-                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(f.Pickups), scenes, counts, skipped);
+                int n = _keeper.RemoveTakenAfterLoad(new HashSet<string>(f.Pickups), scenes, counts, skipped, new Vector3(f.X, f.Y, f.Z));
                 string kept = skipped[0] + skipped[1] + skipped[2] == 0 ? "" :
                     " Not at capture but kept: " + skipped[0] + " with an identifier, " + skipped[1] +
                     " clone(s), " + skipped[2] + " in scenes not loaded at capture.";

@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.51 - 2026-09-25
+
+- Full load: coins and cash you picked up before capturing no longer
+  come back (cave 5's first pile, maks).
+
 ## v0.24.50 - 2026-09-25
 
 - Quick load in a cave: the cave's cannibals stay and are moved back at

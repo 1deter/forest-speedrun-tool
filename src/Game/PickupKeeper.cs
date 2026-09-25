@@ -51,6 +51,7 @@ namespace ForestOverlay.Game
         private static FieldInfo _disable;
         private static FieldInfo _infinite;
         private static PropertyInfo _used;
+        private static MethodInfo _clearOut;
 
         private Harmony _harmony;
 
@@ -77,6 +78,7 @@ namespace ForestOverlay.Game
             _used = pickUp.GetProperty("Used", inst);
 
             MethodInfo clearOut = pickUp.GetMethod("ClearOut", inst, null, new[] { typeof(bool) }, null);
+            _clearOut = clearOut;
             if (clearOut == null || _destroyTarget == null || _disable == null)
             {
                 Status = "PickUp.ClearOut / fields not found";
@@ -242,8 +244,22 @@ namespace ForestOverlay.Game
         /// `skipped` (optional, 3 long): kept because they have an identifier,
         /// are clones, or lie in a scene not loaded at capture.
         public int RemoveTakenAfterLoad(HashSet<string> present, ICollection<string> scenesAtCapture, Dictionary<int, int> counts,
-                                        int[] skipped)
+                                        int[] skipped, Vector3 capturedAt)
         {
+            // Pooled greebles (Pool_Greebles/Cash(Clone), Coins(Clone)) come
+            // back on their seeded spots after a load (maks: cave 5's first
+            // pile; bridge: 4 cash taken before the capture back at the same
+            // positions). A greeble can re-roll its item on a load, so a
+            // clone goes only when the capture had nothing at all at its
+            // position, and only near the captured spot, where its greeble
+            // zone was surely loaded at capture.
+            HashSet<string> spots = new HashSet<string>();
+            foreach (string key in present)
+            {
+                int at = key.IndexOf('@');
+                if (at >= 0) spots.Add(key.Substring(at + 1));
+            }
+
             if (_destroyTarget == null || _itemId == null) return 0;
             Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
             if (pickUp == null) return 0;
@@ -261,9 +277,16 @@ namespace ForestOverlay.Game
                 if (!target.activeInHierarchy) continue;
                 if (present.Contains(KeyFor(c, target))) continue;
                 if (HasIdentifier(target)) { if (skipped != null) skipped[0]++; continue; }
-                if (target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
-                    c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0) { if (skipped != null) skipped[1]++; continue; }
-                if (!scenesAtCapture.Contains(target.scene.name)) { if (skipped != null) skipped[2]++; continue; }
+                bool clone = target.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0 ||
+                             c.gameObject.name.IndexOf("(Clone)", StringComparison.Ordinal) >= 0;
+                if (clone)
+                {
+                    string key = KeyFor(c, target);
+                    bool spotFree = !spots.Contains(key.Substring(key.IndexOf('@') + 1));
+                    bool near = (target.transform.position - capturedAt).sqrMagnitude <= CloneRadius * CloneRadius;
+                    if (!spotFree || !near || _clearOut == null) { if (skipped != null) skipped[1]++; continue; }
+                }
+                else if (!scenesAtCapture.Contains(target.scene.name)) { if (skipped != null) skipped[2]++; continue; }
 
                 int id = 0;
                 try { id = (int)_itemId.GetValue(c); }
@@ -271,11 +294,16 @@ namespace ForestOverlay.Game
                 int k;
                 counts.TryGetValue(id, out k);
                 counts[id] = k + 1;
-                UnityEngine.Object.Destroy(target);
+                // A pooled clone goes back to its pool the game's way (as
+                // when picked up); a placed pickup is destroyed.
+                if (clone) _clearOut.Invoke(c, new object[] { false });
+                else UnityEngine.Object.Destroy(target);
                 n++;
             }
             return n;
         }
+
+        private const float CloneRadius = 50f;
 
         private static string KeyFor(Component pickup, GameObject target)
         {
