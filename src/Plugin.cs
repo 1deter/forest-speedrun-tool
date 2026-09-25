@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.55";
+        public const string PluginVersion = "0.24.56";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -154,6 +154,7 @@ namespace ForestOverlay
             host.Register(new SavestateModule());    // PRACTICE ONLY, experimental (phase 0)
             host.Register(new PracticeRunModule());  // info-only (times what practice sets up)
             host.Register(new DeathModule());        // quick-load (normal runs) / revive (practice)
+            host.Register(new QaModule());           // info-only (QA team: test list, marks, report)
             host.Register(new BridgeModule());       // PRACTICE ONLY, dev tool, off by default (live test bridge)
         }
 

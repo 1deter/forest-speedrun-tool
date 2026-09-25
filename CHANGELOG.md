@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.56 - 2026-09-25
+
+- New **QA** tab for testers: the current test list, with Pass / Fail /
+  Skip and a note per item, saved as you go. Where the log shows an item
+  ran, the line appears under it.
+- **Mark now** (or a Mark key you bind in Settings) writes "something
+  weird happened" into the log with the time, place and current spot,
+  plus an optional note.
+- **Write report** puts one zip on your desktop with your answers, your
+  last logs, your settings, segments and savestates. Send that file.
+
 ## v0.24.55 - 2026-09-25
 
 - The last 3 sessions' logs are now kept in

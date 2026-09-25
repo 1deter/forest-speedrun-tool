@@ -1,0 +1,55 @@
+# The first QA list (sent 2026-09-25 for v0.24.43), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-09-25-qa-v0.24.43.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-09-25
+title = ForestOverlay QA list (2026-09-25, v0.24.43)
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. "Works" is a useful answer too.
+intro = Split the items between you however you like; two people on one item is fine.
+intro = Something weird that is not on the list? Press Mark (or your Mark key, Settings) right when it happens and add a note - it goes into the log with the time and place.
+intro = When you are done, click "Write report": one zip on your desktop with your answers, your last logs and your savestates. Send that. Logs are kept for your last 3 game launches, so a restart no longer loses them.
+
+section = Resetting mid-swing (a practice spot with a start state, axe or stick in hand)
+1) Swing, then press F7 (Restart) halfway through. The swing should stop at once: no finishing it after the restart, no weird pose, no view from inside the neck.
+seen = ended attack state
+2) Same, but press F7 right as you click to swing. It should still stop.
+seen = ended attack state
+3) After each restart in 1) and 2), click to swing straight away. The swing should come out on the first click.
+4) Downward smash (look down, attack), then F7 during it. It should stop and you hold the weapon normally. Seeing your body when looking down is the game's normal pose, not a bug.
+seen = ended attack state
+5) 1) to 4) again with the spot set to Full load (Practice editor, Start state row).
+seen = restoring its start state with a load
+
+section = Savestates
+6) Practice editor, a spot with a start state: is the Quick load / Full load switch clear? Does Restart do what the switch says?
+seen = restoring its start state
+7) Cave 5: take the first coin pile by the drop, take a savestate, Full load it. The coins should stay gone, also a few seconds later.
+seen = pickups - removed
+8) Megan (if you know the run's audio well): savestate late in her transformation, fight or kill her, Quick load. Do the transformation sounds and music line up with the picture as in a normal run? Nothing should keep playing into the fight.
+seen = started during it
+9) Busy area (your base, cannibals nearby, things built): savestate, play a minute (build, fight, pick things up), Quick load. Tell me anything that is not as it was at the savestate. Already known, no need to report: chopped trees and bushes stay chopped after a Quick load.
+10) Savestate, then place a building blueprint (e.g. a wall) so "GATHER LOGS" shows on the HUD, then Quick load. The GATHER line should be gone.
+11) After a Quick load, pick up a stick. It should go where it normally goes. Tell me if one ever vanishes (not in hand, not in the inventory).
+
+section = Timed runs
+12) A timed segment with a start state: press F7, then run it. Does the clock start as usual?
+13) Run lines should disappear when you Go to a plain spot or a different segment.
+
+section = Other tabs
+14) Inventory tab: open it for the first time after loading a save. It should be filled, not empty.
+15) 100% tab -> Write dumps. The report picks up the natureguide file it writes.
+16) After any load (from the menu, or a reload on death): is there a hitch or freeze about a second after you get control? There should be none.
+
+section = Deaths
+17) Deaths tab, "Reload save on death" and "Also in the boss fight" on: die in the Megan boss fight. It should reload the save instead of waking you up in the boss room.
+seen = Death (BossWake)
+
+section = Endgame (only if you run to the end anyway)
+18) Timed run through the ending: say which ending (crash or shutdown), and whether you said goodbye to Timmy or took the raft out of the world. The log is all I need.
+seen = Game event: end-
+seen = Game event: timmy-goodbye
+seen = Game event: raft-out-of-world
+
+section = Performance
+19) If the game ever feels slow (in the background, with run lines or ghosts on, anywhere), press Mark when it happens and note what you were doing.

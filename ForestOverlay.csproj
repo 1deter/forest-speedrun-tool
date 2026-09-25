@@ -13,9 +13,9 @@
     <Description>Speedrun information overlay for The Forest (BepInEx plugin)</Description>
     <LangVersion>latest</LangVersion>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.24.55</Version>
-    <AssemblyVersion>0.24.55.0</AssemblyVersion>
-    <FileVersion>0.24.55.0</FileVersion>
+    <Version>0.24.56</Version>
+    <AssemblyVersion>0.24.56.0</AssemblyVersion>
+    <FileVersion>0.24.56.0</FileVersion>
   </PropertyGroup>
 
   <!--
@@ -48,6 +48,7 @@
   <ItemGroup>
     <EmbeddedResource Include="collectibles\*.txt" LogicalName="shipped/collectibles/%(Filename)%(Extension)" />
     <EmbeddedResource Include="locations\*.txt" LogicalName="shipped/locations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="qa\*.txt" LogicalName="shipped/qa/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

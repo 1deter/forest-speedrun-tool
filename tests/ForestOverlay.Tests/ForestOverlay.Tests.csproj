@@ -47,6 +47,8 @@
     <Compile Include="../../src/Data/BridgeCommand.cs" Link="Linked/BridgeCommand.cs" />
     <Compile Include="../../src/Data/EnemyRecord.cs" Link="Linked/EnemyRecord.cs" />
     <Compile Include="../../src/Data/LogArchive.cs" Link="Linked/LogArchive.cs" />
+    <Compile Include="../../src/Data/QaList.cs" Link="Linked/QaList.cs" />
+    <Compile Include="../../src/Data/ZipWriter.cs" Link="Linked/ZipWriter.cs" />
   </ItemGroup>
 
 </Project>
