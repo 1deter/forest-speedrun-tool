@@ -46,6 +46,7 @@
     <Compile Include="../../src/Data/BookPageState.cs" Link="Linked/BookPageState.cs" />
     <Compile Include="../../src/Data/BridgeCommand.cs" Link="Linked/BridgeCommand.cs" />
     <Compile Include="../../src/Data/EnemyRecord.cs" Link="Linked/EnemyRecord.cs" />
+    <Compile Include="../../src/Data/LogArchive.cs" Link="Linked/LogArchive.cs" />
   </ItemGroup>
 
 </Project>

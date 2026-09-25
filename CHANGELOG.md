@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.55 - 2026-09-25
+
+- The last 3 sessions' logs are now kept in
+  `BepInEx/config/ForestOverlay/logs`, one file per game launch, so a
+  restart no longer loses the log you meant to send. The number is
+  `KeptLogs` in the `[Diagnostics]` config section.
+
 ## v0.24.54 - 2026-09-25
 
 - Full load: v0.24.52 and v0.24.53 could remove a few items you never

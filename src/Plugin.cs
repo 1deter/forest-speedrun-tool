@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.54";
+        public const string PluginVersion = "0.24.55";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -44,6 +44,7 @@ namespace ForestOverlay
         private readonly Notice _notice = new Notice();
         private GUIStyle _noticeStyle;
         private GameEvents _events;
+        private LogKeeper _logs;
 
         private GUIStyle _hudLabelStyle;
         private GUIStyle _warnStyle;
@@ -66,6 +67,12 @@ namespace ForestOverlay
 
                 string configDir = Path.Combine(Paths.ConfigPath, PluginName);
                 if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
+
+                // First, so even an inert plugin keeps its session's log.
+                int keptLogs = Config.Bind("Diagnostics", "KeptLogs", 3,
+                    "How many previous sessions' LogOutput.log to keep in config/ForestOverlay/logs " +
+                    "(the game replaces LogOutput.log on every launch).").Value;
+                _logs = new LogKeeper(Paths.BepInExRootPath, configDir, keptLogs, Logger);
 
                 // Before any module loads, so they read the shipped lists.
                 Data.ShippedData.Install(configDir, Logger);
@@ -96,6 +103,7 @@ namespace ForestOverlay
                 ctx.Notice = _notice;
                 ctx.Events = _events;
                 ctx.ConfigDirectory = configDir;
+                ctx.Logs = _logs;
                 ctx.Runner = this;
                 ctx.PluginPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
 
@@ -152,6 +160,7 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private void Update()
         {
+            if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
             if (_host == null) return;
 
             try
@@ -183,6 +192,12 @@ namespace ForestOverlay
         private void ToggleInfoBox()
         {
             _host.HudVisible = !_host.HudVisible;
+        }
+
+        private void OnApplicationQuit()
+        {
+            try { if (_logs != null) _logs.CopyNew(); }
+            catch (Exception) { }
         }
 
         private void OnDestroy()

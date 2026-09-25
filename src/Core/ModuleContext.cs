@@ -25,6 +25,9 @@ namespace ForestOverlay.Core
         public GameEvents Events;
         public string ConfigDirectory;
 
+        /// This session's log copy and the kept previous ones.
+        public LogKeeper Logs;
+
         /// The plugin behaviour, for modules that need to start a
         /// coroutine (the update check is the only one so far).
         public UnityEngine.MonoBehaviour Runner;
