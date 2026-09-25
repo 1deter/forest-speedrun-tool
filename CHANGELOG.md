@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.77 - 2026-09-26
+
+- Fixed: the spawn coordinates box had "(none - cannot teleport here)"
+  drawn over it.
+
 ## v0.24.76 - 2026-09-26
 
 - Spot and zone coordinates in the Practice editor are text boxes: select

@@ -738,12 +738,12 @@ namespace ForestOverlay.Modules
             // --- spawn -----------------------------------------------------
             GUI.Label(new Rect(0, y, 74, 20), "Spawn");
             Vector3 typed;
-            if (s.HasSpawn && CoordsField(new Rect(80, y - 1, cw - 220, 20), SpawnSlot, 0, s.SpawnPosition, true, out typed))
+            if (!s.HasSpawn) GUI.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
+            else if (CoordsField(new Rect(80, y - 1, cw - 220, 20), SpawnSlot, 0, s.SpawnPosition, true, out typed))
             {
                 s.SpawnPosition = typed;
                 Touch();
             }
-            else GUI.Label(new Rect(80, y, cw - 220, 20), "(none - cannot teleport here)");
 
             if (GUI.Button(new Rect(cw - 136, y - 2, 56, 22), "Here")) SetSpawnHere(s);
 
