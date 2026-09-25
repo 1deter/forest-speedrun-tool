@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "forest": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["tools/BridgeMcp/bin/Release/net8.0/forest-bridge-mcp.dll"]
+    }
+  }
+}

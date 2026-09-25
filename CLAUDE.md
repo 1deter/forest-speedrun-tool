@@ -82,6 +82,7 @@ folders because it is the code that can break an install.
 | `src/Modules/` | One file per feature |
 | `patcher/` | `ForestOverlay.Updater` preloader patcher. Embedded in the plugin, never shipped alone |
 | `tools/ILScan/` | Offline IL query tool. Dev-time only, never shipped |
+| `tools/BridgeMcp/` | MCP server over the live test bridge (`.mcp.json`: `forest`). Dev-time only, never shipped |
 | `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
 
 Modules never reach for globals or each other — shared services arrive via
@@ -196,6 +197,33 @@ The author does what needs hands (combat, chopping) while a session
 drives the rest. A bad path is an error line, never an exception.
 `in.txt` still present after a call = the game is not reading (not
 running, bridge off).
+
+**The MCP server (`tools/BridgeMcp`, 2026-09-25)** puts all of this
+behind typed tools: `.mcp.json` registers it as **`forest`**
+(project scope - approve it once when a session starts). Same files,
+no plugin change. Tools: `status` (start here: game running?, the
+bridge setting, version, scene, player, FSM state), `run` (raw lines /
+a `-f`-style file - scripts), `find` (name or `type`), `roots`,
+`types`, `members`, `inspect`, `fields`, `get` (several paths), `set`,
+`call`, `destroy`, `savestates`, `capture`, `restore` (`load`),
+`spots`, `go`, `restart_spot`, `teleport`, `mark`, `anim`,
+`screenshot` (returned as an image: 1280 px JPEG by default,
+`region` crops at full resolution to read small text, `delay_s`),
+`notice`, `open_tab` (by name; `explorer`; `close` closes every
+window), `wait`, `log` (regex / tail, `session` 1-2 = the kept older
+logs), `ilscan`, `game` (close / launch / restart; through Steam,
+waits until the bridge answers) and `update_game` (the plugin's own
+Check + Download, then restart; one GitHub API call - never loop
+it). The plugin target is `BepInEx_Manager` by name (stable across
+launches, unlike `#-88`). **The game starts with Unity's launcher
+dialog** ("TheForest Configuration", *Play!*): `game` presses Play by
+itself (Win32 `WM_COMMAND`, no mouse) - a restart to the title screen
+takes ~15 s. `forest-bridge-mcp.dll --windows` lists the game's
+windows if that ever stops working. An unread `in.txt` is withdrawn
+on timeout / close, so stale commands never run on the next launch.
+Build: `dotnet build tools/BridgeMcp -c Release` - a running server
+holds its DLL, so stop it first (`/mcp` in the terminal, or a new
+session). Its text side (`BridgeText`, `LogSearch`) is tested.
 
 ### Releases and updates
 
@@ -508,21 +536,30 @@ identity.
 ## Current status
 
 **Released: v0.24.58** (2026-09-25). The author runs it via the in-game
-updater. **287 tests.**
+updater. **296 tests.**
 
 ### Pick up here (2026-09-25, v0.24.58 in the game)
 
-**State:** v0.24.58 runs in the author's game (installed through the
-bridge's update calls + an author restart). This session: **QA tooling
-done** (Next 1 below) - v0.24.55 last 3 sessions' logs kept, v0.24.56
-the QA tab (list, answers, `seen` log lines, Mark, report zip),
-v0.24.57-58 fixes from a bridge sweep of every tab (Settings key names
-cut off, "Current save slot: ?" before the first capture, the info box
-cutting long lines). All confirmed in game with the bridge (*Confirmed
-in game*). Test leftovers (answers, tester name, desktop zip) removed.
-**Suggested next: 1b, the bridge MCP server** - the author asked for
-it on **high effort**; say so if the session is on medium. Then maks's
-items (Next 2-3). Nothing is waiting on the author.
+**State:** v0.24.58 runs in the author's game. This session: **the
+bridge MCP server** (Next 1b, `tools/BridgeMcp`, see *The live test
+bridge*) - built and tried end to end against the running game over
+real MCP stdio: every read tool, `run`, screenshots (full and
+cropped), `notice`, `open_tab` (tabs, explorer, close), `log`,
+`ilscan`, `update_game` (up to date: one check), and **`game restart`
+through Steam with the launcher's Play pressed automatically** (title
+screen in ~15 s). Not yet exercised through MCP (thin wrappers over
+proven bridge commands): `capture` / `restore` / `restart_spot` in a
+loaded game, and `update_game` with a real update waiting - watch
+the first one. **First thing next session: approve the `forest` MCP
+server** (project `.mcp.json`) and use its tools instead of
+`scripts/bridge.sh`. Two small plugin quirks seen while testing,
+for the next release: at the title screen `capture` writes an empty
+604-byte savestate and `tp` "succeeds" (moves the menu's FakeCave) -
+both should refuse without a player; and the `notice` text draws
+**under** the main window (drawn before it in `Plugin.OnGUI`).
+**Suggested next:** the **Discord bot** (Next 1b, second half - the
+author creates the bot account first), then maks's items (Next 2-3).
+Nothing is waiting on the author except the bot account.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -575,14 +612,10 @@ option (the escape hatch for states Quick load has no patch for).
    unbound) and **Write report** (stored zip on the desktop). A new list
    = a dated `qa/*.txt` (format in `Data/QaList`), numbered as sent.
    Never let runners run bridge scripts (arbitrary calls).
-1b. **Bridge MCP server** (author, 2026-09-25: "a great addition"; build
-   on high effort). A local stdio server beside the plugin, same
-   `in.txt` / `out.txt` protocol, no plugin change: typed tools for
-   commands, open a tab by name, notices, screenshots returned as
-   images, log grep; **update + restart the game** (stage via the
-   checker, close the game, relaunch through Steam - any time, no need
-   to ask: see *Game data is disposable*).
-   Then a **Discord bot** in the QA group chat (its own bot account,
+1b. **Bridge MCP server** - done (2026-09-25, `tools/BridgeMcp`; see
+   *The live test bridge*). Updating / restarting the game with it is
+   fine any time, no need to ask (*Game data is disposable*).
+   Next: a **Discord bot** in the QA group chat (its own bot account,
    the author creates it and holds the token): read testers' messages;
    post new QA lists and questions. Every post is outward-facing:
    confirm with the author before sending unless they set a standing
@@ -617,6 +650,7 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 `call #<h> OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, `wait 10`, `get ..._checker.Message`
 ("downloaded - restart"); the author restarts. Works at the title screen.
+The MCP `update_game` tool does all of it, restart included.
 **Do the in-game actions yourself** (author, 2026-09-25: automate as
 much as possible; ask only for what has no call - memory
 `automate-ingame-actions`). `T=static:TheForest.Utils.LocalPlayer`:
