@@ -632,12 +632,12 @@ identity.
 
 ## Current status
 
-**Released: v0.24.74** (2026-09-26). The author runs it via the in-game
-updater. **339 tests.**
+**Released: v0.24.75** (2026-09-26). The author runs it via the in-game
+updater. **347 tests.**
 
-### Pick up here (2026-09-26, v0.24.74 in the game)
+### Pick up here (2026-09-26, v0.24.75 in the game)
 
-**State:** v0.24.74 runs in the author's game (MCP `update_game`). This
+**State:** v0.24.75 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
 - **v0.24.72, community packs done** (`Modules/CommunityModule`,
   `Data/CommunityIndex`, repo `community/` + `scripts/community-index.py`,
@@ -668,6 +668,15 @@ session (author on medium effort), all bridge-checked in Slot 1:
   `QuickSaveSpot` gave `s-3bc180564e9f`, editor shows Name / Category /
   Notes only. The author's own entries keep old ids - seeding a pack
   from one means a fresh id first (community/README.md step 3).
+- **v0.24.75, turned boxes** (runner feedback; author: yaw yes, tilt "a
+  gimmick"): `Trigger.Yaw`, degrees about +Y, depth along the heading;
+  containment, preview and editor ("turn" slider; switching to box or
+  Here takes the player's heading). Written as an optional 8th box
+  value only when non-zero - unturned boxes fingerprint as before
+  (tested). Confirmed: a 45-degree box drawn diagonal (bridge shot).
+  Bridge trick found: `set ..._selected.End.Yaw 45` etc. writes struct
+  fields back (Trigger is a struct) - enough to build a test segment
+  without clicks; the preview draws only a timed entry (Start set too).
 - **v0.24.71, sharing done:** `Data/SegmentBundle` - one `<id>.foseg`
   per segment: header, `[segment]` (SegmentFormat's block),
   `[startstate]` (the .fosave verbatim), `[attempt]` sections (.run files
@@ -1313,8 +1322,7 @@ unless critical.
 - **Deaths:** revive is confusing, worse with practice mode on and another
   spot selected - one clear choice of what a death does (reload the save,
   restore the start state Quick / Full, revive).
-- **Runs:** checkpoint boxes should rotate (new ones facing the look
-  direction); hide zones individually or show only the next; Runs tab:
+- **Runs:** ~~checkpoint boxes should rotate~~ done (v0.24.75); hide zones individually or show only the next; Runs tab:
   when each time was set, more detail, the HUD shows the **previous** time
   too; **runs continue at the main menu** - abort automatically; ghost: a
   custom model, buildings in the replay; **checkpoint savestates**
