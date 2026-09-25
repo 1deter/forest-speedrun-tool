@@ -252,6 +252,16 @@ namespace ForestOverlay.Core
         public void TogglePanel(OverlayModule m)
         {
             m.PanelOpen = !m.PanelOpen;
+
+            // Opening a window while "hide all UI" is on freed the mouse
+            // and drew nothing - the window looked like it vanished (maks,
+            // v0.24.68: his open key F4 sits next to hide-all F5).
+            if (m.PanelOpen && !UiVisible)
+            {
+                UiVisible = true;
+                _ctx.Log.LogInfo("UI shown again: a window was opened while all UI was hidden.");
+            }
+
             try { m.OnPanelToggled(m.PanelOpen); }
             catch (Exception ex) { Disable(m, "OnPanelToggled", ex); }
         }

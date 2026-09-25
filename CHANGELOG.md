@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.69 - 2026-09-25
+
+- Opening the window while all UI is hidden (F5) shows the UI again.
+  Before, the window opened invisibly and only freed the mouse.
+- The window can no longer end up off screen (after a resolution change).
+
 ## v0.24.68 - 2026-09-25
 
 - A Quick load no longer leaves a second plane axe at the plane wreck when

@@ -619,13 +619,17 @@ identity.
 
 ## Current status
 
-**Released: v0.24.68** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.69** (2026-09-25). The author runs it via the in-game
 updater. **303 tests.**
 
 ### Pick up here (2026-09-25, v0.24.68 in the game)
 
 **State:** v0.24.68 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
+- **v0.24.69 (maks, "window not opening, mouse freed"):** hide-all UI
+  (F5) was on - his open key is F4. Opening a window now shows the UI
+  again (`UI shown again:` line), F5 logs `UI hidden` / `UI shown`, the
+  main window is clamped on screen. Author confirmed the cause.
 - **Phantom stick (fix list 2): not reproduced.** Kept greeble sticks
   behave: in-place pick-up + Quick load (same object back, still
   `IsSpawned` in the Greebles pool, flags reset), pick it up again,

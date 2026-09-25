@@ -82,6 +82,12 @@ namespace ForestOverlay.Modules
                 _windowPlaced = true;
             }
 
+            // Keep at least the title bar on screen: a resolution change or
+            // a drag past the edge would otherwise leave an open window
+            // nobody can see.
+            _windowRect.x = Mathf.Clamp(_windowRect.x, 40f - _windowRect.width, Screen.width - 40f);
+            _windowRect.y = Mathf.Clamp(_windowRect.y, 0f, Screen.height - 30f);
+
             _windowRect = GUI.Window(windowId, _windowRect, DrawContents,
                                      "ForestOverlay v" + OverlayPlugin.PluginVersion);
         }

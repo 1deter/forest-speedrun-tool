@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.68";
+        public const string PluginVersion = "0.24.69";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -188,6 +188,8 @@ namespace ForestOverlay
         private void ToggleAllUi()
         {
             _host.UiVisible = !_host.UiVisible;
+            Logger.LogInfo(_host.UiVisible ? "UI shown (show / hide all key)."
+                                           : "UI hidden (show / hide all key) - press it again to show.");
         }
 
         private void ToggleInfoBox()
