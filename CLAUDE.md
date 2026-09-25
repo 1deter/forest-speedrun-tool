@@ -576,6 +576,14 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     undid; "already gone" still counts as cut. Test the chain (Full load
     -> Quick load -> capture -> Full load), not one restore.
 
+39. **A pool object carries its first user's state.** A greeble zone on a
+    pooled tree kept the seed and taken flags of the first tree that
+    object served, so the same tree showed other sticks whenever another
+    pool object served it (fix list 3, v0.24.70). When something "moves"
+    between visits, compare the object's handle / pool clone name across
+    visits before blaming the restore - `(Clone)001` vs `(Clone)002` was
+    the whole story.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -619,13 +627,26 @@ identity.
 
 ## Current status
 
-**Released: v0.24.69** (2026-09-25). The author runs it via the in-game
-updater. **303 tests.**
+**Released: v0.24.70** (2026-09-25). The author runs it via the in-game
+updater. **315 tests.**
 
-### Pick up here (2026-09-25, v0.24.68 in the game)
+### Pick up here (2026-09-25, v0.24.70 in the game)
 
-**State:** v0.24.68 runs in the author's game (MCP `update_game`). This
+**State:** v0.24.70 runs in the author's game (MCP `update_game`). This
 session (author on medium effort), all bridge-checked in Slot 1:
+- **v0.24.70, fix list 3 done (pickups that move):** sticks / rocks
+  around pooled trees re-rolled per visit (game-notes *Greebles*, gotcha
+  39). Restore-only fix (author's choice over "always the same", which
+  would change normal play): capture writes `greebles` (place, seed,
+  state bytes of each live pooled zone, `Data/GreebleRecord`),
+  `Game/GreebleKeeper` gives them back - live zones at once, later ones
+  in a `GreebleZone.Spawn` prefix, once each. Confirmed: live Quick load
+  (`1 tree zone(s) re-drawn as captured`), a zone spawning after the
+  restore (`GreebleKeeper: tree zone at ... spawned with its captured
+  sticks`), Full load (`1 set as they spawned in the load`). Left: a
+  `Small Rock x1` not at capture - an `LOD_PickUps` rock
+  (`Pool_Greebles/SmallRock(Clone)`), probably not yet spawned 8 s after
+  the teleport that preceded the capture; not looked into.
 - **v0.24.69 (maks, "window not opening, mouse freed"):** hide-all UI
   (F5) was on - his open key is F4. Opening a window now shows the UI
   again (`UI shown again:` line), F5 logs `UI hidden` / `UI shown`, the
@@ -664,12 +685,10 @@ engineering what we currently have with quick and full load savestates
 savestate's already supposed to do". Do not propose it again.
 
 **Next, in this order (author, 2026-09-25: "keep it in that order"):**
-1. **Fix list 3** - pickups that move (the phantom stick is waiting
-   on its log line).
-2. **Sharing** (*Then, before Next up 5*) - one self-describing file per
+1. **Sharing** (*Then, before Next up 5*) - one self-describing file per
    segment, Export / Import in the Practice editor.
-3. **Next up 5, performance** - measure first.
-4. **Next up 6** - passengers on the 100% tab, logs in the inventory
+2. **Next up 5, performance** - measure first.
+3. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 
 Small open items from the tree work: a Quick load regrows a
@@ -886,11 +905,9 @@ are spawned there.
 1. ~~Trees and bushes after a Quick load~~ done (v0.24.61-62, confirmed).
 2. **Phantom stick** (author, once, after Quick loads): not reproduced
    (v0.24.68, *Pick up here*); waits for a `Pickup gone, inventory
-   unchanged` line.
-3. **Pickups move**: the "not at capture" lines show a few sticks / rocks;
-   greeble notes in game-notes *Greebles* (positions seeded; type depends
-   on regrowth time; the game itself reuses pool objects elsewhere and
-   regrows taken sticks once the zone reloads).
+   unchanged` line. A taken stick's flag can follow a pool object to
+   another tree (game-notes *Greebles*) - a candidate cause.
+3. ~~Pickups move~~ done (v0.24.70, confirmed).
 
 **Then, before Next up 5** (author, 2026-09-24: "get them done before 5"):
 - **Sharing** - author: "whichever you think fits best with my future
