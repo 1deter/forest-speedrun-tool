@@ -126,6 +126,37 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
+        public static bool InEndgame()
+        {
+            try
+            {
+                Resolve();
+                return _inEndgame != null && (bool)_inEndgame.GetValue(null, null);
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// LocalPlayer.IsInEndgame is set by the endgame's own triggers
+        /// (SetInEndGame has no caller in code) and read for the lighting:
+        /// a teleport out of the lab kept it, and the surface looked like a
+        /// cave (author, 2026-09-25; clearing it by hand fixed the look).
+        public static string LeaveEndgame()
+        {
+            try
+            {
+                Resolve();
+                if (_inEndgame == null || !(bool)_inEndgame.GetValue(null, null)) return "";
+                MethodInfo set = _inEndgame.GetSetMethod(true);
+                if (set == null) return "endgame: still set (no setter)";
+                set.Invoke(null, new object[] { false });
+                return "endgame flag cleared";
+            }
+            catch (Exception ex)
+            {
+                return "endgame: clearing failed (" + ex.Message + ")";
+            }
+        }
+
         public static string LeaveOverlook()
         {
             try

@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.61 - 2026-09-25
+
+- Quick load now brings back trees chopped since the capture (half-chopped
+  ones too), and cut bushes and saplings. The logs and sapling sticks those
+  cuts dropped are removed; logs lying there at capture stay.
+- A teleport out of the endgame back to the surface no longer leaves the
+  lighting looking like a cave.
+
 ## v0.24.60 - 2026-09-25
 
 - On-screen notices have a solid background, so the window behind them no

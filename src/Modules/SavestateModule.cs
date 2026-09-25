@@ -63,6 +63,7 @@ namespace ForestOverlay.Modules
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
         private AreaKeeper _area;
+        private NatureKeeper _nature;
         private EnemyKeeper _enemies;
         private string _dir;
 
@@ -140,6 +141,8 @@ namespace ForestOverlay.Modules
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
             _area = new AreaKeeper(ctx.Log);
+            _nature = new NatureKeeper(ctx.Log);
+            _nature.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
@@ -193,6 +196,7 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = false;
             if (_keeper != null) _keeper.Uninstall();
             if (_panels != null) _panels.Uninstall();
+            if (_nature != null) _nature.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
@@ -677,6 +681,9 @@ namespace ForestOverlay.Modules
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
+                // Trees chopped and bushes cut since are outside what an
+                // in-place LoadNow puts back (NatureKeeper); a slot's too.
+                string natureNote = r.Ok ? _nature.Restore() : "";
 
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
@@ -708,6 +715,7 @@ namespace ForestOverlay.Modules
                               (meganNote.Length == 0 ? "" : " | " + meganNote) +
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
+                              (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
@@ -906,7 +914,21 @@ namespace ForestOverlay.Modules
                 }
                 catch (Exception) { }
             }
-            if (spears > 0 || limbs > 0) yield return null;   // let Destroy land before the listing below
+            // Logs from trees and sticks from saplings cut since the capture
+            // (fix list 1): the trees and saplings are back (NatureKeeper).
+            // A log rolls, so by item and nearest place, not exact key;
+            // sticks only under a sapling's cut - greeble sticks move
+            // (fix list 3) and are not ours to remove.
+            int logs = 0, sticks = 0;
+            try { logs = _keeper.RemoveExtra(present, IsLogItem, delegate(GameObject g) { return true; }, true); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing new logs failed: " + ex.Message); }
+            try { sticks = _keeper.RemoveExtra(present, IsStickItem, NatureKeeper.UnderACut, false); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: removing sapling sticks failed: " + ex.Message); }
+            if (logs > 0 || sticks > 0)
+                Ctx.Log.LogInfo("Savestate restore " + what + ": removed " + logs + " log(s) and " + sticks +
+                                " sapling stick(s) from cuts since the capture.");
+
+            if (spears > 0 || limbs > 0 || logs > 0 || sticks > 0) yield return null;   // let Destroy land before the listing below
 
             List<string> now = new List<string>();
             try { _keeper.Snapshot(now); }
@@ -940,6 +962,18 @@ namespace ForestOverlay.Modules
         {
             string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
             return n == "Spear";
+        }
+
+        private bool IsLogItem(int id)
+        {
+            string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
+            return n == "Log";
+        }
+
+        private bool IsStickItem(int id)
+        {
+            string n = Ctx.Inventory != null ? Ctx.Inventory.NameForId(id) : null;
+            return n == "Stick";
         }
 
         private bool IsBodyPartItem(int id)

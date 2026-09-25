@@ -635,6 +635,8 @@ namespace ForestOverlay.Modules
             return null;
         }
 
+        private AreaKeeper _areas;
+
         private string Teleport(List<string> a, List<string> o)
         {
             if (!Ctx.Player.Found || PlayerRef.AtTitleScreen) return "no player (load a game first)";
@@ -645,6 +647,10 @@ namespace ForestOverlay.Modules
 
             Vector3 to = new Vector3(x, y, z);
             string cave = Ctx.Bridge.SyncCaveState(to);
+            // As Go: the endgame's area and flags outlive leaving it.
+            if (_areas == null) _areas = new AreaKeeper(Ctx.Log);
+            string area = _areas.ForTeleport(to);
+            if (area.Length > 0) cave += (cave.Length > 0 ? ", " : "") + area;
             if (!Ctx.Player.MoveTo(to, Quaternion.Euler(0f, yaw, 0f))) return "could not move the player";
             string fall = Ctx.Bridge.EndFall();
             Mark("teleport");

@@ -31,7 +31,9 @@ namespace ForestOverlay.Game
     // showed. Clearing both by hand fixed it (author, v0.24.42). So a
     // teleport landing outside every section's renderers leaves the active
     // area and clears the overlook flag; one landing inside a section is
-    // left alone (the gates re-enter areas as you walk).
+    // left alone (the gates re-enter areas as you walk). The endgame flag
+    // too (v0.24.61): a teleport from the lab to the surface kept
+    // IsInEndgame and the surface was lit like a cave.
     // ------------------------------------------------------------------
     internal sealed class AreaKeeper
     {
@@ -86,7 +88,8 @@ namespace ForestOverlay.Game
                 if (!Bind()) return "";
                 Component live = Live();
                 bool overlook = AreaReport.InOverlook();
-                if (live == null && !overlook) return "";
+                bool endgame = AreaReport.InEndgame();
+                if (live == null && !overlook && !endgame) return "";
                 if (InsideASection(dest)) return "";
 
                 string note = "";
@@ -99,6 +102,11 @@ namespace ForestOverlay.Game
                 {
                     string o = AreaReport.LeaveOverlook();
                     if (o.Length > 0) note += (note.Length > 0 ? ", " : "") + "overlook flag cleared";
+                }
+                if (endgame)
+                {
+                    string e = AreaReport.LeaveEndgame();
+                    if (e.Length > 0) note += (note.Length > 0 ? ", " : "") + e;
                 }
                 return note.Length > 0 ? note + " (outside the endgame sections)" : "";
             }

@@ -44,6 +44,14 @@ namespace ForestOverlay.Data
         /// For each live pickup, whether a captured one accounts for it.
         public static bool[] Match(IList<Entry> captured, IList<Entry> live, float near)
         {
+            return Match(captured, live, near, true);
+        }
+
+        /// `farToo` false: only the near pass - for items that also lie
+        /// everywhere as greebles (sticks), where "any one left over" would
+        /// account for every new one.
+        public static bool[] Match(IList<Entry> captured, IList<Entry> live, float near, bool farToo)
+        {
             bool[] liveUsed = new bool[live.Count];
             bool[] capUsed = new bool[captured.Count];
 
@@ -72,7 +80,7 @@ namespace ForestOverlay.Data
             pairs.Sort(delegate(Pair a, Pair b) { return a.Dist.CompareTo(b.Dist); });
 
             // Near first, then whatever is left, both nearest first.
-            for (int pass = 0; pass < 2; pass++)
+            for (int pass = 0; pass < (farToo ? 2 : 1); pass++)
             {
                 for (int i = 0; i < pairs.Count; i++)
                 {

@@ -103,6 +103,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void NearOnlyLeavesANewSaplingStickUnmatched()
+        {
+            // Quick load (bridge, 2026-09-25): a sapling cut since the
+            // capture dropped two sticks; the capture lists greeble sticks
+            // all over. With the far pass a leftover greeble would account
+            // for the new sticks; near only, just the one that lay there.
+            List<PickupMatch.Entry> cap = Keys("57@403.6,70.8,298.3", "57@900.0,50.0,100.0", "57@-300.0,60.0,20.0");
+            List<PickupMatch.Entry> live = new List<PickupMatch.Entry>
+            {
+                E(57, 403.58f, 70.81f, 298.28f), E(57, 408.16f, 70.45f, 297.78f), E(57, 408.28f, 70.36f, 298.49f),
+            };
+            Assert.Equal(new[] { true, true, true }, PickupMatch.Match(cap, live, 2.5f));
+            Assert.Equal(new[] { true, false, false }, PickupMatch.Match(cap, live, 2.5f, false));
+        }
+
+        [Fact]
         public void AReRolledGreebleSlotIsTaken()
         {
             List<PickupMatch.Entry> cap = Keys("37@818.9,6.9,846.1");

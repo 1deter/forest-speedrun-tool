@@ -931,6 +931,64 @@ under the panel within 4 m of the hit by `Euler(Random.Range(-1,1) x3)`
 not state, `Health` alone decides the break. v0.24.23 records the boards'
 rotations at a panel's first hit and straightens them on restore.
 
+## Trees, bushes and saplings (IL + bridge, 2026-09-25)
+
+**Trees.** A scene tree is `Nature_Spawned/<Kind>_<n>` with `LOD_Trees`,
+`CoopTreeId` (`Id`, disabled component) and a `BoltEntity`; its view is a
+pooled `Pool_Trees/<Kind>_High(Clone)` carrying `TreeHealth`. Chopping is
+two stages: the first `Hit` (`DamageTree`, `Health` 1 on the standing
+view) calls `CutDown`, which swaps in the **chopped model**
+(`<Kind>Cut(Clone)`, `TreeHealth.Health` 4, chunks `TreeDmg1..4`, `Lower`,
+`Upper`) and disables `LOD_Trees`; four more hits call its `CutDown` ->
+`DoFallTree` (returns the falling `TrunkUpperSpawn`, sets `CurrentView`,
+fires `TreeHealth.OnTreeCutDown`) -> `DestroyTrunk`, which moves the
+`ExplodeTreeStump` child (`Lower`, the stump) **under the `LOD_Trees`
+object**. The fallen top breaks into `Pool_PickUps/Log(Clone)` pickups
+(item 78) over the next seconds. Bridge: `call <view> TreeHealth.Hit`
+chops like a player.
+
+**The save** (`MassDestructionSaveManager`, `mass_v016`): `OnSerializing`
+lists every `LOD_Trees` that is disabled with `CurrentView == null` as
+`CutDownTreeIds` (negative id = its `LOD_Base` destroyed); `OnDeserialized`
+only enables the manager, whose next `Update` **cuts** each listed tree
+(destroys the view, a `StumpPrefab` only for scale >= 1, fires
+`OnTreeCutDown`, disables `LOD_Trees`) and logs `Turning off N trees`
+(Unity's log only). Nothing ever stands a tree up, so an in-place LoadNow
+left every tree cut since the capture down; the list itself does come
+back (bridge: 37 -> 36 entries). A half-chopped tree is not on the list:
+a Full load stands it up. Loose logs are **not** saved: a Full load had
+none of the ten lying at capture.
+
+**Regrowth** is the game's own (`ShelterTrigger.CheckRegrowTrees`, the
+sleep option): per cut tree `DontSpawn = false`, `enabled = true`,
+`RefreshLODs()`, `TreeLodGrid.RegisterTreeRegrowth(pos)`, and every child
+of the tree object destroyed (a `LOD_Stump` child despawned first; the
+game's `SpawnStumpLod` also clears all children, so they are only ever
+stumps). Enabling `LOD_Trees` alone brought the tree back and it chopped
+and fell normally again (bridge). `Game/NatureKeeper` (v0.24.61) runs
+that for every disabled tree not on the restored list after a Quick load,
+destroying its chopped model or falling trunk (a postfix on `DoFallTree`
+remembers the trunk) first.
+
+**Bushes and saplings.** `GreenBush_*` (`LOD_Bush`; view `BushDamage`,
+`Health` 5, its `MyCut` is flying debris only), ferns (`LOD_Bush`, view
+`CutBush2`) and saplings (`Sapling1_*`, `LOD_Sapling : LOD_Trees`, no
+`CoopTreeId`; view `CutBush2`, `sapling`, `Health` 8) - the sapling is the
+bush that drops two sticks: its `MyCut` `Sapling1_Cut(Clone)` holds two
+`Stick_High` pickups (item 57, `destroyAfter`). Cutting despawns the view
+and nulls `LodBase.CurrentLodTransform`; the LOD's next `RefreshLODs`
+sees it spawned with no view (`lodWasDestroyed`) and, as these answer
+`DestroyInsteadOfDisable = true`, **destroys the scene object**. None of
+them is in the save: a bush cut **before** a capture was back after its
+Full load. A copy of the scene object (under its parent with local values
+- `Instantiate` copies the local transform) spawns its own view and cuts
+like the original (bridge). `NatureKeeper` keeps such a copy under an
+inactive holder at each cut (prefixes on `BushDamage.CutDownReal` /
+`DespawnBush`, `CutBush2.CutDown` / `DespawnBush`; greeble-owned bushes
+under `Pooling` skipped) and a Quick load puts every one back, as any load
+does; the logs and sapling sticks not at capture are removed
+(`PickupKeeper.RemoveExtra`, sticks only under a cut).
+
 ## The ESC menu and the player lock
 
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and

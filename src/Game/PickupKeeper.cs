@@ -233,6 +233,72 @@ namespace ForestOverlay.Game
             return n;
         }
 
+        /// After a Quick load: loaded world pickups (no identifier) of an
+        /// item `item` accepts, where `where` accepts the target, that the
+        /// capture does not account for - by item, nearest first within
+        /// MatchNear, then (`farToo`) any left over: logs from trees and
+        /// sticks from saplings cut since the capture (NatureKeeper). Logs
+        /// roll, so not by exact key. A pooled one (Pooling/Pool_PickUps/
+        /// Log(Clone)) goes back to its pool the game's way; others are
+        /// destroyed. Returns how many.
+        public int RemoveExtra(HashSet<string> present, Func<int, bool> item, Func<GameObject, bool> where, bool farToo)
+        {
+            if (_destroyTarget == null || _itemId == null) return 0;
+            Type pickUp = GameBridge.FindGameType("TheForest.Items.World.PickUp");
+            if (pickUp == null) return 0;
+
+            List<PickupMatch.Entry> captured = new List<PickupMatch.Entry>();
+            foreach (string key in present)
+            {
+                PickupMatch.Entry e;
+                if (PickupMatch.TryParse(key, out e) && item(e.Id)) captured.Add(e);
+            }
+
+            List<Component> pickups = new List<Component>();
+            List<GameObject> targets = new List<GameObject>();
+            List<PickupMatch.Entry> live = new List<PickupMatch.Entry>();
+            HashSet<string> seen = new HashSet<string>();
+            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(pickUp);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Component c = all[i] as Component;
+                if (c == null) continue;
+                PickupMatch.Entry e;
+                e.Id = 0;
+                try { e.Id = (int)_itemId.GetValue(c); }
+                catch (Exception) { continue; }
+                if (!item(e.Id)) continue;
+                GameObject target = null;
+                try { target = _destroyTarget.GetValue(c) as GameObject; }
+                catch (Exception) { }
+                if (target == null) target = c.gameObject;
+                if (!target.activeInHierarchy || HasIdentifier(target) || !where(target)) continue;
+                e.Position = target.transform.position;
+                if (!seen.Add(SavestateFile.PickupKey(e.Id, e.Position.x, e.Position.y, e.Position.z))) continue;
+                pickups.Add(c);
+                targets.Add(target);
+                live.Add(e);
+            }
+            bool[] matched = PickupMatch.Match(captured, live, MatchNear, farToo);
+
+            int n = 0;
+            for (int i = 0; i < live.Count; i++)
+            {
+                if (matched[i]) continue;
+                if (targets[i].transform.root.name == "Pooling" && _clearOut != null)
+                {
+                    // Not kept for a restore: this one is meant to go.
+                    bool armed = Armed;
+                    Armed = false;
+                    try { _clearOut.Invoke(pickups[i], new object[] { false }); }
+                    finally { Armed = armed; }
+                }
+                else UnityEngine.Object.Destroy(targets[i]);
+                n++;
+            }
+            return n;
+        }
+
         /// After a load restore: a load re-creates every placed pickup
         /// (they are not in the save), so cash, tape etc. taken before the
         /// capture came back (maks, v0.24.25; bridge, 2026-09-24: three
