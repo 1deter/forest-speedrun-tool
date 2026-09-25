@@ -163,6 +163,49 @@ namespace ForestOverlay.Data
             return n;
         }
 
+        /// How many attempt files the segment has, any route.
+        public int CountFiles(string anchorLabel)
+        {
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                return Directory.Exists(dir) ? Directory.GetFiles(dir, "*.run").Length : 0;
+            }
+            catch (Exception) { return 0; }
+        }
+
+        /// The saved attempt files' texts, oldest name first - for a
+        /// segment export (Data/SegmentBundle).
+        public List<string> RunTexts(string anchorLabel)
+        {
+            List<string> texts = new List<string>();
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) return texts;
+                string[] files = Directory.GetFiles(dir, "*.run");
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < files.Length; i++) texts.Add(File.ReadAllText(files[i], Encoding.UTF8));
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Could not read attempts for export: " + ex.Message);
+            }
+            return texts;
+        }
+
+        /// Writes an imported attempt under its own name. False when a file
+        /// of that name is there already (the same attempt) - never replaced.
+        public bool ImportRun(string anchorLabel, string fileName, string text)
+        {
+            string dir = FolderFor(anchorLabel);
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, Sanitise(fileName));
+            if (File.Exists(path)) return false;
+            File.WriteAllText(path, text, Encoding.UTF8);
+            return true;
+        }
+
         private static string RouteOf(string path)
         {
             using (StreamReader r = new StreamReader(path, Encoding.UTF8))

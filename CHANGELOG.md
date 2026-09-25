@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.71 - 2026-09-25
+
+- Share spots and timed segments: the Practice editor's new Share row
+  exports the selected entry as one file (its start state included, your
+  attempts if ticked) to BepInEx/config/ForestOverlay/shared. Import (top
+  of the Practice tab) lists the files in that folder and adds them; an
+  entry you already have is only replaced on a second click.
+
 ## v0.24.70 - 2026-09-25
 
 - Sticks and rocks around trees come back where they were at capture

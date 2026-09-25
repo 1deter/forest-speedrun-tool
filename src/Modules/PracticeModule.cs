@@ -151,6 +151,28 @@ namespace ForestOverlay.Modules
         private float _deleteStartArmedUntil;
         private float _captureStartArmedUntil;
 
+        // --- sharing (Data/SegmentBundle): export / import .foseg files ---
+        private sealed class ImportEntry
+        {
+            public string Path;
+            public SegmentBundle Bundle;
+            public GUIContent Label;
+        }
+
+        private string _sharedDir;
+        private bool _importing;
+        private readonly List<ImportEntry> _imports = new List<ImportEntry>();
+        private readonly GUIContent _importStatus = new GUIContent("");
+        private GUIContent _importHeader = new GUIContent("");
+        private Vector2 _importScroll;
+        private string _importArmedPath;
+        private float _importArmedUntil;
+        private bool _exportAttempts;
+        private Segment _shareFor;
+        private string _shareForId;
+        private readonly GUIContent _exportAttemptsLabel = new GUIContent("");
+        private readonly GUIContent _shareStatus = new GUIContent("");
+
         // Only to count what a start-state change would retire.
         private AttemptStore _attempts;
 
@@ -165,6 +187,8 @@ namespace ForestOverlay.Modules
             _savestates = Host.Find<SavestateModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
+            _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
+            _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir);
 
             _previewHost = new GameObject("ForestOverlay_ZonePreview");
             _previewHost.hideFlags = HideFlags.HideAndDontSave;
@@ -566,6 +590,7 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(74, 0, 80, 24), "Duplicate")) Duplicate();
             if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
+            if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
             GUI.enabled = _unsaved.Count > 0;
             if (GUI.Button(new Rect(w - 160, 0, 70, 24), _saveLabel)) Save();
@@ -662,6 +687,8 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         private void DrawEditor(Rect area)
         {
+            if (_importing) { DrawImport(area); return; }
+
             if (_selected == null)
             {
                 GUI.Label(new Rect(area.x, area.y + 8, area.width, 80),
@@ -711,6 +738,7 @@ namespace ForestOverlay.Modules
             y += 30f;
 
             y = DrawStartState(y, cw, s);
+            y = DrawShare(y, cw, s);
 
             // --- timed toggle ----------------------------------------------
             bool timed = GUI.Toggle(new Rect(0, y, 150, 20), s.IsTimed, " Timed segment");
@@ -1039,6 +1067,7 @@ namespace ForestOverlay.Modules
 
             _library.Add(s);
             _selected = s;
+            _importing = false;
             RebuildVisible();
             Touch();
             _status = "New entry - tick 'Timed segment' to make it a run.";
@@ -1067,6 +1096,7 @@ namespace ForestOverlay.Modules
 
             _library.Add(s);
             _selected = s;
+            _importing = false;
             RebuildVisible();
             Touch();
         }
@@ -1176,6 +1206,7 @@ namespace ForestOverlay.Modules
         /// says what was left unsaved, where the click was.
         private void Select(Segment entry)
         {
+            _importing = false;
             Segment left = _selected;
             bool leftUnsaved = left != null && _unsaved.Contains(left);
 
@@ -1337,6 +1368,242 @@ namespace ForestOverlay.Modules
 
             Touch(s);
             StartStatus("Deleted - restarts now keep the game as it is. " + SaveStartStateChange(s));
+        }
+
+        // --- sharing: one .foseg file per segment (Data/SegmentBundle) -----
+        // Unity 5.6's GUI has no file picker, so both directions use one
+        // folder: Export writes there, Import lists it.
+        private float DrawShare(float y, float cw, Segment s)
+        {
+            if (!ReferenceEquals(_shareFor, s) || _shareForId != s.Id)
+            {
+                if (!ReferenceEquals(_shareFor, s)) _shareStatus.text = "";
+                _shareFor = s;
+                _shareForId = s.Id;
+                int n = _attempts.CountFiles(s.Id);
+                _exportAttemptsLabel.text = " with my attempts (" + n + ")";
+            }
+
+            GUI.Label(new Rect(0, y, 74, 20), "Share");
+            GUI.enabled = s.Id.Length > 0;
+            if (GUI.Button(new Rect(80, y - 2, 70, 22), "Export")) Export(s);
+            GUI.enabled = true;
+            _exportAttempts = GUI.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
+            if (GUI.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
+            y += 26f;
+            y += UiText.Draw(80, y, cw - 90, _shareStatus);
+            y += 6f;
+            return y;
+        }
+
+        private void Export(Segment s)
+        {
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - an export is the saved segment."; return; }
+
+            try
+            {
+                SegmentBundle b = new SegmentBundle();
+                b.Exported = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                b.PluginVersion = OverlayPlugin.PluginVersion;
+                b.Segment = s;
+                b.StartState = _savestates != null ? _savestates.ReadStartStateText(s) : null;
+                if (_exportAttempts) b.Attempts.AddRange(_attempts.RunTexts(s.Id));
+
+                if (!System.IO.Directory.Exists(_sharedDir)) System.IO.Directory.CreateDirectory(_sharedDir);
+                string file = SavestateFile.SafeFileName(s.Id) + SegmentBundle.Extension;
+                string path = System.IO.Path.Combine(_sharedDir, file);
+                bool replaced = System.IO.File.Exists(path);
+                System.IO.File.WriteAllText(path, b.Write(), System.Text.Encoding.UTF8);
+
+                string what = (b.StartState != null ? "start state" : "no start state") + ", " +
+                              b.Attempts.Count + " attempt" + (b.Attempts.Count == 1 ? "" : "s");
+                _shareStatus.text = (replaced ? "Exported again (replaced) " : "Exported ") + "to shared\\" + file + " (" + what +
+                                    "). Send that file; the other player puts it in their shared folder and uses Import.";
+                Ctx.Log.LogInfo("Practice: exported '" + s.Id + "' to " + path + " (" + what + ").");
+            }
+            catch (Exception ex)
+            {
+                _shareStatus.text = "Export failed: " + ex.Message;
+                Ctx.Log.LogWarning("Practice: export of '" + s.Id + "' failed: " + ex);
+            }
+        }
+
+        private void OpenSharedFolder()
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(_sharedDir)) System.IO.Directory.CreateDirectory(_sharedDir);
+                Application.OpenURL("file:///" + _sharedDir.Replace('\\', '/'));
+            }
+            catch (Exception ex) { _shareStatus.text = _importStatus.text = "Could not open the folder: " + ex.Message; }
+        }
+
+        private void ToggleImport()
+        {
+            _importing = !_importing;
+            if (_importing) ScanImports();
+        }
+
+        private void ScanImports()
+        {
+            _imports.Clear();
+            _importArmedPath = null;
+            int bad = 0;
+            try
+            {
+                if (!System.IO.Directory.Exists(_sharedDir)) System.IO.Directory.CreateDirectory(_sharedDir);
+                string[] files = System.IO.Directory.GetFiles(_sharedDir, "*" + SegmentBundle.Extension);
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string error;
+                    SegmentBundle b = SegmentBundle.Parse(System.IO.File.ReadAllText(files[i], System.Text.Encoding.UTF8), out error, null);
+                    if (b == null)
+                    {
+                        bad++;
+                        Ctx.Log.LogWarning("Practice: " + System.IO.Path.GetFileName(files[i]) + " not importable: " + error);
+                        continue;
+                    }
+                    ImportEntry e = new ImportEntry();
+                    e.Path = files[i];
+                    e.Bundle = b;
+                    e.Label = new GUIContent(ImportLabel(b));
+                    _imports.Add(e);
+                }
+            }
+            catch (Exception ex)
+            {
+                _importStatus.text = "Could not read the folder: " + ex.Message;
+                return;
+            }
+
+            _importStatus.text = _imports.Count == 0
+                ? "No .foseg files there yet - put a shared file in that folder (Open folder), then Refresh."
+                : _imports.Count + " file" + (_imports.Count == 1 ? "" : "s") + " to import." +
+                  (bad > 0 ? " " + bad + " could not be read - see the log." : "");
+        }
+
+        private string ImportLabel(SegmentBundle b)
+        {
+            Segment s = b.Segment;
+            Segment mine = _library.ById(s.Id);
+            return s.Name + "  (" + s.Id + ")  -  " + (s.IsTimed ? "timed" : "spot") +
+                   (b.StartState != null ? ", start state" : "") +
+                   (b.Attempts.Count > 0 ? ", " + b.Attempts.Count + " attempt" + (b.Attempts.Count == 1 ? "" : "s") : "") +
+                   (mine != null ? "  [you have this id]" : "");
+        }
+
+        private void DrawImport(Rect area)
+        {
+            float w = area.width;
+            GUI.BeginGroup(area);
+            float y = 2f;
+            y += UiText.Draw(0, y, w - 10, _importHeader);
+            if (GUI.Button(new Rect(0, y + 2, 70, 22), "Refresh")) ScanImports();
+            if (GUI.Button(new Rect(74, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
+            if (GUI.Button(new Rect(174, y + 2, 60, 22), "Close")) _importing = false;
+            y += 28f;
+            y += UiText.Draw(0, y, w - 10, _importStatus) + 4f;
+
+            Rect list = new Rect(0, y, w, area.height - y);
+            Rect content = new Rect(0, 0, w - 20f, _imports.Count * RowHeight + 4f);
+            _importScroll = GUI.BeginScrollView(list, _importScroll, content);
+            for (int i = 0; i < _imports.Count; i++)
+            {
+                float rowY = 2f + i * RowHeight;
+                if (rowY + RowHeight < _importScroll.y || rowY > _importScroll.y + list.height) continue;
+                ImportEntry e = _imports[i];
+                GUI.Label(new Rect(4f, rowY, content.width - 84f, RowHeight - 2f), e.Label);
+                bool armed = _importArmedPath == e.Path && Time.unscaledTime <= _importArmedUntil;
+                if (GUI.Button(new Rect(content.width - 76f, rowY, 72f, RowHeight - 2f), armed ? "Replace?" : "Import"))
+                {
+                    Import(e);
+                    break;   // the list may have been rebuilt
+                }
+            }
+            GUI.EndScrollView();
+            GUI.EndGroup();
+        }
+
+        /// Adds the file's segment, its start state and its attempts. An id
+        /// already in the list is never replaced without a second click
+        /// (its recorded attempts are kept either way).
+        private void Import(ImportEntry e)
+        {
+            SegmentBundle b = e.Bundle;
+            Segment incoming = b.Segment;
+            Segment mine = _library.ById(incoming.Id);
+
+            if (mine != null && !(_importArmedPath == e.Path && Time.unscaledTime <= _importArmedUntil))
+            {
+                _importArmedPath = e.Path;
+                _importArmedUntil = Time.unscaledTime + 3f;
+                _importStatus.text = "You already have '" + incoming.Id + "' ('" + mine.Name + "'). Click Replace? within 3 s to " +
+                                     "overwrite it with the file's version (your recorded attempts stay).";
+                return;
+            }
+            _importArmedPath = null;
+
+            try
+            {
+                string file = SegmentLibrary.UserFileName;
+                if (mine != null)
+                {
+                    if (!string.IsNullOrEmpty(mine.SourceFile)) file = mine.SourceFile;
+                    if (ReferenceEquals(_current, mine)) _current = null;
+                    if (ReferenceEquals(_selected, mine)) _selected = null;
+                    _library.Remove(mine);
+                    _unsaved.Remove(mine);
+                }
+                incoming.SourceFile = file;
+                _library.Add(incoming);
+
+                string state = "no start state";
+                if (_savestates != null)
+                {
+                    if (b.StartState != null)
+                    {
+                        string error = _savestates.WriteStartStateText(incoming, b.StartState);
+                        if (error != null) state = "start state NOT imported (" + error + ")";
+                        else
+                        {
+                            string perr;
+                            SavestateFile f = SavestateFile.Parse(b.StartState, out perr);
+                            bool matches = incoming.StartState.Length == 0 || (f != null && Segment.HashText(f.Data) == incoming.StartState);
+                            state = matches ? "start state" : "start state (not the one the segment was timed from)";
+                        }
+                    }
+                    else if (_savestates.HasStartState(incoming))
+                        _savestates.DeleteStartState(incoming);   // a replaced one's old state must not restore
+                }
+
+                int added = 0, had = 0, unreadable = 0;
+                for (int i = 0; i < b.Attempts.Count; i++)
+                {
+                    string name = SegmentBundle.AttemptFileName(b.Attempts[i]);
+                    if (name == null) { unreadable++; continue; }
+                    if (_attempts.ImportRun(incoming.Id, name, b.Attempts[i])) added++;
+                    else had++;
+                }
+
+                bool saved = WriteFile(file);
+                _selected = incoming;
+                _shareFor = null;
+                RebuildVisible();
+
+                string what = state + (b.Attempts.Count == 0 ? "" : ", " + added + " attempt(s) added" +
+                              (had > 0 ? ", " + had + " already there" : "") + (unreadable > 0 ? ", " + unreadable + " unreadable" : ""));
+                _importStatus.text = (mine != null ? "Replaced '" : "Imported '") + incoming.Name + "' (" + what + ")" +
+                                     (saved ? "." : " - but writing " + file + " failed, see the log.");
+                Ctx.Log.LogInfo("Practice: " + (mine != null ? "replaced" : "imported") + " '" + incoming.Id + "' from " +
+                                System.IO.Path.GetFileName(e.Path) + " (" + what + ").");
+                for (int i = 0; i < _imports.Count; i++) _imports[i].Label.text = ImportLabel(_imports[i].Bundle);
+            }
+            catch (Exception ex)
+            {
+                _importStatus.text = "Import failed: " + ex.Message;
+                Ctx.Log.LogWarning("Practice: import of " + e.Path + " failed: " + ex);
+            }
         }
 
         private void SetSpawnHere(Segment s)

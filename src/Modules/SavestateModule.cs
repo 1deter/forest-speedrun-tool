@@ -1364,6 +1364,27 @@ namespace ForestOverlay.Modules
             return Path.Combine(Path.Combine(_dir, "segments"), SavestateFile.SafeFileName(s.Id) + SavestateFile.Extension);
         }
 
+        /// The start state file's text, for a segment export; null when
+        /// there is none.
+        public string ReadStartStateText(Segment s)
+        {
+            if (!HasStartState(s)) return null;
+            return File.ReadAllText(StartStatePath(s), Encoding.UTF8);
+        }
+
+        /// Writes an imported start state as the segment's own. Returns
+        /// null, or why it was refused (not a savestate this version reads).
+        public string WriteStartStateText(Segment s, string text)
+        {
+            string error;
+            if (SavestateFile.Parse(text, out error) == null) return error;
+            string path = StartStatePath(s);
+            string dir = Path.GetDirectoryName(path);
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(path, text, Encoding.UTF8);
+            return null;
+        }
+
         public bool HasStartState(Segment s)
         {
             if (s == null || string.IsNullOrEmpty(s.Id)) return false;
