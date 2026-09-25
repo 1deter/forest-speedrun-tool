@@ -468,24 +468,29 @@ identity.
 
 ## Current status
 
-**Released: v0.24.48** (2026-09-25). The author runs it via the in-game
-updater. **268 tests.**
+**Released: v0.24.54** (2026-09-25). The author runs it via the in-game
+updater. **274 tests.**
 
-### Pick up here (2026-09-25, v0.24.48 in the game)
+### Pick up here (2026-09-25, v0.24.54 in the game)
 
-**State:** v0.24.48 runs in the author's game (a fresh day-0 save, at
-the plane). This session, all confirmed live with the bridge: v0.24.47
-a blueprint in the hands across a restore (`Game/BuildMode`; QA
-feedback: sxczurass - a Quick load left it out; maks - one out at
-capture never came back): put away on a Quick load, the captured one
-pulled out after Quick load, Full load and an F7 restart; v0.24.48
-skinny cannibal families placed again after a Full load (v0.24.45 read
-their kind before the game stored it: "0 of 12 placed"; now 12 of 12,
-asleep on their spots, 0.8 s after in game). The old test leftovers are
-deleted (author: "whatever is left-over and unneeded").
-Suggested next: 1b (cave captures' enemies), fully scripted through the
-bridge (*Do the in-game actions yourself*) - a cave-aware `go` / `tp`
-into a cave from any save, no special save needed.
+**State:** v0.24.54 runs in the author's game (a fresh day-0 save).
+This session, all confirmed live with the bridge (details in
+game-notes *A blueprint in the hands*, *Cave families*, *Placed pickups
+across a load*): v0.24.47 a blueprint put away / brought back on every
+restore (QA: sxczurass, maks); v0.24.48 skinny families placed after a
+Full load (v0.24.45 read their kind too early); v0.24.49-50 cave
+captures' cannibals put back (maks's `0 of 5 placed`), Quick load keeps
+the live cave cannibals (no setup run - the armsy popped in, the babies
+doubled); v0.24.51-54 cave 5's coins / cash taken before a capture
+removed by a Full load (maks, QA item 7 - confirmed here, so only his
+answer is left to read), with pickups matched by item nearest first
+(`Data/PickupMatch`) so a settled bottle, the modern axe or a
+two-component object (skulls, a Timmy drawing) is never removed.
+v0.24.52-53 wrongly removed skulls / a drawing / a photo on a Full
+load; placed pickups are not in the save, so a normal load restores
+them. Test leftovers deleted (author).
+Suggested next: 1 (maks's remaining items: the flashed time display,
+his performance lines), then 3 (QA tooling).
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -514,17 +519,10 @@ with a scene load; the death option is **Reload save on death**. Plan
 option (the escape hatch for states Quick load has no patch for).
 
 **Next, in order:**
-1. **maks's other open items** (his v0.24.29 round):
-   a. **Coins come back after a Full load** - cave 5, the first pile by
-      the drop. v0.24.39 repeats the removal once a second for 10 s
-      (`RemoveLatePickups`) and logs `Not at capture but kept: N with an
-      identifier, N clone(s), N in scenes not loaded at capture` - if the
-      coins still come back, that line says why. Awaiting a cave 5 test
-      (QA list item 7).
-   b. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
-      **flashed time display**, his background **performance** (read his
-      `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
-      up 4, *Open threads*.
+1. **maks's other open items** (his v0.24.29 round): the auto-restart
+   **flashed time display**, his background **performance** (read his
+   `Perf (30 s):` lines first) - Next up 4, *Open threads*. (Coins and
+   cave captures' enemies done, v0.24.49-54.)
 2. **maks's v0.24.34 test list is out** (author sent it, 2026-09-24),
    saved verbatim with what each item checks in
    [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md).
@@ -626,8 +624,9 @@ fixes fast: prefer a live read over an IL theory (gotcha 25).
 surface, and since v0.24.27 after a Full load, `EnemyKeeper.Rebuild` runs
 the game's `startSetupFamilies`, builds each captured family, places every
 member by kind with its health and puts sleepers back to sleep on their
-spot (all confirmed). Open: cave captures (still the old by-type move -
-maks: `0 of 5 placed`); does `updateSpawns` top up a random family when
+spot (all confirmed); a cave capture's cave families are kept and moved
+back (`RestoreCave`, v0.24.49-50, confirmed). Open: does `updateSpawns`
+top up a random family when
 below target; weapons are whatever the spawn gives; awake ones come back
 searching; the ~1.5 s awake before placement; the Full load delay
 (*Pick up here* 2c).
@@ -871,7 +870,11 @@ the lighter kept through a Full load restart with swings (v0.24.46,
 bridge, scripted swings); the swing / smash cut on a Quick load
 (sxczurass, QA 1-4); a blueprint put away / brought back on Quick load,
 Full load and F7 (v0.24.47, bridge); skinny families placed after a
-Full load (v0.24.48, bridge).
+Full load (v0.24.48, bridge); cave cannibals put back after Quick and
+Full load, babies not doubled (v0.24.49-50, bridge, cave 6); cave 5's
+coins / cash taken before a capture gone after a Full load, nothing
+else removed, and back / gone as captured after a Quick load (v0.24.54,
+bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):

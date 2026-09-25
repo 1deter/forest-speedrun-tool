@@ -525,15 +525,30 @@ through its 0.5 s `_loadDelay`, so right after it nothing is loading yet.
 The player is held at the captured spot until every scene loaded at
 capture is loaded again (v0.24.28; confirmed by the runner).
 
-## Placed pickups across a load (bridge, 2026-09-24)
+## Placed pickups across a load (bridge, 2026-09-24, 2026-09-25)
 
 Placed world pickups (`PickUps/Cash (n)`, `WorldStorySpots/.../Tape_Roll`)
 are not in the save: every load re-creates them, so cash taken before a
-capture came back after a Full load. Pooled greeble pickups
-(`Pooling/Pool_Greebles/Cash(Clone)00n`) did not. Since v0.24.27 a Full
-load removes placed pickups the capture's list lacks, in scenes loaded at
-capture, never `(Clone)`s. Cave 5's first coin pile by the drop still came
-back (runner) - probably activated after the one removal pass.
+capture came back after a Full load. So do pooled greebles: cave 5's
+piles are `Pooling/Pool_Greebles/Cash(Clone)` and `Coins(Clone)` (items
+38 and 91, two distinct items) spawned by `Greeble_CashUnderBody` under
+the hanging bodies, and taken ones come back on the same seeded spots.
+Positions are not exact across loads: a `BoozeSmir(Clone)` settled
+0.27 m away, the modern axe (at -269, -68, 1008, not in cave 5) 1.2 m;
+an item may also use another spawn point (author). The capture's pickup
+list is a set of keys (item @ position to 0.1 m) without identifier
+pickups; one object with two `PickUp` components (skulls, a Timmy
+drawing, `PhotoCache9`) is one key. Since v0.24.54 a Full load
+(`PickupKeeper.RemoveTakenAfterLoad`, `Data/PickupMatch`) dedupes the
+live pickups by the same key, pairs each captured key with the nearest
+live one of its item (within 2.5 m, then any distance) and removes the
+unpaired: placed ones by `Destroy` in scenes loaded at capture, clones
+within 50 m of the captured spot through the game's `PickUp.ClearOut(false)`
+(back to the pool) unless the capture had any item on that spot (a
+greeble re-rolled). `PickUp.Collect()` is the game's pick-up (the bridge
+takes a pile with it). A Quick load puts pickups taken after the capture
+back (`PickupKeeper.Restore`) and leaves ones taken before it gone
+(bridge, v0.24.52: both directions, cave 5).
 
 ## The weapon across a cutscene (IL, v0.24.28)
 
@@ -820,6 +835,24 @@ family). `invokeSpawn` -> `updateSpawnConditions` re-rolls `sleepingSpawn`
 is awake, sees a player 20 m away and runs about. `switchToSleep` on one
 already `sleeping` does nothing; **setting `Transform.position` on an
 asleep one keeps it asleep there** (bridge, 10 s watched).
+
+**Cave families (IL + bridge, v0.24.49-50).** Cave spawners
+(`allCaveSpawns`, e.g. `mutantCaveSpawnerCave6 (11)`) are scene objects
+that stay. `PlayerStats.InACave` starts `mutantController.updateCaveSpawns`
+(enables the spawners, nearest first, `invokeSpawn`; `checkSpawn` spawns
+a family within 130 m unless `alreadySpawned`) and invokes
+`doRemoveWorldMutants` 30 s later. `doSpawn` clears `allMembers` and
+spawns anew. `setupFamilies` despawns `activeCannibals` but **never
+`activeBabies`**, so a setup run in a cave orphaned the babies (7 -> 14
+per Quick load); `removeAllEnemies` despawns both with `despawnGo`. The
+armsy is `male_creepy(Clone)` from its own cave spawner; it can appear
+first when a restore sends `InACave` (a teleport into a cave skipped the
+entry). `Game/EnemyKeeper.RestoreCave`: a Quick load keeps the live cave
+cannibals (no setup run), moves each captured family's members back or
+spawns the family anew when some are missing, and despawns orphans; a
+Full load runs it 6 s after in game (the game's setup ~5 s in despawns
+everything first). Confirmed in cave 6: 3 of 3 placed after both, the
+babies stay at 7.
 
 **The game's setup after a load (IL + bridge, v0.24.45).**
 `mutantController.Start` -> `Invoke("doStart", 2)`; `doStart` fills the
