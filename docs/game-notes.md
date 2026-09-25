@@ -494,7 +494,12 @@ to 1 only in a `held`-tagged state and fades it to 0 towards `idle`, so
 the arm layers stayed at 0. `StashEquipedWeapon(false)` +
 `StashLeftHand()` then `Equip(id, false)` set the flags and the layers
 came back; the Full load does that at its end (`SavestateBridge.
-RefreshHeld`, v0.24.43, confirmed). Author's theory, unproven: the second
+RefreshHeld`, v0.24.43, confirmed). Swinging through the restart,
+the lighter's animated put-away (`StashLighterRoutine`, left hand
+locked) outlasted RefreshHeld's fixed 0.5 s and `Equip` was refused -
+the lighter gone (sxczurass; bridge with scripted swings, 1 in 3).
+v0.24.46 waits until the hands are free (`HandsBusy`) and retries a
+refused Equip for 2 s (0 of 20 after). Author's theory, unproven: the second
 load after the scene load (here the endgame force-load, `EndgameLoader`)
 freezes the arms.
 
@@ -799,6 +804,21 @@ family). `invokeSpawn` -> `updateSpawnConditions` re-rolls `sleepingSpawn`
 is awake, sees a player 20 m away and runs about. `switchToSleep` on one
 already `sleeping` does nothing; **setting `Transform.position` on an
 asleep one keeps it asleep there** (bridge, 10 s watched).
+
+**The game's setup after a load (IL + bridge, v0.24.45).**
+`mutantController.Start` -> `Invoke("doStart", 2)`; `doStart` fills the
+spawn lists and calls `startSetupFamilies` (day > 0, or day 0 with
+`skipInitialDelay`; else `disableStartDelay` 100 / 270 s later; never
+with `Clock.planecrash`). `setupFamilies` (on `Scene.ActiveMB`; in a cave
+it waits 3 s first) returns without doing anything while `setupBreak`
+(cleared 1 s after each run) or `startDelay` / `NoEnemies` holds, else
+despawns, destroys the world spawners and starts `updateSpawns`, which
+waits 3 x 1 s before rolling a family. Seen live after a Full load: the
+game's call 0.7 s after "in game", its first family 3.8 s after, one
+call only. `Game/SetupHold` skips it for 10 s after a Full load's "in
+game" and the rebuild runs the setup itself; a family's members all
+spawn in the spawn routine's first frame (`spawnRegularMale` yields only
+after its loop): 0.08 s.
 
 ## The plane wreck across an in-place restore (bridge + IL, 2026-09-24)
 

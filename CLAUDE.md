@@ -468,20 +468,20 @@ identity.
 
 ## Current status
 
-**Released: v0.24.44** (2026-09-25). The author runs it via the in-game
+**Released: v0.24.46** (2026-09-25). The author runs it via the in-game
 updater. **267 tests.**
 
-### Pick up here (2026-09-24 night, v0.24.43 in the game)
+### Pick up here (2026-09-25, v0.24.46 in the game)
 
-**State:** v0.24.44 runs in the author's game (the survival book closed on every reset - runner sxczurass; confirmed with the bridge). This session (details in
-*Confirmed in game* and game-notes *The red elevator and the endgame
-areas*): v0.24.38 the Quick / Full load switch (was 1c), v0.24.39 late
-pickup removal (1a, untested), v0.24.40-43 the red elevator after a Quick
-load, the endgame's active area, Go out of the endgame after the ride and
-the held axe / lighter after a Full load (was 1d; all confirmed by the
-author with the bridge on maks's slot5 save). New savestate header lines:
-`elevators`, `activearea` (older files lack them: those restores skip the
-fix).
+**State:** v0.24.46 runs in the author's game (a fresh day-0 save).
+This session, all confirmed live with the bridge: v0.24.44 the survival
+book closed on every reset (sxczurass); v0.24.45 the Full load rebuilds
+the captured cannibals at once (`Game/SetupHold`: the game asked 0.7 s
+after "in game", members spawned in 0.08 s, the family asleep on its
+spot when control returns - was ~6 s after, maks); v0.24.46 the held
+lighter kept when swinging through a Full load restart (sxczurass: gone
+3/3; reproduced with scripted swings, 0 of 20 after the fix). Details in
+game-notes *Enemies across a restore* / *Held items after a Full load*.
 
 **QA team (author, 2026-09-25):** ~3 runners (maks among them) take
 feature testing and anything the author cannot easily do. The first
@@ -489,7 +489,9 @@ general list is
 [`docs/tests/2026-09-25-qa-v0.24.43.md`](docs/tests/2026-09-25-qa-v0.24.43.md)
 (replaces maks's unsent v0.24.43 draft; repeats his v0.24.34 items):
 answers come numbered against it, per tester. Future lists go to the
-team, not one runner.
+team, not one runner; keep them light (volunteers): never add what the
+author or the bridge already confirmed. Answers so far: sxczurass 1-5
+(Quick load swing cut fine; Full load lost the lighter - fixed v0.24.46).
 
 **Saves:** every slot is the author's own (Slot5 swapped back
 2026-09-24 night, sizes checked). maks's saves for testing: his Megan
@@ -514,12 +516,7 @@ option (the escape hatch for states Quick load has no patch for).
       (`RemoveLatePickups`) and logs `Not at capture but kept: N with an
       identifier, N clone(s), N in scenes not loaded at capture` - if the
       coins still come back, that line says why. Awaiting a cave 5 test.
-   b. **Cannibals ~6 s after control returns after a Full load** - maks
-      thinks a 6 s hold is too long; do NOT just extend the hold. Ideas:
-      suppress the game's own family setup after a Full load so the
-      rebuild can run at once (it waits for the game's setup, 3.8 s,
-      +1.5 s lock, +1.5 s placement), or hold only as long as needed.
-   c. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
+   b. **Cave captures' enemies** (`0 of 5 placed`), the auto-restart
       **flashed time display**, his background **performance** (read his
       `Perf (30 s):` lines first) - see *Enemies across a restore*, Next
       up 4, *Open threads*.
@@ -529,8 +526,8 @@ option (the escape hatch for states Quick load has no patch for).
    **When the author pastes maks's answers, they are numbered against
    that file** (1-6 swing / smash cut, 7 nature guide dump, 8 perf) -
    unless he answers the QA list, which repeats them as 1-5, 15, 19.
-   `ended attack state '...'` on the `Teleport to` line: seen empty on a
-   mid-cutscene restore (fixed on main); a real attack name not yet seen.
+   `ended attack state 'stickAttack'` / `'doCharge'` seen (bridge,
+   v0.24.45).
 3. **QA tooling** (author: "let's do all of them"), after 1: keep
    previous sessions' `LogOutput.log` (timestamped copies on startup,
    last few); a **QA tab**: each test list shipped in the plugin, items
@@ -558,6 +555,26 @@ through the bridge:** `type OverlayPlugin all` gives the plugin's handle
 `call #<h> OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, `wait 10`, `get ..._checker.Message`
 ("downloaded - restart"); the author restarts. Works at the title screen.
+**Do the in-game actions yourself** (author, 2026-09-25: automate as
+much as possible; ask only for what has no call - memory
+`automate-ingame-actions`). `T=static:TheForest.Utils.LocalPlayer`:
+equip `call $T Inventory.Equip <id> false` (ids: `call
+static:TheForest.Items.ItemDatabase ItemIdByName "<name>"`; Lighter 48,
+Axe Plane 80); open the book `call $T Create.OpenBook`; swing the held
+stick weapon `call $T ScriptSetup.pmControl.SendEvent "stickAttack"`
+(the `waitForInput` state's transitions list the other attacks; pace a
+series by sending only when `ActiveStateName` is `waitForInput` - a
+0.2 s series is faster than a player; looking down makes it a smash:
+set the spot's `SpawnPitch 80`); a test spot with a start state: `call
+#<plugin> OverlayPlugin._host._modules[9].QuickSaveSpot` (current),
+copy a `capture`d file to `savestates/segments/<id>.fosave`, `set
+..._current.StartRestoreWithLoad true` (memory only - set again after
+a game restart), then `restart` = F7 (`restart <id>` by id). Remove
+test spots with `..._library._all.RemoveAt <i>` + `call
+..._modules[9].WriteFile "my-segments.txt"`, and delete their files.
+Test away from cannibals (they stagger the player and cut actions).
+Keep only what later sessions need (author).
+
 **Bridge habits (2026-09-24):** `set` takes a vector as `x,y,z` (no
 brackets or spaces). Handles are per launch: a new game run answers
 `unknown handle - list it first` until a `type` / `find` lists them. A
@@ -843,8 +860,11 @@ the hallway as at capture - `ElevatorKeeper`, `AreaKeeper`), a Go out of
 the endgame after the ride (vault door cave and Sahara outside normal),
 held axe / lighter usable after a Full load (v0.24.40-0.24.43, author
 with the bridge; game-notes *The red elevator and the endgame areas*);
-the survival book closed by a Quick load (v0.24.44, bridge: opened with
-`call static:TheForest.Utils.LocalPlayer Create.OpenBook`).
+the survival book closed by a Quick load (v0.24.44, bridge); the
+captured cannibals back at once after a Full load (v0.24.45, bridge);
+the lighter kept through a Full load restart with swings (v0.24.46,
+bridge, scripted swings); the swing / smash cut on a Quick load
+(sxczurass, QA 1-4).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
