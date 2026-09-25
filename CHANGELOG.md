@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.49 - 2026-09-25
+
+- Savestates in a cave: the cave's cannibals are put back where they
+  were at capture, after a Quick load and a Full load (maks: "0 of 5
+  placed").
+- Quick load in a cave no longer doubles the cave babies each time.
+
 ## v0.24.48 - 2026-09-25
 
 - Full load: skinny cannibals (the early-game families) are put back

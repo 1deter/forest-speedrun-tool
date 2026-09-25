@@ -832,8 +832,14 @@ namespace ForestOverlay.Modules
                 check += " -> " + cannibals + " active, " + families + " famil" + (families == 1 ? "y" : "ies") + " 6 s later";
             }
             // Once the families are back: the captured cannibals' places
-            // (fix list 2 - author: "ideally in the same position").
-            string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
+            // (fix list 2 - author: "ideally in the same position"). A cave
+            // capture since v0.24.17 has its families: the cave ones are
+            // put back as on the surface (maks: "0 of 5 placed").
+            string positions = "";
+            if (file != null && file.InCave && file.Families != null && file.Families.Count > 0)
+                yield return Ctx.Runner.StartCoroutine(_enemies.RestoreCave(file.Families, file.Enemies ?? new List<string>(), 1.5f,
+                                                                            delegate(string note) { positions = note; }));
+            else if (file != null && file.Enemies != null) positions = _enemies.RestoreByType(file.Enemies);
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
                             (positions.Length > 0 ? " | " + positions : "") + ".");
         }
@@ -972,6 +978,8 @@ namespace ForestOverlay.Modules
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
                     if (_respawnEnemies.Value && f.Families != null && f.Families.Count > 0 && !f.InCave)
                         Ctx.Runner.StartCoroutine(EnemiesAfterLoad(f));
+                    if (_respawnEnemies.Value && f.Families != null && f.Families.Count > 0 && f.InCave)
+                        Ctx.Runner.StartCoroutine(CaveEnemiesAfterLoad(f));
                     Ctx.Runner.StartCoroutine(HoldUntilLoaded(f, after));
                     return;
                 }
@@ -988,6 +996,23 @@ namespace ForestOverlay.Modules
         /// families and its lock took ~5 s more - maks). If the game's setup
         /// slipped through, the old way: its families, its 1 s lock, then
         /// the rebuild (two setups at once break each other).
+        /// A Full load in a cave: the game's setup (doStart 2 s after its
+        /// Start, then 3 s in a cave) despawns every cannibal, and the cave
+        /// families come back from their spawners after it (bridge,
+        /// v0.24.49: the cave males appeared ~6 s after the load and stayed).
+        /// Then the captured ones are put back as after a Quick load.
+        private IEnumerator CaveEnemiesAfterLoad(SavestateFile f)
+        {
+            float start = Time.realtimeSinceStartup;
+            yield return new WaitForSecondsRealtime(6f);
+            string note = null;
+            yield return Ctx.Runner.StartCoroutine(_enemies.RestoreCave(f.Families, f.Enemies ?? new List<string>(), 6f,
+                                                                        delegate(string n) { note = n; }));
+            Ctx.Log.LogInfo("Savestate after the load: enemies (cave) " +
+                            (Time.realtimeSinceStartup - start).ToString("F1") +
+                            " s after in game | " + note + ".");
+        }
+
         private IEnumerator EnemiesAfterLoad(SavestateFile f)
         {
             float start = Time.realtimeSinceStartup;

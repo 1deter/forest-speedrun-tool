@@ -83,6 +83,7 @@ namespace ForestOverlay.Game
         private Type _ctrlType;
         private FieldInfo _controller;      // static Scene.MutantControler
         private FieldInfo _active;          // mutantController.activeCannibals
+        private FieldInfo _babies;          // mutantController.activeBabies
         private FieldInfo _spawnGo;         // mutantController.spawnGo
         private FieldInfo _horde;           // mutantController.hordeModeActive
         private MethodInfo _startSetup;     // mutantController.startSetupFamilies()
@@ -140,6 +141,7 @@ namespace ForestOverlay.Game
             if (_ctrlType != null)
             {
                 _active = _ctrlType.GetField("activeCannibals", inst);
+                _babies = _ctrlType.GetField("activeBabies", inst);
                 _spawnGo = _ctrlType.GetField("spawnGo", inst);
                 _horde = _ctrlType.GetField("hordeModeActive", inst);
                 _startSetup = _ctrlType.GetMethod("startSetupFamilies", inst, null, Type.EmptyTypes, null);
@@ -441,6 +443,120 @@ namespace ForestOverlay.Game
                 else failed++;
             }
 
+            string familyNote = "families: " + setupNote + ", " + made + " rebuilt" + (cave > 0 ? ", " + cave + " cave" : "") +
+                              (failed > 0 ? ", " + failed + " not found / failed" : "");
+            string positions = null;
+            IEnumerator place = PlaceBuilt(built, members, 1.5f, delegate(string n) { positions = n; });
+            while (place.MoveNext()) yield return place.Current;
+            done(familyNote + " | " + positions);
+        }
+
+        /// After a restore in a cave, once the game has spawned the cave
+        /// families again (their spawners are scene objects that stay):
+        /// despawns the old members the respawn orphaned, and puts every
+        /// captured cave cannibal back. Surface families are left to the
+        /// game, which removes them 30 s into a cave (PlayerStats.InACave ->
+        /// doRemoveWorldMutants). `done` gets the log note.
+        public IEnumerator RestoreCave(List<string> familyEntries, List<string> memberEntries, float maxWait, Action<string> done)
+        {
+            string why = CannotRebuild();
+            if (why != null) { done(why); yield break; }
+            MonoBehaviour ctrl = Controller();
+
+            int orphans = 0;
+            try { orphans = DespawnOrphans(ctrl); }
+            catch (Exception ex) { _log.LogWarning("EnemyKeeper: orphan cleanup failed: " + (ex.InnerException ?? ex).Message); }
+
+            List<EnemyRecord> all = new List<EnemyRecord>();
+            for (int i = 0; i < memberEntries.Count; i++)
+            {
+                EnemyRecord r;
+                if (EnemyRecord.TryDecode(memberEntries[i], out r)) all.Add(r);
+            }
+            Dictionary<int, MonoBehaviour> built = new Dictionary<int, MonoBehaviour>();
+            int caveFamilies = 0, started = 0;
+            for (int i = 0; i < familyEntries.Count; i++)
+            {
+                FamilyRecord f;
+                if (!FamilyRecord.TryDecode(familyEntries[i], out f)) continue;
+                if (f.List.IndexOf("allCaveSpawns", StringComparison.Ordinal) < 0) continue;
+                caveFamilies++;
+                MonoBehaviour sm = FindCaveSpawner(ctrl, f.Position);
+                if (sm == null) continue;
+                // Not spawned by the game yet (farther than its 130 m).
+                if (ActiveMembers(sm) == 0 && sm.gameObject.activeInHierarchy) { StartSpawn(sm); started++; }
+                built[f.Index] = sm;
+            }
+            List<EnemyRecord> members = new List<EnemyRecord>();
+            for (int i = 0; i < all.Count; i++) if (built.ContainsKey(all[i].Family)) members.Add(all[i]);
+
+            string note = "cave: " + (orphans > 0 ? orphans + " orphaned member(s) despawned, " : "") +
+                          built.Count + " of " + caveFamilies + " cave famil" + (caveFamilies == 1 ? "y" : "ies") + " found" +
+                          (started > 0 ? ", " + started + " started" : "");
+            if (built.Count == 0) { done(note); yield break; }
+            string positions = null;
+            IEnumerator place = PlaceBuilt(built, members, maxWait, delegate(string n) { positions = n; });
+            while (place.MoveNext()) yield return place.Current;
+            done(note + " | " + positions);
+        }
+
+        private int ActiveMembers(MonoBehaviour sm)
+        {
+            IList list = _members.GetValue(sm) as IList;
+            int n = 0;
+            if (list == null) return 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                GameObject go = list[i] as GameObject;
+                if (go != null && go.activeInHierarchy) n++;
+            }
+            return n;
+        }
+
+        /// A cave spawner's doSpawn clears allMembers and spawns anew; the
+        /// game's setup despawns activeCannibals first but never
+        /// activeBabies, so a restore's respawn doubled the babies (author,
+        /// v0.24.49: 7 -> 14 per Quick load). Despawns every active cannibal
+        /// or baby of a cave spawner that is not in its spawner's members.
+        private int DespawnOrphans(MonoBehaviour ctrl)
+        {
+            FieldInfo lf = _ctrlType.GetField("allCaveSpawns", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            IList caves = lf != null ? lf.GetValue(ctrl) as IList : null;
+            if (caves == null) return 0;
+            List<GameObject> live = new List<GameObject>();
+            FieldInfo[] lists = { _active, _babies };
+            for (int l = 0; l < lists.Length; l++)
+            {
+                IList list = lists[l] != null ? lists[l].GetValue(ctrl) as IList : null;
+                if (list == null) continue;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    GameObject go = list[i] as GameObject;
+                    if (go != null && go.activeInHierarchy && !live.Contains(go)) live.Add(go);
+                }
+            }
+            int n = 0;
+            for (int i = 0; i < live.Count; i++)
+            {
+                Component setup = live[i].GetComponent(_typeSetup);
+                MonoBehaviour sm = setup != null ? _spawner.GetValue(setup) as MonoBehaviour : null;
+                if (sm == null || !caves.Contains(sm.gameObject)) continue;
+                IList mine = _members.GetValue(sm) as IList;
+                if (mine != null && mine.Contains(live[i])) continue;
+                ctrl.StartCoroutine((IEnumerator)_despawnGo.Invoke(ctrl, new object[] { live[i] }));
+                n++;
+            }
+            return n;
+        }
+
+        /// Waits (at most `maxWait` s) until every family in `built` has its
+        /// captured members with their kinds, then puts each member back,
+        /// despawns members the capture did not have and puts sleepers
+        /// back to sleep on their spot. `done` gets the "positions" note.
+        private IEnumerator PlaceBuilt(Dictionary<int, MonoBehaviour> built, List<EnemyRecord> members, float maxWait,
+                                       Action<string> done)
+        {
+            MonoBehaviour ctrl = Controller();
             // A surface family spawns on its first checkSpawn (invoked at
             // once), every member in the spawn routine's first frame (IL,
             // v0.24.45). Wait until each family has its captured members,
@@ -448,7 +564,7 @@ namespace ForestOverlay.Game
             // at the spawner.
             float spawnStart = Time.realtimeSinceStartup;
             yield return null;
-            while (Time.realtimeSinceStartup - spawnStart < 1.5f && !AllSpawned(built, members))
+            while (Time.realtimeSinceStartup - spawnStart < maxWait && !AllSpawned(built, members))
                 yield return null;
             float spawnWait = Time.realtimeSinceStartup - spawnStart;
 
@@ -555,9 +671,7 @@ namespace ForestOverlay.Game
             int noFamily = 0;
             for (int i = 0; i < members.Count; i++) if (members[i].Family >= 1000) noFamily++;
 
-            done("families: " + setupNote + ", " + made + " rebuilt" + (cave > 0 ? ", " + cave + " cave" : "") +
-                 (failed > 0 ? ", " + failed + " not found / failed" : "") +
-                 " | positions: " + placed + " of " + members.Count + " placed" +
+            done("positions: " + placed + " of " + members.Count + " placed" +
                  (grounded > 0 ? " (" + grounded + " captured in the air, put on the ground: " + drops + ")" : "") +
                  ", " + unblocked + " sleep blocker(s) cleared, " + sleepFamilies + " sleeping famil" + (sleepFamilies == 1 ? "y" : "ies") +
                  (sleepers.Count > 0 ? ", " + slept + " of " + sleepers.Count + " asleep on their spot" +
