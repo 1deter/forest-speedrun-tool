@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.66 - 2026-09-25
+
+- A savestate captured after a Quick load or a Full load now remembers the
+  bushes that were already cut, so its own Full load keeps them cut too.
+
 ## v0.24.65 - 2026-09-25
 
 - Full load now keeps bushes and saplings that were cut when the savestate

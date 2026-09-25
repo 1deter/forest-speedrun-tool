@@ -254,11 +254,20 @@ namespace ForestOverlay.Game
 
         private static string F(float f) { return f.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture); }
 
-        private static void Record(GameObject go, int seq)
+        private static void Record(GameObject go, int seq) { Record(KeyOf(go), seq); }
+
+        private static void Record(string key, int seq)
         {
             string w = World();
             if (w != _cutsWorld) { Cuts.Clear(); _cutsWorld = w; }
-            Cuts.Add(new KeyValuePair<string, int>(KeyOf(go), seq));
+            for (int i = 0; i < Cuts.Count; i++) if (Cuts[i].Key == key) return;
+            Cuts.Add(new KeyValuePair<string, int>(key, seq));
+        }
+
+        private static void Unrecord(string key)
+        {
+            for (int i = 0; i < Cuts.Count; i++)
+                if (Cuts[i].Key == key) { Cuts.RemoveAt(i); return; }
         }
 
         /// The bushes / saplings cut this scene and still cut, for the
@@ -283,7 +292,7 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < keys.Count; i++)
                 {
                     GameObject go = FindCut(keys[i]);
-                    if (go == null) { absent++; continue; }
+                    if (go == null) { Record(keys[i], ++_seq); absent++; continue; }
                     Component lod = _lodBase != null ? go.GetComponent(_lodBase) : null;
                     if (lod != null && _lodTransform != null && _lodTransform.GetValue(lod) != null && _despawn != null)
                         _despawn.Invoke(lod, null);
@@ -297,7 +306,7 @@ namespace ForestOverlay.Game
                 while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
                 return "bushes: cutting again failed after " + cut + " (" + ex.Message + ")";
             }
-            return "bushes: " + cut + " cut again (cut at capture)" + (absent > 0 ? ", " + absent + " not found" : "");
+            return "bushes: " + cut + " cut again (cut at capture)" + (absent > 0 ? ", " + absent + " already gone" : "");
         }
 
         // The object at `path` nearest the key's place, within half a metre
@@ -492,14 +501,12 @@ namespace ForestOverlay.Game
                 t.localRotation = k.LocalRotation;
                 t.localScale = k.LocalScale;
                 k.Spare.SetActive(true);
+                Unrecord(KeyOf(k.Spare));   // no longer cut
                 back++;
             }
             KeptList.Clear();
             KeptIds.Clear();
             KeptList.AddRange(left);   // their originals are gone: no id to guard
-            // The cuts put back are no longer cut.
-            if (since < 0) Cuts.Clear();
-            else Cuts.RemoveAll(delegate(KeyValuePair<string, int> c) { return c.Value > since; });
             if (back == 0 && gone == 0 && stay == 0) return "";
             return "bushes: " + back + " back" + (since >= 0 ? " (cut since the capture)" : " (every cut this scene - no mark from this world)") +
                    (stay > 0 ? ", " + stay + " cut before the capture left cut" : "") +
