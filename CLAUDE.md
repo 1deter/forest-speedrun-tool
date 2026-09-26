@@ -860,7 +860,9 @@ maks was told (bot reply, author's OK) to retest his "elev boost".
 - **Naming** (author, v0.24.27, UI only - config keys and log lines
   unchanged): **Quick load** = restore in place, **Full load** = with a
   scene load; the death option is **Reload save on death**. Plan: polish
-  Quick load to parity, keep Full load as the escape hatch.
+  Quick load to parity, keep Full load as the escape hatch. **Quick load
+  is the preferred, default restore** (author, 2026-09-26): a runner's
+  report about "savestates" means Quick load unless it says otherwise.
 - **Decided:** a Quick load gives back the capture, not what a Full load
   does where the save is silent (author, 2026-09-25: "if a bush is cut
   and it was saved that way, then the savestate should respect that";
