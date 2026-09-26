@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.128 - 2026-09-26
+
+- New experimental switch (Debug views, Performance patches, off by
+  default): **Physics at 30 Hz** - turns on the game's own "Low Quality
+  Physics" option, which its options menu no longer shows. Physics runs
+  30 times a second instead of 60: faster on slower processors, but
+  movement and physics tricks can behave differently. For testing.
+- Caves: no grass bending (v0.24.127) no longer causes a short hitch the
+  first time you enter a cave.
+
 ## v0.24.127 - 2026-09-26
 
 - New experimental performance switch (Debug views, Performance patches,

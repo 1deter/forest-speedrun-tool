@@ -109,6 +109,16 @@ namespace ForestOverlay.Game
     //    by the game's own UpdateInterval option - Game/CameraTrim.
     // 14. EXPERIMENTAL: the grass-bending camera off while in a cave -
     //    Game/CameraTrim.
+    // 15. EXPERIMENTAL, gameplay: physics at 30 Hz - the game's own hidden
+    //    "Low Quality Physics" option (PlayerPreferences.SetLowQualityPhysics:
+    //    fixedDeltaTime 1/30 instead of 1/60; treeHitTrigger and RaftPush
+    //    read the flag and adapt). Its widget is gone from the options menu;
+    //    the game still reads the saved pref at startup and has the console
+    //    command `physics30Fps`. A save load resets fixedDeltaTime
+    //    (LevelLoader.Load), so it is applied again whenever the step is back
+    //    at exactly 1/60 (never over PlayMaker's ScaleTime slow motion).
+    //    Measured: 5.26 -> 4.98 ms a frame here (a step in 32% -> 15% of
+    //    frames); a physics step costs ~1.8 ms on sxczurass's i5.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -213,6 +223,15 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Experimental = true;
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
                                             "Saves ~0.25 ms a frame in caves.";
+            Add(config, "Physics30Hz", "Physics at 30 Hz (the game's hidden Low Quality Physics)",
+                "EXPERIMENTAL, changes gameplay: switches on the game's own 'Low Quality Physics' option, which its options menu no " +
+                "longer shows - physics runs 30 times a second instead of 60. Movement, jumps, collisions and physics tricks can " +
+                "behave differently. Saves about half the physics time (~0.3 ms a frame here, more on slower processors). " +
+                "Off = the game's normal 60.",
+                ApplyPhysics30, RemovePhysics30, false);
+            _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Note = "Changes gameplay: physics at 30 Hz instead of 60 (movement tech may differ). " +
+                                            "Saves ~0.3 ms a frame here, more on slower processors.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -281,6 +300,7 @@ namespace ForestOverlay.Game
         {
             EndgameLoader.Tick(player, events);
             _cameras.Tick();
+            if (_physicsOn) TickPhysics30();
             if (!_unloadTrailing || _unloadRunning == null) return;
             bool done;
             try { done = _unloadRunning.isDone; }
@@ -326,6 +346,58 @@ namespace ForestOverlay.Game
         private static Type GameType(string name)
         {
             return GameBridge.FindGameType(name);
+        }
+
+        // ------------------------------------------------------------------
+        // 15. Physics at 30 Hz
+        private const string PrefsType = "PlayerPreferences";
+        private const string PhysicsPref = "LowQualityPhysics";
+        private MethodInfo _setLowPhysics;
+        private FieldInfo _lowPhysicsFlag;
+        private bool _physicsOn, _physicsPrefWas;
+        private float _nextPhysicsCheck;
+
+        private string ApplyPhysics30()
+        {
+            Type t = GameType(PrefsType);
+            if (t == null) return PrefsType + " not found";
+            _setLowPhysics = t.GetMethod("SetLowQualityPhysics", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(bool) }, null);
+            _lowPhysicsFlag = t.GetField("LowQualityPhysics", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (_setLowPhysics == null || _lowPhysicsFlag == null) return "SetLowQualityPhysics / LowQualityPhysics not found";
+            _physicsPrefWas = PlayerPrefs.GetInt(PhysicsPref, 0) != 0;
+            _setLowPhysics.Invoke(null, new object[] { true });
+            _physicsOn = true;
+            _nextPhysicsCheck = 0f;
+            _log.LogInfo("Performance: physics at 30 Hz (fixed step " + Time.fixedDeltaTime.ToString("0.0000") + " s).");
+            return "";
+        }
+
+        private void RemovePhysics30()
+        {
+            _physicsOn = false;
+            if (_setLowPhysics == null) return;
+            _setLowPhysics.Invoke(null, new object[] { false });
+            // The options menu's Save writes the flag to the game's prefs; put
+            // back what was there if that happened while this was on.
+            if (!_physicsPrefWas && PlayerPrefs.GetInt(PhysicsPref, 0) != 0) PlayerPrefs.SetInt(PhysicsPref, 0);
+            _log.LogInfo("Performance: physics back at 60 Hz (fixed step " + Time.fixedDeltaTime.ToString("0.0000") + " s).");
+        }
+
+        // Every 2 s: a save load puts the step back to 1/60 - apply again.
+        private void TickPhysics30()
+        {
+            float now = Time.unscaledTime;
+            if (now < _nextPhysicsCheck) return;
+            _nextPhysicsCheck = now + 2f;
+            try
+            {
+                bool flag = (bool)_lowPhysicsFlag.GetValue(null);
+                if (flag && Mathf.Abs(Time.fixedDeltaTime - 1f / 30f) < 0.0001f) return;
+                if (Mathf.Abs(Time.fixedDeltaTime - 1f / 60f) > 0.0001f) return;   // someone else's step (slow motion): leave it
+                _setLowPhysics.Invoke(null, new object[] { true });
+                _log.LogInfo("Performance: physics at 30 Hz again (the step was back at 1/60" + (flag ? "" : ", flag off") + ").");
+            }
+            catch (Exception) { }
         }
 
         // ------------------------------------------------------------------

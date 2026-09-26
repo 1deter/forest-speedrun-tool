@@ -69,12 +69,16 @@ namespace ForestOverlay.Game
     //    texture is cleared to the camera's neutral colour when switched
     //    off (the controller keeps moving the texture's origin each frame,
     //    so old bends would otherwise slide around). The controller never
-    //    touches the camera's `enabled` (IL).
+    //    touches the camera's `enabled` (IL). The camera is found by the
+    //    name the controller gives it (CreateComponents), among the enabled
+    //    cameras - FindObjectOfType for the controller was a 22 ms hitch at
+    //    the cave entry (v0.24.127).
     // ------------------------------------------------------------------
     public sealed class CameraTrim
     {
         private const float ScanInterval = 2f;
         private const string GrassCameraName = "AFSGrassDisplacementCamera";
+        private const string BendCameraName = "AFSGrassDisplacementCameraTest";
         private const string ScreenTextureName = "EndPLane";
 
         private readonly ManualLogSource _log;
@@ -97,8 +101,7 @@ namespace ForestOverlay.Game
         private UnityEngine.Object _sunSet;
         private int _sunRefusedId;
         private Func<bool> _inCaves;
-        private UnityEngine.Object _controller;
-        private float _nextControllerScan;
+        private float _nextBendScan;
         private Camera _caveGrassOff;
 
         public CameraTrim(ManualLogSource log)
@@ -185,15 +188,12 @@ namespace ForestOverlay.Game
 
         public string ApplyCaveGrass()
         {
-            string why = ResolveController();
-            if (why.Length > 0) return why;
             Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
             PropertyInfo p = lp != null ? lp.GetProperty("IsInCaves", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
             MethodInfo get = p != null ? p.GetGetMethod(true) : null;
             if (get == null || get.ReturnType != typeof(bool)) return "LocalPlayer.IsInCaves not found";
             _inCaves = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), get);
-            _controller = null;
-            _nextControllerScan = 0f;
+            _nextBendScan = 0f;
             CaveGrassOn = true;
             return "";
         }
@@ -226,16 +226,17 @@ namespace ForestOverlay.Game
                 return;
             }
             if (!inCave) return;
-            if (_controller == null)
+            float now = Time.unscaledTime;
+            if (now < _nextBendScan) return;
+            Camera cam = null;
+            Camera[] cams = Camera.allCameras;
+            for (int i = 0; i < cams.Length; i++)
+                if (cams[i] != null && cams[i].name == BendCameraName && cams[i].targetTexture != null) { cam = cams[i]; break; }
+            if (cam == null)
             {
-                float now = Time.unscaledTime;
-                if (now < _nextControllerScan) return;
-                _nextControllerScan = now + ScanInterval;
-                _controller = UnityEngine.Object.FindObjectOfType(_controllerType);
-                if (_controller == null) return;
+                _nextBendScan = now + ScanInterval;   // not there (yet): look again in 2 s
+                return;
             }
-            Camera cam = _ctlCamera.GetValue(_controller) as Camera;
-            if (cam == null || !cam.enabled) return;
             RenderTexture rt = cam.targetTexture;
             if (rt != null)
             {
