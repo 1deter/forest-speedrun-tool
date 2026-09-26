@@ -490,6 +490,26 @@ state, not scenes (areas: `same as at capture`).
   reproduced by bridge with `call ... ElevatorSystem.GotoRemotePoint`,
   which starts the ride - `MoveToDownPosition` only moves the car).
   v0.24.64 stops it and applies the end state.
+- **A capture during the keycard cutscene** (bridge, v0.24.79-80).
+  `playerOpenKeypadDoorAction.openDoorRoutine` parents the player to the
+  `playerPos` it is given (red elevator: `Sections/HellCorridor/
+  Elevator_01a/playerPos`, a child of the car) for the whole animation,
+  so the save holds the player's local position: a Quick load put the
+  player ~1300 m off near the world origin, a Full load on the surface
+  (`caves no`, the cave scenes never loaded - maks's "textures
+  unloaded"). Restores now move the player to the header position when
+  they land > 3 m off. The ride is started by the button (`Update`, on
+  `Take`: `_sequence.BeginStage(_sequenceStage)` - stage 1 of
+  `ElevatorAll`, else `GotoRemotePoint`), and **the stage starts it only
+  with the player at the car** (from the overlook: stage set, nothing
+  moved). `ElevatorSystem` itself is disabled away from its trigger
+  (`GrabEnter` / `GrabExit`, facing check). The cutscene flag rises ~1 s
+  after `Goto` starts (the walk to the reader); the car moves 5 s after
+  (`_upPosition` = the lab stop, `_downPosition` = the overlook). Replay:
+  car at the ride's start, `_useCount` - 1, player at `playerPos`, 0.2 s,
+  `BeginStage`, then the usual fast-forward (`ElevatorKeeper.Replay`,
+  the capture's fifth `elevators` field = the start stop, from
+  `GameEvents.RedElevatorAt`).
 - The endgame `Sections/*` carry `TheForest.World.Areas.Area` +
   `AreaMembers` (renderers, lights, probes). `OnEnter` makes an area the
   static `Area.ActiveArea` and `Load()`s it and its `_neighbours`
