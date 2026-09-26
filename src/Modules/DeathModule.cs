@@ -70,6 +70,10 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _skipMenuCfg;
         private ConfigEntry<bool> _noBloodCfg;
         private ConfigEntry<bool> _noStaggerCfg;
+        private ConfigEntry<bool> _godModeCfg;
+        // True while Cheats.GodMode is on because of our toggle, so turning
+        // it off hands back only what we took (gotcha 23).
+        private bool _godModeOurs;
         private bool _extrasMarked;
         private SavestateBridge _loader;
         private bool _pendingInGameLoad;
@@ -128,6 +132,8 @@ namespace ForestOverlay.Modules
             _noStaggerCfg = Ctx.Config.Bind("Deaths", "NoStagger", false,
                 "Practice: skip the hard-landing stagger and its aftermath (frozen input, slow look, no jump, arms down) " +
                 "on every hard landing, as the fall revive does.");
+            _godModeCfg = Ctx.Config.Bind("Deaths", "GodMode", false,
+                "Practice: the game's own god mode (Cheats.GodMode, console _godmode) - no damage taken.");
             _loader = new SavestateBridge(ctx.Log);
 
             _practice = Host.Find<PracticeModule>();
@@ -214,6 +220,27 @@ namespace ForestOverlay.Modules
                                 (_noStaggerCfg.Value ? " no stagger" : "") + ".");
             }
             if (!_noBloodCfg.Value && !_noStaggerCfg.Value) _extrasMarked = false;
+
+            // God mode: kept on while the toggle is (a load or the console may
+            // reset the flag); switched off only if we switched it on.
+            if (_godModeCfg.Value && !PlayerRef.AtTitleScreen && !DeathHooks.IsGodMode())
+            {
+                if (DeathHooks.SetGodMode(true))
+                {
+                    if (!_godModeOurs)
+                    {
+                        Ctx.Practice.Mark("god mode");
+                        Ctx.Log.LogInfo("Deaths: god mode on (Cheats.GodMode).");
+                    }
+                    _godModeOurs = true;
+                }
+            }
+            else if (!_godModeCfg.Value && _godModeOurs)
+            {
+                _godModeOurs = false;
+                DeathHooks.SetGodMode(false);
+                Ctx.Log.LogInfo("Deaths: god mode off.");
+            }
 
             if (_pendingRevive)
             {
@@ -387,6 +414,10 @@ namespace ForestOverlay.Modules
             bool noStagger = GUI.Toggle(new Rect(0, y, w, 22), _noStaggerCfg.Value,
                                         " No stagger: skip the hard-landing stagger on every landing (practice)");
             if (noStagger != _noStaggerCfg.Value) _noStaggerCfg.Value = noStagger;
+            y += 26f;
+            bool god = GUI.Toggle(new Rect(0, y, w, 22), _godModeCfg.Value,
+                                  " God mode: take no damage - the game's own cheat (practice)");
+            if (god != _godModeCfg.Value) _godModeCfg.Value = god;
             y += 26f;
             // What the button above (or the last death) just did, under it.
             y += UiText.Draw(0, y, w, _statusText) + 4f;

@@ -471,12 +471,34 @@ namespace ForestOverlay.Game
             return dead != null && (bool)dead.GetValue(stats);
         }
 
+        private static FieldInfo _godModeField;
+
+        private static FieldInfo GodModeField()
+        {
+            if (_godModeField != null) return _godModeField;
+            Type cheats = GameBridge.FindGameType("Cheats");
+            if (cheats == null) return null;
+            _godModeField = cheats.GetField("GodMode", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            return _godModeField;
+        }
+
         private static bool GodMode()
         {
-            Type cheats = GameBridge.FindGameType("Cheats");
-            if (cheats == null) return false;
-            FieldInfo f = cheats.GetField("GodMode", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            FieldInfo f = GodModeField();
             return f != null && (bool)f.GetValue(null);
+        }
+
+        /// <summary>The game's own <c>Cheats.GodMode</c> (console <c>_godmode</c>).
+        /// False when the field is missing.</summary>
+        public static bool IsGodMode() { return GodMode(); }
+
+        /// <summary>Writes <c>Cheats.GodMode</c>; false when the field is missing.</summary>
+        public static bool SetGodMode(bool on)
+        {
+            FieldInfo f = GodModeField();
+            if (f == null) return false;
+            f.SetValue(null, on);
+            return true;
         }
 
         private static bool PermaDeath()

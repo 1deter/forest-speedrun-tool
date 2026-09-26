@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.101 - 2026-09-26
+
+- Deaths tab: a **God mode** toggle (practice) - the game's own cheat,
+  no damage taken. It stays on through loads while ticked, and unticking
+  it only switches god mode off if the toggle switched it on.
+
 ## v0.24.100 - 2026-09-26
 
 - Teleporting (Go) while the red elevator is riding now stops the ride.
