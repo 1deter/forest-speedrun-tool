@@ -208,6 +208,7 @@ namespace ForestOverlay.Modules
 
             _profiler.Tick();
             _loadTiming.Tick();
+            _perf.Tick();
             if (AllocationTracker.Counting && Time.unscaledTime - _allocWindowStart >= AllocInterval)
             {
                 LogAllocations();

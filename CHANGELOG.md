@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.94 - 2026-09-26
+
+- Entering a cave and loading a save hitch less: when the game asks
+  for its unused-asset clean-up several times at once, it now runs once
+  instead of once per request.
+- One more small source of per-frame garbage removed (the VR switcher,
+  which does nothing outside VR).
+- Both have their own switch in Debug views (Performance patches).
+
 ## v0.24.93 - 2026-09-26
 
 - The log now records where loading time goes (entering caves, the

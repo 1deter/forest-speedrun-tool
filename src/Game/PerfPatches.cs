@@ -7,6 +7,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ForestOverlay.Game
 {
@@ -40,6 +41,14 @@ namespace ForestOverlay.Game
     //    Camera.CalculateFrustumCorners fills completely before they are
     //    read, and that never leave the method. A transpiler hands it two
     //    kept arrays instead.
+    // 5. Asset unloads merged: entering a cave, GreebleZonesManager and
+    //    SceneUnloadInCave each ask ResourcesHelper.UnloadUnusedAssets for
+    //    a sweep 0.1 s after their scenes unload - two full walks of every
+    //    loaded object at once (bridge, 2026-09-26: 660 ms and 1.02 s,
+    //    frames of 361 / 368 ms). A request while a sweep is still running
+    //    gets that sweep's operation (callers only wait on it). A scene
+    //    unloaded after the running sweep began earns one sweep after it,
+    //    so nothing is left unswept - only the overlap goes.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -79,6 +88,13 @@ namespace ForestOverlay.Game
             Add(config, "AtmosphereReuseArrays", "Atmosphere: reuse two arrays per camera",
                 "Let the atmosphere reuse the two small arrays it fills every frame per camera (saves ~30 KB/s of garbage).",
                 ApplyAtmosphere, RemoveAtmosphere);
+            Add(config, "MergeAssetUnloads", "Loads: merge overlapping asset clean-ups",
+                "When the game asks for an unused-asset clean-up while one is still running (entering a cave asks twice), " +
+                "share the running one instead of walking everything again (saves a ~0.4 s hitch on entering a cave).",
+                ApplyUnloads, RemoveUnloads);
+            Add(config, "VRSwitcherNoLayout", "VR switcher: no GUI layout pass",
+                "Skip Unity's GUI layout pass for the game's VR switcher, which draws nothing outside VR (saves ~50 KB/s of garbage).",
+                ApplyVrSwitcher, RemoveVrSwitcher);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -133,6 +149,20 @@ namespace ForestOverlay.Game
             List<string> parts = new List<string>();
             foreach (KeyValuePair<string, int> kv in found) parts.Add(kv.Key + (kv.Value > 1 ? " x" + kv.Value : ""));
             return string.Join("; ", parts.ToArray());
+        }
+
+        /// Once a frame (Debug views module).
+        public void Tick()
+        {
+            if (!_unloadTrailing || _unloadRunning == null) return;
+            bool done;
+            try { done = _unloadRunning.isDone; }
+            catch (Exception) { done = true; }
+            if (!done) return;
+            _unloadTrailing = false;
+            _unloadSceneSince = false;
+            _unloadRunning = Resources.UnloadUnusedAssets();
+            _log.LogInfo("Performance: one more asset clean-up - a scene unloaded while the merged one ran.");
         }
 
         public void Shutdown()
@@ -208,6 +238,110 @@ namespace ForestOverlay.Game
         {
             try { if (__instance != null) __instance.useGUILayout = false; }
             catch (Exception) { }
+        }
+
+        // ------------------------------------------------------------------
+        // 5. Asset unloads
+        private MethodInfo _unloadMethod;
+        private static PerfPatches _self;
+        private static AsyncOperation _unloadRunning;
+        private static bool _unloadSceneSince;
+        private static bool _unloadTrailing;
+
+        private string ApplyUnloads()
+        {
+            Type t = GameType("TheForest.Utils.ResourcesHelper");
+            if (t == null) return "ResourcesHelper not found";
+            _unloadMethod = t.GetMethod("UnloadUnusedAssets", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (_unloadMethod == null || _unloadMethod.ReturnType != typeof(AsyncOperation)) return "UnloadUnusedAssets not found";
+            _self = this;
+            _harmony.Patch(_unloadMethod,
+                new HarmonyMethod(typeof(PerfPatches).GetMethod("UnloadPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                new HarmonyMethod(typeof(PerfPatches).GetMethod("UnloadPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+            return "";
+        }
+
+        private void RemoveUnloads()
+        {
+            if (_unloadMethod != null) _harmony.Unpatch(_unloadMethod, HarmonyPatchType.All, _harmony.Id);
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            _unloadTrailing = false;
+        }
+
+        private static void OnSceneUnloaded(Scene s)
+        {
+            if (_unloadRunning != null) _unloadSceneSince = true;
+        }
+
+        private static bool UnloadPrefix(ref AsyncOperation __result)
+        {
+            try
+            {
+                if (_unloadRunning == null || _unloadRunning.isDone) return true;
+                __result = _unloadRunning;
+                if (_unloadSceneSince) _unloadTrailing = true;
+                if (_self != null) _self._log.LogInfo("Performance: asset clean-up merged into the one running" +
+                                                      (_unloadTrailing ? " (one more after it: a scene unloaded meanwhile)" : "") + ".");
+                return false;
+            }
+            catch (Exception) { return true; }
+        }
+
+        private static void UnloadPostfix(AsyncOperation __result)
+        {
+            if (__result == null || ReferenceEquals(__result, _unloadRunning)) return;
+            _unloadRunning = __result;
+            _unloadSceneSince = false;
+        }
+
+        // ------------------------------------------------------------------
+        // 6. VR switcher (same as 2)
+        private const string VrType = "VRSwitcher";
+        private MethodInfo _vrEnable;
+
+        private string ApplyVrSwitcher()
+        {
+            Type t = GameType(VrType);
+            if (t == null) return VrType + " not found";
+            if (UsesLayout(t)) return "its OnGUI uses GUILayout / GUI.Window";
+            _vrEnable = t.GetMethod("OnEnable", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null) ??
+                        t.GetMethod("Awake", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null) ??
+                        t.GetMethod("Start", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (_vrEnable != null)
+                _harmony.Patch(_vrEnable, postfix: new HarmonyMethod(typeof(PerfPatches).GetMethod("PostEnablePostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+            SetLayout(t, false);
+            return "";
+        }
+
+        private void RemoveVrSwitcher()
+        {
+            if (_vrEnable != null) _harmony.Unpatch(_vrEnable, HarmonyPatchType.Postfix, _harmony.Id);
+            Type t = GameType(VrType);
+            if (t != null) SetLayout(t, true);
+        }
+
+        // A guard for the layout switches: an OnGUI that calls GUILayout or
+        // GUI.Window needs the pass. Reads the IL's call targets.
+        private static bool UsesLayout(Type t)
+        {
+            MethodInfo gui = t.GetMethod("OnGUI", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (gui == null) return false;
+            MethodBody body = gui.GetMethodBody();
+            if (body == null) return true;
+            byte[] il = body.GetILAsByteArray();
+            for (int i = 0; i + 4 < il.Length; i++)
+            {
+                if (il[i] != 0x28 && il[i] != 0x6F) continue;   // call / callvirt
+                int token = BitConverter.ToInt32(il, i + 1);
+                MethodBase m;
+                try { m = gui.Module.ResolveMethod(token); }
+                catch (Exception) { continue; }
+                if (m == null || m.DeclaringType == null) continue;
+                if (m.DeclaringType.Name == "GUILayout" || m.DeclaringType.Name == "GUILayoutUtility" ||
+                    (m.DeclaringType == typeof(GUI) && (m.Name == "Window" || m.Name == "ModalWindow"))) return true;
+            }
+            return false;
         }
 
         // ------------------------------------------------------------------
