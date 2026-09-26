@@ -829,8 +829,8 @@ updater. **375 tests.**
 
 ### Pick up here (2026-09-26, performance session, v0.24.100 in the game)
 
-**State:** the game runs v0.24.100 (installed with `update_game`, Slot 1
-loaded, player in the vault door cave). `[Performance]
+**State:** the game runs v0.24.101 (installed with `update_game`, Slot 1
+loaded fresh from the title screen; `Cheats.GodMode` true as Slot 1 loads). `[Performance]
 SaveLoadNoFixedWait` is back **off** (author: "whatever you think is best
 for the test" - off, so load timings are measured against the game's own
 hand-over). Savestates `phantom-a` (surface, captured with the endgame
