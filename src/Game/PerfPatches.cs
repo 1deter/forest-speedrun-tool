@@ -97,6 +97,11 @@ namespace ForestOverlay.Game
     //    the new scene's own start-up; the sweep only added to it. On by
     //    default since v0.24.110 (key renamed so v0.24.109's saved "off"
     //    does not keep it off).
+    // 11-12. Cameras that draw what nobody sees (raw FPS, v0.24.116):
+    //    the terrain's leftover grass camera off, the endgame's plane
+    //    screen rendered only when the screen is drawn - Game/CameraTrim.
+    //    Each camera costs the main thread ~0.25 ms a frame whatever it
+    //    draws; these are frame time, not garbage.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -120,11 +125,13 @@ namespace ForestOverlay.Game
         private readonly ManualLogSource _log;
         private readonly Harmony _harmony;
         private readonly List<Fix> _fixes = new List<Fix>();
+        private readonly CameraTrim _cameras;
 
         public PerfPatches(ManualLogSource log, ConfigFile config, string harmonyId)
         {
             _log = log;
             _harmony = new Harmony(harmonyId + ".perf");
+            _cameras = new CameraTrim(log);
 
             Add(config, "OverlayLayoutOnlyForWindows", "Overlay: no GUI layout pass without a window",
                 "Skip Unity's GUI layout pass for the overlay while none of its windows is open (saves ~40 KB/s of garbage).",
@@ -171,6 +178,17 @@ namespace ForestOverlay.Game
                 "nothing (measured: the same number of objects after the load). Skip that one walk; the animations are unloaded as " +
                 "before (saves ~0.4 s per load).",
                 ApplyAnimSweep, RemoveAnimSweep);
+            Add(config, "TerrainGrassCameraOff", "Grass: switch off the terrain's unused grass camera",
+                "The terrain carries a second grass-bending camera that draws, every frame, into a picture nothing uses - the grass " +
+                "bends from the game's own camera that follows you. Switch the unused one off (each camera costs every frame, " +
+                "~0.25 ms here; more on a slower processor).",
+                _cameras.ApplyGrass, _cameras.RemoveGrass);
+            Add(config, "EndgameScreenOnDemand", "Endgame: draw the plane screen only when it is on screen",
+                "While the endgame area is loaded, a camera draws a small scene for one screen in the control room every frame - a " +
+                "screen that is off until the end-crash ending (the game meant to switch the camera by distance, but its switch " +
+                "skips cameras). Draw it only in frames where that screen is being drawn (~0.35 ms a frame here while the endgame " +
+                "is loaded).",
+                _cameras.ApplyScreen, _cameras.RemoveScreen);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -238,6 +256,7 @@ namespace ForestOverlay.Game
         public void Tick(PlayerRef player, GameEvents events)
         {
             EndgameLoader.Tick(player, events);
+            _cameras.Tick();
             if (!_unloadTrailing || _unloadRunning == null) return;
             bool done;
             try { done = _unloadRunning.isDone; }

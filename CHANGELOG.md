@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.116 - 2026-09-26
+
+- **Higher frame rate, nothing changed in the picture:** two of the game's
+  cameras drew every frame for nothing. The terrain's spare grass camera
+  (the grass bends from another one) is switched off, and the endgame's
+  plane-screen camera draws only when that screen is actually on screen
+  (it is off until the end-crash ending). Each camera costs about a
+  quarter of a millisecond every frame here, more on a slower processor.
+  Both are on by default under Debug views -> Performance patches.
+
 ## v0.24.115 - 2026-09-26
 
 - Log only: the `Frame (30 s):` line lists every camera the game draws

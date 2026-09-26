@@ -455,7 +455,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
 
             // --- performance patches -----------------------------------------
-            y += UiText.Draw(12, y, w - 24, "Performance patches - less garbage for the game to collect (fewer hitches); " +
+            y += UiText.Draw(12, y, w - 24, "Performance patches - less work for the game each frame, and less garbage to collect (fewer hitches); " +
                                             "each one keeps what the game does. Untick one to get the game's own code back.");
             y = DrawPerf(y, w, false);
             y += UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
