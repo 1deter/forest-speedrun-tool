@@ -1226,7 +1226,25 @@ list so we can move onto expanding more features".
      heights / crouch, `FirstPersonCharacter` flags, the PlayMaker FSM
      and animator states, fixed-step phase, parenting left by a cutscene,
      and colliders the restore adds or leaves behind. Then time the tech
-     with the author's hands on both paths.
+     with maks (the author cannot do the boost; QA Discord).
+   - **Ruled out (bridge, 2026-09-26, Slot 1)** - identical between a
+     natural arrival and a Quick load: the player's Rigidbody, capsule /
+     head sphere, physic materials, every `FirstPersonCharacter` /
+     `RigidBodyCollisionFlags` / `Buoyancy` field, parent, every
+     collider on the player (the held axe's `collide` too - it carries
+     `StoreInformation`); the red elevator 10 s into the ride (car
+     Rigidbody, door `Closed` + locked, panels, the 20 colliders within
+     9 m) and after it; `fixedDeltaTime` 0.0167 throughout (the game
+     has a 50 Hz path: PlayMaker `ScaleTime` sets `0.02 x timeScale` -
+     not hit by the ride); Physics globals; heap / full-GC pause flat
+     over 10 Quick loads (~280 MB, 80 ms). Terrain is 530 m below the
+     elevator top. So the state a Quick load leaves is right; what is
+     left is dynamic (during the swing / clip) - next: maks's answers
+     (posted 2026-09-26: Full vs Quick, capture before the trigger,
+     settles after moving?, clip vs launch), then a per-FixedUpdate
+     physics trace he can record in a run and after a load. Test
+     savestates `physA`, `elevPre` (in the car, before the trigger),
+     `elevMid` (2.6 s into the ride) are left for this.
 6. **Performance: can patches make the game itself faster?** (author,
    2026-09-23). Measure first, change second:
    - **Baseline**: the `Perf (30 s):` line. v0.23.4 at idle: ~175 fps,
