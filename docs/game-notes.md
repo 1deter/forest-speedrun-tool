@@ -293,6 +293,19 @@ as the game's own `FinalCloseBook` does. The cave hanging and endgame
 wake-up cutscenes close it with `CloseTheBook(false)` (animated, 0.65 s).
 `Game/BookClose` runs the fast close on every reset.
 
+**The pitch lock (v0.24.91, runner sxczurass: "can look sideways, not up
+or down").** `setOpenBook` is an animation event as the book reaches its
+idle pose; only `FinalCloseBook` (the close animation's event, or
+`playerAnimatorControl.runGotHitScripts`) puts `rotationRange` /
+`xOffset` back. A reset in the ~0.5 s between `setOpenBook` and the real
+book opening takes the fast close without that event: `rotationRange`
+stays (0, 0) for good (bridge: reset 0.6 s after `OpenBook` stuck; 0.2 s
+and 1.2 s fine). Yaw is the body's `MainRotator`, pitch the camera's
+`CamRotator` - hence sideways only. `xOffset = -20` is written only by
+`setOpenBook` (and the cave hanging cutscene), so it marks the book's
+lock. `BookClose.Tick` applies `FinalCloseBook`'s camera lines once the
+reset is done.
+
 ### A blueprint in the hands (IL + bridge, v0.24.47)
 
 Build mode lives on `Create` (`LocalPlayer.Create`): `CreateMode`,
@@ -1617,6 +1630,22 @@ the `GCCollect` many callers do after it is a real second pause. Callers:
 `TriggerCutScene.CleanUp` / `ShowEnemies`, `animClipMemoryManager.Start ->
 UnloadEndGameAnimation` (every load: 3 animation unloads + a sweep, ~1 s,
 a 550-730 ms frame), `LoadAsync` / `PlayerStats.OnSaveSlotSelectedRoutine`.
+
+**`PostProcessingBehaviour.OnGUI` is game logic**, not a debug view: on
+Repaint it calls `EnableScionEyeAdaption` / `CheckScionEyeAdaptation`
+from the user's post-effects setting, then draws debug textures only when
+a debug view is on. So its `OnGUI` must keep running; only its layout
+pass (`useGUILayout`) is waste. Empty or draw-only `OnGUI`s are the safe
+ones to switch off; `PerfPatches.UsesLayout` refuses any that call
+`GUILayout` / `GUI.Window`.
+
+**Reading `mono.dll`'s machine code** (how the profiler facts above were
+found): `python -m pip install --target <scratchpad>/pylib capstone`,
+`sys.path.insert(0, ...)`, parse the PE export table for a function's RVA
+and disassemble from there (x64). Do not name the script `dis.py` - it
+shadows the standard module `inspect` imports and capstone fails with a
+circular import. Rip-relative `cmp [rip+X], 0` resolves a static's
+address (instruction end + X).
 
 **Entering a cave** loads all 16 cave prop scenes (`CaveProps_Streaming`,
 `Cave_01`-`10`, `HC`, `Snow`, `Junk`, `IE`, `IW` - the caves connect) and

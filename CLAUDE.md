@@ -295,7 +295,10 @@ leave with `tp` (clears the cave and endgame state). Places in Slot 1:
 a tree / bush spot with no cannibals (428, 78, -4) (pines, a
 `GreenBush`; the pooled tree at (501.23, 76.37, 90.3) near (493, 76.5,
 97.7) has a greeble zone), saplings (385, 76, 285), the plane wreck
-(360, 75, 1050), inside the red elevator car `tp -711 -432 967` (start
+(360, 75, 1050), cave streaming as a run enters a cave: `tp 1283.92
+-70.59 612.88` (the Cave 6 test spot) from the surface - the real cave
+loads and clean-ups run (`Load timing:` lines), `tp 428 78 -4` back,
+inside the red elevator car `tp -711 -432 967` (start
 its ride: `call <ElevatorSystem, type ElevatorSystem all>
 ElevatorSystem.GotoRemotePoint`; `MoveToDownPosition` only moves the
 car), a cannibal family: `tp 523 56.3 10 180` (20 m north of spawner
@@ -744,6 +747,13 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     and silent, look for a once-only guard that ran at startup - and
     ship the "did it see anything" check with the first version (a
     count of 0 is an answer, not a quiet week).
+
+44. **Measure before the changelog claims a number.** v0.24.92's
+    changelog promised "about 60% less garbage" from an estimate; the
+    in-game A/B said about half, and v0.24.93 had to correct it (CI
+    publishes the section with the tag, so it reached runners). A
+    runner-facing number comes from a measurement of the released build -
+    or the notes say what changed without a figure.
 
 ## Project intent
 
