@@ -154,6 +154,7 @@ namespace ForestOverlay.Modules
             _greebles = new GreebleKeeper(ctx.Log);
             _greebles.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
@@ -211,6 +212,7 @@ namespace ForestOverlay.Modules
             if (_bossHold != null) _bossHold.Uninstall();
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
+            FullCapacityWatch.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
 

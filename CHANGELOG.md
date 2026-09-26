@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.98 - 2026-09-26
+
+- When the game says "can't carry any more" of an item, the log now says
+  what caused it - for the "can't carry any more plane axes" seen once
+  after a Full load. Nothing changes in game.
+
 ## v0.24.97 - 2026-09-26
 
 - One short freeze less after every load (about 0.1 s, just as you get

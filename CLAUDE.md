@@ -813,7 +813,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.97** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.98** (2026-09-26). The author runs it via the in-game
 updater. **374 tests.**
 
 ### Pick up here (2026-09-26, performance session continued, v0.24.97 in the game)
@@ -887,11 +887,14 @@ after a restart with the `Perf (30 s)` lines. Not yet posted to QA.
 updated): confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
-**New, deferred (author: "defer ... unless it's a quick fix"):** after a
-Full load the game said **"can't carry any more plane axes"** (author,
-2026-09-26). Likely `SavestateBridge.RefreshHeld` (put away + `Equip`
-again for the animator, v0.24.43) adding an axe the inventory already
-has at its cap - read what `StashWeapon` does with a plane axe.
+**The plane axe message** (author, 2026-09-26, once after a Full load):
+"can't carry any more plane axes" = `HudGui.ToggleFullCapacityHud`, only
+from `PlayerInventory.AddItemNF` at the cap. `StashEquipedWeapon` ->
+`UnequipItemAtSlot` does `AddItem` back to the bag, so the lead is
+`RefreshHeld`'s put-away racing the load's own equip. Not reproduced:
+two Full loads of `phantom-a` clean (bridge; a hand stash + Equip keeps 1
+axe). v0.24.98 logs `Inventory full: ... - from <call stack>`
+(`Game/FullCapacityWatch`) - ask for that line when it is seen again.
 
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
@@ -927,7 +930,7 @@ has at its cap - read what `StashWeapon` does with a plane axe.
 1. **Next up 6, performance / loads** - the list above: 1 (the endgame
    load in our restores, then the experimental game-trigger option), 2
    (the heap step - with maks), then 3-5. On high effort.
-1b. **The plane axe message** (above) - small, runner-facing.
+1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 3. **Next up 5, Quick load physics parity** - the heap lead above first;
