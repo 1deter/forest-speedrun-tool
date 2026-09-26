@@ -774,32 +774,55 @@ identity.
 
 ## Current status
 
-**Released: v0.24.85** (2026-09-26). The author runs it via the in-game
-updater. **367 tests.**
+**Released: v0.24.89** (2026-09-26). The author runs it via the in-game
+updater. **379 tests.**
 
-### Pick up here (2026-09-26, handoff, v0.24.85 in the game)
+### Pick up here (2026-09-26, handoff mid performance work, v0.24.89 in the game)
 
-**State:** v0.24.85 runs in the author's game (MCP `update_game`), Slot 1
-loaded, player in the red elevator car (`elevPre`). Everything below is
-released, on `main`, and bridge-checked unless marked. No test spots are
-left over; savestates `phantom-a` (old tree spot; can be deleted),
-`keycard-pickup-testing`, `physA`, `elevPre` (in the red elevator car,
-before the trigger), `elevMid` (2.6 s into the ride) - kept for Next up 5.
-**Next is performance (Next up 6)** - on **high effort** (tell the author
-before starting it; they switch).
+**State:** v0.24.89 just installed (MCP `update_game`), game at the title
+screen. Savestates `phantom-a` (deletable), `keycard-pickup-testing`,
+`physA`, `elevPre`, `elevMid` kept for Next up 5. Session cut by the usage
+limit.
 
-This session:
-- **v0.24.85 - Quick load past the vault door** (maks): on a save without
-  the endgame loaded, a Quick load of a spot past the vault door fell
-  through the world. `SavestateModule.EndgameFirst` now loads it first
-  (`EndgameLoader`, as the Full load does), holds the player where they
-  stand until it is in (~6 s), then restores. Reproduced and confirmed
-  with the bridge: `call <EndgameEntrance/LoadEndgame> SceneLoadTrigger.
-  ForceUnload` from the surface, then `restore elevPre` (before: falling
-  at 55 m/s; after: in the car, areas as at capture). Not yet tried by
-  maks on his own save.
-- QA 1-5 (swing / smash cut, Quick and Full load) confirmed by sxczurass
-  (author, via the QA Discord).
+**Performance (Next up 6) - findings so far, all bridge-measured (Slot 1,
+surface (428, 78, -4), standing still, author's PC):**
+- ~190 fps, normal frames <= 17 ms; **one GC about a minute, frame 87-100
+  ms** - the stutter is the Boehm pause (the Perf line now prints `GC
+  frames N ms avg, M max`, v0.24.86-87).
+- Live managed heap: **36 MB at the title (forced GC 7 ms), 281 MB in game
+  (80-91 ms)** - ~0.3 ms per MB. Time a pause: bridge `call
+  static:System.GC GetTotalMemory true` (the reply's ms = the pause).
+- The game's `mono.dll` reads no GC tuning env var (only `GC_DONT_GC`), so
+  the levers are **a smaller live heap** (shorter pause) and **less
+  allocation** (fewer GCs).
+- **Game profiler** (Debug views, v0.24.86-87; `ToggleProfiler` on
+  `_modules[8]`; `Diagnostics.GameProfilerExtra`, `*::MoveNext` etc.): game
+  scripts cost only ~1.5 ms/frame - no script hot spot at idle. Heap
+  attribution per method is too noisy (Boehm used-size moves in 4 KB
+  blocks). Small steady allocators: `TheForestAtmosphere.UpdateShaderParameters`
+  (two `Vector3[4]` a camera a frame), `PostProcessingBehaviour.OnPreCull`,
+  `CullingGrid.Update` (List.Sort / RemoveAll), `AssetBundleManager.Update`.
+  Hooking 1588 methods raised the pause to ~165 ms (Harmony's objects) -
+  restart the game after a big profiler run before measuring.
+- Static census (v0.24.88 fixed its "Collection was modified" crash):
+  statics reach ~45 MB; biggest `TriangleMeshNode._navmeshHolders` (A*
+  navmesh) and `PathPool.pool`, both capped; 514926 Unity objects, 147
+  threads.
+- **Next step:** `call BepInEx_Manager OverlayPlugin._host._modules[10]._census.RunScene "x"`
+  (v0.24.89, not yet run - load Slot 1, `tp 428 78 -4`, wait ~25 s first):
+  which scripts / object types hold the ~245 MB. Then patch what can be
+  freed or pooled without changing behaviour (candidates: A* `PathPool`,
+  caches), each with its own switch and one log line, and compare the
+  forced-GC ms and the Perf `GC frames` before / after.
+
+**QA (maks, 2026-09-26):** v0.24.85 vault door Quick load "works perfectly"
+(confirmed). He sent **physics evidence** for Next up 5: "boosts didnt
+work, restarted, worked flawlessly again" - QA reports in #general,
+messages `1553234294065995917`, `1553234609259552818`,
+`1553236165388148816` (zips, not yet downloaded or read). Next up 5 is
+now evidence-backed: a long session degrades it, a restart fixes it -
+compare the reports' uptime / restore counts / Perf lines (heap growth
+over the session? the GC pause?).
 
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
@@ -832,7 +855,10 @@ This session:
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance** - measure first (below). Its own session.
+1. **Next up 6, performance** - continue from the findings above (scene
+   census next), on high effort.
+1b. **maks's physics reports** (above) - read them; may tie into
+   performance (a degraded long session).
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 3. **Next up 5, Quick load physics parity** stays open but deferred
@@ -1352,7 +1378,7 @@ with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
 attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82), no stray build icon on a blueprint after a Quick load (v0.24.84), a Quick load past the vault door loads the endgame first (v0.24.85).
+thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82), no stray build icon on a blueprint after a Quick load (v0.24.84), a Quick load past the vault door loads the endgame first (v0.24.85, maks confirmed).
 
 ### How a session goes
 
