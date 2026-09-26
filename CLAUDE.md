@@ -1136,7 +1136,8 @@ editor has no Id field (v0.24.74); a 45-degree box drawn diagonal
 (v0.24.75); both coordinate fields drawn, no overlap (v0.24.77). The
 author (2026-09-26): a Community entry's read-only view and its
 Duplicate, typing into coordinate fields, the Import list's wrapped
-rows - "all 3 seem fine".
+rows - "all 3 seem fine"; letters refused in a coordinate box (v0.24.78,
+author).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1189,7 +1190,7 @@ rule, and a few runners act as QA. The author: "work through the current
 list so we can move onto expanding more features".
 
 1-2. ~~The load leak, updates under any file name~~ done (v0.23.3-0.23.7).
-3. ~~Savestates, the fix list, sharing~~ done (through v0.24.77; open
+3. ~~Savestates, the fix list, sharing~~ done (through v0.24.83; open
    leftovers in *Pick up here*). Author's idea, still open: reload the
    slot **in place** on death (the Savestates tab's *Quick load the
    slot's save* does exactly that).
@@ -1277,7 +1278,7 @@ with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
 attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks).
+thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82).
 
 ### How a session goes
 
