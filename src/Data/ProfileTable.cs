@@ -31,6 +31,10 @@ namespace ForestOverlay.Data
 
         public int Count { get { return _count; } }
 
+        /// The byte figures are exact allocation (the allocation tracker),
+        /// not heap-size changes: the header says so.
+        public bool ExactAllocation { get; set; }
+
         public string Name(int slot) { return _names[slot]; }
 
         /// A new slot for a method; returns its index.
@@ -111,8 +115,10 @@ namespace ForestOverlay.Data
             double msPerTick = 1000.0 / tickFrequency;
             lines.Add("Game profile (" + seconds.ToString("0") + " s, " + frames + " frames, " + _count + " methods): hooked " +
                       (TotalTicks() * msPerTick / frames).ToString("0.00") + " ms/frame, " +
-                      (calls / (double)frames).ToString("0") + " calls/frame, heap +" +
-                      (TotalBytes() / 1024.0 / seconds).ToString("0") + " KB/s");
+                      (calls / (double)frames).ToString("0") + " calls/frame, " +
+                      (ExactAllocation ? "allocated " : "heap +") +
+                      (TotalBytes() / 1024.0 / seconds).ToString("0") + " KB/s" +
+                      (ExactAllocation ? " (exact, main thread)" : ""));
 
             StringBuilder sb = new StringBuilder("time: ");
             int[] order = Ranked(_ticks, top);

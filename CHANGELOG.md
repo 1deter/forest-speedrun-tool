@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.90 - 2026-09-26
+
+- Debug views: an **Allocation tracker** switch shows exactly what the
+  game allocates, by type (and by script while the Game profiler runs) -
+  for finding what triggers the regular garbage-collection hitch. Off
+  unless switched on; `AllocationTrackerAtStartup` in the config makes it
+  complete at the cost of a little speed.
+
 ## v0.24.89 - 2026-09-26
 
 - Memory census: the largest roots now say how many objects they hold,

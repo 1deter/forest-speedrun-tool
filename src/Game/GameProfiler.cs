@@ -34,6 +34,10 @@ namespace ForestOverlay.Game
     // unhooking run a few milliseconds a frame, so switching it costs no
     // freeze. A method that throws skips its postfix (not counted).
     //
+    // With the allocation tracker counting (Game/AllocationTracker), the
+    // heap column is exact: bytes the main thread allocated inside the
+    // call, not the heap size's change.
+    //
     // Behaviour-preserving: the patches only read the clock and the heap
     // size. It is not practice-only; its own cost (a few hundred ns per
     // hooked call) is in the header line's calls/frame.
@@ -218,6 +222,7 @@ namespace ForestOverlay.Game
             float now = Time.unscaledTime;
             if (now - _windowStart < Interval) return;
             float seconds = now - _windowStart;
+            Table.ExactAllocation = AllocationTracker.Counting;
             List<string> lines = Table.Report(seconds, _frames, Stopwatch.Frequency, Top);
             if (_unknown > 0) lines.Add("unmatched calls: " + _unknown);
             for (int i = 0; i < lines.Count; i++) _log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
@@ -376,18 +381,24 @@ namespace ForestOverlay.Game
         {
             public long Ticks;
             public long Heap;
+            public bool Exact;
         }
 
         private static void Prefix(out Sample __state)
         {
-            __state.Heap = GC.GetTotalMemory(false);
+            __state.Exact = AllocationTracker.Counting;
+            __state.Heap = __state.Exact ? AllocationTracker.MainBytes : GC.GetTotalMemory(false);
             __state.Ticks = Stopwatch.GetTimestamp();
         }
 
         private static void Postfix(MethodBase __originalMethod, Sample __state)
         {
             long ticks = Stopwatch.GetTimestamp() - __state.Ticks;
-            long heap = GC.GetTotalMemory(false) - __state.Heap;
+            bool exact = AllocationTracker.Counting;
+            // The tracker switched (or restarted its window) mid-call: no figure.
+            long heap = exact != __state.Exact ? 0
+                      : exact ? Math.Max(0L, AllocationTracker.MainBytes - __state.Heap)
+                      : GC.GetTotalMemory(false) - __state.Heap;
             try
             {
                 int slot;

@@ -25,6 +25,18 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ExactAllocationSaysSoInTheHeader()
+        {
+            ProfileTable t = new ProfileTable();
+            int a = t.Add("A.Update");
+            t.Record(a, 1, 2048);
+            t.ExactAllocation = true;
+            var lines = t.Report(1f, 1, Freq, 5);
+            Assert.EndsWith("calls/frame, allocated 2 KB/s (exact, main thread)", lines[0]);
+            Assert.Equal("alloc: A.Update 2.0 KB/s (x1/f)", lines[2]);
+        }
+
+        [Fact]
         public void HeapDropIsAGcHitNotAllocation()
         {
             ProfileTable t = new ProfileTable();

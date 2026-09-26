@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
@@ -30,6 +31,10 @@ namespace ForestOverlay.Modules
     //
     // The game profiler (Game/GameProfiler) lives here too: a debug switch,
     // off at every launch; `Diagnostics.GameProfilerExtra` adds methods.
+    // So does the allocation tracker (Game/AllocationTracker): exact
+    // allocation by type, and by method while the profiler runs;
+    // `Diagnostics.AllocationTrackerAtStartup` installs it at launch so
+    // plain objects are seen too.
     // ------------------------------------------------------------------
     public sealed class DebugViewModule : OverlayModule
     {
@@ -79,6 +84,10 @@ namespace ForestOverlay.Modules
 
         private GameProfiler _profiler;
         private ConfigEntry<string> _profilerExtraCfg;
+        private ConfigEntry<bool> _allocAtStartupCfg;
+        private const float AllocInterval = 30f;
+        private float _allocWindowStart;
+        private string _allocReport = "";
 
         private Vector2 _scroll;
         private float _contentHeight = 600f;
@@ -112,6 +121,33 @@ namespace ForestOverlay.Modules
                 "Extra game methods the game profiler (Debug views) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
                 "Read when the profiler is switched on.");
             _profiler = new GameProfiler(Ctx.Log, OverlayPlugin.PluginGuid);
+
+            _allocAtStartupCfg = Ctx.Config.Bind("Diagnostics", "AllocationTrackerAtStartup", false,
+                "Install the allocation tracker (Debug views) when the game starts, so every allocation is seen - " +
+                "a small cost on each allocation for the whole session. Off: it installs when first switched on and " +
+                "misses plain objects from code the game already ran.");
+            if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
+        }
+
+        /// The allocation tracker on / off (Debug views; the bridge calls
+        /// this). Off logs a last report.
+        public void ToggleAllocations()
+        {
+            if (AllocationTracker.Counting)
+            {
+                LogAllocations();
+                AllocationTracker.Stop();
+                return;
+            }
+            AllocationTracker.Start(Ctx.Log);
+            _allocWindowStart = Time.unscaledTime;
+        }
+
+        private void LogAllocations()
+        {
+            List<string> lines = AllocationTracker.Report();
+            for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
+            _allocReport = string.Join("\n", lines.ToArray());
         }
 
         /// The game profiler on / off (Debug views; the bridge calls this).
@@ -157,6 +193,12 @@ namespace ForestOverlay.Modules
             if (_saveAt >= 0f && Time.unscaledTime >= _saveAt) SaveFilters();
 
             _profiler.Tick();
+            if (AllocationTracker.Counting && Time.unscaledTime - _allocWindowStart >= AllocInterval)
+            {
+                LogAllocations();
+                AllocationTracker.Start(Ctx.Log);
+                _allocWindowStart = Time.unscaledTime;
+            }
 
             BuildLabels();
         }
@@ -368,6 +410,13 @@ namespace ForestOverlay.Modules
             y += Row;
             y += UiText.Draw(12, y, w - 24, _profiler.Status);
             y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
+
+            bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
+                                    " Allocation tracker (what the game allocates, by type; by method with the profiler)");
+            if (alloc != AllocationTracker.Counting) ToggleAllocations();
+            y += Row;
+            y += UiText.Draw(12, y, w - 24, AllocationTracker.Status);
+            y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
 
             // --- notes ------------------------------------------------------
             y += UiText.Draw(12, y, w - 24, _status);
