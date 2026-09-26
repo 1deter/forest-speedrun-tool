@@ -844,7 +844,17 @@ namespace ForestOverlay.Modules
         private IEnumerator ReplayRides(SavestateFile f, List<Component> rides, string what)
         {
             yield return null;
-            yield return null;
+            // The ride starts only with the player at the car (a capture
+            // after the car moved has them at the overlook), and the game's
+            // trigger needs a physics step to see them there.
+            Vector3 start;
+            if (Ctx.Player.Found && _elevators.RideStart(rides[0], out start))
+            {
+                Ctx.Player.MoveTo(start, Ctx.Player.Transform.rotation);
+                Ctx.Bridge.EndFall();
+            }
+            float wait = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - wait < 0.2f) yield return null;
             int starts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
             string note = _elevators.Replay(rides);
             Ctx.Log.LogInfo("Savestate " + what + ": captured " + f.CutsceneAt.ToString("0.0") +
@@ -896,7 +906,10 @@ namespace ForestOverlay.Modules
                 if (Time.timeScale > 0f)
                 {
                     float dt = Time.unscaledDeltaTime > 0.0001f ? Time.unscaledDeltaTime : 0.016f;
-                    Time.timeScale = Mathf.Clamp(remaining / dt, 1f, CutsceneSpeed);
+                    // Half the remaining time per frame near the mark: one
+                    // slow frame then lands short, not past it (a Full load
+                    // overshot 1.61 s to 2.12 s, v0.24.79).
+                    Time.timeScale = Mathf.Clamp(remaining / (2f * dt), 1f, CutsceneSpeed);
                 }
                 yield return null;
             }

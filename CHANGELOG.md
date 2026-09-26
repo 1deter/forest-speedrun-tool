@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.80 - 2026-09-26
+
+- Red elevator savestates also work when taken late in the keycard
+  animation, after the elevator has already reached the top.
+- A savestate taken during a cutscene now lands exactly on the captured
+  moment after a Full load (it could run half a second past it).
+
 ## v0.24.79 - 2026-09-26
 
 - Savestates taken during the red elevator's keycard animation work: a

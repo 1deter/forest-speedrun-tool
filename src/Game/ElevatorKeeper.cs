@@ -53,7 +53,7 @@ namespace ForestOverlay.Game
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private readonly ManualLogSource _log;
         private Type _type;
-        private FieldInfo _rb, _useCount, _moving, _movingGos, _idleGos, _keycardAnim, _up, _down, _sequence, _stage;
+        private FieldInfo _rb, _useCount, _moving, _movingGos, _idleGos, _keycardAnim, _up, _down, _sequence, _stage, _playerPos;
         private MethodInfo _toggle, _remote;
 
         /// Goto's wait between the keycard animation starting and the car
@@ -76,6 +76,7 @@ namespace ForestOverlay.Game
             _down = _type.GetField("_downPosition", Inst);
             _sequence = _type.GetField("_sequence", Inst);
             _stage = _type.GetField("_sequenceStage", Inst);
+            _playerPos = _type.GetField("_playerPos", Inst);
             _remote = _type.GetMethod("GotoRemotePoint", Inst, null, Type.EmptyTypes, null);
             if (_rb == null || _useCount == null) _log.LogWarning("ElevatorKeeper: ElevatorSystem fields not found - elevators are not kept.");
             return _rb != null && _useCount != null;
@@ -211,6 +212,17 @@ namespace ForestOverlay.Game
                 catch (Exception ex) { _log.LogWarning("ElevatorKeeper: ride replay failed: " + ex.Message); }
             }
             return started + " of " + rides.Count + " ride(s) started again";
+        }
+
+        /// Where the ride's keycard animation stands the player (the car's
+        /// `playerPos`, with the car at its start). The stage starts the ride
+        /// only with the player there (bridge, v0.24.79: from the overlook
+        /// BeginStage ran and nothing moved; from the car it rode).
+        public bool RideStart(Component c, out Vector3 at)
+        {
+            Transform t = c != null && _playerPos != null ? _playerPos.GetValue(c) as Transform : null;
+            at = t != null ? t.position : Vector3.zero;
+            return t != null;
         }
 
         private bool KeycardAnim(Component c)
