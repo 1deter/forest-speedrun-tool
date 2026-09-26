@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.91";
+        public const string PluginVersion = "0.24.92";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -179,6 +179,12 @@ namespace ForestOverlay
                 }
 
                 _host.Tick();
+
+                // Unity's GUI layout pass allocates every frame; only our
+                // windows need it (Game/PerfPatches, fix 1). Set here,
+                // before this frame's OnGUI.
+                useGUILayout = !PerfPatches.OverlayLayout ||
+                               (_host.UiVisible && (_host.AnyPanelOpen() || _notice.Active));
             }
             catch (Exception ex)
             {

@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.92 - 2026-09-26
+
+- First game performance patches: the game makes a lot less garbage
+  while you play (about 60% less standing still), so its regular
+  garbage-collection hitch comes about half as often. The game looks and
+  plays exactly the same. Each patch has its own switch in Debug views
+  (Performance patches) if you ever want the game's own code back.
+
 ## v0.24.91 - 2026-09-26
 
 - Resetting (F7 or a savestate) just as the survival book finished

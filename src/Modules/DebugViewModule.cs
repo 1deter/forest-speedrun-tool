@@ -85,6 +85,7 @@ namespace ForestOverlay.Modules
         private GameProfiler _profiler;
         private ConfigEntry<string> _profilerExtraCfg;
         private ConfigEntry<bool> _allocAtStartupCfg;
+        private PerfPatches _perf;
         private const float AllocInterval = 30f;
         private float _allocWindowStart;
         private string _allocReport = "";
@@ -127,6 +128,14 @@ namespace ForestOverlay.Modules
                 "a small cost on each allocation for the whole session. Off: it installs when first switched on and " +
                 "misses plain objects from code the game already ran.");
             if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
+
+            _perf = new PerfPatches(Ctx.Log, Ctx.Config, OverlayPlugin.PluginGuid);
+        }
+
+        /// A performance patch on / off (Debug views; the bridge calls this).
+        public void TogglePerfPatch(int i)
+        {
+            if (_perf != null && i >= 0 && i < _perf.Count) _perf.Toggle(i);
         }
 
         /// The allocation tracker on / off (Debug views; the bridge calls
@@ -418,6 +427,19 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, AllocationTracker.Status);
             y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
 
+            // --- performance patches -----------------------------------------
+            y += UiText.Draw(12, y, w - 24, "Performance patches - less garbage for the game to collect (fewer hitches); " +
+                                            "each one keeps what the game does. Untick one to get the game's own code back.");
+            for (int i = 0; i < _perf.Count; i++)
+            {
+                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
+                if (on != _perf.IsOn(i)) _perf.Toggle(i);
+                y += Row;
+                if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
+                    y += UiText.Draw(30, y, w - 42, _perf.Status(i));
+            }
+            y += 8f;
+
             // --- notes ------------------------------------------------------
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
@@ -436,6 +458,7 @@ namespace ForestOverlay.Modules
             if (_wireframe != null) _wireframe.Enabled = false;
             if (_host != null) Object.Destroy(_host);
             if (_profiler != null) _profiler.Uninstall();
+            if (_perf != null) _perf.Shutdown();
         }
     }
 }
