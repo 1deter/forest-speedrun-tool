@@ -378,6 +378,7 @@ All in `PlayerStats` (IL):
 |---|---|
 | `CheckDeath` | Returns under `Cheats.GodMode`. `Health <= 0` and not `Dead`: swimming → `DeathInWater`, else `Dead = true` → `FallDownDead`. Called from `Hit`, `Explosion` |
 | `Fell` | `Health -= 200`; if `<= 0`, `Dead = true` → `KillPlayer`. No IL callers — sent by name, from fall triggers |
+| `hitFromEnemy` | **The last stand**: above `GreyZoneThreshold` (10), a hit that would kill is clamped to leave `Health` just over 1 (bridge: 50 - 80 -> 1.02), and `AdrenalineRush` starts; only the next hit can kill. An "empty" health bar that does not die after cannibal hits is this (runner Tom, v0.24.112) |
 | `DeathInWater` | drowning; `Invoke("KillMeFast", 7)` — **always** a real death |
 | `KillMeFast` | death animation, `Invoke("GameOver", …)`, `KillPlayer` |
 | `KillPlayer` | `DeadTimes++`. SP: in the endgame and `IsFightingBoss` → `EndgameWakeUp`; `DeadTimes > 1` → dead cam, `Cheats.PermaDeath` deletes the save, `Invoke("GameOver", 6)`; otherwise the **capture** (wake in a cave) |
@@ -1052,6 +1053,18 @@ under the panel within 4 m of the hit by `Euler(Random.Range(-1,1) x3)`
 not state, `Health` alone decides the break. v0.24.23 records the boards'
 rotations at a panel's first hit and straightens them on restore.
 
+**CutDown runs twice per break (bridge, v0.24.123; runner Tom "the panel
+would not break").** A panel has two `BoxCollider`s (solid + trigger), and
+`weaponInfo.OnTriggerEnter` hits each in the same physics step, so `Hit`
+and `CutDown` run twice before the `Destroy` lands (Tom's log: every break
+logged in pairs). The second call finds the pieces already unparented: a
+copy taken then has none of its own (`Chunks` empty, `Cut1..3` on the
+flying ones). Rebuilt, with those pieces deleted, its next `CutDown` threw
+on `Cut1.SetActive` before its `Destroy` - a panel that stayed up and
+"broke" on every hit (222 copies in one session). `PanelKeeper` copies a
+panel once per instance and never rebuilds a copy without its pieces.
+A smash does ~50 (one break), a swing ~10.
+
 ## Trees, bushes and saplings (IL + bridge, 2026-09-25)
 
 **Trees.** A scene tree is `Nature_Spawned/<Kind>_<n>` with `LOD_Trees`,
@@ -1142,6 +1155,17 @@ up, and logs `sun: ... snapped` only then.
 
 ## The ESC menu and the player lock
 
+**A menu stops a restore (bridge, v0.24.123, runner Tom).** The pause
+menu and the inventory both set `timeScale` 0; a Quick load runs over
+game time (hands put away, keepers waiting), so F7 with either open sat
+"busy" for 120 s+ and finished within a second of the menu closing. The
+options screens (graphics, audio...) are children of `HudGui.PauseMenu`
+(`LeftScreenAnchor/Panel - Options`), so one close covers them.
+`PlayerInventory.TogglePauseMenu` from the `Pause` view = the ESC key's
+close (view World, input state back, timeScale 1, `UnLockView`);
+`PlayerInventory.Close` for the inventory. `Game/MenuClose` runs both
+first on Restart and Go. `PlayerViews`: Pause = 6, World = 2, Inventory = 3.
+
 `HudGui.TogglePauseMenu` (IL) opens with `FpCharacter.LockView(true)` and
 closes with `UnLockView()`. A panel opened over it found the player already
 locked; releasing "our" lock on close called `UnLockView` under the menu,
@@ -1157,6 +1181,21 @@ Entering a cave on foot, `CaveTriggers` / `CaveDoor` send
 **`IgnoreCollisionWithTerrain(true)`** (caves are under the terrain) — and
 `playerAiInfo.InACave`. A save made in a cave restores the same way: `Clock`
 and `ActiveAreaInfo.OnDeserialized` send `InACave`.
+
+**The black walls in the cave mouths (IL + bridge, v0.24.123; runners
+Tom and Cheesecake).** Each entrance has a `caveEntranceManager`:
+`blackBackingGo` (`BlockCaveInsideView`), `blackBackingFadeGo`,
+`fadeToDarkGo` (`FadeIntoDark`) - the black that hides a cave's inside
+from the surface. All 22 register in `Scene.SceneTracker.caveEntrances`
+(`Start`, which also sets them from `IsInCaves` / `IsInEndgame`). Walking
+through a mouth, `CaveTriggers.Update` (and `activateCave` for climb /
+rope entrances) starts `disableCaveBlackRoutine` / `enableCaveBlackRoutine`,
+which switch **every** entrance (`disableAllCaveEntrances`). `InACave` /
+`GotoCave` never touch them, so a teleport in from the surface kept the
+wall up (bridge: `BlockCaveInsideView` active after `tp` into the Cave 6
+mouth), and one out left the caves see-through. `LoadSave.Activation` and
+`WakeInCave` call `disableCaveBlack`. `GameBridge.CaveBlack` does the
+walk's switch from `SyncCaveState` / `ForceCaveState`.
 
 State: static `LocalPlayer.IsInCaves` (→ `ActiveAreaInfo.IsInCaves`).
 

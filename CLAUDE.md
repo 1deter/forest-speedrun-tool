@@ -116,7 +116,7 @@ Where things live:
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
-| Cutting a player action on a reset | `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
+| Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
 
@@ -500,6 +500,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control.
 50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw.
 51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release.
+52. **A hook can run twice before the Destroy lands** - key "do once" on the instance; pairs of identical log lines are the tell.
 
 ---
 
@@ -551,10 +552,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.122** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.123** (2026-09-26). The author runs it via the in-game
 updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.122 in the game)
+### Pick up here (2026-09-26, v0.24.123 in the game)
 
 **Author's focus (2026-09-26): FPS performance and patches only** - all
 other feedback goes to other sessions (task chips were spawned for new
@@ -614,19 +615,25 @@ options menu or `TheForestQualitySettings.CopyPreset`) and profile it.
 ActionIconCamera by hand-`Render()` (game-notes), only with the
 author's eyes on the picture.
 
-**New from QA, not looked at** (forwarded by the author, 2026-09-26,
-new runner Tom; reports in `Downloads\qa-reports`): the cave's fake
-black wall stayed after entering (fixed by leaving and re-entering;
-Cheesecake saw it too, inside the Cave 6 entrance after a `tp` in from
-the surface - MARK #6 of his `13-03` report);
-F7 Quick load with the ESC menu open half-loads until the menu closes
-(close the menu first; test other UI - graphics tab, inventory); a
-panel would not break and health < 1 did not kill (maybe damage carried
-over a reload, or the practice death path); could not move right after a
-Full load.
+**Tom's reports (v0.24.123, another session; reports in
+`Downloads\qa-reports\d.eter\ForestOverlay-report-Tom-*`), all
+reproduced and fixed over the bridge except the last:** panels that
+would not break after a Quick load (`PanelKeeper`, gotcha 52); F7 with
+the ESC menu / inventory open stalled (`Game/MenuClose`); the cave
+mouth's black wall after a teleport in (`GameBridge.CaveBlack`, also
+Cheesecake's MARK #6); the "empty health bar, not dead" was the game's
+own last stand (game-notes *Deaths*, `hitFromEnemy`) and Tom's start
+state was captured at 26 health. **Could not move after a Full load: not
+reproduced** (window open or closed, every lock free, the controller
+moves) - `Savestate after the load: player 3 s after in game - ...`
+(`Game/PlayerHold`) says what held him next time; ask for that line.
+QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
+`1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.116 on the surface (Slot 1, loaded from
-the title; the endgame is loaded - Slot 1 starts at the vault door).
+**State:** the game runs v0.24.123 in Cave 6 (Slot 2, loaded from the
+title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
+Hard, 4 Peaceful; a runner's survival start state restores only in a
+survival game).
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
 `elevMid`, `rope104` kept.
 
@@ -688,8 +695,13 @@ from `PlayerInventory.AddItemNF` at the cap. `StashEquipedWeapon` ->
 `UnequipItemAtSlot` does `AddItem` back to the bag, so the lead is
 `RefreshHeld`'s put-away racing the load's own equip. Not reproduced
 (four Full loads of `phantom-a` clean; a hand stash + Equip keeps 1 axe).
-v0.24.98 logs `Inventory full: ... - from <call stack>` - ask for that
-line when it is seen again.
+v0.24.98 logs `Inventory full: ... - from <call stack>`. **Seen here
+(v0.24.123, 2026-09-26)** after a Quick load (the ESC menu closed by
+F7, Axe Plane held): `... <- PlayerInventory.AddItem <-
+<OnDeserialized>c__Iterator0.MoveNext` - the restore's own deserialize
+adds item 80 while one is held; the iterator's type is not named (look
+for `OnDeserialized` coroutines calling `AddItem`, e.g.
+`PlayerInventory.OnDeserialized`).
 
 **Open, not blocking:**
 - **The endgame flag on a Go is fixed for the vault entrance only**

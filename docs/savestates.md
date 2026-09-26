@@ -14,7 +14,12 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
     `Game/PickupKeeper` puts taken world pickups back. Afterwards the
     **cave state is sent outright from the file's `cave` flag**
     (`GameBridge.ForceCaveState`): the serializer restores the flag without
-    its effects. Spears and limbs left since the capture are removed;
+    its effects; since v0.24.123 it also switches the cave mouths' black
+    walls as walking in / out does. Cave panels broken since come back
+    from one intact copy each (`Game/PanelKeeper`, v0.24.123: a swing
+    ran `CutDown` twice and the second, piece-less copy was rebuilt).
+    Restart closes the game's pause menu / inventory first
+    (`Game/MenuClose`, v0.24.123: their timeScale 0 stalled the restore). Spears and limbs left since the capture are removed;
     trees chopped since regrow, bushes / saplings cut since come back,
     and their new logs / sticks go (`Game/NatureKeeper`, v0.24.61-62); boss
     Megan is put back seated when she was at capture (`megan` header,

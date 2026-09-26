@@ -380,3 +380,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     the author's eyes (a notice: "does the picture move?") before a
     release, and a dev test that could freeze the screen runs for
     seconds, not minutes (the 100000-frame test ran ~7 min).
+
+52. **A hook can run twice before the Destroy lands.** `PanelKeeper`
+    copied a cave panel in a prefix on `CutDown` so a restore could put
+    it back. A swing hits the panel's two colliders in one physics step,
+    so `CutDown` ran twice; the second copy was taken after the game
+    had pulled the pieces out, and the restore rebuilt that one - a
+    panel that threw on every later hit and never broke (runner Tom,
+    v0.24.112-123). A pair of identical log lines is the tell. Key a
+    "do once" hook on the instance, and check a copy is whole before
+    using it.
