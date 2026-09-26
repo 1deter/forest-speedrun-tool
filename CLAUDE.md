@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -693,7 +693,10 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     the cave state (v0.24.79). F7 hid it for months: the restart's
     teleport moved the player back. Test restores through the bridge's
     `restore` (no teleport) too, and compare where the player lands
-    with the header's `position`.
+    with the header's `position`. And **set a test up the way a run
+    reaches it**: teleporting to the vault door skipped the trigger
+    crossing that loads the endgame, so the first test showed an empty
+    corridor the game never would (author: "might not be a fair test").
 
 ## Project intent
 
@@ -743,41 +746,48 @@ identity.
 
 ## Current status
 
-**Released: v0.24.80** (2026-09-26). The author runs it via the in-game
-updater. **361 tests.**
+**Released: v0.24.82** (2026-09-26). The author runs it via the in-game
+updater. **362 tests.**
 
-### Pick up here (2026-09-26, handoff, v0.24.80 in the game)
+### Pick up here (2026-09-26, handoff, v0.24.82 in the game)
 
-**State:** v0.24.80 runs in the author's game (MCP `update_game`);
+**State:** v0.24.82 runs in the author's game (MCP `update_game`);
 everything below is released, on `main`, and bridge-checked in Slot 1
 unless marked. The window is closed; no test spots or savestates are
 left over except the old `phantom-a` (tree spot; can be deleted) and
-`keycard-pickup-testing`.
+`keycard-pickup-testing`. **The next session is performance (Next up 5)
+- the author runs it separately, on high effort.**
 
 This session: v0.24.78 coordinate boxes take only number characters
-(`TriggerParser.FilterCoords`, tested; typing not bridge-checkable - ask
-the author for a glance); v0.24.79-80 savestates **during the red
-elevator's keycard cutscene** (maks: Quick load left an unpressable
-button, Full load broke) - the player put back at the header position
-when a restore lands > 3 m off (the cutscene parents the player, gotcha
-40), the ride replayed from its start stop and fast-forwarded
-(`ElevatorKeeper.Replay`, game-notes *The red elevator*); the fast-forward
-lands short instead of overshooting. Bridge: captures at 1.6 s and 4.6 s
-(car already up), Quick and Full load, F7 on a spot, F7 mid-ride - all
-land on the captured time and end free at the overlook.
+(`TriggerParser.FilterCoords`, tested; typing is not bridge-checkable -
+ask the author for a glance). v0.24.79-82 **savestates during a
+player-started cutscene**: the red elevator's ride (maks) and the
+keypad doors (vault, gold, yacht - author: "make sure the same case
+still works for the gold / vault door"). A restore landing > 3 m from
+the header position puts the player back (the cutscene parents the
+player; gotcha 40); the cutscene is replayed from its start
+(`ElevatorKeeper.Replay`, `Game/KeypadDoorKeeper`, shared
+`SavestateModule.ReplayCutscene`) and fast-forwarded, now landing short
+rather than past the mark; a Full load of a capture caught during the
+endgame's own load loads it (`EndgameLoader`, either scene). Bridge,
+Quick and Full load each: red elevator at 1.6 s / 4.6 s (+ F7, F7
+mid-ride), vault door at 3.0 s after a real crossing of
+`EndgameEntrance/LoadEndgame` (the red corridor loaded - the author
+caught an unfair first setup), gold door at 2.0 s with its area entered.
+maks was told (bot reply, author's OK) to retest his "elev boost".
 
 **Open, not blocking:**
-- **maks: retest the mid-cutscene elevator start state** on v0.24.80
-  (his "elev boost", captured 2.6 s in - a v0.24.74 file without the
-  ride origin, handled by the 3.5 s rule). Draft reply was offered to
-  the author; post only with their OK.
-- **A keypad door cutscene** (vault / gold door) parents the player the
-  same way: a capture during one now restores to the right spot, but
-  the door cutscene is not replayed (nothing starts it) - the log says
-  `no cutscene began`. Not asked for.
-- `tp` / Go into the red elevator car says `endgame flag cleared
-  (outside the endgame sections)` (`AreaKeeper.ForTeleport`) - seen
-  once, harmless in the test; not looked into.
+- **maks: retest "elev boost"** on v0.24.80+ (a v0.24.74 file without
+  the ride origin - the 3.5 s rule). `qa_read new_only`.
+- **Other cutscenes that parent the player** (IL `set_parent` refs):
+  Megan's pickup (`pickupGirlRoutine`), Timmy's goodbye, the raft out of
+  the world, a rope-down into a cave (`playerEnterCaveAction.doCave`),
+  the intro hang. The position fix covers them; none is replayed (their
+  states - Megan dead, the ending - are not in Slot 1). Megan's
+  transformation is replayed by `MeganKeeper` as before.
+- `tp` / Go into the red elevator car or to the vault door says
+  `endgame flag cleared (outside the endgame sections)`
+  (`AreaKeeper.ForTeleport`); harmless in the tests, not looked into.
 - **Phantom stick** (fix list 2, author, once): not reproduced; waits
   for a `Pickup gone, inventory unchanged: ...` line. Candidate cause
   found in v0.24.70: a taken stick's flag follows a pool object to
@@ -799,7 +809,7 @@ land on the captured time and end free at the overlook.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 5, performance** - measure first (below).
+1. **Next up 5, performance** - measure first (below). Its own session.
 2. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 3. Then the rest of *Next up*; the deferred runner feedback waits
@@ -1105,9 +1115,11 @@ stay cut after a Full load, also for a capture taken after restores
 (v0.24.65-66), the plane axe taken before a capture not back after a
 Quick load (v0.24.68) - all bridge. maks: Quick load restarts in the
 red elevator "tested and working" (v0.24.64 retest, 2026-09-26).
-Bridge, v0.24.79-80: savestates 1.6 s and 4.6 s into the red elevator's
+Bridge, v0.24.79-82: savestates 1.6 s and 4.6 s into the red elevator's
 keycard cutscene, Quick / Full load / F7 / F7 mid-ride - ride replayed,
-landed on the captured time, player free at the overlook.
+landed on the captured time, player free at the overlook; the vault
+door (after a real trigger crossing; red corridor loaded after a Full
+load) and the gold door the same, Quick and Full load.
 
 Confirmed 2026-09-25/26 (bridge, the author's clicks where noted):
 maks's vanished window was hide-all UI (author); sticks around a

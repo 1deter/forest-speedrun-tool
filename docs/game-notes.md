@@ -510,6 +510,27 @@ state, not scenes (areas: `same as at capture`).
   `BeginStage`, then the usual fast-forward (`ElevatorKeeper.Replay`,
   the capture's fifth `elevators` field = the start stop, from
   `GameEvents.RedElevatorAt`).
+- **Keypad doors the same way** (bridge + IL, v0.24.81-82).
+  `activateKeypadDoor` (vault `EndgameEntrance/keypadDoor_animate/
+  doorTrigger`, gold `Sections/ArtifactRoom/ElevatorCardReader/Trigger`
+  - no `doorAnimator`, the yacht's panel): Update on `Take` with the
+  keycard owned (within 4.75 m, idle / walking) -> `sequence.BeginStage(0)`
+  -> DoActorAnimation (the player's `openKeypadDoor`) + DoEnvironmentAnimation
+  -> DoLateCompletion at once (`doorOpen`, door animator `open`,
+  `onDoorOpen`), `Finished` 6 s later (CompleteStage -> GlobalDataSaver
+  `<geohash>_0_completed`, which DelayedAwake replays on a load). The
+  vault door's `onDoorOpen`: a light (`DoAfter.BeginDelay`),
+  `PlayerInEndgameTester.DoPositionningTest`, **`LoadEndgame.SetCanLoad
+  (true)`** and a sound. `SceneLoadTrigger.SetCanLoad` only sets the
+  flag: the load is the **crossing** of `EndgameEntrance/LoadEndgame`
+  (a box around (147, -405, 1290), forward = towards the door) on the
+  way in, whose DelayedLoad runs and waits for the flag - so the
+  endgame loads the moment the door opens, and a capture 3 s in had
+  `endgame_animPrefabs` but not yet `endgame_streaming`. A teleport to
+  the door skips the crossing: nothing loads (`ForceUnload` +
+  `SetCanLoad false` + teleporting into the box and out towards the
+  door reproduces a first visit). Replay: `doorOpen` false, the animator
+  to `Base Layer.closed` (as Awake), player at `playerPos`, `BeginStage(0)`.
 - The endgame `Sections/*` carry `TheForest.World.Areas.Area` +
   `AreaMembers` (renderers, lights, probes). `OnEnter` makes an area the
   static `Area.ActiveArea` and `Load()`s it and its `_neighbours`
