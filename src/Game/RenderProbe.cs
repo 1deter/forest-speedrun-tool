@@ -22,6 +22,95 @@ namespace ForestOverlay.Game
     {
         public static ManualLogSource Log;
 
+        /// Renderers (active, enabled) on one layer, by type and path, and
+        /// how many are inside the main camera's frustum.
+        public static string LayerContents(int layer)
+        {
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            Camera main = Camera.main;
+            Plane[] planes = main != null ? GeometryUtility.CalculateFrustumPlanes(main) : null;
+            int on = 0, inView = 0;
+            Dictionary<string, int> names = new Dictionary<string, int>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy || r.gameObject.layer != layer) continue;
+                on++;
+                bool seen = planes != null && GeometryUtility.TestPlanesAABB(planes, r.bounds);
+                if (seen) inView++;
+                string key = r.GetType().Name + " " + Path(r.transform) + (seen ? " (in view)" : "");
+                int n;
+                names.TryGetValue(key, out n);
+                names[key] = n + 1;
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Render probe: layer ").Append(layer).Append(" '").Append(LayerMask.LayerToName(layer)).Append("': ")
+              .Append(on).Append(" renderers active, ").Append(inView).Append(" in the main camera's frustum");
+            int shown = 0;
+            foreach (KeyValuePair<string, int> kv in names)
+            {
+                if (shown++ == 25) { sb.Append(", ..."); break; }
+                sb.Append(shown == 1 ? ": " : ", ").Append(kv.Key);
+                if (kv.Value > 1) sb.Append(" x").Append(kv.Value);
+            }
+            if (Log != null) Log.LogInfo(sb.ToString());
+            return on + " on layer " + layer + ", " + inView + " in view (log)";
+        }
+
+        // --- does a camera enabled mid-frame render in that frame? --------
+        private static Camera _lateTarget, _lateTrigger;
+        private static int _lateFrames, _lateLeft;
+        private static Camera.CameraCallback _latePre;
+
+        /// For `frames` frames: `target` is disabled, enabled in the
+        /// Camera.onPreCull of `trigger` (a camera that renders before it),
+        /// and disabled again at the end of the frame. The Frame line's
+        /// x/f for `target` then says whether Unity rendered it the same
+        /// frame (x1/f) or not at all (absent).
+        public static string TestLateEnable(string target, string trigger, int frames)
+        {
+            if (_lateTarget != null) return "a test is running";
+            Camera t = null, g = null;
+            Camera[] cams = Camera.allCameras;
+            for (int i = 0; i < cams.Length; i++)
+            {
+                if (cams[i].name == target) t = cams[i];
+                if (cams[i].name == trigger) g = cams[i];
+            }
+            if (t == null || g == null) return "camera not found";
+            _lateTarget = t;
+            _lateTrigger = g;
+            _lateFrames = 0;
+            _lateLeft = frames;
+            t.enabled = false;
+            _latePre = LatePreCull;
+            Camera.onPreCull += _latePre;
+            FrameTimer.EndOfFrameHook = LateEndOfFrame;
+            return "testing " + frames + " frames";
+        }
+
+        private static void LatePreCull(Camera cam)
+        {
+            if (cam == _lateTrigger && _lateTarget != null) _lateTarget.enabled = true;
+        }
+
+        private static void LateEndOfFrame()
+        {
+            if (_lateTarget == null) return;
+            _lateFrames++;
+            if (--_lateLeft > 0)
+            {
+                _lateTarget.enabled = false;
+                return;
+            }
+            _lateTarget.enabled = true;
+            Camera.onPreCull -= _latePre;
+            FrameTimer.EndOfFrameHook = null;
+            if (Log != null) Log.LogInfo("Render probe: late-enable test of '" + _lateTarget.name + "' done after " + _lateFrames + " frames.");
+            _lateTarget = null;
+        }
+
         /// Renderers a camera could draw: active and enabled, on a layer
         /// of its culling mask, bounds inside its frustum (farClip too).
         /// `camera` = a camera's name (first match) or "all".

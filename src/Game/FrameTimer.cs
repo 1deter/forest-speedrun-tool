@@ -24,6 +24,8 @@ namespace ForestOverlay.Game
     {
         public static readonly Data.FrameTimeline Timeline = new Data.FrameTimeline();
         public static BepInEx.Logging.ManualLogSource Log;
+        /// Dev: called at every end of frame (RenderProbe's tests).
+        public static Action EndOfFrameHook;
         private static FrameTimer _instance;
 
         private Camera.CameraCallback _pre, _post;
@@ -64,6 +66,12 @@ namespace ForestOverlay.Game
             {
                 yield return end;
                 Timeline.EndOfFrame(Stopwatch.GetTimestamp());
+                Action hook = EndOfFrameHook;
+                if (hook != null)
+                {
+                    try { hook(); }
+                    catch (Exception) { }
+                }
             }
         }
 
