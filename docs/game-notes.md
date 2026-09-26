@@ -1892,11 +1892,19 @@ Slot 1, standing still:
   Camera` 0.20 (when the ocean passes culling), AFSGrassDisplacementCameraTest
   0.18. Six to eight cameras besides the main one = ~2.3 ms of 5.0.
 
-**Each camera costs ~0.25 ms whatever it draws.** ~20.5k renderers are
-active on the surface (`type Renderer`); a camera culls all of them. The
-auxiliary cameras already have occlusion culling off; ActionIconCamera
-with `cullingMask = 0` still cost 0.24 ms (vs 0.26). So only not
-rendering a camera saves anything.
+**Each camera render costs ~0.2 ms whatever it draws - Unity's own
+overhead, not the world** (`RenderProbe.TimeRender`, v0.24.124: a bare
+64x64 forward camera rendered 200 times back to back). Surface, mask 0:
+0.22 ms; mask HUD: 0.23; with all 4209 enabled renderers switched off:
+0.17; with the lights off / the terrain off: unchanged; **on the title
+screen (92 renderers): 0.21**. (Enabled renderers: ~4-5k on the surface
+and in Cave 6 alike; the "20.5k" above counted disabled components.)
+Camera_HUD by hand 0.29, ActionIconCamera 0.27. Only few game scripts
+have `OnRenderObject` (Ceto's notifier, MeshBaker, a wire-frame debug
+renderer). So the one lever is fewer camera renders; trimming the world
+does nothing for the small cameras. On the runners' machines the three
+small cameras cost 0.10-0.46 each - the overhead depends on the machine
+/ driver, not only the CPU's speed.
 
 **Two cameras drew for nothing** (`Game/CameraTrim`, v0.24.116, both on,
 measured together: 5.11 -> 4.47-4.54 ms/frame on the surface, ~12%):
@@ -1954,6 +1962,46 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   ocean's own visibility logic.
 - Scripts: ~1 ms real; the heaviest are camera work above.
   `PhysicsSfx.Update` runs 781 times a frame (0.09 ms).
+
+**Sunshine** (`TimeAndWeather/R10/Sunshine`, the game's sun-shadow
+system; bridge + IL, v0.24.125): 1 cascade, 256x256, 60 m, occluder
+layers 11 + 17 (mask 133120), `SunLight` = the Sun or the Moon. It is
+the sun's shadows - `SunshineCamera.OnPreCull` renders the cascade,
+then sets the sun light's Unity shadows to None while it runs - and the
+light-shaft occlusion. Always on: `ImageEffectOptimizer.Update` enables
+it every frame; the **Sunshine occlusion** option only empties its
+occluder mask on the surface (`IsInCaves ? mask : 0` when Off), so the
+camera still renders (no saving measured); **Volumetrics type** is read
+by the options menu only. It renders in caves too (0.55 ms). Its own
+`UpdateInterval` (`EveryFrame` / `AfterXFrames` with
+`UpdateIntervalFrames` / `AfterXMovement`) is set by nothing in the
+game (only the constructor); `AfterXFrames` 2 re-renders on even frames
+(`SunshineCamera.NeedsRefresh`): 0.66 -> 0.32 ms a frame. Shipped as
+the Experimental switch `SunShadowsEveryOtherFrame` (v0.24.125, off).
+
+**Far shadow** (`FarShadowCascade.SetShadowCamera`, from MainCamNew's
+OnPreCull): renders `__Far_Shadow Camera` every call with
+`QualitySettings.shadowDistance` set to 0 around it; the `refresh` /
+`c_refresh` fields are not used. The option Far shadows Off removes it
+(-0.33 ms). None of the runners measured has it on.
+
+**Graphics options, measured live** (bridge, v0.24.123, surface (428,
+78, -4), cannibals near, author's machine: main-thread bound; each
+option set on `TheForestQualitySettings.UserSettings`, 6 s windows vs 6 s
+before - most are read every frame by `ImageEffectOptimizer.Update`,
+`PlayerPreferences.Update`, `LOD_Manager` etc.): **Far shadows Off
+-0.35 ms**; **Ocean Flat -0.2 ms while the ocean is in view** (it drops
+the `Ceto Reflection Camera`; Reflexion mode Off does not); **Unity
+shadows off** (`QualitySettings.shadows`): -0.18 ms in a cave (the main
+camera only). No measurable change (under ~0.1 ms, the noise): SSAO,
+SSR, bloom, CA, film grain, anti-aliasing, volumetric clouds, Sunshine
+occlusion, volumetrics type, grass distance / density, draw distance
+(needs a LOD refresh to show - standing still), terrain / material
+quality, light distance, cascade count, scatter resolution. Those are
+GPU work: they matter only on a GPU-bound machine, and every runner
+measured so far is CPU-bound. `PlayerPreferences.LowQualityPhysics`
+(an option) sets `fixedDeltaTime` 1/30 instead of 1/60 - half the
+physics steps, but a gameplay change (movement tech).
 
 **Runners' machines** (QA, 2026-09-26, v0.24.116, surface, `Frame`
 lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.

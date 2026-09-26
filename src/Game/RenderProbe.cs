@@ -8,10 +8,11 @@ namespace ForestOverlay.Game
 {
     // ------------------------------------------------------------------
     // Dev questions about rendering, for the bridge (raw FPS work, Next up
-    // 6). Each camera costs the main thread ~0.25 ms a frame whatever it
-    // draws (Unity culls every renderer for it - ~20k on the surface), so
-    // a camera with nothing to draw, or drawing into a texture nothing
-    // shows, is the cheapest frame time there is. These answer "does it
+    // 6). Each camera render costs the main thread ~0.2 ms whatever it
+    // draws (Unity's own overhead - TimeRender measures the same on the
+    // title screen as in the world), so a camera with nothing to draw, or
+    // drawing into a texture nothing shows, is the cheapest frame time
+    // there is. These answer "does it
     // draw anything" and "who reads its texture" before a patch touches it.
     //
     // Results go to the log (the bridge shortens long replies); the call
