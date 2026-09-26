@@ -1142,8 +1142,8 @@ with the bridge; game-notes *The red elevator and the endgame areas*);
 the survival book closed by a Quick load (v0.24.44, bridge); the
 captured cannibals back at once after a Full load (v0.24.45, bridge);
 the lighter kept through a Full load restart with swings (v0.24.46,
-bridge, scripted swings); the swing / smash cut on a Quick load
-(sxczurass, QA 1-4); a blueprint put away / brought back on Quick load,
+bridge, scripted swings); the swing / smash cut on a reset
+(sxczurass, QA 1-5: Quick and Full load); a blueprint put away / brought back on Quick load,
 Full load and F7 (v0.24.47, bridge); skinny families placed after a
 Full load (v0.24.48, bridge); cave cannibals put back after Quick and
 Full load, babies not doubled (v0.24.49-50, bridge, cave 6); cave 5's
