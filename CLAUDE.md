@@ -110,7 +110,7 @@ Where things live:
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
-| Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only) |
+| Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
@@ -498,6 +498,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider).
 48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze.
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control.
+50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw.
 
 ---
 
@@ -549,60 +550,42 @@ identity.
 
 ## Current status
 
-**Released: v0.24.113** (2026-09-26). The author runs it via the in-game
-updater. **377 tests.**
+**Released: v0.24.116** (2026-09-26). The author runs it via the in-game
+updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.113 in the game)
+### Pick up here (2026-09-26, v0.24.116 in the game)
 
-**Next session (author, 2026-09-26):** **raw FPS**, a fresh
-session on high effort - item 3 of the list below. Start with the Game profiler
-(`call BepInEx_Manager OverlayPlugin._host._modules[8].ToggleProfiler`,
-30 s `Game profile (30 s):` lines) on the surface (428, 78, -4), a cave
-(`tp 1283.92 -70.59 612.88`) and the endgame; and check CPU- vs
-GPU-bound. maks's specs / log are summarised below; sxczurass's are
-still awaited.
+**This session: raw FPS (item 3 below), on high effort - an
+investigation, keep going in this session.** Game-notes *Frame time:
+where the main thread goes* has every number; in short:
+- v0.24.114: `Frame (30 s):` line beside `Perf` (`Game/FrameTimer`,
+  `Data/FrameTimeline`, 6 tests): waiting (GPU / render thread) vs
+  scripts vs each camera. A runner's log now says CPU- or GPU-bound.
+- v0.24.115: `Game/RenderProbe` (bridge: `CameraContents <name|all>`,
+  `TextureUsers <name|#id> <props>`, results in the log);
+  `FrameTimer.Snapshot` for short windows.
+- v0.24.116: `Game/CameraTrim`, switches `TerrainGrassCameraOff` (index
+  10) and `EndgameScreenOnDemand` (11), both on, behaviour-preserving:
+  5.11 -> 4.5 ms/frame on the surface with the endgame loaded (~12%).
+  Screen picture checked on / off / on.
+- The author's machine is CPU-bound (fps flat from 640x360 to 1440p);
+  each camera costs ~0.25 ms whatever it draws (culling ~20k renderers;
+  an empty mask does not help).
 
-**Teleport fix done (v0.24.112, bridge-confirmed on the released
-build):** a Go / `tp` between the `LoadEndgame` box and the vault door
-keeps `IsInEndgame` or sets it (`endgame flag set (vault entrance, past
-the LoadEndgame box)`), and the door then loads the endgame (~5 s, in the
-background); behind the box and on the surface it is cleared as before
-(lab -> surface checked). v0.24.113: log wording only (the background
-load's line no longer says Experimental).
+**Next for raw FPS:** (1) runners' `Frame (30 s):` lines + specs - the
+real question is whether lower-end machines are CPU- or GPU-bound
+(asked on QA with v0.24.116); a GPU-bound runner needs Experimental,
+labelled options (e.g. the particle camera at half resolution), a
+CPU-bound one more of the below. (2) The candidates in game-notes:
+ActionIconCamera on demand (0.26 ms, NGUI timing), ParticleCam when no
+particles in view (0.37 ms, needs a cheap list of layer-1 renderers).
+(3) A cave and the endgame measured with the patches on (surface only
+so far).
 
-**State:** the game runs v0.24.113 at the title screen (Slot 1 starts
-at the vault door); `SkipEndgameAnimSweepAtLoad` (index 9) and
-`EndgameAsyncAtVaultDoor` (index 8) both **on** by default, confirmed. Savestates `phantom-a`,
-`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
-Session switching: see *When to switch session* (the performance work
-is an investigation - one session).
-
-**Done this session (high effort):**
-- v0.24.107-108 - the endgame load in play in the background,
-  switch `EndgameAsyncAtVaultDoor` (index 8; `EndgameLoader`,
-  shares the restore switch's transpiler; pins the player if the load
-  outlasts the cutscene). The game's load = one 5078 ms frame ~4.9 s
-  into the vault door's cutscene; async 1.09 s, longest frame 12 ms, no
-  hold. **It saves no run time**: `Time.maximumDeltaTime` is 9, so the
-  frozen frame counts as game time (v0.24.108 corrected the label).
-  v0.24.111: on by default, out of Experimental (author: on "if it
-  doesn't affect run time, or anything that would usually invalidate a
-  speedrun"; key renamed from `EndgameAsyncInRuns`). Posted to QA
-  (message `1553438916562919425`), to-do list current.
-- The heap step (item 2 of the old list) **is not a leak**: every Full
-  load holds the old world (~120 MB) for 30-70 s, then releases it; 20
-  Quick loads = +4 MB; collections follow garbage volume (~1 per 100 MB)
-  and each Quick load forces ~1. Game-notes *The heap across restores*.
-- v0.24.109-110 - `SkipEndgameAnimSweepAtLoad` (index 9, **on**): the
-  endgame-animation sweep at every load runs before the clips are
-  swapped out and frees nothing (same object count, A/B); ~0.4 s off
-  each save load. Load-timing lines now name a patched method plainly
-  (not `DMD<...>`).
-- Noted, left alone: a Quick load's streamed-scene reload is the restart
-  hitch (game-notes).
-- **QA:** v0.24.108 posted (message `1553430573979009127`), v0.24.110
-  posted with the heap correction (message `1553437400632660059`, asks
-  sxczurass for specs + a 10-minute log); to-do list current.
+**State:** the game runs v0.24.116 on the surface (Slot 1, loaded from
+the title; the endgame is loaded - Slot 1 starts at the vault door).
+Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
+`elevMid`, `rope104` kept.
 
 **maks's performance report** (message `1553417650607235164`, read):
 i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
@@ -618,8 +601,7 @@ without). `Activation` 8.15 s on his title load. maks's rope list
   test*; move it to *Done recently* once he confirms.
 
 **Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
-maks's are in (above); sxczurass is away from his PC - watch `qa_read`
-for his before starting item 3 below.
+maks's are in (above); sxczurass's still awaited - watch `qa_read`.
 
 **maks's elevator physics (Next up 5):** the heap lead is gone (above:
 no lasting heap step; pauses follow the live heap, ~80 ms at 280-300 MB
@@ -637,16 +619,10 @@ physics trace. Decide with the author whether it goes back to
    (~25 ms longer pauses meanwhile). Root unknown (not static, not ours);
    low payoff.
 3. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
-   lower-end machines"). Nothing done yet - the work so far cuts GC
-   hitches and load freezes, not the average frame. Measure first:
-   the Game profiler (`ToggleProfiler`) for the main thread's per-frame
-   cost by script during play (surface, a cave, the endgame), and
-   whether a low-end runner is CPU- or GPU-bound (ask for their `Perf
-   (30 s)` lines + specs - the QA to-do list asks for them; the author's
-   4080S / 7800X3D is not representative). Behaviour-preserving CPU
-   savings ship on; anything that changes what is drawn or simulated
-   (draw distance, shadows, update rates) goes under Experimental,
-   labelled.
+   lower-end machines") - started v0.24.114-116, see *Pick up here*.
+   Behaviour-preserving savings ship on; anything that changes what is
+   drawn or simulated (draw distance, shadows, update rates) goes under
+   Experimental, labelled.
 4. The live heap: the A* navmesh is most of it and is needed.
 5. The big frame at a load's scene start-up (750-900 ms, after the
    sweep is gone) and the Quick load's streamed-scene reload - both
@@ -715,11 +691,11 @@ line when it is seen again.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance / loads** - the list above: 1 (garbage in
-   play), 3 (raw FPS, once sxczurass's specs are in); 2, 4, 5 low payoff.
-   On high effort. Done: the endgame load in a run (v0.24.107-108,
-   Experimental), the heap step (not a leak), the load's animation sweep
-   (v0.24.109-110).
+1. **Next up 6, performance / loads** - the list above: 3 (raw FPS, in
+   progress - *Pick up here*), 1 (garbage in play); 2, 4, 5 low payoff.
+   On high effort. Done: the endgame load in a run (v0.24.107-108),
+   the heap step (not a leak), the load's animation sweep (v0.24.109-110),
+   two idle cameras (v0.24.116).
 1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod).

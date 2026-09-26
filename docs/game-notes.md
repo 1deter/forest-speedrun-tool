@@ -1822,6 +1822,89 @@ So maks's longer pauses after many restores are not explained by a heap
 that stays grown; the elevator-physics lead (Next up 5) loses its best
 candidate.
 
+## Frame time: where the main thread goes (bridge + IL, 2026-09-26, v0.24.114-116)
+
+**The instrument.** The game profiler times the game's scripts only
+(1.47 ms/frame on the surface, of which ~0.5 ms is its own hooks: ~0.3 us
+x 1575 calls). `Game/FrameTimer` cuts every frame at marks seen without
+patches (our FixedUpdate / Update / LateUpdate, `Camera.onPreCull` /
+`onPostRender` for every camera, `WaitForEndOfFrame`, the frame start from
+`Time.unscaledTime`) and writes `Frame (30 s):` + `cameras:` beside the
+Perf line; `FrameTimer.Snapshot` (bridge) reads a short window. The game
+subscribes nothing to `Camera.onPreCull` / `onPostRender` itself.
+
+**The author's machine is CPU-bound** (7800X3D / 4080 SUPER, D3D11,
+graphics jobs / MT rendering on, deferred, quality level 0 "High": 4
+cascades, shadow distance 374, vsync off; windowed 1366x768): 203 fps
+at 1366x768, 202 at 640x360, 191 at 2560x1440. "Waiting" (end of frame
+-> next frame's start: present, the render thread, the GPU) is 0.01 ms.
+Slot 1, standing still:
+- **Surface** (428, 78, -4), endgame loaded (Slot 1 starts at the vault
+  door): 5.0 ms = start to Update 0.28 (a physics step 0.7 ms, in 30% of
+  frames) + Update to LateUpdate 0.77 + to rendering 0.36 + cameras and
+  OnGUI 3.6.
+- **Cave** (Cave 6 spot): 4.06 ms, cameras 2.67.
+- **Cameras** (surface, ms/frame, "+after" = its image effects):
+  MainCamNew 1.19 +0.09, the endgame's `redcircles/Camera` 0.30 +0.10,
+  ParticleCam 0.26 +0.11 (rendered from `OffScreenParticleCamera.
+  OnRenderImage`), ActionIconCamera 0.26, `__Far_Shadow Camera` 0.27
+  (rendered in `FarShadowCascade.OnPreCull`), terrain
+  AFSGrassDisplacementCamera 0.27, Camera_HUD 0.27, `Ceto Reflection
+  Camera` 0.20 (when the ocean passes culling), AFSGrassDisplacementCameraTest
+  0.18. Six to eight cameras besides the main one = ~2.3 ms of 5.0.
+
+**Each camera costs ~0.25 ms whatever it draws.** ~20.5k renderers are
+active on the surface (`type Renderer`); a camera culls all of them. The
+auxiliary cameras already have occlusion culling off; ActionIconCamera
+with `cullingMask = 0` still cost 0.24 ms (vs 0.26). So only not
+rendering a camera saves anything.
+
+**Two cameras drew for nothing** (`Game/CameraTrim`, v0.24.116, both on,
+measured together: 5.11 -> 4.47-4.54 ms/frame on the surface, ~12%):
+- `_TerrainEtc_/AFSGrassDisplacementCamera` (scene object) renders layer
+  5 into a texture of its own from a fixed spot, 0 renderers in view. The
+  grass reads the global `_AfsGrassDisplacementTex`, which
+  `AfsGrassDisplacementController.Update` sets every frame to its own
+  runtime camera's texture (`AFSGrassDisplacementCameraTest`, created in
+  `CreateComponents`, follows the main camera at +50 m). No loaded
+  material has either texture in any property (`RenderProbe.TextureUsers`,
+  16 property names over 17.5k materials). A leftover.
+- `Sections/ControlRoom/redcircles/Camera` renders a diorama (layer 27,
+  post-processing) into 'EndPLane', shown only by
+  `endPlaneCrashPrefab1/consoleDisplay` (material `EndPlaneMain`, its
+  MeshRenderer disabled until the end-crash ending; nothing in the IL
+  refers to it - probably an animation). `redcircles` has a
+  `LOD_GroupToggle` listing the camera for a 100 m switch, but
+  `LodLevel.RefreshComponents` handles Transform / MonoBehaviour / Light /
+  Collider / ParticleEmitter / ParticleSystem / Rigidbody - **not
+  Camera** - so it renders every frame while the endgame is loaded. Now
+  rendered from the screen's `OnWillRenderObject` (the mirror pattern):
+  screenshots with the patch on / off / on showed the same screen.
+
+**Candidates left, and why not yet:**
+- **ActionIconCamera** (0.26 ms, depth 95, perspective, far 40): draws
+  NGUI widgets under it (action icons, plane icon, ranged hit target,
+  translation overlay). NGUI turns its `UIDrawCall`s on / off in
+  `UIPanel.LateUpdate`, and `ActionIconSystem` re-parents icons between
+  holders (world, book, plane, inventory, pause), so an exact skip needs
+  the check after every LateUpdate: rendering it by hand from Camera_HUD's
+  (depth 90) post-render when an active draw call is in front of it.
+  Untested.
+- **ParticleCam** (0.37 ms): `factor` Full copies the frame to a
+  temporary, renders layer 1 (TransparentFX, not in the main camera's
+  mask) over it, copies back; with nothing on layer 1 in view the output
+  is the input. But the layer-1 renderers cannot be listed cheaply each
+  frame (a walk of 20k renderers is ~15 ms). Also: it sets the Sun's and
+  Moon's shadows to None and back to **Soft** every frame, whatever they
+  were.
+- **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
+  (`refresh` 1) along the sun's direction, which moves every frame - a
+  skip would change the picture.
+- Camera_HUD always has a draw call in view; Ceto's reflection is the
+  ocean's own visibility logic.
+- Scripts: ~1 ms real; the heaviest are camera work above.
+  `PhysicsSfx.Update` runs 781 times a frame (0.09 ms).
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a

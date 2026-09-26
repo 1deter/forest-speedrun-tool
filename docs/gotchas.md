@@ -361,3 +361,12 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     alone), before calling growth a leak; the bridge's reply time for
     that call is the full-GC pause (v0.24.108, game-notes *The heap
     across restores*).
+
+50. **A camera costs its culling whatever it draws.** The game profiler
+    said the game's scripts were 1.5 ms of a 5 ms frame and stopped
+    there; timing each camera (`Frame (30 s):`, v0.24.114) showed six
+    to eight auxiliary cameras at ~0.25 ms each - 2.3 ms - two of them
+    drawing nothing anyone sees. Unity culls every active renderer
+    (~20k on the surface) per camera: an empty culling mask still cost
+    0.24 ms. Before optimising what a camera draws, count the cameras,
+    and ask who reads each one's texture (`RenderProbe`, v0.24.116).

@@ -119,3 +119,9 @@ own file reproduced the ~48 m/s launch first).
 A Go / `tp` to the vault entrance keeps or sets the endgame flag, and the
 door then loads the endgame; the surface and behind the `LoadEndgame` box
 still clear it (v0.24.112, bridge, released build).
+
+`Frame (30 s):` lines and `FrameTimer.Snapshot` report waiting / scripts /
+each camera (v0.24.114-115, bridge). The two camera patches act and let go
+live, 5.11 -> 4.5 ms/frame on the surface, and the endgame plane screen
+shows the same picture rendered on demand (v0.24.116, bridge, released
+build).
