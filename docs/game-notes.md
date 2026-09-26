@@ -1881,22 +1881,33 @@ measured together: 5.11 -> 4.47-4.54 ms/frame on the surface, ~12%):
   rendered from the screen's `OnWillRenderObject` (the mirror pattern):
   screenshots with the patch on / off / on showed the same screen.
 
+**Switching cameras mid-frame** (bridge, v0.24.117-118, `RenderProbe.
+TestLateEnable` / `TestLateDisable`): a camera **enabled** in an earlier
+camera's `onPreCull` is not rendered that frame (the frame's camera list
+is built up front). One **disabled** there is skipped - but doing that
+to ActionIconCamera (depth 95, the last camera drawing to the screen)
+**froze the picture**: the game ran at 230 fps, audio played, the image
+only moved when the author tabbed out; the Frame line and bridge
+screenshots looked normal. v0.24.119 shipped it as a patch, v0.24.120
+withdrew it ten minutes later. Never skip a screen camera mid-frame.
+
 **Candidates left, and why not yet:**
 - **ActionIconCamera** (0.26 ms, depth 95, perspective, far 40): draws
   NGUI widgets under it (action icons, plane icon, ranged hit target,
   translation overlay). NGUI turns its `UIDrawCall`s on / off in
-  `UIPanel.LateUpdate`, and `ActionIconSystem` re-parents icons between
-  holders (world, book, plane, inventory, pause), so an exact skip needs
-  the check after every LateUpdate: rendering it by hand from Camera_HUD's
-  (depth 90) post-render when an active draw call is in front of it.
-  Untested.
+  `UIPanel.LateUpdate`, so "nothing to draw" is known only after every
+  LateUpdate - and a mid-frame skip freezes the screen (above). Left: keep
+  it disabled and `Render()` it by hand from Camera_HUD's post-render
+  when an active draw call is in view (untested; check the picture with
+  the author's eyes, not screenshots).
 - **ParticleCam** (0.37 ms): `factor` Full copies the frame to a
   temporary, renders layer 1 (TransparentFX, not in the main camera's
-  mask) over it, copies back; with nothing on layer 1 in view the output
-  is the input. But the layer-1 renderers cannot be listed cheaply each
-  frame (a walk of 20k renderers is ~15 ms). Also: it sets the Sun's and
-  Moon's shadows to None and back to **Soft** every frame, whatever they
-  were.
+  mask) over it, copies back. Layer 1 holds the held **lighter's flame**,
+  pickups' **sheen billboards** and cave waterfall particles
+  (`LayerContents 1`: 18 renderers on the surface, 2 in view) - so it
+  nearly always has something to draw; not worth a skip. Also: it sets
+  the Sun's and Moon's shadows to None and back to **Soft** every frame,
+  whatever they were.
 - **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
   (`refresh` 1) along the sun's direction, which moves every frame - a
   skip would change the picture.
@@ -1904,6 +1915,30 @@ measured together: 5.11 -> 4.47-4.54 ms/frame on the surface, ~12%):
   ocean's own visibility logic.
 - Scripts: ~1 ms real; the heaviest are camera work above.
   `PhysicsSfx.Update` runs 781 times a frame (0.09 ms).
+
+**Runners' machines** (QA, 2026-09-26, v0.24.116, surface, `Frame`
+lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
+- sxczurass: i5-9400F (6 cores / 6 threads), GTX 1650, 16 GB (87 % in
+  use), recording video; ~110 fps, 8.8-9.6 ms = start to Update 1.1
+  (a physics step 1.7-1.9 ms, in 53 % of frames) + Update to LateUpdate
+  1.7 + to rendering 0.6 + cameras 5.3: **AFSGrassDisplacementCameraTest
+  2.6-3.1**, MainCamNew 1.2-1.5, `Sunshine Cascade Camera 0` 0.7-0.8,
+  Camera_HUD / ParticleCam / ActionIconCamera **0.10-0.13 each**.
+- Cheesecake (connor): Ryzen 9 7845HX laptop, RTX 4070 Laptop (20-28 %)
+  plus the Radeon iGPU (44-61 %, hybrid graphics); ~125 fps, 7.8-8.2 ms:
+  cameras 5.6: grass camera 0.6 **+1.3 after**, MainCamNew 1.6, Sunshine
+  0.8, the three small ones 0.40-0.46 each.
+- Reading: the grass camera is the first camera of the frame (depth -1),
+  and its 2.6-3.1 ms on the i5 while the HUD cameras cost 0.1 there
+  looks like the main thread **waiting for the render thread** inside
+  the first render, not the camera's own work - the "waiting" phase
+  (end of frame -> start) does not catch it. Unproven. Test: add a fixed
+  main-thread cost (e.g. a 1 ms spin a frame); if the frame grows by
+  less than 1 ms, the main thread had slack and the render thread (D3D11
+  submission: draw calls) is the limit.
+- Both use **Sunshine** shadows (the game's own cascade system) - the
+  author's quality level 0 does not (`Sunshine Cascade Camera 0` x0/f).
+  Measure at their quality level before judging shadows.
 
 ## The game ships a debug console — 256 methods
 

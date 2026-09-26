@@ -370,3 +370,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     (~20k on the surface) per camera: an empty culling mask still cost
     0.24 ms. Before optimising what a camera draws, count the cameras,
     and ask who reads each one's texture (`RenderProbe`, v0.24.116).
+
+51. **The picture needs eyes.** Skipping the last screen camera
+    mid-frame (disabled in an earlier camera's pre-cull) measured
+    perfectly - 0 renders, 0.28 ms saved, normal bridge screenshots - and
+    froze the author's screen: audio on, 230 fps in the log, the image
+    moving only when they tabbed out. v0.24.119 shipped it; v0.24.120
+    withdrew it. Anything that changes how or when the game draws gets
+    the author's eyes (a notice: "does the picture move?") before a
+    release, and a dev test that could freeze the screen runs for
+    seconds, not minutes (the 100000-frame test ran ~7 min).

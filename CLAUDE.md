@@ -499,6 +499,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze.
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control.
 50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw.
+51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release.
 
 ---
 
@@ -550,10 +551,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.116** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.120** (2026-09-26). The author runs it via the in-game
 updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.116 in the game)
+### Pick up here (2026-09-26, v0.24.120 in the game)
 
 **This session: raw FPS (item 3 below), on high effort - an
 investigation, keep going in this session.** Game-notes *Frame time:
@@ -570,17 +571,34 @@ where the main thread goes* has every number; in short:
   Screen picture checked on / off / on.
 - The author's machine is CPU-bound (fps flat from 640x360 to 1440p);
   each camera costs ~0.25 ms whatever it draws (culling ~20k renderers;
-  an empty mask does not help).
+  an empty mask does not help). A cave: 4.06 -> 3.52 ms; the lab ~3.6.
+- v0.24.117-118: dev probes (`LayerContents`, `TestLateEnable` /
+  `TestLateDisable`). v0.24.119 skipped ActionIconCamera mid-frame -
+  **froze the author's screen** (gotcha 51); v0.24.120 withdrew it (QA
+  told, message `1553492192016736279`). ParticleCam: layer 1 holds the
+  lighter flame and pickup sheens - no skip.
+- **Runners' data is in** (game-notes *Runners' machines*): sxczurass
+  (i5-9400F / GTX 1650) and Cheesecake (7845HX laptop / 4070 Laptop) are
+  both CPU-bound at 110-130 fps; the first camera (the player's grass
+  camera) takes 2.6-3.1 ms on the i5 - probably the render-thread wait.
 
-**Next for raw FPS:** (1) runners' `Frame (30 s):` lines + specs - the
-real question is whether lower-end machines are CPU- or GPU-bound
-(asked on QA with v0.24.116); a GPU-bound runner needs Experimental,
-labelled options (e.g. the particle camera at half resolution), a
-CPU-bound one more of the below. (2) The candidates in game-notes:
-ActionIconCamera on demand (0.26 ms, NGUI timing), ParticleCam when no
-particles in view (0.37 ms, needs a cheap list of layer-1 renderers).
-(3) A cave and the endgame measured with the patches on (surface only
-so far).
+**Next for raw FPS:** (1) main thread vs render thread: a dev switch
+that adds a fixed 1 ms a frame on the main thread - frame +1 ms = main
+thread bound, less = render thread (draw calls) - here, then ask a
+runner to flip it. (2) Measure at the runners' quality (Sunshine
+shadows, `QualitySettings` level) - ask them which level. (3)
+ActionIconCamera by hand-`Render()` (game-notes), only with the
+author's eyes on the picture.
+
+**New from QA, not looked at** (forwarded by the author, 2026-09-26,
+new runner Tom; reports in `Downloads\qa-reports`): the cave's fake
+black wall stayed after entering (fixed by leaving and re-entering);
+F7 Quick load with the ESC menu open half-loads until the menu closes
+(close the menu first; test other UI - graphics tab, inventory); a
+panel would not break and health < 1 did not kill (maybe damage carried
+over a reload, or the practice death path); could not move right after a
+Full load. Cheesecake answered v0.24.100 list item 2 (endgame
+savestates, report `13-03` in `qa-reports\cheesecake404` - not read).
 
 **State:** the game runs v0.24.116 on the surface (Slot 1, loaded from
 the title; the endgame is loaded - Slot 1 starts at the vault door).
