@@ -105,6 +105,8 @@ namespace ForestOverlay.Game
     //    Not done: skipping the action-icon camera mid-frame (v0.24.119,
     //    withdrawn in v0.24.120) - disabling the last screen camera in an
     //    earlier camera's onPreCull left the picture frozen (game-notes).
+    // 13. EXPERIMENTAL: the sun's shadow map (Sunshine) every second frame,
+    //    by the game's own UpdateInterval option - Game/CameraTrim.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -192,6 +194,14 @@ namespace ForestOverlay.Game
                 "skips cameras). Draw it only in frames where that screen is being drawn (~0.35 ms a frame here while the endgame " +
                 "is loaded).",
                 _cameras.ApplyScreen, _cameras.RemoveScreen);
+            Add(config, "SunShadowsEveryOtherFrame", "Sun shadows: redraw every second frame",
+                "EXPERIMENTAL, changes the picture: the game's sun-shadow system (Sunshine) redraws its shadow map every second frame " +
+                "instead of every frame, using its own built-in option for this. Still shadows look the same; shadows of moving things " +
+                "(you, enemies, swaying trees) update at half your frame rate. Saves ~0.3 ms a frame here (0.35-0.4 ms on the runners' " +
+                "machines measured). Off = the game's own setting.",
+                _cameras.ApplySunshine, _cameras.RemoveSunshine, false);
+            _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Note = "Changes the picture: moving shadows update at half the frame rate. Saves ~0.3 ms a frame.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

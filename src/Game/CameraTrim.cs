@@ -8,8 +8,9 @@ namespace ForestOverlay.Game
 {
     // ------------------------------------------------------------------
     // Cameras that draw what nobody sees (raw FPS, Next up 6). Each camera
-    // costs the main thread ~0.25 ms a frame whatever it draws - Unity
-    // culls every renderer for it (~20k on the surface) - so these are
+    // render costs the main thread ~0.2 ms whatever it draws - Unity's own
+    // overhead, the same on the title screen (92 renderers) as in the
+    // world (RenderProbe.TimeRender, v0.24.124) - so a render skipped is
     // the cheapest frame time there is. Measured with Game/FrameTimer and
     // Game/RenderProbe (bridge, 2026-09-26, Slot 1). Two patches, each its
     // own `[Performance]` switch in PerfPatches, behaviour-preserving:
@@ -42,6 +43,17 @@ namespace ForestOverlay.Game
     // Both let go if the game switches the camera back on itself (not
     // seen - nothing in the game's code refers to either), and put
     // everything back when switched off. One log line per act.
+    //
+    // 3. EXPERIMENTAL (changes the picture, off by default): the sun's
+    //    shadow map every second frame. Sunshine (`TimeAndWeather/R10/
+    //    Sunshine`) renders the sun's shadows and light-shaft occlusion
+    //    from its cascade camera in MainCamNew's OnPreCull (0.55-0.8 ms a
+    //    frame; it switches Unity's own shadows off for the sun while it
+    //    runs). Its own option `UpdateInterval = AfterXFrames` (every
+    //    `UpdateIntervalFrames`, 2) re-renders the map on even frames and
+    //    keeps the last one between (SunshineCamera.NeedsRefresh); nothing
+    //    in the game sets the option. Moving shadows then update at half
+    //    the frame rate. Measured 0.66 -> 0.32 ms a frame.
     // ------------------------------------------------------------------
     public sealed class CameraTrim
     {
@@ -54,6 +66,7 @@ namespace ForestOverlay.Game
 
         public bool GrassOn { get; private set; }
         public bool ScreenOn { get; private set; }
+        public bool SunOn { get; private set; }
 
         private Camera _grassOff;
         private Camera _screenCam;
@@ -62,6 +75,10 @@ namespace ForestOverlay.Game
         private FieldInfo _ctlCamera, _ctlTexture;
         private int _grassRefusedId, _screenRefusedId;
         private string _grassReadBy = "?";
+        private FieldInfo _sunInstance, _sunInterval, _sunFrames;
+        private object _sunEvery, _sunHalf;
+        private UnityEngine.Object _sunSet;
+        private int _sunRefusedId;
 
         public CameraTrim(ManualLogSource log)
         {
@@ -106,11 +123,43 @@ namespace ForestOverlay.Game
             ReleaseScreen("switch off");
         }
 
+        public string ApplySunshine()
+        {
+            Type t = GameBridge.FindGameType("Sunshine");
+            if (t == null) return "Sunshine not found";
+            _sunInstance = t.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            _sunInterval = t.GetField("UpdateInterval", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            _sunFrames = t.GetField("UpdateIntervalFrames", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (_sunInstance == null || _sunInterval == null || _sunFrames == null || !_sunInterval.FieldType.IsEnum)
+                return "Sunshine's Instance / UpdateInterval / UpdateIntervalFrames not found";
+            try
+            {
+                _sunEvery = Enum.Parse(_sunInterval.FieldType, "EveryFrame");
+                _sunHalf = Enum.Parse(_sunInterval.FieldType, "AfterXFrames");
+            }
+            catch (Exception) { return "Sunshine's update intervals are not EveryFrame / AfterXFrames (game updated?)"; }
+            SunOn = true;
+            _sunRefusedId = 0;
+            _nextScan = 0f;
+            return "";
+        }
+
+        public void RemoveSunshine()
+        {
+            SunOn = false;
+            if (_sunSet != null && Equals(_sunInterval.GetValue(_sunSet), _sunHalf))
+            {
+                _sunInterval.SetValue(_sunSet, _sunEvery);
+                _log.LogInfo("Performance: sun shadows back to every frame (switch off).");
+            }
+            _sunSet = null;
+        }
+
         /// Once a frame; looks for the cameras every 2 s (a load brings
         /// new ones).
         public void Tick()
         {
-            if (!GrassOn && !ScreenOn) return;
+            if (!GrassOn && !ScreenOn && !SunOn) return;
             float now = Time.unscaledTime;
             if (now < _nextScan) return;
             _nextScan = now + ScanInterval;
@@ -118,6 +167,7 @@ namespace ForestOverlay.Game
             {
                 if (GrassOn) ScanGrass();
                 if (ScreenOn) ScanScreen();
+                if (SunOn) ScanSunshine();
             }
             catch (Exception ex)
             {
@@ -170,6 +220,33 @@ namespace ForestOverlay.Game
             if (Shader.GetGlobalTexture("_AfsGrassDisplacementTex") == c.targetTexture) return "the grass reads its texture";
             _grassReadBy = used.name;
             return "";
+        }
+
+        // ------------------------------------------------------------------
+        private void ScanSunshine()
+        {
+            UnityEngine.Object sun = _sunInstance.GetValue(null) as UnityEngine.Object;
+            if (sun == null) return;
+            object interval = _sunInterval.GetValue(sun);
+            if (sun == _sunSet)
+            {
+                if (Equals(interval, _sunHalf)) return;
+                _log.LogInfo("Performance: the game set the sun shadows' update interval itself (" + interval + ") - left to it.");
+                _sunRefusedId = sun.GetInstanceID();
+                _sunSet = null;
+                return;
+            }
+            if (sun.GetInstanceID() == _sunRefusedId) return;
+            if (!Equals(interval, _sunEvery))
+            {
+                _sunRefusedId = sun.GetInstanceID();
+                _log.LogInfo("Performance: sun shadows left alone - their update interval is already " + interval + ".");
+                return;
+            }
+            _sunFrames.SetValue(sun, 2);
+            _sunInterval.SetValue(sun, _sunHalf);
+            _sunSet = sun;
+            _log.LogInfo("Performance: sun shadows (Sunshine) rendered every second frame.");
         }
 
         // ------------------------------------------------------------------

@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.125 - 2026-09-26
+
+- New experimental performance switch (Debug views, Performance patches,
+  off by default): **Sun shadows: redraw every second frame**. Uses the
+  game's own built-in option; saves about 0.3 ms a frame (a few percent
+  fps). Still shadows look the same, shadows of moving things update at
+  half your frame rate.
+
 ## v0.24.124 - 2026-09-26
 
 - Developer tools only: new measurements for the frame-rate work. Nothing
