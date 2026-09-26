@@ -749,15 +749,6 @@ v0.24.72 community packs, v0.24.73 no restores at the title screen,
 v0.24.74 hidden random ids, v0.24.75 turned boxes, v0.24.76-77 coordinate
 text fields (maks) + the demo community pack.
 
-**Awaiting the author's eyes** (need clicks the bridge cannot make):
-- a Community entry's read-only view (select "Demo - plane crash dash":
-  note, name / notes / triggers, spawn field selectable but not
-  editable, Go, Restart, Share; Delete greyed; Duplicate -> an editable
-  "My spots" copy);
-- typing into a coordinate field (valid "x y z" / "x, y, z" moves the
-  spot or zone; junk turns the box red and changes nothing);
-- the Import list's wrapped rows (v0.24.72; seen only before the fix).
-
 **Open, not blocking:**
 - **Phantom stick** (fix list 2, author, once): not reproduced; waits
   for a `Pickup gone, inventory unchanged: ...` line. Candidate cause
@@ -783,10 +774,16 @@ text fields (maks) + the demo community pack.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 5, performance** - measure first (below).
-2. **Next up 6** - passengers on the 100% tab, logs in the inventory
+1. **Coordinate fields reject non-numbers** (author, 2026-09-26: "it
+   really should just reject any input that isn't a number"): today
+   junk is kept in the box and turns it red (`PracticeModule.CoordsField`);
+   instead drop any typed character that is not a digit, `-`, `.`, a
+   space or a comma, so the box can never hold junk (keep the red for
+   an incomplete value such as two numbers).
+2. **Next up 5, performance** - measure first (below).
+3. **Next up 6** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-3. Then the rest of *Next up*; the deferred runner feedback waits
+4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
 
@@ -1099,7 +1096,10 @@ re-downloaded, restarted from, and removed with its start state; the
 demo pack fetched from GitHub at startup (v0.24.72, v0.24.76); a
 title-screen restore refused (v0.24.73); new spots get `s-` ids and the
 editor has no Id field (v0.24.74); a 45-degree box drawn diagonal
-(v0.24.75); both coordinate fields drawn, no overlap (v0.24.77).
+(v0.24.75); both coordinate fields drawn, no overlap (v0.24.77). The
+author (2026-09-26): a Community entry's read-only view and its
+Duplicate, typing into coordinate fields, the Import list's wrapped
+rows - "all 3 seem fine".
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
