@@ -799,7 +799,9 @@ This session (QA with maks, the bot now posting on its own):
 - **QA to-do list** (maks's request, author's channel): one bot message
   in `#qa-todo-list`, edited in place - see *The QA Discord*. Posted
   today by a one-off script (the MCP `qa_todo` tool is new in
-  `tools/BridgeMcp` and loads with the next session's server).
+  `tools/BridgeMcp`; **not built yet** - the running server locks its
+  DLL: run `dotnet build tools/BridgeMcp -c Release` with no session
+  open, or stop the server (`/mcp`) first, then `qa_todo` exists).
 - His other requests (title-screen savestates, failed-run lines, runner
   names on shared runs) are in *Deferred runner feedback*.
 
