@@ -2000,8 +2000,26 @@ occlusion, volumetrics type, grass distance / density, draw distance
 quality, light distance, cascade count, scatter resolution. Those are
 GPU work: they matter only on a GPU-bound machine, and every runner
 measured so far is CPU-bound. `PlayerPreferences.LowQualityPhysics`
-(an option) sets `fixedDeltaTime` 1/30 instead of 1/60 - half the
-physics steps, but a gameplay change (movement tech).
+sets `fixedDeltaTime` 1/30 instead of 1/60 - half the physics steps, a
+gameplay change (movement tech). **Hidden**: `MenuOptions` still has the
+widget field and the menu asset still names "Option - Low Quality
+Physics" (`LOW_QUALITY_PHYSICS`), but the current options menu does not
+show it (author); the game reads the saved pref at startup
+(`PlayerPreferences.Load`) and has the console command `physics30Fps`.
+`treeHitTrigger` and `RaftPush` read the flag. A save load resets the
+step (`LevelLoader.Load`). Measured 5.26 -> 4.98 ms a frame (steps in
+32% -> 15% of frames). Experimental switch `Physics30Hz` (v0.24.128).
+
+**The grass-bending camera in caves** (`AFSGrassDisplacementCameraTest`,
+AfsGrassDisplacementController's own): it draws bend trails for the
+terrain grass and the "Touch" foliage shaders (`AFS/Foliage Shader
+Deferred SingleSided Touch v4 Stipple VFACE`, ferns) and kept drawing in
+caves; within 60 m in Cave 6 no renderer uses a Touch / grass shader
+(`ShadersNear`, v0.24.126). From inside, cave mouths are open (the
+black walls are for outside), so grass beyond a mouth can be in view.
+The controller never sets the camera's `enabled`; its camera clears to
+its background colour every render. Experimental switch
+`GrassBendingOffInCaves` (v0.24.127).
 
 **Runners' machines** (QA, 2026-09-26, v0.24.116, surface, `Frame`
 lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.

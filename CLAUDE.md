@@ -552,68 +552,70 @@ identity.
 
 ## Current status
 
-**Released: v0.24.123** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.128** (2026-09-26). The author runs it via the in-game
 updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.123 in the game)
+### Pick up here (2026-09-26, v0.24.128 in the game)
 
 **Author's focus (2026-09-26): FPS performance and patches only** - all
 other feedback goes to other sessions (task chips were spawned for new
 runner Tom's four reports and Cheesecake's endgame savestate answer).
+The author prefers **direct patches** over tuning settings (a settings
+sweep only "if it's light on usage").
 
-**This session: raw FPS (item 3 below), on high effort - an
-investigation, keep going in this session.** Game-notes *Frame time:
-where the main thread goes* has every number; in short:
-- v0.24.114: `Frame (30 s):` line beside `Perf` (`Game/FrameTimer`,
-  `Data/FrameTimeline`, 6 tests): waiting (GPU / render thread) vs
-  scripts vs each camera. A runner's log now says CPU- or GPU-bound.
-- v0.24.115: `Game/RenderProbe` (bridge: `CameraContents <name|all>`,
-  `TextureUsers <name|#id> <props>`, results in the log);
-  `FrameTimer.Snapshot` for short windows.
-- v0.24.116: `Game/CameraTrim`, switches `TerrainGrassCameraOff` (index
-  10) and `EndgameScreenOnDemand` (11), both on, behaviour-preserving:
-  5.11 -> 4.5 ms/frame on the surface with the endgame loaded (~12%).
-  Screen picture checked on / off / on.
-- The author's machine is CPU-bound (fps flat from 640x360 to 1440p);
-  each camera costs ~0.25 ms whatever it draws (culling ~20k renderers;
-  an empty mask does not help). A cave: 4.06 -> 3.52 ms; the lab ~3.6.
-- v0.24.117-118: dev probes (`LayerContents`, `TestLateEnable` /
-  `TestLateDisable`). v0.24.119 skipped ActionIconCamera mid-frame -
-  **froze the author's screen** (gotcha 51); v0.24.120 withdrew it (QA
-  told, message `1553492192016736279`). ParticleCam: layer 1 holds the
-  lighter flame and pickup sheens - no skip.
-- **Runners' data is in** (game-notes *Runners' machines*): sxczurass
-  (i5-9400F / GTX 1650) and Cheesecake (7845HX laptop / 4070 Laptop) are
-  both CPU-bound at 110-130 fps; the first camera (the player's grass
-  camera) takes 2.6-3.1 ms on the i5 - probably the render-thread wait.
-
-- v0.24.121: `System:` log line (CPU, GPU, resolution, Unity quality)
-  beside the first Perf line and on change; Debug views **Frame test**
-  (`FrameTimer.TestLoadMs`, bridge `_modules[8].ToggleFrameTest`, off at
-  launch) adds 1 ms of main-thread work a frame. Here: 4.32 -> 5.45 ms,
-  the full +1 ms - **the author's machine is main-thread bound** and the
-  camera times are real main-thread work.
-- v0.24.122: the System line also lists the game's own options
-  (`TheForestQualitySettings.UserSettings`, every field) and the main
-  camera's path. The author's: Custom, DX11 post effects, FarShadowMode
-  On, ShadowLevel High, deferred + HDR. Setting `_postEffectSystem
-  Legacy` live changed nothing (the options menu applies it).
+**Raw FPS (item 3 below), an investigation on high effort.** Game-notes
+*Frame time: where the main thread goes* has every number; in short:
+- Tools: `Frame (30 s):` line (`Game/FrameTimer`, `FrameTimer.Snapshot`
+  for short windows), `System:` line (hardware + every game option),
+  Debug views **Frame test** (+1 ms main-thread work: main-thread vs
+  render-thread bound), `Game/RenderProbe` (bridge: `CameraContents`,
+  `TextureUsers`, `LayerContents`, v0.24.124 `TimeRender <mask> <n>` /
+  `TimeCamera` / `ToggleLights` / `ToggleRenderers` / `RenderersByRoot`,
+  v0.24.126 `ShadersNear <radius> <name part>`).
+- **A camera render costs ~0.2 ms of Unity's own overhead whatever it
+  draws** - the same on the title screen (92 renderers) as in the world;
+  renderers, lights, terrain barely matter (v0.24.124). The only lever
+  is fewer camera renders. (The old "culls ~20k renderers" note was
+  wrong.)
+- Behaviour-preserving, on (v0.24.116): `TerrainGrassCameraOff` (10),
+  `EndgameScreenOnDemand` (11): ~12% on the surface with the endgame in.
+- **Experimental, off by default (this session)**:
+  `SunShadowsEveryOtherFrame` (12, v0.24.125): Sunshine's own
+  `UpdateInterval = AfterXFrames` 2, 0.66 -> 0.32 ms/frame, moving
+  shadows update at half rate - **the author has it on to look at the
+  picture (gotcha 51); ask what they saw**. `GrassBendingOffInCaves`
+  (13, v0.24.127-128): the grass-bending camera off while
+  `IsInCaves` (nothing in a cave reads it; grass beyond a cave mouth
+  stops bending around enemies), ~0.25 ms in caves; tested on / cave /
+  out. `Physics30Hz` (14, v0.24.128): the game's hidden Low Quality
+  Physics option (not in the menu any more - author), 5.26 -> 4.98 ms;
+  a gameplay change, the author wants it in "for testing purposes";
+  kept across a title-screen save load (checked); re-applied if a load
+  puts the step back at 1/60 - a Full load not checked yet.
+- **Settings sweep** (game-notes *Graphics options, measured live*): on
+  a main-thread-bound machine only Far shadows Off (-0.33 ms) and Ocean
+  Flat (-0.2 ms with the ocean in view) matter; SSAO / SSR / AA / bloom
+  / clouds / grass / terrain etc. are GPU work - nothing measurable.
+- Not pursued (why in game-notes): ParticleCam skip (a new flame could
+  miss a frame), far shadow every 2nd frame (no runner has it on),
+  cannibals' cost (Unity's animation of ~14 animators, not scripts).
+- v0.24.119 froze the author's screen by skipping ActionIconCamera
+  mid-frame (gotcha 51) - never skip a screen camera mid-frame.
 
 **Waiting on QA** (posted 2026-09-26, message `1553493823840321557`):
 sxczurass and Cheesecake to run 1 min without / 1 min with the Frame
-test on v0.24.121+ and send the log. Read: the frame grows by 1 ms =
-main thread bound (camera patches help); less, with the first camera's
-time shrinking = the render thread (draw calls; then fewer draw calls /
-cameras, or Experimental options). Their `System:` line (v0.24.122)
-says their game options - both run Sunshine shadows and no far-shadow
-camera (probably Legacy post effects / forward), which the author's
-settings never exercise: set the author's game to theirs (through the
-options menu or `TheForestQualitySettings.CopyPreset`) and profile it.
+test and send the log: +1 ms = main-thread bound (camera patches help);
+less, with the first camera's time shrinking = the render thread (then
+draw calls). Their game options (System line): Sunshine shadows, no far
+shadow.
 
-**Next for raw FPS:** (1) their Frame test result and settings (above).
-(2) Profile the author's game at the runners' options. (3)
-ActionIconCamera by hand-`Render()` (game-notes), only with the
-author's eyes on the picture.
+**Next for raw FPS:** (1) the author's verdict on the sun-shadow picture;
+if fine, offer the three Experimental switches to QA (sxczurass /
+Cheesecake on lower fps would see a half-rate shadow first) and add
+them to the to-do list. (2) Check `Physics30Hz` across a Full load (`Performance: physics at
+30 Hz again` if the step was reset). (3)
+Their Frame test result. (4) ActionIconCamera by hand-`Render()` only
+with the author's eyes on the picture.
 
 **Tom's reports (v0.24.123, another session; reports in
 `Downloads\qa-reports\d.eter\ForestOverlay-report-Tom-*`), all
