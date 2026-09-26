@@ -860,9 +860,8 @@ allocations and loads*; the commits):**
 **v0.24.101 (short session, 2026-09-26):** a **God mode** toggle on the
 Deaths tab (`Deaths.GodMode`, off, practice; `DeathHooks.SetGodMode`
 writes `Cheats.GodMode` each tick while unset, switches it off only if we
-set it). Built and released, **not yet checked in game**: `update_game`,
-tick it (`set ..._modules[12]._godModeCfg.Value true`), `get
-static:Cheats GodMode`, log line `Deaths: god mode on`, untick -> false.
+set it). Confirmed in game (bridge, below). Note: Slot 1 loads with
+`Cheats.GodMode` already **true** (left on as found).
 
 **Next - the endgame load in a run (Experimental option, author's
 decision 2026-09-26: allowed, off, "only if a genuine improvement").**
@@ -973,7 +972,7 @@ line when it is seen again.
    3-6 (6 = raw FPS). On high effort.
 1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
-   (labelled gameplay mod); check v0.24.101's god mode in game.
+   (labelled gameplay mod).
 3. **Next up 5, Quick load physics parity** - the heap lead above first;
    decide with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
@@ -1321,7 +1320,9 @@ The endgame loaded in the background by a Full load and by a Quick load
 that needs it - no frame over 100 ms, trigger / HUD / anim prefabs as
 after the game's load, the red elevator rides after it (v0.24.99); a
 teleport mid-ride stops the ride and the vault door cave stays whole
-(v0.24.100) - both bridge, on the released builds.
+(v0.24.100) - both bridge, on the released builds. The God mode toggle
+keeps `Cheats.GodMode` on (re-set within a second when cleared), and
+unticking clears it only when the toggle set it (v0.24.101, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1449,8 +1450,7 @@ list so we can move onto expanding more features".
      `_logs`, `_logsHeld`, `Lift()`, `PutDown(...)`, `RemoveLog`,
      `UpdateLogCount`, `_infiniteLogHack` (console `_loghack`). To map: what
      calls `Lift` on a pickup, how building takes logs, dropping.
-   - ~~god mode~~ shipped v0.24.101 (Deaths tab toggle `Deaths.GodMode`,
-     keeps `Cheats.GodMode` on while ticked; awaiting an in-game check).
+   - God mode: done (v0.24.101, Deaths tab).
 8. **Freecam keeps the game's lighting.** Freecam goes darker (author);
    `CopyFrom` does not copy the game camera's image effects - dump the main
    camera's components first.
