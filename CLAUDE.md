@@ -761,8 +761,7 @@ left over except the old `phantom-a` (tree spot; can be deleted) and
 This session: v0.24.78 / v0.24.83 coordinate boxes take only number
 characters, drop separators after a complete value and do not mark the
 spot changed for the same position (`TriggerParser.FilterCoords` /
-`TidyCoords`, tested; the author confirmed letters are refused - the
-trailing-space fix is not typed in game yet). v0.24.79-82 **savestates during a
+`TidyCoords`, tested; confirmed in game by the author). v0.24.79-82 **savestates during a
 player-started cutscene**: the red elevator's ride (maks) and the
 keypad doors (vault, gold, yacht - author: "make sure the same case
 still works for the gold / vault door"). A restore landing > 3 m from
@@ -1136,8 +1135,8 @@ editor has no Id field (v0.24.74); a 45-degree box drawn diagonal
 (v0.24.75); both coordinate fields drawn, no overlap (v0.24.77). The
 author (2026-09-26): a Community entry's read-only view and its
 Duplicate, typing into coordinate fields, the Import list's wrapped
-rows - "all 3 seem fine"; letters refused in a coordinate box (v0.24.78,
-author).
+rows - "all 3 seem fine"; letters refused in a coordinate box (v0.24.78),
+no trailing spaces and no unsaved marker for them (v0.24.83) - author.
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
