@@ -774,49 +774,32 @@ identity.
 
 ## Current status
 
-**Released: v0.24.84** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.85** (2026-09-26). The author runs it via the in-game
 updater. **367 tests.**
 
-### Pick up here (2026-09-26, handoff, v0.24.84 in the game)
+### Pick up here (2026-09-26, handoff, v0.24.85 in the game)
 
-**State:** v0.24.84 runs in the author's game (MCP `update_game`), Slot 1
-loaded, player in maks's cave spot. Everything below is released, on
-`main`, and bridge-checked unless marked. No test spots are left over;
-savestates `phantom-a` (old tree spot; can be deleted),
-`keycard-pickup-testing`, and this session's `physA`, `elevPre` (in the
-red elevator car, before the trigger), `elevMid` (2.6 s into the ride) -
-kept for Next up 5. **Next is performance (Next up 6)** - the author runs
-it in its own session, on high effort.
+**State:** v0.24.85 runs in the author's game (MCP `update_game`), Slot 1
+loaded, player in the red elevator car (`elevPre`). Everything below is
+released, on `main`, and bridge-checked unless marked. No test spots are
+left over; savestates `phantom-a` (old tree spot; can be deleted),
+`keycard-pickup-testing`, `physA`, `elevPre` (in the red elevator car,
+before the trigger), `elevMid` (2.6 s into the ride) - kept for Next up 5.
+**Next is performance (Next up 6)** - on **high effort** (tell the author
+before starting it; they switch).
 
-This session (QA with maks, the bot now posting on its own):
-- **v0.24.84 - stray rotate icon on a blueprint after a Quick load**
-  (maks, custom wall): `Game/BuildMode.PullOut` clears `Create.LockPlace`
-  after `CreateBuilding` so the game's `Grabber.ShowPlace` runs before
-  the architect's one-frame `ClosePlace` (header comment; gotcha 41).
-  Reproduced with maks's own start state from his report (a placed wall
-  before F7 is the trigger - placing resets `Create.ShownPlace`) and
-  confirmed fixed in game (bridge).
-- **Quick load physics parity** (Next up 5): the bridge found no state
-  difference (the list of what was compared is under Next up 5); after a
-  game restart maks found it fine. **Author: "keep this as an active
-  investigation but defer for later. no conclusive evidence and current
-  issues are mainly anecdotal."** maks was asked for uptime / restore
-  count, a QA report before restarting, and a video when it recurs.
-- **QA to-do list** (maks's request, author's channel): one bot message
-  in `#qa-todo-list`, edited in place - see *The QA Discord*. Posted
-  today by a one-off script; the MCP `qa_todo` tool is new in
-  `tools/BridgeMcp` and **built** (loads with the next session's server).
-- His other requests (title-screen savestates, failed-run lines, runner
-  names on shared runs) are in *Deferred runner feedback*.
-
-**New bug, not looked into (maks, 2026-09-26):** a **Quick load** of a
-spot past the vault door, on a save that has not opened it (so the
-endgame is not loaded), drops the player through the world with the
-area unloaded; a Full load works (it loads the endgame itself -
-`EndgameLoader` / *Savestates* in Key concepts). A Quick load does not
-load scenes. Options: load the missing scene first (as the Full load
-does) and hold the player until it is in, or fall back to a Full load
-with a message. maks was told to use Full load for such spots for now.
+This session:
+- **v0.24.85 - Quick load past the vault door** (maks): on a save without
+  the endgame loaded, a Quick load of a spot past the vault door fell
+  through the world. `SavestateModule.EndgameFirst` now loads it first
+  (`EndgameLoader`, as the Full load does), holds the player where they
+  stand until it is in (~6 s), then restores. Reproduced and confirmed
+  with the bridge: `call <EndgameEntrance/LoadEndgame> SceneLoadTrigger.
+  ForceUnload` from the surface, then `restore elevPre` (before: falling
+  at 55 m/s; after: in the car, areas as at capture). Not yet tried by
+  maks on his own save.
+- QA 1-5 (swing / smash cut, Quick and Full load) confirmed by sxczurass
+  (author, via the QA Discord).
 
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
@@ -843,7 +826,6 @@ with a message. maks was told to use Full load for such spots for now.
   removed; a Full load does not put back a cut sapling's sticks.
 - **Time of day** (v0.24.67): the sweep was not reproduced; `SunSync`
   logs `sun: ... snapped` when it acts - ask for that line if seen.
-- **Quick load past the vault door** falls through the world (above).
 - **Community seeding is the author's call, later** (author, 2026-09-26:
   "don't worry about which spots should go out"). The demo template
   pack stays until then; to publish, follow `community/README.md` (old
@@ -851,15 +833,12 @@ with a message. maks was told to use Full load for such spots for now.
 
 **Next, in this order:**
 1. **Next up 6, performance** - measure first (below). Its own session.
-2. **The vault door Quick load bug** (above) - a runner-facing fall
-   through the world; fix it right after performance unless the author
-   says otherwise.
-3. **Next up 7** - passengers on the 100% tab, logs in the inventory
+2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-4. **Next up 5, Quick load physics parity** stays open but deferred
+3. **Next up 5, Quick load physics parity** stays open but deferred
    (author) until maks brings evidence (a QA report / video when it
    happens); then the physics trace.
-5. Then the rest of *Next up*; the deferred runner feedback waits
+4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
 
@@ -1188,6 +1167,8 @@ rows - "all 3 seem fine"; letters refused in a coordinate box (v0.24.78),
 no trailing spaces and no unsaved marker for them (v0.24.83) - author.
 A custom wall blueprint brought back by a Quick load after a wall was
 placed shows only its own icons (v0.24.84, bridge, maks's start state).
+A Quick load in the red elevator car with the endgame unloaded loads it
+first and keeps the player in the car (v0.24.85, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1371,7 +1352,7 @@ with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
 cutscene after a Full load, the endgame / lab after a Full load, taken
 pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
 attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82), no stray build icon on a blueprint after a Quick load (v0.24.84).
+thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82), no stray build icon on a blueprint after a Quick load (v0.24.84), a Quick load past the vault door loads the endgame first (v0.24.85).
 
 ### How a session goes
 
