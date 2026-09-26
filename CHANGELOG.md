@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.81 - 2026-09-26
+
+- Savestates taken during a keycard door's animation (the vault door,
+  the gold door) work like the red elevator's: the door closes again,
+  its animation plays again and is fast-forwarded to the captured
+  moment, with you in the right place.
+
 ## v0.24.80 - 2026-09-26
 
 - Red elevator savestates also work when taken late in the keycard

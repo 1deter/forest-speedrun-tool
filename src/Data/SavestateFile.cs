@@ -29,6 +29,7 @@ namespace ForestOverlay.Data
     //   megan = seated -397.90 -352.04 396.48 180.00
     //   elevators = Sections/HellCorridor/Elevator_01a/Trigger_Elevator|0|-714.8,-433.32,967|0,90,0;...
     //   activearea = none
+    //   keypaddoor = EndgameEntrance/keypadDoor_animate/doorTrigger
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
@@ -131,6 +132,10 @@ namespace ForestOverlay.Data
         /// Game/AreaKeeper's value at capture; "" when absent.
         public string ActiveArea = "";
 
+        /// The keypad door whose cutscene ran at capture (a path; "" when
+        /// none or older files) - replayed by KeypadDoorKeeper.
+        public string KeypadDoor = "";
+
         /// Game/NatureKeeper's capture mark; "" when absent.
         public string Bushes = "";
 
@@ -180,6 +185,7 @@ namespace ForestOverlay.Data
             if (Megan.Length > 0) Line(sb, "megan", Megan);
             if (Elevators.Length > 0) Line(sb, "elevators", Elevators);
             if (ActiveArea.Length > 0) Line(sb, "activearea", ActiveArea);
+            if (KeypadDoor.Length > 0) Line(sb, "keypaddoor", KeypadDoor);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
@@ -235,6 +241,7 @@ namespace ForestOverlay.Data
                     case "megan": s.Megan = value; break;
                     case "elevators": s.Elevators = value; break;
                     case "activearea": s.ActiveArea = value; break;
+                    case "keypaddoor": s.KeypadDoor = value; break;
                     case "blueprint": s.Blueprint = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":

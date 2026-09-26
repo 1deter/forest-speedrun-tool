@@ -62,6 +62,7 @@ namespace ForestOverlay.Modules
         private SetupHold _setupHold;
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
+        private KeypadDoorKeeper _doors;
         private AreaKeeper _area;
         private NatureKeeper _nature;
         private GreebleKeeper _greebles;
@@ -144,6 +145,7 @@ namespace ForestOverlay.Modules
             _setupHold.Install(OverlayPlugin.PluginGuid);
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
+            _doors = new KeypadDoorKeeper(ctx.Log);
             _area = new AreaKeeper(ctx.Log);
             _nature = new NatureKeeper(ctx.Log);
             _nature.Install(OverlayPlugin.PluginGuid);
@@ -374,6 +376,7 @@ namespace ForestOverlay.Modules
             string megan = _megan.Capture();
             float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
             string elevators = _elevators.Capture(rideAge);
+            string keypadDoor = cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
             string activeArea = _area.Capture();
             string blueprint = BuildMode.Capture();
             string bushes = _nature.CaptureMark();
@@ -401,14 +404,14 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles);
                 if (after != null) after(error);
             }));
         }
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string blueprint, string areas, List<string> enemies,
+                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
                                   List<string> greebles)
         {
@@ -440,6 +443,7 @@ namespace ForestOverlay.Modules
                 f.Megan = megan;
                 f.Elevators = elevators;
                 f.ActiveArea = activeArea;
+                f.KeypadDoor = keypadDoor;
                 f.Blueprint = blueprint;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
@@ -744,6 +748,8 @@ namespace ForestOverlay.Modules
                 // and unlit). Its own log line, a moment later.
                 if (r.Ok && file != null && rides.Count > 0)
                     Ctx.Runner.StartCoroutine(ReplayRides(file, rides, what));
+                else if (r.Ok && DoorCutscene(file))
+                    Ctx.Runner.StartCoroutine(ReplayDoor(file, what));
                 else if (r.Ok && file != null && file.CutsceneAt >= 0f)
                     Ctx.Runner.StartCoroutine(FastForwardCutscene(file, cutsceneStarts, what));
 
@@ -839,27 +845,48 @@ namespace ForestOverlay.Modules
                    " m away - saved relative to a parent)" + (cave.Length > 0 ? ", " + cave : "");
         }
 
-        // The ride's replay a frame after the restore's continuation (the
-        // restart's teleport and action cut), then the usual fast-forward.
-        private IEnumerator ReplayRides(SavestateFile f, List<Component> rides, string what)
+        // A cutscene the player starts (a ride, a keypad door) is replayed a
+        // frame after the restore's continuation (the restart's teleport and
+        // action cut), with the player where it starts - the elevator's
+        // stage starts nothing from afar, and the game's trigger needs a
+        // physics step to see them - then the usual fast-forward.
+        private delegate string Starter();
+
+        private IEnumerator ReplayCutscene(SavestateFile f, bool stand, Vector3 at, Starter start, string what, string of)
         {
             yield return null;
-            // The ride starts only with the player at the car (a capture
-            // after the car moved has them at the overlook), and the game's
-            // trigger needs a physics step to see them there.
-            Vector3 start;
-            if (Ctx.Player.Found && _elevators.RideStart(rides[0], out start))
+            if (stand && Ctx.Player.Found)
             {
-                Ctx.Player.MoveTo(start, Ctx.Player.Transform.rotation);
+                Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
                 Ctx.Bridge.EndFall();
             }
             float wait = Time.realtimeSinceStartup;
             while (Time.realtimeSinceStartup - wait < 0.2f) yield return null;
             int starts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
-            string note = _elevators.Replay(rides);
+            string note = start();
             Ctx.Log.LogInfo("Savestate " + what + ": captured " + f.CutsceneAt.ToString("0.0") +
-                            " s into the red elevator's ride - " + note + ".");
+                            " s into " + of + " - " + note + ".");
             yield return Ctx.Runner.StartCoroutine(FastForwardCutscene(f, starts, what));
+        }
+
+        private IEnumerator ReplayRides(SavestateFile f, List<Component> rides, string what)
+        {
+            Vector3 at;
+            bool stand = _elevators.RideStart(rides[0], out at);
+            return ReplayCutscene(f, stand, at, delegate { return _elevators.Replay(rides); }, what, "the red elevator's ride");
+        }
+
+        private static bool DoorCutscene(SavestateFile f)
+        {
+            return f != null && f.CutsceneAt >= 0f && f.KeypadDoor.Length > 0;
+        }
+
+        private IEnumerator ReplayDoor(SavestateFile f, string what)
+        {
+            Component door = _doors.Find(f.KeypadDoor);
+            Vector3 at;
+            bool stand = _doors.Stand(door, out at);
+            return ReplayCutscene(f, stand, at, delegate { return _doors.Replay(door); }, what, "a keypad door's cutscene");
         }
 
         private IEnumerator FastForwardCutscene(SavestateFile f, int startsBefore, string what)
@@ -1194,7 +1221,7 @@ namespace ForestOverlay.Modules
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     // A ride under way at capture is replayed after the
                     // hold (HoldUntilLoaded), which pins the player.
-                    if (f.CutsceneAt >= 0f && RideCutsceneAt(f) < 0f)
+                    if (f.CutsceneAt >= 0f && RideCutsceneAt(f) < 0f && !DoorCutscene(f))
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
                     if (_respawnEnemies.Value && f.Families != null && f.Families.Count > 0 && !f.InCave)
                         Ctx.Runner.StartCoroutine(EnemiesAfterLoad(f));
@@ -1363,6 +1390,7 @@ namespace ForestOverlay.Modules
             }
             if (after != null) after(null);
             if (rides.Count > 0) Ctx.Runner.StartCoroutine(ReplayRides(f, rides, "'" + f.Name + "'"));
+            else if (DoorCutscene(f)) Ctx.Runner.StartCoroutine(ReplayDoor(f, "'" + f.Name + "'"));
         }
 
         /// The captured blueprint back in the hands (Game/BuildMode), with

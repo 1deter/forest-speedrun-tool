@@ -62,6 +62,20 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void KeypadDoorRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).KeypadDoor);
+
+            SavestateFile s = Sample();
+            s.KeypadDoor = "EndgameEntrance/keypadDoor_animate/doorTrigger";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.KeypadDoor, back.KeypadDoor);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void BushesMarkRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

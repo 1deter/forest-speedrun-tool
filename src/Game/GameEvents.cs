@@ -191,6 +191,10 @@ namespace ForestOverlay.Game
         /// The door behind the last keypad event, for the Runs tab.
         public static string LastDoor { get; private set; }
 
+        /// The `playerPos` the last keypad door's cutscene was given (a
+        /// door's, not the red elevator's), for KeypadDoorKeeper at capture.
+        public static Transform LastDoorPos { get; private set; }
+
         public static string LabelFor(string evt)
         {
             for (int i = 0; i < Hooks.Length; i++)
@@ -400,6 +404,7 @@ namespace ForestOverlay.Game
                     detail = (viaKeypad ? "door '" : "elevator '") + PathOf(pos) + "', keycard " + keycard +
                              (shortSeq ? ", short sequence" : "");
                     LastDoor = detail;
+                    if (viaKeypad) LastDoorPos = pos;
                 }
 
                 if (Hooks[hook].Immediate || !_flagAvailable)
