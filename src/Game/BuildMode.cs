@@ -19,6 +19,20 @@ namespace ForestOverlay.Game
     // off. Create.CreateBuilding(BuildingTypes) - what picking a page in
     // the book and the console's blueprint command call: instantiates the
     // ghost under the placer, CreateMode on, EquipPreviousUtility.
+    //
+    // The stray rotate icon (runner maks, v0.24.84: a custom wall
+    // blueprint pulled out by a Quick load after a wall was placed showed
+    // the generic place / rotate icons over the wall's own). CreateBuilding
+    // sets Create.LockPlace, so Create.Update skips a frame before
+    // Grabber.ShowPlace (generic place + rotate icons, run once while
+    // ShownPlace is false - placing a building resets it). An architect
+    // hides those icons one frame after its Awake (WallArchitect.
+    // DelayedAwake: yield null, Grabber.ClosePlace). The book's click
+    // comes before Create.Update, so the game's order holds; the restore's
+    // pull-out runs in a coroutine, after every Update, so the architect
+    // closed first and ShowPlace came a frame later and stayed. LockPlace
+    // only swallows the click that picked the page; a restore has none,
+    // so it is cleared and ShowPlace runs before the architect's close.
     // ------------------------------------------------------------------
     public static class BuildMode
     {
@@ -26,6 +40,7 @@ namespace ForestOverlay.Game
         private static FieldInfo _mode;          // Create.CreateMode
         private static FieldInfo _blueprint;     // Create._currentBlueprint
         private static FieldInfo _type;          // BuildingBlueprint._type
+        private static FieldInfo _lockPlace;     // Create.LockPlace
         private static MethodInfo _cancel;       // Create.CancelPlace()
         private static MethodInfo _build;        // Create.CreateBuilding(BuildingTypes)
         private static Type _types;              // BuildingTypes
@@ -76,6 +91,7 @@ namespace ForestOverlay.Game
                 try { value = Enum.Parse(_types, type, false); }
                 catch (Exception) { return "blueprint " + type + " not pulled out: unknown to this game version"; }
                 _build.Invoke(create, new object[] { value });
+                if (_lockPlace != null) _lockPlace.SetValue(create, false);
                 return Current(create) == type ? "blueprint " + type + " pulled out"
                                                : "blueprint " + type + " not pulled out (the game refused it)";
             }
@@ -119,6 +135,7 @@ namespace ForestOverlay.Game
             _mode = create.GetField("CreateMode", inst);
             _blueprint = create.GetField("_currentBlueprint", inst);
             _type = blueprint.GetField("_type", inst);
+            _lockPlace = create.GetField("LockPlace", inst);
             _cancel = create.GetMethod("CancelPlace", inst, null, Type.EmptyTypes, null);
             MethodInfo build = create.GetMethod("CreateBuilding", inst, null, new[] { _types }, null);
 

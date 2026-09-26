@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.84 - 2026-09-26
+
+- A blueprint brought back by a Quick load after you placed a building no
+  longer shows a stray rotate icon over its own place icons.
+
 ## v0.24.83 - 2026-09-26
 
 - Coordinate boxes also drop spaces and commas typed after a complete
