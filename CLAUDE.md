@@ -838,25 +838,23 @@ identity.
 **Released: v0.24.106** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.105 in the game)
+### Pick up here (2026-09-26, v0.24.106 in the game)
 
-**State:** the game runs v0.24.105 (`update_game`), Slot 1 loaded, at
-the cave 4 rope. Savestates `phantom-a`, `keycard-pickup-testing`,
-`physA`, `elevPre`, `elevMid`, `rope104` (on the cave 4 rope, Slot 1)
-kept. `AllowCrossModeRestore` back off. The author's plan (2026-09-26):
-**one thing per session, then hand off**.
+**State:** the game runs v0.24.106 (`update_game`), Slot 1 loaded, on
+the cave 4 rope (`rope104` restored). Savestates `phantom-a`,
+`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
+The author's plan (2026-09-26): **one thing per session, then hand off**.
 
-**Done this session:** v0.24.104-105 - maks's cave 4 rope entrance
-start state (his 15:34 report). He captured **on the rope** (the climb
-is not in the save); a restore after leaving the rope put a free body in
-the rock and threw it up at ~48 m/s. `Game/RopeClimb`: `rope` header,
-the captured rope entered before a Quick load / after a Full load's
-hold, Go / `tp` let go of a climb (game-notes *Rope climb entrances*,
-gotcha 47). Posted to maks with a 3-item list
-(`docs/tests/2026-09-26-maks-rope-v0.24.105.md`, message
-`1553421208794431648`; he must **recapture** - his old file has no
-`rope` line); to-do list updated. His "textures unload through the
-entrances" is believed to be the launch - item 3 checks it.
+**Done this session:** v0.24.106 - the Savestates tab removed (author:
+the free capture list, its hotkeys, the slot's Quick / Full load buttons
+and Check pickups go - start states in Practice are the runner path, the
+bridge keeps `capture` / `restore` / `savestates`); its two toggles and
+the Memory section drawn at the bottom of Debug views
+(`SavestateModule.DrawOptions`); the Deaths tab's *Clear blood overlay*
+button and hotkey removed (No blood covers it). Module indices
+unchanged (`_modules[10]` is still savestates). Posted in #general
+(message `1553424610593079439`), to-do list updated. maks's rope list
+(v0.24.104-105, message `1553421208794431648`) still awaits answers.
 
 **maks's performance report + specs arrived** (15:47, message
 `1553417650607235164`): downloaded to
@@ -864,13 +862,6 @@ entrances" is believed to be the launch - item 3 checks it.
 (log 16-30-23 = the 10-minute session) and the three spec images
 `image-1553417650607235164*.png` beside it. Not read yet - input for
 raw FPS (item 6 below).
-
-**Done 2026-09-26 (v0.24.106):** the Savestates tab removed (author:
-the free capture list, its hotkeys, the slot's Quick / Full load
-buttons and Check pickups go - start states in Practice are the runner
-path, the bridge keeps `capture` / `restore`); its two toggles and the
-Memory section moved to the bottom of Debug views; the Deaths tab's
-*Clear blood overlay* button and hotkey removed (No blood covers it).
 
 **Next session - small QA item:**
 - sxczurass: crouch fix (v0.24.102) is on the to-do list's *Please
@@ -1354,7 +1345,9 @@ capture crouches (v0.24.102, bridge, released build). The QA tab's note
 box wraps a 234-character note over lines, and Write report puts it in
 report.txt without a Mark (v0.24.103, bridge; the per-item boxes use the
 same helper - the bridge cannot write an array element to test one).
-A savestate taken on the cave 4 rope puts the player back on it - Quick
+v0.24.106 (bridge): no Savestates tab; Debug views ends with its toggles and
+the Memory section; Deaths has no Clear blood button; `restore` still
+works. A savestate taken on the cave 4 rope puts the player back on it - Quick
 load from the surface and from inside the cave, Full load - no launch;
 `tp` lets go of a climb (v0.24.104-105, bridge, released builds; maks's
 own file reproduced the ~48 m/s launch first).
