@@ -827,18 +827,42 @@ allocations and loads*; the commits):**
   0.5 / 0.6 / 0.7 s into opening (`Book after a reset: freed ...`).
 
 **Performance / loads - what is left, in order of payoff:**
-1. **A save load's fixed waits** (`LoadSave.Activation`, 1.1 s in single
-   player: 0.5 s after the game-mode prefab, 0.6 s before the scene
-   tracker loop). Shortening them changes init timing - needs the
-   author's go-ahead, a switch (off?) and a check that loads still come
-   up identical (sky, streaming, the player). Every Full load / death
-   reload / menu load pays it.
-2. **The endgame load freezes** (5.2 s in one frame after a Full load of a
-   capture with the endgame; the same `SceneLoadTrigger.StreamSceneRoutine`
-   a run uses: synchronous `LoadScene`). For our own restores (player held
-   anyway) an async load would keep the game responsive - about the same
-   time. For the game's own trigger async lets the runner move during the
-   load: a gameplay change, **the author's call**.
+1. **A save load's fixed waits - GO (author, 2026-09-26: "yeah, try
+   it. could save runners a lot of time assuming there's no impact on
+   the game itself").** `LoadSave.Activation`, 1.1 s in single player:
+   0.5 s (`WaitPointFiveSeconds`) after the game-mode prefab before
+   `OnGameStart`, 0.6 s (`WaitPointSixSeconds`) before the scene-tracker
+   loop (the MP-client 0.5 s is never hit). Plan: a transpiler on the
+   iterator's `MoveNext` swapping those two `ldsfld` for a short wait
+   (a few frames, or until what the wait guards is ready - read what
+   runs in the next steps first), a `[Performance]` switch, one log line.
+   **Prove "no impact"** before shipping it on: the same save loaded with
+   the switch off and on (bridge), then compare the player, the sky /
+   `TheForestAtmosphere.TimeOfDay`, the scenes and areas loaded, the
+   enemies, the inventory and held items, and screenshots a few seconds
+   after control; Full loads of several savestates (surface, cave,
+   endgame) and a death reload too. Measure the gain with the
+   `Load timing: game timer 'Activation'` line. If anything differs, it
+   goes under the labelled experimental section (see 2), not on.
+2. **The endgame load freeze (5.2 s in one frame) - author's decision
+   (2026-09-26):**
+   - **Our restores**: do it if the player will not notice - load it in
+     the background (`LoadSceneAsync`) while the restore holds the player
+     anyway, or split it so no single frame is long. Keep what the
+     game's `StreamSceneRoutine` does around the load (its UnityEvents,
+     the loading HUD, `_loadedSceneRoot` from `SceneManager_sceneLoaded`,
+     `loadEndBossScene`) - e.g. a transpiler that makes that one call
+     async and yields on the operation only when our restore started it
+     (`EndgameLoader` sets a flag). Check the endgame after it exactly as
+     after today's Full load (floor, lab, elevators, `AreaKeeper`).
+   - **The game's own trigger** (a run crossing `EndgameEntrance/
+     LoadEndgame`): allowed as an option, **off by default, in a clearly
+     labelled "Experimental / gameplay-altering" part of the Performance
+     patches** (the runner can move while the endgame streams in). Only
+     if it is a genuine improvement in performance and playability.
+     Author: "i just want to make sure everything is true to the game,
+     and things that are not are clearly labelled that way ... i don't
+     see why the feature should be omitted entirely."
 3. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
    load: ~1 s sweep with a 550-730 ms frame, then the endgame anim prefabs
    load again. Understand why it unloads what is loaded right after before
@@ -896,8 +920,9 @@ has at its cap - read what `StashWeapon` does with a plane axe.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance / loads** - the list above (ask the author
-   about 1 and 2 first), on high effort.
+1. **Next up 6, performance / loads** - the list above: 1 (the fixed
+   waits) first, then 2 (restores, then the labelled game-trigger
+   option), then 3-5. On high effort.
 1b. **maks's physics reports** (Next up 5) - read them.
 1c. **The plane axe message** (above) - small, runner-facing.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
@@ -961,6 +986,13 @@ has at its cap - read what `StashWeapon` does with a plane axe.
   yes, tilt no ("probably more of a gimmick", 2026-09-26). The website
   (forest.deter.cloud) will be built by Claude and reads `.foseg` files
   ("do whatever's easiest", 2026-09-25).
+- **Performance patches (author, 2026-09-26):** behaviour-preserving
+  ones ship on by default; anything that changes the game (timing a
+  runner can feel, what can happen during a load) may still ship, but
+  **off by default under a clearly labelled "Experimental /
+  gameplay-altering" section** of the Performance patches, and only when
+  it genuinely improves performance or playability. "True to the game"
+  is the default; the label is the rule when it is not.
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
