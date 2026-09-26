@@ -833,6 +833,15 @@ now evidence-backed: a long session degrades it, a restart fixes it -
 compare the reports' uptime / restore counts / Perf lines (heap growth
 over the session? the GC pause?).
 
+**New bug, not looked into (sxczurass, QA Discord 2026-09-26, message
+`1553316489514459187`):** resetting (F7 / a restore) **while the survival
+book is open** leaves the camera broken - can look sideways, not up or
+down. `Game/BookClose` closes the book first on a Quick load; suspect the
+look lock the book holds (`FirstPersonCharacter` / `LockView`-style
+flags, gotcha 23) not handed back. Reproduce with the bridge (`call $T
+Create.OpenBook`, then `restart` / `restore`, then read the camera / look
+flags). A runner-facing bug - fix before Next up 7.
+
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
   Megan's pickup (`pickupGirlRoutine`), Timmy's goodbye, the raft out of
@@ -868,6 +877,7 @@ over the session? the GC pause?).
    census next), on high effort.
 1b. **maks's physics reports** (above) - read them; may tie into
    performance (a degraded long session).
+1c. **The book-reset camera bug** (above).
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
 3. **Next up 5, Quick load physics parity** - maks has now sent
@@ -1374,7 +1384,9 @@ unless critical.
 - **maks, QA Discord 2026-09-26:** start a practice savestate from the
   title screen without loading a save first (restores there are refused
   since v0.24.73 - it needs a scene loaded first); keep the run lines of
-  **failed** runs for analysis; shared runs show **the runner's name**
+  **failed** runs for analysis (sxczurass too, 2026-09-26: failed attempts
+  should **count as attempts** - only completed ones do now); shared runs
+  show **the runner's name**
   (`.foseg` attempts carry none yet - matters for the website too).
 
 Shipped (summary): practice QoL (v0.17), endgame splits (v0.18), deaths
