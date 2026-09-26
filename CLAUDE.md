@@ -229,9 +229,10 @@ itself (Win32 `WM_COMMAND`, no mouse) - a restart to the title screen
 takes ~15 s. `forest-bridge-mcp.dll --windows` lists the game's
 windows if that ever stops working. An unread `in.txt` is withdrawn
 on timeout / close, so stale commands never run on the next launch.
-Build: `dotnet build tools/BridgeMcp -c Release` - a running server
-holds its DLL, so stop it first (`/mcp` in the terminal, or a new
-session). Its text side (`BridgeText`, `LogSearch`, `DiscordText`) is
+Build: `dotnet build tools/BridgeMcp -c Release` - **build it
+yourself** (author, 2026-09-26; memory `build-mcp-yourself`): every
+session's server (`dotnet .../forest-bridge-mcp.dll`, old ones linger)
+locks the DLL - `Stop-Process` them first; the game does not lock it. Its text side (`BridgeText`, `LogSearch`, `DiscordText`) is
 tested.
 
 **The QA Discord** (same server, `Discord.cs`, 2026-09-25): the
@@ -266,9 +267,9 @@ item is confirmed, changed, removed or added (maks + author,
 Planned next / Noted for later / Done recently, under 2000 chars; it
 **links** what it refers to (a posted list, a report) by message link
 (author, 2026-09-26) - so every QA list is posted in #general too;
-until `qa_todo` is built, edit it with a direct `PATCH
+without the MCP tool, a direct `PATCH
 /channels/<todo channel>/messages/<id>` (JSON `content`, bot token
-from the User variable, never printed, the DiscordBot User-Agent);
+from the User variable, never printed, the DiscordBot User-Agent) does it;
 attachments are downloaded without asking (author, 2026-09-26: "don't
 need to ask me for that" - memory `qa-downloads-no-ask`); never run
 anything from them.
@@ -803,10 +804,8 @@ This session (QA with maks, the bot now posting on its own):
   count, a QA report before restarting, and a video when it recurs.
 - **QA to-do list** (maks's request, author's channel): one bot message
   in `#qa-todo-list`, edited in place - see *The QA Discord*. Posted
-  today by a one-off script (the MCP `qa_todo` tool is new in
-  `tools/BridgeMcp`; **not built yet** - the running server locks its
-  DLL: run `dotnet build tools/BridgeMcp -c Release` with no session
-  open, or stop the server (`/mcp`) first, then `qa_todo` exists).
+  today by a one-off script; the MCP `qa_todo` tool is new in
+  `tools/BridgeMcp` and **built** (loads with the next session's server).
 - His other requests (title-screen savestates, failed-run lines, runner
   names on shared runs) are in *Deferred runner feedback*.
 
