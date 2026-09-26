@@ -564,9 +564,9 @@ session on high effort - item 3 of the list below. Start with the Game profiler
 GPU-bound. maks's specs / log are summarised below; sxczurass's are
 still awaited.
 
-**State:** the game runs v0.24.110 (`SkipEndgameAnimSweepAtLoad` on,
-confirmed on a title load), Slot 1 loaded (it starts at the vault door). The game runs v0.24.111 (`EndgameAsyncAtVaultDoor`, index 8, **on**,
-confirmed). Savestates `phantom-a`,
+**State:** the game runs v0.24.111 at the title screen (Slot 1 starts
+at the vault door); `SkipEndgameAnimSweepAtLoad` (index 9) and
+`EndgameAsyncAtVaultDoor` (index 8) both **on** by default, confirmed. Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
 Session switching: see *When to switch session* (the performance work
 is an investigation - one session).
