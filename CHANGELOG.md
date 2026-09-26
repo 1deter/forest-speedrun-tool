@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.97 - 2026-09-26
+
+- One short freeze less after every load (about 0.1 s, just as you get
+  control): the tool no longer forces a memory clean-up to write its
+  "Load finished" log line.
+
 ## v0.24.96 - 2026-09-26
 
 - Debug views, Performance patches: a new **Experimental /

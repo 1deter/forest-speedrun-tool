@@ -301,8 +301,11 @@ namespace ForestOverlay.Modules
                 }
                 else
                 {
+                    // No forced collection: on a 280-560 MB heap that was an
+                    // 80-140 ms freeze (bridge) just as the player got control
+                    // (v0.24.97). The census (switch) still collects.
                     Ctx.Log.LogInfo("Load " + _loads.Loads + " finished" + (_loads.LastFromOtherScene ? " (from the title screen)" : "") +
-                                    ": Mono heap after GC " + (GC.GetTotalMemory(true) / (1024 * 1024)) + " MB.");
+                                    ": Mono heap " + (GC.GetTotalMemory(false) / (1024 * 1024)) + " MB (garbage included).");
                 }
             }
 
