@@ -608,17 +608,20 @@ lengthen his frame (9.8-10.1 -> 9.6-9.8 ms) - **he is rendering-bound**
 (render thread or GPU), the wait sits in his first camera (grass camera
 2.5-3.3 ms). For him only fewer camera renders / draw calls help (the
 sun-shadow and cave-grass switches), not script or physics savings.
-Asked him (QA) for 1 min at a lower resolution (fps up = GPU, same =
-render thread) and 1-2 min with the two camera switches on vs off.
+Asked him (QA message `1553517261149442159`, list in
+`docs/tests/2026-09-26-sxczurass-fps-v0.24.128.md`, on the to-do list)
+for 1 min at a lower resolution (fps up = GPU, same = render thread) and
+1-2 min with the two camera switches on vs off.
 Cheesecake's Frame test still awaited.
 
 **Next for raw FPS:** (1) sxczurass's resolution + switches answer: if
 render-thread bound, look for draw-call cuts (fewer cameras first:
 ActionIconCamera, ParticleCam; then the main camera's draw calls); if
-GPU, his settings are already minimal - resolution is his lever. (2) Check `Physics30Hz` across a Full load (`Performance: physics at
-30 Hz again` if the step was reset). (3)
-Their Frame test result. (4) ActionIconCamera by hand-`Render()` only
-with the author's eyes on the picture.
+GPU, his settings are already minimal - resolution is his lever. (2)
+Check `Physics30Hz` across a Full load (`Performance: physics at 30 Hz
+again` if the step was reset). (3) Cheesecake's Frame test. (4)
+ActionIconCamera by hand-`Render()` only with the author's eyes on the
+picture.
 
 **Tom's reports (v0.24.123, another session; reports in
 `Downloads\qa-reports\d.eter\ForestOverlay-report-Tom-*`), all
@@ -635,12 +638,14 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.123 in Cave 6 (Slot 2, loaded from the
+**State:** the game runs v0.24.128 on the surface at (428, 78, -4),
+God mode on (Slot 2, loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
 survival game).
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
-`elevMid`, `rope104` kept.
+`elevMid`, `rope104` kept. The author's config has Performance
+switches 12 (sun shadows) and 13 (cave grass) on, 14 (physics) off.
 
 **maks's performance report** (message `1553417650607235164`, read):
 i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
