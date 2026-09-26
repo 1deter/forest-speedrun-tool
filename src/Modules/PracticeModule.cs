@@ -1879,9 +1879,13 @@ namespace ForestOverlay.Modules
             if (ReferenceEquals(text, f.Text) || text == f.Text) return false;
             if (!editable) return false;   // the text stays as it was
 
+            // Anything but a number's characters never reaches the box;
+            // red is left for an incomplete value (two numbers).
+            text = TriggerParser.FilterCoords(text);
+            if (text == f.Text) return false;
             f.Text = text;
             Vector3 p;
-            if (!TryParseCoords(text, out p)) { f.Bad = true; return false; }
+            if (!TriggerParser.ParseCoords(text, out p)) { f.Bad = true; return false; }
             f.Bad = false;
             f.Value = p;
             typed = p;
@@ -1893,18 +1897,6 @@ namespace ForestOverlay.Modules
         private static string CoordsText(Vector3 v)
         {
             return TriggerParser.Num(v.x) + " " + TriggerParser.Num(v.y) + " " + TriggerParser.Num(v.z);
-        }
-
-        /// Three numbers separated by spaces, commas or semicolons, with
-        /// optional brackets: "1 2 3", "1, 2, 3", "(1, 2, 3)".
-        private static bool TryParseCoords(string text, out Vector3 v)
-        {
-            v = Vector3.zero;
-            string[] p = text.Trim().Trim('(', ')', '[', ']').Split(new[] { ' ', ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            float x, y, z;
-            if (p.Length != 3 || !TriggerParser.F(p[0], out x) || !TriggerParser.F(p[1], out y) || !TriggerParser.F(p[2], out z)) return false;
-            v = new Vector3(x, y, z);
-            return true;
         }
 
         /// `name` must be the same text every call for a given slot/field.

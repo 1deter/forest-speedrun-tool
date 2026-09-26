@@ -528,5 +528,45 @@ namespace ForestOverlay.Data
         {
             return f.ToString("F2", CultureInfo.InvariantCulture);
         }
+
+        /// What a coordinates box keeps of typed or pasted text (author,
+        /// 2026-09-26: reject anything that is not a number): digits,
+        /// '-', '.', spaces and commas. A ';' or a tab becomes a space so
+        /// a pasted "1;2;3" still separates; everything else is dropped.
+        /// Returns `text` itself when nothing changes.
+        public static string FilterCoords(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            bool clean = true;
+            for (int i = 0; i < text.Length && clean; i++) clean = CoordsChar(text[i]);
+            if (clean) return text;
+
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (CoordsChar(c)) sb.Append(c);
+                else if (c == ';' || c == '\t') sb.Append(' ');
+            }
+            return sb.ToString();
+        }
+
+        private static bool CoordsChar(char c)
+        {
+            return (c >= '0' && c <= '9') || c == '-' || c == '.' || c == ' ' || c == ',';
+        }
+
+        /// Three numbers separated by spaces, commas or semicolons, with
+        /// optional brackets: "1 2 3", "1, 2, 3", "(1, 2, 3)".
+        public static bool ParseCoords(string text, out Vector3 v)
+        {
+            v = Vector3.zero;
+            if (text == null) return false;
+            string[] p = text.Trim().Trim('(', ')', '[', ']').Split(new[] { ' ', ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            float x, y, z;
+            if (p.Length != 3 || !F(p[0], out x) || !F(p[1], out y) || !F(p[2], out z)) return false;
+            v = new Vector3(x, y, z);
+            return true;
+        }
     }
 }
