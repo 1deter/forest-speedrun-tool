@@ -264,7 +264,9 @@ item is confirmed, changed, removed or added (maks + author,
 2026-09-26; memory `qa-todo-list`); its message id is kept in
 `%LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt` (first posted
 `1553229664015614033`); sections: Please test / Being looked into /
-Planned next / Noted for later / Done recently, under 2000 chars; it
+Planned next / Noted for later / Done recently, under 2000 chars (when it
+no longer fits, send it as **two messages** - author, 2026-09-26; `qa_todo`
+holds one message id today, so that needs a tool change); it
 **links** what it refers to (a posted list, a report) by message link
 (author, 2026-09-26) - so every QA list is posted in #general too;
 without the MCP tool, a direct `PATCH
