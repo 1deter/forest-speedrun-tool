@@ -552,7 +552,7 @@ identity.
 **Released: v0.24.113** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.113 released)
+### Pick up here (2026-09-26, v0.24.113 in the game)
 
 **Next session (author, 2026-09-26):** **raw FPS**, a fresh
 session on high effort - item 3 of the list below. Start with the Game profiler
@@ -570,7 +570,7 @@ background); behind the box and on the surface it is cleared as before
 (lab -> surface checked). v0.24.113: log wording only (the background
 load's line no longer says Experimental).
 
-**State:** the game runs v0.24.112 in Slot 1 on the surface (Slot 1 starts
+**State:** the game runs v0.24.113 at the title screen (Slot 1 starts
 at the vault door); `SkipEndgameAnimSweepAtLoad` (index 9) and
 `EndgameAsyncAtVaultDoor` (index 8) both **on** by default, confirmed. Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
