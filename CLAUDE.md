@@ -952,6 +952,16 @@ v0.24.98 logs `Inventory full: ... - from <call stack>` - ask for that
 line when it is seen again.
 
 **Open, not blocking:**
+- **Other ride / climb modes in savestates** (author asked to note it,
+  2026-09-26): only cave ropes are put back (`Game/RopeClimb`,
+  v0.24.104-105). A capture on a **zipline, sled, wall / cliff climb or
+  hang glider** is probably thrown or dropped the same way (the body is
+  held by the mode, the save has no mode). Next step when picked up:
+  find each mode's state flag and its enter / exit calls (`ilscan type
+  activateZipLine` / `activateSledPush` / `activateHangGlider`,
+  `playerAnimatorControl.cliffClimb`, `resetClimbWall` /
+  `resetClimbCliff`), capture on one via the bridge and restore it after
+  leaving, as for the rope (game-notes *Rope climb entrances*).
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
   Megan's pickup (`pickupGirlRoutine`), Timmy's goodbye, the raft out of
   the world, a rope-down into a cave (`playerEnterCaveAction.doCave`),
