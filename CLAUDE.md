@@ -552,7 +552,7 @@ identity.
 **Released: v0.24.111** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.111 released; the game runs v0.24.110)
+### Pick up here (2026-09-26, v0.24.111 in the game)
 
 **Next sessions, in order (author, 2026-09-26):** 1. the teleport fix
 (`AreaKeeper.ForTeleport` clearing `IsInEndgame` at the vault door - the
@@ -565,8 +565,8 @@ GPU-bound. maks's specs / log are summarised below; sxczurass's are
 still awaited.
 
 **State:** the game runs v0.24.110 (`SkipEndgameAnimSweepAtLoad` on,
-confirmed on a title load), Slot 1 loaded (it starts at the vault door). `EndgameAsyncAtVaultDoor` (index 8) ships **on** from v0.24.111 -
-`update_game` to install it. Savestates `phantom-a`,
+confirmed on a title load), Slot 1 loaded (it starts at the vault door). The game runs v0.24.111 (`EndgameAsyncAtVaultDoor`, index 8, **on**,
+confirmed). Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
 Session switching: see *When to switch session* (the performance work
 is an investigation - one session).
@@ -581,8 +581,8 @@ is an investigation - one session).
   frozen frame counts as game time (v0.24.108 corrected the label).
   v0.24.111: on by default, out of Experimental (author: on "if it
   doesn't affect run time, or anything that would usually invalidate a
-  speedrun"; key renamed from `EndgameAsyncInRuns`). v0.24.111 is not
-  posted to QA yet - post it with the next release.
+  speedrun"; key renamed from `EndgameAsyncInRuns`). Posted to QA
+  (message `1553438916562919425`), to-do list current.
 - The heap step (item 2 of the old list) **is not a leak**: every Full
   load holds the old world (~120 MB) for 30-70 s, then releases it; 20
   Quick loads = +4 MB; collections follow garbage volume (~1 per 100 MB)
