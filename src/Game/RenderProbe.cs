@@ -398,6 +398,45 @@ namespace ForestOverlay.Game
             return on + " renderers enabled, " + lightsOn + " lights (log)";
         }
 
+        /// Shaders of the enabled, active renderers within `radius` m of
+        /// the main camera, by name with counts, and one renderer path per
+        /// shader whose name contains `mark` (e.g. "AFS").
+        public static string ShadersNear(float radius, string mark)
+        {
+            Camera main = Camera.main;
+            if (main == null) return "no main camera";
+            Vector3 at = main.transform.position;
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            Dictionary<string, int> shaders = new Dictionary<string, int>();
+            Dictionary<string, string> marked = new Dictionary<string, string>();
+            float r2 = radius * radius;
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                if (r.bounds.SqrDistance(at) > r2) continue;
+                Material[] ms = r.sharedMaterials;
+                for (int m = 0; m < ms.Length; m++)
+                {
+                    if (ms[m] == null || ms[m].shader == null) continue;
+                    string name = ms[m].shader.name;
+                    int n;
+                    shaders.TryGetValue(name, out n);
+                    shaders[name] = n + 1;
+                    if (!string.IsNullOrEmpty(mark) && name.IndexOf(mark, StringComparison.OrdinalIgnoreCase) >= 0 && !marked.ContainsKey(name))
+                        marked[name] = Path(r.transform);
+                }
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Render probe: shaders within ").Append(radius).Append(" m of the camera at ").Append(at.ToString("0"))
+              .Append(": ").Append(shaders.Count);
+            foreach (KeyValuePair<string, int> kv in shaders) sb.Append(" | ").Append(kv.Key).Append(" x").Append(kv.Value);
+            foreach (KeyValuePair<string, string> kv in marked) sb.Append(" || '").Append(kv.Key).Append("' on ").Append(kv.Value);
+            if (Log != null) Log.LogInfo(sb.ToString());
+            return shaders.Count + " shaders, " + marked.Count + " matching '" + mark + "' (log)";
+        }
+
         private static string Path(Transform t)
         {
             string p = t.name;
