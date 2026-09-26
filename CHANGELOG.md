@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.120 - 2026-09-26
+
+- **Fix: v0.24.119's action-icon change is withdrawn.** It could leave
+  the picture frozen (sound playing, image only moving when you tab out).
+  If you are on v0.24.119, update now; nothing else changes.
+
 ## v0.24.119 - 2026-09-26
 
 - **A little more frame rate:** the HUD's camera for action icons (take,
