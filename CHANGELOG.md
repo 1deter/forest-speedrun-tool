@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.118 - 2026-09-26
+
+- Developer tools only (one more rendering test). Nothing in the game
+  changes.
+
 ## v0.24.117 - 2026-09-26
 
 - Developer tools only (measuring what the game draws). Nothing in the

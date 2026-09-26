@@ -61,6 +61,7 @@ namespace ForestOverlay.Game
         // --- does a camera enabled mid-frame render in that frame? --------
         private static Camera _lateTarget, _lateTrigger;
         private static int _lateFrames, _lateLeft;
+        private static bool _lateDisable;
         private static Camera.CameraCallback _latePre;
 
         /// For `frames` frames: `target` is disabled, enabled in the
@@ -69,6 +70,20 @@ namespace ForestOverlay.Game
         /// x/f for `target` then says whether Unity rendered it the same
         /// frame (x1/f) or not at all (absent).
         public static string TestLateEnable(string target, string trigger, int frames)
+        {
+            return StartLateTest(target, trigger, frames, false);
+        }
+
+        /// The reverse: `target` stays enabled, is disabled in the
+        /// trigger's onPreCull and enabled again at the end of the frame.
+        /// Absent from the Frame line = Unity re-checks a listed camera
+        /// before rendering it (a mid-frame skip works).
+        public static string TestLateDisable(string target, string trigger, int frames)
+        {
+            return StartLateTest(target, trigger, frames, true);
+        }
+
+        private static string StartLateTest(string target, string trigger, int frames, bool disable)
         {
             if (_lateTarget != null) return "a test is running";
             Camera t = null, g = null;
@@ -83,7 +98,8 @@ namespace ForestOverlay.Game
             _lateTrigger = g;
             _lateFrames = 0;
             _lateLeft = frames;
-            t.enabled = false;
+            _lateDisable = disable;
+            t.enabled = disable;
             _latePre = LatePreCull;
             Camera.onPreCull += _latePre;
             FrameTimer.EndOfFrameHook = LateEndOfFrame;
@@ -92,7 +108,7 @@ namespace ForestOverlay.Game
 
         private static void LatePreCull(Camera cam)
         {
-            if (cam == _lateTrigger && _lateTarget != null) _lateTarget.enabled = true;
+            if (cam == _lateTrigger && _lateTarget != null) _lateTarget.enabled = !_lateDisable;
         }
 
         private static void LateEndOfFrame()
@@ -101,7 +117,7 @@ namespace ForestOverlay.Game
             _lateFrames++;
             if (--_lateLeft > 0)
             {
-                _lateTarget.enabled = false;
+                _lateTarget.enabled = _lateDisable;
                 return;
             }
             _lateTarget.enabled = true;
