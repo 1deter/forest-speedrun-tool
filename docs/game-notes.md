@@ -1565,6 +1565,79 @@ Every other `OnDestroy` in the game with a singleton guard (18 of them:
 `Prefabs`, `GrassModeManager`, ...) only does
 `if (Instance == this) Instance = null` - nothing skipped that matters.
 
+## Performance: garbage, allocations and loads (bridge + IL + mono.dll, 2026-09-26)
+
+**The GC.** Mono's Boehm collector, non-generational, stop-the-world.
+The pause follows the live heap: ~0.3 ms per MB (36 MB at the title,
+7 ms; ~265-280 MB in game, 80-90 ms). It runs when enough has been
+allocated since the last one, so **less garbage = fewer pauses**; the
+pause length only drops with a smaller live heap. `mono.dll` exports no
+`GC_*` tuning (no free-space divisor, no incremental mode).
+
+**What the live heap is** (scene census, v0.24.89): ~820k objects reached
+from `PathPool.pool` - really the A* navmesh (205k `TriangleMeshNode`,
+each with a `PathNode`, a `GraphNode[]` and a `uint[]` of costs). The
+game needs it; not a leak, nothing to free. Then PlayMaker FSMs, LOD
+components' `Dictionary<..., LOD_Stats>`s, `MecanimEventManager`.
+
+**Allocation profiling** (`Game/AllocationTracker`): `mono.dll` exports
+the profiler API (`mono_profiler_install` prepends to a list - safe to
+add one). Two traps, read from the machine code: (1) the allocators report
+only while the static `profile_allocs` (RVA 0x262300 in this build) is
+set, and `mono_class_get_allocation_ftn` clears it for good the first
+time the JIT compiles an allocation with the event off - long before any
+plugin loads; the tracker finds it from the `cmp [rip+X], 0` in
+`mono_object_new_alloc_specific` / `mono_array_new_specific` and sets it.
+(2) a plain `new T()` JIT-compiled before the event was on takes the fast
+path and never reports - install at startup for full coverage.
+Under the Game profiler's Harmony hooks, `foreach` enumerators of hooked
+methods show up boxed (`List.Enumerator<...>`, `Dictionary.Enumerator<...>`)
+- an artifact of the hooks, absent without them.
+
+**Idle allocation** (Slot 1 surface, ~200 fps): ~420 KB/s, ~11k objects/s,
+all on the main thread. Unity's IMGUI layout pass for every enabled
+`OnGUI` behaviour with `useGUILayout` on (a `GUILayoutGroup` + list +
+`RectOffset` each frame, even for an empty `OnGUI` - `VRSwitcher`'s is
+just `ret`); `Ceto.ProjectedGrid.m_grids` (`Dictionary<MESH_RESOLUTION,
+Grid>`, default comparer boxes the enum, ~21/frame); two `Vector3[4]` per
+camera per frame in `TheForestAtmosphere.UpdateShaderParameters`. All
+patched (`Game/PerfPatches`, v0.24.92-94): ~216 KB/s left. Not patched
+(behaviour): `MaterialTween.Output.SendMessage` boxes a float for
+`Component.SendMessage` each frame; Unity's own `Collision` /
+`ContactPoint[]` per physics callback; strings (~1100/s, source not yet
+found). During play it is ~2 MB/s (maks: a GC every ~5 s).
+
+**Asset clean-ups.** `TheForest.Utils.ResourcesHelper.UnloadUnusedAssets`
+(`Debug.Log` + `Resources.UnloadUnusedAssets`) walks every loaded object;
+it does **not** run a managed GC here (`GC.CollectionCount` unchanged), so
+the `GCCollect` many callers do after it is a real second pause. Callers:
+`SceneUnloadInCave.DelayedCleanUp` and `GreebleZonesManager.DelayedCleanUp`
+(both 0.1 s after entering a cave - two sweeps at once before v0.24.94),
+`CaveOptimizer.CleanUp`, `SceneLoadTrigger.UnloadScene` (+ `GCCollect`),
+`TriggerCutScene.CleanUp` / `ShowEnemies`, `animClipMemoryManager.Start ->
+UnloadEndGameAnimation` (every load: 3 animation unloads + a sweep, ~1 s,
+a 550-730 ms frame), `LoadAsync` / `PlayerStats.OnSaveSlotSelectedRoutine`.
+
+**Entering a cave** loads all 16 cave prop scenes (`CaveProps_Streaming`,
+`Cave_01`-`10`, `HC`, `Snow`, `Junk`, `IE`, `IW` - the caves connect) and
+unloads `MainSceneGreebles` + `MainSceneWorldStorySpots`; leaving does the
+reverse, with no sweep.
+
+**The endgame** (`EndgameEntrance/LoadEndgame`, the only `SceneLoadTrigger`):
+`StreamSceneRoutine` calls the **synchronous** `SceneManager.LoadScene
+(name, Additive)`, yields one frame and carries on, then
+`loadEndBossScene`. A load of it after a Full load froze 5.2 s in one
+frame. Going async would let the player move during it (a gameplay change
+in runs).
+
+**A save load** (`Load timing:` lines): `LoadAsync` 'Resume' ~2 s (one
+~1.8 s frame), the scene ~1 s frame, `LoadSave.Activation` ~2.4-2.8 s of
+which 1.1 s in single player is fixed waits (`WaitPointFiveSeconds` after
+the game-mode prefab, before `OnGameStart`; `WaitPointSixSeconds` before
+the scene tracker loop; another 0.5 s for MP clients only). The game's
+`PerfTimerLogger` times these stages but logs to Unity's log, which this
+build never keeps (`Debug.Log` output does not reach BepInEx at all).
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a

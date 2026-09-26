@@ -735,6 +735,16 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     number surprises you, first ask what the instrument adds, and
     measure baselines on a fresh launch with the instrument off.
 
+43. **A switch can be latched off before you arrive.** v0.24.90's
+    allocation tracker installed Mono's profiler correctly and counted
+    nothing: `mono_class_get_allocation_ftn` had cleared the allocators'
+    `profile_allocs` flag for good the first time the JIT compiled an
+    allocation, long before BepInEx loaded (read from the machine code;
+    v0.24.91 sets it back). When a hook into the runtime is installed
+    and silent, look for a once-only guard that ran at startup - and
+    ship the "did it see anything" check with the first version (a
+    count of 0 is an answer, not a quiet week).
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -783,64 +793,77 @@ identity.
 
 ## Current status
 
-**Released: v0.24.89** (2026-09-26). The author runs it via the in-game
-updater. **373 tests.**
+**Released: v0.24.94** (2026-09-26). The author runs it via the in-game
+updater. **374 tests.**
 
-### Pick up here (2026-09-26, handoff mid performance work, v0.24.89 in the game)
+### Pick up here (2026-09-26, performance session, v0.24.94 in the game)
 
-**State:** v0.24.89 just installed (MCP `update_game`), game at the title
-screen. Savestates `phantom-a` (deletable), `keycard-pickup-testing`,
-`physA`, `elevPre`, `elevMid` kept for Next up 5. Session cut by the usage
-limit.
+**State:** v0.24.94 installed (MCP `update_game`), game in Slot 1 on the
+surface (428, 78, -4). `Diagnostics.AllocationTrackerAtStartup` set back
+to false in the author's config. Savestates `phantom-a` (deletable),
+`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid` kept for Next up 5.
+The author dedicated this session to performance and load times (author,
+2026-09-26: "dedicate this session mainly to finding and patching in
+performance optimisations"; loads: "going into caves, triggering endgame
+scenes etc take notably the most time").
 
-**Performance (Next up 6) - findings so far, all bridge-measured (Slot 1,
-surface (428, 78, -4), standing still, author's PC):**
-- ~190 fps, normal frames <= 17 ms; **one GC about a minute, frame 87-100
-  ms** - the stutter is the Boehm pause (the Perf line now prints `GC
-  frames N ms avg, M max`, v0.24.86-87).
-- Live managed heap: **36 MB at the title (forced GC 7 ms), 281 MB in game
-  (80-91 ms)** - ~0.3 ms per MB. Time a pause: bridge `call
-  static:System.GC GetTotalMemory true` (the reply's ms = the pause).
-- The game's `mono.dll` reads no GC tuning env var (only `GC_DONT_GC`), so
-  the levers are **a smaller live heap** (shorter pause) and **less
-  allocation** (fewer GCs).
-- **Game profiler** (Debug views, v0.24.86-87; `ToggleProfiler` on
-  `_modules[8]`; `Diagnostics.GameProfilerExtra`, `*::MoveNext` etc.): game
-  scripts cost only ~1.5 ms/frame - no script hot spot at idle. Heap
-  attribution per method is too noisy (Boehm used-size moves in 4 KB
-  blocks). Small steady allocators: `TheForestAtmosphere.UpdateShaderParameters`
-  (two `Vector3[4]` a camera a frame), `PostProcessingBehaviour.OnPreCull`,
-  `CullingGrid.Update` (List.Sort / RemoveAll), `AssetBundleManager.Update`.
-  Hooking 1588 methods raised the pause to ~165 ms (Harmony's objects) -
-  restart the game after a big profiler run before measuring.
-- Static census (v0.24.88 fixed its "Collection was modified" crash):
-  statics reach ~45 MB; biggest `TriangleMeshNode._navmeshHolders` (A*
-  navmesh) and `PathPool.pool`, both capped; 514926 Unity objects, 147
-  threads.
-- **Next step:** `call BepInEx_Manager OverlayPlugin._host._modules[10]._census.RunScene "x"`
-  (v0.24.89, not yet run - load Slot 1, `tp 428 78 -4`, wait ~25 s first):
-  which scripts / object types hold the ~245 MB. Then patch what can be
-  freed or pooled without changing behaviour (candidates: A* `PathPool`,
-  caches), each with its own switch and one log line, and compare the
-  forced-GC ms and the Perf `GC frames` before / after.
+**Done this session (details: game-notes *Performance: garbage,
+allocations and loads*; the commits):**
+- v0.24.90-91 `Game/AllocationTracker`: exact allocation by type (and per
+  method inside the Game profiler, per overlay module in the tracker's
+  line). Mono profiler API; gotcha 43.
+- v0.24.92/94 `Game/PerfPatches` (`[Performance]`, on, Debug views
+  switches, `TogglePerfPatch i` 0-5): overlay layout only with a window,
+  post-processing / VR switcher layout off, Ceto ocean comparer, atmosphere
+  arrays, overlapping asset clean-ups merged. Idle garbage **~420 -> 216
+  KB/s** (A/B in one session: 558 off / 216 on); screenshots on vs off
+  differ less than two frames with nothing changed.
+- v0.24.93 `Game/LoadTiming`: `Load timing:` lines (asset clean-ups with
+  caller / duration / longest frame, forced GCs, the game's own stage
+  timers, scenes, frames over 200 ms). Cave entry with the merge: one
+  sweep (657 ms, longest frame 161 ms) instead of two overlapping (frames
+  of 361 + 368 ms).
+- v0.24.91 book-reset camera (sxczurass) fixed and bridge-verified at
+  0.5 / 0.6 / 0.7 s into opening (`Book after a reset: freed ...`).
 
-**QA (maks, 2026-09-26):** v0.24.85 vault door Quick load "works perfectly"
-(confirmed). He sent **physics evidence** for Next up 5: "boosts didnt
-work, restarted, worked flawlessly again" - QA reports in #general,
-messages `1553234294065995917`, `1553234609259552818`,
-`1553236165388148816` (zips, not yet downloaded or read). Next up 5 is
-now evidence-backed: a long session degrades it, a restart fixes it -
-compare the reports' uptime / restore counts / Perf lines (heap growth
-over the session? the GC pause?).
+**Performance / loads - what is left, in order of payoff:**
+1. **A save load's fixed waits** (`LoadSave.Activation`, 1.1 s in single
+   player: 0.5 s after the game-mode prefab, 0.6 s before the scene
+   tracker loop). Shortening them changes init timing - needs the
+   author's go-ahead, a switch (off?) and a check that loads still come
+   up identical (sky, streaming, the player). Every Full load / death
+   reload / menu load pays it.
+2. **The endgame load freezes** (5.2 s in one frame after a Full load of a
+   capture with the endgame; the same `SceneLoadTrigger.StreamSceneRoutine`
+   a run uses: synchronous `LoadScene`). For our own restores (player held
+   anyway) an async load would keep the game responsive - about the same
+   time. For the game's own trigger async lets the runner move during the
+   load: a gameplay change, **the author's call**.
+3. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
+   load: ~1 s sweep with a 550-730 ms frame, then the endgame anim prefabs
+   load again. Understand why it unloads what is loaded right after before
+   touching it.
+4. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings
+   (~1100/s, source unknown - run the tracker with the profiler and read
+   the overlay-by-module line), `MaterialTween` `SendMessage` boxing,
+   Unity's collision objects. Measure **during play** next (movement,
+   combat, building) - the tracker needs `AllocationTrackerAtStartup`
+   true + a restart for full coverage; set it back after.
+5. The live heap (the pause length): the A* navmesh is most of it and is
+   needed; nothing cheap found.
 
-**New bug, not looked into (sxczurass, QA Discord 2026-09-26, message
-`1553316489514459187`):** resetting (F7 / a restore) **while the survival
-book is open** leaves the camera broken - can look sideways, not up or
-down. `Game/BookClose` closes the book first on a Quick load; suspect the
-look lock the book holds (`FirstPersonCharacter` / `LockView`-style
-flags, gotcha 23) not handed back. Reproduce with the bridge (`call $T
-Create.OpenBook`, then `restart` / `restore`, then read the camera / look
-flags). A runner-facing bug - fix before Next up 7.
+**QA:** maks's report of 2026-09-26 11:37 (downloaded,
+`Downloads\qa-reports\yirequ\...11-37`): in play 5-8 GCs per 30 s of
+100-500 ms frames; restores allocate most of the overlay's share. His
+physics reports (Next up 5) are still unread. Noted from #general (to-do
+list updated): confirm before a capture overwrites a start state (maks);
+a full replay system (sxczurass + author, "lets go all the way").
+
+**New, deferred (author: "defer ... unless it's a quick fix"):** after a
+Full load the game said **"can't carry any more plane axes"** (author,
+2026-09-26). Likely `SavestateBridge.RefreshHeld` (put away + `Equip`
+again for the animator, v0.24.43) adding an axe the inventory already
+has at its cap - read what `StashWeapon` does with a plane axe.
 
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
@@ -873,17 +896,14 @@ flags). A runner-facing bug - fix before Next up 7.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance** - continue from the findings above (scene
-   census next), on high effort.
-1b. **maks's physics reports** (above) - read them; may tie into
-   performance (a degraded long session).
-1c. **The book-reset camera bug** (above).
+1. **Next up 6, performance / loads** - the list above (ask the author
+   about 1 and 2 first), on high effort.
+1b. **maks's physics reports** (Next up 5) - read them.
+1c. **The plane axe message** (above) - small, runner-facing.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-3. **Next up 5, Quick load physics parity** - maks has now sent
-   evidence (1b above: fails in a long session, fine after a restart);
-   read the reports first, then decide with the author whether it
-   leaves "deferred".
+3. **Next up 5, Quick load physics parity** - after the reports, decide
+   with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
@@ -1215,6 +1235,9 @@ A custom wall blueprint brought back by a Quick load after a wall was
 placed shows only its own icons (v0.24.84, bridge, maks's start state).
 A Quick load in the red elevator car with the endgame unloaded loads it
 first and keeps the player in the car (v0.24.85, bridge).
+A reset 0.5-0.7 s into opening the book leaves the pitch free (v0.24.91,
+bridge); the performance patches cut idle garbage to 216 KB/s with no
+visible change, a cave entry runs one asset sweep (v0.24.92-94, bridge).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1314,23 +1337,19 @@ list so we can move onto expanding more features".
      savestates `physA`, `elevPre` (in the car, before the trigger),
      `elevMid` (2.6 s into the ride) are left for this.
 6. **Performance: can patches make the game itself faster?** (author,
-   2026-09-23). Measure first, change second:
-   - **Measured so far** (v0.24.86-89): see *Pick up here* - the hitch
-     is the ~90 ms Boehm pause over a ~281 MB live heap; scripts are
-     cheap. GC count, GC frame length and the forced-GC ms are the
-     numbers to move.
-   - **Hot spots offline**: `ilscan` over `Update` / `LateUpdate` /
-     `FixedUpdate` / `OnGUI` for per-frame `FindObjectsOfType`,
-     `GameObject.Find`, `GetComponent(s)`, `SendMessage`, string building,
-     `UniLinq`, `new List` / closures. Seen: `MecanimEventManager.
-     globalLastStates` and `TreeWindSfxManager` lists growing,
-     `WorkScheduler.ProcessArea`, `AdvancedTerrainGrass.GrassManager`,
-     enemy AI updates.
-   - **In game**: done - the Game profiler (Debug views, v0.24.86-87)
-     and the scene census (v0.24.89).
+   2026-09-23; loads added 2026-09-26). Measure first, change second:
+   - **Done** (v0.24.86-94): the Game profiler, scene census, allocation
+     tracker, load timing lines; six behaviour-preserving patches
+     (`Game/PerfPatches`) - idle garbage roughly halved, a cave entry's
+     double asset sweep merged. What is left: *Pick up here*.
+   - **Tools**: `_modules[8].ToggleAllocations` (the tracker; 30 s lines
+     `Allocations (30 s): ... by type ... overlay ... by module`),
+     `ToggleProfiler` (with the tracker counting, its alloc column is
+     exact), `TogglePerfPatch i` (A/B live), `_perf.ListLayoutUsers`;
+     `Load timing:` lines always on; `_modules[10]._census.RunScene "x"`.
    - **Rules**: behaviour-preserving patches only (cache a lookup, skip a
      no-op, pool an allocation), each with its own switch and one log line;
-     before / after `Perf` lines from the author. Anything changing timing
+     measure before / after in one session. Anything changing timing
      or outcomes is a gameplay change - label it honestly.
 7. **The author's list of 2026-09-23:**
    - **100%: passengers** - list which were found, like the nature guide
