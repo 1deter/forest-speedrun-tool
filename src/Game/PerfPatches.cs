@@ -49,6 +49,18 @@ namespace ForestOverlay.Game
     //    gets that sweep's operation (callers only wait on it). A scene
     //    unloaded after the running sweep began earns one sweep after it,
     //    so nothing is left unswept - only the overlap goes.
+    // 7. Save load hand-over (OFF by default until the A/B shows no
+    //    difference - author, 2026-09-26): LoadSave.Activation sets
+    //    sceneTracker.waitForLoadSequence, yields WaitPointSixSeconds, then
+    //    waits while sceneTracker.doingGlobalNavUpdate. The 0.6 s gives the
+    //    building nav cut (gridObjectBlockerManager.NavCutRountine, waiting
+    //    on that flag) its turn: it calls doNavCut on every registered
+    //    blocker, whose StartCoroutine(doGlobalStructureBoundsNavRemove)
+    //    sets doingGlobalNavUpdate at once. Everything else that waits on
+    //    the flag (spawns, animals, birds, Astar regions) only starts on
+    //    it. So the wait becomes: at least 3 frames and until the manager
+    //    is no longer _running, never longer than the 0.6 s. Single player
+    //    only (Bolt not running).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -95,6 +107,10 @@ namespace ForestOverlay.Game
             Add(config, "VRSwitcherNoLayout", "VR switcher: no GUI layout pass",
                 "Skip Unity's GUI layout pass for the game's VR switcher, which draws nothing outside VR (saves ~50 KB/s of garbage).",
                 ApplyVrSwitcher, RemoveVrSwitcher);
+            Add(config, "SaveLoadNoFixedWait", "Loads: no fixed 0.6 s wait at the end of a save load (testing)",
+                "End a save load as soon as the game's building nav update has started, instead of after a fixed 0.6 s " +
+                "(control ~0.5 s sooner). Off by default until tested; off = the game's own code.",
+                ApplyHandOver, RemoveHandOver, false);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -102,10 +118,15 @@ namespace ForestOverlay.Game
 
         private void Add(ConfigFile config, string key, string label, string description, Func<string> apply, Action remove)
         {
+            Add(config, key, label, description + " Behaviour-preserving; off = the game's own code.", apply, remove, true);
+        }
+
+        private void Add(ConfigFile config, string key, string label, string description, Func<string> apply, Action remove, bool defaultOn)
+        {
             Fix f = new Fix();
             f.Key = key;
             f.Label = " " + label;   // the toggle's text, built once
-            f.Cfg = config.Bind("Performance", key, true, description + " Behaviour-preserving; off = the game's own code.");
+            f.Cfg = config.Bind("Performance", key, defaultOn, description);
             f.Apply = apply;
             f.Remove = remove;
             _fixes.Add(f);
@@ -342,6 +363,102 @@ namespace ForestOverlay.Game
                     (m.DeclaringType == typeof(GUI) && (m.Name == "Window" || m.Name == "ModalWindow"))) return true;
             }
             return false;
+        }
+
+        // ------------------------------------------------------------------
+        // 7. Save load hand-over
+        private const int SixSecondsState = 12;   // the iterator's $PC after `yield return WaitPointSixSeconds`
+        private const float HandOverCap = 0.6f;
+        private MethodInfo _actMoveNext;
+        private static FieldInfo _actPcField, _actCurrent, _mgrInstance, _mgrRunning;
+        private static PropertyInfo _boltRunning;
+        private static object _sixSeconds;
+        private static object _holding;           // the iterator being held, null = none
+        private static float _holdStart;
+        private static int _holdFrames;
+
+        private string ApplyHandOver()
+        {
+            const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            const BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            Type act = LoadTiming.ActivationIterator();
+            if (act == null) return "LoadSave.Activation not found";
+            _actPcField = act.GetField("$PC", inst);
+            _actCurrent = act.GetField("$current", inst);
+            _actMoveNext = act.GetMethod("MoveNext", inst, null, Type.EmptyTypes, null);
+            if (_actPcField == null || _actCurrent == null || _actMoveNext == null) return "Activation iterator fields not found";
+            Type presets = GameType("YieldPresets");
+            FieldInfo six = presets != null ? presets.GetField("WaitPointSixSeconds", stat) : null;
+            _sixSeconds = six != null ? six.GetValue(null) : null;
+            if (_sixSeconds == null) return "YieldPresets.WaitPointSixSeconds not found";
+            Type mgr = GameType("gridObjectBlockerManager");
+            _mgrInstance = mgr != null ? mgr.GetField("instance", stat) : null;
+            _mgrRunning = mgr != null ? mgr.GetField("_running", inst) : null;
+            if (_mgrInstance == null || _mgrRunning == null) return "gridObjectBlockerManager fields not found";
+            Type bolt = null;
+            Assembly[] all = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < all.Length && bolt == null; i++)
+            {
+                try { bolt = all[i].GetType("BoltNetwork", false); }
+                catch (Exception) { }
+            }
+            _boltRunning = bolt != null ? bolt.GetProperty("isRunning", stat) : null;
+            if (_boltRunning == null) return "BoltNetwork.isRunning not found";
+            _self = this;
+            _holding = null;
+            _harmony.Patch(_actMoveNext,
+                new HarmonyMethod(typeof(PerfPatches).GetMethod("HandOverPrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                new HarmonyMethod(typeof(PerfPatches).GetMethod("HandOverPostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+            return "";
+        }
+
+        private void RemoveHandOver()
+        {
+            if (_actMoveNext != null) _harmony.Unpatch(_actMoveNext, HarmonyPatchType.All, _harmony.Id);
+            _holding = null;
+        }
+
+        // The iterator just yielded the 0.6 s wait: yield one frame instead
+        // and hold it in that state (the prefix) until the nav cut has run.
+        private static void HandOverPostfix(object __instance, bool __result)
+        {
+            try
+            {
+                if (!__result || !ReferenceEquals(_actCurrent.GetValue(__instance), _sixSeconds)) return;
+                if ((int)_actPcField.GetValue(__instance) != SixSecondsState) return;
+                if ((bool)_boltRunning.GetValue(null, null)) return;
+                _actCurrent.SetValue(__instance, null);
+                _holding = __instance;
+                _holdStart = Time.realtimeSinceStartup;
+                _holdFrames = 0;
+            }
+            catch (Exception) { _holding = null; }
+        }
+
+        private static bool HandOverPrefix(object __instance, ref bool __result)
+        {
+            if (_holding == null || !ReferenceEquals(__instance, _holding)) return true;
+            try
+            {
+                if ((int)_actPcField.GetValue(__instance) != SixSecondsState) { _holding = null; return true; }
+                _holdFrames++;
+                float held = Time.realtimeSinceStartup - _holdStart;
+                bool navCutPending = false;
+                object mgr = _mgrInstance.GetValue(null);
+                if (mgr != null && !(mgr is UnityEngine.Object && (UnityEngine.Object)mgr == null))
+                    navCutPending = (bool)_mgrRunning.GetValue(mgr);
+                if ((_holdFrames < 3 || navCutPending) && held < HandOverCap)
+                {
+                    __result = true;          // still waiting; $current is null = next frame
+                    return false;
+                }
+                _holding = null;
+                if (_self != null)
+                    _self._log.LogInfo("Performance: save load handed over after " + (held * 1000f).ToString("0") + " ms, " + _holdFrames +
+                                       " frame(s) instead of the fixed 600 ms" + (navCutPending ? " (nav cut still pending: cap reached)" : "") + ".");
+                return true;
+            }
+            catch (Exception) { _holding = null; return true; }
         }
 
         // ------------------------------------------------------------------

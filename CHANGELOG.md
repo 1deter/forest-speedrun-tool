@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.95 - 2026-09-26
+
+- Save loads: the log now breaks the last stage of a load down step by
+  step, to find what can be made faster.
+- Testing, off by default: a switch in Debug views (Performance patches)
+  that ends a save load without the game's fixed 0.6 s wait at the end.
+  It stays off until it has been checked to change nothing else.
+
 ## v0.24.94 - 2026-09-26
 
 - Entering a cave and loading a save hitch less: when the game asks
