@@ -547,42 +547,52 @@ identity.
 
 ## Current status
 
-**Released: v0.24.108** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.110** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.108 in the game)
+### Pick up here (2026-09-26, v0.24.110 released; the game runs v0.24.109)
 
-**State:** the game runs v0.24.108 (`update_game`), Slot 1 loaded (it
-now starts at the vault door), the endgame loaded, the new
-`EndgameAsyncInRuns` switch **on** in the author's config (bridge test;
-`TogglePerfPatch 8` turns it off - it ships off). Savestates
-`phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`,
-`rope104` kept. Session switching: see *When to switch session* (the
-performance work is an investigation - one session).
+**State:** the game runs v0.24.109 (`update_game` for 110), Slot 1
+loaded (it starts at the vault door), several Full loads of `phantom-a`
+done. The author's config has `EndgameAsyncInRuns` **on** (bridge test;
+`TogglePerfPatch 8` - it ships off). Savestates `phantom-a`,
+`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
+Session switching: see *When to switch session* (the performance work
+is an investigation - one session).
 
-**Done this session:** v0.24.107-108 - the endgame load in play in the
-background, Experimental switch `EndgameAsyncInRuns` (index 8, off;
-`EndgameLoader`, shares the restore switch's transpiler; pins the player
-if the load outlasts the cutscene). Measured: the game's load = one
-5078 ms frame ~4.9 s into the vault door's cutscene; async 1.09 s, longest
-frame 12 ms, all inside the cutscene, no hold. **It saves no run time**:
-`Time.maximumDeltaTime` is 9, so the frozen frame counts as game time and
-the cutscene ends when it would (17.3 vs 16.7 s) - v0.24.108 corrects the
-label (v0.24.107 said ~5 s shorter). Game-notes *The endgame* (timed).
-**Ask the author**: since it is RTA-neutral, move it out of Experimental
-to on-by-default? (Only the picture and the per-frame spread of those
-~5 s change.) Also noted: a Quick load's streamed-scene reload is the
-restart hitch (game-notes, left alone); a task chip was offered for
-`AreaKeeper.ForTeleport` clearing `IsInEndgame` at the vault door (see
-*Open*).
+**Done this session (high effort):**
+- v0.24.107-108 - the endgame load in play in the background,
+  Experimental switch `EndgameAsyncInRuns` (index 8, off; `EndgameLoader`,
+  shares the restore switch's transpiler; pins the player if the load
+  outlasts the cutscene). The game's load = one 5078 ms frame ~4.9 s
+  into the vault door's cutscene; async 1.09 s, longest frame 12 ms, no
+  hold. **It saves no run time**: `Time.maximumDeltaTime` is 9, so the
+  frozen frame counts as game time (v0.24.108 corrected the label).
+  **Ask the author**: RTA-neutral - move it to on-by-default?
+- The heap step (item 2 of the old list) **is not a leak**: every Full
+  load holds the old world (~120 MB) for 30-70 s, then releases it; 20
+  Quick loads = +4 MB; collections follow garbage volume (~1 per 100 MB)
+  and each Quick load forces ~1. Game-notes *The heap across restores*.
+- v0.24.109-110 - `SkipEndgameAnimSweepAtLoad` (index 9, **on**): the
+  endgame-animation sweep at every load runs before the clips are
+  swapped out and frees nothing (same object count, A/B); ~0.4 s off
+  each save load. Load-timing lines now name a patched method plainly
+  (not `DMD<...>`).
+- Noted, left alone: a Quick load's streamed-scene reload is the restart
+  hitch (game-notes); a task chip was offered for `AreaKeeper.ForTeleport`
+  clearing `IsInEndgame` at the vault door (see *Open*).
+- **QA:** v0.24.108 posted (message `1553430573979009127`); it says
+  maks's pauses "get longer after many restores" - the heap result
+  above says otherwise: correct it in the next post (v0.24.110 not posted
+  yet). To-do list updated for 108.
 
 **maks's performance report** (message `1553417650607235164`, read):
 i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
-low-end. His problem is GC: 3-7 GCs per 30 s at 120-150 ms, 15-25 frames
-over 50 ms. The session was ~50 Quick loads of 'elev boost' (red
-elevator); the overlay's +660-900 KB/s in those windows is the restores
-(10-40 KB/s without), each with two ~520 ms hitches (streamed scenes).
-Also `Activation` 8.15 s on his title load. maks's rope list
+low-end. 3-7 GCs per 30 s at 120-150 ms, 15-25 frames over 50 ms - but
+the session was ~50 Quick loads of 'elev boost' (one every ~15 s, each
+forcing ~1 collection and two ~520 ms streamed-scene hitches); the
+overlay's +660-900 KB/s in those windows is the restores (10-40 KB/s
+without). `Activation` 8.15 s on his title load. maks's rope list
 (v0.24.104-105, message `1553421208794431648`) still awaits answers.
 
 **Next session - small QA item:**
@@ -591,33 +601,24 @@ Also `Activation` 8.15 s on his title load. maks's rope list
 
 **Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
 maks's are in (above); sxczurass is away from his PC - watch `qa_read`
-for his before starting item 5 below.
+for his before starting item 3 below.
 
-**maks's elevator physics (Next up 5) - lead, not proven:** his failing
-session (Quick loads at the red elevator, ~50 restores, two Full loads)
-grew the Mono heap 232 -> 420 MB and his GC frames from ~150 to ~550 ms,
-several per 30 s; after a restart the boosts worked (maks on QA: 4/5
-after a fresh restart, then ~1/8; sxczurass: 1.5 h of cave 6 practice
-then the elevator was fine). Reproduced here: 20 Quick loads then one
-Full load = +118 MB that stays (a Full load alone: +17). Game-notes *The
-heap across restores*. Next: find what a Quick load leaves that the Full
-load then keeps (census at 536 MB: same Unity object count as at 282 MB,
-statics only ~33 MB - so not a static root; try a managed heap walk, or
-`GC.Collect` + census right after a Quick load vs before). maks was
-asked (2026-09-26 12:00) for a Quick-loads-only session + Mark + report
-when the boosts stop.
+**maks's elevator physics (Next up 5):** the heap lead is gone (above:
+no lasting heap step; pauses follow the live heap, ~80 ms at 280-300 MB
+here). Left: maks's answers (Quick-loads-only session + Mark + report
+when the boosts stop, asked 2026-09-26 12:00), then a per-FixedUpdate
+physics trace. Decide with the author whether it goes back to
+"deferred".
 
 **Performance / loads - what is left, in order of payoff:**
-1. The heap step above (it is also a performance item: pause length -
-   maks's GC frames are his real problem, see his report above).
-2. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
-   load: ~1.1 s sweep with a 714-870 ms frame, then the endgame anim
-   prefabs load again. Understand why before touching it.
-3. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
+1. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
    `MaterialTween` `SendMessage` boxing, Unity's collision objects.
    Measure during play (tracker: `AllocationTrackerAtStartup` + restart).
-4. The live heap: the A* navmesh is most of it and is needed.
-5. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
+   At ~1 collection per 100 MB, 2 MB/s = a 80-150 ms pause every ~50 s.
+2. The old world held 30-70 s after each Full load / death reload
+   (~25 ms longer pauses meanwhile). Root unknown (not static, not ours);
+   low payoff.
+3. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
    lower-end machines"). Nothing done yet - the work so far cuts GC
    hitches and load freezes, not the average frame. Measure first:
    the Game profiler (`ToggleProfiler`) for the main thread's per-frame
@@ -628,6 +629,10 @@ when the boosts stop.
    savings ship on; anything that changes what is drawn or simulated
    (draw distance, shadows, update rates) goes under Experimental,
    labelled.
+4. The live heap: the A* navmesh is most of it and is needed.
+5. The big frame at a load's scene start-up (750-900 ms, after the
+   sweep is gone) and the Quick load's streamed-scene reload - both
+   the game's own work; only if a cheap cause shows up.
 
 **QA:** posted 2026-09-26: sxczurass's performance list (message
 `1553362967758905544`, `docs/tests/2026-09-26-sxczurass-perf-v0.24.97.md`)
@@ -692,9 +697,11 @@ line when it is seen again.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance / loads** - the list above: 1 (the heap
-   step - with maks), then 2-5 (5 = raw FPS). On high effort. The endgame
-   load in a run is done (v0.24.107-108, Experimental).
+1. **Next up 6, performance / loads** - the list above: 1 (garbage in
+   play), 3 (raw FPS, once sxczurass's specs are in); 2, 4, 5 low payoff.
+   On high effort. Done: the endgame load in a run (v0.24.107-108,
+   Experimental), the heap step (not a leak), the load's animation sweep
+   (v0.24.109-110).
 1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod).

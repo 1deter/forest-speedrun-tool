@@ -87,7 +87,13 @@ namespace ForestOverlay.Game
     //    swaps the clip out, so the sweep runs while the three clips are
     //    still referenced and cannot free them. A transpiler removes that
     //    one `call UnloadUnusedAssets; pop`; the coroutines run as before.
-    //    Ships off until an A/B shows the sweep frees nothing that matters.
+    //    A/B (bridge, v0.24.109, Full loads of phantom-a, off/on/on/off):
+    //    Unity objects after the load 497431 / 497250 / 497458 / 497451 -
+    //    the sweep frees nothing; "in game after" 5.4 / 5.0 / 5.2 / 5.7 s.
+    //    The big frame at that point stays (766-917 ms with it on): it is
+    //    the new scene's own start-up; the sweep only added to it. On by
+    //    default since v0.24.110 (key renamed so v0.24.109's saved "off"
+    //    does not keep it off).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -159,11 +165,12 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Note = "Changes how the game runs that moment: the door's cutscene plays smoothly instead of freezing " +
                                             "for ~5 s. A run's time is the same (the cutscene ends when it would). You are held in place " +
                                             "if the load outlasts the cutscene.";
-            Add(config, "SkipEndgameAnimSweep", "Loads: skip the endgame-animation clean-up",
+            Add(config, "SkipEndgameAnimSweepAtLoad", "Loads: skip the endgame-animation clean-up",
                 "Every save load, the game starts unloading three endgame animations and, in the same frame, walks every loaded asset " +
-                "to free unused ones (~1 s, one frame of 0.5-0.8 s) - before the animations are actually unloaded, so that walk cannot " +
-                "free them. Skip that one walk; the animations are unloaded as before. Memory only; off = the game's own code.",
-                ApplyAnimSweep, RemoveAnimSweep, false);
+                "to free unused ones (~1 s, one frame of 0.5-0.8 s) - before the animations are actually unloaded, so that walk frees " +
+                "nothing (measured: the same number of objects after the load). Skip that one walk; the animations are unloaded as " +
+                "before (saves ~0.4 s per load).",
+                ApplyAnimSweep, RemoveAnimSweep);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

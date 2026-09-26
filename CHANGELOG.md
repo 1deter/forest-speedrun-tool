@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.110 - 2026-09-26
+
+- **Loads: skip the endgame-animation clean-up** is now on by default.
+  Measured: it frees nothing (the same number of objects after the load
+  either way), and a save load (Full load, death reload, Continue) gets
+  to the game about 0.4 s sooner (5.4-5.7 s -> 5.0-5.2 s here). Turn it
+  off in Debug views -> Performance patches if you ever suspect it.
+
 ## v0.24.109 - 2026-09-26
 
 - New switch in Debug views -> Performance patches, off for now while it

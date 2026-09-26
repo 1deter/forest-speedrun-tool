@@ -1672,6 +1672,15 @@ the `GCCollect` many callers do after it is a real second pause. Callers:
 `TriggerCutScene.CleanUp` / `ShowEnemies`, `animClipMemoryManager.Start ->
 UnloadEndGameAnimation` (every load: 3 animation unloads + a sweep, ~1 s,
 a 550-730 ms frame), `LoadAsync` / `PlayerStats.OnSaveSlotSelectedRoutine`.
+**The endgame-animation sweep frees nothing** (IL + A/B, v0.24.109):
+`UnloadEndGameAnimation` starts three `AnimationLoadManager.
+UnloadAnimation(clip, refreshAssets: false)` coroutines, each of which
+first waits on `Resources.LoadAsync("CutScene/<clip> Empty")` and only
+then swaps the override controller's clip; the sweep is called in the
+same frame, before any swap. Unity objects after a Full load with and
+without it: 497431 / 497451 vs 497250 / 497458; time to "in game" 5.4 /
+5.7 vs 5.0 / 5.2 s. The 750-900 ms frame at that point is the scene's
+own start-up either way. Skipped by `SkipEndgameAnimSweepAtLoad` (on).
 
 **`PostProcessingBehaviour.OnGUI` is game logic**, not a debug view: on
 Repaint it calls `EnableScionEyeAdaption` / `CheckScionEyeAdaptation`

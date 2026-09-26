@@ -171,6 +171,16 @@ namespace ForestOverlay.Game
 
         // The first frame outside the helper, Harmony and us: who asked.
         // A coroutine reads as Outer.<Routine>.
+        /// A patched method runs as Harmony's replacement, named
+        /// "DMD<Type::Method>": give its plain name.
+        private static string PlainName(string name)
+        {
+            if (!name.StartsWith("DMD<", StringComparison.Ordinal)) return name;
+            int from = name.LastIndexOf("::", StringComparison.Ordinal);
+            int end = name.LastIndexOf('>');
+            return from > 0 && end > from + 2 ? name.Substring(from + 2, end - from - 2) : name;
+        }
+
         private static string Caller()
         {
             try
@@ -190,7 +200,7 @@ namespace ForestOverlay.Game
                         int end = t.Name.IndexOf('>');
                         return t.DeclaringType.Name + "." + (end > 0 ? t.Name.Substring(0, end + 1) : t.Name);
                     }
-                    return t.Name + "." + m.Name;
+                    return t.Name + "." + PlainName(m.Name);
                 }
             }
             catch (Exception) { }
