@@ -342,3 +342,22 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     per-frame pin) can undo another - a Full load's rope entry had to
     move after the hold (v0.24.104-105). Other kinematic modes (zipline,
     sled, wall / cliff climb, hang glider) are not covered yet.
+
+48. **A frozen frame can count as game time.** The endgame's 5 s load
+    freeze looked like 5 s of run time. v0.24.107 shipped a switch
+    labelled "a run is ~5 s shorter"; timing the door's cutscene both
+    ways showed the same end (17.3 vs 16.7 s). `Time.maximumDeltaTime`
+    is 9 in this game, so a long frame advances game time by its full
+    length and cutscenes and timers run on "inside" it. Before claiming
+    a freeze costs time, read `maximumDeltaTime` and time the event that
+    ends it, not the freeze (v0.24.108 corrected the label).
+
+49. **One heap reading after a load is not a trend.** "20 Quick loads
+    then a Full load = +118 MB that stays" drove a day of theories
+    (serializer caches, conservative roots, elevator physics). Read every
+    few seconds for a minute and it falls back: every Full load holds
+    the old world for 30-70 s, then frees it. Measure the live heap with
+    `GC.GetTotalMemory(true)` over time, with a control (a Full load
+    alone), before calling growth a leak; the bridge's reply time for
+    that call is the full-GC pause (v0.24.108, game-notes *The heap
+    across restores*).

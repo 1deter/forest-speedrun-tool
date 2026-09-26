@@ -496,6 +496,8 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic.
 46. **A symptom that appears later can be a coroutine finishing** - look again after every pending timer.
 47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider).
+48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze.
+49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control.
 
 ---
 
@@ -550,11 +552,18 @@ identity.
 **Released: v0.24.110** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.110 released; the game runs v0.24.109)
+### Pick up here (2026-09-26, v0.24.110 in the game)
 
-**State:** the game runs v0.24.109 (`update_game` for 110), Slot 1
-loaded (it starts at the vault door), several Full loads of `phantom-a`
-done. The author's config has `EndgameAsyncInRuns` **on** (bridge test;
+**Next session: raw FPS** (author, 2026-09-26: a fresh session, on high
+effort) - item 3 of the list below. Start with the Game profiler
+(`call BepInEx_Manager OverlayPlugin._host._modules[8].ToggleProfiler`,
+30 s `Game profile (30 s):` lines) on the surface (428, 78, -4), a cave
+(`tp 1283.92 -70.59 612.88`) and the endgame; and check CPU- vs
+GPU-bound. maks's specs / log are summarised below; sxczurass's are
+still awaited.
+
+**State:** the game runs v0.24.110 (`SkipEndgameAnimSweepAtLoad` on,
+confirmed on a title load), Slot 1 loaded (it starts at the vault door). The author's config has `EndgameAsyncInRuns` **on** (bridge test;
 `TogglePerfPatch 8` - it ships off). Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
 Session switching: see *When to switch session* (the performance work
@@ -581,10 +590,9 @@ is an investigation - one session).
 - Noted, left alone: a Quick load's streamed-scene reload is the restart
   hitch (game-notes); a task chip was offered for `AreaKeeper.ForTeleport`
   clearing `IsInEndgame` at the vault door (see *Open*).
-- **QA:** v0.24.108 posted (message `1553430573979009127`); it says
-  maks's pauses "get longer after many restores" - the heap result
-  above says otherwise: correct it in the next post (v0.24.110 not posted
-  yet). To-do list updated for 108.
+- **QA:** v0.24.108 posted (message `1553430573979009127`), v0.24.110
+  posted with the heap correction (message `1553437400632660059`, asks
+  sxczurass for specs + a 10-minute log); to-do list current.
 
 **maks's performance report** (message `1553417650607235164`, read):
 i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
