@@ -70,6 +70,8 @@ namespace ForestOverlay.Game
         [DllImport(Mono)] private static extern IntPtr mono_type_get_name(IntPtr type);
         [DllImport(Mono)] private static extern IntPtr mono_class_from_mono_type(IntPtr type);
         [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)] private static extern IntPtr GetModuleHandle(string name);
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)] private static extern IntPtr GetProcAddress(IntPtr module, string name);
 
         // The table: open addressing on the MonoClass pointer.
         private static IntPtr[] _keys;
@@ -84,6 +86,7 @@ namespace ForestOverlay.Game
         private static uint _mainThread;
         private static volatile bool _counting;
         private static bool _sizesOk;
+        private static bool _attempted;
 
         private static long _mainCount;
         private static long _startTicks;
@@ -105,6 +108,8 @@ namespace ForestOverlay.Game
         public static bool Install(ManualLogSource log, bool early)
         {
             if (Installed) return true;
+            if (_attempted) return false;   // a profiler cannot be removed: never twice
+            _attempted = true;
             try
             {
                 _keys = new IntPtr[Capacity];
@@ -130,6 +135,13 @@ namespace ForestOverlay.Game
                 mono_profiler_install(profiler, IntPtr.Zero);
                 mono_profiler_install_allocation(fn);
                 mono_profiler_set_events(EventAllocations);
+                string flag = EnableProfileAllocs();
+                if (flag.Length > 0)
+                {
+                    Status = "installed, but allocations will not report: " + flag;
+                    log.LogWarning("Allocation tracker: " + Status);
+                    return false;
+                }
 
                 Installed = true;
                 Early = early;
@@ -145,6 +157,39 @@ namespace ForestOverlay.Game
                 log.LogWarning("Allocation tracker: " + Status);
                 return false;
             }
+        }
+
+        // Mono's `profile_allocs` (object.c): the allocators report only
+        // while it is set, and mono_class_get_allocation_ftn clears it for
+        // good the first time the JIT compiles an allocation with the event
+        // off - long before any plugin loads (seen 2026-09-26: 0 counted).
+        // Its address is read from two allocators' `cmp [rip+X], 0` and
+        // set back to 1; they must agree, or nothing is written.
+        private static string EnableProfileAllocs()
+        {
+            IntPtr module = GetModuleHandle(Mono);
+            if (module == IntPtr.Zero) return "mono.dll not found";
+            long a = FlagIn(GetProcAddress(module, "mono_object_new_alloc_specific"));
+            long b = FlagIn(GetProcAddress(module, "mono_array_new_specific"));
+            if (a == 0 || a != b) return "the allocation flag was not found in this mono.dll (" + a.ToString("X") + " / " + b.ToString("X") + ")";
+            Marshal.WriteInt32(new IntPtr(a), 1);
+            return "";
+        }
+
+        // The first `cmp dword ptr [rip+disp32], 0` (83 3D d32 00) in the
+        // function's first 0x200 bytes (object +0x5d, array +0xca).
+        private static long FlagIn(IntPtr fn)
+        {
+            if (fn == IntPtr.Zero) return 0;
+            byte[] code = new byte[0x200];
+            Marshal.Copy(fn, code, 0, code.Length);
+            for (int i = 0; i + 7 < code.Length; i++)
+            {
+                if (code[i] != 0x83 || code[i + 1] != 0x3D || code[i + 6] != 0x00) continue;
+                int disp = BitConverter.ToInt32(code, i + 2);
+                return fn.ToInt64() + i + 7 + disp;
+            }
+            return 0;
         }
 
         private static IntPtr ClassOf(Type t)

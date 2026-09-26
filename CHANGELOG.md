@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.91 - 2026-09-26
+
+- Resetting (F7 or a savestate) just as the survival book finished
+  opening no longer leaves the camera stuck: looking up and down works
+  again straight after the reset.
+- Allocation tracker (Debug views): now actually counts - v0.24.90's
+  showed nothing.
+
 ## v0.24.90 - 2026-09-26
 
 - Debug views: an **Allocation tracker** switch shows exactly what the

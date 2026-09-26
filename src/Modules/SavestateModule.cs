@@ -233,6 +233,14 @@ namespace ForestOverlay.Modules
             if (_timingLoad) TimeLoad();
             WatchLoads();
 
+            // A reset that closed the book: free a pitch lock it left
+            // (Game/BookClose), once no restore is running.
+            if (!_busy)
+            {
+                string book = BookClose.Tick();
+                if (book.Length > 0) Ctx.Log.LogInfo("Book after a reset: " + book + ".");
+            }
+
             // A coroutine that dies on an exception never calls back; do not
             // leave every button disabled for the rest of the session.
             if (_busy && Time.realtimeSinceStartup - _busySince > LoadTimingTimeout)
