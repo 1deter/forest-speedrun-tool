@@ -97,6 +97,8 @@ namespace ForestOverlay.Game
         private readonly Dictionary<Type, int> _objSize = new Dictionary<Type, int>();
         private readonly Dictionary<Type, int> _elemSize = new Dictionary<Type, int>();
         private readonly List<Item> _stack = new List<Item>();
+        // Collections that changed while walked (another thread's).
+        private int _changed;
 
         private Dictionary<string, RootStat> _last;
         private Dictionary<Type, int> _lastTypes;
@@ -121,6 +123,7 @@ namespace ForestOverlay.Game
         {
             Stopwatch sw = Stopwatch.StartNew();
             Runs++;
+            _changed = 0;
 
             long heap = GC.GetTotalMemory(true);
             int threads = CountThreads();
@@ -367,7 +370,10 @@ namespace ForestOverlay.Game
                     if (dict != null)
                     {
                         st.Bytes += 24L * dict.Count;   // buckets + entries, not reached by enumerating
-                        foreach (DictionaryEntry e in dict) { Push(e.Key, next); Push(e.Value, next); }
+                        // Another thread (the game's workers) can change it
+                        // mid-walk: skip it and count it, never fail the census.
+                        try { foreach (DictionaryEntry e in dict) { Push(e.Key, next); Push(e.Value, next); } }
+                        catch (InvalidOperationException) { _changed++; }
                         continue;
                     }
                     IEnumerable en = o as IEnumerable;
@@ -375,7 +381,8 @@ namespace ForestOverlay.Game
                     {
                         ICollection c = o as ICollection;
                         if (c != null) st.Bytes += 8L * c.Count;   // the backing array
-                        foreach (object e in en) Push(e, next);
+                        try { foreach (object e in en) Push(e, next); }
+                        catch (InvalidOperationException) { _changed++; }
                         continue;
                     }
                 }
@@ -530,6 +537,7 @@ namespace ForestOverlay.Game
             sb.Append(" | Unity objects ").Append(unity);
             if (!first) sb.Append(" (").Append(Signed(unity - _lastUnity)).Append(")");
             if (capped) sb.Append(" | walk CAPPED at ").Append(TotalNodeCap);
+            if (_changed > 0) sb.Append(" | ").Append(_changed).Append(" collection(s) changed while walked, skipped");
             string summary = sb.ToString();
             _log.LogInfo(summary);
 

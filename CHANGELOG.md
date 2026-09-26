@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.88 - 2026-09-26
+
+- Savestates tab: *Memory census now* no longer fails with "Collection was
+  modified" when the game changes a list while it is being counted.
+
 ## v0.24.87 - 2026-09-26
 
 - Game profiler: can also time every coroutine or any named method on all
