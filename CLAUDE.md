@@ -1480,6 +1480,10 @@ unless critical.
   too; **runs continue at the main menu** - abort automatically; ghost: a
   custom model, buildings in the replay; **checkpoint savestates**
   ("saveloc", like KSF surf) - capturing on the fly without a hitch.
+  Author (QA Discord, 2026-09-26): **restart from checkpoint** for long
+  timed segments (full-run practice per category), tied to savestates
+  captured as each checkpoint fires - needs the capture hitch solved
+  (or the capture deferred / async) so a real attempt is not disturbed.
 - **Run lines (QA Discord, 2026-09-26):** an opacity slider 0-100%
   (sxczurass: full opacity hides the best time), the best run's line in
   a different colour from the current one (sxczurass), and a window
