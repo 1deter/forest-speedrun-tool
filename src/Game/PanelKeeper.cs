@@ -39,6 +39,18 @@ namespace ForestOverlay.Game
     // first time it is hit (untouched); a restore straightens a panel -
     // or a rebuilt copy - that was untouched at capture (captured health
     // = that health). A panel chipped before the capture keeps its tilt.
+    //
+    // ONE COPY PER BREAK (v0.24.123; runner Tom: "the panel would not
+    // break", 222 panels "kept" in one session): a swing hits a panel's
+    // two box colliders in one physics step, so Hit - and CutDown - run
+    // twice before the Destroy lands. The second copy was taken after the
+    // game had unparented the pieces: no pieces of its own, Cut1..3 on the
+    // flying ones. The restore put that one back (newest first) and
+    // deleted the pieces, so its next CutDown threw on Cut1 before the
+    // Destroy - a panel that never broke and logged "broke" on every hit.
+    // Now a panel is copied once (by instance id), a copy without its
+    // pieces is never put back, and the other copies of a rebuilt panel
+    // are dropped.
     // ------------------------------------------------------------------
     public sealed class PanelKeeper
     {
@@ -67,6 +79,9 @@ namespace ForestOverlay.Game
 
         private static readonly List<Kept> KeptList = new List<Kept>();
         private static readonly Dictionary<int, Untouched> Looks = new Dictionary<int, Untouched>();
+        // Panels already copied (instance ids): CutDown's second call in
+        // the same frame must not copy a half-broken panel.
+        private static readonly HashSet<int> Copied = new HashSet<int>();
         private static ManualLogSource _log;
         private static GameObject _holder;
 
@@ -139,6 +154,7 @@ namespace ForestOverlay.Game
             catch (Exception) { }
             KeptList.Clear();
             Looks.Clear();
+            Copied.Clear();
         }
 
         // Before the first hit changes anything. Never throws into the game.
@@ -205,7 +221,7 @@ namespace ForestOverlay.Game
             try
             {
                 Component wood = __instance as Component;
-                if (wood == null) return;
+                if (wood == null || !Copied.Add(wood.GetInstanceID())) return;
                 GameObject go = wood.gameObject;
                 Transform t = go.transform;
 
@@ -335,7 +351,7 @@ namespace ForestOverlay.Game
                 want[e.Substring(at + 1)] = h;
             }
 
-            int healed = 0, rebuilt = 0, straightened = 0;
+            int healed = 0, rebuilt = 0, straightened = 0, dropped = 0;
             HashSet<string> seen = new HashSet<string>();
 
             for (int i = 0; i < planks.Length; i++)
@@ -362,7 +378,16 @@ namespace ForestOverlay.Game
                     Kept k = KeptList[i];
                     int h;
                     if (k.Spare == null) { KeptList.RemoveAt(i); continue; }
-                    if (seen.Contains(k.Key) || !want.TryGetValue(k.Key, out h)) continue;
+                    if (!want.TryGetValue(k.Key, out h)) continue;
+                    if (seen.Contains(k.Key) || !HasOwnPieces(k.Spare))
+                    {
+                        // A second copy of a panel already standing, or one
+                        // taken after its pieces were gone: never put back.
+                        UnityEngine.Object.Destroy(k.Spare);
+                        KeptList.RemoveAt(i);
+                        dropped++;
+                        continue;
+                    }
 
                     Transform t = k.Spare.transform;
                     t.SetParent(k.Parent, false);
@@ -397,9 +422,26 @@ namespace ForestOverlay.Game
             foreach (string key in want.Keys)
                 if (!seen.Contains(key)) missing++;
 
-            if (healed == 0 && rebuilt == 0 && missing == 0 && straightened == 0) return "";
+            if (healed == 0 && rebuilt == 0 && missing == 0 && straightened == 0 && dropped == 0) return "";
             return "panels: " + healed + " healed, " + rebuilt + " rebuilt, " + straightened + " straightened" +
+                   (dropped > 0 ? ", " + dropped + " spare cop" + (dropped == 1 ? "y" : "ies") + " dropped" : "") +
                    (missing > 0 ? ", " + missing + " broken and not kept" : "");
+        }
+
+        /// Whether a copy still has its three pieces under it (a copy made
+        /// after CutDown unparented them points at the flying ones).
+        private static bool HasOwnPieces(GameObject spare)
+        {
+            Component wood = spare.GetComponent(_woodType);
+            if (wood == null) return false;
+            Transform root = spare.transform;
+            for (int i = 0; i < _cuts.Length; i++)
+            {
+                if (_cuts[i] == null) continue;
+                GameObject piece = _cuts[i].GetValue(wood) as GameObject;
+                if (piece == null || !piece.transform.IsChildOf(root)) return false;
+            }
+            return true;
         }
 
         /// Drops copies a load destroyed: the holder lives in the scene, so
@@ -411,6 +453,7 @@ namespace ForestOverlay.Game
             foreach (KeyValuePair<int, Untouched> kv in Looks)
                 if (kv.Value.Panel == null) dead.Add(kv.Key);
             for (int i = 0; i < dead.Count; i++) Looks.Remove(dead[i]);
+            Copied.Clear();
             for (int i = KeptList.Count - 1; i >= 0; i--)
             {
                 if (KeptList[i].Spare != null) continue;

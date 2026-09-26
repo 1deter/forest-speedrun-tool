@@ -509,7 +509,7 @@ namespace ForestOverlay.Game
             try
             {
                 _gotoCave.Invoke(_localPlayer, new object[] { destInCave });
-                return destInCave ? "entered cave" : "left cave";
+                return (destInCave ? "entered cave" : "left cave") + CaveBlack(destInCave);
             }
             catch (Exception ex)
             {
@@ -536,13 +536,74 @@ namespace ForestOverlay.Game
                 GameObject go = _localPlayerGo.GetValue(null) as GameObject;
                 if (go == null) return "cave switch: no player";
                 go.SendMessage(inCave ? "InACave" : "NotInACave", SendMessageOptions.DontRequireReceiver);
-                return inCave ? "cave state set (in a cave)" : "surface state set";
+                return (inCave ? "cave state set (in a cave)" : "surface state set") + CaveBlack(inCave);
             }
             catch (Exception ex)
             {
                 _log.LogWarning("Cave state switch failed: " + ex.Message);
                 return "cave switch failed";
             }
+        }
+
+        /// The black walls in the cave mouths (runner Tom, Cheesecake: "the
+        /// fake black wall stayed after going in; leaving and re-entering
+        /// fixed it"). Each entrance's caveEntranceManager holds a black
+        /// backing that hides the cave from outside; walking through a
+        /// mouth runs disable- / enableCaveBlackRoutine, which switches
+        /// every entrance in Scene.SceneTracker.caveEntrances. GotoCave and
+        /// InACave (our teleport and restore) never touch them, so a
+        /// teleport in kept the wall up, and one out left the caves
+        /// see-through. Does what the walk does; " (N cave mouth(s) ...)"
+        /// for the log line, "" when there were none.
+        private string CaveBlack(bool inCave)
+        {
+            try
+            {
+                ResolveCaveBlack();
+                if (_sceneTracker == null || _caveEntrances == null || _disableBlack == null || _enableBlack == null) return "";
+                object tracker = _sceneTracker.GetValue(null);
+                if (tracker == null) return "";
+                System.Collections.IList list = _caveEntrances.GetValue(tracker) as System.Collections.IList;
+                if (list == null) return "";
+                MethodInfo m = inCave ? _disableBlack : _enableBlack;
+                int n = 0;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    UnityEngine.Object e = list[i] as UnityEngine.Object;
+                    if (e == null) continue;
+                    m.Invoke(e, null);
+                    n++;
+                }
+                if (n == 0) return "";
+                return ", " + n + " cave mouth(s) " + (inCave ? "opened" : "blacked out") + " as walking " + (inCave ? "in" : "out") + " does";
+            }
+            catch (Exception ex)
+            {
+                return ", cave mouths not switched: " + (ex.InnerException ?? ex).Message;
+            }
+        }
+
+        private FieldInfo _sceneTracker;       // static Scene.SceneTracker
+        private FieldInfo _caveEntrances;      // sceneTracker.caveEntrances
+        private MethodInfo _disableBlack, _enableBlack;
+        private bool _caveBlackResolved;
+
+        private void ResolveCaveBlack()
+        {
+            if (_caveBlackResolved) return;
+            _caveBlackResolved = true;
+            const BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            Type scene = FindGameType("TheForest.Utils.Scene");
+            Type tracker = FindGameType("sceneTracker");
+            Type manager = FindGameType("caveEntranceManager");
+            if (scene == null || tracker == null || manager == null) return;
+            _sceneTracker = scene.GetField("SceneTracker", stat);
+            _caveEntrances = tracker.GetField("caveEntrances", inst);
+            _disableBlack = manager.GetMethod("disableCaveBlack", inst, null, Type.EmptyTypes, null);
+            _enableBlack = manager.GetMethod("enableCaveBlack", inst, null, Type.EmptyTypes, null);
+            _log.LogInfo("Cave mouths: tracker:" + (_sceneTracker != null) + " list:" + (_caveEntrances != null) +
+                         " black on/off:" + (_enableBlack != null) + "/" + (_disableBlack != null));
         }
 
         private void ResolveCave()

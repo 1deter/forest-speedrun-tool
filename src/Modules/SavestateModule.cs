@@ -79,6 +79,10 @@ namespace ForestOverlay.Modules
         private Action<string> _loadAfter;
         private bool _sawLoading;
         private float _loadStarted;
+        // A Full load's "can the player move" line (Game/PlayerHold), due
+        // this long after in game; -1 = none due.
+        private const float HoldCheckDelay = 3f;
+        private float _holdCheckAt = -1f;
         private string _loadWhat;
 
         // The load leak (CLAUDE.md Next up 1): every load, whoever started
@@ -179,6 +183,13 @@ namespace ForestOverlay.Modules
             if (PlayerRef.AtTitleScreen && _greebles != null) _greebles.Clear();
 
             if (_timingLoad) TimeLoad();
+            if (_holdCheckAt > 0f && Time.realtimeSinceStartup >= _holdCheckAt)
+            {
+                _holdCheckAt = -1f;
+                if (Ctx.Player.Found)
+                    Ctx.Log.LogInfo("Savestate after the load: player " + HoldCheckDelay.ToString("0") +
+                                    " s after in game - " + PlayerHold.Describe() + ".");
+            }
             WatchLoads();
 
             // A reset that closed the book: free a pitch lock it left
@@ -215,6 +226,7 @@ namespace ForestOverlay.Modules
                 // The heap figure now comes from WatchLoads, for every load.
                 string line = _loadWhat + ": in game after " + elapsed.ToString("0.0") + " s.";
                 Ctx.Log.LogInfo("Savestate " + line);
+                _holdCheckAt = Time.realtimeSinceStartup + HoldCheckDelay;
                 SetStatus(line);
                 Continue(null);
                 return;

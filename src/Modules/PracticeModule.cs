@@ -437,6 +437,13 @@ namespace ForestOverlay.Modules
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
 
+            // The pause menu and the inventory stop game time, and a restore
+            // runs over game time: F7 in the ESC menu sat half-loaded until
+            // the menu closed (runner Tom). Closed first - before the busy
+            // check, so a restore already waiting on the menu goes on too.
+            string menu = MenuClose.IfOpen();
+            if (menu.Length > 0) Ctx.Log.LogInfo("Restart '" + s.Id + "': " + menu + ".");
+
             if (_savestates != null && _savestates.HasStartState(s))
             {
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
@@ -500,8 +507,10 @@ namespace ForestOverlay.Modules
             // speed live in the game's controller, and a Go in mid-air kept
             // them for the landing.
             string fall = Ctx.Bridge.EndFall();
-            // The book first (runner sxczurass), then a swing / action in
-            // progress is cut (runner maks).
+            // A game menu, the book (runner sxczurass), then a swing /
+            // action in progress is cut (runner maks).
+            string menu = MenuClose.IfOpen();
+            if (menu.Length > 0) fall += (fall.Length > 0 ? ", " : "") + menu;
             string book = BookClose.IfOpen();
             if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
             string anim = AnimReset.Cancel();

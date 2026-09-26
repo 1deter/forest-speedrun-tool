@@ -5,6 +5,21 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.123 - 2026-09-26
+
+- Cave wooden panels: after a Quick load, a panel you had broken could
+  come back unbreakable - hits did nothing and it never fell apart.
+  Fixed; a broken panel now comes back as a normal one every time.
+- F7 (and Restart, and a death revive) with the ESC menu, its options
+  screens or the inventory open: the menu is closed first. Before, the
+  restore stayed half done until you closed the menu yourself.
+- Going to a spot inside a cave (Go, F7, a restore) now removes the black
+  wall in the cave mouth, as walking in does. Leaving a cave by teleport
+  puts the walls back.
+- Log: a few seconds after a Full load, one line says what could be
+  holding the player in place (locks, menus, ropes, cutscenes). If you
+  ever cannot move after a Full load, send the log.
+
 ## v0.24.122 - 2026-09-26
 
 - Log only: the `System:` line also lists the game's own graphics options
