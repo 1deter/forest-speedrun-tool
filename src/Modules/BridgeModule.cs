@@ -651,6 +651,8 @@ namespace ForestOverlay.Modules
             if (_areas == null) _areas = new AreaKeeper(Ctx.Log);
             string area = _areas.ForTeleport(to);
             if (area.Length > 0) cave += (cave.Length > 0 ? ", " : "") + area;
+            string rope = RopeClimb.Leave();
+            if (rope.Length > 0) cave += (cave.Length > 0 ? ", " : "") + rope;
             if (!Ctx.Player.MoveTo(to, Quaternion.Euler(0f, yaw, 0f))) return "could not move the player";
             string fall = Ctx.Bridge.EndFall();
             Mark("teleport");

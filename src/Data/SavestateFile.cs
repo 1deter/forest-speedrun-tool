@@ -31,6 +31,7 @@ namespace ForestOverlay.Data
     //   activearea = none
     //   keypaddoor = EndgameEntrance/keypadDoor_animate/doorTrigger
     //   stance = crouched
+    //   rope = Caves/CaveRopeClimbDowns/Cave4Rope
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
@@ -155,6 +156,10 @@ namespace ForestOverlay.Data
         /// before v0.24.102, and then the stance is left as it is.
         public string Stance = "";
 
+        /// Game/RopeClimb's rope at capture (a scene path); "" when not
+        /// on a rope or before v0.24.104.
+        public string Rope = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -193,6 +198,7 @@ namespace ForestOverlay.Data
             if (KeypadDoor.Length > 0) Line(sb, "keypaddoor", KeypadDoor);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             if (Stance.Length > 0) Line(sb, "stance", Stance);
+            if (Rope.Length > 0) Line(sb, "rope", Rope);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -250,6 +256,7 @@ namespace ForestOverlay.Data
                     case "keypaddoor": s.KeypadDoor = value; break;
                     case "blueprint": s.Blueprint = value; break;
                     case "stance": s.Stance = value; break;
+                    case "rope": s.Rope = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":
                         {

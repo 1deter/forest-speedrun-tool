@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.104 - 2026-09-26
+
+- Savestates taken while on a cave rope (e.g. the cave 4 rope entrance)
+  now put you back on the rope. Before, a restore threw you high into
+  the air out of the rock around the hole. Savestates taken on a rope
+  before this update don't know about the rope - capture them again.
+- Go and teleports now let go of a rope you are climbing.
+
 ## v0.24.103 - 2026-09-26
 
 - QA tab: note boxes wrap long text and grow downwards instead of

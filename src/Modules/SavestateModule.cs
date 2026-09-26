@@ -395,6 +395,7 @@ namespace ForestOverlay.Modules
             string activeArea = _area.Capture();
             string blueprint = BuildMode.Capture();
             string stance = Stance.Capture();
+            string rope = RopeClimb.Capture();
             string bushes = _nature.CaptureMark();
             List<string> cutBushes = _nature.CaptureCuts();
             List<string> greebles = null;
@@ -420,7 +421,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope);
                 if (after != null) after(error);
             }));
         }
@@ -429,7 +430,7 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance)
+                                  List<string> greebles, string stance, string rope)
         {
             _busy = false;
             if (!r.Ok)
@@ -462,6 +463,7 @@ namespace ForestOverlay.Modules
                 f.KeypadDoor = keypadDoor;
                 f.Blueprint = blueprint;
                 f.Stance = stance;
+                f.Rope = rope;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
                 f.Greebles = greebles;
@@ -488,6 +490,7 @@ namespace ForestOverlay.Modules
                               (megan.Length > 0 ? ", Megan " + megan : "") +
                               (blueprint.Length > 0 ? ", blueprint " + blueprint + " out" : "") +
                               (stance == Stance.Crouched ? ", crouched" : "") +
+                              (rope.Length > 0 ? ", on a rope" : "") +
                               (enemyNote.Length > 0 ? ", " + enemyNote : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
@@ -666,6 +669,11 @@ namespace ForestOverlay.Modules
             // sxczurass: it stayed out); the captured one comes back last.
             string blueprint = BuildMode.PutAway();
             if (blueprint.Length > 0) fall += (fall.Length > 0 ? ", " : "") + blueprint;
+            // The climb is outside the save; a free body at a rope spot is
+            // thrown out of the rock (runner maks, cave 4). On the rope
+            // before the restore, a restore keeps the player on it.
+            string rope = RopeClimb.Prepare(file != null ? file.Rope : "");
+            if (rope.Length > 0) fall += (fall.Length > 0 ? ", " : "") + rope;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
@@ -1276,9 +1284,12 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
                     string endgame = EndgameLoader.EnsureLoaded(f.Areas);
                     string stance = Stance.Apply(f.Stance);
+                    // A load rebuilds the player off any rope (RopeClimb).
+                    string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope) : "";
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
                                     (panels.Length > 0 ? " | " + panels : "") +
                                     (stance.Length > 0 ? " | " + stance : "") +
+                                    (rope.Length > 0 ? " | " + rope : "") +
                                     (endgame.Length > 0 ? " | " + endgame : "") + ".");
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     // A ride under way at capture is replayed after the
