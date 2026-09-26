@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.85 - 2026-09-26
+
+- A Quick load of a spot past the vault door, on a save that has not
+  opened it yet, no longer drops you through the world: the endgame area
+  is loaded first (you are held for a few seconds), then the Quick load
+  runs.
+
 ## v0.24.84 - 2026-09-26
 
 - A blueprint brought back by a Quick load after you placed a building no

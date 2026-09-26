@@ -25,14 +25,20 @@ namespace ForestOverlay.Game
     // WHAT: after a load restore whose capture had endgame_streaming loaded
     // and it is not loaded now, the game's own SetCanLoad(true) +
     // ForceLoad() on that trigger.
+    //
+    // A Quick load loads no scenes: on a save that had not opened the vault
+    // door, a spot past it dropped the player through the world (maks,
+    // 2026-09-26; bridge: ForceUnload, Quick load in the red elevator =
+    // falling at 55 m/s). Since v0.24.85 the Quick load loads the endgame
+    // first, waits for it, then restores (SavestateModule.RestoreInPlace).
     // ------------------------------------------------------------------
     public static class EndgameLoader
     {
         private const string Scene = "endgame_streaming";
         private const string AnimScene = "endgame_animPrefabs";
 
-        /// "" when there is nothing to do, else a note for the log line.
-        public static string EnsureLoaded(string capturedAreas)
+        /// The capture had the endgame and it is not loaded now.
+        public static bool Needed(string capturedAreas)
         {
             // Either scene: a capture during the trigger's own load (the
             // vault door opening, v0.24.82) had endgame_animPrefabs and not
@@ -40,10 +46,30 @@ namespace ForestOverlay.Game
             // the hold waited 30 s for the first.
             if (string.IsNullOrEmpty(capturedAreas) ||
                 (capturedAreas.IndexOf(Scene, StringComparison.Ordinal) < 0 &&
-                 capturedAreas.IndexOf(AnimScene, StringComparison.Ordinal) < 0)) return "";
+                 capturedAreas.IndexOf(AnimScene, StringComparison.Ordinal) < 0)) return false;
+            try { return !SceneManager.GetSceneByName(Scene).isLoaded; }
+            catch (Exception) { return false; }
+        }
+
+        /// endgame_streaming is loaded, and no scene is still loading.
+        public static bool Settled()
+        {
             try
             {
-                if (SceneManager.GetSceneByName(Scene).isLoaded) return "";
+                if (!SceneManager.GetSceneByName(Scene).isLoaded) return false;
+                for (int i = 0; i < SceneManager.sceneCount; i++)
+                    if (!SceneManager.GetSceneAt(i).isLoaded) return false;
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// "" when there is nothing to do, else a note for the log line.
+        public static string EnsureLoaded(string capturedAreas)
+        {
+            if (!Needed(capturedAreas)) return "";
+            try
+            {
 
                 GameObject go = GameObject.FindWithTag("EndgameLoader");
                 if (go == null) return "endgame: loaded at capture, not now - no EndgameLoader found";

@@ -70,6 +70,8 @@ namespace ForestOverlay.Modules
         private string _dir;
 
         private bool _busy;
+        // EndgameFirst ran for the next RestoreInPlace: never twice.
+        private bool _endgameTried;
         private ConfigEntry<bool> _allowCrossMode;
         private ConfigEntry<bool> _respawnEnemies;
         // AfterInPlace's wreck clears so far; LogNewPickups lists after one.
@@ -611,6 +613,17 @@ namespace ForestOverlay.Modules
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             if (RefusedAtTitle("restore", after)) return;
+            // A spot past the vault door on a save that has not opened it:
+            // the endgame first, as a Full load does (EndgameLoader).
+            bool tried = _endgameTried;
+            _endgameTried = false;
+            if (!tried && file != null && EndgameLoader.Needed(file.Areas))
+            {
+                _busy = true;
+                _busySince = Time.realtimeSinceStartup;
+                Ctx.Runner.StartCoroutine(EndgameFirst(data, unloadStreaming, presentPickups, what, savedInCave, file, after));
+                return;
+            }
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             int cutsceneStarts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
@@ -851,6 +864,34 @@ namespace ForestOverlay.Modules
         // stage starts nothing from afar, and the game's trigger needs a
         // physics step to see them - then the usual fast-forward.
         private delegate string Starter();
+
+        /// Loads the endgame the capture had, holds the player where they
+        /// stand until it is in, then runs the Quick load.
+        private IEnumerator EndgameFirst(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
+                                         int savedInCave, SavestateFile file, Action<string> after)
+        {
+            float start = Time.realtimeSinceStartup;
+            SetStatus("restoring " + what + ": loading the endgame area first...");
+            string note = EndgameLoader.EnsureLoaded(file.Areas);
+            Vector3 at = Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
+            // The trigger starts its load 0.5 s after ForceLoad (HoldUntilLoaded).
+            while (Time.realtimeSinceStartup - start < 30f &&
+                   (Time.realtimeSinceStartup - start < 1f || !EndgameLoader.Settled()))
+            {
+                if (Ctx.Player.Found && at != Vector3.zero) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+                yield return null;
+            }
+            // The new scene's objects wake over the next frames.
+            yield return null;
+            yield return null;
+            bool loaded = EndgameLoader.Settled();
+            Ctx.Log.LogInfo("Savestate restore " + what + " in place: " + note + " - " +
+                            (loaded ? "loaded" : "still not loaded, restoring anyway") + " after " +
+                            (Time.realtimeSinceStartup - start).ToString("F1") + " s.");
+            _busy = false;
+            _endgameTried = true;
+            RestoreInPlace(data, unloadStreaming, presentPickups, what, savedInCave, file, after);
+        }
 
         private IEnumerator ReplayCutscene(SavestateFile f, bool stand, Vector3 at, Starter start, string what, string of)
         {
