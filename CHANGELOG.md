@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.111 - 2026-09-26
+
+- **Endgame: load it in the background at the vault door** is now on by
+  default and no longer Experimental. The vault door's cutscene plays
+  smoothly instead of freezing for about 5 seconds, and a run's time is
+  the same as without it. It can still be turned off in Debug views ->
+  Performance patches.
+
 ## v0.24.110 - 2026-09-26
 
 - **Loads: skip the endgame-animation clean-up** is now on by default.

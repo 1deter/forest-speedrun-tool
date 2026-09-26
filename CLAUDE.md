@@ -549,13 +549,15 @@ identity.
 
 ## Current status
 
-**Released: v0.24.110** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.111** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.110 in the game)
+### Pick up here (2026-09-26, v0.24.111 released; the game runs v0.24.110)
 
-**Next session: raw FPS** (author, 2026-09-26: a fresh session, on high
-effort) - item 3 of the list below. Start with the Game profiler
+**Next sessions, in order (author, 2026-09-26):** 1. the teleport fix
+(`AreaKeeper.ForTeleport` clearing `IsInEndgame` at the vault door - the
+task chip / *Open* below), its own session; 2. **raw FPS**, a fresh
+session on high effort - item 3 of the list below. Start with the Game profiler
 (`call BepInEx_Manager OverlayPlugin._host._modules[8].ToggleProfiler`,
 30 s `Game profile (30 s):` lines) on the surface (428, 78, -4), a cave
 (`tp 1283.92 -70.59 612.88`) and the endgame; and check CPU- vs
@@ -563,21 +565,24 @@ GPU-bound. maks's specs / log are summarised below; sxczurass's are
 still awaited.
 
 **State:** the game runs v0.24.110 (`SkipEndgameAnimSweepAtLoad` on,
-confirmed on a title load), Slot 1 loaded (it starts at the vault door). The author's config has `EndgameAsyncInRuns` **on** (bridge test;
-`TogglePerfPatch 8` - it ships off). Savestates `phantom-a`,
+confirmed on a title load), Slot 1 loaded (it starts at the vault door). `EndgameAsyncAtVaultDoor` (index 8) ships **on** from v0.24.111 -
+`update_game` to install it. Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
 Session switching: see *When to switch session* (the performance work
 is an investigation - one session).
 
 **Done this session (high effort):**
 - v0.24.107-108 - the endgame load in play in the background,
-  Experimental switch `EndgameAsyncInRuns` (index 8, off; `EndgameLoader`,
+  switch `EndgameAsyncAtVaultDoor` (index 8; `EndgameLoader`,
   shares the restore switch's transpiler; pins the player if the load
   outlasts the cutscene). The game's load = one 5078 ms frame ~4.9 s
   into the vault door's cutscene; async 1.09 s, longest frame 12 ms, no
   hold. **It saves no run time**: `Time.maximumDeltaTime` is 9, so the
   frozen frame counts as game time (v0.24.108 corrected the label).
-  **Ask the author**: RTA-neutral - move it to on-by-default?
+  v0.24.111: on by default, out of Experimental (author: on "if it
+  doesn't affect run time, or anything that would usually invalidate a
+  speedrun"; key renamed from `EndgameAsyncInRuns`). v0.24.111 is not
+  posted to QA yet - post it with the next release.
 - The heap step (item 2 of the old list) **is not a leak**: every Full
   load holds the old world (~120 MB) for 30-70 s, then releases it; 20
   Quick loads = +4 MB; collections follow garbage volume (~1 per 100 MB)

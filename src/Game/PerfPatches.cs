@@ -71,7 +71,10 @@ namespace ForestOverlay.Game
     // 8. The endgame load of our restores in the background (on by
     //    default: the restore holds the player anyway; the game's own
     //    trigger crossing is untouched) - EndgameLoader.PatchStream.
-    // 9. The endgame load in play in the background - EXPERIMENTAL, off:
+    // 9. The endgame load in play in the background - on by default since
+    //    v0.24.111 (author, 2026-09-26: on "if it doesn't affect run time,
+    //    or anything that would usually invalidate a speedrun"; key renamed
+    //    from EndgameAsyncInRuns so v0.24.107-110's saved "off" goes):
     //    the game's own load behind the vault door (a ~5 s frozen frame
     //    inside the door's cutscene) goes async too; the player is pinned
     //    if it outlasts the cutscene. Same transpiler as 8. A run's real
@@ -155,16 +158,13 @@ namespace ForestOverlay.Game
                 "load it in the background while the restore holds you, instead of the game's one ~5 s frozen frame. " +
                 "The game's own load when you walk in during play is unchanged.",
                 delegate { return EndgameLoader.PatchStream(_harmony, _log, false); }, delegate { EndgameLoader.UnpatchStream(_harmony, false); });
-            Add(config, "EndgameAsyncInRuns", "Endgame: load it in the background during play (vault door)",
-                "EXPERIMENTAL, changes the game: the game's own load of the endgame area after the vault door opens runs in the background " +
-                "during the door's cutscene, instead of freezing the picture for one ~5 s frame. The cutscene ends at the same moment either " +
-                "way (the game counts the frozen frame as time passed), so a run's time does not change. If the load outlasts the cutscene " +
-                "you are held in place until it is in. Off = the game's own code.",
-                delegate { return EndgameLoader.PatchStream(_harmony, _log, true); }, delegate { EndgameLoader.UnpatchStream(_harmony, true); }, false);
-            _fixes[_fixes.Count - 1].Experimental = true;
-            _fixes[_fixes.Count - 1].Note = "Changes how the game runs that moment: the door's cutscene plays smoothly instead of freezing " +
-                                            "for ~5 s. A run's time is the same (the cutscene ends when it would). You are held in place " +
-                                            "if the load outlasts the cutscene.";
+            Add(config, "EndgameAsyncAtVaultDoor", "Endgame: load it in the background at the vault door",
+                "The game's own load of the endgame area after the vault door opens runs in the background during the door's cutscene, " +
+                "instead of freezing the picture for one ~5 s frame. The cutscene ends at the same moment either way (the game counts " +
+                "the frozen frame as time passed), so a run's time does not change. If the load outlasts the cutscene you are held in " +
+                "place until it is in.",
+                delegate { return EndgameLoader.PatchStream(_harmony, _log, true); }, delegate { EndgameLoader.UnpatchStream(_harmony, true); });
+            _fixes[_fixes.Count - 1].Note = "The door's cutscene plays smoothly instead of freezing for ~5 s; a run's time is the same.";
             Add(config, "SkipEndgameAnimSweepAtLoad", "Loads: skip the endgame-animation clean-up",
                 "Every save load, the game starts unloading three endgame animations and, in the same frame, walks every loaded asset " +
                 "to free unused ones (~1 s, one frame of 0.5-0.8 s) - before the animations are actually unloaded, so that walk frees " +

@@ -132,8 +132,9 @@ namespace ForestOverlay.Game
         // once the scene is in. While it runs, backgroundLoadingPriority
         // is High (the player is held anyway), then set back.
         //
-        // IN A RUN (Experimental switch EndgameAsyncInRuns, off; author,
-        // 2026-09-26: allowed, off, "only if a genuine improvement"). The
+        // IN A RUN (switch EndgameAsyncAtVaultDoor, on since v0.24.111 -
+        // author, 2026-09-26: on if it changes no run time and nothing that
+        // would invalidate a run; it shipped Experimental / off first). The
         // game's own load in a run (live wiring + bridge, 2026-09-26): the
         // forward crossing of LoadEndgame sends EnterEndgame (IsInEndgame);
         // the vault door's onDoorOpen then starts DelayedLoad (4.35 s,
