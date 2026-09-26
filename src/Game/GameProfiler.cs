@@ -27,7 +27,10 @@ namespace ForestOverlay.Game
     // live instance when it is switched on - through base classes, since
     // Unity calls an inherited Update - in the game's assemblies (not
     // Unity's, the runtime's or ours). Plus `Diagnostics.GameProfilerExtra`
-    // ("Type::Method" or "Type::*") to drill into one script. Hooking and
+    // ("Type::Method", "Type::*", or "*::Name" = that method on every game
+    // type, e.g. "*::MoveNext" for the coroutines) to drill in. A hooked
+    // method that runs another (StartCoroutine runs the first step at once)
+    // counts it in both. Hooking and
     // unhooking run a few milliseconds a frame, so switching it costs no
     // freeze. A method that throws skips its postfix (not counted).
     //
@@ -256,12 +259,27 @@ namespace ForestOverlay.Game
             List<string[]> more = ProfileTable.ParseExtra(extra);
             for (int i = 0; i < more.Count; i++)
             {
-                Type t = FindType(more[i][0]);
-                int found = 0;
-                if (t != null)
+                // "*::Name": that method on every game type (coroutines:
+                // "*::MoveNext"); never "*::*".
+                bool every = more[i][0] == "*";
+                if (every && more[i][1] == "*") { missing += (missing.Length > 0 ? ", " : "") + "*::* (refused)"; continue; }
+                List<Type> ts = every ? AllGameTypes() : new List<Type>();
+                if (!every)
                 {
-                    MethodInfo[] ms = t.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public |
-                                                   BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                    Type one = FindType(more[i][0]);
+                    if (one != null) ts.Add(one);
+                }
+                int found = 0;
+                for (int k = 0; k < ts.Count; k++)
+                {
+                    if (ts[k].IsGenericType) continue;
+                    MethodInfo[] ms;
+                    try
+                    {
+                        ms = ts[k].GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public |
+                                              BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                    }
+                    catch (Exception) { continue; }
                     for (int j = 0; j < ms.Length; j++)
                         if ((more[i][1] == "*" || ms[j].Name == more[i][1]) && Hookable(ms[j]))
                         {
@@ -297,6 +315,22 @@ namespace ForestOverlay.Game
                 return il != null && il.Length > 2;
             }
             catch (Exception) { return false; }
+        }
+
+        private static List<Type> AllGameTypes()
+        {
+            List<Type> list = new List<Type>();
+            Assembly[] all = AppDomain.CurrentDomain.GetAssemblies();
+            for (int a = 0; a < all.Length; a++)
+            {
+                if (!GameAssembly(all[a])) continue;
+                Type[] ts;
+                try { ts = all[a].GetTypes(); }
+                catch (ReflectionTypeLoadException ex) { ts = ex.Types; }
+                catch (Exception) { continue; }
+                for (int i = 0; i < ts.Length; i++) if (ts[i] != null) list.Add(ts[i]);
+            }
+            return list;
         }
 
         private static Type FindType(string name)

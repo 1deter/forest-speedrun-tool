@@ -77,6 +77,7 @@ namespace ForestOverlay.Tests
             Assert.Equal(new[] { "TheForest.World.WorkScheduler", "*" }, l[1]);
             Assert.Equal(new[] { "A+B", "MoveNext" }, l[2]);
             Assert.Empty(ProfileTable.ParseExtra(null));
+            Assert.Equal(new[] { "*", "MoveNext" }, ProfileTable.ParseExtra("*::MoveNext")[0]);
         }
     }
 }

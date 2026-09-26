@@ -161,8 +161,9 @@ namespace ForestOverlay.Data
         }
 
         /// Extra methods to hook, from the config: "Type::Method" (a type's
-        /// full name, or its short name) or "Type::*" (every method it
-        /// declares), separated by commas, semicolons or new lines.
+        /// full name, or its short name), "Type::*" (every method it
+        /// declares) or "*::Method" (that method on every game type),
+        /// separated by commas, semicolons or new lines.
         /// Returns [type, method] pairs; malformed entries are skipped.
         public static List<string[]> ParseExtra(string text)
         {

@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.87 - 2026-09-26
+
+- Game profiler: can also time every coroutine or any named method on all
+  game scripts (`GameProfilerExtra`, e.g. `*::MoveNext`), for tracking down
+  what makes garbage.
+- The performance line's garbage-collection frame lengths are measured
+  right (a collection late in a frame was matched to the frame before).
+
 ## v0.24.86 - 2026-09-26
 
 - Debug views: a **Game profiler** switch (off at every launch). It times

@@ -61,6 +61,7 @@ namespace ForestOverlay.Core
         private float _gcFrameMax;
         private float _gcFrameSum;
         private int _gcFrames;
+        private float _gcPendingDt = -1f;
 
         private double _tickSum;
         private double _tickMax;
@@ -92,13 +93,22 @@ namespace ForestOverlay.Core
 
             // A frame in which a collection ran: its length is roughly the
             // pause (Boehm stops the world; nothing incremental in 5.6).
+            // Seen here, the collection ran since the last check - in the
+            // frame just measured (dt) or later in this one (the next dt):
+            // the longer of the two.
+            if (_gcPendingDt >= 0f)
+            {
+                float d = Mathf.Max(_gcPendingDt, dt);
+                _gcPendingDt = -1f;
+                _gcFrames++;
+                _gcFrameSum += d;
+                if (d > _gcFrameMax) _gcFrameMax = d;
+            }
             int gcNow = SafeGcCount();
             if (gcNow != _gcLast)
             {
                 _gcLast = gcNow;
-                _gcFrames++;
-                _gcFrameSum += dt;
-                if (dt > _gcFrameMax) _gcFrameMax = dt;
+                _gcPendingDt = dt;
             }
 
             _tickSum += overlayMs;
@@ -146,6 +156,7 @@ namespace ForestOverlay.Core
             _gcFrames = 0;
             _gcFrameSum = 0f;
             _gcFrameMax = 0f;
+            _gcPendingDt = -1f;
             _heapGrowth = 0.0;
             _overlayGrowth = 0.0;
             _lastHeap = -1;
