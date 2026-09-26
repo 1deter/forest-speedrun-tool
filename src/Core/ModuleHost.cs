@@ -162,6 +162,50 @@ namespace ForestOverlay.Core
         }
 
         // ------------------------------------------------------------------
+        // Exact allocation per module (and our OnGUI) while the allocation
+        // tracker counts: which part of the overlay makes garbage.
+        private long[] _moduleBytes = new long[0];
+        private long _guiBytes;
+
+        private void CountAlloc(int i, long d)
+        {
+            if (d <= 0) return;
+            if (_moduleBytes.Length != _modules.Count) Array.Resize(ref _moduleBytes, _modules.Count);
+            _moduleBytes[i] += d;
+        }
+
+        /// Plugin.OnGUI's allocation (tracker counting only).
+        public void CountGuiAlloc(long d)
+        {
+            if (d > 0) _guiBytes += d;
+        }
+
+        /// "overlay: OnGUI 1.2 KB/s, practice 0.8 KB/s, ..." over `seconds`,
+        /// then from zero. Empty when nothing was counted.
+        public string TakeAllocReport(double seconds)
+        {
+            if (seconds <= 0.01) seconds = 0.01;
+            List<KeyValuePair<string, long>> list = new List<KeyValuePair<string, long>>();
+            long total = _guiBytes;
+            if (_guiBytes > 0) list.Add(new KeyValuePair<string, long>("OnGUI", _guiBytes));
+            for (int i = 0; i < _moduleBytes.Length && i < _modules.Count; i++)
+            {
+                if (_moduleBytes[i] <= 0) continue;
+                total += _moduleBytes[i];
+                list.Add(new KeyValuePair<string, long>(_modules[i].Id, _moduleBytes[i]));
+                _moduleBytes[i] = 0;
+            }
+            _guiBytes = 0;
+            if (list.Count == 0) return "";
+            list.Sort(delegate(KeyValuePair<string, long> a, KeyValuePair<string, long> b) { return b.Value.CompareTo(a.Value); });
+            System.Text.StringBuilder sb = new System.Text.StringBuilder("overlay ");
+            sb.Append((total / 1024.0 / seconds).ToString("0.0")).Append(" KB/s: ");
+            for (int i = 0; i < list.Count && i < 8; i++)
+                sb.Append(i == 0 ? "" : ", ").Append(list[i].Key).Append(' ').Append((list[i].Value / 1024.0 / seconds).ToString("0.0")).Append(" KB/s");
+            return sb.ToString();
+        }
+
+        // ------------------------------------------------------------------
         public void Tick()
         {
             long allocStart = _perf.BeginAlloc();
@@ -174,8 +218,11 @@ namespace ForestOverlay.Core
                 if (!IsLive(m)) continue;
 
                 long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                bool exact = ForestOverlay.Game.AllocationTracker.Counting;
+                long bytes0 = exact ? ForestOverlay.Game.AllocationTracker.MainBytes : 0;
                 try { m.Tick(); }
                 catch (Exception ex) { Disable(m, "Tick", ex); }
+                if (exact && ForestOverlay.Game.AllocationTracker.Counting) CountAlloc(i, ForestOverlay.Game.AllocationTracker.MainBytes - bytes0);
 
                 double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
                             System.Diagnostics.Stopwatch.Frequency;

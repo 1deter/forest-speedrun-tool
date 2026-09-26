@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.93 - 2026-09-26
+
+- The log now records where loading time goes (entering caves, the
+  endgame scenes, save loads) - groundwork for faster loads.
+- Correction to v0.24.92: measured in game, the performance patches cut
+  the game's garbage by about half (not 60%) - still about half as many
+  collection hitches.
+
 ## v0.24.92 - 2026-09-26
 
 - First game performance patches: the game makes a lot less garbage

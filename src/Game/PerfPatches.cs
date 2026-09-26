@@ -108,6 +108,33 @@ namespace ForestOverlay.Game
             Set(f, f.Cfg.Value);
         }
 
+        /// Dev (bridge): every live script with an OnGUI that still gets
+        /// Unity's layout pass (useGUILayout on, enabled) - what is left
+        /// of the per-frame GUILayoutGroup garbage.
+        public string ListLayoutUsers()
+        {
+            Dictionary<string, int> found = new Dictionary<string, int>();
+            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(typeof(MonoBehaviour));
+            for (int i = 0; i < all.Length; i++)
+            {
+                MonoBehaviour mb = all[i] as MonoBehaviour;
+                if (mb == null || !mb.enabled || !mb.useGUILayout) continue;
+                bool hasGui = false;
+                for (Type t = mb.GetType(); t != null && t != typeof(MonoBehaviour); t = t.BaseType)
+                    if (t.GetMethod("OnGUI", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+                                    null, Type.EmptyTypes, null) != null) { hasGui = true; break; }
+                if (!hasGui) continue;
+                string key = mb.GetType().FullName + " on '" + mb.gameObject.name + "'";
+                int n;
+                found.TryGetValue(key, out n);
+                found[key] = n + 1;
+            }
+            if (found.Count == 0) return "none";
+            List<string> parts = new List<string>();
+            foreach (KeyValuePair<string, int> kv in found) parts.Add(kv.Key + (kv.Value > 1 ? " x" + kv.Value : ""));
+            return string.Join("; ", parts.ToArray());
+        }
+
         public void Shutdown()
         {
             for (int i = 0; i < _fixes.Count; i++) if (_fixes[i].Applied) Set(_fixes[i], false);

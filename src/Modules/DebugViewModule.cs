@@ -86,6 +86,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<string> _profilerExtraCfg;
         private ConfigEntry<bool> _allocAtStartupCfg;
         private PerfPatches _perf;
+        private LoadTiming _loadTiming;
         private const float AllocInterval = 30f;
         private float _allocWindowStart;
         private string _allocReport = "";
@@ -130,6 +131,8 @@ namespace ForestOverlay.Modules
             if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
 
             _perf = new PerfPatches(Ctx.Log, Ctx.Config, OverlayPlugin.PluginGuid);
+            _loadTiming = new LoadTiming(Ctx.Log, OverlayPlugin.PluginGuid);
+            _loadTiming.Install();
         }
 
         /// A performance patch on / off (Debug views; the bridge calls this).
@@ -155,6 +158,8 @@ namespace ForestOverlay.Modules
         private void LogAllocations()
         {
             List<string> lines = AllocationTracker.Report();
+            string ours = Host != null ? Host.TakeAllocReport(Time.unscaledTime - _allocWindowStart) : "";
+            if (ours.Length > 0) lines.Add(ours);
             for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
             _allocReport = string.Join("\n", lines.ToArray());
         }
@@ -202,6 +207,7 @@ namespace ForestOverlay.Modules
             if (_saveAt >= 0f && Time.unscaledTime >= _saveAt) SaveFilters();
 
             _profiler.Tick();
+            _loadTiming.Tick();
             if (AllocationTracker.Counting && Time.unscaledTime - _allocWindowStart >= AllocInterval)
             {
                 LogAllocations();
@@ -459,6 +465,7 @@ namespace ForestOverlay.Modules
             if (_host != null) Object.Destroy(_host);
             if (_profiler != null) _profiler.Uninstall();
             if (_perf != null) _perf.Shutdown();
+            if (_loadTiming != null) _loadTiming.Uninstall();
         }
     }
 }

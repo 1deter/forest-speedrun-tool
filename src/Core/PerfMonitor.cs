@@ -168,17 +168,24 @@ namespace ForestOverlay.Core
         }
 
         /// Heap size before a stretch of overlay work; pass it to EndAlloc.
+        /// While the allocation tracker counts, its exact main-thread
+        /// counter instead (the stretches never nest).
         public long BeginAlloc()
         {
-            return SafeHeap();
+            _exactStretch = ForestOverlay.Game.AllocationTracker.Counting;
+            return _exactStretch ? ForestOverlay.Game.AllocationTracker.MainBytes : SafeHeap();
         }
 
         public void EndAlloc(long start)
         {
             if (start < 0) return;
-            long d = SafeHeap() - start;
+            bool exact = ForestOverlay.Game.AllocationTracker.Counting;
+            if (exact != _exactStretch) return;   // switched mid-stretch
+            long d = (exact ? ForestOverlay.Game.AllocationTracker.MainBytes : SafeHeap()) - start;
             if (d > 0) _overlayGrowth += d;
         }
+
+        private bool _exactStretch;
 
         private static long SafeHeap()
         {
