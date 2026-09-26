@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.127 - 2026-09-26
+
+- New experimental performance switch (Debug views, Performance patches,
+  off by default): **Caves: no grass bending while inside**. The game keeps
+  drawing where grass bends around you even inside caves, where there is
+  no grass. Saves about 0.25 ms a frame in caves (more on some laptops).
+  The only visible difference: looking out of a cave mouth, the grass
+  outside does not bend around enemies until you leave the cave.
+
 ## v0.24.126 - 2026-09-26
 
 - Developer tools only: one more measurement for the frame-rate work.

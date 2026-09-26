@@ -107,6 +107,8 @@ namespace ForestOverlay.Game
     //    earlier camera's onPreCull left the picture frozen (game-notes).
     // 13. EXPERIMENTAL: the sun's shadow map (Sunshine) every second frame,
     //    by the game's own UpdateInterval option - Game/CameraTrim.
+    // 14. EXPERIMENTAL: the grass-bending camera off while in a cave -
+    //    Game/CameraTrim.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -202,6 +204,15 @@ namespace ForestOverlay.Game
                 _cameras.ApplySunshine, _cameras.RemoveSunshine, false);
             _fixes[_fixes.Count - 1].Experimental = true;
             _fixes[_fixes.Count - 1].Note = "Changes the picture: moving shadows update at half the frame rate. Saves ~0.3 ms a frame.";
+            Add(config, "GrassBendingOffInCaves", "Caves: no grass bending while inside",
+                "EXPERIMENTAL, changes the picture: while you are in a cave, the game's grass-bending camera (it draws where you " +
+                "and enemies push the grass and ferns aside) stops drawing - there is no grass inside a cave. The one difference: " +
+                "looking out of a cave mouth, grass outside no longer bends around enemies until you leave the cave. Back on in the " +
+                "frame you leave. Saves ~0.25 ms a frame in caves here (up to ~2 ms measured on a laptop). Off = the game's own code.",
+                _cameras.ApplyCaveGrass, _cameras.RemoveCaveGrass, false);
+            _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
+                                            "Saves ~0.25 ms a frame in caves.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

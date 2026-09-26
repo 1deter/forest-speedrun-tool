@@ -54,6 +54,22 @@ namespace ForestOverlay.Game
     //    keeps the last one between (SunshineCamera.NeedsRefresh); nothing
     //    in the game sets the option. Moving shadows then update at half
     //    the frame rate. Measured 0.66 -> 0.32 ms a frame.
+    //
+    // 4. EXPERIMENTAL (changes the picture, off by default): the grass-
+    //    bending camera off in caves. AfsGrassDisplacementController's own
+    //    camera (`AFSGrassDisplacementCameraTest`, following the player)
+    //    draws the player's and enemies' bend trails for the terrain grass
+    //    and the "Touch" foliage shaders (ferns) - none of which is inside a
+    //    cave (RenderProbe.ShadersNear, Cave 6, v0.24.126). It kept drawing
+    //    there (0.19 + 0.05 ms here, 0.6 + 1.3 on Cheesecake's laptop). The
+    //    one thing lost: from inside, a cave mouth shows the outside, and
+    //    grass there no longer bends around enemies while you are in the
+    //    cave. Checked every frame (LocalPlayer.IsInCaves, a cached
+    //    delegate), so the camera is back on in the frame you leave; its
+    //    texture is cleared to the camera's neutral colour when switched
+    //    off (the controller keeps moving the texture's origin each frame,
+    //    so old bends would otherwise slide around). The controller never
+    //    touches the camera's `enabled` (IL).
     // ------------------------------------------------------------------
     public sealed class CameraTrim
     {
@@ -67,6 +83,7 @@ namespace ForestOverlay.Game
         public bool GrassOn { get; private set; }
         public bool ScreenOn { get; private set; }
         public bool SunOn { get; private set; }
+        public bool CaveGrassOn { get; private set; }
 
         private Camera _grassOff;
         private Camera _screenCam;
@@ -79,19 +96,30 @@ namespace ForestOverlay.Game
         private object _sunEvery, _sunHalf;
         private UnityEngine.Object _sunSet;
         private int _sunRefusedId;
+        private Func<bool> _inCaves;
+        private UnityEngine.Object _controller;
+        private float _nextControllerScan;
+        private Camera _caveGrassOff;
 
         public CameraTrim(ManualLogSource log)
         {
             _log = log;
         }
 
-        public string ApplyGrass()
+        private string ResolveController()
         {
             _controllerType = GameBridge.FindGameType("AfsGrassDisplacementController");
             if (_controllerType == null) return "AfsGrassDisplacementController not found";
             _ctlCamera = _controllerType.GetField("DisplacementCamera", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             _ctlTexture = _controllerType.GetField("DisplacementTexture", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (_ctlCamera == null || _ctlTexture == null) return "the controller's camera / texture fields not found";
+            return "";
+        }
+
+        public string ApplyGrass()
+        {
+            string why = ResolveController();
+            if (why.Length > 0) return why;
             GrassOn = true;
             _grassRefusedId = 0;
             _nextScan = 0f;
@@ -155,10 +183,86 @@ namespace ForestOverlay.Game
             _sunSet = null;
         }
 
+        public string ApplyCaveGrass()
+        {
+            string why = ResolveController();
+            if (why.Length > 0) return why;
+            Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            PropertyInfo p = lp != null ? lp.GetProperty("IsInCaves", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+            MethodInfo get = p != null ? p.GetGetMethod(true) : null;
+            if (get == null || get.ReturnType != typeof(bool)) return "LocalPlayer.IsInCaves not found";
+            _inCaves = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), get);
+            _controller = null;
+            _nextControllerScan = 0f;
+            CaveGrassOn = true;
+            return "";
+        }
+
+        public void RemoveCaveGrass()
+        {
+            CaveGrassOn = false;
+            ReleaseCaveGrass("switch off");
+        }
+
+        private void ReleaseCaveGrass(string why)
+        {
+            if (_caveGrassOff != null)
+            {
+                _caveGrassOff.enabled = true;
+                _log.LogInfo("Performance: grass-bending camera back on (" + why + ").");
+            }
+            _caveGrassOff = null;
+        }
+
+        // Every frame, before the cameras render: off in a cave, on outside.
+        private void TickCaveGrass()
+        {
+            bool inCave;
+            try { inCave = _inCaves(); }
+            catch (Exception) { inCave = false; }
+            if (_caveGrassOff != null)
+            {
+                if (!inCave) ReleaseCaveGrass("left the cave");
+                return;
+            }
+            if (!inCave) return;
+            if (_controller == null)
+            {
+                float now = Time.unscaledTime;
+                if (now < _nextControllerScan) return;
+                _nextControllerScan = now + ScanInterval;
+                _controller = UnityEngine.Object.FindObjectOfType(_controllerType);
+                if (_controller == null) return;
+            }
+            Camera cam = _ctlCamera.GetValue(_controller) as Camera;
+            if (cam == null || !cam.enabled) return;
+            RenderTexture rt = cam.targetTexture;
+            if (rt != null)
+            {
+                RenderTexture was = RenderTexture.active;
+                RenderTexture.active = rt;
+                GL.Clear(false, true, cam.backgroundColor);
+                RenderTexture.active = was;
+            }
+            cam.enabled = false;
+            _caveGrassOff = cam;
+            _log.LogInfo("Performance: grass-bending camera off in the cave (" + cam.name + ").");
+        }
+
         /// Once a frame; looks for the cameras every 2 s (a load brings
         /// new ones).
         public void Tick()
         {
+            if (CaveGrassOn)
+            {
+                try { TickCaveGrass(); }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Performance: grass-bending camera in caves failed: " + ex.Message);
+                    ReleaseCaveGrass("error");
+                    CaveGrassOn = false;
+                }
+            }
             if (!GrassOn && !ScreenOn && !SunOn) return;
             float now = Time.unscaledTime;
             if (now < _nextScan) return;
