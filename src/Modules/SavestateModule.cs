@@ -1284,12 +1284,9 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
                     string endgame = EndgameLoader.EnsureLoaded(f.Areas);
                     string stance = Stance.Apply(f.Stance);
-                    // A load rebuilds the player off any rope (RopeClimb).
-                    string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope) : "";
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
                                     (panels.Length > 0 ? " | " + panels : "") +
                                     (stance.Length > 0 ? " | " + stance : "") +
-                                    (rope.Length > 0 ? " | " + rope : "") +
                                     (endgame.Length > 0 ? " | " + endgame : "") + ".");
                     Ctx.Runner.StartCoroutine(LogAreas(f));
                     // A ride under way at capture is replayed after the
@@ -1422,9 +1419,13 @@ namespace ForestOverlay.Modules
                 yield return null;
             }
             if (pin && Ctx.Player.Found) { Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation); Ctx.Bridge.EndFall(); }
+            // A load rebuilds the player off any rope (RopeClimb); after
+            // the pin, which undid a climb entered before it (bridge).
+            string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope) : "";
             Ctx.Log.LogInfo("Savestate after the load: held the player at the captured spot for " +
                             (Time.realtimeSinceStartup - start).ToString("F1") + " s" +
-                            (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") + ".");
+                            (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") +
+                            (rope.Length > 0 ? " | " + rope : "") + ".");
             RemoveTakenPickups(f, false);
             Ctx.Runner.StartCoroutine(RemoveLatePickups(f));
             // A load regrows every bush; the ones cut at capture go again.
