@@ -1473,6 +1473,12 @@ unless critical.
   too; **runs continue at the main menu** - abort automatically; ghost: a
   custom model, buildings in the replay; **checkpoint savestates**
   ("saveloc", like KSF surf) - capturing on the fly without a hitch.
+- **Run lines (QA Discord, 2026-09-26):** an opacity slider 0-100%
+  (sxczurass: full opacity hides the best time), the best run's line in
+  a different colour from the current one (sxczurass), and a window
+  option - show the comparison line only a set time ahead of where you
+  are, slider, default ~5 s (author). Not yet scheduled - ask the
+  author whether they jump the queue (the author asked for the last).
 - **Settings / HUD:** settings do not persist (run lines, practice mode...;
   maks raised it again on the QA Discord, 2026-09-26)
   - persist all; more control over the top-left HUD, less clutter.
