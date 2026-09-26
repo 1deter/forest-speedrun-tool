@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.121 - 2026-09-26
+
+- The log now names your processor, graphics card, resolution and the
+  game's graphics settings (a `System:` line), so a performance report
+  needs no screenshots.
+- Debug views: **Frame test** - adds 1 ms of work every frame while it is
+  on. With it on for a minute and off for a minute, the log shows which
+  part of your processor limits your frame rate. Off at every launch.
+
 ## v0.24.120 - 2026-09-26
 
 - **Fix: v0.24.119's action-icon change is withdrawn.** It could leave

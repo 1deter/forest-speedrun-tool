@@ -143,6 +143,15 @@ namespace ForestOverlay.Core
                          " | heap +" + (_heapGrowth / 1024.0 / seconds).ToString("0") + " KB/s, overlay +" +
                          (_overlayGrowth / 1024.0 / seconds).ToString("0.0") + " KB/s");
 
+            // The machine and the settings, when first seen or changed:
+            // a runner's log then carries its own specs.
+            string system = SystemLine();
+            if (system != _lastSystem)
+            {
+                _lastSystem = system;
+                _log.LogInfo(system);
+            }
+
             // Where the frame's time went on the main thread (Game/FrameTimer).
             List<string> frame = ForestOverlay.Game.FrameTimer.Timeline.Report(seconds, System.Diagnostics.Stopwatch.Frequency, 16);
             for (int i = 0; i < frame.Count; i++) _log.LogInfo(i == 0 ? frame[i] : "  " + frame[i]);
@@ -192,6 +201,27 @@ namespace ForestOverlay.Core
         }
 
         private bool _exactStretch;
+        private string _lastSystem = "";
+
+        private static string SystemLine()
+        {
+            try
+            {
+                int q = QualitySettings.GetQualityLevel();
+                string[] names = QualitySettings.names;
+                return "System: " + SystemInfo.processorType + " (" + SystemInfo.processorCount + " threads), " +
+                       (SystemInfo.systemMemorySize / 1024f).ToString("0") + " GB | " + SystemInfo.graphicsDeviceName + " (" +
+                       SystemInfo.graphicsMemorySize + " MB, " + SystemInfo.graphicsDeviceType +
+                       (SystemInfo.graphicsMultiThreaded ? ", multithreaded" : "") + ") | " +
+                       Screen.width + "x" + Screen.height + (Screen.fullScreen ? " fullscreen" : " windowed") +
+                       ", vsync " + QualitySettings.vSyncCount + ", fps cap " + Application.targetFrameRate +
+                       " | quality '" + (q >= 0 && q < names.Length ? names[q] : q.ToString()) + "', shadows " + QualitySettings.shadows +
+                       " " + QualitySettings.shadowDistance.ToString("0") + " m x" + QualitySettings.shadowCascades +
+                       " " + QualitySettings.shadowResolution + ", lod bias " + QualitySettings.lodBias.ToString("0.##") +
+                       ", pixel lights " + QualitySettings.pixelLightCount + ", textures 1/" + (1 << QualitySettings.masterTextureLimit);
+            }
+            catch (Exception ex) { return "System: unreadable (" + ex.Message + ")"; }
+        }
 
         private static long SafeHeap()
         {

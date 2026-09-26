@@ -144,6 +144,13 @@ namespace ForestOverlay.Modules
             if (_perf != null && i >= 0 && i < _perf.Count) _perf.Toggle(i);
         }
 
+        /// The frame test on / off (Debug views; the bridge calls this).
+        public void ToggleFrameTest()
+        {
+            FrameTimer.TestLoadMs = FrameTimer.TestLoadMs > 0.0 ? 0.0 : 1.0;
+            Ctx.Log.LogInfo("Frame test: " + (FrameTimer.TestLoadMs > 0.0 ? "on - 1 ms of work added every frame" : "off") + ".");
+        }
+
         /// The allocation tracker on / off (Debug views; the bridge calls
         /// this). Off logs a last report.
         public void ToggleAllocations()
@@ -446,6 +453,13 @@ namespace ForestOverlay.Modules
             y += Row;
             y += UiText.Draw(12, y, w - 24, _profiler.Status);
             y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
+
+            bool load = GUI.Toggle(new Rect(12, y, w - 24, 22), FrameTimer.TestLoadMs > 0.0,
+                                   " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
+            if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
+            y += Row;
+            y += UiText.Draw(12, y, w - 24, "Tells whether your processor's main game thread or its drawing thread limits your frame " +
+                                            "rate: the log's Frame lines with and without it. Never kept on between launches.") + 8f;
 
             bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
                                     " Allocation tracker (what the game allocates, by type; by method with the profiler)");

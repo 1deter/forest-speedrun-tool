@@ -76,8 +76,9 @@ namespace ForestOverlay.Game
 
         /// The reverse: `target` stays enabled, is disabled in the
         /// trigger's onPreCull and enabled again at the end of the frame.
-        /// Absent from the Frame line = Unity re-checks a listed camera
-        /// before rendering it (a mid-frame skip works).
+        /// Absent from the Frame line = skipped - but with the last screen
+        /// camera (ActionIconCamera) this FROZE THE PICTURE (gotcha 51):
+        /// run it for a few frames only, and ask the author to look.
         public static string TestLateDisable(string target, string trigger, int frames)
         {
             return StartLateTest(target, trigger, frames, true);

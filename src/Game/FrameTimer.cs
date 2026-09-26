@@ -24,9 +24,14 @@ namespace ForestOverlay.Game
     {
         public static readonly Data.FrameTimeline Timeline = new Data.FrameTimeline();
         public static BepInEx.Logging.ManualLogSource Log;
-        /// Called at every end of frame (IconCameraSkip, RenderProbe's
-        /// tests); += / -=.
+        /// Called at every end of frame (RenderProbe's tests); += / -=.
         public static Action EndOfFrameHook;
+
+        /// The load test (Debug views): this many ms of busy work on the
+        /// main thread every frame. Main thread the limit = the frame grows
+        /// by it; the render thread the limit = it grows less (the main
+        /// thread had been waiting for it, inside the first cameras).
+        public static double TestLoadMs;
         private static FrameTimer _instance;
 
         private Camera.CameraCallback _pre, _post;
@@ -88,6 +93,13 @@ namespace ForestOverlay.Game
             long now = Stopwatch.GetTimestamp();
             MarkStart(now);
             Timeline.Update(now);
+            // The load test: a fixed cost on the main thread, inside the
+            // "Update to LateUpdate" phase (Diagnostics, off by default).
+            if (TestLoadMs > 0.0)
+            {
+                long until = now + (long)(TestLoadMs * Stopwatch.Frequency / 1000.0);
+                while (Stopwatch.GetTimestamp() < until) { }
+            }
         }
 
         private void LateUpdate()
