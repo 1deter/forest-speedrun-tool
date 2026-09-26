@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.82 - 2026-09-26
+
+- A Full load of a savestate taken just after the vault door opened
+  loads the red corridor behind it (it stayed empty, and the load held
+  you in place for 30 seconds).
+
 ## v0.24.81 - 2026-09-26
 
 - Savestates taken during a keycard door's animation (the vault door,

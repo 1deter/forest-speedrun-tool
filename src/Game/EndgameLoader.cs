@@ -29,11 +29,18 @@ namespace ForestOverlay.Game
     public static class EndgameLoader
     {
         private const string Scene = "endgame_streaming";
+        private const string AnimScene = "endgame_animPrefabs";
 
         /// "" when there is nothing to do, else a note for the log line.
         public static string EnsureLoaded(string capturedAreas)
         {
-            if (string.IsNullOrEmpty(capturedAreas) || capturedAreas.IndexOf(Scene, StringComparison.Ordinal) < 0) return "";
+            // Either scene: a capture during the trigger's own load (the
+            // vault door opening, v0.24.82) had endgame_animPrefabs and not
+            // yet endgame_streaming - the Full load then left both out and
+            // the hold waited 30 s for the first.
+            if (string.IsNullOrEmpty(capturedAreas) ||
+                (capturedAreas.IndexOf(Scene, StringComparison.Ordinal) < 0 &&
+                 capturedAreas.IndexOf(AnimScene, StringComparison.Ordinal) < 0)) return "";
             try
             {
                 if (SceneManager.GetSceneByName(Scene).isLoaded) return "";
