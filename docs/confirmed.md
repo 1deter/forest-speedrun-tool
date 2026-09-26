@@ -129,3 +129,7 @@ each camera (v0.24.114-115, bridge). The two camera patches act and let go
 live, 5.11 -> 4.5 ms/frame on the surface, and the endgame plane screen
 shows the same picture rendered on demand (v0.24.116, bridge, released
 build).
+Sun shadows every second frame (`SunShadowsEveryOtherFrame`, v0.24.125):
+no visible difference in play (author, 2026-09-26); 0.66 -> 0.32 ms a
+frame (bridge). Caves: no grass bending (v0.24.128): off in the cave,
+back on in the frame you leave, no hitch at the entry (bridge).

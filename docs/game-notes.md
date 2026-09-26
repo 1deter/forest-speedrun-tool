@@ -2041,6 +2041,15 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   main-thread cost (e.g. a 1 ms spin a frame); if the frame grows by
   less than 1 ms, the main thread had slack and the render thread (D3D11
   submission: draw calls) is the limit.
+- **sxczurass's Frame test** (v0.24.125, 2026-09-26, surface, quality
+  'Ultra Low', DrawDistance UltraLow, 1680x1050): 9.8-10.1 ms/frame off,
+  **9.6-9.8 with +1 ms of main-thread work** - the frame did not grow, so
+  his main thread waits on rendering (render thread or GPU), inside the
+  first camera (grass camera 2.5-3.3 ms vs ~0.15 here). Main-thread-only
+  savings (scripts, physics) do not raise his fps; fewer camera renders /
+  draw calls do. GPU vs render thread: not told yet (a lower resolution
+  would). His title screen: a physics step of ~9 ms in 99% of frames (the
+  author's too - the title scene's own FixedUpdate work).
 - Both use **Sunshine** shadows (the game's own cascade system) - the
   author's quality level 0 does not (`Sunshine Cascade Camera 0` x0/f).
   Measure at their quality level before judging shadows.

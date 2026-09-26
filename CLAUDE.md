@@ -582,8 +582,8 @@ sweep only "if it's light on usage").
 - **Experimental, off by default (this session)**:
   `SunShadowsEveryOtherFrame` (12, v0.24.125): Sunshine's own
   `UpdateInterval = AfterXFrames` 2, 0.66 -> 0.32 ms/frame, moving
-  shadows update at half rate - **the author has it on to look at the
-  picture (gotcha 51); ask what they saw**. `GrassBendingOffInCaves`
+  shadows update at half rate - **no visible difference (author,
+  2026-09-26)**. `GrassBendingOffInCaves`
   (13, v0.24.127-128): the grass-bending camera off while
   `IsInCaves` (nothing in a cave reads it; grass beyond a cave mouth
   stops bending around enemies), ~0.25 ms in caves; tested on / cave /
@@ -602,17 +602,20 @@ sweep only "if it's light on usage").
 - v0.24.119 froze the author's screen by skipping ActionIconCamera
   mid-frame (gotcha 51) - never skip a screen camera mid-frame.
 
-**Waiting on QA** (posted 2026-09-26, message `1553493823840321557`):
-sxczurass and Cheesecake to run 1 min without / 1 min with the Frame
-test and send the log: +1 ms = main-thread bound (camera patches help);
-less, with the first camera's time shrinking = the render thread (then
-draw calls). Their game options (System line): Sunshine shadows, no far
-shadow.
+**sxczurass's Frame test is in** (message `1553515759936999506`, log in
+`Downloads\qa-reports\sxczurass\`): +1 ms of main-thread work did not
+lengthen his frame (9.8-10.1 -> 9.6-9.8 ms) - **he is rendering-bound**
+(render thread or GPU), the wait sits in his first camera (grass camera
+2.5-3.3 ms). For him only fewer camera renders / draw calls help (the
+sun-shadow and cave-grass switches), not script or physics savings.
+Asked him (QA) for 1 min at a lower resolution (fps up = GPU, same =
+render thread) and 1-2 min with the two camera switches on vs off.
+Cheesecake's Frame test still awaited.
 
-**Next for raw FPS:** (1) the author's verdict on the sun-shadow picture;
-if fine, offer the three Experimental switches to QA (sxczurass /
-Cheesecake on lower fps would see a half-rate shadow first) and add
-them to the to-do list. (2) Check `Physics30Hz` across a Full load (`Performance: physics at
+**Next for raw FPS:** (1) sxczurass's resolution + switches answer: if
+render-thread bound, look for draw-call cuts (fewer cameras first:
+ActionIconCamera, ParticleCam; then the main camera's draw calls); if
+GPU, his settings are already minimal - resolution is his lever. (2) Check `Physics30Hz` across a Full load (`Performance: physics at
 30 Hz again` if the step was reset). (3)
 Their Frame test result. (4) ActionIconCamera by hand-`Render()` only
 with the author's eyes on the picture.
