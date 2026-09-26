@@ -576,7 +576,12 @@ state, not scenes (areas: `same as at capture`).
   Sahara cave was invisible; clearing the flag brought the outside back,
   leaving ControlRoom removed the corridors (bridge screenshots, author
   confirmed). A Go landing outside every section's renderers clears both
-  (`AreaKeeper.ForTeleport`, v0.24.42).
+  (`AreaKeeper.ForTeleport`, v0.24.42) - except the endgame flag in the
+  vault entrance (on the `LoadEndgame` box's forward side, towards the
+  door), which a run has set and the door's load needs: kept or set there
+  since v0.24.112. The box's `EnterEndgame` (Player registry) reaches
+  `LocalPlayer.SetInEndGame` through an `EventListener` on
+  `player/ControllerObjects` (and a snow-cave artifact listener).
 
 **Held items after a Full load** (bridge + IL, 2026-09-24). After a Full
 load the inventory had the axe and lighter equipped (`RightHand` /
@@ -1731,7 +1736,7 @@ door's **`DoEnvironmentAnimation`**, then 0.5 s, then the one-frame load;
 the vault door sequence.
 **Timed** (bridge, 2026-09-26, a first visit recreated: `ForceUnload`,
 `SetCanLoad false`, tp into the box and out towards the door, tp to
-`playerPos`, `IsInEndgame` set back - our tp clears it -, door closed,
+`playerPos`, `IsInEndgame` set back - our tp cleared it before v0.24.112 -, door closed,
 `sequence.BeginStage(0)`): onDoorOpen -> `PlayerInEndgameTester.
 DoPositionningTest` (needs `IsInEndgame`, set by the crossing's
 `EnterEndgame`) -> `DelayedLoad` **4.35 s** -> `ForceLoad` -> 0.5 s ->

@@ -549,14 +549,12 @@ identity.
 
 ## Current status
 
-**Released: v0.24.111** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.112** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.111 in the game)
+### Pick up here (2026-09-26, v0.24.112 in the game)
 
-**Next sessions, in order (author, 2026-09-26):** 1. the teleport fix
-(`AreaKeeper.ForTeleport` clearing `IsInEndgame` at the vault door - the
-task chip / *Open* below), its own session; 2. **raw FPS**, a fresh
+**Next session (author, 2026-09-26):** **raw FPS**, a fresh
 session on high effort - item 3 of the list below. Start with the Game profiler
 (`call BepInEx_Manager OverlayPlugin._host._modules[8].ToggleProfiler`,
 30 s `Game profile (30 s):` lines) on the surface (428, 78, -4), a cave
@@ -564,7 +562,14 @@ session on high effort - item 3 of the list below. Start with the Game profiler
 GPU-bound. maks's specs / log are summarised below; sxczurass's are
 still awaited.
 
-**State:** the game runs v0.24.111 at the title screen (Slot 1 starts
+**Teleport fix done (v0.24.112, bridge-confirmed on the released
+build):** a Go / `tp` between the `LoadEndgame` box and the vault door
+keeps `IsInEndgame` or sets it (`endgame flag set (vault entrance, past
+the LoadEndgame box)`), and the door then loads the endgame (~5 s, in the
+background); behind the box and on the surface it is cleared as before
+(lab -> surface checked).
+
+**State:** the game runs v0.24.112 in Slot 1 on the surface (Slot 1 starts
 at the vault door); `SkipEndgameAnimSweepAtLoad` (index 9) and
 `EndgameAsyncAtVaultDoor` (index 8) both **on** by default, confirmed. Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
@@ -593,8 +598,7 @@ is an investigation - one session).
   each save load. Load-timing lines now name a patched method plainly
   (not `DMD<...>`).
 - Noted, left alone: a Quick load's streamed-scene reload is the restart
-  hitch (game-notes); a task chip was offered for `AreaKeeper.ForTeleport`
-  clearing `IsInEndgame` at the vault door (see *Open*).
+  hitch (game-notes).
 - **QA:** v0.24.108 posted (message `1553430573979009127`), v0.24.110
   posted with the heap correction (message `1553437400632660059`, asks
   sxczurass for specs + a 10-minute log); to-do list current.
@@ -684,11 +688,6 @@ line when it is seen again.
   the intro hang. The position fix covers them; none is replayed (their
   states - Megan dead, the ending - are not in Slot 1). Megan's
   transformation is replayed by `MeganKeeper` as before.
-- `tp` / Go outside the endgame sections clears `IsInEndgame`
-  (`AreaKeeper.ForTeleport`). At the vault door that breaks the endgame
-  load: the door's `DoPositionningTest` starts it only with the flag set
-  (bridge, 2026-09-26). A task chip was offered (keep the flag between
-  the `LoadEndgame` box and the door); fix it if nobody has.
 - **Phantom stick** (fix list 2, author, once): not reproduced; waits
   for a `Pickup gone, inventory unchanged: ...` line. Candidate cause
   found in v0.24.70: a taken stick's flag follows a pool object to

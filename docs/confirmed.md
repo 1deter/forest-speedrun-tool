@@ -115,3 +115,7 @@ works. A savestate taken on the cave 4 rope puts the player back on it - Quick
 load from the surface and from inside the cave, Full load - no launch;
 `tp` lets go of a climb (v0.24.104-105, bridge, released builds; maks's
 own file reproduced the ~48 m/s launch first).
+
+A Go / `tp` to the vault entrance keeps or sets the endgame flag, and the
+door then loads the endgame; the surface and behind the `LoadEndgame` box
+still clear it (v0.24.112, bridge, released build).
