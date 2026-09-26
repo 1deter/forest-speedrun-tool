@@ -157,6 +157,25 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// What the LoadEndgame box's forward crossing does (EnterEndgame ->
+        /// LocalPlayer.SetInEndGame(true)), for a teleport past it.
+        public static string EnterEndgame()
+        {
+            try
+            {
+                Resolve();
+                if (_inEndgame == null || (bool)_inEndgame.GetValue(null, null)) return "";
+                MethodInfo set = _inEndgame.GetSetMethod(true);
+                if (set == null) return "endgame: not set (no setter)";
+                set.Invoke(null, new object[] { true });
+                return "endgame flag set";
+            }
+            catch (Exception ex)
+            {
+                return "endgame: setting failed (" + ex.Message + ")";
+            }
+        }
+
         public static string LeaveOverlook()
         {
             try

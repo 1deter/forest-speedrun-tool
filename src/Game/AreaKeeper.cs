@@ -36,6 +36,17 @@ namespace ForestOverlay.Game
     // IsInEndgame and the surface was lit like a cave.
     // A red elevator ride under way is stopped first (v0.24.100): left
     // running, its end ~30 s later half-unloaded the cave teleported to.
+    //
+    // Except the vault entrance (v0.24.112): the tunnel between the
+    // LoadEndgame trigger box (EndgameEntrance/LoadEndgame, tag
+    // EndgameLoader) and the vault door is outside every section, but a
+    // run has the flag set there - the box's forward crossing sends
+    // EnterEndgame (LocalPlayer.SetInEndGame) - and the door's onDoorOpen
+    // (PlayerInEndgameTester.DoPositionningTest) starts the endgame load
+    // only with the flag set. A Go there cleared it (or, from the surface,
+    // never set it), and the opened door led into an unloaded endgame
+    // (bridge, 2026-09-26). So a destination on the box's forward side,
+    // near the tunnel, keeps the flag or sets it as the crossing does.
     // ------------------------------------------------------------------
     internal sealed class AreaKeeper
     {
@@ -102,7 +113,8 @@ namespace ForestOverlay.Game
                 Component live = Live();
                 bool overlook = AreaReport.InOverlook();
                 bool endgame = AreaReport.InEndgame();
-                if (live == null && !overlook && !endgame) return "";
+                bool vault = InVaultEntrance(dest);
+                if (live == null && !overlook && !endgame && !vault) return "";
                 if (InsideASection(dest)) return "";
 
                 string note = "";
@@ -116,6 +128,12 @@ namespace ForestOverlay.Game
                     string o = AreaReport.LeaveOverlook();
                     if (o.Length > 0) note += (note.Length > 0 ? ", " : "") + "overlook flag cleared";
                 }
+                if (vault)
+                {
+                    string e = endgame ? "endgame flag kept" : AreaReport.EnterEndgame();
+                    if (e.Length > 0) note += (note.Length > 0 ? ", " : "") + e;
+                    return note + " (vault entrance, past the LoadEndgame box)";
+                }
                 if (endgame)
                 {
                     string e = AreaReport.LeaveEndgame();
@@ -128,6 +146,29 @@ namespace ForestOverlay.Game
                 while (ex is TargetInvocationException && ex.InnerException != null) ex = ex.InnerException;
                 return "area: teleport sync failed (" + ex.Message + ")";
             }
+        }
+
+        // The tunnel from the LoadEndgame box to the vault door, in the box's
+        // frame (bridge, 2026-09-26): box at (147, -405.5, 1289.9), yaw
+        // 283.1, size (60, 30, 12); the door's player spot is 103 m
+        // forward, 19 m to the side, 22 m up. The door's side of the box
+        // only; the approach behind it is outside, as in a run.
+        private const float VaultAhead = 130f, VaultSide = 45f, VaultBelow = 25f, VaultAbove = 50f;
+        private Transform _loadBox;
+
+        private bool InVaultEntrance(Vector3 p)
+        {
+            if (_loadBox == null)
+            {
+                GameObject go = GameObject.FindWithTag("EndgameLoader");
+                if (go == null) return false;
+                _loadBox = go.transform;
+            }
+            Vector3 d = p - _loadBox.position;
+            float ahead = Vector3.Dot(_loadBox.forward, d);
+            float side = Vector3.Dot(_loadBox.right, d);
+            return ahead > 0f && ahead < VaultAhead && Mathf.Abs(side) < VaultSide
+                && d.y > -VaultBelow && d.y < VaultAbove;
         }
 
         private Type _members;

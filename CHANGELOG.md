@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.112 - 2026-09-26
+
+- **Go / teleport to the vault door** (or anywhere in the tunnel before it)
+  now keeps the game's "in the endgame" state, as walking there does.
+  Before, opening the vault door after a Go never loaded the endgame and
+  you walked into an empty lab. A teleport out to the surface still clears
+  it.
+
 ## v0.24.111 - 2026-09-26
 
 - **Endgame: load it in the background at the vault door** is now on by
