@@ -1778,19 +1778,33 @@ hand-over, is the freeze seen after those Full loads (author, 2026-09-26).
 Also `animClipMemoryManager.UnloadEndGameAnimation` (~1.1 s, a 760-870 ms
 frame) runs inside every load.
 
-**The heap across restores** (bridge, 2026-09-26, fresh launch, Slot 1):
-title load 265 MB (after a forced GC) -> one Full load 282 MB (+17). But
-20 Quick loads (296 -> 303 MB) and **then** a Full load: 421 MB (+118),
-then flat (+4, +4 over two more Full loads, one of them endgame). Earlier
-the same session shape went 437 -> 549 -> 556 -> 557. The census at 536 MB
-had the same ~495k Unity objects as at 282 MB and statics reaching only
-~33 MB, so the extra ~250 MB is managed memory no static reaches. maks's
-session with ~50 Quick loads and two Full loads went 232 -> 420 MB, and
-his GC frames grew from ~150 to ~550 ms, several per 30 s - enough to
-break frame-precise tech (his elevator boost "worked again after a
-restart"). Open: what a Quick load leaves that a Full load then keeps
-(candidate: Boehm's conservative scan retaining the serializer's large
-buffers).
+**The heap across restores** (bridge, 2026-09-26, v0.24.108, fresh
+launches, Slot 1; `call static:System.GC GetTotalMemory true` = live
+bytes after a full collection, and the bridge's reply time for it = the
+full-GC pause). **No lasting step:**
+- Title load: 276-281 MB, pause 73-85 ms. 20 Quick loads of `phantom-a`:
+  284 MB (+4), pause 74-80 ms.
+- **Every Full load** (after 20 Quick loads or none) goes to ~410-420 MB,
+  pause ~100-115 ms - and **drops back** to ~290-300 MB in two steps
+  (e.g. 419 -> 375 -> 302 over two collections), once **30 s** after the
+  load and once **68 s** after: the old world is held for a while, then
+  released (the two steps look like finalization). No log line at the
+  drop, nothing of ours waits that long (our after-load coroutines stop
+  within 30 s), statics reach only ~33 MB (census) - the root is not
+  known (a thread stack or a coroutine of the game's). Earlier readings
+  ("+118 MB that stays", 437 -> 549 -> 556) were taken inside that
+  window.
+- **Collections come from volume, not headroom:** 218 MB of garbage
+  (40 x `File.ReadAllBytes` of a 5.45 MB file) = 1 collection on a fresh
+  heap, 2 on one grown by Full loads - so pre-growing the heap would not
+  space GCs out. In play at ~2 MB/s that is one every ~50 s.
+- **Each Quick load forces ~1 collection** (the streamed scenes' asset
+  clean-ups). maks's 3-7 GCs per 30 s (report 2026-09-26, i7-9700KF /
+  RTX 2070 Super, 150-170 fps) were his restart loop (~every 15 s), at
+  120-150 ms each on his machine.
+So maks's longer pauses after many restores are not explained by a heap
+that stays grown; the elevator-physics lead (Next up 5) loses its best
+candidate.
 
 ## The game ships a debug console — 256 methods
 

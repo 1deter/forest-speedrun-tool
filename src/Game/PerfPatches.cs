@@ -77,6 +77,17 @@ namespace ForestOverlay.Game
     //    if it outlasts the cutscene. Same transpiler as 8. A run's real
     //    time is unchanged: Time.maximumDeltaTime is 9 here, so the frozen
     //    frame counts as game time and the cutscene ends when it would.
+    // 10. The endgame-animation sweep at load (IL, 2026-09-26): on every
+    //    game-scene load animClipMemoryManager.Start -> UnloadEndGameAnimation
+    //    starts three AnimationLoadManager.UnloadAnimation coroutines
+    //    (refreshAssets false) and, in the same frame, a full
+    //    ResourcesHelper.UnloadUnusedAssets - 1.05-1.20 s, one frame of
+    //    550-800 ms, inside the load. Each coroutine first waits on a
+    //    Resources.LoadAsync of the "<clip> Empty" placeholder and only then
+    //    swaps the clip out, so the sweep runs while the three clips are
+    //    still referenced and cannot free them. A transpiler removes that
+    //    one `call UnloadUnusedAssets; pop`; the coroutines run as before.
+    //    Ships off until an A/B shows the sweep frees nothing that matters.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -148,6 +159,11 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Note = "Changes how the game runs that moment: the door's cutscene plays smoothly instead of freezing " +
                                             "for ~5 s. A run's time is the same (the cutscene ends when it would). You are held in place " +
                                             "if the load outlasts the cutscene.";
+            Add(config, "SkipEndgameAnimSweep", "Loads: skip the endgame-animation clean-up",
+                "Every save load, the game starts unloading three endgame animations and, in the same frame, walks every loaded asset " +
+                "to free unused ones (~1 s, one frame of 0.5-0.8 s) - before the animations are actually unloaded, so that walk cannot " +
+                "free them. Skip that one walk; the animations are unloaded as before. Memory only; off = the game's own code.",
+                ApplyAnimSweep, RemoveAnimSweep, false);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -354,6 +370,62 @@ namespace ForestOverlay.Game
             if (__result == null || ReferenceEquals(__result, _unloadRunning)) return;
             _unloadRunning = __result;
             _unloadSceneSince = false;
+        }
+
+        // ------------------------------------------------------------------
+        // 10. The endgame-animation sweep at load
+        private MethodInfo _animUnload;
+        private static int _animSweepFound;
+        public static int AnimSweepsSkipped { get; private set; }
+
+        private string ApplyAnimSweep()
+        {
+            Type t = GameType("animClipMemoryManager");
+            if (t == null) return "animClipMemoryManager not found";
+            _animUnload = t.GetMethod("UnloadEndGameAnimation", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (_animUnload == null) return "UnloadEndGameAnimation not found";
+            _self = this;
+            _animSweepFound = 0;
+            _harmony.Patch(_animUnload,
+                postfix: new HarmonyMethod(typeof(PerfPatches).GetMethod("AnimSweepPostfix", BindingFlags.Static | BindingFlags.NonPublic)),
+                transpiler: new HarmonyMethod(typeof(PerfPatches).GetMethod("AnimSweepTranspiler", BindingFlags.Static | BindingFlags.NonPublic)));
+            if (_animSweepFound == 1) return "";
+            // Not the code this was written for: the game's own code back.
+            _harmony.Unpatch(_animUnload, HarmonyPatchType.All, _harmony.Id);
+            return "expected one clean-up call, found " + _animSweepFound + " (game updated?)";
+        }
+
+        private void RemoveAnimSweep()
+        {
+            if (_animUnload != null) _harmony.Unpatch(_animUnload, HarmonyPatchType.All, _harmony.Id);
+        }
+
+        /// `call ResourcesHelper.UnloadUnusedAssets; pop` -> two nops
+        /// (labels stay on the instructions).
+        private static IEnumerable<CodeInstruction> AnimSweepTranspiler(IEnumerable<CodeInstruction> instructions)
+        {
+            List<CodeInstruction> list = new List<CodeInstruction>(instructions);
+            int found = 0;
+            for (int i = 0; i + 1 < list.Count; i++)
+            {
+                MethodInfo m = list[i].operand as MethodInfo;
+                if (list[i].opcode != OpCodes.Call || m == null || m.Name != "UnloadUnusedAssets" ||
+                    m.DeclaringType == null || m.DeclaringType.Name != "ResourcesHelper") continue;
+                if (list[i + 1].opcode != OpCodes.Pop) continue;
+                list[i].opcode = OpCodes.Nop;
+                list[i].operand = null;
+                list[i + 1].opcode = OpCodes.Nop;
+                found++;
+            }
+            _animSweepFound = found;
+            return list;
+        }
+
+        private static void AnimSweepPostfix()
+        {
+            AnimSweepsSkipped++;
+            if (_self != null)
+                _self._log.LogInfo("Performance: skipped the endgame-animation asset clean-up at load (" + AnimSweepsSkipped + " this session).");
         }
 
         // ------------------------------------------------------------------

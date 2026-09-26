@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.109 - 2026-09-26
+
+- New switch in Debug views -> Performance patches, off for now while it
+  is measured: **Loads: skip the endgame-animation clean-up**. Every save
+  load (a Full load, a death reload, Continue) spends about 1 second on
+  an asset clean-up that runs too early to free anything it was meant
+  to. The switch skips just that one.
+
 ## v0.24.108 - 2026-09-26
 
 - Correction to the new Experimental switch **Endgame: load it in the
