@@ -824,41 +824,43 @@ identity.
 
 ## Current status
 
-**Released: v0.24.102** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.103** (2026-09-26). The author runs it via the in-game
 updater. **376 tests.**
 
-### Pick up here (2026-09-26, v0.24.102 in the game)
+### Pick up here (2026-09-26, v0.24.103 in the game)
 
-**State:** the game runs v0.24.102 (installed with `update_game`, Slot 1
-loaded fresh from the title screen; `Cheats.GodMode` true as Slot 1
-loads; `PlayerPreferences.UseCrouchToggle` set back to false after the
-test). `[Performance] SaveLoadNoFixedWait` off. Savestates `phantom-a`
-(surface, captured with the endgame loaded), `keycard-pickup-testing`,
-`physA`, `elevPre` (in the red elevator car), `elevMid` kept. The
-author's plan (2026-09-26): **one thing per session, then hand off**.
+**State:** the game runs v0.24.103 (`update_game`). Savestates
+`phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`
+kept. The author's plan (2026-09-26): **one thing per session, then
+hand off**.
 
-**Done this session:** v0.24.102 - savestates put back the captured
-stance (`stance` header, `Game/Stance`; game-notes *Crouch*). sxczurass's
-report: toggle crouch outlived every restore. Confirmed on the bridge
-(below). Earlier today: v0.24.98-101 (inventory-full log line, endgame
-in the background for our restores, a teleport stops a red elevator
-ride, God mode) - the commits and game-notes *Performance* have the
-detail.
+**Done this session:** v0.24.103 - QA tab note boxes wrap and grow
+(`UiText.TextBox` / `BoxHeight`; Enter becomes a space), and *Write
+report* includes the top note box (`Note:` in report.txt, a `QA note
+(in the report)` log line) - before, only *Mark* carried it, so maks's
+note never reached his report. BridgeMcp `qa_download` numbers
+attachments that share a name (three `image.png` overwrote each other).
 
-**Next session - small QA items first (runner-facing):**
-- **maks's report** (msg `1553400013747523665`) + his note as 3 images
-  (reply `1553400328563597454`) - download (`qa_download`) and read.
-- **QA tab note box** (author): wrap long text (no horizontal scroll -
-  a multi-line wrapped text area); and check / make clear whether a
-  note is saved on *Write report* or needs *Mark* first.
-- **Deaths tab** (author): remove the *Clear blood overlay* button (the
-  No blood toggle covers it). **Remove the Savestates tab** (author):
-  migrate what is useful to where it belongs logically (captures /
-  restores -> Practice?, the Memory section -> Debug views?) - check with
-  the author where each part goes if unclear.
-- Tell sxczurass the crouch fix is in v0.24.102 (QA list item, or a
-  short post) and move it to *Done recently* on the to-do list once he
-  confirms.
+**maks's report (15:34, read):** no list answers; one Mark at (-13.2,
+59.4, 1235.3), spot `s-1c023e29e7f7`. His note (3 images): *a start
+state on the **cave 4 rope entrance**: on reload it either shoots him up
+into the air, or the textures unload once he goes out of bounds through
+the entrances.* The zip is in `Downloads\qa-reports\yirequ\ForestOverlay-report-maks-2026-09-26_15-34\`
+(logs 15-25-39 = that session; his start states under
+`savestates/segments/`). **Next session - take this first:** copy
+`s-1c023e29e7f7.fosave` to `savestates/`, restore it (Quick and Full)
+via the bridge and read the log's restore line + where the player lands
+(`cave` header vs `GameBridge.ForceCaveState`; a rope-down parents the
+player - `playerEnterCaveAction.doCave`, gotcha 40).
+
+**Then, small QA items (author):**
+- **Deaths tab**: remove the *Clear blood overlay* button (the No blood
+  toggle covers it). **Remove the Savestates tab**: migrate what is
+  useful to where it belongs (captures / restores -> Practice?, the
+  Memory section -> Debug views?) - ask the author where each part goes
+  if unclear.
+- sxczurass: crouch fix (v0.24.102) is on the to-do list's *Please
+  test*; move it to *Done recently* once he confirms.
 
 **Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
 maks and sxczurass to post CPU / GPU / RAM, play 10 minutes and post
@@ -1327,7 +1329,10 @@ keeps `Cheats.GodMode` on (re-set within a second when cleared), and
 unticking clears it only when the toggle set it (v0.24.101, bridge).
 With toggle crouch, Quick and Full loads put back the captured stance
 both ways - crouched -> standing capture stands, standing -> crouched
-capture crouches (v0.24.102, bridge, released build).
+capture crouches (v0.24.102, bridge, released build). The QA tab's note
+box wraps a 234-character note over lines, and Write report puts it in
+report.txt without a Mark (v0.24.103, bridge; the per-item boxes use the
+same helper - the bridge cannot write an array element to test one).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
