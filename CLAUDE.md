@@ -110,7 +110,7 @@ Where things live:
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
-| Perf log line | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`) |
+| Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/MemoryCensus.RunScene` (scene census, bridge only) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
@@ -726,6 +726,15 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     guards (`LockPlace`, `ShownPlace`, `yield null`) and compare where
     each side runs; the bridge's `call` runs in `Update` and can hide it.
 
+42. **Measure the measurement.** Two readings in the performance work
+    were the tool's own doing: the Perf line matched a GC seen in a
+    frame to that frame's length, so collections set off in our own
+    Tick read as 11 ms pauses (fixed v0.24.87 - the longer of that frame
+    and the next); and hooking 1588 methods with Harmony nearly doubled
+    the GC pause (90 -> 165 ms) through the patches' own objects. When a
+    number surprises you, first ask what the instrument adds, and
+    measure baselines on a fresh launch with the instrument off.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -775,7 +784,7 @@ identity.
 ## Current status
 
 **Released: v0.24.89** (2026-09-26). The author runs it via the in-game
-updater. **379 tests.**
+updater. **373 tests.**
 
 ### Pick up here (2026-09-26, handoff mid performance work, v0.24.89 in the game)
 
@@ -861,9 +870,10 @@ over the session? the GC pause?).
    performance (a degraded long session).
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-3. **Next up 5, Quick load physics parity** stays open but deferred
-   (author) until maks brings evidence (a QA report / video when it
-   happens); then the physics trace.
+3. **Next up 5, Quick load physics parity** - maks has now sent
+   evidence (1b above: fails in a long session, fine after a restart);
+   read the reports first, then decide with the author whether it
+   leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
@@ -1295,10 +1305,10 @@ list so we can move onto expanding more features".
      `elevMid` (2.6 s into the ride) are left for this.
 6. **Performance: can patches make the game itself faster?** (author,
    2026-09-23). Measure first, change second:
-   - **Baseline**: the `Perf (30 s):` line. v0.23.4 at idle: ~175 fps,
-     **heap +1091 KB/s** (overlay +5 KB/s) - the game allocates ~1 MB/s and
-     Unity 5.6's Boehm GC walks the whole heap each collection. GC count
-     and worst frame are the numbers to move.
+   - **Measured so far** (v0.24.86-89): see *Pick up here* - the hitch
+     is the ~90 ms Boehm pause over a ~281 MB live heap; scripts are
+     cheap. GC count, GC frame length and the forced-GC ms are the
+     numbers to move.
    - **Hot spots offline**: `ilscan` over `Update` / `LateUpdate` /
      `FixedUpdate` / `OnGUI` for per-frame `FindObjectsOfType`,
      `GameObject.Find`, `GetComponent(s)`, `SendMessage`, string building,
@@ -1306,9 +1316,8 @@ list so we can move onto expanding more features".
      globalLastStates` and `TreeWindSfxManager` lists growing,
      `WorkScheduler.ProcessArea`, `AdvancedTerrainGrass.GrassManager`,
      enemy AI updates.
-   - **In game**: a debug toggle (Debug views) wrapping a named list of
-     game methods in Harmony `Stopwatch` timing, top N per 30 s in the log;
-     never on by default.
+   - **In game**: done - the Game profiler (Debug views, v0.24.86-87)
+     and the scene census (v0.24.89).
    - **Rules**: behaviour-preserving patches only (cache a lookup, skip a
      no-op, pool an allocation), each with its own switch and one log line;
      before / after `Perf` lines from the author. Anything changing timing
