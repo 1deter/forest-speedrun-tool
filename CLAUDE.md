@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -765,6 +765,15 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     diagnostic that runs on an event must be checked for what it costs
     there (gotcha 42).
 
+46. **A symptom that appears later can be a coroutine finishing.** The
+    vault door cave looked half drawn after a `tp` out of the red
+    elevator; the first A/B (screenshots 5 s after the teleport) said
+    "not reproduced" because the ride's end, ~30 s in, was what broke it
+    (author spotted the timing). Gotcha 37 again, for teleports: an
+    action the player leaves keeps running. When something "sometimes"
+    looks wrong, look again after every pending game timer could have
+    fired (`_duration`, `WaitForSeconds`), not just once (v0.24.100).
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -813,68 +822,77 @@ identity.
 
 ## Current status
 
-**Released: v0.24.98** (2026-09-26). The author runs it via the in-game
-updater. **374 tests.**
+**Released: v0.24.100** (2026-09-26). The author runs it via the in-game
+updater. **375 tests.**
 
-### Pick up here (2026-09-26, performance session continued, v0.24.97 in the game)
+### Pick up here (2026-09-26, performance session, v0.24.100 in the game)
 
-**State:** the game runs v0.24.97 (installed with `update_game`, at the
-title screen). **The author's config has
-`[Performance] SaveLoadNoFixedWait = true`** (turned on for the A/B;
-default is off) - ask the author whether to keep it. Game in Slot 1,
-surface. Savestates `phantom-a`, `keycard-pickup-testing`, `physA`,
-`elevPre`, `elevMid` kept. The session is about performance and loads
-(author, 2026-09-26).
+**State:** the game runs v0.24.100 (installed with `update_game`, Slot 1
+loaded, player in the vault door cave). `[Performance]
+SaveLoadNoFixedWait` is back **off** (author: "whatever you think is best
+for the test" - off, so load timings are measured against the game's own
+hand-over). Savestates `phantom-a` (surface, captured with the endgame
+loaded - the Full load that loads it), `keycard-pickup-testing`, `physA`,
+`elevPre` (in the red elevator car), `elevMid` kept. The session is about
+performance and loads (author, 2026-09-26); the author asked for a full
+handoff at the session limit.
 
-**Done (details: game-notes *Performance: garbage, allocations and
-loads*; the commits):**
-- v0.24.90-94: allocation tracker, six behaviour-preserving patches (idle
-  garbage ~420 -> 216 KB/s), `Load timing:` lines, merged asset sweeps.
-- v0.24.95 `activation steps:` line (LoadSave.Activation state by state).
-- v0.24.96 **Experimental / gameplay-altering** group in Debug views
-  (`Fix.Experimental` + `Note`, off by default): `SaveLoadNoFixedWait`
-  (fix 7, `TogglePerfPatch 6`) - Activation 2.70 -> 1.35 s from the title
-  screen, 2.41 -> 1.47 s on a Full load; the one difference found is a
-  building nav update moving after the hand-over (game-notes).
-- v0.24.97 the "Load N finished" line no longer forces a GC (an 80-140 ms
-  freeze as control arrived).
-- maks's physics reports read (below).
+**Done this session (details: game-notes *Performance: garbage,
+allocations and loads*; the commits):**
+- v0.24.98 `Inventory full: ... - from <call stack>` log line
+  (`Game/FullCapacityWatch`) for the plane axe message (below).
+- v0.24.99 **the endgame in the background for our restores**
+  (`EndgameLoader.PatchStream`, Performance switch
+  `EndgameAsyncForRestores`, index 7, on): the 5.2 s one-frame freeze
+  became 2.04 s / longest 100 ms (Full load of `phantom-a`, hold 6.0 ->
+  4.5 s) and 1.71 s / longest 18 ms (Quick load of `elevPre` with the
+  endgame unloaded; switch off: 5000 ms frame). Trigger state, anim
+  prefabs, the ride after it - all as after the game's load.
+- v0.24.100 **a teleport stops a red elevator ride under way**
+  (`AreaKeeper.ForTeleport` -> `ElevatorKeeper.StopRides`). The author
+  saw the vault door cave half drawn: a `tp` 12 s into the ride, the
+  ride's end (~30 s, the overlook door opening) broke the cave (author's
+  diagnosis, reproduced: whole at 5 s, broken at 35 s; fixed build whole
+  at 35 s). Gotcha 46.
+- QA: sxczurass's performance list posted; to-do list updated (raw FPS
+  planned); the v0.24.98-100 list posted (see *QA* below).
+
+**Next - the endgame load in a run (Experimental option, author's
+decision 2026-09-26: allowed, off, "only if a genuine improvement").**
+How a run loads it (live UnityEvent wiring, game-notes *The endgame*):
+the forward crossing of `EndgameEntrance/LoadEndgame` starts `InstantLoad`
+(`DoAfter` 0.01 s) -> `ForceLoad`, which waits for `_canLoad` (the vault
+door's `onDoorOpen` sets it); `_onBeforeLoad` starts the door's
+`DoEnvironmentAnimation`, 0.5 s, then the one 5.2 s frame - so the
+freeze sits in the vault door sequence. Plan: a second switch
+(Experimental) that lets `EndgameLoader.StreamLoad` go async for the
+game's own load too; the door's keypad cutscene is ~6 s and the async
+load ~2 s at High priority, so it should finish inside it - **measure
+it with a real crossing** (game-notes: `ForceUnload` + `SetCanLoad
+false` + tp into the box and out towards the door; the door closed again
+by `KeypadDoorKeeper`'s replay recipe), and hold the player (pin as
+`HoldUntilLoaded`) if the load outlasts the cutscene. Label: a run with
+it loses the ~5 s freeze (RTA time changes - say so in the Note).
 
 **maks's elevator physics (Next up 5) - lead, not proven:** his failing
 session (Quick loads at the red elevator, ~50 restores, two Full loads)
 grew the Mono heap 232 -> 420 MB and his GC frames from ~150 to ~550 ms,
-several per 30 s; after a restart the boosts worked. Reproduced here: 20
-Quick loads then one Full load = +118 MB that stays (a Full load alone:
-+17). Game-notes *The heap across restores*. Next: find what a Quick
-load leaves that the Full load then keeps (census at 536 MB: same Unity
-object count as at 282 MB, statics only ~33 MB - so not a static root;
-try a managed heap walk, or `GC.Collect` + census right after a Quick
-load vs before), then ask maks to retest the boost after a Full load vs
-after a restart with the `Perf (30 s)` lines. Not yet posted to QA.
+several per 30 s; after a restart the boosts worked (maks on QA: 4/5
+after a fresh restart, then ~1/8; sxczurass: 1.5 h of cave 6 practice
+then the elevator was fine). Reproduced here: 20 Quick loads then one
+Full load = +118 MB that stays (a Full load alone: +17). Game-notes *The
+heap across restores*. Next: find what a Quick load leaves that the Full
+load then keeps (census at 536 MB: same Unity object count as at 282 MB,
+statics only ~33 MB - so not a static root; try a managed heap walk, or
+`GC.Collect` + census right after a Quick load vs before). maks was
+asked (2026-09-26 12:00) for a Quick-loads-only session + Mark + report
+when the boosts stop.
 
 **Performance / loads - what is left, in order of payoff:**
-1. **The endgame load freeze (5.2 s in one frame).** Also what the author
-   saw "after the full loads": a Full load of a state captured with the
-   endgame loaded (the Slot 1 surface states) loads it after the hand-over
-   while holding the player. Author's decision (2026-09-26):
-   - **Our restores**: do it if the player will not notice - load it in
-     the background (`LoadSceneAsync`) while the restore holds the player
-     anyway, or split it so no single frame is long. Keep what the
-     game's `StreamSceneRoutine` does around the load (its UnityEvents,
-     the loading HUD, `_loadedSceneRoot` from `SceneManager_sceneLoaded`,
-     `loadEndBossScene`) - e.g. a transpiler that makes that one call
-     async and yields on the operation only when our restore started it
-     (`EndgameLoader` sets a flag). Check the endgame after it exactly as
-     after today's Full load (floor, lab, elevators, `AreaKeeper`).
-   - **The game's own trigger** (a run crossing `EndgameEntrance/
-     LoadEndgame`): allowed as an option in the **Experimental** group,
-     off. Only if a genuine improvement. Author: "i just want to make sure
-     everything is true to the game, and things that are not are clearly
-     labelled that way ... i don't see why the feature should be omitted
-     entirely."
+1. The endgame load in a run (above, Experimental).
 2. The heap step above (it is also a performance item: pause length).
 3. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
-   load: ~1.1 s sweep with a 760-870 ms frame, then the endgame anim
+   load: ~1.1 s sweep with a 714-870 ms frame, then the endgame anim
    prefabs load again. Understand why before touching it.
 4. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
    `MaterialTween` `SendMessage` boxing, Unity's collision objects.
@@ -886,25 +904,31 @@ after a restart with the `Perf (30 s)` lines. Not yet posted to QA.
    the Game profiler (`ToggleProfiler`) for the main thread's per-frame
    cost by script during play (surface, a cave, the endgame), and
    whether a low-end runner is CPU- or GPU-bound (ask for their `Perf
-   (30 s)` lines + specs; the author's 4080S / 7800X3D is not
-   representative). Behaviour-preserving CPU savings ship on;
-   anything that changes what is drawn or simulated (draw distance,
-   shadows, update rates) goes under Experimental, labelled.
+   (30 s)` lines + specs - the QA to-do list asks for them; the author's
+   4080S / 7800X3D is not representative). Behaviour-preserving CPU
+   savings ship on; anything that changes what is drawn or simulated
+   (draw distance, shadows, update rates) goes under Experimental,
+   labelled.
 
-**QA:** maks's reports of 2026-09-26 (`Downloads\qa-reports\yirequ\`,
-04-34 / 04-37 / 04-43 = the physics ones, 11-37 = performance: in play
-5-8 GCs per 30 s of 100-500 ms frames). Noted from #general (to-do list
-updated): confirm before a capture overwrites a start state (maks); a
+**QA:** posted 2026-09-26: sxczurass's performance list (message
+`1553362967758905544`, `docs/tests/2026-09-26-sxczurass-perf-v0.24.97.md`)
+and the v0.24.98-100 list (message `1553370294511599627`,
+`docs/tests/2026-09-26-qa-v0.24.100.md`; not in `qa/*.txt` - add it to
+the QA tab with the next release if wanted);
+to-do list current. maks's reports of 2026-09-26 in
+`Downloads\qa-reports\yirequ\` (04-34 / 04-37 / 04-43 = physics, 11-37 =
+performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
+#general: confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
 **The plane axe message** (author, 2026-09-26, once after a Full load):
 "can't carry any more plane axes" = `HudGui.ToggleFullCapacityHud`, only
 from `PlayerInventory.AddItemNF` at the cap. `StashEquipedWeapon` ->
 `UnequipItemAtSlot` does `AddItem` back to the bag, so the lead is
-`RefreshHeld`'s put-away racing the load's own equip. Not reproduced:
-two Full loads of `phantom-a` clean (bridge; a hand stash + Equip keeps 1
-axe). v0.24.98 logs `Inventory full: ... - from <call stack>`
-(`Game/FullCapacityWatch`) - ask for that line when it is seen again.
+`RefreshHeld`'s put-away racing the load's own equip. Not reproduced
+(four Full loads of `phantom-a` clean; a hand stash + Equip keeps 1 axe).
+v0.24.98 logs `Inventory full: ... - from <call stack>` - ask for that
+line when it is seen again.
 
 **Open, not blocking:**
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
@@ -938,8 +962,8 @@ axe). v0.24.98 logs `Inventory full: ... - from <call stack>`
 
 **Next, in this order:**
 1. **Next up 6, performance / loads** - the list above: 1 (the endgame
-   load in our restores, then the experimental game-trigger option), 2
-   (the heap step - with maks), then 3-5. On high effort.
+   load in a run, Experimental), 2 (the heap step - with maks), then
+   3-6 (6 = raw FPS). On high effort.
 1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
@@ -1286,6 +1310,11 @@ first and keeps the player in the car (v0.24.85, bridge).
 A reset 0.5-0.7 s into opening the book leaves the pitch free (v0.24.91,
 bridge); the performance patches cut idle garbage to 216 KB/s with no
 visible change, a cave entry runs one asset sweep (v0.24.92-94, bridge).
+The endgame loaded in the background by a Full load and by a Quick load
+that needs it - no frame over 100 ms, trigger / HUD / anim prefabs as
+after the game's load, the red elevator rides after it (v0.24.99); a
+teleport mid-ride stops the ride and the vault door cave stays whole
+(v0.24.100) - both bridge, on the released builds.
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1389,7 +1418,10 @@ list so we can move onto expanding more features".
    - **Done** (v0.24.86-94): the Game profiler, scene census, allocation
      tracker, load timing lines; six behaviour-preserving patches
      (`Game/PerfPatches`) - idle garbage roughly halved, a cave entry's
-     double asset sweep merged. What is left: *Pick up here*.
+     double asset sweep merged; the save load hand-over as an
+     Experimental switch (v0.24.96, index 6); the endgame load of our
+     restores in the background (v0.24.99, index 7). What is left:
+     *Pick up here*.
    - **Tools**: `_modules[8].ToggleAllocations` (the tracker; 30 s lines
      `Allocations (30 s): ... by type ... overlay ... by module`),
      `ToggleProfiler` (with the tracker counting, its alloc column is
