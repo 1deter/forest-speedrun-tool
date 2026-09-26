@@ -755,8 +755,14 @@ updater. **367 tests.**
 everything below is released, on `main`, and bridge-checked in Slot 1
 unless marked. The window is closed; no test spots or savestates are
 left over except the old `phantom-a` (tree spot; can be deleted) and
-`keycard-pickup-testing`. **The next session is performance (Next up 5)
-- the author runs it separately, on high effort.**
+`keycard-pickup-testing`. **Next is the Quick load physics mismatch
+(Next up 5, below), then performance (Next up 6)** - both on high
+effort.
+
+QA read 2026-09-26 (maks, replying to the retest request): the cutscene
+restore itself "works beautifully" - the red elevator retest is closed.
+But **tech feels different after a Quick load than in a real run**
+(Next up 5); his other three messages are in *Deferred runner feedback*.
 
 This session: v0.24.78 / v0.24.83 coordinate boxes take only number
 characters, drop separators after a complete value and do not mark the
@@ -778,8 +784,6 @@ caught an unfair first setup), gold door at 2.0 s with its area entered.
 maks was told (bot reply, author's OK) to retest his "elev boost".
 
 **Open, not blocking:**
-- **maks: retest "elev boost"** on v0.24.80+ (a v0.24.74 file without
-  the ride origin - the 3.5 s rule). `qa_read new_only`.
 - **Other cutscenes that parent the player** (IL `set_parent` refs):
   Megan's pickup (`pickupGirlRoutine`), Timmy's goodbye, the raft out of
   the world, a rope-down into a cave (`playerEnterCaveAction.doCave`),
@@ -810,10 +814,12 @@ maks was told (bot reply, author's OK) to retest his "elev boost".
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 5, performance** - measure first (below). Its own session.
-2. **Next up 6** - passengers on the 100% tab, logs in the inventory
+1. **Next up 5, Quick load physics parity** (maks; author: before
+   performance) - measure a restore against a natural arrival first.
+2. **Next up 6, performance** - measure first (below). Its own session.
+3. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-3. Then the rest of *Next up*; the deferred runner feedback waits
+4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
 
@@ -1198,7 +1204,25 @@ list so we can move onto expanding more features".
    states too - author), no blood / no stagger (`Deaths.NoBlood` /
    `Deaths.NoStagger`, off, practice-only - also the answer for Creative,
    where nobody dies). Left: the flashed time's display (maks).
-5. **Performance: can patches make the game itself faster?** (author,
+5. **Quick load physics parity** *(runner maks, 2026-09-26; author:
+   before performance)*. After a **Quick load** (the preferred, default
+   restore - author), movement tech does not react as in a real run:
+   - **Elevator boost**: trigger the red elevator, full swing / smash the
+     axe into the door corner, release crouch and spam jump to clip
+     through the door and get shot forwards. Inputs that boost in a run
+     do not after a restore (the cutscene replay itself is right).
+   - **Logboosting**: placing a log wall so the player is squeezed
+     between it and a cave wall pushes them up; "not identical to the in
+     run circumstance".
+   - **Approach**: measure before theorising (gotcha 25). Read the
+     player's physics state through the bridge after a natural arrival
+     and after a Quick load at the same spot and diff it - Rigidbody
+     (velocity, sleep, constraints, interpolation, drag), collider
+     heights / crouch, `FirstPersonCharacter` flags, the PlayMaker FSM
+     and animator states, fixed-step phase, parenting left by a cutscene,
+     and colliders the restore adds or leaves behind. Then time the tech
+     with the author's hands on both paths.
+6. **Performance: can patches make the game itself faster?** (author,
    2026-09-23). Measure first, change second:
    - **Baseline**: the `Perf (30 s):` line. v0.23.4 at idle: ~175 fps,
      **heap +1091 KB/s** (overlay +5 KB/s) - the game allocates ~1 MB/s and
@@ -1218,7 +1242,7 @@ list so we can move onto expanding more features".
      no-op, pool an allocation), each with its own switch and one log line;
      before / after `Perf` lines from the author. Anything changing timing
      or outcomes is a gameplay change - label it honestly.
-6. **The author's list of 2026-09-23:**
+7. **The author's list of 2026-09-23:**
    - **100%: passengers** - list which were found, like the nature guide
      (IL; note the three `PassengerManifest` objects on the player).
    - **Logs in the inventory** *(runner sxczurass, clarified with the
@@ -1231,20 +1255,20 @@ list so we can move onto expanding more features".
      calls `Lift` on a pickup, how building takes logs, dropping.
    - Idea: a **god mode** toggle for practice (console `_godmode`,
      `DebugConsole`; the bridge sets `Cheats.GodMode` directly).
-7. **Freecam keeps the game's lighting.** Freecam goes darker (author);
+8. **Freecam keeps the game's lighting.** Freecam goes darker (author);
    `CopyFrom` does not copy the game camera's image effects - dump the main
    camera's components first.
-8. **LiveSplit split file import** (`.lss`/`.lsl`) plus HUD / layout
+9. **LiveSplit split file import** (`.lss`/`.lsl`) plus HUD / layout
    customisation; the author's autosplitter is the reference (memory
    `autosplitter-repo`).
-9. **forest.deter.cloud - shared runs and a web viewer** *(runner)*.
+10. **forest.deter.cloud - shared runs and a web viewer** *(runner)*.
    Built by Claude (author); reads `.foseg` files (Data/SegmentBundle)
    and can serve the community index as a second URL (`Community.Url`).
    Local-first, export always; keyed on segment id + route fingerprint.
    Everyone's runs vs yours (Momentum Mod), 3D terrain from the heightmap,
    caves need a geometry dump, scrub bar and annotations.
-10. **TAS** - exploratory only, on savestates and the recorder.
-11. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
+11. **TAS** - exploratory only, on savestates and the recorder.
+12. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
     zone shapes.
 
 ### Deferred runner feedback (voice call, 2026-09-23)
@@ -1266,6 +1290,11 @@ unless critical.
   filter (items share generic names); colliders that change between
   attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
   cave stalagmite drop, keycard cave body slide, wall climbs).
+- **maks, QA Discord 2026-09-26:** start a practice savestate from the
+  title screen without loading a save first (restores there are refused
+  since v0.24.73 - it needs a scene loaded first); keep the run lines of
+  **failed** runs for analysis; shared runs show **the runner's name**
+  (`.foseg` attempts carry none yet - matters for the website too).
 
 Shipped (summary): practice QoL (v0.17), endgame splits (v0.18), deaths
 and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
