@@ -1720,6 +1720,27 @@ routine's `_onBeforeLoad` runs `SetPoolMasterCulling.Set` and the vault
 door's **`DoEnvironmentAnimation`**, then 0.5 s, then the one-frame load;
 `_onFinishedLoading` sends `EnterEndgame` again. So the freeze sits inside
 the vault door sequence.
+**Timed** (bridge, 2026-09-26, a first visit recreated: `ForceUnload`,
+`SetCanLoad false`, tp into the box and out towards the door, tp to
+`playerPos`, `IsInEndgame` set back - our tp clears it -, door closed,
+`sequence.BeginStage(0)`): onDoorOpen -> `PlayerInEndgameTester.
+DoPositionningTest` (needs `IsInEndgame`, set by the crossing's
+`EnterEndgame`) -> `DelayedLoad` **4.35 s** -> `ForceLoad` -> 0.5 s ->
+the frame: 5078 ms, ~4.9 s after the press. The cutscene flag rises ~1 s
+after the press and falls at 17.3 s. **`Time.maximumDeltaTime` is 9** in
+this game, so the frozen frame counts as ~5 s of game time: with the load
+async (`EndgameAsyncInRuns`, v0.24.107: 1.09 s, 293 frames, longest
+12 ms, all inside the cutscene) the flag fell at 16.7 s. The freeze costs
+no run time - only the picture.
+
+**A Quick load reloads the streamed scenes** (bridge, 2026-09-26,
+`elevPre` from a cave): `ForcedUnload(true)` on the greeble zones and
+cave loaders before `LoadNow`, `(false)` after - as the game's own save,
+and required: the capture is taken with them unloaded, and
+`DeleteUnsaved` would otherwise delete their stored objects. Cost: three
+hitches of 233-267 ms here (the cave prop scenes unloading and
+activating again); maks's log shows two of ~520 ms per restart at the
+red elevator. Not changed - it is the restore's correctness.
 
 **A save load** (`Load timing:` lines): `LoadAsync` 'Resume' ~2 s (one
 ~1.8 s frame), the scene ~1 s frame, `LoadSave.Activation` ~2.4-2.8 s. The

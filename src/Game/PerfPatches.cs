@@ -74,7 +74,9 @@ namespace ForestOverlay.Game
     // 9. The endgame load in play in the background - EXPERIMENTAL, off:
     //    the game's own load behind the vault door (a ~5 s frozen frame
     //    inside the door's cutscene) goes async too; the player is pinned
-    //    if it outlasts the cutscene. Same transpiler as 8.
+    //    if it outlasts the cutscene. Same transpiler as 8. A run's real
+    //    time is unchanged: Time.maximumDeltaTime is 9 here, so the frozen
+    //    frame counts as game time and the cutscene ends when it would.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -138,12 +140,14 @@ namespace ForestOverlay.Game
                 delegate { return EndgameLoader.PatchStream(_harmony, _log, false); }, delegate { EndgameLoader.UnpatchStream(_harmony, false); });
             Add(config, "EndgameAsyncInRuns", "Endgame: load it in the background during play (vault door)",
                 "EXPERIMENTAL, changes the game: the game's own load of the endgame area after the vault door opens runs in the background " +
-                "during the door's cutscene, instead of freezing the game for one ~5 s frame. If the load outlasts the cutscene you are " +
-                "held in place until it is in. A run with it is ~5 s shorter in real time. Off = the game's own code.",
+                "during the door's cutscene, instead of freezing the picture for one ~5 s frame. The cutscene ends at the same moment either " +
+                "way (the game counts the frozen frame as time passed), so a run's time does not change. If the load outlasts the cutscene " +
+                "you are held in place until it is in. Off = the game's own code.",
                 delegate { return EndgameLoader.PatchStream(_harmony, _log, true); }, delegate { EndgameLoader.UnpatchStream(_harmony, true); }, false);
             _fixes[_fixes.Count - 1].Experimental = true;
-            _fixes[_fixes.Count - 1].Note = "Changes the game: the ~5 s freeze after the vault door opens is gone, so a run's real time is " +
-                                            "~5 s shorter than without it. You are held in place if the load outlasts the door's cutscene.";
+            _fixes[_fixes.Count - 1].Note = "Changes how the game runs that moment: the door's cutscene plays smoothly instead of freezing " +
+                                            "for ~5 s. A run's time is the same (the cutscene ends when it would). You are held in place " +
+                                            "if the load outlasts the cutscene.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

@@ -141,6 +141,12 @@ namespace ForestOverlay.Game
         // ForceLoad runs the routine, 0.5 s, then the one frame - measured
         // 5078 ms, ~4.9 s into the door's cutscene, which lasts ~12 s of
         // game time (the flag fell 17.3 s after the press, freeze included).
+        // Time.maximumDeltaTime is 9 in this game, so that frame counts as
+        // ~5 s of game time: the cutscene runs on inside the freeze and ends
+        // at the same real time (17.3 s after the press with the freeze,
+        // 16.7 s with the async load) - the switch removes a frozen picture,
+        // not run time. Async measured: 1.09 s, 293 frames, longest 12 ms,
+        // all inside the cutscene, no hold.
         // With the switch every endgame_streaming load that is not ours goes
         // async; the rest of the routine is unchanged, as for restores. If
         // the load outlasts the cutscene (or starts outside one - a save

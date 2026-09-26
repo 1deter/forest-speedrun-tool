@@ -547,33 +547,43 @@ identity.
 
 ## Current status
 
-**Released: v0.24.106** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.108** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.106 in the game)
+### Pick up here (2026-09-26, v0.24.108 in the game)
 
-**State:** the game runs v0.24.106 (`update_game`), Slot 1 loaded, on
-the cave 4 rope (`rope104` restored). Savestates `phantom-a`,
-`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
-Session switching: see *When to switch session* (small items: one per session; the performance work below is an investigation - one session).
+**State:** the game runs v0.24.108 (`update_game`), Slot 1 loaded (it
+now starts at the vault door), the endgame loaded, the new
+`EndgameAsyncInRuns` switch **on** in the author's config (bridge test;
+`TogglePerfPatch 8` turns it off - it ships off). Savestates
+`phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`,
+`rope104` kept. Session switching: see *When to switch session* (the
+performance work is an investigation - one session).
 
-**Done this session:** v0.24.106 - the Savestates tab removed (author:
-the free capture list, its hotkeys, the slot's Quick / Full load buttons
-and Check pickups go - start states in Practice are the runner path, the
-bridge keeps `capture` / `restore` / `savestates`); its two toggles and
-the Memory section drawn at the bottom of Debug views
-(`SavestateModule.DrawOptions`); the Deaths tab's *Clear blood overlay*
-button and hotkey removed (No blood covers it). Module indices
-unchanged (`_modules[10]` is still savestates). Posted in #general
-(message `1553424610593079439`), to-do list updated. maks's rope list
+**Done this session:** v0.24.107-108 - the endgame load in play in the
+background, Experimental switch `EndgameAsyncInRuns` (index 8, off;
+`EndgameLoader`, shares the restore switch's transpiler; pins the player
+if the load outlasts the cutscene). Measured: the game's load = one
+5078 ms frame ~4.9 s into the vault door's cutscene; async 1.09 s, longest
+frame 12 ms, all inside the cutscene, no hold. **It saves no run time**:
+`Time.maximumDeltaTime` is 9, so the frozen frame counts as game time and
+the cutscene ends when it would (17.3 vs 16.7 s) - v0.24.108 corrects the
+label (v0.24.107 said ~5 s shorter). Game-notes *The endgame* (timed).
+**Ask the author**: since it is RTA-neutral, move it out of Experimental
+to on-by-default? (Only the picture and the per-frame spread of those
+~5 s change.) Also noted: a Quick load's streamed-scene reload is the
+restart hitch (game-notes, left alone); a task chip was offered for
+`AreaKeeper.ForTeleport` clearing `IsInEndgame` at the vault door (see
+*Open*).
+
+**maks's performance report** (message `1553417650607235164`, read):
+i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
+low-end. His problem is GC: 3-7 GCs per 30 s at 120-150 ms, 15-25 frames
+over 50 ms. The session was ~50 Quick loads of 'elev boost' (red
+elevator); the overlay's +660-900 KB/s in those windows is the restores
+(10-40 KB/s without), each with two ~520 ms hitches (streamed scenes).
+Also `Activation` 8.15 s on his title load. maks's rope list
 (v0.24.104-105, message `1553421208794431648`) still awaits answers.
-
-**maks's performance report + specs arrived** (15:47, message
-`1553417650607235164`): downloaded to
-`Downloads\qa-reports\yirequ\ForestOverlay-report-maks-2026-09-26_16-42\`
-(log 16-30-23 = the 10-minute session) and the three spec images
-`image-1553417650607235164*.png` beside it. Not read yet - input for
-raw FPS (item 6 below).
 
 **Next session - small QA item:**
 - sxczurass: crouch fix (v0.24.102) is on the to-do list's *Please
@@ -581,24 +591,7 @@ raw FPS (item 6 below).
 
 **Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
 maks's are in (above); sxczurass is away from his PC - watch `qa_read`
-for his before starting item 6 below.
-
-**Next - the endgame load in a run (Experimental option, author's
-decision 2026-09-26: allowed, off, "only if a genuine improvement").**
-How a run loads it (live UnityEvent wiring, game-notes *The endgame*):
-the forward crossing of `EndgameEntrance/LoadEndgame` starts `InstantLoad`
-(`DoAfter` 0.01 s) -> `ForceLoad`, which waits for `_canLoad` (the vault
-door's `onDoorOpen` sets it); `_onBeforeLoad` starts the door's
-`DoEnvironmentAnimation`, 0.5 s, then the one 5.2 s frame - so the
-freeze sits in the vault door sequence. Plan: a second switch
-(Experimental) that lets `EndgameLoader.StreamLoad` go async for the
-game's own load too; the door's keypad cutscene is ~6 s and the async
-load ~2 s at High priority, so it should finish inside it - **measure
-it with a real crossing** (game-notes: `ForceUnload` + `SetCanLoad
-false` + tp into the box and out towards the door; the door closed again
-by `KeypadDoorKeeper`'s replay recipe), and hold the player (pin as
-`HoldUntilLoaded`) if the load outlasts the cutscene. Label: a run with
-it loses the ~5 s freeze (RTA time changes - say so in the Note).
+for his before starting item 5 below.
 
 **maks's elevator physics (Next up 5) - lead, not proven:** his failing
 session (Quick loads at the red elevator, ~50 restores, two Full loads)
@@ -615,16 +608,16 @@ asked (2026-09-26 12:00) for a Quick-loads-only session + Mark + report
 when the boosts stop.
 
 **Performance / loads - what is left, in order of payoff:**
-1. The endgame load in a run (above, Experimental).
-2. The heap step above (it is also a performance item: pause length).
-3. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
+1. The heap step above (it is also a performance item: pause length -
+   maks's GC frames are his real problem, see his report above).
+2. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
    load: ~1.1 s sweep with a 714-870 ms frame, then the endgame anim
    prefabs load again. Understand why before touching it.
-4. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
+3. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
    `MaterialTween` `SendMessage` boxing, Unity's collision objects.
    Measure during play (tracker: `AllocationTrackerAtStartup` + restart).
-5. The live heap: the A* navmesh is most of it and is needed.
-6. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
+4. The live heap: the A* navmesh is most of it and is needed.
+5. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
    lower-end machines"). Nothing done yet - the work so far cuts GC
    hitches and load freezes, not the average frame. Measure first:
    the Game profiler (`ToggleProfiler`) for the main thread's per-frame
@@ -673,9 +666,11 @@ line when it is seen again.
   the intro hang. The position fix covers them; none is replayed (their
   states - Megan dead, the ending - are not in Slot 1). Megan's
   transformation is replayed by `MeganKeeper` as before.
-- `tp` / Go into the red elevator car or to the vault door says
-  `endgame flag cleared (outside the endgame sections)`
-  (`AreaKeeper.ForTeleport`); harmless in the tests, not looked into.
+- `tp` / Go outside the endgame sections clears `IsInEndgame`
+  (`AreaKeeper.ForTeleport`). At the vault door that breaks the endgame
+  load: the door's `DoPositionningTest` starts it only with the flag set
+  (bridge, 2026-09-26). A task chip was offered (keep the flag between
+  the `LoadEndgame` box and the door); fix it if nobody has.
 - **Phantom stick** (fix list 2, author, once): not reproduced; waits
   for a `Pickup gone, inventory unchanged: ...` line. Candidate cause
   found in v0.24.70: a taken stick's flag follows a pool object to
@@ -697,9 +692,9 @@ line when it is seen again.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance / loads** - the list above: 1 (the endgame
-   load in a run, Experimental), 2 (the heap step - with maks), then
-   3-6 (6 = raw FPS). On high effort.
+1. **Next up 6, performance / loads** - the list above: 1 (the heap
+   step - with maks), then 2-5 (5 = raw FPS). On high effort. The endgame
+   load in a run is done (v0.24.107-108, Experimental).
 1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod).

@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.108 - 2026-09-26
+
+- Correction to the new Experimental switch **Endgame: load it in the
+  background during play**: it does not make a run shorter. The game
+  counts its ~5 s frozen frame as time passed, so the door's cutscene
+  ends at the same moment either way. With the switch on, the cutscene
+  plays smoothly instead of the picture freezing for 5 seconds. The
+  switch's text in Debug views now says so.
+
 ## v0.24.107 - 2026-09-26
 
 - New Experimental switch in Debug views -> Performance patches:
@@ -13,8 +22,8 @@ changed. A tag without a section here fails the release build.
   seconds while it loads the endgame area. With the switch on, that load
   runs during the door's cutscene instead, so there is no freeze. If the
   load is still going when the cutscene ends, you are held in place
-  until it is done. This changes a run's real time (about 5 s shorter),
-  which is why it is labelled and off.
+  until it is done. (This first said a run gets about 5 s shorter; it
+  does not - see v0.24.108.)
 
 ## v0.24.106 - 2026-09-26
 
