@@ -758,14 +758,29 @@ updater. **367 tests.**
 everything below is released, on `main`, and bridge-checked in Slot 1
 unless marked. The window is closed; no test spots or savestates are
 left over except the old `phantom-a` (tree spot; can be deleted) and
-`keycard-pickup-testing`. **Next is the Quick load physics mismatch
-(Next up 5, below), then performance (Next up 6)** - both on high
-effort.
+`keycard-pickup-testing` (plus this session's `physA`, `elevPre`,
+`elevMid` - kept for Next up 5). **Next is performance (Next up 6)**,
+on high effort.
 
-QA read 2026-09-26 (maks, replying to the retest request): the cutscene
-restore itself "works beautifully" - the red elevator retest is closed.
-But **tech feels different after a Quick load than in a real run**
-(Next up 5); his other three messages are in *Deferred runner feedback*.
+QA 2026-09-26 (maks): the cutscene restore "works beautifully" - the
+red elevator retest is closed. He then reported **tech feeling off after
+a Quick load** (Next up 5): the bridge found no state difference, and
+after a game restart "it seemed to work fine" in both modded and plain
+game; he suspects something that built up over a long session. **Author:
+"keep this as an active investigation but defer for later. no conclusive
+evidence and current issues are mainly anecdotal."** Asked of him (bot):
+next time, note uptime / restore count and send a QA report before
+restarting; a video of a real vs Quick-load attempt (he offered one and
+a WR run with timestamps). His other three messages are in *Deferred
+runner feedback*.
+
+**New bug (maks, screenshot in `Downloads\qa-reports\yirequ\image.png`):**
+after a Quick load, pulling out a blueprint (a log wall, in a cave)
+shows the build HUD wrong - the rotate icon shows (normally absent in
+that state) and the checkmark overlaps the place icon. Likely
+`Game/BuildMode` (v0.24.47) or the restore's build-mission HUD cleanup.
+Asked him: which blueprint, out at capture or taken out after the load,
+does re-equipping fix it. Not looked into yet.
 
 This session: v0.24.78 / v0.24.83 coordinate boxes take only number
 characters, drop separators after a complete value and do not mark the
@@ -817,11 +832,12 @@ maks was told (bot reply, author's OK) to retest his "elev boost".
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 5, Quick load physics parity** (maks; author: before
-   performance) - measure a restore against a natural arrival first.
-2. **Next up 6, performance** - measure first (below). Its own session.
-3. **Next up 7** - passengers on the 100% tab, logs in the inventory
+1. **Next up 6, performance** - measure first (below). Its own session.
+2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
+3. **Next up 5, Quick load physics parity** stays open but deferred
+   (author) until maks brings evidence (a QA report / video when it
+   happens); then the physics trace.
 4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
@@ -1209,8 +1225,9 @@ list so we can move onto expanding more features".
    states too - author), no blood / no stagger (`Deaths.NoBlood` /
    `Deaths.NoStagger`, off, practice-only - also the answer for Creative,
    where nobody dies). Left: the flashed time's display (maks).
-5. **Quick load physics parity** *(runner maks, 2026-09-26; author:
-   before performance)*. After a **Quick load** (the preferred, default
+5. **Quick load physics parity** *(runner maks, 2026-09-26; active
+   but deferred - author: "no conclusive evidence and current issues
+   are mainly anecdotal"; gone after a game restart for maks)*. After a **Quick load** (the preferred, default
    restore - author), movement tech does not react as in a real run:
    - **Elevator boost**: trigger the red elevator, full swing / smash the
      axe into the door corner, release crouch and spam jump to clip
