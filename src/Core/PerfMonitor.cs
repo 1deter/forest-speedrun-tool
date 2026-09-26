@@ -26,7 +26,8 @@ namespace ForestOverlay.Core
     // slowdown can send their LogOutput.log and it says where the time
     // went - instead of "it feels slow" on hardware nobody here has.
     //
-    //   Perf (30 s): 57.9 fps, worst 48 ms, 2 over 50 ms, GC x3 |
+    //   Perf (30 s): 57.9 fps, worst 48 ms, 2 over 50 ms, GC x3
+    //   (GC frames 45 ms avg, 48 max) |
     //   overlay tick 0.21 ms avg, 1.80 max | GL 0.05 ms/frame,
     //   1.0 passes (3.0 skipped), 2400 verts/frame |
     //   heap +900 KB/s, overlay +2.0 KB/s
@@ -56,6 +57,10 @@ namespace ForestOverlay.Core
         private float _maxDt;
         private int _hitches;
         private int _gcAtStart;
+        private int _gcLast;
+        private float _gcFrameMax;
+        private float _gcFrameSum;
+        private int _gcFrames;
 
         private double _tickSum;
         private double _tickMax;
@@ -85,6 +90,17 @@ namespace ForestOverlay.Core
             if (dt > _maxDt) _maxDt = dt;
             if (dt > HitchSeconds) _hitches++;
 
+            // A frame in which a collection ran: its length is roughly the
+            // pause (Boehm stops the world; nothing incremental in 5.6).
+            int gcNow = SafeGcCount();
+            if (gcNow != _gcLast)
+            {
+                _gcLast = gcNow;
+                _gcFrames++;
+                _gcFrameSum += dt;
+                if (dt > _gcFrameMax) _gcFrameMax = dt;
+            }
+
             _tickSum += overlayMs;
             if (overlayMs > _tickMax) _tickMax = overlayMs;
 
@@ -105,6 +121,8 @@ namespace ForestOverlay.Core
                          (_frames / seconds).ToString("0.0") + " fps, worst " +
                          (_maxDt * 1000f).ToString("0") + " ms, " +
                          _hitches + " over 50 ms, GC x" + gc +
+                         (_gcFrames > 0 ? " (GC frames " + (_gcFrameSum * 1000f / _gcFrames).ToString("0") + " ms avg, " +
+                                          (_gcFrameMax * 1000f).ToString("0") + " max)" : "") +
                          " | overlay tick " + (_tickSum / _frames).ToString("0.00") + " ms avg, " +
                          _tickMax.ToString("0.00") + " max" +
                          " | GL " + (renderMs / _frames).ToString("0.00") + " ms/frame, " +
@@ -124,6 +142,10 @@ namespace ForestOverlay.Core
             _tickSum = 0.0;
             _tickMax = 0.0;
             _gcAtStart = SafeGcCount();
+            _gcLast = _gcAtStart;
+            _gcFrames = 0;
+            _gcFrameSum = 0f;
+            _gcFrameMax = 0f;
             _heapGrowth = 0.0;
             _overlayGrowth = 0.0;
             _lastHeap = -1;

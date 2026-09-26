@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.86 - 2026-09-26
+
+- Debug views: a **Game profiler** switch (off at every launch). It times
+  the game's own scripts and writes the slowest ones, and the ones that
+  make the most garbage, to the log every 30 s and to the tab. For
+  performance reports - the game runs a little slower while it is on.
+- The 30 s performance line in the log now says how long the frames with a
+  garbage collection took.
+
 ## v0.24.85 - 2026-09-26
 
 - A Quick load of a spot past the vault door, on a save that has not

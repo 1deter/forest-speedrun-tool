@@ -27,6 +27,9 @@ namespace ForestOverlay.Modules
     //
     // Volume drawing centres on the freecam camera while it is on: the
     // point of flying the camera somewhere is to look at what is there.
+    //
+    // The game profiler (Game/GameProfiler) lives here too: a debug switch,
+    // off at every launch; `Diagnostics.GameProfilerExtra` adds methods.
     // ------------------------------------------------------------------
     public sealed class DebugViewModule : OverlayModule
     {
@@ -74,6 +77,9 @@ namespace ForestOverlay.Modules
         private int _builtRadius = -1;
         private int _builtSize = -1;
 
+        private GameProfiler _profiler;
+        private ConfigEntry<string> _profilerExtraCfg;
+
         private Vector2 _scroll;
         private float _contentHeight = 600f;
 
@@ -101,6 +107,18 @@ namespace ForestOverlay.Modules
             _maxSize = Mathf.Clamp(_maxSizeCfg.Value, MinSizeLimit, MaxSizeLimit);
             _excludeText = _excludeCfg.Value ?? "";
             ApplyFilters();
+
+            _profilerExtraCfg = Ctx.Config.Bind("Diagnostics", "GameProfilerExtra", "",
+                "Extra game methods the game profiler (Debug views) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
+                "Read when the profiler is switched on.");
+            _profiler = new GameProfiler(Ctx.Log, OverlayPlugin.PluginGuid);
+        }
+
+        /// The game profiler on / off (Debug views; the bridge calls this).
+        public void ToggleProfiler()
+        {
+            if (_profiler.Active) _profiler.Stop();
+            else _profiler.Start(_profilerExtraCfg.Value);
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -137,6 +155,8 @@ namespace ForestOverlay.Modules
             if (_wireOn) AttachWireframe();
 
             if (_saveAt >= 0f && Time.unscaledTime >= _saveAt) SaveFilters();
+
+            _profiler.Tick();
 
             BuildLabels();
         }
@@ -341,6 +361,14 @@ namespace ForestOverlay.Modules
             }
             y += 8f;
 
+            // --- game profiler ---------------------------------------------
+            bool prof = GUI.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
+                                   " Game profiler (the game's slowest scripts, in the log every 30 s)");
+            if (prof != _profiler.Active) ToggleProfiler();
+            y += Row;
+            y += UiText.Draw(12, y, w - 24, _profiler.Status);
+            y += UiText.Draw(12, y, w - 24, _profiler.LastReport) + 8f;
+
             // --- notes ------------------------------------------------------
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
@@ -358,6 +386,7 @@ namespace ForestOverlay.Modules
             _freeCamOn = false;
             if (_wireframe != null) _wireframe.Enabled = false;
             if (_host != null) Object.Destroy(_host);
+            if (_profiler != null) _profiler.Uninstall();
         }
     }
 }
