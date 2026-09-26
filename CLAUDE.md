@@ -865,6 +865,22 @@ writes `Cheats.GodMode` each tick while unset, switches it off only if we
 set it). Confirmed in game (bridge, below). Note: Slot 1 loads with
 `Cheats.GodMode` already **true** (left on as found).
 
+**New from QA (2026-09-26 12:56-14:42), not started - do these first
+(small, runner-facing):**
+- **Crouch kept across a load** (sxczurass, msg `1553374588358889553`):
+  crouched before a Quick / Full load -> still crouched after; should be
+  the captured stance. His report zip: msg `1553377504591347793`.
+- **maks's report** (msg `1553400013747523665`) + his note as 3 images
+  (reply `1553400328563597454`) - download (`qa_download`) and read.
+- **QA tab note box** (author): wrap long text (no horizontal scroll -
+  a multi-line wrapped text area); and check / make clear whether a
+  note is saved on *Write report* or needs *Mark* first.
+- **Deaths tab** (author): remove the *Clear blood overlay* button (the
+  No blood toggle covers it). **Remove the Savestates tab** (author):
+  migrate what is useful to where it belongs logically (captures /
+  restores -> Practice?, the Memory section -> Debug views?) - check with
+  the author where each part goes if unclear.
+
 **Next - the endgame load in a run (Experimental option, author's
 decision 2026-09-26: allowed, off, "only if a genuine improvement").**
 How a run loads it (live UnityEvent wiring, game-notes *The endgame*):
