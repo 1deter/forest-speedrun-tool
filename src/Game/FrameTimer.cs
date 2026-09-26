@@ -24,7 +24,8 @@ namespace ForestOverlay.Game
     {
         public static readonly Data.FrameTimeline Timeline = new Data.FrameTimeline();
         public static BepInEx.Logging.ManualLogSource Log;
-        /// Dev: called at every end of frame (RenderProbe's tests).
+        /// Called at every end of frame (IconCameraSkip, RenderProbe's
+        /// tests); += / -=.
         public static Action EndOfFrameHook;
         private static FrameTimer _instance;
 

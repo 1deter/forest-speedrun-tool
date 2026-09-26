@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.119 - 2026-09-26
+
+- **A little more frame rate:** the HUD's camera for action icons (take,
+  light, the aim marker...) is skipped in frames where no icon is showing -
+  most of the time. Icons still appear in the same frame as before. On by
+  default under Debug views -> Performance patches.
+
 ## v0.24.118 - 2026-09-26
 
 - Developer tools only (one more rendering test). Nothing in the game

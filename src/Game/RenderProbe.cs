@@ -102,7 +102,7 @@ namespace ForestOverlay.Game
             t.enabled = disable;
             _latePre = LatePreCull;
             Camera.onPreCull += _latePre;
-            FrameTimer.EndOfFrameHook = LateEndOfFrame;
+            FrameTimer.EndOfFrameHook += LateEndOfFrame;
             return "testing " + frames + " frames";
         }
 
@@ -122,7 +122,7 @@ namespace ForestOverlay.Game
             }
             _lateTarget.enabled = true;
             Camera.onPreCull -= _latePre;
-            FrameTimer.EndOfFrameHook = null;
+            FrameTimer.EndOfFrameHook -= LateEndOfFrame;
             if (Log != null) Log.LogInfo("Render probe: late-enable test of '" + _lateTarget.name + "' done after " + _lateFrames + " frames.");
             _lateTarget = null;
         }

@@ -102,6 +102,8 @@ namespace ForestOverlay.Game
     //    screen rendered only when the screen is drawn - Game/CameraTrim.
     //    Each camera costs the main thread ~0.25 ms a frame whatever it
     //    draws; these are frame time, not garbage.
+    // 13. The action-icon camera skipped in frames with no icon
+    //    (v0.24.119) - Game/IconCameraSkip.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -126,12 +128,14 @@ namespace ForestOverlay.Game
         private readonly Harmony _harmony;
         private readonly List<Fix> _fixes = new List<Fix>();
         private readonly CameraTrim _cameras;
+        private readonly IconCameraSkip _icons;
 
         public PerfPatches(ManualLogSource log, ConfigFile config, string harmonyId)
         {
             _log = log;
             _harmony = new Harmony(harmonyId + ".perf");
             _cameras = new CameraTrim(log);
+            _icons = new IconCameraSkip(log);
 
             Add(config, "OverlayLayoutOnlyForWindows", "Overlay: no GUI layout pass without a window",
                 "Skip Unity's GUI layout pass for the overlay while none of its windows is open (saves ~40 KB/s of garbage).",
@@ -189,6 +193,11 @@ namespace ForestOverlay.Game
                 "skips cameras). Draw it only in frames where that screen is being drawn (~0.35 ms a frame here while the endgame " +
                 "is loaded).",
                 _cameras.ApplyScreen, _cameras.RemoveScreen);
+            Add(config, "ActionIconCameraOnDemand", "HUD: skip the action-icon camera when no icon shows",
+                "The HUD's camera for action icons (take, light, the hit target...) costs every frame even when no icon is " +
+                "showing, which is most of the time. Skip it in exactly those frames - decided after the HUD has updated, so an " +
+                "icon shows in the same frame as before (~0.26 ms a frame here).",
+                _icons.Apply, _icons.Remove);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -257,6 +266,7 @@ namespace ForestOverlay.Game
         {
             EndgameLoader.Tick(player, events);
             _cameras.Tick();
+            _icons.Tick();
             if (!_unloadTrailing || _unloadRunning == null) return;
             bool done;
             try { done = _unloadRunning.isDone; }
