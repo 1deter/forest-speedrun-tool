@@ -1,5 +1,10 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
+using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -84,13 +89,173 @@ namespace ForestOverlay.Game
                 MethodInfo force = trigger.GetType().GetMethod("ForceLoad", inst, null, Type.EmptyTypes, null);
                 if (force == null) return "endgame: loaded at capture, not now - ForceLoad not found";
                 if (canLoad != null) canLoad.Invoke(trigger, new object[] { true });
+                bool background = _streamPatched;
+                // The trigger loads _loadDelay (0.5 s) after ForceLoad.
+                if (background) _asyncUntil = Time.realtimeSinceStartup + 3f;
                 force.Invoke(trigger, null);
-                return "endgame: loaded at capture, not by the load - loading it (the game's EndgameLoader)";
+                return "endgame: loaded at capture, not by the load - loading it (the game's EndgameLoader" +
+                       (background ? ", in the background" : "") + ")";
             }
             catch (Exception ex)
             {
+                _asyncUntil = -1f;
                 return "endgame: loading it failed (" + (ex.InnerException ?? ex).Message + ")";
             }
+        }
+
+        // ------------------------------------------------------------------
+        // The endgame in the background for our restores (Performance
+        // patch EndgameAsyncForRestores; author, 2026-09-26: "do it if the
+        // player will not notice").
+        //
+        // WHY (IL + bridge, 2026-09-26): SceneLoadTrigger.StreamSceneRoutine
+        // loads endgame_streaming with the synchronous SceneManager.LoadScene
+        // - one frame of 5.2 s (5158-5233 ms in four loads) after every Full
+        // load of a state captured with the endgame, and before a Quick load
+        // that needs it. The same load by LoadSceneAsync from the same
+        // unloaded state: no frame reached 200 ms. Our restores hold the
+        // player until the scene is in (HoldUntilLoaded, EndgameFirst), so
+        // nothing else changes.
+        //
+        // WHAT: a transpiler on the routine swaps two instructions -
+        //   call SceneManager.LoadScene(string, LoadSceneMode) -> StreamLoad
+        //   ldnull (the yield after it)                        -> StreamYield()
+        // StreamLoad loads async only when EnsureLoaded asked just before
+        // (a 3 s window for the trigger's 0.5 s delay) and the scene is the
+        // endgame's; otherwise it calls LoadScene as the game does. So the
+        // game's own trigger crossing in a run is untouched. StreamYield
+        // hands the routine a wait on that load (null otherwise, as the
+        // game's code), so everything after it in the routine -
+        // sceneLoaded -> _loadedSceneRoot, _onFinishedLoading, then
+        // loadEndBossScene and the loading HUD - runs in the same order,
+        // once the scene is in. While it runs, backgroundLoadingPriority
+        // is High (the player is held anyway), then set back.
+        // ------------------------------------------------------------------
+        public static ManualLogSource Log;
+        private static bool _streamPatched;
+        private static MethodInfo _streamMoveNext;
+        private static int _streamReplaced;
+        private static float _asyncUntil = -1f;
+        private static AsyncOperation _asyncOp;
+        private static ThreadPriority _priorityBefore;
+
+        /// Loading priority while our background load runs (bridge: set it
+        /// to compare).
+        public static ThreadPriority AsyncPriority = ThreadPriority.High;
+
+        public static string PatchStream(Harmony harmony, ManualLogSource log)
+        {
+            Log = log;
+            Type trigger = GameBridge.FindGameType("TheForest.World.SceneLoadTrigger");
+            if (trigger == null) return "SceneLoadTrigger not found";
+            Type iter = null;
+            Type[] nested = trigger.GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public);
+            for (int i = 0; i < nested.Length; i++)
+                if (nested[i].Name.IndexOf("StreamSceneRoutine", StringComparison.Ordinal) >= 0) iter = nested[i];
+            if (iter == null) return "StreamSceneRoutine not found";
+            _streamMoveNext = iter.GetMethod("MoveNext", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (_streamMoveNext == null) return "StreamSceneRoutine.MoveNext not found";
+            _streamReplaced = 0;
+            harmony.Patch(_streamMoveNext, transpiler: new HarmonyMethod(typeof(EndgameLoader).GetMethod("StreamTranspiler", BindingFlags.Static | BindingFlags.NonPublic)));
+            if (_streamReplaced == 2) { _streamPatched = true; return ""; }
+            // Not the code this was written for: the game's own code back.
+            harmony.Unpatch(_streamMoveNext, HarmonyPatchType.Transpiler, harmony.Id);
+            return "expected LoadScene and its yield, found " + _streamReplaced + " of 2 (game updated?)";
+        }
+
+        public static void UnpatchStream(Harmony harmony)
+        {
+            _streamPatched = false;
+            _asyncUntil = -1f;
+            if (_streamMoveNext != null) harmony.Unpatch(_streamMoveNext, HarmonyPatchType.Transpiler, harmony.Id);
+        }
+
+        private static IEnumerable<CodeInstruction> StreamTranspiler(IEnumerable<CodeInstruction> instructions)
+        {
+            List<CodeInstruction> list = new List<CodeInstruction>(instructions);
+            MethodInfo load = typeof(SceneManager).GetMethod("LoadScene", new[] { typeof(string), typeof(LoadSceneMode) });
+            int found = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i].opcode != OpCodes.Call || !ReferenceEquals(list[i].operand, load)) continue;
+                list[i].operand = typeof(EndgameLoader).GetMethod("StreamLoad");
+                found++;
+                // The yield that follows: `ldnull; stfld $current`.
+                for (int j = i + 1; j + 1 < list.Count; j++)
+                {
+                    FieldInfo f = list[j + 1].operand as FieldInfo;
+                    if (list[j].opcode != OpCodes.Ldnull || list[j + 1].opcode != OpCodes.Stfld || f == null || f.Name != "$current") continue;
+                    // Labels stay on the instruction.
+                    list[j].opcode = OpCodes.Call;
+                    list[j].operand = typeof(EndgameLoader).GetMethod("StreamYield");
+                    found++;
+                    break;
+                }
+                break;
+            }
+            _streamReplaced = found;
+            return list;
+        }
+
+        /// In place of the routine's SceneManager.LoadScene.
+        public static void StreamLoad(string name, LoadSceneMode mode)
+        {
+            if (name == Scene && _streamPatched && Time.realtimeSinceStartup <= _asyncUntil)
+            {
+                _asyncUntil = -1f;
+                try
+                {
+                    _priorityBefore = Application.backgroundLoadingPriority;
+                    Application.backgroundLoadingPriority = AsyncPriority;
+                    _asyncOp = SceneManager.LoadSceneAsync(name, mode);
+                    if (_asyncOp != null) return;
+                    Application.backgroundLoadingPriority = _priorityBefore;
+                }
+                catch (Exception)
+                {
+                    _asyncOp = null;
+                    Application.backgroundLoadingPriority = _priorityBefore;
+                }
+            }
+            SceneManager.LoadScene(name, mode);
+        }
+
+        /// In place of the routine's `yield return null` after the load: the
+        /// load itself (a coroutine waits on it), or null as the game's code.
+        public static object StreamYield()
+        {
+            AsyncOperation op = _asyncOp;
+            _asyncOp = null;
+            if (op == null) return null;
+            _watched = op;
+            _watchStart = Time.realtimeSinceStartup;
+            _watchFrames = 0;
+            _watchLongest = 0f;
+            return op;
+        }
+
+        private static AsyncOperation _watched;
+        private static float _watchStart, _watchLongest;
+        private static int _watchFrames;
+
+        /// Once a frame (PerfPatches.Tick): times the background load, sets
+        /// the loading priority back when it is done.
+        public static void Tick()
+        {
+            if (_watched == null) return;
+            _watchFrames++;
+            if (Time.unscaledDeltaTime > _watchLongest) _watchLongest = Time.unscaledDeltaTime;
+            bool done;
+            try { done = _watched.isDone; }
+            catch (Exception) { done = true; }
+            if (!done && Time.realtimeSinceStartup - _watchStart < 60f) return;
+            _watched = null;
+            Application.backgroundLoadingPriority = _priorityBefore;
+            if (Log != null)
+                Log.LogInfo("Performance: endgame loaded in the background for the restore - " +
+                            (Time.realtimeSinceStartup - _watchStart).ToString("0.00") + " s, " + _watchFrames +
+                            " frame(s), longest " + (_watchLongest * 1000f).ToString("0") + " ms (" + AsyncPriority + ")" +
+                            (done ? "" : " - gave up watching after 60 s") + ".");
         }
     }
 }

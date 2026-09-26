@@ -68,6 +68,9 @@ namespace ForestOverlay.Game
     //    difference: a building nav update the game ran inside the wait
     //    (339 ms, from blockers that register during it) runs after the
     //    hand-over instead - so the player can move while it finishes.
+    // 8. The endgame load of our restores in the background (on by
+    //    default: the restore holds the player anyway; the game's own
+    //    trigger crossing is untouched) - EndgameLoader.PatchStream.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -124,6 +127,11 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Experimental = true;
             _fixes[_fixes.Count - 1].Note = "Changes the game: the nav-mesh update for buildings can finish just after you get control " +
                                             "(enemies' paths around them). Saves about 1 s per save load.";
+            Add(config, "EndgameAsyncForRestores", "Savestates: load the endgame area in the background",
+                "When a savestate restore loads the endgame area (a Full load of a state captured with it, or a Quick load that needs it), " +
+                "load it in the background while the restore holds you, instead of the game's one ~5 s frozen frame. " +
+                "The game's own load when you walk in during play is unchanged.",
+                delegate { return EndgameLoader.PatchStream(_harmony, _log); }, delegate { EndgameLoader.UnpatchStream(_harmony); });
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -190,6 +198,7 @@ namespace ForestOverlay.Game
         /// Once a frame (Debug views module).
         public void Tick()
         {
+            EndgameLoader.Tick();
             if (!_unloadTrailing || _unloadRunning == null) return;
             bool done;
             try { done = _unloadRunning.isDone; }

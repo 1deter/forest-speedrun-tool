@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.99 - 2026-09-26
+
+- Savestates: when a restore has to load the endgame area (a Full load
+  of a state taken with it loaded, or a Quick load past the vault door),
+  it now loads it in the background while the restore holds you in
+  place, instead of the game's single frozen frame of about 5 seconds.
+  Walking into the endgame during play is unchanged. Switch: Debug
+  views, Performance patches.
+
 ## v0.24.98 - 2026-09-26
 
 - When the game says "can't carry any more" of an item, the log now says
