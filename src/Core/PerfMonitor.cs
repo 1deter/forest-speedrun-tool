@@ -218,9 +218,41 @@ namespace ForestOverlay.Core
                        " | quality '" + (q >= 0 && q < names.Length ? names[q] : q.ToString()) + "', shadows " + QualitySettings.shadows +
                        " " + QualitySettings.shadowDistance.ToString("0") + " m x" + QualitySettings.shadowCascades +
                        " " + QualitySettings.shadowResolution + ", lod bias " + QualitySettings.lodBias.ToString("0.##") +
-                       ", pixel lights " + QualitySettings.pixelLightCount + ", textures 1/" + (1 << QualitySettings.masterTextureLimit);
+                       ", pixel lights " + QualitySettings.pixelLightCount + ", textures 1/" + (1 << QualitySettings.masterTextureLimit) +
+                       GameSettings();
             }
             catch (Exception ex) { return "System: unreadable (" + ex.Message + ")"; }
+        }
+
+        // The game's own graphics options (TheForestQualitySettings.
+        // UserSettings - what the options menu sets: preset, draw distance,
+        // shadows, post-effects system...) and the main camera's path.
+        private static string GameSettings()
+        {
+            try
+            {
+                System.Text.StringBuilder sb = new System.Text.StringBuilder(" | game options: ");
+                Type t = ForestOverlay.Game.GameBridge.FindGameType("TheForestQualitySettings");
+                System.Reflection.PropertyInfo p = t != null ? t.GetProperty("UserSettings",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic) : null;
+                object s = p != null ? p.GetValue(null, null) : null;
+                if (s == null) sb.Append("unreadable");
+                else
+                {
+                    System.Reflection.FieldInfo[] fs = t.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
+                                                                   System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly);
+                    for (int i = 0; i < fs.Length; i++)
+                    {
+                        if (i > 0) sb.Append(", ");
+                        object v = fs[i].GetValue(s);
+                        sb.Append(fs[i].Name.TrimStart('_')).Append(' ').Append(v is float ? ((float)v).ToString("0.##") : Convert.ToString(v));
+                    }
+                }
+                Camera main = Camera.main;
+                if (main != null) sb.Append(" | main camera ").Append(main.renderingPath).Append(main.allowHDR ? ", HDR" : "");
+                return sb.ToString();
+            }
+            catch (Exception ex) { return " | game options unreadable (" + ex.Message + ")"; }
         }
 
         private static long SafeHeap()

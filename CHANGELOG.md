@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.122 - 2026-09-26
+
+- Log only: the `System:` line also lists the game's own graphics options
+  (preset, draw distance, shadows, post effects, grass...).
+
 ## v0.24.121 - 2026-09-26
 
 - The log now names your processor, graphics card, resolution and the
