@@ -53,6 +53,7 @@
     <Compile Include="../../src/Data/QaList.cs" Link="Linked/QaList.cs" />
     <Compile Include="../../src/Data/ZipWriter.cs" Link="Linked/ZipWriter.cs" />
     <Compile Include="../../src/Data/ProfileTable.cs" Link="Linked/ProfileTable.cs" />
+    <Compile Include="../../src/Data/FrameTimeline.cs" Link="Linked/FrameTimeline.cs" />
     <!-- The bridge MCP server's pure text side (a dev tool, not the plugin). -->
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />

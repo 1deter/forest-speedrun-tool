@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BepInEx.Logging;
 using UnityEngine;
 
@@ -141,6 +142,10 @@ namespace ForestOverlay.Core
                          (PerfCounters.Vertices / _frames) + " verts/frame" +
                          " | heap +" + (_heapGrowth / 1024.0 / seconds).ToString("0") + " KB/s, overlay +" +
                          (_overlayGrowth / 1024.0 / seconds).ToString("0.0") + " KB/s");
+
+            // Where the frame's time went on the main thread (Game/FrameTimer).
+            List<string> frame = ForestOverlay.Game.FrameTimer.Timeline.Report(seconds, System.Diagnostics.Stopwatch.Frequency, 8);
+            for (int i = 0; i < frame.Count; i++) _log.LogInfo(i == 0 ? frame[i] : "  " + frame[i]);
         }
 
         private void Restart(float now)
@@ -165,6 +170,7 @@ namespace ForestOverlay.Core
             PerfCounters.SkippedPasses = 0;
             PerfCounters.Vertices = 0;
             PerfCounters.RenderTicks = 0;
+            ForestOverlay.Game.FrameTimer.Timeline.Reset();
         }
 
         /// Heap size before a stretch of overlay work; pass it to EndAlloc.

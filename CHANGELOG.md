@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.114 - 2026-09-26
+
+- The log now says where each frame's time goes, every 30 s next to the
+  `Perf` line: a `Frame (30 s):` line (waiting for the graphics card,
+  the game's scripts, each camera's drawing). If the game runs slowly
+  for you, send your log - it tells whether your graphics card or your
+  processor is holding the frame rate back. Nothing in the game changes.
+
 ## v0.24.113 - 2026-09-26
 
 - Log wording only: the vault door's background endgame load no longer

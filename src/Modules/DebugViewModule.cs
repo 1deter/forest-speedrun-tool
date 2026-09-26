@@ -106,6 +106,7 @@ namespace ForestOverlay.Modules
 
             _draw = _host.AddComponent<DebugDrawBehaviour>();
             _freeCam = _host.AddComponent<FreeCamBehaviour>();
+            FrameTimer.Install(_host);
 
             _limitSizeCfg = Ctx.Config.Bind("DebugViews", "LimitVolumeSize", true,
                 "Hide collider/trigger volumes whose largest side exceeds MaxVolumeSize.");
