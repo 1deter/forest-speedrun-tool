@@ -23,6 +23,7 @@ namespace ForestOverlay.Game
     public sealed class FrameTimer : MonoBehaviour
     {
         public static readonly Data.FrameTimeline Timeline = new Data.FrameTimeline();
+        public static BepInEx.Logging.ManualLogSource Log;
         private static FrameTimer _instance;
 
         private Camera.CameraCallback _pre, _post;
@@ -117,15 +118,17 @@ namespace ForestOverlay.Game
             return Timeline.AddCamera(id, name);
         }
 
-        /// Dev (bridge): the window since the last call, as text, then a
-        /// new window. `call ... FrameSnapshot`, `wait 5`, again. Resets
+        /// Dev (bridge): the window since the last call, as text (and in
+        /// the log - the bridge shortens long replies), then a new window. `call ... FrameSnapshot`, `wait 5`, again. Resets
         /// the Perf line's window too (it shares the counters).
         public static string Snapshot()
         {
             float now = Time.unscaledTime;
             float seconds = _instance != null ? now - _instance._snapshotStart : 0f;
-            List<string> lines = Timeline.Report(seconds, Stopwatch.Frequency, 12);
+            List<string> lines = Timeline.Report(seconds, Stopwatch.Frequency, 16);
             Timeline.Reset();
+            if (Log != null)
+                for (int i = 0; i < lines.Count; i++) Log.LogInfo((i == 0 ? "Snapshot " : "  ") + lines[i]);
             if (_instance != null) _instance._snapshotStart = now;
             return lines.Count == 0 ? "no frames" : string.Join("\n", lines.ToArray());
         }
