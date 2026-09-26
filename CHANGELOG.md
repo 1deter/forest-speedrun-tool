@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.113 - 2026-09-26
+
+- Log wording only: the vault door's background endgame load no longer
+  calls itself Experimental in the log (it has been on by default since
+  v0.24.111).
+
 ## v0.24.112 - 2026-09-26
 
 - **Go / teleport to the vault door** (or anywhere in the tunnel before it)

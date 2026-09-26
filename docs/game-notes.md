@@ -579,7 +579,9 @@ state, not scenes (areas: `same as at capture`).
   (`AreaKeeper.ForTeleport`, v0.24.42) - except the endgame flag in the
   vault entrance (on the `LoadEndgame` box's forward side, towards the
   door), which a run has set and the door's load needs: kept or set there
-  since v0.24.112. The box's `EnterEndgame` (Player registry) reaches
+  since v0.24.112 - **only there**: a Go from the surface straight into a
+  section (the lab) still does not set the flag (untested what breaks).
+  The box's `EnterEndgame` (Player registry) reaches
   `LocalPlayer.SetInEndGame` through an `EventListener` on
   `player/ControllerObjects` (and a snow-cave artifact listener).
 

@@ -328,7 +328,7 @@ namespace ForestOverlay.Game
             string held = _holding
                 ? "held the player " + (Time.realtimeSinceStartup - _holdStart).ToString("0.00") + " s at " + Fmt(_holdAt) + " until it was in"
                 : "no hold needed";
-            Log.LogInfo("Performance: endgame loaded in the background in play (Experimental) - " + took + ", " +
+            Log.LogInfo("Performance: endgame loaded in the background in play - " + took + ", " +
                         _cutsceneFrames + " of the frames in a cutscene, " + held + gaveUp + ".");
             _holding = false;
         }

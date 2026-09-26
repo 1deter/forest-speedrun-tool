@@ -549,10 +549,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.112** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.113** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.112 in the game)
+### Pick up here (2026-09-26, v0.24.113 released)
 
 **Next session (author, 2026-09-26):** **raw FPS**, a fresh
 session on high effort - item 3 of the list below. Start with the Game profiler
@@ -567,7 +567,8 @@ build):** a Go / `tp` between the `LoadEndgame` box and the vault door
 keeps `IsInEndgame` or sets it (`endgame flag set (vault entrance, past
 the LoadEndgame box)`), and the door then loads the endgame (~5 s, in the
 background); behind the box and on the surface it is cleared as before
-(lab -> surface checked).
+(lab -> surface checked). v0.24.113: log wording only (the background
+load's line no longer says Experimental).
 
 **State:** the game runs v0.24.112 in Slot 1 on the surface (Slot 1 starts
 at the vault door); `SkipEndgameAnimSweepAtLoad` (index 9) and
@@ -672,6 +673,11 @@ v0.24.98 logs `Inventory full: ... - from <call stack>` - ask for that
 line when it is seen again.
 
 **Open, not blocking:**
+- **The endgame flag on a Go is fixed for the vault entrance only**
+  (v0.24.112, `AreaKeeper.InVaultEntrance`). A Go from the surface
+  straight into an endgame section (the lab) still leaves `IsInEndgame`
+  false - not seen to break anything yet; if an endgame trigger or the
+  lighting misbehaves after a Go, check the flag first.
 - **Other ride / climb modes in savestates** (author asked to note it,
   2026-09-26): only cave ropes are put back (`Game/RopeClimb`,
   v0.24.104-105). A capture on a **zipline, sled, wall / cliff climb or

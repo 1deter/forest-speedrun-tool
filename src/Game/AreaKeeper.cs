@@ -47,6 +47,9 @@ namespace ForestOverlay.Game
     // never set it), and the opened door led into an unloaded endgame
     // (bridge, 2026-09-26). So a destination on the box's forward side,
     // near the tunnel, keeps the flag or sets it as the crossing does.
+    // Only there: a Go from the surface straight into a section (the lab)
+    // still leaves the flag as it was (false) - if something in the
+    // endgame misbehaves after a Go, look here first.
     // ------------------------------------------------------------------
     internal sealed class AreaKeeper
     {
