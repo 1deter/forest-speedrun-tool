@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.100 - 2026-09-26
+
+- Teleporting (Go) while the red elevator is riding now stops the ride.
+  Before, the ride finished on its own about 30 seconds later and left
+  the cave you had teleported to (e.g. the vault door cave) partly
+  invisible.
+
 ## v0.24.99 - 2026-09-26
 
 - Savestates: when a restore has to load the endgame area (a Full load

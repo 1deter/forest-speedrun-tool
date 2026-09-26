@@ -125,6 +125,7 @@ namespace ForestOverlay.Tests
         [InlineData("0.16", "0.16.0", 0)]
         [InlineData("0.10.0", "0.9.9", 1)]
         [InlineData("1.0.0-beta", "0.99.0", 1)]
+        [InlineData("0.24.100", "0.24.99", 1)]
         public void ComparesVersionsNumerically(string a, string b, int expected)
         {
             Assert.Equal(expected, ReleaseJson.CompareVersions(a, b));

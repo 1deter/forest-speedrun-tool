@@ -34,6 +34,8 @@ namespace ForestOverlay.Game
     // left alone (the gates re-enter areas as you walk). The endgame flag
     // too (v0.24.61): a teleport from the lab to the surface kept
     // IsInEndgame and the surface was lit like a cave.
+    // A red elevator ride under way is stopped first (v0.24.100): left
+    // running, its end ~30 s later half-unloaded the cave teleported to.
     // ------------------------------------------------------------------
     internal sealed class AreaKeeper
     {
@@ -44,7 +46,9 @@ namespace ForestOverlay.Game
         private FieldInfo _active;
         private MethodInfo _onEnter, _onLeave;
 
-        public AreaKeeper(ManualLogSource log) { _log = log; }
+        private readonly ElevatorKeeper _rides;
+
+        public AreaKeeper(ManualLogSource log) { _log = log; _rides = new ElevatorKeeper(log); }
 
         private bool Bind()
         {
@@ -82,6 +86,15 @@ namespace ForestOverlay.Game
         /// Before a plain teleport to `dest`; returns the log note ("" when
         /// nothing to do). Cheap when no area is active and no overlook.
         public string ForTeleport(Vector3 dest)
+        {
+            // A ride under way first, wherever the teleport goes (ElevatorKeeper.StopRides).
+            string ride = _rides.StopRides();
+            string areas = Areas(dest);
+            if (ride.Length == 0) return areas;
+            return areas.Length > 0 ? ride + ", " + areas : ride;
+        }
+
+        private string Areas(Vector3 dest)
         {
             try
             {

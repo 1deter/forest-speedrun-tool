@@ -190,6 +190,33 @@ namespace ForestOverlay.Game
             catch (Exception ex) { return "elevators: restore failed (" + ex.Message + ")"; }
         }
 
+        /// Before a plain teleport (Go, the bridge's tp): every ride under
+        /// way stopped with its end state, as a Quick load does. A ride left
+        /// running finished ~30 s later with the player gone - its end
+        /// (the overlook door opening) left the vault door cave half drawn
+        /// (author, 2026-09-26; bridge: whole at 5 s, broken at 35 s, whole
+        /// at 35 s with the ride stopped). "" when none was running.
+        public string StopRides()
+        {
+            try
+            {
+                if (!Bind() || _moving == null) return "";
+                int stopped = 0;
+                UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    Component c = all[i] as Component;
+                    if (c == null || !(bool)_moving.GetValue(c)) continue;
+                    Rigidbody rb = _rb.GetValue(c) as Rigidbody;
+                    if (rb == null) continue;
+                    StopRide(c, rb);
+                    stopped++;
+                }
+                return stopped > 0 ? "elevator ride stopped" + (stopped > 1 ? " (" + stopped + ")" : "") : "";
+            }
+            catch (Exception ex) { return "elevator: stopping the ride failed (" + ex.Message + ")"; }
+        }
+
         /// Starts each ride as the elevator's own button does (Update on
         /// "Take"); the cutscene fast-forward takes it from there.
         public string Replay(List<Component> rides)

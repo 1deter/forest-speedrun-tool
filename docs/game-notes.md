@@ -1658,6 +1658,26 @@ reverse, with no sweep.
 `loadEndBossScene`. A load of it after a Full load froze 5.2 s in one
 frame. Going async would let the player move during it (a gameplay change
 in runs).
+**Async measured** (bridge, 2026-09-26, the same unloaded state after
+`ForceUnload`): the game's `ForceLoad` 5233 ms in one frame;
+`LoadSceneAsync` no frame over 200 ms. In v0.24.99 our restores load it
+async (`EndgameLoader.PatchStream`, a transpiler on the routine's
+`LoadScene` + the yield after it; switch `EndgameAsyncForRestores`, on):
+Full load of `phantom-a` 2.04 s / 332 frames / longest 100 ms (hold 6.0 ->
+4.5 s); Quick load of `elevPre` with it unloaded 1.71 s / longest 18 ms
+(switch off: a 5000 ms frame, in after 5.7 s). After it the trigger reads
+as after the game's load (`_loadedSceneRoot` = `Sections`, action None,
+loading HUD off), `endgame_animPrefabs` follows, the red elevator rides.
+`backgroundLoadingPriority` is `BelowNormal` in this game (High while
+ours runs).
+**In a run** (live UnityEvent wiring - IL `refs` cannot see it): the
+forward crossing's `_onCrossingForwards` starts `InstantLoad` (a `DoAfter`,
+0.01 s) -> `EnterEndgame` event + **`LoadEndgame.ForceLoad`**, which does
+nothing until `_canLoad` (set by the vault door's `onDoorOpen`); the
+routine's `_onBeforeLoad` runs `SetPoolMasterCulling.Set` and the vault
+door's **`DoEnvironmentAnimation`**, then 0.5 s, then the one-frame load;
+`_onFinishedLoading` sends `EnterEndgame` again. So the freeze sits inside
+the vault door sequence.
 
 **A save load** (`Load timing:` lines): `LoadAsync` 'Resume' ~2 s (one
 ~1.8 s frame), the scene ~1 s frame, `LoadSave.Activation` ~2.4-2.8 s. The

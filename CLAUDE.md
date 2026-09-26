@@ -880,6 +880,16 @@ after a restart with the `Perf (30 s)` lines. Not yet posted to QA.
    `MaterialTween` `SendMessage` boxing, Unity's collision objects.
    Measure during play (tracker: `AllocationTrackerAtStartup` + restart).
 5. The live heap: the A* navmesh is most of it and is needed.
+6. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
+   lower-end machines"). Nothing done yet - the work so far cuts GC
+   hitches and load freezes, not the average frame. Measure first:
+   the Game profiler (`ToggleProfiler`) for the main thread's per-frame
+   cost by script during play (surface, a cave, the endgame), and
+   whether a low-end runner is CPU- or GPU-bound (ask for their `Perf
+   (30 s)` lines + specs; the author's 4080S / 7800X3D is not
+   representative). Behaviour-preserving CPU savings ship on;
+   anything that changes what is drawn or simulated (draw distance,
+   shadows, update rates) goes under Experimental, labelled.
 
 **QA:** maks's reports of 2026-09-26 (`Downloads\qa-reports\yirequ\`,
 04-34 / 04-37 / 04-43 = the physics ones, 11-37 = performance: in play
