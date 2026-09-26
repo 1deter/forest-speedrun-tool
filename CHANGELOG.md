@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.102 - 2026-09-26
+
+- Savestates keep your stance: with toggle crouch, a Quick or Full load
+  used to leave you crouched if you were crouched before it. A savestate
+  now puts you back crouched or standing, the way it was captured
+  (savestates made before this version leave the stance alone).
+
 ## v0.24.101 - 2026-09-26
 
 - Deaths tab: a **God mode** toggle (practice) - the game's own cheat,

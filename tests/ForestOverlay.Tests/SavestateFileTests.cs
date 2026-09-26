@@ -166,6 +166,21 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void StanceRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Stance);
+            Assert.DoesNotContain("stance", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Stance = "crouched";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal("crouched", back.Stance);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RoundTripKeepsEveryField()
         {
             string error;
