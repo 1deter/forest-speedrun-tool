@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.79 - 2026-09-26
+
+- Savestates taken during the red elevator's keycard animation work: a
+  Quick load or Full load plays the ride again and fast-forwards it to
+  the moment you captured, instead of leaving the elevator at the bottom
+  with a button that does nothing.
+- A Full load of such a savestate no longer puts you outside the lab
+  with the world unloaded, and a Quick load no longer drops you far
+  away. (The keycard animation holds the player inside the elevator,
+  which confused where the save thought you were.)
+
 ## v0.24.78 - 2026-09-26
 
 - Coordinate boxes only take numbers: letters and other characters

@@ -167,6 +167,13 @@ namespace ForestOverlay.Game
         public float CutsceneStartedAt { get; private set; }
         public int CutsceneStarts { get; private set; }
 
+        /// Time.time when the red elevator's ride last sent its keycard
+        /// animation (inside ElevatorSystem.Goto's first step, when the car
+        /// is still at the stop it leaves from), or -1. ElevatorKeeper
+        /// reads it at capture to tell whether the car has moved yet.
+        public float RedElevatorAt { get { return _redElevatorAt; } }
+        private static float _redElevatorAt = -1f;
+
         public GameEvents(ManualLogSource log)
         {
             _log = log;
@@ -380,7 +387,7 @@ namespace ForestOverlay.Game
                     // frame check stops a marker left set by an exception
                     // from misfiling a later elevator.
                     bool viaKeypad = _inKeypad && _keypadFrame == Time.frameCount;
-                    if (!viaKeypad) evt = RedElevator;
+                    if (!viaKeypad) { evt = RedElevator; _redElevatorAt = Time.time; }
 
                     if (_keycardIdField != null && __instance != null)
                         keycard = (int)_keycardIdField.GetValue(__instance);

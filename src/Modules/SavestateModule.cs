@@ -372,7 +372,8 @@ namespace ForestOverlay.Modules
             string cutscene = Ctx.Events != null ? Ctx.Events.CutsceneRunning : null;
             float cutsceneAt = cutscene != null ? Time.time - Ctx.Events.CutsceneStartedAt : -1f;
             string megan = _megan.Capture();
-            string elevators = _elevators.Capture();
+            float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
+            string elevators = _elevators.Capture(rideAge);
             string activeArea = _area.Capture();
             string blueprint = BuildMode.Capture();
             string bushes = _nature.CaptureMark();
@@ -712,7 +713,12 @@ namespace ForestOverlay.Modules
                 }
 
                 // The elevators are outside the save too (ElevatorKeeper).
-                string elevatorNote = r.Ok && file != null ? _elevators.Restore(file.Elevators) : "";
+                // A ride under way at capture is replayed once the player
+                // is placed (after `after`: a restart's teleport cuts
+                // player actions).
+                List<Component> rides = new List<Component>();
+                string elevatorNote = r.Ok && file != null
+                    ? _elevators.Restore(file.Elevators, RideCutsceneAt(file), false, rides) : "";
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
@@ -728,10 +734,17 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { greebleNote = "greebles: failed (" + ex.Message + ")"; }
                 }
 
+                // Saved relative to a parent (a keycard cutscene holds the
+                // player under the card reader): the restore put the
+                // player at those numbers in the world.
+                string placeNote = r.Ok && file != null ? PutPlayerBack(file, false) : "";
+
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
                 // and unlit). Its own log line, a moment later.
-                if (r.Ok && file != null && file.CutsceneAt >= 0f)
+                if (r.Ok && file != null && rides.Count > 0)
+                    Ctx.Runner.StartCoroutine(ReplayRides(file, rides, what));
+                else if (r.Ok && file != null && file.CutsceneAt >= 0f)
                     Ctx.Runner.StartCoroutine(FastForwardCutscene(file, cutsceneStarts, what));
 
                 // The captured blueprint after the hands (runner maks): the
@@ -751,6 +764,7 @@ namespace ForestOverlay.Modules
                               (presentPickups == null ? " (all kept)" : "") +
                               (string.IsNullOrEmpty(cave) ? "" : " | cave: " + cave) +
                               (fall.Length == 0 ? "" : " | " + fall) +
+                              (placeNote.Length == 0 ? "" : " | " + placeNote) +
                               (overlookNote.Length == 0 ? "" : " | " + overlookNote) +
                               (bookNote.Length == 0 ? "" : " | " + bookNote) +
                               (washNote.Length == 0 ? "" : " | " + washNote) +
@@ -790,6 +804,53 @@ namespace ForestOverlay.Modules
         // 6x took ~10 s for Megan's 60 s (runner maks: "within ~1 second").
         private const float CutsceneSpeed = 25f;
         private const float CutsceneWait = 20f;
+
+        /// The cutscene time to replay a red elevator ride to, or -1.
+        private static float RideCutsceneAt(SavestateFile f)
+        {
+            return f != null && f.CutsceneAt >= 0f && f.Cutscene == GameEvents.RedElevator ? f.CutsceneAt : -1f;
+        }
+
+        // Found live (maks's "elev boost", v0.24.79): the keycard cutscene
+        // parents the player to the card reader's `playerPos`, so the save
+        // holds the player's LOCAL position - a Quick load dropped the
+        // player near the world's origin, a Full load put them on the
+        // surface. The header's position is the world one. More than a few
+        // metres off = moved there; after a Full load the cave state from
+        // the file too (the load decided it from the wrong spot).
+        private const float MisplacedDistance = 3f;
+
+        private string PutPlayerBack(SavestateFile f, bool caveToo)
+        {
+            if (!Ctx.Player.Found) return "";
+            Vector3 at = new Vector3(f.X, f.Y, f.Z);
+            if (at == Vector3.zero) return "";
+            Vector3 was = Ctx.Player.Transform.position;
+            if ((was - at).sqrMagnitude < MisplacedDistance * MisplacedDistance) return "";
+            string cave = "";
+            if (caveToo)
+            {
+                try { cave = Ctx.Bridge.ForceCaveState(f.InCave); }
+                catch (Exception) { }
+            }
+            Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+            Ctx.Bridge.EndFall();
+            return "player put back at the captured spot (restored " + (was - at).magnitude.ToString("F0") +
+                   " m away - saved relative to a parent)" + (cave.Length > 0 ? ", " + cave : "");
+        }
+
+        // The ride's replay a frame after the restore's continuation (the
+        // restart's teleport and action cut), then the usual fast-forward.
+        private IEnumerator ReplayRides(SavestateFile f, List<Component> rides, string what)
+        {
+            yield return null;
+            yield return null;
+            int starts = Ctx.Events != null ? Ctx.Events.CutsceneStarts : 0;
+            string note = _elevators.Replay(rides);
+            Ctx.Log.LogInfo("Savestate " + what + ": captured " + f.CutsceneAt.ToString("0.0") +
+                            " s into the red elevator's ride - " + note + ".");
+            yield return Ctx.Runner.StartCoroutine(FastForwardCutscene(f, starts, what));
+        }
 
         private IEnumerator FastForwardCutscene(SavestateFile f, int startsBefore, string what)
         {
@@ -1108,6 +1169,8 @@ namespace ForestOverlay.Modules
                 BossHold.Arm();
                 if (error == null)
                 {
+                    string placed = PutPlayerBack(f, true);
+                    if (placed.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + placed + ".");
                     string panels = "";
                     try { panels = _panels.Restore(f.Panels, false); }
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
@@ -1116,7 +1179,9 @@ namespace ForestOverlay.Modules
                                     (panels.Length > 0 ? " | " + panels : "") +
                                     (endgame.Length > 0 ? " | " + endgame : "") + ".");
                     Ctx.Runner.StartCoroutine(LogAreas(f));
-                    if (f.CutsceneAt >= 0f)
+                    // A ride under way at capture is replayed after the
+                    // hold (HoldUntilLoaded), which pins the player.
+                    if (f.CutsceneAt >= 0f && RideCutsceneAt(f) < 0f)
                         Ctx.Runner.StartCoroutine(FastForwardCutscene(f, cutsceneStarts, "'" + f.Name + "'"));
                     if (_respawnEnemies.Value && f.Families != null && f.Families.Count > 0 && !f.InCave)
                         Ctx.Runner.StartCoroutine(EnemiesAfterLoad(f));
@@ -1273,7 +1338,18 @@ namespace ForestOverlay.Modules
                         PullOutBlueprint(pullOut, "Savestate after the load");
                     }));
             else PullOutBlueprint(pullOut, "Savestate after the load");
+
+            // The red elevator's ride under way at capture (ElevatorKeeper):
+            // the load built the elevator fresh; set it up, place the
+            // player (`after`), then start it.
+            List<Component> rides = new List<Component>();
+            if (RideCutsceneAt(f) >= 0f)
+            {
+                string note = _elevators.Restore(f.Elevators, RideCutsceneAt(f), true, rides);
+                if (note.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + note + ".");
+            }
             if (after != null) after(null);
+            if (rides.Count > 0) Ctx.Runner.StartCoroutine(ReplayRides(f, rides, "'" + f.Name + "'"));
         }
 
         /// The captured blueprint back in the hands (Game/BuildMode), with
