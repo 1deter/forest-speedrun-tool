@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.107 - 2026-09-26
+
+- New Experimental switch in Debug views -> Performance patches:
+  **Endgame: load it in the background during play**. Off by default.
+  When the vault door opens, the game normally freezes for about 5
+  seconds while it loads the endgame area. With the switch on, that load
+  runs during the door's cutscene instead, so there is no freeze. If the
+  load is still going when the cutscene ends, you are held in place
+  until it is done. This changes a run's real time (about 5 s shorter),
+  which is why it is labelled and off.
+
 ## v0.24.106 - 2026-09-26
 
 - The Savestates tab is gone: it was the early testing panel. Start

@@ -89,9 +89,10 @@ namespace ForestOverlay.Game
                 MethodInfo force = trigger.GetType().GetMethod("ForceLoad", inst, null, Type.EmptyTypes, null);
                 if (force == null) return "endgame: loaded at capture, not now - ForceLoad not found";
                 if (canLoad != null) canLoad.Invoke(trigger, new object[] { true });
-                bool background = _streamPatched;
-                // The trigger loads _loadDelay (0.5 s) after ForceLoad.
-                if (background) _asyncUntil = Time.realtimeSinceStartup + 3f;
+                bool background = _streamPatched && _forRestores;
+                // The trigger loads _loadDelay (0.5 s) after ForceLoad; the
+                // window marks the load as ours (restore), not a run's.
+                if (_streamPatched) _asyncUntil = Time.realtimeSinceStartup + 3f;
                 force.Invoke(trigger, null);
                 return "endgame: loaded at capture, not by the load - loading it (the game's EndgameLoader" +
                        (background ? ", in the background" : "") + ")";
@@ -130,9 +131,25 @@ namespace ForestOverlay.Game
         // loadEndBossScene and the loading HUD - runs in the same order,
         // once the scene is in. While it runs, backgroundLoadingPriority
         // is High (the player is held anyway), then set back.
+        //
+        // IN A RUN (Experimental switch EndgameAsyncInRuns, off; author,
+        // 2026-09-26: allowed, off, "only if a genuine improvement"). The
+        // game's own load in a run (live wiring + bridge, 2026-09-26): the
+        // forward crossing of LoadEndgame sends EnterEndgame (IsInEndgame);
+        // the vault door's onDoorOpen then starts DelayedLoad (4.35 s,
+        // PlayerInEndgameTester) and SetCanLoad(true); DelayedLoad's
+        // ForceLoad runs the routine, 0.5 s, then the one frame - measured
+        // 5078 ms, ~4.9 s into the door's cutscene, which lasts ~12 s of
+        // game time (the flag fell 17.3 s after the press, freeze included).
+        // With the switch every endgame_streaming load that is not ours goes
+        // async; the rest of the routine is unchanged, as for restores. If
+        // the load outlasts the cutscene (or starts outside one - a save
+        // loaded into the endgame), the player is pinned where they stand
+        // until it is in, as HoldUntilLoaded does.
         // ------------------------------------------------------------------
         public static ManualLogSource Log;
         private static bool _streamPatched;
+        private static bool _forRestores, _inRuns;
         private static MethodInfo _streamMoveNext;
         private static int _streamReplaced;
         private static float _asyncUntil = -1f;
@@ -143,9 +160,23 @@ namespace ForestOverlay.Game
         /// to compare).
         public static ThreadPriority AsyncPriority = ThreadPriority.High;
 
-        public static string PatchStream(Harmony harmony, ManualLogSource log)
+        /// Either switch: restores (inRuns false) or runs (true). The
+        /// transpiler is shared and stays while either is on.
+        public static string PatchStream(Harmony harmony, ManualLogSource log, bool inRuns)
         {
             Log = log;
+            if (!_streamPatched)
+            {
+                string why = Patch(harmony);
+                if (why.Length > 0) return why;
+            }
+            if (inRuns) _inRuns = true;
+            else _forRestores = true;
+            return "";
+        }
+
+        private static string Patch(Harmony harmony)
+        {
             Type trigger = GameBridge.FindGameType("TheForest.World.SceneLoadTrigger");
             if (trigger == null) return "SceneLoadTrigger not found";
             Type iter = null;
@@ -163,8 +194,11 @@ namespace ForestOverlay.Game
             return "expected LoadScene and its yield, found " + _streamReplaced + " of 2 (game updated?)";
         }
 
-        public static void UnpatchStream(Harmony harmony)
+        public static void UnpatchStream(Harmony harmony, bool inRuns)
         {
+            if (inRuns) _inRuns = false;
+            else _forRestores = false;
+            if (_inRuns || _forRestores || !_streamPatched) return;
             _streamPatched = false;
             _asyncUntil = -1f;
             if (_streamMoveNext != null) harmony.Unpatch(_streamMoveNext, HarmonyPatchType.Transpiler, harmony.Id);
@@ -200,14 +234,21 @@ namespace ForestOverlay.Game
         /// In place of the routine's SceneManager.LoadScene.
         public static void StreamLoad(string name, LoadSceneMode mode)
         {
-            if (name == Scene && _streamPatched && Time.realtimeSinceStartup <= _asyncUntil)
+            bool restore = false, async = false;
+            if (name == Scene && _streamPatched)
             {
+                restore = Time.realtimeSinceStartup <= _asyncUntil;
                 _asyncUntil = -1f;
+                async = restore ? _forRestores : _inRuns;
+            }
+            if (async)
+            {
                 try
                 {
                     _priorityBefore = Application.backgroundLoadingPriority;
                     Application.backgroundLoadingPriority = AsyncPriority;
                     _asyncOp = SceneManager.LoadSceneAsync(name, mode);
+                    _asyncForRun = !restore;
                     if (_asyncOp != null) return;
                     Application.backgroundLoadingPriority = _priorityBefore;
                 }
@@ -228,34 +269,81 @@ namespace ForestOverlay.Game
             _asyncOp = null;
             if (op == null) return null;
             _watched = op;
+            _watchForRun = _asyncForRun;
             _watchStart = Time.realtimeSinceStartup;
             _watchFrames = 0;
             _watchLongest = 0f;
+            _cutsceneFrames = 0;
+            _holding = false;
             return op;
         }
 
         private static AsyncOperation _watched;
+        private static bool _asyncForRun, _watchForRun;
         private static float _watchStart, _watchLongest;
-        private static int _watchFrames;
+        private static int _watchFrames, _cutsceneFrames;
 
-        /// Once a frame (PerfPatches.Tick): times the background load, sets
-        /// the loading priority back when it is done.
-        public static void Tick()
+        // The run's hold: where the player was pinned, since when.
+        private static bool _holding;
+        private static Vector3 _holdAt;
+        private static Quaternion _holdRotation;
+        private static float _holdStart;
+
+        /// Once a frame (PerfPatches.Tick): times the background load, holds
+        /// the player of a run's load outside a cutscene, sets the loading
+        /// priority back when it is done.
+        public static void Tick(PlayerRef player, GameEvents events)
         {
             if (_watched == null) return;
             _watchFrames++;
             if (Time.unscaledDeltaTime > _watchLongest) _watchLongest = Time.unscaledDeltaTime;
+            bool cutscene = events != null && events.CutsceneRunning != null;
+            if (cutscene) _cutsceneFrames++;
             bool done;
             try { done = _watched.isDone; }
             catch (Exception) { done = true; }
-            if (!done && Time.realtimeSinceStartup - _watchStart < 60f) return;
+            if (!done && Time.realtimeSinceStartup - _watchStart < 60f)
+            {
+                if (_watchForRun) Hold(player, cutscene);
+                return;
+            }
             _watched = null;
             Application.backgroundLoadingPriority = _priorityBefore;
-            if (Log != null)
-                Log.LogInfo("Performance: endgame loaded in the background for the restore - " +
-                            (Time.realtimeSinceStartup - _watchStart).ToString("0.00") + " s, " + _watchFrames +
-                            " frame(s), longest " + (_watchLongest * 1000f).ToString("0") + " ms (" + AsyncPriority + ")" +
-                            (done ? "" : " - gave up watching after 60 s") + ".");
+            if (Log == null) return;
+            string took = (Time.realtimeSinceStartup - _watchStart).ToString("0.00") + " s, " + _watchFrames +
+                          " frame(s), longest " + (_watchLongest * 1000f).ToString("0") + " ms (" + AsyncPriority + ")";
+            string gaveUp = done ? "" : " - gave up watching after 60 s";
+            if (!_watchForRun)
+            {
+                Log.LogInfo("Performance: endgame loaded in the background for the restore - " + took + gaveUp + ".");
+                return;
+            }
+            string held = _holding
+                ? "held the player " + (Time.realtimeSinceStartup - _holdStart).ToString("0.00") + " s at " + Fmt(_holdAt) + " until it was in"
+                : "no hold needed";
+            Log.LogInfo("Performance: endgame loaded in the background in play (Experimental) - " + took + ", " +
+                        _cutsceneFrames + " of the frames in a cutscene, " + held + gaveUp + ".");
+            _holding = false;
+        }
+
+        /// A cutscene holds the player itself; outside one, pin them where
+        /// they stood when the hold began (the floor may not be in yet).
+        private static void Hold(PlayerRef player, bool cutscene)
+        {
+            if (cutscene || player == null || !player.Found) return;
+            if (!_holding)
+            {
+                _holding = true;
+                _holdAt = player.Transform.position;
+                _holdRotation = player.Transform.rotation;
+                _holdStart = Time.realtimeSinceStartup;
+            }
+            player.MoveTo(_holdAt, _holdRotation);
+        }
+
+        private static string Fmt(Vector3 v)
+        {
+            return "(" + v.x.ToString("0.0") + ", " + v.y.ToString("0.0") + ", " + v.z.ToString("0.0") + ")";
         }
     }
 }

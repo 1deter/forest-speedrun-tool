@@ -71,6 +71,10 @@ namespace ForestOverlay.Game
     // 8. The endgame load of our restores in the background (on by
     //    default: the restore holds the player anyway; the game's own
     //    trigger crossing is untouched) - EndgameLoader.PatchStream.
+    // 9. The endgame load in play in the background - EXPERIMENTAL, off:
+    //    the game's own load behind the vault door (a ~5 s frozen frame
+    //    inside the door's cutscene) goes async too; the player is pinned
+    //    if it outlasts the cutscene. Same transpiler as 8.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -131,7 +135,15 @@ namespace ForestOverlay.Game
                 "When a savestate restore loads the endgame area (a Full load of a state captured with it, or a Quick load that needs it), " +
                 "load it in the background while the restore holds you, instead of the game's one ~5 s frozen frame. " +
                 "The game's own load when you walk in during play is unchanged.",
-                delegate { return EndgameLoader.PatchStream(_harmony, _log); }, delegate { EndgameLoader.UnpatchStream(_harmony); });
+                delegate { return EndgameLoader.PatchStream(_harmony, _log, false); }, delegate { EndgameLoader.UnpatchStream(_harmony, false); });
+            Add(config, "EndgameAsyncInRuns", "Endgame: load it in the background during play (vault door)",
+                "EXPERIMENTAL, changes the game: the game's own load of the endgame area after the vault door opens runs in the background " +
+                "during the door's cutscene, instead of freezing the game for one ~5 s frame. If the load outlasts the cutscene you are " +
+                "held in place until it is in. A run with it is ~5 s shorter in real time. Off = the game's own code.",
+                delegate { return EndgameLoader.PatchStream(_harmony, _log, true); }, delegate { EndgameLoader.UnpatchStream(_harmony, true); }, false);
+            _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Note = "Changes the game: the ~5 s freeze after the vault door opens is gone, so a run's real time is " +
+                                            "~5 s shorter than without it. You are held in place if the load outlasts the door's cutscene.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -196,9 +208,9 @@ namespace ForestOverlay.Game
         }
 
         /// Once a frame (Debug views module).
-        public void Tick()
+        public void Tick(PlayerRef player, GameEvents events)
         {
-            EndgameLoader.Tick();
+            EndgameLoader.Tick(player, events);
             if (!_unloadTrailing || _unloadRunning == null) return;
             bool done;
             try { done = _unloadRunning.isDone; }
