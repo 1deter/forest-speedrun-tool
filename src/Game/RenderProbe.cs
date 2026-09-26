@@ -236,6 +236,167 @@ namespace ForestOverlay.Game
             return hits.Count + " material(s) use it (log)";
         }
 
+        // --- what the fixed cost of a camera is made of --------------------
+        private static Camera _probeCam;
+        private static RenderTexture _probeTexture;
+        private static readonly List<Behaviour> _offLights = new List<Behaviour>();
+        private static readonly List<Renderer> _offRenderers = new List<Renderer>();
+
+        /// Renders a bare camera `n` times back to back and returns the
+        /// average ms: at the main camera's place and frustum, forward, no
+        /// HDR / MSAA / occlusion culling, into a 64x64 texture, with
+        /// `mask` as its culling mask (0 = nothing to draw). The fixed cost
+        /// of one camera in this scene, without frame noise; run it before
+        /// and after ToggleLights / ToggleRenderers to see what it scales with.
+        public static string TimeRender(int mask, int n)
+        {
+            if (n < 1) n = 1;
+            if (_probeCam == null)
+            {
+                GameObject go = new GameObject("ForestOverlay RenderProbe Camera");
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                _probeCam = go.AddComponent<Camera>();
+                _probeCam.enabled = false;
+                _probeTexture = new RenderTexture(64, 64, 16);
+                _probeCam.targetTexture = _probeTexture;
+            }
+            Camera main = Camera.main;
+            if (main != null)
+            {
+                _probeCam.transform.position = main.transform.position;
+                _probeCam.transform.rotation = main.transform.rotation;
+                _probeCam.fieldOfView = main.fieldOfView;
+                _probeCam.nearClipPlane = main.nearClipPlane;
+                _probeCam.farClipPlane = main.farClipPlane;
+            }
+            _probeCam.renderingPath = RenderingPath.Forward;
+            _probeCam.allowHDR = false;
+            _probeCam.allowMSAA = false;
+            _probeCam.useOcclusionCulling = false;
+            _probeCam.clearFlags = CameraClearFlags.Depth;
+            _probeCam.cullingMask = mask;
+            System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < n; i++) _probeCam.Render();
+            sw.Stop();
+            double ms = sw.Elapsed.TotalMilliseconds / n;
+            string line = "Render probe: bare camera, mask " + mask + ", " + n + " renders: " + ms.ToString("0.000") + " ms each";
+            if (Log != null) Log.LogInfo(line);
+            return ms.ToString("0.000") + " ms";
+        }
+
+        /// Times an existing camera's Render() `n` times (the frame after
+        /// shows it drawn again - a test only).
+        public static string TimeCamera(string name, int n)
+        {
+            if (n < 1) n = 1;
+            Camera[] cams = Camera.allCameras;
+            for (int c = 0; c < cams.Length; c++)
+            {
+                if (cams[c].name != name) continue;
+                System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+                for (int i = 0; i < n; i++) cams[c].Render();
+                sw.Stop();
+                double ms = sw.Elapsed.TotalMilliseconds / n;
+                if (Log != null) Log.LogInfo("Render probe: camera '" + name + "' " + n + " renders: " + ms.ToString("0.000") + " ms each");
+                return ms.ToString("0.000") + " ms";
+            }
+            return "no camera named '" + name + "'";
+        }
+
+        /// Switches every enabled, active non-directional Light off (and
+        /// the same ones back on at the next call). A test only.
+        public static string ToggleLights()
+        {
+            if (_offLights.Count > 0)
+            {
+                int back = 0;
+                for (int i = 0; i < _offLights.Count; i++)
+                    if (_offLights[i] != null) { _offLights[i].enabled = true; back++; }
+                _offLights.Clear();
+                return back + " light(s) back on";
+            }
+            Light[] all = UnityEngine.Object.FindObjectsOfType(typeof(Light)) as Light[];
+            if (all == null) return "no lights";
+            for (int i = 0; i < all.Length; i++)
+            {
+                Light l = all[i];
+                if (l == null || !l.enabled || l.type == LightType.Directional) continue;
+                l.enabled = false;
+                _offLights.Add(l);
+            }
+            return _offLights.Count + " light(s) off";
+        }
+
+        /// Switches enabled, active renderers off (and the same ones back on
+        /// at the next call): those whose path starts with `root`, or every
+        /// one but the HUD layer (8) for "all". A test only - the world
+        /// disappears.
+        public static string ToggleRenderers(string root)
+        {
+            if (_offRenderers.Count > 0)
+            {
+                int back = 0;
+                for (int i = 0; i < _offRenderers.Count; i++)
+                    if (_offRenderers[i] != null) { _offRenderers[i].enabled = true; back++; }
+                _offRenderers.Clear();
+                return back + " renderer(s) back on";
+            }
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            bool every = root == "all";
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                if (every) { if (r.gameObject.layer == 8) continue; }
+                else if (r.transform.root.name != root) continue;
+                r.enabled = false;
+                _offRenderers.Add(r);
+            }
+            return _offRenderers.Count + " renderer(s) off";
+        }
+
+        /// Enabled, active renderers by scene root (top `top`), plus the
+        /// scene's enabled lights, LOD groups and terrains.
+        public static string RenderersByRoot(int top)
+        {
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            Dictionary<string, int> roots = new Dictionary<string, int>();
+            int on = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                on++;
+                string key = r.transform.root.name;
+                int n;
+                roots.TryGetValue(key, out n);
+                roots[key] = n + 1;
+            }
+            List<KeyValuePair<string, int>> list = new List<KeyValuePair<string, int>>(roots);
+            list.Sort((a, b) => b.Value.CompareTo(a.Value));
+            Light[] lights = UnityEngine.Object.FindObjectsOfType(typeof(Light)) as Light[];
+            int lightsOn = 0, shadowed = 0;
+            if (lights != null)
+                for (int i = 0; i < lights.Length; i++)
+                    if (lights[i] != null && lights[i].enabled)
+                    {
+                        lightsOn++;
+                        if (lights[i].shadows != LightShadows.None) shadowed++;
+                    }
+            UnityEngine.Object[] lods = UnityEngine.Object.FindObjectsOfType(typeof(LODGroup));
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Render probe: ").Append(on).Append(" renderers enabled (of ").Append(all.Length).Append("), ")
+              .Append(lightsOn).Append(" lights on (").Append(shadowed).Append(" with shadows), ")
+              .Append(lods != null ? lods.Length : 0).Append(" LOD groups, ")
+              .Append(Terrain.activeTerrains != null ? Terrain.activeTerrains.Length : 0).Append(" terrains; by root");
+            for (int i = 0; i < list.Count && i < top; i++)
+                sb.Append(i == 0 ? ": " : ", ").Append(list[i].Key).Append(' ').Append(list[i].Value);
+            if (Log != null) Log.LogInfo(sb.ToString());
+            return on + " renderers enabled, " + lightsOn + " lights (log)";
+        }
+
         private static string Path(Transform t)
         {
             string p = t.name;
