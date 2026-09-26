@@ -816,10 +816,10 @@ identity.
 **Released: v0.24.97** (2026-09-26). The author runs it via the in-game
 updater. **374 tests.**
 
-### Pick up here (2026-09-26, performance session continued, v0.24.95 in the game)
+### Pick up here (2026-09-26, performance session continued, v0.24.97 in the game)
 
-**State:** the game runs v0.24.95 (v0.24.96-97 released and attached, not
-installed yet - `update_game`). **The author's config has
+**State:** the game runs v0.24.97 (installed with `update_game`, at the
+title screen). **The author's config has
 `[Performance] SaveLoadNoFixedWait = true`** (turned on for the A/B;
 default is off) - ask the author whether to keep it. Game in Slot 1,
 surface. Savestates `phantom-a`, `keycard-pickup-testing`, `physA`,
