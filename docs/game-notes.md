@@ -1660,12 +1660,54 @@ frame. Going async would let the player move during it (a gameplay change
 in runs).
 
 **A save load** (`Load timing:` lines): `LoadAsync` 'Resume' ~2 s (one
-~1.8 s frame), the scene ~1 s frame, `LoadSave.Activation` ~2.4-2.8 s of
-which 1.1 s in single player is fixed waits (`WaitPointFiveSeconds` after
-the game-mode prefab, before `OnGameStart`; `WaitPointSixSeconds` before
-the scene tracker loop; another 0.5 s for MP clients only). The game's
-`PerfTimerLogger` times these stages but logs to Unity's log, which this
-build never keeps (`Debug.Log` output does not reach BepInEx at all).
+~1.8 s frame), the scene ~1 s frame, `LoadSave.Activation` ~2.4-2.8 s. The
+game's `PerfTimerLogger` times these stages but logs to Unity's log, which
+this build never keeps (`Debug.Log` output does not reach BepInEx at all).
+
+**`LoadSave.Activation` step by step** (IL + `activation steps:` line,
+v0.24.95; the iterator's `$PC` = where it resumes, names in
+`LoadTiming.ActName`). Each early step is one load frame of 230-680 ms
+(step 0, Astar on, the two activation lists, step 3). The
+`WaitPointFiveSeconds` after the game-mode prefab is **not** hit in single
+player (only for a Bolt client or a missing prefab; an earlier note here
+said it was). The one fixed wait is `WaitPointSixSeconds`, after
+`sceneTracker.waitForLoadSequence = true` and before the loop on
+`doingGlobalNavUpdate` - and it runs **slow**: 0.56-1.35 s real, because
+`WaitForSeconds` counts scaled time and each long load frame counts at most
+`maximumDeltaTime`. What it covers: `gridObjectBlockerManager.NavCutRountine`
+waits on `waitForLoadSequence`, then calls `doNavCut` on every registered
+blocker, whose `StartCoroutine(doGlobalStructureBoundsNavRemove)` sets
+`doingGlobalNavUpdate` at once (then waits 0.5 s itself and cuts the
+graph). Spawns, animals, birds and `astarPreRuntimeSetup` also start on
+the flag. **A/B (bridge, v0.24.95):** ending the wait after 3 frames once
+the manager is idle - Activation 2.70 -> 1.35 s from the title screen,
+2.41 -> 1.47 s on a Full load; player, time, animals, spawners, picture
+the same, **but** a surface Full load ran a 339 ms / 69-frame nav update
+inside the wait (blockers registering during it) that then runs after
+the hand-over. So it is `SaveLoadNoFixedWait`, experimental, off.
+
+**After a Full load of a state captured with the endgame loaded** (Slot 1
+states taken on the surface after leaving the lab still read
+`IsInEndgame` true and list `endgame_streaming`): the restore loads the
+endgame itself - the 5.2 s one-frame freeze - while the player is held
+("held ... 6.0 s until the captured scenes were loaded"). That, not the
+hand-over, is the freeze seen after those Full loads (author, 2026-09-26).
+Also `animClipMemoryManager.UnloadEndGameAnimation` (~1.1 s, a 760-870 ms
+frame) runs inside every load.
+
+**The heap across restores** (bridge, 2026-09-26, fresh launch, Slot 1):
+title load 265 MB (after a forced GC) -> one Full load 282 MB (+17). But
+20 Quick loads (296 -> 303 MB) and **then** a Full load: 421 MB (+118),
+then flat (+4, +4 over two more Full loads, one of them endgame). Earlier
+the same session shape went 437 -> 549 -> 556 -> 557. The census at 536 MB
+had the same ~495k Unity objects as at 282 MB and statics reaching only
+~33 MB, so the extra ~250 MB is managed memory no static reaches. maks's
+session with ~50 Quick loads and two Full loads went 232 -> 420 MB, and
+his GC frames grew from ~150 to ~550 ms, several per 30 s - enough to
+break frame-precise tech (his elevator boost "worked again after a
+restart"). Open: what a Quick load leaves that a Full load then keeps
+(candidate: Boehm's conservative scan retaining the serializer's large
+buffers).
 
 ## The game ships a debug console — 256 methods
 

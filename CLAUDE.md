@@ -755,6 +755,16 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     runner-facing number comes from a measurement of the released build -
     or the notes say what changed without a figure.
 
+45. **A timed wait during a load is not the time it says, and a
+    diagnostic can be the hitch.** The game's "0.6 s" `WaitForSeconds`
+    in `LoadSave.Activation` took 0.56-1.35 s real: load frames are long
+    and each counts at most `maximumDeltaTime` of game time. Time waits
+    in real seconds (`activation steps:`), not from the IL's constant.
+    And the plugin's own "heap after GC" line forced a full collection
+    at the moment a load handed over control (v0.24.97) - every
+    diagnostic that runs on an event must be checked for what it costs
+    there (gotcha 42).
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -803,59 +813,50 @@ identity.
 
 ## Current status
 
-**Released: v0.24.94** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.97** (2026-09-26). The author runs it via the in-game
 updater. **374 tests.**
 
-### Pick up here (2026-09-26, performance session, v0.24.94 in the game)
+### Pick up here (2026-09-26, performance session continued, v0.24.95 in the game)
 
-**State:** v0.24.94 installed (MCP `update_game`), game in Slot 1 on the
-surface (428, 78, -4). `Diagnostics.AllocationTrackerAtStartup` set back
-to false in the author's config. Savestates `phantom-a` (deletable),
-`keycard-pickup-testing`, `physA`, `elevPre`, `elevMid` kept for Next up 5.
-The author dedicated this session to performance and load times (author,
-2026-09-26: "dedicate this session mainly to finding and patching in
-performance optimisations"; loads: "going into caves, triggering endgame
-scenes etc take notably the most time").
+**State:** the game runs v0.24.95 (v0.24.96-97 released and attached, not
+installed yet - `update_game`). **The author's config has
+`[Performance] SaveLoadNoFixedWait = true`** (turned on for the A/B;
+default is off) - ask the author whether to keep it. Game in Slot 1,
+surface. Savestates `phantom-a`, `keycard-pickup-testing`, `physA`,
+`elevPre`, `elevMid` kept. The session is about performance and loads
+(author, 2026-09-26).
 
-**Done this session (details: game-notes *Performance: garbage,
-allocations and loads*; the commits):**
-- v0.24.90-91 `Game/AllocationTracker`: exact allocation by type (and per
-  method inside the Game profiler, per overlay module in the tracker's
-  line). Mono profiler API; gotcha 43.
-- v0.24.92/94 `Game/PerfPatches` (`[Performance]`, on, Debug views
-  switches, `TogglePerfPatch i` 0-5): overlay layout only with a window,
-  post-processing / VR switcher layout off, Ceto ocean comparer, atmosphere
-  arrays, overlapping asset clean-ups merged. Idle garbage **~420 -> 216
-  KB/s** (A/B in one session: 558 off / 216 on); screenshots on vs off
-  differ less than two frames with nothing changed.
-- v0.24.93 `Game/LoadTiming`: `Load timing:` lines (asset clean-ups with
-  caller / duration / longest frame, forced GCs, the game's own stage
-  timers, scenes, frames over 200 ms). Cave entry with the merge: one
-  sweep (657 ms, longest frame 161 ms) instead of two overlapping (frames
-  of 361 + 368 ms).
-- v0.24.91 book-reset camera (sxczurass) fixed and bridge-verified at
-  0.5 / 0.6 / 0.7 s into opening (`Book after a reset: freed ...`).
+**Done (details: game-notes *Performance: garbage, allocations and
+loads*; the commits):**
+- v0.24.90-94: allocation tracker, six behaviour-preserving patches (idle
+  garbage ~420 -> 216 KB/s), `Load timing:` lines, merged asset sweeps.
+- v0.24.95 `activation steps:` line (LoadSave.Activation state by state).
+- v0.24.96 **Experimental / gameplay-altering** group in Debug views
+  (`Fix.Experimental` + `Note`, off by default): `SaveLoadNoFixedWait`
+  (fix 7, `TogglePerfPatch 6`) - Activation 2.70 -> 1.35 s from the title
+  screen, 2.41 -> 1.47 s on a Full load; the one difference found is a
+  building nav update moving after the hand-over (game-notes).
+- v0.24.97 the "Load N finished" line no longer forces a GC (an 80-140 ms
+  freeze as control arrived).
+- maks's physics reports read (below).
+
+**maks's elevator physics (Next up 5) - lead, not proven:** his failing
+session (Quick loads at the red elevator, ~50 restores, two Full loads)
+grew the Mono heap 232 -> 420 MB and his GC frames from ~150 to ~550 ms,
+several per 30 s; after a restart the boosts worked. Reproduced here: 20
+Quick loads then one Full load = +118 MB that stays (a Full load alone:
++17). Game-notes *The heap across restores*. Next: find what a Quick
+load leaves that the Full load then keeps (census at 536 MB: same Unity
+object count as at 282 MB, statics only ~33 MB - so not a static root;
+try a managed heap walk, or `GC.Collect` + census right after a Quick
+load vs before), then ask maks to retest the boost after a Full load vs
+after a restart with the `Perf (30 s)` lines. Not yet posted to QA.
 
 **Performance / loads - what is left, in order of payoff:**
-1. **A save load's fixed waits - GO (author, 2026-09-26: "yeah, try
-   it. could save runners a lot of time assuming there's no impact on
-   the game itself").** `LoadSave.Activation`, 1.1 s in single player:
-   0.5 s (`WaitPointFiveSeconds`) after the game-mode prefab before
-   `OnGameStart`, 0.6 s (`WaitPointSixSeconds`) before the scene-tracker
-   loop (the MP-client 0.5 s is never hit). Plan: a transpiler on the
-   iterator's `MoveNext` swapping those two `ldsfld` for a short wait
-   (a few frames, or until what the wait guards is ready - read what
-   runs in the next steps first), a `[Performance]` switch, one log line.
-   **Prove "no impact"** before shipping it on: the same save loaded with
-   the switch off and on (bridge), then compare the player, the sky /
-   `TheForestAtmosphere.TimeOfDay`, the scenes and areas loaded, the
-   enemies, the inventory and held items, and screenshots a few seconds
-   after control; Full loads of several savestates (surface, cave,
-   endgame) and a death reload too. Measure the gain with the
-   `Load timing: game timer 'Activation'` line. If anything differs, it
-   goes under the labelled experimental section (see 2), not on.
-2. **The endgame load freeze (5.2 s in one frame) - author's decision
-   (2026-09-26):**
+1. **The endgame load freeze (5.2 s in one frame).** Also what the author
+   saw "after the full loads": a Full load of a state captured with the
+   endgame loaded (the Slot 1 surface states) loads it after the hand-over
+   while holding the player. Author's decision (2026-09-26):
    - **Our restores**: do it if the player will not notice - load it in
      the background (`LoadSceneAsync`) while the restore holds the player
      anyway, or split it so no single frame is long. Keep what the
@@ -866,32 +867,25 @@ allocations and loads*; the commits):**
      (`EndgameLoader` sets a flag). Check the endgame after it exactly as
      after today's Full load (floor, lab, elevators, `AreaKeeper`).
    - **The game's own trigger** (a run crossing `EndgameEntrance/
-     LoadEndgame`): allowed as an option, **off by default, in a clearly
-     labelled "Experimental / gameplay-altering" part of the Performance
-     patches** (the runner can move while the endgame streams in). Only
-     if it is a genuine improvement in performance and playability.
-     Author: "i just want to make sure everything is true to the game,
-     and things that are not are clearly labelled that way ... i don't
-     see why the feature should be omitted entirely."
+     LoadEndgame`): allowed as an option in the **Experimental** group,
+     off. Only if a genuine improvement. Author: "i just want to make sure
+     everything is true to the game, and things that are not are clearly
+     labelled that way ... i don't see why the feature should be omitted
+     entirely."
+2. The heap step above (it is also a performance item: pause length).
 3. `animClipMemoryManager.Start -> UnloadEndGameAnimation` on **every**
-   load: ~1 s sweep with a 550-730 ms frame, then the endgame anim prefabs
-   load again. Understand why it unloads what is loaded right after before
-   touching it.
-4. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings
-   (~1100/s, source unknown - run the tracker with the profiler and read
-   the overlay-by-module line), `MaterialTween` `SendMessage` boxing,
-   Unity's collision objects. Measure **during play** next (movement,
-   combat, building) - the tracker needs `AllocationTrackerAtStartup`
-   true + a restart for full coverage; set it back after.
-5. The live heap (the pause length): the A* navmesh is most of it and is
-   needed; nothing cheap found.
+   load: ~1.1 s sweep with a 760-870 ms frame, then the endgame anim
+   prefabs load again. Understand why before touching it.
+4. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
+   `MaterialTween` `SendMessage` boxing, Unity's collision objects.
+   Measure during play (tracker: `AllocationTrackerAtStartup` + restart).
+5. The live heap: the A* navmesh is most of it and is needed.
 
-**QA:** maks's report of 2026-09-26 11:37 (downloaded,
-`Downloads\qa-reports\yirequ\...11-37`): in play 5-8 GCs per 30 s of
-100-500 ms frames; restores allocate most of the overlay's share. His
-physics reports (Next up 5) are still unread. Noted from #general (to-do
-list updated): confirm before a capture overwrites a start state (maks);
-a full replay system (sxczurass + author, "lets go all the way").
+**QA:** maks's reports of 2026-09-26 (`Downloads\qa-reports\yirequ\`,
+04-34 / 04-37 / 04-43 = the physics ones, 11-37 = performance: in play
+5-8 GCs per 30 s of 100-500 ms frames). Noted from #general (to-do list
+updated): confirm before a capture overwrites a start state (maks); a
+full replay system (sxczurass + author, "lets go all the way").
 
 **New, deferred (author: "defer ... unless it's a quick fix"):** after a
 Full load the game said **"can't carry any more plane axes"** (author,
@@ -930,15 +924,14 @@ has at its cap - read what `StashWeapon` does with a plane axe.
   entries need a fresh id first).
 
 **Next, in this order:**
-1. **Next up 6, performance / loads** - the list above: 1 (the fixed
-   waits) first, then 2 (restores, then the labelled game-trigger
-   option), then 3-5. On high effort.
-1b. **maks's physics reports** (Next up 5) - read them.
-1c. **The plane axe message** (above) - small, runner-facing.
+1. **Next up 6, performance / loads** - the list above: 1 (the endgame
+   load in our restores, then the experimental game-trigger option), 2
+   (the heap step - with maks), then 3-5. On high effort.
+1b. **The plane axe message** (above) - small, runner-facing.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod), a god mode toggle.
-3. **Next up 5, Quick load physics parity** - after the reports, decide
-   with the author whether it leaves "deferred".
+3. **Next up 5, Quick load physics parity** - the heap lead above first;
+   decide with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
    unless critical (judge it, and say so) - the author wants Next up
    finished before QoL/UX work.
