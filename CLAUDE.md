@@ -1048,8 +1048,9 @@ list so we can move onto expanding more features".
     **bomb boosting** (explode, open the menu, wait, close - distance
     presumed from the velocity at the menu, the time in it and fps;
     why runs sometimes hit objects or fly off course; maybe a boost
-    view, Experimental) - sxczurass has measurements by fps and will
-    send them; panel / axe clipping and the boost behind it; anything
+    view, Experimental) - sxczurass's measurements by fps (2026-09-26, message
+    `1553447134911664168`) are in `Downloads\qa-reports\sxczurass\image.png`;
+    panel / axe clipping and the boost behind it; anything
     new found on the way.
 13. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
     zone shapes.
