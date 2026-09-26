@@ -100,7 +100,11 @@ The endgame loaded in the background by a Full load and by a Quick load
 that needs it - no frame over 100 ms, trigger / HUD / anim prefabs as
 after the game's load, the red elevator rides after it (v0.24.99); a
 teleport mid-ride stops the ride and the vault door cave stays whole
-(v0.24.100) - both bridge, on the released builds. The God mode toggle
+(v0.24.100) - both bridge, on the released builds. On a runner's machine
+too (Cheesecake, v0.24.116, QA list item 2): two Quick loads of a
+post-vault-door start state loaded the endgame in the background in
+2.8 / 3.3 s (longest frame 25 ms), areas the same as at capture, nothing
+missing; held ~4-5 s, camera free. The God mode toggle
 keeps `Cheats.GodMode` on (re-set within a second when cleared), and
 unticking clears it only when the toggle set it (v0.24.101, bridge).
 With toggle crouch, Quick and Full loads put back the captured stance

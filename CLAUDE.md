@@ -616,13 +616,14 @@ author's eyes on the picture.
 
 **New from QA, not looked at** (forwarded by the author, 2026-09-26,
 new runner Tom; reports in `Downloads\qa-reports`): the cave's fake
-black wall stayed after entering (fixed by leaving and re-entering);
+black wall stayed after entering (fixed by leaving and re-entering;
+Cheesecake saw it too, inside the Cave 6 entrance after a `tp` in from
+the surface - MARK #6 of his `13-03` report);
 F7 Quick load with the ESC menu open half-loads until the menu closes
 (close the menu first; test other UI - graphics tab, inventory); a
 panel would not break and health < 1 did not kill (maybe damage carried
 over a reload, or the practice death path); could not move right after a
-Full load. Cheesecake answered v0.24.100 list item 2 (endgame
-savestates, report `13-03` in `qa-reports\cheesecake404` - not read).
+Full load.
 
 **State:** the game runs v0.24.116 on the surface (Slot 1, loaded from
 the title; the endgame is loaded - Slot 1 starts at the vault door).
