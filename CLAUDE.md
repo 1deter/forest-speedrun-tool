@@ -447,345 +447,57 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 
 ## Gotchas learned the hard way
 
-1. **The game re-asserts state every frame — use its flags, don't fight it.**
-   `timeScale` is overwritten by `InventoryItemView.Update`. The cursor is
-   overwritten by `VirtualCursor.LateUpdate`, which *warps the pointer to
-   screen centre*, so no later write can fix it. Both are solved by setting
-   the game's own flag (`Input.IsMouseLocked`, `FirstPersonCharacter.LockView`).
-   "Win the frame" is not a strategy; find the flag.
+One line each; the story, the version and the fix for every one are in [`docs/gotchas.md`](docs/gotchas.md) - read the entry before working near it. A new lesson gets the next number there and a line here.
 
-2. **`OnGUI` runs several times per frame.** Never allocate in it.
-
-3. **A throwing `Awake` silently kills the plugin** while BepInEx still logs
-   "loaded". Every lifecycle method is individually try/caught.
-
-4. **Don't trust assumed names.** Everything in `src/Game/` was confirmed from
-   a dump or IL. `docs/game-notes.md` once contained a guess that was wrong
-   (`VirtualCursor` filed as "gamepad-related"), and that guess cost a release.
-
-5. **The F11 dump only sees reflection metadata.** For behavioural questions —
-   what writes this field, what runs every frame, which method to hook — use
-   `tools/ILScan`, which reads real IL offline:
-   ```bash
-   dotnet tools/ILScan/bin/Release/net8.0/ilscan.dll writes "UnityEngine.Cursor"
-   ```
-   `strings` finds `SendMessage("name")` callers, which `refs` cannot see.
-
-6. **Cached component references go stale across a save load.** Unity's
-   fake-null makes them look merely absent. Re-resolve, and prefer the game's
-   statics (`LocalPlayer.Inventory`) over `FindObjectOfType`.
-
-7. **Edge semantics matter.** A start zone fires on *crossing* (you spawn
-   inside it); checkpoints and ends fire on *entry*. Getting this wrong made
-   the clock never start.
-
-8. **Test against real payloads, not remembered ones.** GitHub's API
-   pretty-prints (`"name": "x"`); the asset lookup matched only the compact
-   form, so no update ever downloaded while the version check looked
-   healthy. `tests/.../ReleaseJsonTests.cs` holds a trimmed real response.
-
-9. **Never round-trip text through Windows PowerShell 5.1**
-   (`Get-Content | Set-Content`). It reads BOM-less UTF-8 as cp1252 and turns
-   every `—` into `â€”`. Edit with the editor tools, Python with an explicit
-   encoding, or `sed`. Check: `git grep -n -I -P 'â€|Ã|Â' -- ':!CLAUDE.md'`.
-
-10. **Anything that only reaches a machine via `deploy.ps1` is missing for
-    runners.** The 100% list did exactly that. Ship data inside the DLL.
-
-11. **`Resources.FindObjectsOfTypeAll` walks every loaded object.** Calling it
-    on a 1 Hz refresh was a visible once-a-second stutter. Find a component
-    once, keep it, re-search only when it goes fake-null, and rate-limit the
-    search (there is nothing to find at the main menu). `ModuleHost` logs any
-    module Tick over 5 ms as `Slow tick: '<id>'` — check the log for it before
-    guessing at a hitch.
-
-12. **`OnRenderObject` runs once per camera**, reflections and UI included.
-    GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn
-    into the view only. The `Perf (30 s):` log line counts passes drawn and
-    skipped.
-
-13. **Search `strings` for every method of an action, not just its entry
-    point.** Cutscenes are started by `SendMessage("routine")`, which `refs`
-    cannot see. The red elevator sends `openDoorRoutine` directly, bypassing
-    the `openKeypadDoor` that was hooked — found only from a real run's log.
-
-14. **Labels from memory are guesses too.** game-notes had "Approaching
-    Megan" and "Megan into artifact" swapped (inherited from an earlier
-    session). A real endgame run caught it. Anything a runner will see by
-    name — split labels especially — gets confirmed against a log.
-
-15. **Unity 5.6's `UnityWebRequest` does not treat a 404 as an error.** Check
-    `responseCode` yourself; a 404 body arrives as ordinary data.
-
-16. **The runner's `LogOutput.log` is the test harness** - and since
-    v0.24.13 the **live test bridge** is the other one (see *The live
-    test bridge*): ask the running game directly instead of guessing
-    from IL. There is no game
-    here to run. The author tests in game and gives the path
-    `G:\SteamLibrary\steamapps\common\The Forest\BepInEx\LogOutput.log` —
-    read it directly. So every new mechanism logs one line when it acts
-    (`Game event:`, `Death (...)`, `Teleport to ...`, `Perf (30 s):`), and
-    that line is what gets asked for. Log what a hotkey **acted on**, not
-    just that it ran: F7 restarted a different spot than the one the
-    author had just set up, and only a `Restart '<id>'` line would have
-    shown it.
-
-17. **A library method that "does X" may only do X in one mode.**
-    UnitySerializer's `LoadNow` deletes objects missing from the save — but
-    only for a partial save (`rootObject` set), never for a full level, so
-    walls survived the first in-place restore. Read the whole method body
-    (`ilscan body`) before building on what its name promises.
-
-18. **Static or instance: check before binding.** `ItemDatabase.ItemById`
-    is static; binding it with instance flags found nothing, and every held
-    item read `item <id>` for months. `ilscan type` marks static methods
-    (since 2026-09-23); pass `BindingFlags.Static` when it says so.
-
-19. **Tooling: multi-line edits go through a script file.** Long
-    `python - <<'EOF'` heredocs in the Bash tool failed with quoting
-    errors; write the script to the scratchpad and run it. Inside a
-    triple-quoted Python replacement, `\n` meant for C# becomes a real
-    newline — use the Edit tool for C# string literals with escapes.
-    Use raw strings (`r'''...'''`) in those scripts so C# escapes survive.
-
-20. **A restore can bring back a flag without its effects.** The serializer
-    restored `IsInCaves = false` while the cave's side effects (no terrain
-    collision, cave streaming) stayed, and `GotoCave` does nothing when the
-    flag already agrees — so a death in a cave restored "outside" and fell
-    through the world. When restoring state, send the game's own message
-    for the state you want (`InACave` / `NotInACave`), don't test the flag.
-
-21. **Ids are per game, not per scene.** `UniqueIdentifier` ids (GUIDs)
-    differ between saves for the player **and** for objects outside him
-    (the inventory's item views). Anything cross-save — shared start
-    states, cloud runs — must map ids, not assume them
-    (`SavestateBridge.AdoptPlayer`). Look at the restore log's
-    `adopted / left (n on the player)` counts before guessing.
-
-22. **A hook runs mid-method; the caller carries on.** The practice revive
-    happens inside `PlayerStats.Hit`, called from
-    `FirstPersonCharacter.HandleLanded` — which then played the stagger,
-    froze input and scheduled a 1 s recovery. Read the **caller's** body
-    past the hooked call (`ilscan body`), and when cancelling a sequence,
-    apply its **end state** (the delayed routine's last lines), not just
-    stop its start.
-
-23. **Whose lock is it?** Opening the window over the ESC menu found the
-    player already locked by the game; releasing it on close called
-    `UnLockView` under the menu and hid the cursor. Before taking over a
-    game state, note whether the game already held it, and hand back only
-    what you took.
+1. **The game re-asserts state every frame** - set its own flag (`IsMouseLocked`, `LockView`), never "win the frame".
+2. **`OnGUI` runs several times per frame** - never allocate in it.
+3. **A throwing `Awake` silently kills the plugin** - try/catch every lifecycle method.
+4. **Don't trust assumed names** - everything in `src/Game/` comes from a dump or IL.
+5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers).
+6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics.
+7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry.
+8. **Test against real payloads** - a trimmed real response, not a remembered one.
+9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`).
+10. **What only `deploy.ps1` copies is missing for runners** - ship data inside the DLL.
+11. **`Resources.FindObjectsOfTypeAll` is a stutter** - find once, keep, rate-limit re-searches; check `Slow tick:` lines first.
+12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`.
+13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`.
+14. **Labels from memory are guesses** - confirm runner-visible names against a log.
+15. **Unity 5.6's `UnityWebRequest` ignores 404** - check `responseCode` yourself.
+16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on.
+17. **A library method may do X in one mode only** - read the whole body (`ilscan body`).
+18. **Static or instance: check before binding** - `ilscan type` marks statics.
+19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs.
+20. **A restore can bring back a flag without its effects** - send the game's message for the state (`InACave`).
+21. **Ids are per game, not per scene** - cross-save work maps ids (`AdoptPlayer`).
+22. **A hook runs mid-method; the caller carries on** - read the caller past the call; apply a sequence's end state.
+23. **Whose lock is it?** - note what the game already held; hand back only what you took.
+24. **A static walk cannot see every root** - count threads, read `OnDestroy`, ask what the title screen clears.
+25. **A theory from IL alone is a guess** - ship the log line that proves it first.
+26. **A restore runs frames** - judge the "before" state when the restore starts.
+27. **Read the whole "removed" line** - check every item a removal names was really taken.
+28. **Compare both sides the same way** - same dedup and filters before pairing lists.
+29. **A value the game fills in later reads as a default** - wait for the value, not a count; test several kinds.
+30. **Check when a file is created before planning to copy it** - BepInEx truncates the log first.
+31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through.
+32. **Look for the game's reverse operation first** - `Regrow` / `Respawn` / `Reset` / `Restore`.
+33. **Copying a scene object** - copy under an inactive holder, local values, reset runtime flags.
+34. **One teleport, many callers** - `grep MoveTo(` and cover every caller.
+35. **Parity with Full load stops where the save stops** - decide against the capture.
+36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later.
+37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore.
+38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore.
+39. **A pool object carries its first user's state** - compare handles / clone names across visits.
+40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them.
+41. **Where in the frame a call runs matters** - look for one-frame guards (`LockPlace`); bridge `call` runs in `Update`.
+42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch.
+43. **A switch can be latched off before you arrive** - ship a "did it see anything" count with a runtime hook.
+44. **Measure before the changelog claims a number.**
+45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic.
+46. **A symptom that appears later can be a coroutine finishing** - look again after every pending timer.
+47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider).
 
 ---
-
-24. **A static walk cannot see every root.** The v0.23.0 census walked
-    every static of the game and found nothing growing while the heap grew
-    ~120 MB a load. Threads, live `DontDestroyOnLoad` objects' fields and
-    generic-type statics are invisible to it, and counting objects hides
-    one huge array (v0.23.2 adds sizes, DDOL roots and a thread count).
-    The pathfinding theory it led to was wrong (gotcha 25); the thread
-    count found two leaked threads a load (v0.23.3). When a census comes up
-    flat, count threads, then read the teardown code (`OnDestroy`) of
-    anything that starts one (`ilscan refs "System.Threading.Thread::.ctor"`).
-    A worker parked on a wait handle that only a frame callback signals
-    never sees its "stop" flag once the object is destroyed. And **ask
-    what the title screen clears that a reload does not** - a menu trip
-    freeing the memory pointed at `TitleScreen.Awake` ->
-    `EventRegistry.Clear()` all along (v0.23.4).
-
-25. **A theory built from IL alone is still a guess.** v0.23.1 shipped a
-    fix on the belief that a same-scene reload wakes the new scene before
-    destroying the old one, so `AstarPath.OnDestroy`'s
-    `if (active != this) return;` skipped the cleanup. In game it never
-    acted once in 21 reloads. Before shipping a fix for an ordering or
-    lifecycle theory, **ship the log line that proves the theory first**
-    (or with it), and read the whole lifecycle: `OnApplicationQuit` calling
-    `OnDestroy` itself made the only hit a false positive at quit.
-
-26. **A restore runs frames - judge the "before" state before it.** The
-    in-place restore is a coroutine: it puts the player back and physics
-    steps run, so a trigger at the captured spot fires *during* it.
-    v0.24.36 checked Megan's trigger after the restore, saw it spent (by
-    the restore's own trigger enter) and rebuilt her under the cutscene
-    that had just started. Read what a fix-up depends on when the restore
-    starts (`MeganKeeper.LiveSeated`, v0.24.37).
-
-27. **Read the whole "removed" line, not just the item you fixed.** A
-    cleanup that removes things can remove the wrong ones. The cave 5 coin
-    fix (v0.24.51-53) also removed a bottle, the modern axe, skulls, a
-    Timmy drawing and a photo; the coins were gone, so the fix looked
-    right. Twice a first theory was wrong, and only the log's full
-    `removed N (...: Cash x4, Coins x6, Skull x5, ...)` showed it. Before
-    a removal ships, check that every item it names was really taken.
-
-28. **Match what you compare the same way on both sides.** The
-    capture's pickup list is a `HashSet` of keys: one object with two
-    `PickUp` components is one entry. The live side counted components,
-    so one of each pair went "unmatched" and destroyed the object
-    (v0.24.54). The capture also skips identifier pickups; the live side
-    must skip them too (v0.24.53). Before pairing two lists, read how
-    each is built (dedup, filters, active-only).
-
-29. **A value the game fills in later reads as a default at first.**
-    `mutantTypeSetup.storeSkinnyBool` / `storeMutantType` are stored by
-    `initDefaultParams` a few fixed updates after a spawn. Read at once
-    (v0.24.45's faster placement), every skinny cannibal looked plain
-    and nothing matched (`0 of 12 placed`); regular ones matched only
-    because their kind is the default. Wait for the value itself, not a
-    count (v0.24.48), and test on more than one kind.
-
-30. **Check when a file is created before planning to copy it.** The
-    plan was "copy the previous `LogOutput.log` on startup"; BepInEx's
-    preloader truncates it before any patcher or plugin runs, so there
-    is no previous log to copy. `Core/LogKeeper` mirrors the running
-    log instead (v0.24.55).
-
-31. **The UiText rule covers the HUD and every fixed label, not only
-    tabs.** The info box drew 18 px lines in a 330 px box: a wrapped
-    update message showed half its second line (v0.24.58), a key name
-    lost its ends in a fixed button (v0.24.57). The bridge sweep found
-    both in minutes: after UI work, `OpenMyTab` on each module + `shot`
-    and look, and push a long value through (`set ..._checker.Message
-    "<long>"`) to see how a line wraps.
-
-32. **Look for the game's reverse operation before writing one.** Trees
-    had no "un-cut" in the save code, but `TreeLodGrid` has
-    `RegisterTreeRegrowth` beside `RegisterCutDownTree`, and its one
-    caller (`ShelterTrigger.CheckRegrowTrees`, sleep regrowth) is the
-    exact recipe (v0.24.61). Search the counterpart's name (`Regrow`,
-    `Respawn`, `Reset`, `Restore`) with `ilscan refs` / `type` first.
-
-33. **Copying a scene object: local transform, woken state, copied
-    flags.** `Instantiate(go)` with no parent copies the *local*
-    position, so the copy landed ~450 m away; its `OnEnable` had already
-    cached that position, so moving it later did nothing until it was
-    re-enabled. Copy under an **inactive** holder, `SetActive(false)`,
-    reparent with local values, then activate. A copy taken mid-action
-    also carries the original's runtime flags (`LOD_Base.isSpawned`
-    true with no view = destroys itself on its first refresh): reset
-    them to what `OnDisable` leaves (`NatureKeeper`, `PanelKeeper`).
-
-34. **One teleport, many callers.** Go ran `AreaKeeper.ForTeleport`;
-    the bridge's `tp` never did, so it left the endgame flag set and the
-    surface lit like a cave (v0.24.61). When a fix hangs off a teleport
-    or restore, `grep MoveTo(` and cover every caller.
-
-35. **"Parity with Full load" stops where the save stops.** A Full load
-    regrows every bush because bushes are not in the save - a limit, not
-    a goal. A Quick load can give back the capture exactly (a bush cut
-    before it stays cut, v0.24.62), so it does - and the Full load was
-    then fixed up after the game's load to match (v0.24.65). Decide
-    against the capture, not against what a Full load happens to do.
-
-36. **A diagnostic read mid-rebuild reports the rebuild.** The "not at
-    capture" line counted `Axe Plane x2` after every Quick load for a
-    session and was filed as a leak; the listing ran while the old and
-    the re-created plane wreck both had their axe active, a second
-    before the old one was cleared (v0.24.63). Before chasing what a
-    check reports, re-read the world a few seconds later (`find ... all`
-    in a timed bridge script); list after the restore's own clean-ups.
-
-37. **"Left alone" is not "stopped".** `ElevatorKeeper` skipped an
-    elevator that was `_moving` at restore time; the ride's coroutine
-    kept its pending step and lifted the car and the player 3-7 s after
-    the restore - a runner saw it "half the time" (v0.24.64). When a
-    restore meets a game action in flight, stop it (its coroutine) and
-    apply its end state (gotcha 22), then put back the captured state.
-    A log word like `left moving` in a runner's failures is the lead.
-
-38. **Bookkeeping must survive the restores it serves.** The cut-bush
-    list (v0.24.65) was cleared by a Quick load from another world, and
-    a listed bush already gone was not re-recorded, so the next capture
-    wrote an empty list (v0.24.66). Remove only what a restore actually
-    undid; "already gone" still counts as cut. Test the chain (Full load
-    -> Quick load -> capture -> Full load), not one restore.
-
-39. **A pool object carries its first user's state.** A greeble zone on a
-    pooled tree kept the seed and taken flags of the first tree that
-    object served, so the same tree showed other sticks whenever another
-    pool object served it (fix list 3, v0.24.70). When something "moves"
-    between visits, compare the object's handle / pool clone name across
-    visits before blaming the restore - `(Clone)001` vs `(Clone)002` was
-    the whole story.
-
-40. **A cutscene can parent the player - the save then holds local
-    numbers.** The keycard cutscene puts the player under the card
-    reader's `playerPos`; the serializer wrote the offset from it
-    (-0.03, 0.02, 0.63), so a Quick load dropped the player near the
-    world's origin and a Full load on the surface, where the load chose
-    the cave state (v0.24.79). F7 hid it for months: the restart's
-    teleport moved the player back. Test restores through the bridge's
-    `restore` (no teleport) too, and compare where the player lands
-    with the header's `position`. And **set a test up the way a run
-    reaches it**: teleporting to the vault door skipped the trigger
-    crossing that loads the endgame, so the first test showed an empty
-    corridor the game never would (author: "might not be a fair test").
-
-41. **Where in the frame a call runs decides what the game does next.**
-    A coroutine resumes after every `Update`; the game's own UI click
-    comes before `Create.Update`. `CreateBuilding` sets `LockPlace`, so
-    from a coroutine the generic build icons (`Grabber.ShowPlace`) came
-    a frame late - after the wall architect's `DelayedAwake` had closed
-    them - and stayed (v0.24.84). When a call into the game behaves
-    differently from the same call made by the game, look for one-frame
-    guards (`LockPlace`, `ShownPlace`, `yield null`) and compare where
-    each side runs; the bridge's `call` runs in `Update` and can hide it.
-
-42. **Measure the measurement.** Two readings in the performance work
-    were the tool's own doing: the Perf line matched a GC seen in a
-    frame to that frame's length, so collections set off in our own
-    Tick read as 11 ms pauses (fixed v0.24.87 - the longer of that frame
-    and the next); and hooking 1588 methods with Harmony nearly doubled
-    the GC pause (90 -> 165 ms) through the patches' own objects. When a
-    number surprises you, first ask what the instrument adds, and
-    measure baselines on a fresh launch with the instrument off.
-
-43. **A switch can be latched off before you arrive.** v0.24.90's
-    allocation tracker installed Mono's profiler correctly and counted
-    nothing: `mono_class_get_allocation_ftn` had cleared the allocators'
-    `profile_allocs` flag for good the first time the JIT compiled an
-    allocation, long before BepInEx loaded (read from the machine code;
-    v0.24.91 sets it back). When a hook into the runtime is installed
-    and silent, look for a once-only guard that ran at startup - and
-    ship the "did it see anything" check with the first version (a
-    count of 0 is an answer, not a quiet week).
-
-44. **Measure before the changelog claims a number.** v0.24.92's
-    changelog promised "about 60% less garbage" from an estimate; the
-    in-game A/B said about half, and v0.24.93 had to correct it (CI
-    publishes the section with the tag, so it reached runners). A
-    runner-facing number comes from a measurement of the released build -
-    or the notes say what changed without a figure.
-
-45. **A timed wait during a load is not the time it says, and a
-    diagnostic can be the hitch.** The game's "0.6 s" `WaitForSeconds`
-    in `LoadSave.Activation` took 0.56-1.35 s real: load frames are long
-    and each counts at most `maximumDeltaTime` of game time. Time waits
-    in real seconds (`activation steps:`), not from the IL's constant.
-    And the plugin's own "heap after GC" line forced a full collection
-    at the moment a load handed over control (v0.24.97) - every
-    diagnostic that runs on an event must be checked for what it costs
-    there (gotcha 42).
-
-46. **A symptom that appears later can be a coroutine finishing.** The
-    vault door cave looked half drawn after a `tp` out of the red
-    elevator; the first A/B (screenshots 5 s after the teleport) said
-    "not reproduced" because the ride's end, ~30 s in, was what broke it
-    (author spotted the timing). Gotcha 37 again, for teleports: an
-    action the player leaves keeps running. When something "sometimes"
-    looks wrong, look again after every pending game timer could have
-    fired (`_duration`, `WaitForSeconds`), not just once (v0.24.100).
-
-47. **A restore that throws the player: ask what held the body.** maks's
-    cave 4 start state launched him ~48 m/s upwards. The capture was taken
-    on a rope, where the body is kinematic and ignores the rock around
-    the hole; the save has no climb, so the restore left a free body
-    inside the rock. The clue was in the numbers: the spot's yaw equalled
-    the rope's rotation (7.72), and a plain `tp` there shoved the player
-    3 m sideways. The fix-ups that hang off one action (the load's
-    per-frame pin) can undo another - a Full load's rope entry had to
-    move after the hold (v0.24.104-105). Other kinematic modes (zipline,
-    sled, wall / cliff climb, hang glider) are not covered yet.
 
 ## Project intent
 
@@ -843,7 +555,7 @@ updater. **377 tests.**
 **State:** the game runs v0.24.106 (`update_game`), Slot 1 loaded, on
 the cave 4 rope (`rope104` restored). Savestates `phantom-a`,
 `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`, `rope104` kept.
-The author's plan (2026-09-26): **one thing per session, then hand off**.
+Session switching: see *When to switch session* (small items: one per session; the performance work below is an investigation - one session).
 
 **Done this session:** v0.24.106 - the Savestates tab removed (author:
 the free capture list, its hotkeys, the slot's Quick / Full load buttons
@@ -1129,59 +841,13 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   normal runs**: it is the game's own load of the same save.
   A revive from a fatal hard landing cancels the landing's aftermath (a
   postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
-- **Savestates** (no tab: Practice start states + the bridge; practice-only; game-notes *Saving and
-  loading* has the IL). The game's own level serialization
-  (`LevelSerializer.SerializeLevel`) written to
-  `config/ForestOverlay/savestates/*.fosave` — never a save slot or Steam
-  Cloud. Capture mirrors the game's save routine. Two restores:
-  - **Quick load** = in place (~0.15 s on a fresh heap, no load): `LoadNow`, plus what
-    `LoadNow` does not do for a full-level save — delete objects not in the
-    save (walls built since; **never weapon-upgrade receivers**, v0.22.7),
-    clear their build-mission HUD line, stash held items — and
-    `Game/PickupKeeper` puts taken world pickups back. Afterwards the
-    **cave state is sent outright from the file's `cave` flag**
-    (`GameBridge.ForceCaveState`): the serializer restores the flag without
-    its effects. Spears and limbs left since the capture are removed;
-    trees chopped since regrow, bushes / saplings cut since come back,
-    and their new logs / sticks go (`Game/NatureKeeper`, v0.24.61-62); boss
-    Megan is put back seated when she was at capture (`megan` header,
-    `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
-    load*); the endgame elevators and active area as at capture
-    (`ElevatorKeeper`, `AreaKeeper`, v0.24.40-41; a ride under way is
-    stopped first, v0.24.64).
-  - **Full load** = with a scene load (~5-15 s): `LoadSavedLevel` — the
-    second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
-    player is held at the captured spot until every scene loaded at
-    capture is back, the endgame area is force-loaded if the capture had
-    it, placed pickups taken before the capture are removed, the captured
-    cannibal families are rebuilt, the held items are equipped again
-    for the animator (v0.24.43), bushes / saplings cut at capture are cut
-    again (`cutbushes`, v0.24.65-66).
-  Both: a sun still out of step with the restored time is snapped
-  (`Game/SunSync`, v0.24.67). A cutscene capture is fast-forwarded (25x) with the held weapon's
-  memory put back (`heldbefore`) and its sounds kept in step
-  (`Game/CutsceneAudio`, v0.24.36).
-  **From another save** (sharing): every game gives its objects its own
-  `UniqueIdentifier` ids, so an in-place restore first **adopts** the saved
-  ids — every live identifier the save lacks takes the id of the saved
-  object with the same name, prefab class and parent id, shallowest first,
-  unique matches only; identical siblings pair in order
-  (`SavestateBridge.AdoptPlayer`; unmatched ones are named as `other
-  misses:`). **Refused across Creative and survival** (the mode is not in
-  the save) unless *Allow restoring across Creative and survival (testing)*
-  is on (`AllowCrossModeRestore`, off; Debug views).
-  The file header lists the world pickups at capture and whether streaming
-  was unloaded; `Data/SavestateFile` is pure and tested. Sticks / rocks
-  around pooled trees are given back as captured (`greebles` header,
-  `Game/GreebleKeeper`, v0.24.70; game-notes *Greebles*). **Enemies**:
-  capture writes `families` / `enemies`; after a Quick load on the
-  surface and after a Full load, `EnemyKeeper.Rebuild` runs the game's
-  `startSetupFamilies`, builds each captured family and places every
-  member by kind with its health (sleepers back asleep); a cave capture's
-  cave families are kept and moved back (`RestoreCave`). Open: does
-  `updateSpawns` top up a random family; weapons are whatever the spawn
-  gives (game-notes *Cannibal kinds and families*). Restores are refused
-  at the title screen (v0.24.73).
+- **Savestates** (no tab: Practice start states + the bridge; practice-only):
+  the game's own level serialization to `config/ForestOverlay/savestates/*.fosave`,
+  never a save slot. **Quick load** = in place (`LoadNow` + the keepers put back
+  what the save misses), **Full load** = `LoadSavedLevel` + fix-ups after the load;
+  works across saves (`AdoptPlayer`), refused across Creative / survival and at the
+  title screen. What each keeper restores, by version:
+  [`docs/savestates.md`](docs/savestates.md) - read it before touching a restore.
 - **Segment start states** (Practice editor, *Start state* row: Capture /
   Delete / Restart): a savestate at
   `savestates/segments/<safe segment id>.fosave`, restored on every restart
@@ -1238,119 +904,7 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
 
 ### Confirmed in game vs awaiting a check
 
-Confirmed by the author: game-input block and freecam hold (v0.17.0), pitch
-kept across teleport / window close (v0.17.1), every endgame split incl.
-vault / gold door / red elevator (v0.18.x), quick-load and practice revive
-(v0.19.2), cave teleport both ways (v0.19.1), Inventory tab item names
-(v0.19.4), savestates in a cave in Creative (v0.20.1), quick-load without
-the menu (v0.21.0), the self-updater end to end, segment start states on F7
-both ways (v0.21.1); death at a start-state spot with practice mode off
-restores it; a restore out of a cave sets the surface state; Go only
-teleports and Restart restores; cross-save restores in place give **one
-player and one inventory**; the ESC menu keeps its cursor when the window
-closes over it; the fall revive has no stagger and **jump comes back at
-once** (v0.22.6, author); text wraps and sits under its buttons; the
-v0.23.0 census ran after every load without trouble (0.4-0.8 s); **the
-load leak fixed** (v0.23.3-0.23.5: threads flat, heap flat, loads ~5 s;
-building, chopping and killing across reloads fine); the menu route (exit
-to title -> Continue) flat too, 10 trips (v0.23.7).
-
-Confirmed by runners / the author on 2026-09-24 (v0.22.0-v0.24.30): the
-retire warning on a new start state, the Practice list (unsaved reminder,
-never sticks, "Save (n)"), no blood / no stagger, auto-restart (the flash
-display to be improved), cannibals rebuilt as captured after a Quick load
-(surface) and a Full load, cave panels healed and straightened, the
-lighter, the book page, no landing damage / stagger after a mid-air
-restore, checkpoints in order (keycard), Megan's cutscene fast-forward
-after a Full load (held until she exists, player frozen, the spear back),
-the endgame area and the lab floor after a Full load, the red elevator put
-back by a Full load, pickups taken before a capture removed after a Full
-load (surface), the Updates tab's "downloaded - restart to install";
-the smash and swing cut on a reset, next swing at once (bridge,
-v0.24.32-0.24.34); Megan after a Quick load - taken before, during or
-after her transformation, babies and body cleared, the cutscene replayed
-and fast-forwarded (bridge + author, v0.24.35), also straight after a
-load from the title screen (v0.24.37); the fast-forwarded cutscene's
-sounds put in step (log: `music_transformation` moved to 41.7 s; author:
-"sounded perfect", v0.24.36); spears thrown since the capture removed
-(v0.24.36); the red elevator after a Quick load (car back and ridable,
-the hallway as at capture - `ElevatorKeeper`, `AreaKeeper`), a Go out of
-the endgame after the ride (vault door cave and Sahara outside normal),
-held axe / lighter usable after a Full load (v0.24.40-0.24.43, author
-with the bridge; game-notes *The red elevator and the endgame areas*);
-the survival book closed by a Quick load (v0.24.44, bridge); the
-captured cannibals back at once after a Full load (v0.24.45, bridge);
-the lighter kept through a Full load restart with swings (v0.24.46,
-bridge, scripted swings); the swing / smash cut on a reset
-(sxczurass, QA 1-5: Quick and Full load); a blueprint put away / brought back on Quick load,
-Full load and F7 (v0.24.47, bridge); skinny families placed after a
-Full load (v0.24.48, bridge); cave cannibals put back after Quick and
-Full load, babies not doubled (v0.24.49-50, bridge, cave 6); cave 5's
-coins / cash taken before a capture gone after a Full load, nothing
-else removed, and back / gone as captured after a Quick load (v0.24.54,
-bridge); every tab drawn in game, the Inventory tab filled on first open,
-"What's new in v0.24.56 (installed)" in the Updates tab, the QA tab's
-Mark / result / report zip (v0.24.56, bridge tab sweep: `OpenMyTab` on
-each `_modules[i]` + `shot`); `capture` / `tp` refused at the title
-screen (v0.24.59, `PlayerRef.AtTitleScreen`) and the notice drawn
-over the main window (v0.24.59-60, bridge); trees chopped / half-chopped
-since a capture regrown by a Quick load, their logs removed, bushes and
-saplings cut after it back and their sticks removed, ones cut before it
-left cut; a teleport from the lab to the surface clears the endgame
-lighting (v0.24.61-62, bridge); no false "Axe Plane" pickups after Quick
-loads (v0.24.63), a restore mid red-elevator ride keeps the car and
-player down and the ride works again (v0.24.64), bushes cut at capture
-stay cut after a Full load, also for a capture taken after restores
-(v0.24.65-66), the plane axe taken before a capture not back after a
-Quick load (v0.24.68) - all bridge. maks: Quick load restarts in the
-red elevator "tested and working" (v0.24.64 retest, 2026-09-26).
-Bridge, v0.24.79-82: savestates 1.6 s and 4.6 s into the red elevator's
-keycard cutscene, Quick / Full load / F7 / F7 mid-ride - ride replayed,
-landed on the captured time, player free at the overlook; the vault
-door (after a real trigger crossing; red corridor loaded after a Full
-load) and the gold door the same, Quick and Full load.
-
-Confirmed 2026-09-25/26 (bridge, the author's clicks where noted):
-maks's vanished window was hide-all UI (author); sticks around a
-pooled tree back as captured after a live Quick load, a later spawn and
-a Full load (v0.24.70); Export 315 KB with all sections, Import of a new
-id and a Replace (author's clicks), an imported start state restoring
-under an id with `/` (v0.24.71); a community pack downloaded, not
-re-downloaded, restarted from, and removed with its start state; the
-demo pack fetched from GitHub at startup (v0.24.72, v0.24.76); a
-title-screen restore refused (v0.24.73); new spots get `s-` ids and the
-editor has no Id field (v0.24.74); a 45-degree box drawn diagonal
-(v0.24.75); both coordinate fields drawn, no overlap (v0.24.77). The
-author (2026-09-26): a Community entry's read-only view and its
-Duplicate, typing into coordinate fields, the Import list's wrapped
-rows - "all 3 seem fine"; letters refused in a coordinate box (v0.24.78),
-no trailing spaces and no unsaved marker for them (v0.24.83) - author.
-A custom wall blueprint brought back by a Quick load after a wall was
-placed shows only its own icons (v0.24.84, bridge, maks's start state).
-A Quick load in the red elevator car with the endgame unloaded loads it
-first and keeps the player in the car (v0.24.85, bridge).
-A reset 0.5-0.7 s into opening the book leaves the pitch free (v0.24.91,
-bridge); the performance patches cut idle garbage to 216 KB/s with no
-visible change, a cave entry runs one asset sweep (v0.24.92-94, bridge).
-The endgame loaded in the background by a Full load and by a Quick load
-that needs it - no frame over 100 ms, trigger / HUD / anim prefabs as
-after the game's load, the red elevator rides after it (v0.24.99); a
-teleport mid-ride stops the ride and the vault door cave stays whole
-(v0.24.100) - both bridge, on the released builds. The God mode toggle
-keeps `Cheats.GodMode` on (re-set within a second when cleared), and
-unticking clears it only when the toggle set it (v0.24.101, bridge).
-With toggle crouch, Quick and Full loads put back the captured stance
-both ways - crouched -> standing capture stands, standing -> crouched
-capture crouches (v0.24.102, bridge, released build). The QA tab's note
-box wraps a 234-character note over lines, and Write report puts it in
-report.txt without a Mark (v0.24.103, bridge; the per-item boxes use the
-same helper - the bridge cannot write an array element to test one).
-v0.24.106 (bridge): no Savestates tab; Debug views ends with its toggles and
-the Memory section; Deaths has no Clear blood button; `restore` still
-works. A savestate taken on the cave 4 rope puts the player back on it - Quick
-load from the surface and from inside the cave, Full load - no launch;
-`tp` lets go of a climb (v0.24.104-105, bridge, released builds; maks's
-own file reproduced the ~48 m/s launch first).
+Confirmed features, by version and by whom: [`docs/confirmed.md`](docs/confirmed.md) (check it before re-testing something; add each new confirmation there).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1504,58 +1058,9 @@ list so we can move onto expanding more features".
 13. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
     zone shapes.
 
-### Deferred runner feedback (voice call, 2026-09-23)
+### Deferred runner feedback
 
-**Deferred** until Next up is done (author: finish the list, then QoL/UX),
-unless critical.
-
-- **Deaths:** revive is confusing, worse with practice mode on and another
-  spot selected - one clear choice of what a death does (reload the save,
-  restore the start state Quick / Full, revive).
-- **Runs:** hide zones individually or show only the next; Runs tab:
-  when each time was set, more detail, the HUD shows the **previous** time
-  too; **runs continue at the main menu** - abort automatically; ghost: a
-  custom model, buildings in the replay; **checkpoint savestates**
-  ("saveloc", like KSF surf) - capturing on the fly without a hitch.
-  Author (QA Discord, 2026-09-26): **restart from checkpoint** for long
-  timed segments (full-run practice per category), tied to savestates
-  captured as each checkpoint fires - needs the capture hitch solved
-  (or the capture deferred / async) so a real attempt is not disturbed.
-- **Run lines (QA Discord, 2026-09-26):** an opacity slider 0-100%
-  (sxczurass: full opacity hides the best time), the best run's line in
-  a different colour from the current one (sxczurass), and a window
-  option - show the comparison line only a set time ahead of where you
-  are, slider, default ~5 s (author). Not yet scheduled - ask the
-  author whether they jump the queue (the author asked for the last).
-- **Status overlay** (author, QA Discord 2026-09-26): make active
-  practice changes obvious - maks had No stagger on and thought he had
-  found a new lineup. For the UI / UX refactor in a late update.
-- **Settings / HUD:** settings do not persist (run lines, practice mode...;
-  maks raised it again on the QA Discord, 2026-09-26)
-  - persist all; more control over the top-left HUD, less clutter.
-- **Debug views:** more detailed colliders (hitboxes), a better collider
-  filter (items share generic names); colliders that change between
-  attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
-  cave stalagmite drop, keycard cave body slide, wall climbs).
-- **maks, QA Discord 2026-09-26:** start a practice savestate from the
-  title screen without loading a save first (restores there are refused
-  since v0.24.73 - it needs a scene loaded first); keep the run lines of
-  **failed** runs for analysis (sxczurass too, 2026-09-26: failed attempts
-  should **count as attempts** - only completed ones do now); shared runs
-  show **the runner's name**
-  (`.foseg` attempts carry none yet - matters for the website too).
-
-Shipped (summary): practice QoL (v0.17), endgame splits (v0.18), deaths
-and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
-(v0.20-0.21), start states and cross-save restores (v0.22), ordered
-checkpoints, the changelog, the load leak fixed (v0.22.7-0.23.6), updates
-under any file name (v0.23.7), the Practice list fix and savestate
-completeness (v0.23.8-0.24.7), the live test bridge and everything found
-with it (v0.24.13-0.24.37: cannibals rebuilt as captured, Megan's
-cutscene after a Full load, the endgame / lab after a Full load, taken
-pickups removed, Quick / Full load naming, the swing / smash cut on a reset with the
-attack FSM ended, Megan after a Quick load, cutscene sounds in step,
-thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), the red elevator / endgame areas / held items after a load (v0.24.40-0.24.43)), turned checkpoint boxes (v0.24.75), coordinates as text fields (v0.24.76, maks; numbers only v0.24.78 / v0.24.83), savestates during the red elevator / keypad door cutscenes replayed (v0.24.79-82), no stray build icon on a blueprint after a Quick load (v0.24.84), a Quick load past the vault door loads the endgame first (v0.24.85, maks confirmed).
+Runner QoL / UX requests waiting until *Next up* is done (author: finish the list first, unless critical): [`docs/backlog.md`](docs/backlog.md) - deaths clarity, runs / run lines, checkpoint savestates, status overlay, settings that persist, debug views, maks's list. New unscheduled requests go there.
 
 ### How a session goes
 
@@ -1573,8 +1078,32 @@ again. **Keep the handoff current without being asked** (author,
 2026-09-25: "so i don't have to keep asking before i switch session"):
 after every release or finished piece of work, in the same push,
 rewrite *Pick up here*, move confirmed items, add any lesson as a
-gotcha and update *Next*. The author may switch session at any moment;
+gotcha (`docs/gotchas.md` + its index line) and update *Next*. The author may switch session at any moment;
 the docs on `main` must always be ready for it.
+
+**When to switch session (author, 2026-09-26: "add those as rules").**
+Switch at a task boundary, not by habit or by a context number alone:
+- **Small, self-contained items**: one per session, then hand off (the
+  author's usual plan).
+- **An investigation stays in one session** (a performance item, a
+  heap / physics lead, a multi-release bug): what has been read - IL,
+  log lines, a dropped theory - is worth more than a fresh start reading
+  a summary. Keep releasing and updating the handoff as usual on the way.
+- **Suggest a switch** when the session has been auto-compacted once,
+  has wandered across unrelated areas, or starts getting wrong what it
+  knew earlier - say so in chat; the author decides.
+- The handoff discipline (docs current after every release) holds either
+  way - it is what makes a switch cheap.
+
+**Keep this file lean.** It is loaded into every session and carried in
+every turn. Reference detail lives in `docs/` and is linked from here:
+[`docs/gotchas.md`](docs/gotchas.md) (lessons, full text; one-line
+index here), [`docs/confirmed.md`](docs/confirmed.md) (confirmed in
+game), [`docs/savestates.md`](docs/savestates.md) (what each restore
+does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
+[`docs/game-notes.md`](docs/game-notes.md) (game internals). Before
+adding a long block here, ask whether a session needs it on every turn
+or only when working on that area - the latter goes to `docs/`.
 
 **Documentation standard (author, 2026-09-24: "so it doesn't clog up
 documentation any further").** This file is loaded into every session -
@@ -1586,7 +1115,7 @@ keep it to what the next session needs:
 - **Finished work shrinks to one line** here (what, version, where the
   detail lives); no "old notes" kept beside a fix.
 - **Confirmed -> moved, not marked:** delete the item from every to-test
-  list and add a few words to *Confirmed in game*; never leave a
+  list and add a few words to `docs/confirmed.md`; never leave a
   ~~struck~~ or "confirmed" entry in a to-do list.
 - **Pick up here is replaced at each handoff**, never appended to.
 - **Size: aim for under ~1,000 lines, but never trim for the number**
