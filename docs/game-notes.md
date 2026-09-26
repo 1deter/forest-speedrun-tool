@@ -1176,6 +1176,33 @@ teleport does the same (`GameBridge.SyncCaveState`), before moving.
 `StreamCaveIn.LoadIn` additively loads `CaveProps_Streaming`; nothing in IL
 calls it.
 
+### Rope climb entrances (IL + bridge, v0.24.104-105)
+
+A rope entrance (cave 4: `Caves/CaveRopeClimbDowns/Cave4Rope`, top trigger
+`ropeTriggerTop` = `activateClimbTop`, hole `Caves/Cave4ClimbEntrance_Altexit/CaveHole`
+with `CaveTriggers` + `caveEntranceManager`, tag `CaveDoor`). *Take* at the
+top: `activateClimbTop.Update` sends `enterClimbRopeTop(<its transform>)` to
+`LocalPlayer.SpecialActions` (`TheForest.Player.Actions.PlayerClimbRopeAction`):
+FSM `climbBool`, `lockGravity`, the body **kinematic, no gravity**,
+`_currentRopeRoot` = the rope's parent, the yaw set to the rope's (7.72 for
+cave 4 - how a capture on the rope was recognised). State: `LocalPlayer.AnimControl.onRope`.
+The whole exit is `playerAnimatorControl.exitClimbMode()` (body back to
+physics, FSM bools, `toExitClimb`, then `SendMessage("resetClimbRope")`);
+`PlayerClimbRopeAction.resetClimbRope` alone leaves `onRope` set. Going down
+the rope crosses the hole's `CaveTriggers`, which sends `InACave` - the cave
+state comes from the game, not from a teleport.
+
+**Not in the save.** On the rope the body sits inside the rock around the
+hole; a restore after leaving the rope put a free body there and physics
+threw it out at ~48 m/s upwards (maks's "shoots me up", cave 4); from inside
+the cave it hung, then fell 43 m/s. A plain `tp` to the spot shoves the
+player ~3 m sideways out of the rock. A restore made **while on the rope**
+keeps the player on it at the captured spot. A `MoveTo` does not end a climb
+(`onRope` stayed set after `tp`). The plugin: `Game/RopeClimb` (`rope`
+header; before a Quick load, leave the current climb and enter the captured
+rope; after a Full load, after the hold - its per-frame pin undid a climb
+entered before it; Go / `tp` leave a climb).
+
 ## Saving and loading
 
 The game uses **UnitySerializer** (`LevelSerializer`, `LevelLoader`,

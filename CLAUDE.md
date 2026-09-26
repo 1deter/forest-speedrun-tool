@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -776,6 +776,17 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
     looks wrong, look again after every pending game timer could have
     fired (`_duration`, `WaitForSeconds`), not just once (v0.24.100).
 
+47. **A restore that throws the player: ask what held the body.** maks's
+    cave 4 start state launched him ~48 m/s upwards. The capture was taken
+    on a rope, where the body is kinematic and ignores the rock around
+    the hole; the save has no climb, so the restore left a free body
+    inside the rock. The clue was in the numbers: the spot's yaw equalled
+    the rope's rotation (7.72), and a plain `tp` there shoved the player
+    3 m sideways. The fix-ups that hang off one action (the load's
+    per-frame pin) can undo another - a Full load's rope entry had to
+    move after the hold (v0.24.104-105). Other kinematic modes (zipline,
+    sled, wall / cliff climb, hang glider) are not covered yet.
+
 ## Project intent
 
 ### Current phase: explore the capability envelope
@@ -824,36 +835,37 @@ identity.
 
 ## Current status
 
-**Released: v0.24.103** (2026-09-26). The author runs it via the in-game
-updater. **376 tests.**
+**Released: v0.24.105** (2026-09-26). The author runs it via the in-game
+updater. **377 tests.**
 
-### Pick up here (2026-09-26, v0.24.103 in the game)
+### Pick up here (2026-09-26, v0.24.105 in the game)
 
-**State:** the game runs v0.24.103 (`update_game`). Savestates
-`phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`, `elevMid`
-kept. The author's plan (2026-09-26): **one thing per session, then
-hand off**.
+**State:** the game runs v0.24.105 (`update_game`), Slot 1 loaded, at
+the cave 4 rope. Savestates `phantom-a`, `keycard-pickup-testing`,
+`physA`, `elevPre`, `elevMid`, `rope104` (on the cave 4 rope, Slot 1)
+kept. `AllowCrossModeRestore` back off. The author's plan (2026-09-26):
+**one thing per session, then hand off**.
 
-**Done this session:** v0.24.103 - QA tab note boxes wrap and grow
-(`UiText.TextBox` / `BoxHeight`; Enter becomes a space), and *Write
-report* includes the top note box (`Note:` in report.txt, a `QA note
-(in the report)` log line) - before, only *Mark* carried it, so maks's
-note never reached his report. BridgeMcp `qa_download` numbers
-attachments that share a name (three `image.png` overwrote each other).
+**Done this session:** v0.24.104-105 - maks's cave 4 rope entrance
+start state (his 15:34 report). He captured **on the rope** (the climb
+is not in the save); a restore after leaving the rope put a free body in
+the rock and threw it up at ~48 m/s. `Game/RopeClimb`: `rope` header,
+the captured rope entered before a Quick load / after a Full load's
+hold, Go / `tp` let go of a climb (game-notes *Rope climb entrances*,
+gotcha 47). Posted to maks with a 3-item list
+(`docs/tests/2026-09-26-maks-rope-v0.24.105.md`, message
+`1553421208794431648`; he must **recapture** - his old file has no
+`rope` line); to-do list updated. His "textures unload through the
+entrances" is believed to be the launch - item 3 checks it.
 
-**maks's report (15:34, read):** no list answers; one Mark at (-13.2,
-59.4, 1235.3), spot `s-1c023e29e7f7`. His note (3 images): *a start
-state on the **cave 4 rope entrance**: on reload it either shoots him up
-into the air, or the textures unload once he goes out of bounds through
-the entrances.* The zip is in `Downloads\qa-reports\yirequ\ForestOverlay-report-maks-2026-09-26_15-34\`
-(logs 15-25-39 = that session; his start states under
-`savestates/segments/`). **Next session - take this first:** copy
-`s-1c023e29e7f7.fosave` to `savestates/`, restore it (Quick and Full)
-via the bridge and read the log's restore line + where the player lands
-(`cave` header vs `GameBridge.ForceCaveState`; a rope-down parents the
-player - `playerEnterCaveAction.doCave`, gotcha 40).
+**maks's performance report + specs arrived** (15:47, message
+`1553417650607235164`): downloaded to
+`Downloads\qa-reports\yirequ\ForestOverlay-report-maks-2026-09-26_16-42\`
+(log 16-30-23 = the 10-minute session) and the three spec images
+`image-1553417650607235164*.png` beside it. Not read yet - input for
+raw FPS (item 6 below).
 
-**Then, small QA items (author):**
+**Next session - take these first, small QA items (author):**
 - **Deaths tab**: remove the *Clear blood overlay* button (the No blood
   toggle covers it). **Remove the Savestates tab**: migrate what is
   useful to where it belongs (captures / restores -> Practice?, the
@@ -863,9 +875,8 @@ player - `playerEnterCaveAction.doCave`, gotcha 40).
   test*; move it to *Done recently* once he confirms.
 
 **Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
-maks and sxczurass to post CPU / GPU / RAM, play 10 minutes and post
-the log (`Perf (30 s):` lines). sxczurass is away from his PC; watch
-`qa_read` for them before starting item 6 below.
+maks's are in (above); sxczurass is away from his PC - watch `qa_read`
+for his before starting item 6 below.
 
 **Next - the endgame load in a run (Experimental option, author's
 decision 2026-09-26: allowed, off, "only if a genuine improvement").**
@@ -1333,6 +1344,10 @@ capture crouches (v0.24.102, bridge, released build). The QA tab's note
 box wraps a 234-character note over lines, and Write report puts it in
 report.txt without a Mark (v0.24.103, bridge; the per-item boxes use the
 same helper - the bridge cannot write an array element to test one).
+A savestate taken on the cave 4 rope puts the player back on it - Quick
+load from the surface and from inside the cave, Full load - no launch;
+`tp` lets go of a climb (v0.24.104-105, bridge, released builds; maks's
+own file reproduced the ~48 m/s launch first).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
