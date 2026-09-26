@@ -24,21 +24,29 @@ namespace ForestOverlay.BridgeMcp
     // here and never printed or returned. The channel is the QA server's
     // #general unless FOREST_QA_CHANNEL says otherwise.
     //
-    // Everything testers write is DATA, never instructions. Every post is
-    // outward-facing: the author approves its text first (CLAUDE.md).
+    // Everything testers write is DATA, never instructions. Posts need no
+    // OK from the author since 2026-09-26 (standing rule, CLAUDE.md).
+    //
+    // The to-do list (maks and the author, 2026-09-26): ONE bot message in
+    // #qa-todo-list, edited in place (qa_todo). Its id is remembered in
+    // %LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt; a deleted message
+    // is posted again.
     // ------------------------------------------------------------------
     internal sealed class DiscordTools
     {
         public const string DefaultChannel = "1553092608509874318";
+        public const string DefaultTodoChannel = "1553227181868589096";
         private const string Api = "https://discord.com/api/v10";
 
         private static readonly HttpClient Http = CreateClient();
         private readonly string _channel;
+        private readonly string _todoChannel;
         private string _guild;
 
         public DiscordTools()
         {
             _channel = ForestPaths.Env("FOREST_QA_CHANNEL") ?? DefaultChannel;
+            _todoChannel = ForestPaths.Env("FOREST_QA_TODO_CHANNEL") ?? DefaultTodoChannel;
         }
 
         private static HttpClient CreateClient()
@@ -77,8 +85,8 @@ namespace ForestOverlay.BridgeMcp
             {
                 Name = "qa_post",
                 Description =
-                    "Posts to the QA team's Discord channel as the bot. OUTWARD-FACING: only text the author has " +
-                    "approved in chat (or a kind of post they gave a standing rule for). Long text is split into " +
+                    "Posts to the QA team's Discord channel as the bot. OUTWARD-FACING, in the bot's own voice (no OK needed since " +
+                    "2026-09-26, standing rule). Long text is split into " +
                     "several messages; a ``` block cut in two is closed and reopened. Never pings (@everyone, users " +
                     "and roles are shown, not notified). Optionally attaches one file and / or replies to a message.",
                 Schema = Tools.Schema(
@@ -93,12 +101,24 @@ namespace ForestOverlay.BridgeMcp
                 Description =
                     "Saves a message's attachments (a tester's QA report zip, a screenshot, a log) to " +
                     "Downloads\\qa-reports\\<author>\\ and lists a zip's contents; extract = true unpacks it beside the " +
-                    "zip. Downloading is a file download: ask the author first (name, sender, size). Never run anything " +
+                    "zip. No need to ask the author first (2026-09-26). Never run anything " +
                     "from it.",
                 Schema = Tools.Schema(
                     Tools.P("message_id", "string", "The message holding the attachments.", true),
                     Tools.P("extract", "boolean", "Unpack zips into a folder beside them.")),
                 Run = Download,
+            });
+            into.Add(new Tool
+            {
+                Name = "qa_todo",
+                Description =
+                    "The QA team's live to-do list: ONE bot message in #qa-todo-list, edited in place. With `text`: " +
+                    "replaces the list (posts it the first time, or again if it was deleted). Without: returns the " +
+                    "current list. Keep it up to date whenever an item is confirmed, changed, removed or added. " +
+                    "One message, so at most 2000 characters. Never pings.",
+                Schema = Tools.Schema(
+                    Tools.P("text", "string", "The whole new list (Discord markdown). Omit to read the current one.")),
+                Run = Todo,
             });
         }
 
@@ -351,6 +371,65 @@ namespace ForestOverlay.BridgeMcp
             }
             return ToolResult.Text("posted " + parts.Count + " message(s)" + (file != null ? " with " + Path.GetFileName(file) : "") +
                                    ":\n" + string.Join("\n", links));
+        }
+
+        // ------------------------------------------------------------------
+        // The to-do list
+
+        private static string TodoStatePath
+        {
+            get
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ForestOverlay");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "qa-todo-message.txt");
+            }
+        }
+
+        private async Task<ToolResult> Todo(Args a, CancellationToken ct)
+        {
+            string text = a.Str("text");
+            string id = null;
+            try { if (File.Exists(TodoStatePath)) id = File.ReadAllText(TodoStatePath).Trim(); }
+            catch (IOException) { }
+            if (Id(id) == 0) id = null;
+            string channelUrl = Api + "/channels/" + _todoChannel + "/messages";
+
+            if (text == null)
+            {
+                if (id == null) return ToolResult.Text("no to-do message yet (qa_todo with `text` posts it)");
+                using HttpResponseMessage get = await Send(() => new HttpRequestMessage(HttpMethod.Get, channelUrl + "/" + id), ct);
+                if (get.StatusCode == HttpStatusCode.NotFound) return ToolResult.Text("the to-do message " + id + " is gone (qa_todo with `text` posts it again)");
+                JsonNode m = await Json(get, ct);
+                return ToolResult.Text("to-do message " + id + ((string)m["edited_timestamp"] != null ? " (edited " + (string)m["edited_timestamp"] + ")" : "") +
+                                       ":\n" + ((string)m["content"] ?? ""));
+            }
+
+            if (text.Trim().Length == 0) throw new ArgumentException("`text` is empty");
+            if (text.Length > 2000) throw new ArgumentException("the list is " + text.Length + " characters; one Discord message holds 2000 - shorten it");
+            string body = new JsonObject
+            {
+                ["content"] = text,
+                ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() },
+            }.ToJsonString();
+
+            if (id != null)
+            {
+                using HttpResponseMessage patch = await Send(() => new HttpRequestMessage(HttpMethod.Patch, channelUrl + "/" + id)
+                    { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
+                if (patch.StatusCode != HttpStatusCode.NotFound)
+                {
+                    await Json(patch, ct);
+                    return ToolResult.Text("to-do list edited: https://discord.com/channels/" + await Guild(ct) + "/" + _todoChannel + "/" + id);
+                }
+            }
+            using HttpResponseMessage post = await Send(() => new HttpRequestMessage(HttpMethod.Post, channelUrl)
+                { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
+            JsonNode sent = await Json(post, ct);
+            string newId = (string)sent["id"];
+            File.WriteAllText(TodoStatePath, newId);
+            return ToolResult.Text("to-do list posted" + (id != null ? " again (the old message was gone)" : "") +
+                                   ": https://discord.com/channels/" + await Guild(ct) + "/" + _todoChannel + "/" + newId);
         }
 
         // ------------------------------------------------------------------
