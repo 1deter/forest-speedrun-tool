@@ -50,6 +50,11 @@ namespace ForestOverlay.Game
     {
         private const int MaxDepth = 7;
         private const int RootNodeCap = 150000;
+        // The scene census (RunScene) walks deeper and further.
+        private const int SceneDepth = 64;
+        private const int SceneRootCap = 3000000;
+        private const int SceneTotalCap = 12000000;
+        private const float SceneSeconds = 120f;
         private const int TotalNodeCap = 1500000;
         private const int TopN = 8;
         private const long MB = 1024 * 1024;
@@ -82,6 +87,8 @@ namespace ForestOverlay.Game
             public long Bytes;
             public bool Capped;
             public Dictionary<string, int> DeadTypes;
+            /// Scene census: what the reached objects are, by type.
+            public Dictionary<Type, int> Types;
         }
 
         private struct Item
@@ -99,6 +106,9 @@ namespace ForestOverlay.Game
         private readonly List<Item> _stack = new List<Item>();
         // Collections that changed while walked (another thread's).
         private int _changed;
+        private int _depth = MaxDepth;
+        private int _rootCap = RootNodeCap;
+        private bool _countTypes;
 
         private Dictionary<string, RootStat> _last;
         private Dictionary<Type, int> _lastTypes;
@@ -288,6 +298,98 @@ namespace ForestOverlay.Game
         }
 
         // ------------------------------------------------------------------
+        /// What holds the managed heap, scene included (dev; the bridge
+        /// calls it): the statics, then every live script's own fields,
+        /// grouped by script type - a collection's pause follows the objects
+        /// it marks. Walks up to 12 M objects / 2 min: a freeze of seconds,
+        /// and the walk's own bookkeeping grows the heap for a while.
+        public string RunScene(string label)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            long heap = GC.GetTotalMemory(true);
+            if (_roots == null) FindRoots();
+            _changed = 0;
+            _depth = SceneDepth;
+            _rootCap = SceneRootCap;
+            _countTypes = true;
+            HashSet<object> seen = new HashSet<object>(new RefEq());
+            Dictionary<string, RootStat> stats = new Dictionary<string, RootStat>();
+            int budget = SceneTotalCap;
+            int scripts = 0;
+            bool timedOut = false;
+            try
+            {
+                for (int i = 0; i < _roots.Count && budget > 0; i++)
+                {
+                    object value;
+                    try { value = _roots[i].Field.GetValue(null); }
+                    catch (Exception) { continue; }
+                    if (value == null) continue;
+                    RootStat st = new RootStat();
+                    Walk(value, st, seen, ref budget, false);
+                    if (st.Nodes > 0) stats[_roots[i].Name] = st;
+                }
+                UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
+                for (int i = 0; i < all.Length && budget > 0; i++)
+                {
+                    if (sw.Elapsed.TotalSeconds > SceneSeconds) { timedOut = true; break; }
+                    MonoBehaviour mb = all[i] as MonoBehaviour;
+                    if (mb == null) continue;
+                    scripts++;
+                    string name = "[scene] " + mb.GetType().Name;
+                    RootStat st;
+                    if (!stats.TryGetValue(name, out st)) { st = new RootStat(); stats[name] = st; }
+                    Walk(mb, st, seen, ref budget, true);
+                }
+            }
+            finally
+            {
+                _depth = MaxDepth;
+                _rootCap = RootNodeCap;
+                _countTypes = false;
+                _stack.Clear();
+            }
+
+            long nodes = 0, bytes = 0;
+            foreach (KeyValuePair<string, RootStat> kv in stats) { nodes += kv.Value.Nodes; bytes += kv.Value.Bytes; }
+            List<KeyValuePair<string, RootStat>> byNodes = new List<KeyValuePair<string, RootStat>>(stats);
+            byNodes.Sort(delegate(KeyValuePair<string, RootStat> a, KeyValuePair<string, RootStat> b) { return b.Value.Nodes.CompareTo(a.Value.Nodes); });
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Scene census after ").Append(label).Append(" (").Append(sw.ElapsedMilliseconds).Append(" ms): Mono heap ")
+              .Append(heap / MB).Append(" MB | reached ").Append(nodes).Append(" objects, ~").Append(Mb(bytes)).Append(" MB from ")
+              .Append(_roots.Count).Append(" statics and ").Append(scripts).Append(" scripts");
+            if (budget <= 0) sb.Append(" | CAPPED at ").Append(SceneTotalCap);
+            if (timedOut) sb.Append(" | stopped after ").Append(SceneSeconds.ToString("0")).Append(" s");
+            if (_changed > 0) sb.Append(" | ").Append(_changed).Append(" collection(s) changed while walked, skipped");
+            string summary = sb.ToString();
+            _log.LogInfo(summary);
+
+            sb.Length = 0;
+            for (int i = 0; i < byNodes.Count && i < 20; i++)
+            {
+                RootStat st = byNodes[i].Value;
+                sb.Append(i == 0 ? "  By objects: " : ", ").Append(byNodes[i].Key).Append(' ').Append(st.Nodes)
+                  .Append(" (~").Append(Mb(st.Bytes)).Append(" MB)");
+                if (st.Capped) sb.Append(" [capped]");
+            }
+            _log.LogInfo(sb.ToString());
+            for (int i = 0; i < byNodes.Count && i < 10; i++)
+            {
+                RootStat st = byNodes[i].Value;
+                if (st.Types == null) continue;
+                List<KeyValuePair<Type, int>> ts = new List<KeyValuePair<Type, int>>(st.Types);
+                ts.Sort(delegate(KeyValuePair<Type, int> a, KeyValuePair<Type, int> b) { return b.Value.CompareTo(a.Value); });
+                sb.Length = 0;
+                sb.Append("  ").Append(byNodes[i].Key).Append(": ");
+                for (int k = 0; k < ts.Count && k < 6; k++)
+                    sb.Append(k == 0 ? "" : ", ").Append(ts[k].Key.Name).Append(' ').Append(ts[k].Value);
+                _log.LogInfo(sb.ToString());
+            }
+            return summary;
+        }
+
+        // ------------------------------------------------------------------
         /// intoLive: start is a live Unity object whose own fields are the
         /// root (a DontDestroyOnLoad object); otherwise live ones end the walk.
         private void Walk(object start, RootStat st, HashSet<object> seen, ref int budget, bool intoLive)
@@ -322,7 +424,14 @@ namespace ForestOverlay.Game
                 if (!seen.Add(o)) continue;
 
                 st.Nodes++;
-                if (--budget <= 0 || st.Nodes >= RootNodeCap) { st.Capped = true; return; }
+                if (--budget <= 0 || st.Nodes >= _rootCap) { st.Capped = true; return; }
+                if (_countTypes)
+                {
+                    if (st.Types == null) st.Types = new Dictionary<Type, int>();
+                    int tn;
+                    st.Types.TryGetValue(t, out tn);
+                    st.Types[t] = tn + 1;
+                }
 
                 if (o is UnityEngine.Object)
                 {
@@ -335,7 +444,7 @@ namespace ForestOverlay.Game
                     st.DeadTypes.TryGetValue(t.Name, out n);
                     st.DeadTypes[t.Name] = n + 1;
                     // A destroyed object's C# fields are what it keeps alive.
-                    if (it.Depth < MaxDepth) PushFields(o, t, it.Depth + 1);
+                    if (it.Depth < _depth) PushFields(o, t, it.Depth + 1);
                     continue;
                 }
 
@@ -344,13 +453,13 @@ namespace ForestOverlay.Game
                 {
                     Type et = t.GetElementType();
                     st.Bytes += 16 + arr.LongLength * ElementSize(et);
-                    if (et.IsValueType || it.Depth >= MaxDepth) continue;
+                    if (et.IsValueType || it.Depth >= _depth) continue;
                     foreach (object e in arr) Push(e, it.Depth + 1);
                     continue;
                 }
 
                 st.Bytes += ObjectSize(t);
-                if (it.Depth >= MaxDepth) continue;
+                if (it.Depth >= _depth) continue;
                 int next = it.Depth + 1;
 
                 Delegate d = o as Delegate;
@@ -570,7 +679,10 @@ namespace ForestOverlay.Game
             sb.Length = 0;
             for (int i = 0; i < bySize.Count && i < TopN; i++)
             {
-                sb.Append(i == 0 ? "  Largest roots: " : ", ").Append(bySize[i].Key).Append(" ~").Append(Mb(bySize[i].Value.Bytes)).Append(" MB");
+                // Objects too: a collection's pause follows what it marks
+                // (objects and their references) more than bytes.
+                sb.Append(i == 0 ? "  Largest roots: " : ", ").Append(bySize[i].Key).Append(" ~").Append(Mb(bySize[i].Value.Bytes))
+                  .Append(" MB, ").Append(bySize[i].Value.Nodes).Append(" obj");
                 if (bySize[i].Value.Capped) sb.Append(" [capped]");
             }
             if (sb.Length > 0) _log.LogInfo(sb.ToString());

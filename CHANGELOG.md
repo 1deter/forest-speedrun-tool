@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.89 - 2026-09-26
+
+- Memory census: the largest roots now say how many objects they hold,
+  and a deeper scene census (for the developer, through the test bridge)
+  shows which of the game's scripts hold the memory - groundwork for
+  shorter garbage-collection hitches.
+
 ## v0.24.88 - 2026-09-26
 
 - Savestates tab: *Memory census now* no longer fails with "Collection was
