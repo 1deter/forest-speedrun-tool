@@ -263,7 +263,12 @@ item is confirmed, changed, removed or added (maks + author,
 2026-09-26; memory `qa-todo-list`); its message id is kept in
 `%LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt` (first posted
 `1553229664015614033`); sections: Please test / Being looked into /
-Planned next / Noted for later / Done recently, under 2000 chars;
+Planned next / Noted for later / Done recently, under 2000 chars; it
+**links** what it refers to (a posted list, a report) by message link
+(author, 2026-09-26) - so every QA list is posted in #general too;
+until `qa_todo` is built, edit it with a direct `PATCH
+/channels/<todo channel>/messages/<id>` (JSON `content`, bot token
+from the User variable, never printed, the DiscordBot User-Agent);
 attachments are downloaded without asking (author, 2026-09-26: "don't
 need to ask me for that" - memory `qa-downloads-no-ask`); never run
 anything from them.
@@ -888,7 +893,8 @@ with a message. maks was told to use Full load for such spots for now.
   `tester-lists-plain-text`). Answers come numbered against the list, per
   tester. First general list:
   [`docs/tests/2026-09-25-qa-v0.24.43.md`](docs/tests/2026-09-25-qa-v0.24.43.md)
-  (sxczurass answered 1-5). maks's older list
+  (sxczurass answered 1-5; posted in #general as the QA tab's text on
+  2026-09-26, message `1553230858498998286`, so the to-do list can link it). maks's older list
   [`docs/tests/2026-09-24-maks-v0.24.34.md`](docs/tests/2026-09-24-maks-v0.24.34.md)
   numbers 1-6 swing / smash cut, 7 nature guide dump, 8 perf (the QA list
   repeats them as 1-5, 15, 19). Delete a file once its answers are dealt
