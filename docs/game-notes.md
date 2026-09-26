@@ -38,6 +38,21 @@ Writing `Locked` by hand skips the rigidbody handling (you sag through the
 floor), `CanJump`, and the cursor. Both also drive `Input.IsMouseLocked`, so
 apply the player lock **before** asserting the cursor in a frame.
 
+### Crouch (IL + bridge, v0.24.102)
+
+`crouch` (wanted) and `crouching` (in effect) are plain fields, not in the
+save. `Update`: while `crouch` is false it is set from
+`GetCrouchInput()` (**toggle crouch**, `PlayerPreferences.UseCrouchToggle`:
+`GetButtonDown("Crouch")`; hold crouch: `GetButton`); while true,
+`standUp = GetStangUpInput()` (toggle: button down again; hold: button
+released). `crouch` and not `crouching` and grounded starts
+`EnableCrouch` (capsule 4.7 -> 3, `crouchIdle`, FSM crouch bool, vision
+range 12, crouch layers); `standUp` starts `DisableCrouch` (the reverse).
+`disableToggledCrouch()` is the game's own stand-up. So with toggle
+crouch the stance outlives any restore; with hold crouch the button
+decides every frame - setting `crouch = true` without it stands again
+the next frame. `Game/Stance` puts the captured one back.
+
 ### Camera / look angles
 
 `SimpleMouseRotator` does not read the transform — it **recomposes** it every

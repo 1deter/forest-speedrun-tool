@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -824,52 +824,28 @@ identity.
 
 ## Current status
 
-**Released: v0.24.101** (2026-09-26). The author runs it via the in-game
-updater. **375 tests.**
+**Released: v0.24.102** (2026-09-26). The author runs it via the in-game
+updater. **376 tests.**
 
-### Pick up here (2026-09-26, performance session, v0.24.100 in the game)
+### Pick up here (2026-09-26, v0.24.102 in the game)
 
-**State:** the game runs v0.24.101 (installed with `update_game`, Slot 1
-loaded fresh from the title screen; `Cheats.GodMode` true as Slot 1 loads). `[Performance]
-SaveLoadNoFixedWait` is back **off** (author: "whatever you think is best
-for the test" - off, so load timings are measured against the game's own
-hand-over). Savestates `phantom-a` (surface, captured with the endgame
-loaded - the Full load that loads it), `keycard-pickup-testing`, `physA`,
-`elevPre` (in the red elevator car), `elevMid` kept. The session is about
-performance and loads (author, 2026-09-26); the author asked for a full
-handoff at the session limit.
+**State:** the game runs v0.24.102 (installed with `update_game`, Slot 1
+loaded fresh from the title screen; `Cheats.GodMode` true as Slot 1
+loads; `PlayerPreferences.UseCrouchToggle` set back to false after the
+test). `[Performance] SaveLoadNoFixedWait` off. Savestates `phantom-a`
+(surface, captured with the endgame loaded), `keycard-pickup-testing`,
+`physA`, `elevPre` (in the red elevator car), `elevMid` kept. The
+author's plan (2026-09-26): **one thing per session, then hand off**.
 
-**Done this session (details: game-notes *Performance: garbage,
-allocations and loads*; the commits):**
-- v0.24.98 `Inventory full: ... - from <call stack>` log line
-  (`Game/FullCapacityWatch`) for the plane axe message (below).
-- v0.24.99 **the endgame in the background for our restores**
-  (`EndgameLoader.PatchStream`, Performance switch
-  `EndgameAsyncForRestores`, index 7, on): the 5.2 s one-frame freeze
-  became 2.04 s / longest 100 ms (Full load of `phantom-a`, hold 6.0 ->
-  4.5 s) and 1.71 s / longest 18 ms (Quick load of `elevPre` with the
-  endgame unloaded; switch off: 5000 ms frame). Trigger state, anim
-  prefabs, the ride after it - all as after the game's load.
-- v0.24.100 **a teleport stops a red elevator ride under way**
-  (`AreaKeeper.ForTeleport` -> `ElevatorKeeper.StopRides`). The author
-  saw the vault door cave half drawn: a `tp` 12 s into the ride, the
-  ride's end (~30 s, the overlook door opening) broke the cave (author's
-  diagnosis, reproduced: whole at 5 s, broken at 35 s; fixed build whole
-  at 35 s). Gotcha 46.
-- QA: sxczurass's performance list posted; to-do list updated (raw FPS
-  planned); the v0.24.98-100 list posted (see *QA* below).
+**Done this session:** v0.24.102 - savestates put back the captured
+stance (`stance` header, `Game/Stance`; game-notes *Crouch*). sxczurass's
+report: toggle crouch outlived every restore. Confirmed on the bridge
+(below). Earlier today: v0.24.98-101 (inventory-full log line, endgame
+in the background for our restores, a teleport stops a red elevator
+ride, God mode) - the commits and game-notes *Performance* have the
+detail.
 
-**v0.24.101 (short session, 2026-09-26):** a **God mode** toggle on the
-Deaths tab (`Deaths.GodMode`, off, practice; `DeathHooks.SetGodMode`
-writes `Cheats.GodMode` each tick while unset, switches it off only if we
-set it). Confirmed in game (bridge, below). Note: Slot 1 loads with
-`Cheats.GodMode` already **true** (left on as found).
-
-**New from QA (2026-09-26 12:56-14:42), not started - do these first
-(small, runner-facing):**
-- **Crouch kept across a load** (sxczurass, msg `1553374588358889553`):
-  crouched before a Quick / Full load -> still crouched after; should be
-  the captured stance. His report zip: msg `1553377504591347793`.
+**Next session - small QA items first (runner-facing):**
 - **maks's report** (msg `1553400013747523665`) + his note as 3 images
   (reply `1553400328563597454`) - download (`qa_download`) and read.
 - **QA tab note box** (author): wrap long text (no horizontal scroll -
@@ -880,6 +856,14 @@ set it). Confirmed in game (bridge, below). Note: Slot 1 loads with
   migrate what is useful to where it belongs logically (captures /
   restores -> Practice?, the Memory section -> Debug views?) - check with
   the author where each part goes if unclear.
+- Tell sxczurass the crouch fix is in v0.24.102 (QA list item, or a
+  short post) and move it to *Done recently* on the to-do list once he
+  confirms.
+
+**Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
+maks and sxczurass to post CPU / GPU / RAM, play 10 minutes and post
+the log (`Perf (30 s):` lines). sxczurass is away from his PC; watch
+`qa_read` for them before starting item 6 below.
 
 **Next - the endgame load in a run (Experimental option, author's
 decision 2026-09-26: allowed, off, "only if a genuine improvement").**
@@ -1341,6 +1325,9 @@ teleport mid-ride stops the ride and the vault door cave stays whole
 (v0.24.100) - both bridge, on the released builds. The God mode toggle
 keeps `Cheats.GodMode` on (re-set within a second when cleared), and
 unticking clears it only when the toggle set it (v0.24.101, bridge).
+With toggle crouch, Quick and Full loads put back the captured stance
+both ways - crouched -> standing capture stands, standing -> crouched
+capture crouches (v0.24.102, bridge, released build).
 
 **Awaiting an in-game check** — ask before building on these (the
 current items are in *Pick up here*):
@@ -1482,7 +1469,16 @@ list so we can move onto expanding more features".
    Everyone's runs vs yours (Momentum Mod), 3D terrain from the heightmap,
    caves need a geometry dump, scrub bar and annotations.
 11. **TAS** - exploratory only, on savestates and the recorder.
-12. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
+12. **Speedrun tech research** (author, QA Discord 2026-09-26, "later
+    down the line"): helping runners place ziplines precisely (the big
+    schematic, a short window) and showing the expected trajectory;
+    **bomb boosting** (explode, open the menu, wait, close - distance
+    presumed from the velocity at the menu, the time in it and fps;
+    why runs sometimes hit objects or fly off course; maybe a boost
+    view, Experimental) - sxczurass has measurements by fps and will
+    send them; panel / axe clipping and the boost behind it; anything
+    new found on the way.
+13. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
     zone shapes.
 
 ### Deferred runner feedback (voice call, 2026-09-23)
@@ -1508,6 +1504,9 @@ unless critical.
   option - show the comparison line only a set time ahead of where you
   are, slider, default ~5 s (author). Not yet scheduled - ask the
   author whether they jump the queue (the author asked for the last).
+- **Status overlay** (author, QA Discord 2026-09-26): make active
+  practice changes obvious - maks had No stagger on and thought he had
+  found a new lineup. For the UI / UX refactor in a late update.
 - **Settings / HUD:** settings do not persist (run lines, practice mode...;
   maks raised it again on the QA Discord, 2026-09-26)
   - persist all; more control over the top-left HUD, less clutter.
