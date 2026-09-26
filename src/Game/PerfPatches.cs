@@ -49,8 +49,9 @@ namespace ForestOverlay.Game
     //    gets that sweep's operation (callers only wait on it). A scene
     //    unloaded after the running sweep began earns one sweep after it,
     //    so nothing is left unswept - only the overlap goes.
-    // 7. Save load hand-over (OFF by default until the A/B shows no
-    //    difference - author, 2026-09-26): LoadSave.Activation sets
+    // 7. Save load hand-over - EXPERIMENTAL, off by default (author's
+    //    rule, 2026-09-26: anything that differs from the game goes in a
+    //    labelled section, off). LoadSave.Activation sets
     //    sceneTracker.waitForLoadSequence, yields WaitPointSixSeconds, then
     //    waits while sceneTracker.doingGlobalNavUpdate. The 0.6 s gives the
     //    building nav cut (gridObjectBlockerManager.NavCutRountine, waiting
@@ -61,6 +62,12 @@ namespace ForestOverlay.Game
     //    it. So the wait becomes: at least 3 frames and until the manager
     //    is no longer _running, never longer than the 0.6 s. Single player
     //    only (Bolt not running).
+    //    A/B (bridge, 2026-09-26, v0.24.95): Activation 2.70 -> 1.35 s from
+    //    the title screen, 2.41 -> 1.47 s on a Full load; player, time,
+    //    animals, cannibal spawners and the picture the same. The one
+    //    difference: a building nav update the game ran inside the wait
+    //    (339 ms, from blockers that register during it) runs after the
+    //    hand-over instead - so the player can move while it finishes.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -77,6 +84,8 @@ namespace ForestOverlay.Game
             public Action Remove;
             public bool Applied;
             public string Status = "off";
+            public bool Experimental;     // changes the game: off by default, own section
+            public string Note = "";      // what it changes, shown under it
         }
 
         private readonly ManualLogSource _log;
@@ -107,10 +116,14 @@ namespace ForestOverlay.Game
             Add(config, "VRSwitcherNoLayout", "VR switcher: no GUI layout pass",
                 "Skip Unity's GUI layout pass for the game's VR switcher, which draws nothing outside VR (saves ~50 KB/s of garbage).",
                 ApplyVrSwitcher, RemoveVrSwitcher);
-            Add(config, "SaveLoadNoFixedWait", "Loads: no fixed 0.6 s wait at the end of a save load (testing)",
-                "End a save load as soon as the game's building nav update has started, instead of after a fixed 0.6 s " +
-                "(control ~0.5 s sooner). Off by default until tested; off = the game's own code.",
+            Add(config, "SaveLoadNoFixedWait", "Save loads: skip the game's fixed wait before you get control",
+                "EXPERIMENTAL, changes the game: a save load hands over control without the game's fixed 0.6 s wait " +
+                "(about 1 s sooner, as the wait runs slow during a load). The game's nav-mesh update for buildings, which it " +
+                "finished inside that wait, can then still be running for a fraction of a second after you can move. Off = the game's own code.",
                 ApplyHandOver, RemoveHandOver, false);
+            _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Note = "Changes the game: the nav-mesh update for buildings can finish just after you get control " +
+                                            "(enemies' paths around them). Saves about 1 s per save load.";
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -136,6 +149,8 @@ namespace ForestOverlay.Game
         public string Label(int i) { return _fixes[i].Label; }
         public bool IsOn(int i) { return _fixes[i].Cfg.Value; }
         public string Status(int i) { return _fixes[i].Status; }
+        public bool IsExperimental(int i) { return _fixes[i].Experimental; }
+        public string Note(int i) { return _fixes[i].Note; }
 
         /// The GUI switch (and the bridge): on / off, saved, applied live.
         public void Toggle(int i)

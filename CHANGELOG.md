@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.96 - 2026-09-26
+
+- Debug views, Performance patches: a new **Experimental /
+  gameplay-altering** section, off by default. Everything in it changes
+  what the game does, not only how fast it runs, and says what under it.
+- First experimental switch: **skip the game's fixed wait before you get
+  control** after a save load. Measured: the end of a load from the title
+  screen 2.7 s -> 1.35 s, a savestate Full load 2.4 s -> 1.5 s. What it
+  changes: the game's nav-mesh update around buildings can still be
+  finishing for a moment after you can move.
+
 ## v0.24.95 - 2026-09-26
 
 - Save loads: the log now breaks the last stage of a load down step by

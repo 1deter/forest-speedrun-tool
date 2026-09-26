@@ -346,6 +346,23 @@ namespace ForestOverlay.Modules
             if (_freeCamOn) hud.Pair("Cam", "FREECAM");
         }
 
+        // One group of performance switches: the behaviour-preserving ones,
+        // or the experimental ones with what each changes under it.
+        private float DrawPerf(float y, float w, bool experimental)
+        {
+            for (int i = 0; i < _perf.Count; i++)
+            {
+                if (_perf.IsExperimental(i) != experimental) continue;
+                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
+                if (on != _perf.IsOn(i)) _perf.Toggle(i);
+                y += Row;
+                if (_perf.Note(i).Length > 0) y += UiText.Draw(30, y, w - 42, _perf.Note(i));
+                if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
+                    y += UiText.Draw(30, y, w - 42, _perf.Status(i));
+            }
+            return y;
+        }
+
         public override void DrawTab(Rect area)
         {
             float w = area.width - 20f;
@@ -437,14 +454,10 @@ namespace ForestOverlay.Modules
             // --- performance patches -----------------------------------------
             y += UiText.Draw(12, y, w - 24, "Performance patches - less garbage for the game to collect (fewer hitches); " +
                                             "each one keeps what the game does. Untick one to get the game's own code back.");
-            for (int i = 0; i < _perf.Count; i++)
-            {
-                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
-                if (on != _perf.IsOn(i)) _perf.Toggle(i);
-                y += Row;
-                if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
-                    y += UiText.Draw(30, y, w - 42, _perf.Status(i));
-            }
+            y = DrawPerf(y, w, false);
+            y += UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
+                                            "not only how fast it runs; each one says what under it.");
+            y = DrawPerf(y, w, true);
             y += 8f;
 
             // --- notes ------------------------------------------------------
