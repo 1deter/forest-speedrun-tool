@@ -542,6 +542,10 @@ namespace ForestOverlay.Game
             while (HandsBusy() && Time.realtimeSinceStartup - stashStart < 2f) yield return null;
             float stashWait = Time.realtimeSinceStartup - stashStart;
             bool stashStuck = HandsBusy();
+            // Cheesecake's log (v0.24.97): twice 2 s, cause unknown - say
+            // what held the hands next time.
+            if (stashStuck) _log.LogInfo("Savestate restore (in place): hands still busy after 2 s - " + HandsBusyWhy() +
+                                         " | " + PlayerHold.Describe() + ".");
 
             int before = IdentifierCount;
             bool unloaded = false;
@@ -1139,6 +1143,16 @@ namespace ForestOverlay.Game
             for (int i = 0; i < wanted.Count; i++)
                 if (!held.Contains(wanted[i])) return false;
             return true;
+        }
+
+        private string HandsBusyWhy()
+        {
+            try
+            {
+                if (_lighterBusy != null && (bool)_lighterBusy.GetValue(null)) return "the lighter's own routine running (LighterControler.IsBusy)";
+                return "the left-hand slot locked by the game";
+            }
+            catch (Exception ex) { return "unknown (" + ex.Message + ")"; }
         }
 
         private bool HandsBusy()

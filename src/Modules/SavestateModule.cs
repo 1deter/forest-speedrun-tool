@@ -554,6 +554,7 @@ namespace ForestOverlay.Modules
             BossHold.Arm();
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
+            FullCapacityWatch.RestoreStarted();
             int cannibalsBefore, familiesBefore;
             _bridge.CountEnemies(out cannibalsBefore, out familiesBefore);
 
@@ -580,6 +581,7 @@ namespace ForestOverlay.Modules
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 _busy = false;
+                FullCapacityWatch.RestoreEnded();
 
                 // The restore can bring the saved body's speed back, and a
                 // fall in progress keeps its air time (runner: restoring in
@@ -1343,6 +1345,7 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Savestate after the load: " + greebles + " (" + late + " set as they spawned in the load).");
             }
             Ctx.Runner.StartCoroutine(SyncSun("after the load"));
+            FullCapacityWatch.RestoreEnded();
             // A cutscene capture's hands are the fast-forward's business.
             string pullOut = f.CutsceneAt < 0f ? f.Blueprint : "";
             if (f.Held != null && f.Held.Count > 0 && f.CutsceneAt < 0f)
@@ -1454,6 +1457,7 @@ namespace ForestOverlay.Modules
 
             _loadAfter = after;
             Ctx.Log.LogInfo("Savestate " + what + ": scene load started.");
+            FullCapacityWatch.RestoreStarted();
             SetStatus(what + ": loading...");
             _timingLoad = true;
             _sawLoading = false;

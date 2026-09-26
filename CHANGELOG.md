@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.129 - 2026-09-26
+
+- Savestates: no more stray "can't carry any more plane axes / lighters"
+  message a moment after a restore. It came from the game's own re-equip
+  after a load and changed nothing in your inventory; it is now hidden
+  during a restore (other "can't carry any more" messages are unchanged).
+
 ## v0.24.128 - 2026-09-26
 
 - New experimental switch (Debug views, Performance patches, off by
