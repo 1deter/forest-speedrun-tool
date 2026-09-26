@@ -551,10 +551,14 @@ identity.
 
 ## Current status
 
-**Released: v0.24.120** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.122** (2026-09-26). The author runs it via the in-game
 updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.120 in the game)
+### Pick up here (2026-09-26, v0.24.122 in the game)
+
+**Author's focus (2026-09-26): FPS performance and patches only** - all
+other feedback goes to other sessions (task chips were spawned for new
+runner Tom's four reports and Cheesecake's endgame savestate answer).
 
 **This session: raw FPS (item 3 below), on high effort - an
 investigation, keep going in this session.** Game-notes *Frame time:
@@ -582,11 +586,31 @@ where the main thread goes* has every number; in short:
   both CPU-bound at 110-130 fps; the first camera (the player's grass
   camera) takes 2.6-3.1 ms on the i5 - probably the render-thread wait.
 
-**Next for raw FPS:** (1) main thread vs render thread: a dev switch
-that adds a fixed 1 ms a frame on the main thread - frame +1 ms = main
-thread bound, less = render thread (draw calls) - here, then ask a
-runner to flip it. (2) Measure at the runners' quality (Sunshine
-shadows, `QualitySettings` level) - ask them which level. (3)
+- v0.24.121: `System:` log line (CPU, GPU, resolution, Unity quality)
+  beside the first Perf line and on change; Debug views **Frame test**
+  (`FrameTimer.TestLoadMs`, bridge `_modules[8].ToggleFrameTest`, off at
+  launch) adds 1 ms of main-thread work a frame. Here: 4.32 -> 5.45 ms,
+  the full +1 ms - **the author's machine is main-thread bound** and the
+  camera times are real main-thread work.
+- v0.24.122: the System line also lists the game's own options
+  (`TheForestQualitySettings.UserSettings`, every field) and the main
+  camera's path. The author's: Custom, DX11 post effects, FarShadowMode
+  On, ShadowLevel High, deferred + HDR. Setting `_postEffectSystem
+  Legacy` live changed nothing (the options menu applies it).
+
+**Waiting on QA** (posted 2026-09-26, message `1553493823840321557`):
+sxczurass and Cheesecake to run 1 min without / 1 min with the Frame
+test on v0.24.121+ and send the log. Read: the frame grows by 1 ms =
+main thread bound (camera patches help); less, with the first camera's
+time shrinking = the render thread (draw calls; then fewer draw calls /
+cameras, or Experimental options). Their `System:` line (v0.24.122)
+says their game options - both run Sunshine shadows and no far-shadow
+camera (probably Legacy post effects / forward), which the author's
+settings never exercise: set the author's game to theirs (through the
+options menu or `TheForestQualitySettings.CopyPreset`) and profile it.
+
+**Next for raw FPS:** (1) their Frame test result and settings (above).
+(2) Profile the author's game at the runners' options. (3)
 ActionIconCamera by hand-`Render()` (game-notes), only with the
 author's eyes on the picture.
 
