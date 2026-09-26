@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.83 - 2026-09-26
+
+- Coordinate boxes also drop spaces and commas typed after a complete
+  position, and typing the same position again no longer marks the spot
+  as changed.
+
 ## v0.24.82 - 2026-09-26
 
 - A Full load of a savestate taken just after the vault door opened

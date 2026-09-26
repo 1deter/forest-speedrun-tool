@@ -1881,12 +1881,17 @@ namespace ForestOverlay.Modules
 
             // Anything but a number's characters never reaches the box;
             // red is left for an incomplete value (two numbers).
-            text = TriggerParser.FilterCoords(text);
+            // A space or comma after a complete value is dropped too
+            // (author, v0.24.83: it marked the spot as changed).
+            text = TriggerParser.TidyCoords(TriggerParser.FilterCoords(text));
             if (text == f.Text) return false;
             f.Text = text;
             Vector3 p;
             if (!TriggerParser.ParseCoords(text, out p)) { f.Bad = true; return false; }
             f.Bad = false;
+            // The same position typed differently ("3.0" for "3.00") is no
+            // change - nothing to save.
+            if (p == f.Value) return false;
             f.Value = p;
             typed = p;
             return true;

@@ -26,6 +26,17 @@ namespace ForestOverlay.Tests
             Assert.Same(s, TriggerParser.FilterCoords(s));
         }
 
+        [Theory]
+        [InlineData("1 2 3 ", "1 2 3")]
+        [InlineData(" 1 2 3,  ", "1 2 3")]
+        [InlineData("1 2 ", "1 2 ")]
+        [InlineData("1, ", "1, ")]
+        [InlineData("1 2 3", "1 2 3")]
+        public void TidyDropsSeparatorsOnlyAroundACompleteValue(string typed, string kept)
+        {
+            Assert.Equal(kept, TriggerParser.TidyCoords(typed));
+        }
+
         [Fact]
         public void ParsesThreeNumbers()
         {

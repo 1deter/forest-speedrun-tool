@@ -556,6 +556,17 @@ namespace ForestOverlay.Data
             return (c >= '0' && c <= '9') || c == '-' || c == '.' || c == ' ' || c == ',';
         }
 
+        /// Spaces and commas around a complete value (three numbers) are
+        /// dropped; an incomplete one keeps them, so "1 " can become
+        /// "1 2". Returns `text` itself when nothing changes.
+        public static string TidyCoords(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            string t = text.Trim(' ', ',');
+            Vector3 v;
+            return t.Length != text.Length && ParseCoords(t, out v) ? t : text;
+        }
+
         /// Three numbers separated by spaces, commas or semicolons, with
         /// optional brackets: "1 2 3", "1, 2, 3", "(1, 2, 3)".
         public static bool ParseCoords(string text, out Vector3 v)

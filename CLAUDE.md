@@ -746,21 +746,23 @@ identity.
 
 ## Current status
 
-**Released: v0.24.82** (2026-09-26). The author runs it via the in-game
-updater. **362 tests.**
+**Released: v0.24.83** (2026-09-26). The author runs it via the in-game
+updater. **367 tests.**
 
-### Pick up here (2026-09-26, handoff, v0.24.82 in the game)
+### Pick up here (2026-09-26, handoff, v0.24.83 in the game)
 
-**State:** v0.24.82 runs in the author's game (MCP `update_game`);
+**State:** v0.24.83 runs in the author's game (MCP `update_game`);
 everything below is released, on `main`, and bridge-checked in Slot 1
 unless marked. The window is closed; no test spots or savestates are
 left over except the old `phantom-a` (tree spot; can be deleted) and
 `keycard-pickup-testing`. **The next session is performance (Next up 5)
 - the author runs it separately, on high effort.**
 
-This session: v0.24.78 coordinate boxes take only number characters
-(`TriggerParser.FilterCoords`, tested; typing is not bridge-checkable -
-ask the author for a glance). v0.24.79-82 **savestates during a
+This session: v0.24.78 / v0.24.83 coordinate boxes take only number
+characters, drop separators after a complete value and do not mark the
+spot changed for the same position (`TriggerParser.FilterCoords` /
+`TidyCoords`, tested; the author confirmed letters are refused - the
+trailing-space fix is not typed in game yet). v0.24.79-82 **savestates during a
 player-started cutscene**: the red elevator's ride (maks) and the
 keypad doors (vault, gold, yacht - author: "make sure the same case
 still works for the gold / vault door"). A restore landing > 3 m from
