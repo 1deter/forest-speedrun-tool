@@ -73,6 +73,9 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent FailText = new GUIContent("Fail");
         private static readonly GUIContent SkipText = new GUIContent("Skip");
         private static readonly GUIContent NoteLabel = new GUIContent("Note:");
+        private static readonly GUIContent NoteHelp = new GUIContent(
+            "Note (optional): Mark now puts it in the log with the mark and clears the box. " +
+            "Write report includes whatever is still in the box - no Mark needed.");
         private static readonly Color PassColour = new Color(0.45f, 1f, 0.45f);
         private static readonly Color FailColour = new Color(1f, 0.45f, 0.45f);
         private static readonly Color SkipColour = new Color(1f, 0.9f, 0.4f);
@@ -349,6 +352,9 @@ namespace ForestOverlay.Modules
                 SaveAnswers();
                 if (Ctx.Logs != null) Ctx.Logs.CopyNew();
 
+                string pending = (_markNote ?? "").Trim();
+                if (pending.Length > 0) Ctx.Log.LogInfo("QA note (in the report): " + pending);
+
                 string tester = SafeName(_testerField.Trim());
                 DateTime now = DateTime.Now;
                 string name = "ForestOverlay-report-" + (tester.Length > 0 ? tester + "-" : "") +
@@ -382,7 +388,8 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("QA report: " + path + " (" + count + " files, " + size +
                                 (skipped.Count > 0 ? "; skipped " + string.Join(", ", skipped.ToArray()) : "") + ")");
                 _reportStatus.text = "Written to your " + (folder == Ctx.ConfigDirectory ? "config folder" : "desktop") + ": " +
-                                     name + " (" + count + " files, " + size + "). Send that file." +
+                                     name + " (" + count + " files, " + size + ")" +
+                                     (pending.Length > 0 ? ", with your note" : "") + ". Send that file." +
                                      (skipped.Count > 0 ? " Skipped: " + string.Join(", ", skipped.ToArray()) : "");
             }
             catch (Exception ex)
@@ -401,6 +408,9 @@ namespace ForestOverlay.Modules
             else
                 sb.Append("No test list.\nTester: ").Append(_testerField.Trim()).Append("\nPlugin: v")
                   .Append(OverlayPlugin.PluginVersion).Append("\nWritten: ").Append(when).Append('\n');
+
+            string note = (_markNote ?? "").Trim();
+            if (note.Length > 0) sb.Append("\nNote: ").Append(note).Append('\n');
 
             sb.Append("\nMarks this session: ").Append(_marks.Count).Append('\n');
             for (int i = 0; i < _marks.Count; i++) sb.Append("  ").Append(_marks[i]).Append('\n');
@@ -490,10 +500,12 @@ namespace ForestOverlay.Modules
 
             // Mark and report, then the items.
             if (GUI.Button(new Rect(x, y, 110, 24), "Mark now")) Mark(true);
-            GUI.Label(new Rect(x + 118, y + 2, 40, 22), NoteLabel);
-            _markNote = GUI.TextField(new Rect(x + 158, y + 1, Mathf.Max(100f, inner - 158f - 180f), 22), _markNote);
-            if (GUI.Button(new Rect(x + inner - 170f, y, 170, 24), "Write report")) WriteReport();
+            if (GUI.Button(new Rect(x + 118, y, 170, 24), "Write report")) WriteReport();
             y += 28f;
+            y += UiText.Draw(x, y, inner, NoteHelp);
+            float boxH = UiText.BoxHeight(_markNote, inner);
+            _markNote = UiText.TextBox(x, y, inner, boxH, _markNote);
+            y += boxH + 4f;
             if (!_lastMarkHasNote && _lastMark > 0 && _markNote.Length > 0)
             {
                 if (GUI.Button(new Rect(x, y, 220, 22), _addNoteText)) AddNoteToLastMark();
@@ -534,7 +546,7 @@ namespace ForestOverlay.Modules
                 float h = 0f;
                 if (_sectionText[i] != null) h += 8f + Mathf.Max(20f, UiText.Plain.CalcHeight(_sectionText[i], width)) + 2f;
                 h += Mathf.Max(20f, UiText.Plain.CalcHeight(_itemText[i], width)) + 2f;
-                h += 26f; // buttons + note
+                h += Mathf.Max(22f, UiText.BoxHeight(_noteField[i], NoteWidth(width))) + 4f; // buttons + note
                 if (_seenText[i].text.Length > 0) h += Mathf.Max(20f, UiText.Dim.CalcHeight(_seenText[i], width - 12f)) + 2f;
                 h += 8f;
                 _itemHeight[i] = h;
@@ -559,16 +571,24 @@ namespace ForestOverlay.Modules
             if (ResultButton(new Rect(72, y, 56, 22), FailText, r == QaResult.Fail, FailColour)) SetResult(item.Number, r == QaResult.Fail ? QaResult.None : QaResult.Fail);
             if (ResultButton(new Rect(132, y, 56, 22), SkipText, r == QaResult.Skip, SkipColour)) SetResult(item.Number, r == QaResult.Skip ? QaResult.None : QaResult.Skip);
             GUI.Label(new Rect(196, y + 1, 40, 22), NoteLabel);
-            string note = GUI.TextField(new Rect(236, y, Mathf.Max(80f, width - 240f), 22), _noteField[i]);
+            float noteW = NoteWidth(width);
+            float noteH = UiText.BoxHeight(_noteField[i], noteW);
+            string note = UiText.TextBox(236, y, noteW, noteH, _noteField[i]);
             if (note != _noteField[i])
             {
                 _noteField[i] = note;
                 Answer(item.Number, true).Note = note;
                 Changed();
+                if (!Mathf.Approximately(UiText.BoxHeight(note, noteW), noteH)) _layoutWidth = -1f;   // grew or shrank a line
             }
-            y += 26f;
+            y += Mathf.Max(22f, noteH) + 4f;
 
             if (_seenText[i].text.Length > 0) UiText.DrawDim(12, y, width - 12f, _seenText[i]);
+        }
+
+        private static float NoteWidth(float width)
+        {
+            return Mathf.Max(80f, width - 240f);
         }
 
         private static bool ResultButton(Rect r, GUIContent text, bool selected, Color colour)

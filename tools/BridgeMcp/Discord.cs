@@ -456,8 +456,9 @@ namespace ForestOverlay.BridgeMcp
             {
                 string name = Safe((string)f["filename"] ?? "file");
                 string path = Path.Combine(dir, name);
-                if (File.Exists(path))
-                    path = Path.Combine(dir, Path.GetFileNameWithoutExtension(name) + "-" + id + Path.GetExtension(name));
+                // Several attachments can share a name (three "image.png"): number them, never overwrite.
+                for (int n = 1; File.Exists(path); n++)
+                    path = Path.Combine(dir, Path.GetFileNameWithoutExtension(name) + "-" + id + (n > 1 ? "-" + n : "") + Path.GetExtension(name));
 
                 // Attachment URLs are signed CDN links: no bot token on them.
                 using (HttpResponseMessage file = await Http.GetAsync((string)f["url"], ct))

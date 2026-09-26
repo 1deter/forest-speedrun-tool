@@ -23,6 +23,7 @@ namespace ForestOverlay.Core
 
         private static GUIStyle _plain;
         private static GUIStyle _dim;
+        private static GUIStyle _box;
         private static readonly GUIContent Scratch = new GUIContent("");
 
         /// Wrapped label; returns the height used, gap included - 0 for no text.
@@ -49,6 +50,36 @@ namespace ForestOverlay.Core
             float h = Mathf.Max(LineHeight, wrapping.CalcHeight(content, width));
             GUI.Label(new Rect(x, y, width, h), content, wrapping);
             return h + Gap;
+        }
+
+        /// Height a wrapped text box needs for this text at this width (one line at least).
+        public static float BoxHeight(string text, float width)
+        {
+            Scratch.text = string.IsNullOrEmpty(text) ? " " : text;
+            return Mathf.Max(22f, Box.CalcHeight(Scratch, width));
+        }
+
+        /// A text box that wraps and grows downwards instead of scrolling
+        /// sideways (QA notes, v0.24.103). Enter is not a line break: notes
+        /// go into one-line log and answer formats, so a newline is a space.
+        public static string TextBox(float x, float y, float width, float height, string value)
+        {
+            string v = GUI.TextArea(new Rect(x, y, width, height), value ?? "", Box);
+            if (v.IndexOf('\n') >= 0) v = v.Replace('\n', ' ');
+            return v;
+        }
+
+        public static GUIStyle Box
+        {
+            get
+            {
+                if (_box == null)
+                {
+                    _box = new GUIStyle(GUI.skin.textArea);
+                    _box.wordWrap = true;
+                }
+                return _box;
+            }
         }
 
         /// Label style that wraps; build styles from GUI.skin only inside OnGUI.

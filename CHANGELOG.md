@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.103 - 2026-09-26
+
+- QA tab: note boxes wrap long text and grow downwards instead of
+  scrolling sideways.
+- QA tab: Write report now includes the note at the top, even without
+  pressing Mark. Before, a note that was never marked was left out.
+
 ## v0.24.102 - 2026-09-26
 
 - Savestates keep your stance: with toggle crouch, a Quick or Full load
