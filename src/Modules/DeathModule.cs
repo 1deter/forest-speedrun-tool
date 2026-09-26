@@ -148,7 +148,6 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("tab.deaths", KeyCode.None, "Open Deaths tab", OpenMyTab);
-            map.Add("death.clearBlood", KeyCode.None, "Clear the blood overlay (practice)", ClearBlood);
         }
 
         public override void Shutdown()
@@ -365,13 +364,6 @@ namespace ForestOverlay.Modules
             if (!ReferenceEquals(_status, _statusShown)) { _statusShown = _status; _statusText.text = _status; }
         }
 
-        private void ClearBlood()
-        {
-            DeathHooks.ClearBlood();
-            Ctx.Practice.Mark("clear blood");
-            _status = "blood overlay cleared";
-        }
-
         // ------------------------------------------------------------------
         public override void DrawTab(Rect area)
         {
@@ -402,9 +394,6 @@ namespace ForestOverlay.Modules
 
             y += UiText.Draw(0, y, w, QuickLoadText) + 4f;
             y += UiText.Draw(0, y, w, ReviveText) + 4f;
-
-            if (GUI.Button(new Rect(0, y, 160, 24), "Clear blood overlay")) ClearBlood();
-            y += 28f;
 
             // Practice toggles - not tied to dying, so they work in Creative.
             bool noBlood = GUI.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,

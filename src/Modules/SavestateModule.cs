@@ -12,36 +12,27 @@ using UnityEngine;
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // Savestates - PHASE 0, EXPERIMENTAL. PRACTICE ONLY.
+    // Savestates - the engine behind segment start states (Practice:
+    // Capture / Restart, F7, a death at a start-state spot) and the test
+    // bridge's capture / restore. PRACTICE ONLY. No tab of its own since
+    // v0.24.106: its options and the Memory section are drawn in Debug
+    // views (DrawOptions). See Game/SavestateBridge.cs and game-notes
+    // "Saving and loading".
     //
-    // A probe, not the finished feature: capture the game's own level
-    // serialization into a file (no save slot, no Steam Cloud), then
-    // restore it two ways and log what each did, so an in-game test can
-    // decide which restore to build on. See Game/SavestateBridge.cs and
-    // game-notes "Saving and loading".
-    //
-    //   Capture here          - the game's save routine, redirected to
-    //                           BepInEx/config/ForestOverlay/savestates.
-    //   Restore in place      - LoadNow into the running scene, no load;
-    //                           deletes what the save does not know and
-    //                           puts back world pickups taken since
-    //                           (Game/PickupKeeper).
-    //   Restore with load     - LoadSavedLevel: one scene load.
-    //   Current slot's save   - the same two restores fed from the slot the
-    //                           game is running on (the author's idea: a
-    //                           faster quick-load, and a load-free one).
-    //   Check pickups         - would the in-place restore bring an item
-    //                           (default 210, the keycard) back?
+    //   Quick load - LoadNow into the running scene, no load; deletes what
+    //                the save does not know and puts back world pickups
+    //                taken since (Game/PickupKeeper), plus the keepers.
+    //   Full load  - LoadSavedLevel: one scene load, then the fix-ups.
     //
     // Every action logs one "Savestate ..." line; that line is the test.
     //
-    // SEGMENT START STATES (phase 1): a segment may keep a savestate at
-    // savestates/segments/<safe segment id>.fosave - named from the id, so
-    // a shared segment file and its start state travel together. The
-    // Practice module restores it on every restart (return to spot), in
-    // place or with a load per Segment.StartRestoreWithLoad, then teleports
-    // to the spawn as before. No file: the restart keeps the game state,
-    // which some routes need (runner request).
+    // A segment's start state is savestates/segments/<safe segment id>.fosave
+    // - named from the id, so a shared segment and its start state travel
+    // together. The Practice module restores it on every restart, in place
+    // or with a load per Segment.StartRestoreWithLoad, then teleports to
+    // the spawn. No file: the restart keeps the game state, which some
+    // routes need (runner request). Named files in savestates/ are the
+    // bridge's (capture / restore / savestates).
     // ------------------------------------------------------------------
     public sealed class SavestateModule : OverlayModule
     {
@@ -49,9 +40,6 @@ namespace ForestOverlay.Modules
 
         public override string Id { get { return "savestates"; } }
         public override string DisplayName { get { return "Savestates"; } }
-        public override bool HasTab { get { return true; } }
-        public override string TabTitle { get { return "Savestates"; } }
-        public override int TabOrder { get { return 20; } }
         public override bool IsPracticeOnly { get { return true; } }
 
         private SavestateBridge _bridge;
@@ -76,32 +64,15 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _respawnEnemies;
         // AfterInPlace's wreck clears so far; LogNewPickups lists after one.
         private int _planeClears;
-        private float _contentHeight = 520f;
         private string _lastCaptureHash = "";
         private float _busySince;
-        private string _name = "savestate";
-        private string _itemIdText = "210";
 
-        // File list, rebuilt only on refresh.
+        // The bridge's named files (savestates), rebuilt on each listing.
         private readonly List<string> _files = new List<string>();
-        private readonly List<GUIContent> _fileLabels = new List<GUIContent>();
-        private int _selected = -1;
-        private float _deleteArmedUntil;
+        private readonly List<string> _fileLabels = new List<string>();
 
-        private readonly List<string> _diag = new List<string>();
-        private readonly List<GUIContent> _diagLabels = new List<GUIContent>();
-
-        private GUIContent _status = new GUIContent("");
-
-        // Which buttons the status line answers, so it is drawn under them
-        // (UI rule: a message goes where the click was). Top = started from
-        // elsewhere (a Practice restart), or a timeout.
-        private enum Anchor { Top, Capture, List, Slot, Pickups, Memory }
-        private Anchor _anchor = Anchor.Top;
-        private GUIContent _slotLabel = new GUIContent("");
-        private GUIContent _bindLabel = new GUIContent("");
-        private GUIContent _dirLabel = new GUIContent("");
-        private float _nextSlotRefresh;
+        // The last action's outcome; callers get it through their callback.
+        private string _status = "";
 
         // Timing a scene-load restore across the load.
         private bool _timingLoad;
@@ -123,12 +94,6 @@ namespace ForestOverlay.Modules
         private string _censusLabel = "";
         private readonly GUIContent _censusText = new GUIContent("");
         private const float CensusDelay = 1.5f;
-
-        private Vector2 _scroll;
-
-        private static readonly GUIContent Warning = new GUIContent(
-            "EXPERIMENTAL (phase 0). Stores the game's own save data in a file - no save slot is used. " +
-            "Capture and restores mark the session as practice. Every action logs one 'Savestate' line.");
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -156,7 +121,6 @@ namespace ForestOverlay.Modules
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
-            _dirLabel = new GUIContent("Savestates (" + _dir + ")");
             RefreshFiles();
 
             _census = new MemoryCensus(ctx.Log);
@@ -194,14 +158,6 @@ namespace ForestOverlay.Modules
                 "bodies left since the capture are cleared. Nothing is spawned when the game has enemies off.");
         }
 
-        public override void RegisterHotkeys(HotkeyMap map)
-        {
-            map.Add("tab.savestates", KeyCode.None, "Open Savestates tab", OpenMyTab);
-            map.Add("savestate.capture", KeyCode.None, "Savestate: capture here", Capture);
-            map.Add("savestate.restoreInPlace", KeyCode.None, "Savestate: quick load selected", RestoreSelectedInPlace);
-            map.Add("savestate.restoreLoad", KeyCode.None, "Savestate: full load selected", RestoreSelectedWithLoad);
-        }
-
         public override void Shutdown()
         {
             PickupKeeper.Armed = false;
@@ -221,16 +177,6 @@ namespace ForestOverlay.Modules
         {
             // A waiting greeble record never acts in another game.
             if (PlayerRef.AtTitleScreen && _greebles != null) _greebles.Clear();
-
-            if (Time.unscaledTime >= _nextSlotRefresh)
-            {
-                _nextSlotRefresh = Time.unscaledTime + 1f;
-                _slotLabel.text = "Current save slot: " + _bridge.CurrentSlot;
-                _bindLabel.text = "Bound: " + _bridge.Status + " | pickups: " + _keeper.Status +
-                                  (PickupKeeper.Armed ? ", " + _keeper.KeptCount + " kept for a restore" : ", armed by the first capture/restore") +
-                                  " | cave panels: " + _panels.Status +
-                                  (PickupKeeper.Armed && _panels.KeptCount > 0 ? ", " + _panels.KeptCount + " broken kept" : "");
-            }
 
             if (_timingLoad) TimeLoad();
             WatchLoads();
@@ -339,12 +285,6 @@ namespace ForestOverlay.Modules
 
         // ------------------------------------------------------------------
         // Actions
-
-        private void Capture()
-        {
-            _anchor = Anchor.Capture;
-            CaptureTo(_name, null, null);
-        }
 
         /// `path` null: a new file in the savestates folder, never
         /// overwriting. `after` gets null on success or the reason.
@@ -496,9 +436,6 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
                 SetStatus(line);
 
-                RefreshFiles();
-                int listed = _files.IndexOf(path);
-                if (listed >= 0) _selected = listed;
                 return null;
             }
             catch (Exception ex)
@@ -509,23 +446,11 @@ namespace ForestOverlay.Modules
             }
         }
 
-        private void RestoreSelectedInPlace()
-        {
-            _anchor = Anchor.List;
-            RestoreFile(LoadSelected(), false, null);
-        }
-
-        private void RestoreSelectedWithLoad()
-        {
-            _anchor = Anchor.List;
-            RestoreFile(LoadSelected(), true, null);
-        }
-
         /// `done` gets null on success or the reason (not called for an
         /// unreadable file - LoadSelected has said why).
         private void RestoreFile(SavestateFile f, bool load, Action<string> done)
         {
-            if (f == null) { if (done != null) done("could not read the file - " + _status.text); return; }
+            if (f == null) { if (done != null) done("could not read the file - " + _status); return; }
             if (_busy) { if (done != null) done("a savestate action is still running"); return; }
             if (RefusedAtTitle("restore", done)) return;
 
@@ -558,17 +483,15 @@ namespace ForestOverlay.Modules
         public void ListFiles(List<string> into)
         {
             RefreshFiles();
-            for (int i = 0; i < _fileLabels.Count; i++) into.Add(_fileLabels[i].text);
+            into.AddRange(_fileLabels);
         }
 
         public void CaptureNamed(string name, Action<string> done)
         {
-            _anchor = Anchor.Capture;
             CaptureTo(name, null, done);
         }
 
-        /// By file name without the extension, case-insensitive; selects
-        /// it in the list as a click would.
+        /// By file name without the extension, case-insensitive.
         public void RestoreNamed(string name, bool load, Action<string> done)
         {
             RefreshFiles();
@@ -577,43 +500,9 @@ namespace ForestOverlay.Modules
                 if (string.Equals(Path.GetFileNameWithoutExtension(_files[i]), name, StringComparison.OrdinalIgnoreCase)) found = i;
             if (found < 0) { done("no savestate '" + name + "' (savestates lists them)"); return; }
 
-            _selected = found;
-            _anchor = Anchor.List;
-            RestoreFile(LoadSelected(), load, done);
+            RestoreFile(LoadFile(_files[found]), load, done);
         }
 
-        private void SlotInPlace()
-        {
-            _anchor = Anchor.Slot;
-            string error;
-            string data = _bridge.ReadSlotData(out error);
-            if (data == null)
-            {
-                SetStatus("slot reload failed: " + error);
-                Ctx.Log.LogWarning("Savestate slot reload in place: " + error);
-                return;
-            }
-            // A slot save was made the game's way: streaming unloaded only in
-            // MemorySafeSaveMode. No pickup list - a menu load would bring
-            // them all back, so every kept pickup is put back.
-            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + _bridge.CurrentSlot, -1, null, null);
-        }
-
-        private void SlotWithoutMenu()
-        {
-            if (_busy) return;
-            _anchor = Anchor.Slot;
-            Ctx.Practice.Mark("savestate slot load");
-            PickupKeeper.Armed = true;
-            string err = _bridge.LoadSlotWithoutMenu();
-            StartLoad("load slot " + _bridge.CurrentSlot + " without the menu", err, null);
-        }
-
-        /// `savedInCave`: the file's cave flag (1 / 0), or -1 when unknown
-        /// (a slot save) and the player's position has to decide.
-        /// `file`: the savestate, for what lives outside the game's data -
-        /// the book page, the held items, the cave panels; null for a slot
-        /// save, which leaves them as they are.
         /// A restore at the title screen deserialized the save into the
         /// menu scene (bridge, v0.24.72: `identifiers 0 -> 105`, no
         /// player); capture already refused there (v0.24.59).
@@ -1615,7 +1504,6 @@ namespace ForestOverlay.Modules
         /// changes its route fingerprint; saving the segment is the caller's.
         public void CaptureStartState(Segment s, Action<string> done)
         {
-            _anchor = Anchor.Top;
             CaptureTo("start of " + s.Name + " (" + s.Id + ")", StartStatePath(s), delegate(string error)
             {
                 if (error == null)
@@ -1648,7 +1536,6 @@ namespace ForestOverlay.Modules
         {
             if (Busy) { done("a savestate action is still running"); return; }
             if (RefusedAtTitle("restore", done)) return;
-            _anchor = Anchor.Top;
 
             SavestateFile f;
             try
@@ -1708,53 +1595,9 @@ namespace ForestOverlay.Modules
             return "captured in a " + f.Difficulty + " game - this one is " + here + " (Creative and survival do not mix)";
         }
 
-        private void CheckPickups()
-        {
-            _anchor = Anchor.Pickups;
-            int id;
-            if (!int.TryParse(_itemIdText.Trim(), out id)) { SetStatus("item id must be a number"); return; }
-
-            _bridge.DescribePickups(id, _diag);
-            _diagLabels.Clear();
-            for (int i = 0; i < _diag.Count; i++)
-            {
-                _diagLabels.Add(new GUIContent(_diag[i]));
-                Ctx.Log.LogInfo("Savestate pickups: " + _diag[i]);
-            }
-        }
-
-        private void DeleteSelected()
-        {
-            if (_selected < 0 || _selected >= _files.Count) return;
-            _anchor = Anchor.List;
-
-            if (Time.unscaledTime > _deleteArmedUntil)
-            {
-                _deleteArmedUntil = Time.unscaledTime + 3f;
-                SetStatus("click Delete again within 3 s to delete " + Path.GetFileName(_files[_selected]));
-                return;
-            }
-
-            _deleteArmedUntil = 0f;
-            string path = _files[_selected];
-            try
-            {
-                File.Delete(path);
-                Ctx.Log.LogInfo("Savestate deleted " + Path.GetFileName(path));
-                SetStatus("deleted " + Path.GetFileName(path));
-            }
-            catch (Exception ex) { SetStatus("delete failed: " + ex.Message); }
-
-            _selected = -1;
-            RefreshFiles();
-        }
-
         // ------------------------------------------------------------------
-        private SavestateFile LoadSelected()
+        private SavestateFile LoadFile(string path)
         {
-            if (_selected < 0 || _selected >= _files.Count) { SetStatus("select a savestate first"); return null; }
-
-            string path = _files[_selected];
             try
             {
                 string error;
@@ -1775,7 +1618,6 @@ namespace ForestOverlay.Modules
 
         private void RefreshFiles()
         {
-            string keep = _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
             _files.Clear();
             _fileLabels.Clear();
 
@@ -1789,15 +1631,13 @@ namespace ForestOverlay.Modules
                     {
                         FileInfo fi = new FileInfo(found[i]);
                         _files.Add(found[i]);
-                        _fileLabels.Add(new GUIContent(Path.GetFileNameWithoutExtension(found[i]) + "   (" +
+                        _fileLabels.Add(Path.GetFileNameWithoutExtension(found[i]) + "   (" +
                             SavestateBridge.Kb((int)Math.Min(fi.Length, int.MaxValue)) + ", " +
-                            fi.LastWriteTime.ToString("MM-dd HH:mm") + ")"));
+                            fi.LastWriteTime.ToString("MM-dd HH:mm") + ")");
                     }
                 }
             }
             catch (Exception ex) { SetStatus("could not list savestates: " + ex.Message); }
-
-            _selected = keep != null ? _files.IndexOf(keep) : -1;
         }
 
         private string UniquePath(string baseName)
@@ -1810,127 +1650,46 @@ namespace ForestOverlay.Modules
 
         private void SetStatus(string s)
         {
-            _status = new GUIContent(s);
-
-            // A savestate hotkey with the window closed: the answer goes on
-            // screen. Practice restarts (Top) say their own piece there.
-            if (_anchor != Anchor.Top && Host != null && !Host.AnyPanelOpen()) Ctx.Notice.Show(s, 5f);
-        }
-
-        private float StatusIf(Anchor a, float y, float w)
-        {
-            return _anchor == a ? UiText.Draw(0, y, w, _status) + 4f : 0f;
+            _status = s;
         }
 
         // ------------------------------------------------------------------
-        public override void DrawTab(Rect area)
+        // Drawn by Debug views (the Savestates tab is gone since v0.24.106).
+        public float DrawOptions(float x, float y, float w)
         {
-            float w = area.width - 20f;
-            // The height drawn last pass: wrapped text makes it vary.
-            float contentHeight = Mathf.Max(_contentHeight, 200f);
-            _scroll = GUI.BeginScrollView(area, _scroll, new Rect(0, 0, w, contentHeight));
-
-            float y = 4f;
-            y += UiText.Draw(0, y, w, Warning) + 4f;
-            y += StatusIf(Anchor.Top, y, w);
-
-            bool cross = GUI.Toggle(new Rect(0, y, w, 22), _allowCrossMode.Value,
-                                    " Allow restoring across Creative and survival (testing)");
+            bool cross = GUI.Toggle(new Rect(x, y, w, 22), _allowCrossMode.Value,
+                                    " Savestates: allow restoring across Creative and survival (testing)");
             if (cross != _allowCrossMode.Value) _allowCrossMode.Value = cross;
             y += 26f;
 
-            bool respawn = GUI.Toggle(new Rect(0, y, w, 22), _respawnEnemies.Value,
-                                      " Enemies after an in-place restore as a load would (respawn, clear bodies)");
+            bool respawn = GUI.Toggle(new Rect(x, y, w, 22), _respawnEnemies.Value,
+                                      " Savestates: put the captured enemies back after a restore (respawn, clear bodies)");
             if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;
             y += 26f;
 
-            // Capture
-            GUI.Label(new Rect(0, y, 50, 22), "Name");
-            _name = GUI.TextField(new Rect(52, y, Mathf.Min(260f, w - 52f), 22), _name ?? "");
-            y += 26f;
-            GUI.enabled = !_busy;
-            if (GUI.Button(new Rect(0, y, 200, 24), "Capture here")) Capture();
-            GUI.enabled = true;
-            y += 28f;
-            y += StatusIf(Anchor.Capture, y, w);
-            y += 4f;
-
-            // Saved states
-            y += UiText.Draw(0, y, w, _dirLabel);
-            if (_fileLabels.Count == 0)
-            {
-                GUI.Label(new Rect(8, y, w, 20), "none yet");
-                y += 22f;
-            }
-            for (int i = 0; i < _fileLabels.Count; i++)
-            {
-                bool on = GUI.Toggle(new Rect(8, y, w - 8, 22), _selected == i, _fileLabels[i]);
-                if (on && _selected != i) { _selected = i; _deleteArmedUntil = 0f; }
-                y += 24f;
-            }
-            if (GUI.Button(new Rect(0, y, 120, 22), "Refresh list")) RefreshFiles();
-            y += 30f;
-
-            GUI.enabled = !_busy && _selected >= 0;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Quick load (in place)")) RestoreSelectedInPlace();
-            y += 28f;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Full load (scene reload)")) RestoreSelectedWithLoad();
-            y += 28f;
-            if (GUI.Button(new Rect(0, y, 120, 22), Time.unscaledTime <= _deleteArmedUntil ? "Delete - sure?" : "Delete")) DeleteSelected();
-            GUI.enabled = true;
-            y += 28f;
-            y += StatusIf(Anchor.List, y, w);
-            y += 4f;
-
-            // The slot the game is running on
-            y += UiText.Draw(0, y, w, _slotLabel);
-            GUI.enabled = !_busy;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Quick load the slot's save")) SlotInPlace();
-            y += 28f;
-            if (GUI.Button(new Rect(0, y, 260, 24), "Full load the slot's save (no menu)")) SlotWithoutMenu();
-            GUI.enabled = true;
-            y += 28f;
-            y += StatusIf(Anchor.Slot, y, w);
-            y += 4f;
-
-            // Diagnostics
-            GUI.Label(new Rect(0, y, 60, 22), "Item id");
-            _itemIdText = GUI.TextField(new Rect(62, y, 60, 22), _itemIdText ?? "");
-            if (GUI.Button(new Rect(130, y, 130, 22), "Check pickups")) CheckPickups();
-            y += 28f;
-            y += StatusIf(Anchor.Pickups, y, w);
-            for (int i = 0; i < _diagLabels.Count; i++)
-                y += UiText.Draw(8, y, w - 8, _diagLabels[i]);
-            y += 6f;
-
             // The load leak: what each load leaves behind.
-            bool fix = GUI.Toggle(new Rect(0, y, w, 22), _threadsFix.Value,
+            bool fix = GUI.Toggle(new Rect(x, y, w, 22), _threadsFix.Value,
                                   " Fix: stop the worker threads the game leaves running after a load");
             if (fix != _threadsFix.Value) { _threadsFix.Value = fix; LeakedThreads.Enabled = fix; }
             y += 26f;
-            bool subs = GUI.Toggle(new Rect(0, y, w, 22), _subscribersFix.Value,
+            bool subs = GUI.Toggle(new Rect(x, y, w, 22), _subscribersFix.Value,
                                    " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
             if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
             y += 26f;
-            bool census = GUI.Toggle(new Rect(0, y, w, 22), _censusOnLoad.Value,
+            bool census = GUI.Toggle(new Rect(x, y, w, 22), _censusOnLoad.Value,
                                      " Memory census after every load (log; a short hitch after the load)");
             if (census != _censusOnLoad.Value) _censusOnLoad.Value = census;
             y += 26f;
             // Run from Tick, never inside OnGUI.
-            if (GUI.Button(new Rect(0, y, 200, 22), "Memory census now"))
+            if (GUI.Button(new Rect(x, y, 200, 22), "Memory census now"))
             {
                 _censusLabel = "a click (" + _loads.Loads + " loads so far)";
                 _censusDue = Time.unscaledTime;
                 _censusText.text = "running...";
             }
             y += 26f;
-            y += UiText.Draw(0, y, w, _censusText);
-
-            y += 6f;
-            y += UiText.DrawDim(0, y, w, _bindLabel);
-            _contentHeight = y + 8f;
-
-            GUI.EndScrollView();
+            y += UiText.Draw(x, y, w, _censusText);
+            return y;
         }
     }
 }

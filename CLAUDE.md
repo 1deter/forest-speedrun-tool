@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule`, `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -144,7 +144,7 @@ Where things live:
 scale. Per-feature keys still exist and are rebindable, but they open the
 window on that tab and are **unbound by default**.
 
-Tabs: Practice, Savestates, Runs, Deaths, Debug views, Inventory, 100%, Settings,
+Tabs: Practice, Runs, Deaths, Debug views, Inventory, 100%, Settings,
 QA, Updates. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
@@ -164,7 +164,7 @@ Settings shows *Game input: blocked* when that is working.
 | `F12` | Manual split / finish |
 | `[` | Abort run |
 | `Keypad *` | Freecam |
-| *(unbound)* | info box only; each tab; clear blood overlay |
+| *(unbound)* | info box only; each tab |
 
 `F1` is deliberately free — the game's own dev console uses it.
 All keys are rebindable in **Settings**, or in
@@ -835,7 +835,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.105** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.106** (2026-09-26). The author runs it via the in-game
 updater. **377 tests.**
 
 ### Pick up here (2026-09-26, v0.24.105 in the game)
@@ -865,12 +865,14 @@ entrances" is believed to be the launch - item 3 checks it.
 `image-1553417650607235164*.png` beside it. Not read yet - input for
 raw FPS (item 6 below).
 
-**Next session - take these first, small QA items (author):**
-- **Deaths tab**: remove the *Clear blood overlay* button (the No blood
-  toggle covers it). **Remove the Savestates tab**: migrate what is
-  useful to where it belongs (captures / restores -> Practice?, the
-  Memory section -> Debug views?) - ask the author where each part goes
-  if unclear.
+**Done 2026-09-26 (v0.24.106):** the Savestates tab removed (author:
+the free capture list, its hotkeys, the slot's Quick / Full load
+buttons and Check pickups go - start states in Practice are the runner
+path, the bridge keeps `capture` / `restore`); its two toggles and the
+Memory section moved to the bottom of Debug views; the Deaths tab's
+*Clear blood overlay* button and hotkey removed (No blood covers it).
+
+**Next session - small QA item:**
 - sxczurass: crouch fix (v0.24.102) is on the to-do list's *Please
   test*; move it to *Done recently* once he confirms.
 
@@ -1136,7 +1138,7 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   normal runs**: it is the game's own load of the same save.
   A revive from a fatal hard landing cancels the landing's aftermath (a
   postfix on `FirstPersonCharacter.HandleLanded`; game-notes *Deaths*).
-- **Savestates** (Savestates tab, practice-only; game-notes *Saving and
+- **Savestates** (no tab: Practice start states + the bridge; practice-only; game-notes *Saving and
   loading* has the IL). The game's own level serialization
   (`LevelSerializer.SerializeLevel`) written to
   `config/ForestOverlay/savestates/*.fosave` — never a save slot or Steam
@@ -1176,7 +1178,7 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   (`SavestateBridge.AdoptPlayer`; unmatched ones are named as `other
   misses:`). **Refused across Creative and survival** (the mode is not in
   the save) unless *Allow restoring across Creative and survival (testing)*
-  is on (`AllowCrossModeRestore`, off).
+  is on (`AllowCrossModeRestore`, off; Debug views).
   The file header lists the world pickups at capture and whether streaming
   was unloaded; `Data/SavestateFile` is pure and tested. Sticks / rocks
   around pooled trees are given back as captured (`greebles` header,
@@ -1189,8 +1191,6 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   `updateSpawns` top up a random family; weapons are whatever the spawn
   gives (game-notes *Cannibal kinds and families*). Restores are refused
   at the title screen (v0.24.73).
-  Messages sit under the button group that produced them; a Practice
-  restart's go at the top of the tab.
 - **Segment start states** (Practice editor, *Start state* row: Capture /
   Delete / Restart): a savestate at
   `savestates/segments/<safe segment id>.fosave`, restored on every restart
@@ -1224,7 +1224,7 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   **route fingerprint**, so moving a zone retires old times instead of
   letting them compete. Lines are cleared when the current entry is a plain
   spot or another segment.
-- **Loads and memory** (Savestates tab, *Memory* section): `Game/LoadWatcher`
+- **Loads and memory** (Debug views, bottom; drawn by `SavestateModule.DrawOptions`): `Game/LoadWatcher`
   sees every load by `Scene.FinishGameLoad`; 1.5 s later `Game/MemoryCensus`
   logs the heap, destroyed Unity objects still reachable from statics (per
   root, with growth) and Unity objects by type (switch
@@ -1412,8 +1412,8 @@ list so we can move onto expanding more features".
 1-2. ~~The load leak, updates under any file name~~ done (v0.23.3-0.23.7).
 3. ~~Savestates, the fix list, sharing~~ done (through v0.24.83; open
    leftovers in *Pick up here*). Author's idea, still open: reload the
-   slot **in place** on death (the Savestates tab's *Quick load the
-   slot's save* does exactly that).
+   slot **in place** on death (a *Quick load the slot's save* button did
+   it until v0.24.106 - `SavestateBridge.ReadSlotData` in git history).
 4. ~~Practice QoL~~ done and confirmed: auto-restart at the end of a timed
    spot (`Runs.AutoRestartAtEnd`, one global setting, load-mode start
    states too - author), no blood / no stagger (`Deaths.NoBlood` /

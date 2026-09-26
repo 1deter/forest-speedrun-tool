@@ -203,7 +203,7 @@ namespace ForestOverlay.BridgeMcp
                 Notice);
 
             Add("open_tab",
-                "Opens the ForestOverlay window on a tab by name (Practice, Savestates, Runs, Deaths, Debug views, " +
+                "Opens the ForestOverlay window on a tab by name (Practice, Runs, Deaths, Debug views, " +
                 "Inventory, 100%, Settings, QA, Updates...), opens the type explorer (`explorer`), or closes the window " +
                 "(`close`). Unknown names list the tabs.",
                 Schema(P("tab", "string", "Tab title or module id, or close.", true),

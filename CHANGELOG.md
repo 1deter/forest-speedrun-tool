@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.106 - 2026-09-26
+
+- The Savestates tab is gone: it was the early testing panel. Start
+  states in the Practice tab are how savestates work now (Capture and
+  Restart on a spot, F7). Its remaining options - restoring across
+  Creative and survival, putting enemies back after a restore, and the
+  memory / load fixes - moved to the bottom of the Debug views tab.
+- The Deaths tab's "Clear blood overlay" button (and its hotkey) is
+  gone; the No blood toggle does the same job and keeps it off.
+
 ## v0.24.105 - 2026-09-26
 
 - A Full load of a savestate taken on a cave rope now also puts you back

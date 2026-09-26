@@ -72,14 +72,7 @@ namespace ForestOverlay.Game
         private MethodInfo _resume;              // static void Resume()
         private PropertyInfo _isSuspended;
         private PropertyInfo _isDeserializing;
-        private PropertyInfo _allPrefabs;
-        private FieldInfo _playerName;
         private Type _levelLoaderType;
-
-        // Slot file
-        private MethodInfo _prefsGetString;      // PlayerPrefsFile.GetString(string, string, bool)
-        private MethodInfo _deserializeEntry;    // UnitySerializer.Deserialize<SaveEntry>(byte[])
-        private FieldInfo _entryData;
 
         // Level data, for the delete step
         private MethodInfo _deserializeLevelData; // UnitySerializer.Deserialize<LevelData>(byte[])
@@ -151,10 +144,8 @@ namespace ForestOverlay.Game
         private PropertyInfo _isCreative;
         private MethodInfo _setDifficulty;
         private Type _difficultyType;
-        private PropertyInfo _slot;
 
         // Save-routine steps
-        private FieldInfo _memorySafe;
         private FieldInfo _greebleManager;
         private MethodInfo _greebleForcedUnload;
         private MethodInfo _greebleCheckInCave;
@@ -174,11 +165,6 @@ namespace ForestOverlay.Game
         private FieldInfo _specialActions;
         private PropertyInfo _inOverlook;
         private FieldInfo _finishGameLoad;
-
-        // Pickup diagnostics
-        private Type _pickUpType;
-        private FieldInfo _pickUpItemId;
-        private FieldInfo _pickUpDestroyTarget;
 
         // In-place restore bookkeeping.
         private bool _loadDone;
@@ -210,8 +196,6 @@ namespace ForestOverlay.Game
                 _resume = ls.GetMethod("Resume", stat, null, Type.EmptyTypes, null);
                 _isSuspended = ls.GetProperty("IsSuspended", stat);
                 _isDeserializing = ls.GetProperty("IsDeserializing", stat);
-                _allPrefabs = ls.GetProperty("AllPrefabs", stat);
-                _playerName = ls.GetField("PlayerName", stat);
 
                 if (_levelLoaderType != null)
                 {
@@ -219,9 +203,6 @@ namespace ForestOverlay.Game
                     _loadNow = ls.GetMethod("LoadNow", stat, null,
                         new[] { typeof(object), typeof(bool), typeof(bool), complete }, null);
                 }
-
-                Type entry = ls.GetNestedType("SaveEntry", BindingFlags.Public | BindingFlags.NonPublic);
-                if (entry != null) _entryData = entry.GetField("Data", inst);
 
                 Type levelData = ls.GetNestedType("LevelData", BindingFlags.Public | BindingFlags.NonPublic);
                 Type storedItem = ls.GetNestedType("StoredItem", BindingFlags.Public | BindingFlags.NonPublic);
@@ -243,7 +224,6 @@ namespace ForestOverlay.Game
                         ParameterInfo[] p = m.GetParameters();
                         if (p.Length == 1 && p[0].ParameterType == typeof(byte[]))
                         {
-                            if (entry != null) _deserializeEntry = m.MakeGenericMethod(entry);
                             if (levelData != null) _deserializeLevelData = m.MakeGenericMethod(levelData);
                             break;
                         }
@@ -254,11 +234,6 @@ namespace ForestOverlay.Game
                 if (compression != null)
                     _decompress = compression.GetMethod("Decompress", stat, null, new[] { typeof(string) }, null);
             }
-
-            Type prefs = GameBridge.FindGameType("PlayerPrefsFile");
-            if (prefs != null)
-                _prefsGetString = prefs.GetMethod("GetString", stat, null,
-                    new[] { typeof(string), typeof(string), typeof(bool) }, null);
 
             _uniqueIdType = GameBridge.FindGameType("UniqueIdentifier");
             if (_uniqueIdType != null)
@@ -273,7 +248,6 @@ namespace ForestOverlay.Game
             {
                 _difficulty = setup.GetProperty("Difficulty", stat);
                 _isCreative = setup.GetProperty("IsCreativeGame", stat);
-                _slot = setup.GetProperty("Slot", stat);
                 if (_difficulty != null)
                 {
                     _difficultyType = _difficulty.PropertyType;
@@ -288,9 +262,6 @@ namespace ForestOverlay.Game
                     catch (Exception) { _initContinue = null; }
                 }
             }
-
-            Type pp = GameBridge.FindGameType("PlayerPreferences");
-            if (pp != null) _memorySafe = pp.GetField("MemorySafeSaveMode", stat);
 
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null)
@@ -406,18 +377,10 @@ namespace ForestOverlay.Game
             Type anim = GameBridge.FindGameType("playerAnimatorControl");
             if (anim != null) _holdingGlider = anim.GetField("holdingGlider", inst);
 
-            _pickUpType = GameBridge.FindGameType("TheForest.Items.World.PickUp");
-            if (_pickUpType != null)
-            {
-                _pickUpItemId = _pickUpType.GetField("_itemId", inst);
-                _pickUpDestroyTarget = _pickUpType.GetField("_destroyTarget", inst);
-            }
-
             Status = "serialize:" + (_serializeLevel != null) +
                      " loadNow:" + (_loadNow != null) +
                      " loadSaved:" + (_loadSavedLevel != null) +
                      " resume:" + (_resume != null) +
-                     " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
                      " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
@@ -454,19 +417,6 @@ namespace ForestOverlay.Game
 
         /// "Creative", the difficulty's name, or "" when unknown.
         public string CurrentDifficulty { get { return DifficultyName(); } }
-
-        public string CurrentSlot
-        {
-            get
-            {
-                // Resolved on first use; the tab read "?" until the first
-                // capture or restore bound everything.
-                Resolve();
-                if (_slot == null) return "?";
-                try { return _slot.GetValue(null, null).ToString(); }
-                catch (Exception) { return "?"; }
-            }
-        }
 
         public int IdentifierCount
         {
@@ -744,36 +694,6 @@ namespace ForestOverlay.Game
                 Exception inner = ex.InnerException ?? ex;
                 _log.LogWarning("Savestate slot load: " + inner);
                 return "Resume threw: " + inner.Message;
-            }
-        }
-
-        /// The level data inside the current slot's save file, or null
-        /// with `error` set.
-        public string ReadSlotData(out string error)
-        {
-            error = null;
-            if (!Resolve() || _prefsGetString == null || _deserializeEntry == null || _entryData == null)
-            {
-                error = "slot reader not bound";
-                return null;
-            }
-
-            try
-            {
-                string key = (_playerName != null ? _playerName.GetValue(null) as string : "") + "__RESUME__";
-                string b64 = _prefsGetString.Invoke(null, new object[] { key, "", true }) as string;
-                if (string.IsNullOrEmpty(b64)) { error = "slot " + CurrentSlot + " has no save"; return null; }
-
-                object entry = _deserializeEntry.Invoke(null, new object[] { Convert.FromBase64String(b64) });
-                string data = entry != null ? _entryData.GetValue(entry) as string : null;
-                if (string.IsNullOrEmpty(data)) error = "save entry held no data";
-                return data;
-            }
-            catch (Exception ex)
-            {
-                Exception inner = ex.InnerException ?? ex;
-                error = "could not read the slot save: " + inner.Message;
-                return null;
             }
         }
 
@@ -1702,76 +1622,6 @@ namespace ForestOverlay.Game
             return sb.ToString();
         }
 
-        public bool MemorySafeSaveMode { get { return ReadStaticBool(_memorySafe); } }
-
-        // ------------------------------------------------------------------
-        // DIAGNOSTICS: would the in-place restore bring this pickup back?
-        // The loader recreates a missing object only from a prefab
-        // (ClassId in AllPrefabs); a scene object that was destroyed is
-        // "Could not find".
-        public void DescribePickups(int itemId, List<string> lines)
-        {
-            lines.Clear();
-            if (!Resolve()) { lines.Add("not bound"); return; }
-            if (_pickUpType == null || _pickUpItemId == null) { lines.Add("PickUp type not found"); return; }
-
-            IDictionary prefabs = null;
-            try { prefabs = _allPrefabs != null ? _allPrefabs.GetValue(null, null) as IDictionary : null; }
-            catch (Exception) { }
-
-            UnityEngine.Object[] all;
-            try { all = Resources.FindObjectsOfTypeAll(_pickUpType); }
-            catch (Exception ex) { lines.Add("search failed: " + ex.Message); return; }
-
-            int found = 0;
-            for (int i = 0; i < all.Length && found < 10; i++)
-            {
-                Component c = all[i] as Component;
-                if (c == null || c.gameObject.hideFlags != HideFlags.None) continue;
-                if (!c.gameObject.scene.IsValid()) continue;   // prefab assets, not scene objects
-
-                int id;
-                try { id = (int)_pickUpItemId.GetValue(c); }
-                catch (Exception) { continue; }
-                if (id != itemId) continue;
-
-                found++;
-                StringBuilder sb = new StringBuilder();
-                sb.Append(Path(c.transform)).Append(c.gameObject.activeInHierarchy ? " (active)" : " (inactive)");
-                sb.Append(" | self/parents: ").Append(DescribeIdentifiers(c.gameObject, prefabs));
-
-                GameObject target = null;
-                try { target = _pickUpDestroyTarget != null ? _pickUpDestroyTarget.GetValue(c) as GameObject : null; }
-                catch (Exception) { }
-                if (target != null && target != c.gameObject)
-                    sb.Append(" | destroy target ").Append(target.name).Append(": ").Append(DescribeIdentifiers(target, prefabs));
-
-                lines.Add(sb.ToString());
-            }
-
-            if (found == 0) lines.Add("no pickup with item id " + itemId + " is loaded (it may be streamed out, or already taken)");
-            lines.Insert(0, "Item " + itemId + ": " + found + " pickup(s). Identifiers " + IdentifierCount +
-                            ", prefabs known " + (prefabs != null ? prefabs.Count.ToString() : "?"));
-        }
-
-        private string DescribeIdentifiers(GameObject go, IDictionary prefabs)
-        {
-            if (_uniqueIdType == null) return "?";
-            Component[] ids = go.GetComponentsInParent(_uniqueIdType, true);
-            if (ids == null || ids.Length == 0) return "no identifier (not saved: comes back only with the scene)";
-
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < ids.Length && i < 3; i++)
-            {
-                if (i > 0) sb.Append("; ");
-                Component u = ids[i];
-                string classId = ReadString(_uidClassId, u);
-                bool isPrefab = prefabs != null && !string.IsNullOrEmpty(classId) && prefabs.Contains(classId);
-                sb.Append(u.GetType().Name).Append(" on ").Append(u.gameObject.name);
-                sb.Append(isPrefab ? " [prefab: recreated in place]" : " [scene object: NOT recreated in place]");
-            }
-            return sb.ToString();
-        }
 
         // ------------------------------------------------------------------
         // Save-routine steps. Each is individually guarded: a missing piece
@@ -1879,13 +1729,6 @@ namespace ForestOverlay.Game
         {
             if (p == null) return false;
             try { return (bool)p.GetValue(null, null); }
-            catch (Exception) { return false; }
-        }
-
-        private static bool ReadStaticBool(FieldInfo f)
-        {
-            if (f == null) return false;
-            try { return (bool)f.GetValue(null); }
             catch (Exception) { return false; }
         }
 

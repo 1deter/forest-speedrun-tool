@@ -460,6 +460,10 @@ namespace ForestOverlay.Modules
             y = DrawPerf(y, w, true);
             y += 8f;
 
+            // --- savestates and loads (was the Savestates tab) --------------
+            SavestateModule savestates = Host.Find<SavestateModule>();
+            if (savestates != null) y = savestates.DrawOptions(12, y, w - 24) + 8f;
+
             // --- notes ------------------------------------------------------
             y += UiText.Draw(12, y, w - 24, _status);
             y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
