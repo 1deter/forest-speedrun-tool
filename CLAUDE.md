@@ -1341,7 +1341,8 @@ unless critical.
   too; **runs continue at the main menu** - abort automatically; ghost: a
   custom model, buildings in the replay; **checkpoint savestates**
   ("saveloc", like KSF surf) - capturing on the fly without a hitch.
-- **Settings / HUD:** settings do not persist (run lines, practice mode...)
+- **Settings / HUD:** settings do not persist (run lines, practice mode...;
+  maks raised it again on the QA Discord, 2026-09-26)
   - persist all; more control over the top-left HUD, less clutter.
 - **Debug views:** more detailed colliders (hitboxes), a better collider
   filter (items share generic names); colliders that change between
