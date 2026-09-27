@@ -65,3 +65,15 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 - **Creative-speed building in any mode**: hold to keep adding resources
   to a blueprint (Creative does), not one click per item - speed only, no
   free resources. Gameplay mod, practice.
+
+
+## For the final exhaustive feature testing
+
+- **Megan fight: health bar empty, died only a few hits later** (author,
+  2026-09-27, v0.24.143, during the Megan-fight Quick load tests; log
+  rotated out). Probably the game's last stand (`hitFromEnemy`, game-notes
+  *Deaths*: ~1 health left, adrenaline), but that says the *next* hit
+  kills - "a few" does not fit. Check live: god mode off, Quick load
+  `ruben-megan`, log `Stats.Health` every few tenths while the author
+  fights, and note which hit drops it and which kills (Megan's vs the
+  babies' damage path; the start state's own health).

@@ -1194,7 +1194,7 @@ list so we can move onto expanding more features".
 
 ### Deferred runner feedback
 
-Runner QoL / UX requests waiting until *Next up* is done (author: finish the list first, unless critical): [`docs/backlog.md`](docs/backlog.md) - deaths clarity, runs / run lines, checkpoint savestates, status overlay, settings that persist, debug views, maks's list. New unscheduled requests go there.
+Runner QoL / UX requests waiting until *Next up* is done (author: finish the list first, unless critical): [`docs/backlog.md`](docs/backlog.md) - deaths clarity, runs / run lines, checkpoint savestates, status overlay, settings that persist, debug views, maks's list, and a *final exhaustive feature testing* section (checks to run before a wide release). New unscheduled requests go there.
 
 ### How a session goes
 
