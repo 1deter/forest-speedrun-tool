@@ -49,6 +49,10 @@ namespace ForestOverlay.Modules
         }
 
         /// True while the window is open on this module's tab.
+        /// Where the window is on screen, while it is open (else empty) -
+        /// so a drag on the splits panel never starts from a click on it.
+        public Rect ScreenRect { get { return PanelOpen ? _windowRect : new Rect(); } }
+
         public bool IsShowing(OverlayModule module)
         {
             if (!PanelOpen) return false;

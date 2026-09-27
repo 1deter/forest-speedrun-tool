@@ -40,7 +40,7 @@ namespace ForestOverlay.Modules
         };
 
         private ConfigEntry<bool> _splitsPanel;
-        private ConfigEntry<float> _panelX, _panelY, _panelWidth;
+        private ConfigEntry<float> _panelX, _panelY, _panelWidth, _panelOpacity;
         private ConfigEntry<int> _panelRows;
         private readonly ConfigEntry<bool>[] _cols = new ConfigEntry<bool>[ColCount];
         private readonly ConfigEntry<bool>[] _lines2 = new ConfigEntry<bool>[LineCount];
@@ -64,8 +64,26 @@ namespace ForestOverlay.Modules
         private readonly GUIContent[] _colOptionText = new GUIContent[ColCount];
         private readonly GUIContent[] _lineOptionText = new GUIContent[LineCount];
         private readonly GUIContent _compareTitle = new GUIContent("");
-        private readonly GUIContent _runnerText = new GUIContent("");
         private readonly GUIContent _panelSizeText = new GUIContent("");
+        private readonly GUIContent _opacityText = new GUIContent("");
+        private readonly GUIContent _dragHint = new GUIContent(
+            "Drag the splits panel with the mouse to move it (while this window is open).");
+        private readonly GUIContent _noSteamHint = new GUIContent(
+            "Steam was not found - type the name your times should carry.");
+
+        // Dragging the panel: only while the window is open (the cursor is
+        // free then). The position is kept here while dragging and written
+        // to the config once, on release - a config write per mouse event
+        // would rewrite the file dozens of times a second.
+        private bool _dragging;
+        private Vector2 _dragOffset;
+        private float _dragX, _dragY;
+
+        // The runner field: one text box, pre-filled with the Steam name
+        // (author, 2026-09-27: one field, the name already typed). Filled
+        // from Tick when the options open; null = not filled yet.
+        private string _runnerEdit;
+        private string _steamName;
         private readonly GUIContent _splitsHint = new GUIContent("");
         private int _shownRows;
         private bool _splitsOptionsOpen;
@@ -82,6 +100,7 @@ namespace ForestOverlay.Modules
             _panelY = c.Bind("Splits", "PanelY", 140f, "Panel position from the top, in pixels.");
             _panelWidth = c.Bind("Splits", "PanelWidth", 300f, "Panel width in pixels.");
             _panelRows = c.Bind("Splits", "PanelRows", 12, "Most split rows the panel shows at once (the end is always shown).");
+            _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");
             bool[] colDefaults = { true, true, false, false, false, false };
             for (int i = 0; i < ColCount; i++)
             {
@@ -196,10 +215,14 @@ namespace ForestOverlay.Modules
 
             if (TabShowing && _splitsOptionsOpen)
             {
-                string name = RunnerNameNow();
-                _runnerText.text = "Runner: " + (name.Length > 0 ? name : "(no name - Steam not found; type one above)") +
-                                   (_runnerName.Value.Trim().Length == 0 && name.Length > 0 ? "  (your Steam name)" : "");
+                if (_runnerEdit == null)
+                {
+                    _steamName = RunnerIdentity.SteamName();
+                    string typed = _runnerName.Value != null ? _runnerName.Value.Trim() : "";
+                    _runnerEdit = typed.Length > 0 ? typed : (_steamName ?? "");
+                }
                 _panelSizeText.text = "width " + Mathf.RoundToInt(_panelWidth.Value) + " px, " + _panelRows.Value + " rows";
+                _opacityText.text = Mathf.RoundToInt(_panelOpacity.Value * 100f) + "%";
             }
 
             int rows = SplitRows;
@@ -300,11 +323,67 @@ namespace ForestOverlay.Modules
 
             float w = Mathf.Clamp(_panelWidth.Value, 160f, Screen.width);
             float h = PanelHeight(w);
-            float x = _panelX.Value < 0f ? Screen.width - w - 8f : Mathf.Min(_panelX.Value, Screen.width - w);
-            float y = Mathf.Clamp(_panelY.Value, 0f, Mathf.Max(0f, Screen.height - h));
+            float px = _dragging ? _dragX : _panelX.Value;
+            float py = _dragging ? _dragY : _panelY.Value;
+            float x = px < 0f ? Screen.width - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
+            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            Rect panel = new Rect(x, y, w, h);
 
-            GUI.Box(new Rect(x, y, w, h), GUIContent.none, _panelStyle);
-            DrawSplitsTable(x + 6f, y + 4f, w - 12f, _panelRows.Value, false);
+            HandleDrag(panel);
+
+            // Opacity on the background only: the text stays readable.
+            Color before = GUI.color;
+            GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(_panelOpacity.Value));
+            GUI.Box(panel, GUIContent.none, _panelStyle);
+            GUI.color = before;
+            if (_dragging) GUI.Box(panel, GUIContent.none);   // an outline while moving
+            DrawSplitsTable(x + 6f, y + 4f, w - 12f, _panelRows.Value, true);
+        }
+
+        private void HandleDrag(Rect panel)
+        {
+            Event e = Event.current;
+            if (e == null) return;
+            MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
+            bool windowOpen = main != null && main.PanelOpen;
+
+            if (!windowOpen)
+            {
+                if (_dragging) EndDrag();
+                return;
+            }
+
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || !panel.Contains(e.mousePosition) || main.ScreenRect.Contains(e.mousePosition)) return;
+                    _dragging = true;
+                    _dragOffset = e.mousePosition - new Vector2(panel.x, panel.y);
+                    _dragX = panel.x;
+                    _dragY = panel.y;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (!_dragging) return;
+                    _dragX = e.mousePosition.x - _dragOffset.x;
+                    _dragY = e.mousePosition.y - _dragOffset.y;
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (!_dragging) return;
+                    EndDrag();
+                    e.Use();
+                    break;
+            }
+        }
+
+        private void EndDrag()
+        {
+            _dragging = false;
+            float w = Mathf.Clamp(_panelWidth.Value, 160f, Screen.width);
+            _panelX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
+            _panelY.Value = Mathf.Max(0f, _dragY);
+            Ctx.Log.LogInfo("Splits panel moved to (" + Mathf.RoundToInt(_panelX.Value) + ", " + Mathf.RoundToInt(_panelY.Value) + ").");
         }
 
         private int VisibleRows(int maxRows)
@@ -316,7 +395,9 @@ namespace ForestOverlay.Modules
         {
             int lines = 0;
             for (int i = 0; i < LineCount; i++) if (_lines2[i].Value) lines++;
-            return 8f + 18f + VisibleRows(_panelRows.Value) * 18f + (lines > 0 ? 4f + lines * 18f : 0f);
+            int cols = 0;
+            for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
+            return 8f + 18f + (cols > 0 ? 18f : 0f) + VisibleRows(_panelRows.Value) * 18f + (lines > 0 ? 4f + lines * 18f : 0f);
         }
 
         /// The table at (x, y), `w` wide; returns its height. `header` adds
@@ -396,6 +477,7 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(0, y, 150, 22), _splitsOptionsOpen ? "Splits options  ^" : "Splits options  v"))
             {
                 _splitsOptionsOpen = !_splitsOptionsOpen;
+                _runnerEdit = null;    // re-read the Steam name and the setting
                 _splitsDirty = true;   // the runner and size lines are built on a refresh
             }
             y += 26f;
@@ -408,10 +490,15 @@ namespace ForestOverlay.Modules
             y = FlowToggles(y, w, "Columns:", _cols, _colOptionText);
             y = FlowToggles(y, w, "Lines:", _lines2, _lineOptionText);
 
+            y += UiText.Draw(0, y, w, _dragHint);
             GUI.Label(new Rect(0, y, 110, 20), "Panel position");
-            if (GUI.Button(new Rect(114, y - 1, 90, 22), "Top right")) { _panelX.Value = -1f; _panelY.Value = 140f; }
-            if (GUI.Button(new Rect(208, y - 1, 90, 22), "Top left")) { _panelX.Value = 8f; _panelY.Value = 140f; }
-            if (GUI.Button(new Rect(302, y - 1, 90, 22), "Lower right")) { _panelX.Value = -1f; _panelY.Value = Screen.height * 0.55f; }
+            if (GUI.Button(new Rect(114, y - 1, 130, 22), "Reset to top right")) { _panelX.Value = -1f; _panelY.Value = 140f; }
+            y += 26f;
+            GUI.Label(new Rect(0, y, 110, 20), "Background");
+            float sliderW = Mathf.Max(80f, w - 184f);
+            float op = GUI.HorizontalSlider(new Rect(114, y + 5, sliderW, 16), _panelOpacity.Value, 0f, 1f);
+            if (Mathf.Abs(op - _panelOpacity.Value) > 0.004f) { _panelOpacity.Value = Mathf.Round(op * 100f) / 100f; _splitsDirty = true; }
+            GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
             y += 26f;
             GUI.Label(new Rect(0, y, 110, 20), "Width / rows");
             if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _panelWidth.Value = Mathf.Max(160f, _panelWidth.Value - 20f); _splitsDirty = true; }
@@ -422,10 +509,20 @@ namespace ForestOverlay.Modules
             y += 26f;
 
             GUI.Label(new Rect(0, y, 110, 20), "Runner name");
-            string typed = GUI.TextField(new Rect(114, y - 2, Mathf.Max(80f, w - 124f), 22), _runnerName.Value ?? "");
-            if (typed != _runnerName.Value) { _runnerName.Value = typed; _splitsDirty = true; }
+            if (_runnerEdit != null)
+            {
+                string typed = GUI.TextField(new Rect(114, y - 2, Mathf.Max(80f, w - 124f), 22), _runnerEdit);
+                if (typed != _runnerEdit)
+                {
+                    _runnerEdit = typed;
+                    // The Steam name (or nothing) is stored as "", so the
+                    // name follows a Steam rename; anything else is kept.
+                    string t = typed.Trim();
+                    _runnerName.Value = t.Length == 0 || t == _steamName ? "" : t;
+                }
+            }
             y += 26f;
-            y += UiText.Draw(0, y, w, _runnerText);
+            if (_steamName == null && _runnerEdit != null && _runnerEdit.Trim().Length == 0) y += UiText.Draw(0, y, w, _noSteamHint);
             return y + 4f;
         }
 

@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.149 - 2026-09-27
+
+- **Move the splits panel by dragging it** with the mouse while the
+  ForestOverlay window is open (F2). Splits options keep a button to
+  reset it to the top right.
+- **Background opacity slider** for the splits panel (Splits options);
+  the text stays solid.
+- The on-screen panel now shows the column titles.
+- Runner name is one field, already filled in with your Steam name -
+  change it there if you want another name on your times.
+
 ## v0.24.148 - 2026-09-27
 
 - Splits options: the runner name and panel size lines show as soon as
