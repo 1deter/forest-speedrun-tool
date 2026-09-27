@@ -35,14 +35,21 @@ button, input, select { font: inherit; color: inherit; }
   display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
   max-width: 1100px; margin: 0 auto; padding: 28px 16px 12px;
 }
-.brand { font-weight: 600; letter-spacing: .32em; font-size: 14px; }
-.brand span { color: var(--muted); letter-spacing: .12em; font-weight: 500; margin-left: .6em; text-transform: lowercase; }
+/* The logo's look: a heavy condensed face, uppercase, the same yellow. */
+.brand { font-family: Anton, Impact, sans-serif; font-size: 26px; letter-spacing: .04em; line-height: 1; }
+.brand span {
+  font-family: Montserrat, system-ui, sans-serif; font-size: 12px; color: var(--muted);
+  letter-spacing: .2em; font-weight: 500; margin-left: .7em; text-transform: uppercase; vertical-align: 4px;
+}
 .top nav a { margin-left: 20px; color: var(--muted); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
 .top nav a:hover, .top nav a.on { color: var(--yellow); }
 
 main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 64px; }
 
-h1 { font-weight: 500; font-size: 26px; letter-spacing: .06em; margin: 18px 0 4px; color: var(--yellow); }
+h1 {
+  font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 40px; line-height: 1.1;
+  letter-spacing: .03em; text-transform: uppercase; margin: 18px 0 6px; color: var(--yellow); overflow-wrap: anywhere;
+}
 h2 {
   font-weight: 600; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
   color: var(--muted); margin: 36px 0 10px;
@@ -137,4 +144,8 @@ tr.focus td { background: #151300; }
 .about { max-width: 68ch; }
 .about ol { padding-left: 20px; }
 .about li { margin-bottom: 8px; }
+.foot {
+  max-width: 1100px; margin: 0 auto; padding: 24px 16px 32px; border-top: 1px solid #111;
+  color: #444; font-size: 11px; letter-spacing: .04em;
+}
 .about code { color: var(--white); font-size: 13px; }

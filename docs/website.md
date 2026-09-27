@@ -84,7 +84,11 @@ the starting point; decisions made while building go here too.
   3D terrain after.
 - **Look (author):** minimalist, intuitive, The Forest's loading screen:
   its progress bar's yellow `rgb(229, 197, 1)` on black, `#222` backing,
-  Montserrat (read from `HUD_Ngui/LoadCam` over the bridge).
+  Montserrat (read from `HUD_Ngui/LoadCam` over the bridge). The logo's
+  yellow is the same (229, 197, 0, from the author's cover art); its look
+  is echoed with Anton (heavy condensed, uppercase) for the wordmark and
+  titles - **not the logo image itself**, plus a "not affiliated with
+  Endnight" footer (Claude's advice, 2026-09-27).
 
 ## What is built (2026-09-27, not deployed yet)
 
