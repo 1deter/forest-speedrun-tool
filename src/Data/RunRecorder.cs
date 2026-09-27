@@ -71,6 +71,12 @@ namespace ForestOverlay.Data
         /// decides whose run it is; the newest name is what is shown.
         public string RunnerId = "";
         public string RunnerName = "";
+
+        /// Where this save's plane crashed (x, y, z) and its yaw - the map
+        /// shows that plane (v0.24.163). HasPlane false for older runs.
+        public bool HasPlane;
+        public Vector3 Plane;
+        public float PlaneYaw;
         public readonly List<RunSample> Samples = new List<RunSample>();
 
         /// Names of the state channels, index-aligned with every

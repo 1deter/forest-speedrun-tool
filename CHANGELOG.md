@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.163 - 2026-09-27
+
+- Finished runs now remember where your save's plane crashed, so the
+  website's map can show that plane instead of all twelve possible sites.
+
 ## v0.24.162 - 2026-09-27
 
 - Developer tooling only: the overlay can write the world's terrain

@@ -150,12 +150,24 @@ window.RunMap = (function () {
     }
   };
 
-  /// The plane's possible crash sites: a small hull, nose along its yaw.
+  /// The plane: where the shown runs' saves had it (plugin v0.24.163+, a
+  /// `plane` per run) bright, the other crash sites faint; with no run that
+  /// knows, every site as it may be. A small hull, nose along its yaw.
   RunMap.prototype.planes = function () {
     const ctx = this.ctx, dpr = window.devicePixelRatio || 1, k = Math.max(6, Math.min(16, 30 * this.view.scale));
+    const known = this.runs.filter(r => r.plane).map(r => r.plane);
+    const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 30;
     ctx.save();
-    ctx.fillStyle = "rgba(235,235,235,.8)"; ctx.strokeStyle = "rgba(0,0,0,.7)"; ctx.lineWidth = 1;
-    for (const [x, z, yaw] of PLANES) {
+    ctx.lineWidth = 1;
+    // The recorded position is the save's own (it can sit a little off the
+    // site's reference point); draw it, and the sites no run used.
+    const draw = known.slice();
+    for (const site of PLANES) if (!known.some(p => near(p, site))) draw.push(site);
+    for (const pl of draw) {
+      const [x, z, yaw] = pl;
+      const bright = !known.length || known.includes(pl);
+      ctx.fillStyle = bright ? "rgba(235,235,235,.85)" : "rgba(235,235,235,.22)";
+      ctx.strokeStyle = bright ? "rgba(0,0,0,.7)" : "rgba(0,0,0,.2)";
       const [sx, sy] = this.toScreen(x, z);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.translate(sx, sy); ctx.rotate(yaw * Math.PI / 180);

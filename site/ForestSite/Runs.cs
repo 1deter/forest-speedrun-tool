@@ -250,6 +250,8 @@ public sealed class Runs
             foreach (ItemChange c in a.Items)
                 items.Add(new JsonArray(R(c.T), c.Name, c.Count));
         o["items"] = items;
+        // The save's plane (plugin v0.24.163+): [x, z, yaw], or null.
+        o["plane"] = a != null && a.HasPlane ? new JsonArray(R(a.Plane.x), R(a.Plane.z), R(a.PlaneYaw)) : null;
         return o;
     }
 

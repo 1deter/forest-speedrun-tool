@@ -27,8 +27,9 @@ async function api(path) {
   return r.json();
 }
 
-/// Data/SplitTable.Time: "12.34", "1:02.34", "1:02:03.45"; "-" unknown.
-function time(t, decimals = 2) {
+/// Data/SplitTable.Time: "12.345", "1:02.345", "1:02:03.456"; "-" unknown.
+/// Three decimals everywhere on the site (author, 2026-09-27).
+function time(t, decimals = 3) {
   if (t === null || t === undefined || !isFinite(t)) return "-";
   const neg = t < 0; t = Math.abs(t);
   const scale = 10 ** decimals, u = Math.round(t * scale);
@@ -285,7 +286,7 @@ async function spotPage(id, routeId) {
   async function refreshMap(refit) {
     const ids = [...state.shown.keys()];
     await Promise.all(ids.map(id => load(id, false)));
-    map.setRuns(ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id) })), refit);
+    map.setRuns(ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id), plane: (state.runs.get(id) || {}).plane })), refit);
     mapEmpty.textContent = ids.length ? "" : r.board.length ? "Tick a run to show its line." : "No runs on this route yet.";
     setTime(state.time);
   }

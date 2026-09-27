@@ -164,6 +164,9 @@ namespace ForestOverlay.Modules
             if (_segment != null && _splits.Count == _segment.Checkpoints.Count) done.Splits = _splits.ToArray();
             done.RunnerId = RunnerIdNow();
             done.RunnerName = RunnerNameNow();
+            Vector3 plane;
+            float yaw;
+            if (PlaneSite.TryRead(Ctx.Log, out plane, out yaw)) { done.HasPlane = true; done.Plane = plane; done.PlaneYaw = yaw; }
         }
 
         // --- state ------------------------------------------------------------
