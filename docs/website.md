@@ -105,7 +105,9 @@ the starting point; decisions made while building go here too.
 - Checked locally with the author's real `s-splitstest01` attempts: all 6
   accepted (route fingerprints match the plugin's).
 - API: `GET /api/spots`, `/api/spots/{id}`, `/api/spots/{id}/{route}/runner/{runner}`,
-  `/api/runs/{id}` (path `[t,x,y,z,speed]`), `/api/runs/{id}/file`;
+  `/api/runs/{id}` (path `[t,x,y,z,speed]`), `/api/runs/{id}/file`,
+  `/api/spots/{id}/{route}/board.txt` (each runner's best as text for the
+  plugin, `Data/SiteBoard`; runs under review left out);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
   (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`;
   `/api/admin/...` with `X-Admin-Token`.
@@ -135,7 +137,8 @@ spot's saved runs" and "Open on the website".
 
 ## Next
 
-1. Other runners' PBs as split comparisons in game (`GET /api/spots/{id}`).
+1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:
+   `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
 2. A spot submission button in Practice; an admin page instead of curl.
 3. The map: terrain heightmap underlay, then 3D.
 

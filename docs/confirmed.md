@@ -198,3 +198,9 @@ and a forced texture rebuild then runs safely.
   "Upload this spot's saved runs" sent 6, a finished run uploaded by
   itself, and with the site down it waited ("retrying in 30 s") and was
   sent when the site came back.
+- **Other runners' PBs as comparisons (v0.24.155)**, over the bridge
+  against a local site with a fake second runner: `Site board ...: 1
+  runner(s), 1 to compare with.`, the pick fetched their run (`Site run 1
+  (...): 52 samples`), table titled "vs" them with split deltas, live HUD
+  delta and ghost in a run, own sum of best / attempts unchanged, the
+  cycle key Runner -> Best -> ... -> Runner.

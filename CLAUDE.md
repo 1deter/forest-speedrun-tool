@@ -569,8 +569,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.154** (2026-09-27). The author runs it via the in-game
-updater. **396 tests.**
+**Released: v0.24.155** (2026-09-27). The author runs it via the in-game
+updater. **415 tests** (+ 10 site tests).
 
 ### Pick up here (2026-09-27, v0.24.152 in the game)
 
@@ -588,8 +588,15 @@ live registration happens on their next finished run. **Test the plugin
 against a local site**: preview `forest-site`, delete
 `site/ForestSite/bin/Debug/net10.0/data` first (a runner id registers
 once), `set ..._modules[16]._url.Value http://localhost:5080`, and set
-URL + `_token.Value ""` back after. Next for the site: *Next* in
-docs/website.md (other runners' PBs in game, spot submissions, admin
+URL + `_token.Value ""` back after. **v0.24.155: other runners' PBs as
+comparisons** - the site's `board.txt` (`Data/SiteBoard`, tested both
+sides) is read on arming (again after 2 min); Runs tab -> "another
+runner" `<` `>` under Compare to (and the cycle key); a pick fetches
+their `.run` as the reference (table, delta, ghost, lines); never in the
+runner's own PB / golds (`Modules/PracticeRunModule.Site.cs`). Checked
+over the bridge against a local site with a fake second runner
+(docs/confirmed.md). Not seen yet: two real runners on the live site.
+Next for the site: *Next* in docs/website.md (spot submissions + admin
 page, terrain).
 
 **v0.24.146-151: the LiveSplit-style splits table** - on screen
@@ -612,10 +619,9 @@ the author (v0.24.152, windowed, both edges; docs/confirmed.md). A test segment
 `s-splitstest01` ("Splits test", category Test) is in the author's
 `my-segments.txt` (backup before it:
 `%TEMP%/my-segments.before-splits-test.txt`) - remove it per *Removing
-test spots* when the author is done with it. **Left for splits:** other
-runners' attempts as comparisons (Import stops ignoring `.foseg`
-attempts; keep them apart, per-runner PB) - the website needs the same
-plumbing; the `.lss` import (Next up 9, after the site if the author
+test spots* when the author is done with it. **Left for splits:** imported
+`.foseg` attempts as comparisons (the website's are done, v0.24.155);
+the `.lss` import (Next up 9, after the site if the author
 prefers). Not built: LiveSplit's PB chance / total playtime lines.
 
 **QA (2026-09-27):** one consolidated list per tester, on the author's
