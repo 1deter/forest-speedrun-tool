@@ -501,6 +501,9 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw.
 51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release.
 52. **A hook can run twice before the Destroy lands** - key "do once" on the instance; pairs of identical log lines are the tell.
+53. **A game's own database can be wrong** - spot-check it against live objects before building on it.
+54. **Drive a UI the way the game does** - `SetActive` pokes skip the game's teardown; show things through its own click path.
+55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom.
 
 ---
 
@@ -552,16 +555,21 @@ identity.
 
 ## Current status
 
-**Released: v0.24.132** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.133** (2026-09-27). The author runs it via the in-game
 updater. **383 tests.**
 
-### Pick up here (2026-09-26, v0.24.128 in the game)
+### Pick up here (2026-09-27, v0.24.133 in the game)
 
-**Author's focus (2026-09-26): FPS performance and patches only** - all
-other feedback goes to other sessions (task chips were spawned for new
-runner Tom's four reports and Cheesecake's endgame savestate answer).
-The author prefers **direct patches** over tuning settings (a settings
-sweep only "if it's light on usage").
+**Two sessions run side by side (author, 2026-09-27):** one on FPS
+performance and patches (everything under *Raw FPS* below), one on the
+rest. A non-FPS session picks up **Next up 7: logs in the inventory**
+(*Next, in this order* 2) and watches maks's crash answer (*This
+session* below). Both release: **`git fetch` and check `HEAD..origin/main`
+before bumping the version**, and read `qa_read new_only` as shared -
+a message one session reads is gone from the other's new list (tell the
+author what belongs to the other session). The author prefers **direct
+patches** over tuning settings (a settings sweep only "if it's light on
+usage").
 
 **Raw FPS (item 3 below), an investigation on high effort.** Game-notes
 *Frame time: where the main thread goes* has every number; in short:
@@ -638,7 +646,7 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.132 in Slot 2 at (817, 91, 620) (the
+**State:** the game runs v0.24.133 in Slot 2 at (817, 91, 620) (the
 slot's own spot), God mode on (loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
@@ -700,22 +708,22 @@ performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
 #general: confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
-**This session (2026-09-27, v0.24.129-132):** passengers on the 100%
-tab (`Game/PassengerReader`, v0.24.130-131; seats sorted; warns when
-the manifest is not carried - the game only counts then); nature guide
-pages named as in the book (v0.24.132: Plant Life 1-2, Animals 1-3,
-from the links' text); title-screen scans gone (`SurvivalBookReader`,
-`InventoryReader`, v0.24.130). All checked over the bridge. Offered,
-not done: the nature guide **entry** names as the book prints them
-("Chanterelle Mushroom", not "Mushroom Chant" - the page's
-`TrTextMesh - NatureGuideL/R - <name>` texts). **maks's game crash**
+**This session (2026-09-27, v0.24.129-133), all checked over the
+bridge:** passengers on the 100% tab (`Game/PassengerReader`,
+v0.24.130-131; seats sorted; warns when the manifest is not carried -
+the game only counts then); the nature guide named as the book prints
+it - pages (v0.24.132: Plant Life 1-2, Animals 1-3, from the links'
+text) and entries (v0.24.133: the printed name nearest each tick, 43 of
+44; the 44th has no tick and sits under "Other" as before);
+title-screen scans gone (`SurvivalBookReader`, `InventoryReader`,
+v0.24.130). **maks's game crash**
 (QA message `1553525841344856146`, log in `Downloads\qa-reports\yirequ\`):
 first launch of v0.24.129, native crash right after a title-screen
 save load (log ends at the player bind, no exception); asked for the
 Unity crash folder and his Performance switches (message
 `1553710935607214143`). sxczurass's FPS follow-up answer (message
 `1553661518703497236`, files in `Downloads\qa-reports\sxczurass\`) was
-read here - the FPS session's `qa_read new_only` will not show it.
+read here and passed to the FPS session by the author.
 
 **The plane axe message: fixed v0.24.129** (the game's post-load
 re-equip fallback; hidden during a restore, verified both sides over the

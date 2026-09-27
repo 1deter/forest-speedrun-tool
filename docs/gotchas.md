@@ -390,3 +390,28 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     v0.24.112-123). A pair of identical log lines is the tell. Key a
     "do once" hook on the instance, and check a copy is whole before
     using it.
+
+53. **A game's own database can be wrong - check it against the live
+    objects.** `PassengerDatabase._passengers` lists every passenger
+    with a scene path, and it looked like a ready-made "where is it"
+    guide. Five `PassengerView`s in Cave 6's main cavern carried ids
+    18, 14, 4, 20 and 6; the database put those in Caves 1 and 9
+    (v0.24.130, bridge). Editor-generated data goes stale when scenes
+    move on. Spot-check a few entries live before shipping anything
+    built on it.
+
+54. **Drive a UI the way the game does.** Switching the survival book
+    to a nature page with `SetActive` on the page object left the main
+    index drawn over it (the author spotted it in the screenshot,
+    v0.24.132) - a link click (`SelectPageNumber.OnClick`) also turns
+    off the other layers. Poking objects is fine for reading; for
+    showing, go through the game's own path, and when a screenshot
+    looks wrong, suspect the poke first.
+
+55. **Read what the fallback changes, not only why it fires.** The
+    plane axe message was chased as a race for days; the IL of the
+    fallback (`AddItemNF` at the cap: HUD message, return false) showed
+    it changed nothing - the message was the whole symptom, only our
+    restores reach it, and hiding it in that window was the complete
+    fix (v0.24.129). Before hunting the cause of a fallback, check
+    whether its effect matters.

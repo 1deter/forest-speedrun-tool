@@ -379,8 +379,12 @@ the page names are on the links (`SelectPageNumber`, target
 PLANT LIFE 2, ANIMALS 1, ANIMALS 2, ANIMALS 3. Links to page 1 from the
 index, tabs and crafting guide say "NATURE GUIDE". Entry names as
 printed: `Texts Left` / `Texts Right` children `TrTextMesh -
-NatureGuideL - Aloe` etc. Setting a page active by hand leaves the main
-index layer drawn over it - switch pages through a link.
+NatureGuideL - Aloe` etc. (the L / R in the name does not say which
+side; text e.g. "OVAL-LEAVES BLUEBERRIES"); each entry's tick
+(`Root/Checkmark (n) <name>`) sits ~5 cm from its name - 43 ticks, 43
+texts, 44 `TickOffSystem` entries (one without a tick). Setting a page
+active by hand leaves the main index layer drawn over it - switch pages
+through a link.
 
 ### Passengers (IL + bridge, v0.24.130)
 
