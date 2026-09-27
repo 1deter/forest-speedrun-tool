@@ -140,6 +140,14 @@ the starting point; decisions made while building go here too.
   do everything except manage admins. Locally the `forest-site` preview's
   owner token is `local-admin`.
 
+**The local preview versions its assets at startup** (`app.js?v=<hash>`,
+computed once): after editing `wwwroot`, restart the `forest-site`
+preview or the page keeps the old script and CSS (a deploy restarts, so
+live is fine). Test runs for the local site: post a `.foseg` with a
+registered local runner (`/api/register`, then `/api/runs` with the
+token); an attempt's `runner|` line must be that runner's, or it is
+refused as "another runner's attempt".
+
 **Testing the plugin against a local site** (preview `forest-site`,
 `http://localhost:5080`, owner token `local-admin` from
 `.claude/launch.json`): `set ..._modules[16]._url.Value
@@ -198,15 +206,33 @@ spot's saved runs" and "Open on the website".
    thirst, armour, cold armour, battery, body temp, stealth, cold, light;
    plus speed from the path) - and `?all=1` every channel, behind the
    panel's *Show all* (author: "a smaller preset useful for the runners").
-   Values step (the last 5 Hz sample), not blended. **Inventory counts
-   since v0.24.160** (`Game/ItemChannels`): `item:<database name>`
-   channels after the PlayerStats ones (Soda, Booze, EnergyMix, Meds,
-   Aloe, Coins, Battery, Stick, Rock, Log, Rope, Cloth, Molotov,
-   BombTimed, Dynamite, Flare), from the game's `AmountOf(id, false)`
-   (held item included); the page lists them under *Carrying*, only the
-   ones the run ever held. Checked over the bridge (3 sodas read 3); not
-   seen yet in an uploaded run - the next finished run shows it.
-4. The map: terrain heightmap underlay, then 3D.
+   Values step (the last 5 Hz sample), not blended. **Carried items**
+   (v0.24.161, author: "dynamically count items" + event-based):
+   the `.run`'s item track, `i|<t>|<name>:<count>|...` - only changes
+   (the first sample lists the bag, a used-up item is written 0), names
+   are the game's database names (`Soda`, `EnergyMix`, `CamCorderTape`;
+   the page spaces them out, `ITEMS` in app.js renames a few).
+   `Game/ItemCounter` reads `PlayerInventory._possessedItems` (only what
+   the player owns) with `AmountOf(id, false)` (held item included),
+   **only after** a postfix on a writer of `InventoryItem._amount` ran
+   (plus a full read every 5 s). `/api/runs/{id}` serves it as `items:
+   [[t, name, count]]`; the panel's *Carrying* lists the items the run
+   ever held, 0 dimmed. v0.24.160 recorded a fixed list as `item:<name>`
+   channels instead - still read (only runs from that version).
+4. **The map: terrain heightmap underlay, then 3D** - next (a new
+   session, author 2026-09-27). Known (bridge, 2026-09-27, Slot 2): one
+   terrain, `Terrain.activeTerrain` = `MainTerrain`,
+   `terrainData.size` (3500, 250, 3500), at (-1750, 0, -1742.63) - so it
+   covers x -1750..1750, z -1742.63..1757.37; `heightmapResolution` 2049
+   (4.2 M heights, ~1.7 m per sample), `alphamapResolution` 512 (the
+   ground textures' mix - a colour map source). Plan: dump the heights
+   once from the game (`GetHeights(0, 0, 2049, 2049)` - a big read: do it
+   in rows from a bridge `call` or a small one-off plugin/debug action,
+   not from `OnGUI`), bake them offline into a shaded-relief PNG (plus
+   maybe tiles / a lower-res 1025^2 for phones) shipped in
+   `site/ForestSite/wwwroot`, and draw it under the grid in `map.js` at
+   world coordinates (x east, z north; the image's row 0 is z min). Caves
+   stay a later mesh dump. 3D after (the same heights as a mesh).
 
 ## Useful from the game later
 

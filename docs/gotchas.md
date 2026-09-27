@@ -482,3 +482,12 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     and the panel jumped to the right side (author, v0.24.151, windowed).
     Clamp live input to the real range, and apply a sentinel only to the
     saved setting, never to a value being edited (v0.24.152).
+
+62. **A fixed list is a guess about what runners care about; the game already
+    knows what changed.** v0.24.160 recorded 16 hand-picked items as 5 Hz
+    channels; the author asked the next hour for *every* item (coins,
+    tapes ...) and for reads only when the bag changes. v0.24.161 records
+    changes only, and reads only after a game method that writes the value
+    ran (ilscan `writes <Type>::<field>` lists them all; postfix each, plus
+    a slow full read as a net). Before a per-sample reader of game state,
+    ask: can the list be "whatever is there", and is there a write to hook?

@@ -180,6 +180,23 @@ LiveSplit autosplitter filters them as `id < 29 || id > 311 || id == 302`
 - That id range describes `_possessedItems`, **not the database** — applying it
   to the catalogue hides real items from search.
 
+### Counting an item, and who changes counts (v0.24.160-161)
+
+- `_possessedItems` holds **only what the player owns** (6 entries in a
+  mid-game Slot 2 save, bridge 2026-09-27), not every item type.
+- `PlayerInventory.AmountOf(int id, bool allowFallback)` (instance) is the
+  count to use: it includes the held item (bridge: 2 Molotovs read 2
+  before and after `Equip`). `ItemIdByName` answers the `_name` form
+  (`Soda` 109, `EnergyMix` 100, `BombTimed` 29, `Meds` 49, `Booze` 37,
+  `Coins` 91, `Log` 78); a display name ("Energy Mix") answers 0.
+- **Every writer of `InventoryItem._amount`** (ilscan `writes`):
+  `InventoryItem` `Add` / `Remove` / `RemoveOverflow`; `PlayerInventory`
+  `AddItemNF` / `RemoveItemNF` / `FixMaxAmountBonuses` /
+  `AddMaxAmountBonus` / `SetMaxAmountBonus`, the `OnDeserialized`
+  coroutine; plus `CoopSharableStorageProxy.RefreshStorage` (co-op
+  storage, not the player). `Game/ItemCounter` postfixes all but the last
+  to know when to re-read.
+
 ### Item names
 
 Internal names are nothing like published ones: `MorgueReport` = Autopsy

@@ -111,7 +111,7 @@ Where things live:
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
-| Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
+| Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`; `ItemChange` track), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`), `Game/PlayerStateReader` (5 Hz stats), `Game/ItemCounter` (carried items, event-driven) |
 | Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
@@ -518,6 +518,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared.
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release.
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting.
+62. **Record what changed, when the game changes it** - not a fixed list per sample: `ilscan writes` finds every writer to hook (v0.24.161 items).
 
 ---
 
@@ -569,20 +570,32 @@ identity.
 
 ## Current status
 
-**Released: v0.24.160** (2026-09-27). The author runs it via the in-game
-updater (v0.24.160 in the game at handoff, Slot 2 loaded). **419 tests** (+ 16 site tests).
+**Released: v0.24.161** (2026-09-27). The author runs it via the in-game
+updater (v0.24.161 in the game at handoff, Slot 2 loaded). **422 tests** (+ 16 site tests).
 
-### Pick up here (2026-09-27, v0.24.158 in the game)
+### Pick up here (2026-09-27, v0.24.161 in the game)
 
-**The author continues on the website in the next session** (author,
-2026-09-27). Start with [`docs/website.md`](docs/website.md): decisions,
-API, admin, how to test the plugin against a local site (the author's
-live upload token is in their config now - read that paragraph before
-touching `_token`), and *Next* - 3 (the player's state at a point of a
-run) is done (site *State* panel + v0.24.160 inventory counts in
-`.run`s, 2026-09-27), next is 4: the terrain map.
+**Next session: the terrain map on the website** (author, 2026-09-27:
+"work on terrain in a new session"). Start with
+[`docs/website.md`](docs/website.md) - *Next* 4 has what is known
+(terrain read live: one `MainTerrain`, 3500 x 250 x 3500 m at
+(-1750, 0, -1742.63), heightmap 2049^2) and a plan; the map is
+`site/ForestSite/wwwroot/map.js` (a 2D canvas, x east / z north).
 
-**Site, done this session (v0.24.158-159 + site pushes):** clean paths
+**Done this session (site + v0.24.160-161):** the spot page's **State**
+panel - the selected run at the scrub time (health, stamina ... a preset
+for runners, *Show all* fetches every channel; author: "a smaller preset
+useful for the runners"), a click on a map line jumps to that run and
+moment; and **every carried item** recorded in runs (v0.24.161,
+`Game/ItemCounter`: `i|` change lines, read only after the game's
+inventory methods ran - author: "only really updates when an item is
+changed"), shown under *Carrying*. v0.24.160's fixed 16 item channels
+were replaced a release later (the site still reads them). Checked:
+tests, the local site with the author's real runs, the item reads over
+the bridge (docs/confirmed.md). Not seen yet: a real uploaded run with an
+item track - the next finished run on v0.24.161 shows it.
+
+**Site, earlier the same day (v0.24.158-159 + site pushes):** clean paths
 instead of `#/` (author asked; old links rewritten); the admin page
 `/admin` - submissions, under review, spots (delete a runner's spot),
 runners, activity log, and per-admin tokens the owner makes / revokes
