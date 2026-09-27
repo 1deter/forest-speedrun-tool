@@ -1870,6 +1870,13 @@ this game, so the frozen frame counts as ~5 s of game time: with the load
 async (`EndgameAsyncInRuns`, v0.24.107: 1.09 s, 293 frames, longest
 12 ms, all inside the cutscene) the flag fell at 16.7 s. The freeze costs
 no run time - only the picture.
+**A crossing outside the door's cutscene** (maks: Go, door opened, the
+endgame not in, ran back through the box) also loads it - `_canLoad` is
+already set, so the forward crossing's `ForceLoad` goes through. Async
+there pinned the player for the whole load; since v0.24.145 a load that
+starts outside a cutscene is the game's own synchronous one (bridge:
+`ForceUnload`, `SetCanLoad true`, tp into the box and out forwards ->
+one 4610 ms frame, no hold).
 
 **A Quick load reloads the streamed scenes** (bridge, 2026-09-26,
 `elevPre` from a cave): `ForcedUnload(true)` on the greeble zones and

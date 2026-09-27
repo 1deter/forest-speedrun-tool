@@ -176,3 +176,7 @@ and a forced texture rebuild then runs safely.
   then a Quick load: `removed girlMutant(Clone), girlSpawnGo`, one
   `girlMutant(Clone)` at the seat, transformation replayed (v0.24.143
   left two).
+- **Endgame load trigger crossed outside the vault door's cutscene is the
+  game's own load (v0.24.145, bridge, 2026-09-27, Slot 2):** `Performance:
+  endgame load in play outside a cutscene ... no hold`, one 4610 ms frame,
+  the player not pinned (maks was held for the whole load before).

@@ -562,7 +562,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.144** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.145** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
 ### Pick up here (2026-09-27, v0.24.144 in the game)
@@ -597,6 +597,10 @@ game's removal list is never cleared. `Pathfinding:` log lines name
 every graph update (bounds, caller, duration) and each AstarPath
 teardown's wait. Not checked: a natural arrival / death in the endgame
 with many buildings (should be the game's own grouped route).
+
+**v0.24.145: the endgame load trigger crossed outside the vault door's
+cutscene** (maks walked back through it after a Go + door) is the game's
+own load again, no hold - checked over the bridge (docs/confirmed.md).
 
 **v0.24.144: the old Megan left by a mid-fight Quick load is fixed**
 (checked over the bridge, docs/confirmed.md): `MeganKeeper` removed the
