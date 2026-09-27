@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.143 - 2026-09-27
+
+- New performance patch (on by default, Debug views -> Performance):
+  **when a building or the plane wreck is removed, enemy paths are
+  recalculated only where it stood.** The game remembered every earlier
+  removal and recalculated all of those places again each time, which
+  after a Quick load could cover most of the map (16 s of background
+  work, and a death or another Quick load in that time froze until it
+  was done).
+
 ## v0.24.142 - 2026-09-27
 
 - **Quick load no longer leaves the game busy for half a minute** in a

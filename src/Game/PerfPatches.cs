@@ -233,6 +233,13 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Note = "Changes gameplay: physics at 30 Hz instead of 60 (movement tech may differ). " +
                                             "Saves ~0.3 ms a frame here, more on slower processors.";
 
+            Add(config, "NavRemovalOwnArea", "Buildings removed: recalculate enemy paths only where they stood",
+                "When a building (or the plane wreck) goes, the game recalculates enemy paths over the area it stood on - but it never " +
+                "forgets earlier removals, so each one covers every place anything was removed since the game started, up to most " +
+                "of the map (16 s of background work measured, during which enemies cannot find new paths and the next load waits). " +
+                "Forget the earlier areas once their own recalculation is queued; each removal then covers its own place.",
+                ApplyNavRemoval, RemoveNavRemoval);
+
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
         }
@@ -552,6 +559,54 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // 6. VR switcher (same as 2)
+        // --- NavRemovalOwnArea -------------------------------------------
+        // sceneTracker.startDummyNavRemove (from setupNavRemoveRoot.OnDestroy)
+        // adds the removed thing's bounds to dummyNavBounds, waits 7 s and
+        // queues one graph update over ALL of dummyNavBounds - and clears
+        // only dummyNavStructures, never the bounds (IL). Every removal
+        // re-covers every earlier one: a Quick load's wreck removal took a
+        // 988 x 930 m update, 16.2 s (v0.24.142 PathfindingWatch lines).
+        // A prefix clears the list when no batch is pending: a batch keeps
+        // merging what goes within its 7 s, as the game meant, and areas
+        // already recalculated are not recalculated again (same navmesh).
+        private MethodInfo _dummyNavRemove;
+        private static FieldInfo _dummyNavBounds;     // List<Bounds>
+        private static FieldInfo _doingDummyNav;      // bool
+
+        private string ApplyNavRemoval()
+        {
+            Type t = GameType("sceneTracker");
+            if (t == null) return "sceneTracker not found";
+            const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            _dummyNavRemove = t.GetMethod("startDummyNavRemove", inst);
+            _dummyNavBounds = t.GetField("dummyNavBounds", inst);
+            _doingDummyNav = t.GetField("doingDummyNavUpdate", inst);
+            if (_dummyNavRemove == null || _dummyNavBounds == null || _doingDummyNav == null) return "startDummyNavRemove / its fields not found";
+            _self = this;
+            _harmony.Patch(_dummyNavRemove, prefix: new HarmonyMethod(typeof(PerfPatches).GetMethod("DummyNavRemovePrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+            return "";
+        }
+
+        private void RemoveNavRemoval()
+        {
+            if (_dummyNavRemove != null) _harmony.Unpatch(_dummyNavRemove, HarmonyPatchType.Prefix, _harmony.Id);
+        }
+
+        private static void DummyNavRemovePrefix(object __instance)
+        {
+            try
+            {
+                if ((bool)_doingDummyNav.GetValue(__instance)) return;   // a batch is gathering - join it
+                System.Collections.IList list = _dummyNavBounds.GetValue(__instance) as System.Collections.IList;
+                if (list == null || list.Count == 0) return;
+                int n = list.Count;
+                list.Clear();
+                if (_self != null) _self._log.LogInfo("Performance: building removal - " + n + " earlier removal area(s) dropped from the game's list " +
+                             "(already recalculated); this one covers its own place.");
+            }
+            catch (Exception) { }
+        }
+
         private const string VrType = "VRSwitcher";
         private MethodInfo _vrEnable;
 
