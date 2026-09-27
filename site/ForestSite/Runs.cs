@@ -79,11 +79,14 @@ public sealed class Runs
     }
 
     /// A spot for the author to approve (runners do not open pull requests).
-    public (long id, string error) Submit(string runnerId, string text)
+    public (long id, bool replaced, string error) Submit(string runnerId, string text)
     {
         SegmentBundle b = SegmentBundle.Parse(text, out string error, null);
-        if (b == null) return (0, error);
-        return (_store.AddSubmission(runnerId, b.Segment.Id, Clip(b.Segment.Name, 80), text), null);
+        if (b == null) return (0, false, error);
+        string why = SiteProtocol.SubmitRefusal(b.Segment.Id, b.Attempts.Count > 0);
+        if (why != null) return (0, false, why);
+        var (id, replaced) = _store.AddSubmission(runnerId, b.Segment.Id, Clip(b.Segment.Name, 80), text, b.StartState != null);
+        return (id, replaced, null);
     }
 
     private float Best(string segmentId, string route, out int count)

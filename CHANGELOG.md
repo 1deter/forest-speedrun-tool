@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.158 - 2026-09-27
+
+- **Submit to community** (Practice tab, Share row): sends the selected
+  spot and its start state to the website for review. Once approved it
+  goes out to everyone as a community spot. Your times are not sent. A
+  second submit replaces the one still waiting. An older spot with an
+  old-style id has to be Duplicated first; the message says so.
+- "Open on the website" opens a clean address (forest.deter.cloud/spot/...);
+  old links with `#/` in them still work.
+
 ## v0.24.157 - 2026-09-27
 
 - Capturing a savestate or start state inside an endgame section the game

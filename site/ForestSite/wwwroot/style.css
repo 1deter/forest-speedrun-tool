@@ -149,6 +149,34 @@ tr.focus td { background: #151300; }
 }
 .btn:hover { border-color: var(--yellow); color: var(--yellow); }
 
+/* --- admin ------------------------------------------------------------- */
+.adminbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.signin { display: flex; gap: 10px; align-items: center; margin: 8px 0 12px; }
+.signin .search { max-width: 320px; }
+.actions { margin-top: 6px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.rowmsg { color: var(--muted); font-size: 12px; min-height: 0; }
+.rowmsg:not(:empty) { margin-top: 4px; }
+.chip.danger { border-color: var(--behind-lose); color: var(--behind-lose); }
+.tag {
+  display: inline-block; margin-left: 8px; font-size: 11px; color: var(--muted);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 0 6px;
+}
+.tag.mono { font-family: ui-monospace, Consolas, monospace; }
+.tag.bad { color: var(--behind-lose); border-color: var(--behind-lose); }
+.status-open { color: var(--white); }
+.status-approved { color: var(--ahead-gain); }
+.status-rejected { color: var(--muted); }
+tr.detail td { background: #080808; white-space: normal; cursor: default; }
+tr.detail:hover td { background: #080808; }
+table.admin tbody tr { cursor: default; }
+.foseg {
+  background: #000; border: 1px solid var(--line); padding: 10px; margin: 8px 0; color: var(--white);
+  font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto;
+}
+.steps { padding-left: 20px; color: var(--white); font-size: 13px; }
+.steps code, .subdetail code { color: var(--yellow); }
+
 .about { max-width: 68ch; }
 .about ol { padding-left: 20px; }
 .about li { margin-bottom: 8px; }

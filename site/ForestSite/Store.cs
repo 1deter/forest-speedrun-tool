@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS submissions (
                       WHERE x.segment_id = routes.segment_id AND x.route = routes.route ORDER BY x.id LIMIT 1), '')
                       WHERE community = 0;");
         }
+        if (!HasColumn(c, "submissions", "start_state"))
+            Exec(c, "ALTER TABLE submissions ADD COLUMN start_state INTEGER NOT NULL DEFAULT 0;");
     }
 
     private static bool HasColumn(SqliteConnection c, string table, string column)
@@ -119,6 +121,26 @@ ON CONFLICT(id) DO UPDATE SET token_hash = $hash, name = $name WHERE runners.tok
 
     public bool Ban(string runnerId, bool banned) =>
         Update("UPDATE runners SET banned = $b WHERE id = $id", ("$id", runnerId), ("$b", banned ? 1 : 0)) == 1;
+
+    /// Every runner, newest first, for the admin page.
+    public List<object> Runners()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT r.id, r.name, r.created, r.banned, r.token_hash IS NOT NULL,
+                                   (SELECT COUNT(*) FROM runs x WHERE x.runner_id = r.id),
+                                   (SELECT MAX(x.uploaded) FROM runs x WHERE x.runner_id = r.id)
+                            FROM runners r ORDER BY r.created DESC LIMIT 500";
+        var list = new List<object>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new
+            {
+                id = r.GetString(0), name = r.GetString(1), created = r.GetString(2), banned = r.GetInt64(3) == 1,
+                hasToken = r.GetInt64(4) == 1, runs = r.GetInt64(5), lastUpload = r.IsDBNull(6) ? null : r.GetString(6),
+            });
+        return list;
+    }
 
     // --- routes ---------------------------------------------------------
 
@@ -232,13 +254,47 @@ ON CONFLICT DO NOTHING RETURNING id";
 
     // --- spot submissions -------------------------------------------------
 
-    public long AddSubmission(string runnerId, string segmentId, string name, string text)
+    /// A spot for the author. The same runner's second submit of a spot
+    /// still waiting replaces it (a fix before the author has looked).
+    public (long id, bool replaced) AddSubmission(string runnerId, string segmentId, string name, string text, bool startState)
     {
-        long id = (long)Scalar(@"INSERT INTO submissions (runner_id, segment_id, name, uploaded)
-                                 VALUES ($r, $s, $n, $now) RETURNING id",
-                               ("$r", runnerId), ("$s", segmentId), ("$n", name), ("$now", Now()));
+        object open = Scalar("SELECT id FROM submissions WHERE runner_id = $r AND segment_id = $s AND status = 'open' ORDER BY id DESC LIMIT 1",
+                             ("$r", runnerId), ("$s", segmentId));
+        long id;
+        if (open is long existing)
+        {
+            id = existing;
+            Update("UPDATE submissions SET name = $n, uploaded = $now, start_state = $st WHERE id = $id",
+                   ("$id", id), ("$n", name), ("$now", Now()), ("$st", startState ? 1 : 0));
+        }
+        else
+            id = (long)Scalar(@"INSERT INTO submissions (runner_id, segment_id, name, uploaded, start_state)
+                                VALUES ($r, $s, $n, $now, $st) RETURNING id",
+                              ("$r", runnerId), ("$s", segmentId), ("$n", name), ("$now", Now()), ("$st", startState ? 1 : 0));
         WriteGz(Path.Combine(_dir, "submissions", id + ".foseg.gz"), text);
-        return id;
+        return (id, open is long);
+    }
+
+    /// Submissions, newest first, with the runner's name and whether the
+    /// spot is already a community spot (an update, not a new one).
+    public List<object> Submissions()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT s.id, s.runner_id, COALESCE(r.name, ''), s.segment_id, s.name, s.uploaded, s.status, s.start_state,
+                                   EXISTS (SELECT 1 FROM routes x WHERE x.segment_id = s.segment_id AND x.community = 1)
+                            FROM submissions s LEFT JOIN runners r ON r.id = s.runner_id
+                            ORDER BY s.id DESC LIMIT 200";
+        var list = new List<object>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new
+            {
+                id = r.GetInt64(0), runner = r.GetString(1), runnerName = r.GetString(2), segment = r.GetString(3),
+                name = r.GetString(4), uploaded = r.GetString(5), status = r.GetString(6),
+                startState = r.GetInt64(7) == 1, community = r.GetInt64(8) == 1,
+            });
+        return list;
     }
 
     public string SubmissionText(long id)

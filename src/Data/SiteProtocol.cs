@@ -17,6 +17,11 @@ namespace ForestOverlay.Data
     //                       200 stored (or already there), 400 / 422 refused
     //                       (another route version, not a bundle), 401 the
     //                       token is not known, 429 too many
+    //   POST /api/submissions  a .foseg (segment + start state, no
+    //                       attempts), Bearer token -> {"id":n,"replaced":b}:
+    //                       a spot for the author to approve as a community
+    //                       spot; a runner's second submit of the same spot
+    //                       replaces the one still waiting
     // ------------------------------------------------------------------
     public enum UploadOutcome
     {
@@ -110,6 +115,44 @@ namespace ForestOverlay.Data
             return ids;
         }
 
+        /// A whole-number field of a flat JSON object ("id": 12); -1 when
+        /// missing.
+        public static long Number(string json, string name)
+        {
+            if (string.IsNullOrEmpty(json)) return -1;
+            string key = "\"" + name + "\"";
+            int k = json.IndexOf(key, StringComparison.Ordinal);
+            int colon = k < 0 ? -1 : json.IndexOf(':', k + key.Length);
+            if (colon < 0) return -1;
+            int a = colon + 1;
+            while (a < json.Length && json[a] == ' ') a++;
+            int b = a;
+            while (b < json.Length && char.IsDigit(json[b])) b++;
+            long v;
+            return b > a && long.TryParse(json.Substring(a, b - a), NumberStyles.Integer, CultureInfo.InvariantCulture, out v) ? v : -1;
+        }
+
+        /// Why a spot cannot be submitted as a community spot; null = it can.
+        /// Community ids must be the hidden random kind (`s-` + hex, v0.24.74):
+        /// an old id (`spot.my.new-spot-3`) is shared by many runners' first
+        /// spots, and the plugin skips a pack entry whose id a runner has.
+        public static string SubmitRefusal(string segmentId, bool hasAttempts)
+        {
+            if (!IsRandomId(segmentId))
+                return "This entry has an old-style id that other runners' spots share. Duplicate it, Save the copy and submit that.";
+            if (hasAttempts) return "A community spot carries no times - submit it without attempts.";
+            return null;
+        }
+
+        /// `s-` + 12 to 32 hex digits (PracticeModule.NewId).
+        public static bool IsRandomId(string id)
+        {
+            if (id == null || id.Length < 14 || id.Length > 34 || !id.StartsWith("s-", StringComparison.Ordinal)) return false;
+            for (int i = 2; i < id.Length; i++)
+                if (!Uri.IsHexDigit(id[i])) return false;
+            return true;
+        }
+
         /// The `runner|<id>|<name>` line of a .run text; false when absent.
         public static bool RunnerOf(string runText, out string id, out string name)
         {
@@ -133,7 +176,7 @@ namespace ForestOverlay.Data
         /// The site's page for a spot.
         public static string SpotUrl(string baseUrl, string segmentId)
         {
-            return TrimUrl(baseUrl) + "/#/spot/" + Uri.EscapeDataString(segmentId ?? "");
+            return TrimUrl(baseUrl) + "/spot/" + Uri.EscapeDataString(segmentId ?? "");
         }
 
         public static string TrimUrl(string url)

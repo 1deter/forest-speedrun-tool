@@ -264,6 +264,10 @@ public sealed class ApiTests : IDisposable
         Assert.Matches(@"href=""/style\.css\?v=[0-9a-f]{10}""", html);
 
         Assert.Equal(html, await _http.GetStringAsync("/spot/anything"));
+        // Old ids have dots: the fallback alone would take them for files.
+        Assert.Equal(html, await _http.GetStringAsync("/spot/spot.my.new-spot-3/abc123"));
+        Assert.Equal(html, await _http.GetStringAsync("/admin/runners"));
+        Assert.Equal(html, await _http.GetStringAsync("/about"));
         var missing = await _http.GetAsync("/api/nope");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Contains("no such endpoint", await missing.Content.ReadAsStringAsync());
@@ -283,5 +287,74 @@ public sealed class ApiTests : IDisposable
         list.Headers.Add("X-Admin-Token", "admin-secret");
         var subs = await (await _http.SendAsync(list)).Content.ReadFromJsonAsync<JsonArray>();
         Assert.Equal("s-bbbbbbbbbbbb", subs[0]["segment"].GetValue<string>());
+    }
+
+    private async Task<JsonNode> Admin(string path)
+    {
+        var msg = new HttpRequestMessage(HttpMethod.Get, path);
+        msg.Headers.Add("X-Admin-Token", "admin-secret");
+        var r = await _http.SendAsync(msg);
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        return await r.Content.ReadFromJsonAsync<JsonNode>();
+    }
+
+    [Fact]
+    public async Task Submission_SecondSubmitReplacesTheWaitingOne()
+    {
+        string ta = await Register(A);
+        var seg = TestSegment("s-cccccccccccc");
+        var first = await (await Upload(ta, Bundle(seg), "/api/submissions")).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.False(first["replaced"].GetValue<bool>());
+
+        seg.Name = "Test dash, fixed";
+        var second = await (await Upload(ta, Bundle(seg), "/api/submissions")).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.True(second["replaced"].GetValue<bool>());
+        Assert.Equal(first["id"].GetValue<long>(), second["id"].GetValue<long>());
+
+        var subs = (await Admin("/api/admin/submissions")).AsArray();
+        Assert.Single(subs);
+        Assert.Equal("Test dash, fixed", subs[0]["name"].GetValue<string>());
+        Assert.Equal("Runner", subs[0]["runnerName"].GetValue<string>());
+        Assert.False(subs[0]["startState"].GetValue<bool>());
+
+        // Once the author has decided, a new submit is a new entry.
+        var set = new HttpRequestMessage(HttpMethod.Post, "/api/admin/submissions/" + first["id"] + "/rejected");
+        set.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(set)).StatusCode);
+        var third = await (await Upload(ta, Bundle(seg), "/api/submissions")).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.False(third["replaced"].GetValue<bool>());
+        Assert.Equal(2, (await Admin("/api/admin/submissions")).AsArray().Count);
+    }
+
+    [Fact]
+    public async Task Submission_RefusesOldIdsAndAttempts()
+    {
+        string ta = await Register(A);
+        var old = await Upload(ta, Bundle(TestSegment("spot.my.new-spot-3")), "/api/submissions");
+        Assert.Equal(HttpStatusCode.BadRequest, old.StatusCode);
+        Assert.Contains("Duplicate", await old.Content.ReadAsStringAsync());
+
+        var seg = TestSegment("s-dddddddddddd");
+        var timed = await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)), "/api/submissions");
+        Assert.Equal(HttpStatusCode.BadRequest, timed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_ListsRunnersAndChecksTheToken()
+    {
+        string ta = await Register(A);
+        var seg = TestSegment();
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+
+        Assert.True((await Admin("/api/admin/check"))["ok"].GetValue<bool>());
+        var runners = (await Admin("/api/admin/runners")).AsArray();
+        Assert.Single(runners);
+        Assert.Equal(A, runners[0]["id"].GetValue<string>());
+        Assert.Equal(1, runners[0]["runs"].GetValue<long>());
+        Assert.True(runners[0]["hasToken"].GetValue<bool>());
+
+        var wrong = new HttpRequestMessage(HttpMethod.Get, "/api/admin/check");
+        wrong.Headers.Add("X-Admin-Token", "nope");
+        Assert.Equal(HttpStatusCode.Forbidden, (await _http.SendAsync(wrong)).StatusCode);
     }
 }

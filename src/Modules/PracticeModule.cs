@@ -139,6 +139,7 @@ namespace ForestOverlay.Modules
         // the editor. The label is rebuilt on selection change or after a
         // capture/delete, never per frame.
         private SavestateModule _savestates;
+        private RunUploadModule _upload;
         private AreaKeeper _areas;
         private Segment _startStateFor;
         private string _startStateForId;
@@ -197,6 +198,7 @@ namespace ForestOverlay.Modules
 
             _savestates = Host.Find<SavestateModule>();
             _community = Host.Find<CommunityModule>();
+            _upload = Host.Find<RunUploadModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
@@ -1552,6 +1554,13 @@ namespace ForestOverlay.Modules
             _exportAttempts = GUI.Toggle(new Rect(156, y, 190, 20), _exportAttempts, _exportAttemptsLabel);
             if (GUI.Button(new Rect(350, y - 2, 96, 22), "Open folder")) OpenSharedFolder();
             y += 26f;
+            if (_upload != null)
+            {
+                GUI.enabled = s.Id.Length > 0 && !_upload.Submitting;
+                if (GUI.Button(new Rect(80, y - 2, 160, 22), "Submit to community")) SubmitToCommunity(s);
+                GUI.enabled = true;
+                y += 26f;
+            }
             y += UiText.Draw(80, y, cw - 90, _shareStatus);
             y += 6f;
             return y;
@@ -1587,6 +1596,23 @@ namespace ForestOverlay.Modules
                 _shareStatus.text = "Export failed: " + ex.Message;
                 Ctx.Log.LogWarning("Practice: export of '" + s.Id + "' failed: " + ex);
             }
+        }
+
+        /// Sends the saved entry and its start state to the website for the
+        /// author to approve as a community spot (docs/website.md). Never
+        /// its times: packs carry spots.
+        /// The selected entry's Submit (the bridge's way to press it).
+        public void SubmitSelected() { if (_selected != null) SubmitToCommunity(_selected); }
+
+        private void SubmitToCommunity(Segment s)
+        {
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - a submission is the saved segment."; return; }
+            if (SegmentLibrary.IsCommunity(s)) { _shareStatus.text = "This is a community spot already."; return; }
+            string startState = null;
+            try { startState = _savestates != null ? _savestates.ReadStartStateText(s) : null; }
+            catch (Exception ex) { _shareStatus.text = "Could not read its start state: " + ex.Message; return; }
+            Segment shown = s;
+            _upload.Submit(s, startState, delegate(string text) { if (ReferenceEquals(_shareFor, shown)) _shareStatus.text = text; });
         }
 
         /// "<name>.foseg" - what a runner recognises in the folder. A file

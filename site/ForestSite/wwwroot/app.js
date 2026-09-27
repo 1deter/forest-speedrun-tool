@@ -1,5 +1,8 @@
-// forest.deter.cloud: the spot list, a spot (map, board, splits), about.
-// Hash routes: #/, #/spot/<id>, #/spot/<id>/<route>, #/about.
+// forest.deter.cloud: the spot list, a spot (map, board, splits), about,
+// the author's admin page (admin.js).
+// Paths: /, /spot/<id>, /spot/<id>/<route>, /about, /admin[/<tab>] - the
+// server answers each with this page; links move by history.pushState.
+// Old hash links (#/spot/<id>, plugins before v0.24.158) are rewritten.
 "use strict";
 
 const view = document.getElementById("view");
@@ -62,15 +65,28 @@ function date(iso) {
 let cleanup = null;
 function route() {
   if (cleanup) { cleanup(); cleanup = null; }
-  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  if (location.hash.startsWith("#/")) history.replaceState(null, "", location.hash.slice(1));
+  const parts = location.pathname.replace(/^\/+|\/+$/g, "").split("/").map(decodeURIComponent);
   document.querySelectorAll(".top nav a").forEach(a => a.classList.toggle("on",
-    (a.getAttribute("href") === "#/about") === (parts[0] === "about")));
+    (a.getAttribute("href") === "/about") === (parts[0] === "about")));
   window.scrollTo(0, 0);
   if (parts[0] === "spot" && parts[1]) return spotPage(parts[1], parts[2]);
   if (parts[0] === "about") return aboutPage();
+  if (parts[0] === "admin") return adminPage(parts[1]);
   return homePage();
 }
+window.addEventListener("popstate", route);
 window.addEventListener("hashchange", route);
+
+// Same-site page links stay in the page: no reload, the address changes.
+document.addEventListener("click", e => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest("a[href^='/']");
+  if (!a || a.hasAttribute("download") || a.target || a.getAttribute("href").startsWith("/api/")) return;
+  e.preventDefault();
+  if (a.getAttribute("href") !== location.pathname) history.pushState(null, "", a.getAttribute("href"));
+  route();
+});
 
 /// replaceChildren without the nulls (it would print them).
 function show(...kids) { view.replaceChildren(...kids.flat().filter(k => k !== null && k !== undefined)); }
@@ -95,7 +111,7 @@ async function homePage() {
     list.replaceChildren(...groups.filter(([, g]) => g.length || !q).map(([title, g]) => el("section", null,
       el("h2", null, title),
       g.length ? el("ul", { class: "spots" }, g.map(s => el("li", null,
-        el("a", { href: "#/spot/" + encodeURIComponent(s.id) },
+        el("a", { href: "/spot/" + encodeURIComponent(s.id) },
           el("span", { class: "name" }, s.name, el("span", { class: "sub" }, "  " + s.category + (s.by ? " · by " + s.by : ""))),
           el("span", { class: "meta" }, s.runners ? s.runners + (s.runners === 1 ? " runner" : " runners") : "no runs yet"),
           el("span", { class: "best" }, time(s.best)))))) :
@@ -251,7 +267,7 @@ async function spotPage(id, routeId) {
   cleanup = () => { state.playing = false; cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); };
 
   const routeChips = spot.routes.length > 1 ? el("div", { class: "routes" }, spot.routes.map((x, i) =>
-    el("a", { class: "chip" + (x === r ? " on" : ""), href: "#/spot/" + encodeURIComponent(spot.id) + "/" + x.route },
+    el("a", { class: "chip" + (x === r ? " on" : ""), href: "/spot/" + encodeURIComponent(spot.id) + "/" + x.route },
       i === 0 ? "Current route" : "Older version · " + date(x.firstSeen)))) : null;
 
   show(

@@ -38,6 +38,10 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("upload", c => RateLimitPartition.GetFixedWindowLimiter(
         c.Request.Headers.Authorization.FirstOrDefault() ?? ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromHours(1) }));
+    // The admin page makes a few calls per view; a long random token is
+    // out of reach of guessing at this rate.
+    o.AddPolicy("admin", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -130,8 +134,8 @@ api.MapPost("/submissions", async (HttpRequest req) =>
 {
     string runner = store.RunnerOf(Bearer(req));
     if (runner == null) return Problem(401, "unknown token");
-    var (id, error) = runs.Submit(runner, await Body(req));
-    return error != null ? Problem(400, error) : Results.Json(new { id });
+    var (id, replaced, error) = runs.Submit(runner, await Body(req));
+    return error != null ? Problem(400, error) : Results.Json(new { id, replaced });
 }).RequireRateLimiting("upload");
 
 // --- the author ----------------------------------------------------------------
@@ -142,19 +146,11 @@ var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
     bool ok = adminToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
         Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(adminToken));
     return ok ? await next(ctx) : Problem(403, "admin token required");
-}).RequireRateLimiting("register");
+}).RequireRateLimiting("admin");
 
-admin.MapGet("/submissions", () =>
-{
-    using var c = store.Open();
-    using var cmd = c.CreateCommand();
-    cmd.CommandText = "SELECT id, runner_id, segment_id, name, uploaded, status FROM submissions ORDER BY id DESC LIMIT 200";
-    var list = new List<object>();
-    using var r = cmd.ExecuteReader();
-    while (r.Read())
-        list.Add(new { id = r.GetInt64(0), runner = r.GetString(1), segment = r.GetString(2), name = r.GetString(3), uploaded = r.GetString(4), status = r.GetString(5) });
-    return Results.Json(list);
-});
+// The admin page (/admin) asks this first: is the token right?
+admin.MapGet("/check", () => Results.Json(new { ok = true }));
+admin.MapGet("/submissions", () => Results.Json(store.Submissions()));
 admin.MapGet("/submissions/{id:long}", (long id) =>
     store.SubmissionText(id) is { } t ? Results.File(Encoding.UTF8.GetBytes(t), "text/plain; charset=utf-8", "submission-" + id + ".foseg") : Problem(404, "no such submission"));
 admin.MapPost("/submissions/{id:long}/{status}", (long id, string status) =>
@@ -163,13 +159,22 @@ admin.MapGet("/flagged", () =>
 {
     using var c = store.Open();
     using var cmd = c.CreateCommand();
-    cmd.CommandText = "SELECT id, segment_id, runner_id, runner_name, duration, hidden FROM runs WHERE flagged = 1 ORDER BY id DESC LIMIT 200";
+    cmd.CommandText = @"SELECT id, segment_id, runner_id, runner_name, duration, hidden, route, uploaded,
+                               COALESCE((SELECT name FROM routes x WHERE x.segment_id = runs.segment_id AND x.route = runs.route), '')
+                        FROM runs WHERE flagged = 1 ORDER BY id DESC LIMIT 200";
     var list = new List<object>();
     using var r = cmd.ExecuteReader();
     while (r.Read())
-        list.Add(new { id = r.GetInt64(0), segment = r.GetString(1), runner = r.GetString(2), name = r.GetString(3), duration = r.GetDouble(4), hidden = r.GetInt64(5) == 1 });
+        list.Add(new
+        {
+            id = r.GetInt64(0), segment = r.GetString(1), runner = r.GetString(2), name = r.GetString(3), duration = r.GetDouble(4),
+            hidden = r.GetInt64(5) == 1, route = r.GetString(6), uploaded = r.GetString(7), spot = r.GetString(8),
+        });
     return Results.Json(list);
 });
+admin.MapGet("/runners", () => Results.Json(store.Runners()));
+admin.MapPost("/runs/{id:long}/unflag", (long id) =>
+    store.Update("UPDATE runs SET flagged = 0 WHERE id = $id", ("$id", id)) == 1 ? Results.Ok() : Problem(404, "no such run"));
 admin.MapPost("/runs/{id:long}/hide", (long id) => store.HideRun(id, true) ? Results.Ok() : Problem(404, "no such run"));
 admin.MapPost("/runs/{id:long}/show", (long id) => store.HideRun(id, false) ? Results.Ok() : Problem(404, "no such run"));
 admin.MapDelete("/runs/{id:long}", (long id) => store.DeleteRun(id) ? Results.Ok() : Problem(404, "no such run"));
@@ -177,14 +182,19 @@ admin.MapPost("/runners/{id}/reset-token", (string id) => store.ResetToken(id) ?
 admin.MapPost("/runners/{id}/ban", (string id) => store.Ban(id, true) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/unban", (string id) => store.Ban(id, false) ? Results.Ok() : Problem(404, "no such runner"));
 
-// Pages use hash routes (#/spot/<id>); any other path is the app, except
-// under /api, which answers 404 as JSON.
+// Pages are paths the script routes (/spot/<id>, /about, /admin); any
+// other path is the app too, except under /api, which answers 404 as JSON.
+// The page routes are mapped by name as well: the fallback skips paths that
+// look like files, and old segment ids have dots (spot.my.new-spot-3).
 IResult Page(HttpContext c)
 {
     c.Response.Headers.CacheControl = "no-cache";
     return Results.Content(indexHtml, "text/html; charset=utf-8");
 }
 app.MapGet("/", Page);
+app.MapGet("/spot/{**rest}", Page);
+app.MapGet("/admin/{**rest}", Page);
+app.MapGet("/about", Page);
 api.MapFallback(() => Problem(404, "no such endpoint"));
 app.MapFallback(Page);
 

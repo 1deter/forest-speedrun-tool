@@ -293,6 +293,76 @@ namespace ForestOverlay.Modules
             return sb.ToString();
         }
 
+        // --- spot submissions (Practice's Share row) -----------------------------------
+
+        private bool _submitting;
+        public bool Submitting { get { return _submitting; } }
+
+        /// Sends `segment` (+ its start state, no attempts) to the site for the
+        /// author to approve as a community spot. `report` gets each status
+        /// line (the Practice tab shows it under the button).
+        public void Submit(Segment segment, string startState, Action<string> report)
+        {
+            string why = SiteProtocol.SubmitRefusal(segment.Id, false);
+            if (why != null) { report(why); return; }
+            if (_submitting) { report("A submission is on its way already."); return; }
+
+            SegmentBundle b = new SegmentBundle();
+            b.Segment = segment;
+            b.StartState = startState;
+            b.Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            b.PluginVersion = OverlayPlugin.PluginVersion;
+            string text = b.Write();
+            if (text.Length > MaxBundleBytes) { report("Too large to send (over " + (MaxBundleBytes >> 20) + " MB)."); return; }
+
+            _submitting = true;
+            report("Sending '" + segment.Name + "' to " + HostName() + "...");
+            Ctx.Runner.StartCoroutine(SendSubmission(segment, text, startState != null, report));
+        }
+
+        private IEnumerator SendSubmission(Segment segment, string text, bool withStart, Action<string> report)
+        {
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+            if (string.IsNullOrEmpty(_token.Value))
+            {
+                bool ok = false;
+                yield return Ctx.Runner.StartCoroutine(Register(baseUrl, "", delegate(bool r) { ok = r; }));
+                if (!ok) { _submitting = false; report("Not sent: " + _state + "."); yield break; }
+            }
+
+            long code = 0; string body = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/submissions", Encoding.UTF8.GetBytes(text),
+                "text/plain; charset=utf-8", _token.Value, RequestTimeout,
+                delegate(long c, string b, string e) { code = c; body = b; error = e; }));
+            _submitting = false;
+
+            string what = withStart ? "with its start state" : "no start state";
+            switch (SiteProtocol.Classify(code))
+            {
+                case UploadOutcome.Done:
+                    bool replaced = body != null && body.Contains("\"replaced\":true");
+                    report((replaced ? "Sent again - it replaces your earlier submission" : "Submitted") + " (" + what +
+                           "). The author looks at it before it goes out to everyone; until then a new submit replaces this one.");
+                    Ctx.Log.LogInfo("Submit: '" + segment.Id + "' sent to " + baseUrl + " as submission " +
+                                    SiteProtocol.Number(body, "id") + (replaced ? " (replaced the waiting one)" : "") + ", " + what + ".");
+                    break;
+                case UploadOutcome.TokenBad:
+                    _tokenBad = true;
+                    report("Not sent: the site does not know this install's token - clear Token in the config to register again.");
+                    Ctx.Log.LogWarning("Submit: token refused (401).");
+                    break;
+                case UploadOutcome.Refused:
+                    string msg = SiteProtocol.Field(body, "error") ?? body;
+                    report("The site refused it: " + msg);
+                    Ctx.Log.LogWarning("Submit: '" + segment.Id + "' refused - HTTP " + code + ": " + msg);
+                    break;
+                default:
+                    report("Not sent - the site is not reachable (" + (error ?? "HTTP " + code) + "). Try again later.");
+                    Ctx.Log.LogWarning("Submit: '" + segment.Id + "' not sent: " + (error ?? "HTTP " + code) + ".");
+                    break;
+            }
+        }
+
         // --- the Runs tab's section ---------------------------------------------------
 
         private readonly GUIContent _stateText = new GUIContent("");

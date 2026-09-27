@@ -4,8 +4,17 @@
     {
       "name": "forest-site",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "site/ForestSite", "--urls", "http://localhost:5080"],
-      "port": 5080
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "site/ForestSite",
+        "--urls",
+        "http://localhost:5080"
+      ],
+      "port": 5080,
+      "env": {
+        "FOREST_ADMIN_TOKEN": "local-admin"
+      }
     }
   ]
 }

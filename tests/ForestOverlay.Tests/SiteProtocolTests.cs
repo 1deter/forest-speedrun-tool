@@ -69,9 +69,29 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void Number_ReadsAWholeNumber()
+        {
+            Assert.Equal(12, SiteProtocol.Number("{\"id\":12,\"replaced\":false}", "id"));
+            Assert.Equal(7, SiteProtocol.Number("{\"id\": 7}", "id"));
+            Assert.Equal(-1, SiteProtocol.Number("{\"error\":\"x\"}", "id"));
+            Assert.Equal(-1, SiteProtocol.Number("{\"id\":\"s-1\"}", "id"));
+        }
+
+        [Fact]
+        public void SubmitRefusal_OldIdsAndAttempts()
+        {
+            Assert.Null(SiteProtocol.SubmitRefusal("s-0123456789ab", false));
+            Assert.Null(SiteProtocol.SubmitRefusal("s-0123456789abcdef0123456789abcdef", false));
+            Assert.Contains("Duplicate", SiteProtocol.SubmitRefusal("spot.my.new-spot-3", false));
+            Assert.Contains("Duplicate", SiteProtocol.SubmitRefusal("s-splitstest01", false));
+            Assert.Contains("Duplicate", SiteProtocol.SubmitRefusal("", false));
+            Assert.Contains("no times", SiteProtocol.SubmitRefusal("s-0123456789ab", true));
+        }
+
+        [Fact]
         public void SpotUrl()
         {
-            Assert.Equal("https://forest.deter.cloud/#/spot/s-0123456789ab",
+            Assert.Equal("https://forest.deter.cloud/spot/s-0123456789ab",
                          SiteProtocol.SpotUrl("https://forest.deter.cloud/ ", "s-0123456789ab"));
         }
     }

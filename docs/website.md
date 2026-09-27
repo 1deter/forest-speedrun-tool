@@ -110,7 +110,21 @@ the starting point; decisions made while building go here too.
   plugin, `Data/SiteBoard`; runs under review left out);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
   (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`;
-  `/api/admin/...` with `X-Admin-Token`.
+  `/api/admin/...` with `X-Admin-Token` (own rate limit, 120 / min).
+- **Clean paths** (author, 2026-09-27: the `#/` "doesn't look clean"):
+  `/spot/<id>[/<route>]`, `/about`, `/admin[/<tab>]` - the server answers
+  each with the page (mapped by name: the fallback skips paths with a
+  dot, and old ids have dots); links move by `history.pushState`; an old
+  `#/...` link is rewritten on load (plugins before v0.24.158 open those).
+- **The admin page** (`/admin`, not in the nav; `wwwroot/admin.js`): the
+  admin token typed once, kept in that browser's localStorage. Tabs:
+  Submissions (the `[segment]` block, start state size, Download as
+  `<slug>.foseg`, Approve / Reject / Back to open; after Approve the three
+  publish steps), Under review (flagged runs: Looks fine = unflag, Hide /
+  Show, Delete with a second click), Runners (runs, last upload, Ban,
+  Reset token with a second click). The live token is in
+  `/opt/forest-site/.env` on the VPS (`FOREST_ADMIN_TOKEN`); locally the
+  `forest-site` preview uses `local-admin`.
 
 The plugin side is done (v0.24.153-154, `Modules/RunUploadModule`):
 each finished timed run is queued on disk and uploaded, on by default;
@@ -134,17 +148,20 @@ spot's saved runs" and "Open on the website".
   and push - CI checks the index, the site redeploys with it, plugins pick
   it up on their next startup check. Remove `demo-template.foseg` when the
   first real pack goes in.
-- **Planned** (Next 2): a "Submit to community" button next to Export
-  (`POST /api/submissions`, already on the site), an admin page listing
-  submissions with Approve / Reject; approve still ends as a commit to
-  `community/` (the repo stays the source of truth) - by hand at first,
-  maybe the GitHub API later.
+- **Submissions (v0.24.158):** Practice -> Share -> *Submit to community*
+  sends the saved entry + start state, never attempts
+  (`RunUploadModule.Submit`; `SiteProtocol.SubmitRefusal`, shared with the
+  site: an old-style id must be Duplicated first). A runner's second
+  submit of a spot still open replaces it. The author approves on
+  `/admin`; publishing is still the commit to `community/` above (the repo
+  stays the source of truth) - maybe the GitHub API later.
 
 ## Next
 
 1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:
    `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
-2. A spot submission button in Practice; an admin page instead of curl.
+2. ~~A spot submission button in Practice; an admin page~~ done
+   (v0.24.158; the in-game submit still to check against the live site).
 3. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later
