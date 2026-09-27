@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.159 - 2026-09-27
+
+- Submit to community now always shows its answer under the button (it
+  could stay blank the first time).
+
 ## v0.24.158 - 2026-09-27
 
 - **Submit to community** (Practice tab, Share row): sends the selected

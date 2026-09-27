@@ -1611,8 +1611,13 @@ namespace ForestOverlay.Modules
             string startState = null;
             try { startState = _savestates != null ? _savestates.ReadStartStateText(s) : null; }
             catch (Exception ex) { _shareStatus.text = "Could not read its start state: " + ex.Message; return; }
+            // The answer belongs to this entry: showing another one clears it
+            // (DrawShare), as for Export.
             Segment shown = s;
-            _upload.Submit(s, startState, delegate(string text) { if (ReferenceEquals(_shareFor, shown)) _shareStatus.text = text; });
+            _upload.Submit(s, startState, delegate(string text)
+            {
+                if (_shareFor == null || ReferenceEquals(_shareFor, shown)) { _shareFor = shown; _shareForId = null; _shareStatus.text = text; }
+            });
         }
 
         /// "<name>.foseg" - what a runner recognises in the folder. A file
