@@ -113,6 +113,7 @@ Where things live:
 | Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
 | Load leak diagnostics and fix | `Game/LoadWatcher` (every load), `Game/MemoryCensus` (static + DontDestroyOnLoad roots, sizes, threads, Unity objects by type), `Game/LeakedThreads` (stops the two threads a load leaves), `Game/StaleSubscribers` (drops dead event subscribers), run from `Modules/SavestateModule` |
+| Logs in the inventory (gameplay mod) | `Game/LogStore` (patches + transpiled holder / repair reads; `logs` savestate header), Inventory tab (`Modules/InventoryModule`: toggle, cap, HUD `Logs n / cap`); game-notes *Logs* |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
@@ -555,16 +556,17 @@ identity.
 
 ## Current status
 
-**Released: v0.24.133** (2026-09-27). The author runs it via the in-game
-updater. **383 tests.**
+**Released: v0.24.135** (2026-09-27). The author runs it via the in-game
+updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.133 in the game)
+### Pick up here (2026-09-27, v0.24.135 in the game)
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
-rest. A non-FPS session picks up **Next up 7: logs in the inventory**
-(*Next, in this order* 2) and watches maks's crash answer (*This
-session* below). Both release: **`git fetch` and check `HEAD..origin/main`
+rest. Logs in the inventory is done (v0.24.134-135, *This session*); a
+non-FPS session picks up *Next, in this order* 3 (Quick load physics,
+waiting on maks) or 4 (Next up 8, freecam lighting), and watches maks's
+crash answer and the logs QA answers. Both release: **`git fetch` and check `HEAD..origin/main`
 before bumping the version**, and read `qa_read new_only` as shared -
 a message one session reads is gone from the other's new list (tell the
 author what belongs to the other session). The author prefers **direct
@@ -708,7 +710,18 @@ performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
 #general: confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
-**This session (2026-09-27, v0.24.129-133), all checked over the
+**Logs in the inventory (v0.24.134-135)**, Next up 7: Inventory tab,
+off by default, cap 5 (1-99), marks practice; design choices (author,
+2026-09-27): a full store **refuses** the pickup, and the **sled /
+holders / repairs use the store** (transpiled reads). Checked over the
+bridge (docs/confirmed.md); the sled, blueprints, repairs and forced
+drops (rope, zipline, bench, death) are on QA (message
+`1553724217869078670`, `docs/tests/2026-09-27-logs-v0.24.135.md`).
+Known: a log onto a zipline needs the arms; a save with more than 2
+stored loaded with the mod off keeps 2. Each count change logs
+`Logs in the inventory: stored a -> b (caller)`.
+
+**Earlier this day (v0.24.129-133), all checked over the
 bridge:** passengers on the 100% tab (`Game/PassengerReader`,
 v0.24.130-131; seats sorted; warns when the manifest is not carried -
 the game only counts then); the nature guide named as the book prints
@@ -779,8 +792,7 @@ line says it next time.
    On high effort. Done: the endgame load in a run (v0.24.107-108),
    the heap step (not a leak), the load's animation sweep (v0.24.109-110),
    two idle cameras (v0.24.116).
-2. **Next up 7** - logs in the inventory (labelled gameplay mod);
-   passengers done.
+2. ~~Next up 7~~ done (passengers, logs in the inventory).
 3. **Next up 5, Quick load physics parity** - the heap lead above first;
    decide with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
@@ -1100,14 +1112,8 @@ list so we can move onto expanding more features".
 7. **The author's list of 2026-09-23:**
    - ~~100%: passengers~~ done (v0.24.130-131; no locations - the
      game's database paths are wrong, game-notes *Passengers*).
-   - **Logs in the inventory** *(runner sxczurass, clarified with the
-     author)*: picked-up logs go into the inventory with a counter up to a
-     cap (runner 5; author: configurable in the GUI); not held in the
-     arms. A gameplay mod - label it honestly. IL: item `Log` = 78;
-     `TheForest.Items.Special.LogControler` (`PlayerInventory.Logs`):
-     `_logs`, `_logsHeld`, `Lift()`, `PutDown(...)`, `RemoveLog`,
-     `UpdateLogCount`, `_infiniteLogHack` (console `_loghack`). To map: what
-     calls `Lift` on a pickup, how building takes logs, dropping.
+   - ~~Logs in the inventory~~ done (v0.24.134-135, `Game/LogStore`;
+     QA on the sled / repairs pending).
    - God mode: done (v0.24.101, Deaths tab).
 8. **Freecam keeps the game's lighting.** Freecam goes darker (author);
    `CopyFrom` does not copy the game camera's image effects - dump the main

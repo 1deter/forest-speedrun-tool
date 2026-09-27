@@ -194,6 +194,38 @@ Multi-piece items are **one item holding pieces**, not several items:
 likewise. `Toy_Arm` / `Toy_Leg` are single items held **x2**.
 `DrawingsInventoryItemView._ids` / `._usedIds` would give per-piece progress.
 
+### Logs (IL + bridge, v0.24.134-135)
+
+Logs are **not** an inventory item. `PlayerInventory.AddItemNF` /
+`RemoveItemNF` / `AmountOfNF` / `OwnsNF` short-circuit item 78 (`Log`;
+database `_maxAmount -1`, `Equipment, Droppable`, no view on the
+inventory mat) to `TheForest.Items.Special.LogControler`
+(`PlayerInventory.Logs`):
+- `_logs` (`[SerializeThis]`, the save keeps it; `OnDeserialized` sets it
+  to 0 and calls `Lift()` that many times) - the count, at most 2
+  (`Lift` refuses at 2, while swimming, pushing a sled, rafting, carrying
+  a body, in root motion).
+- `Lift()`: `_logs++`, shows `_logsHeld[_logs-1]` (LogHeld1/2 on the
+  spine), whoosh; the first log also puts the weapon / utility away
+  (`MemorizeItem` + `UnequipItemAtSlot`), sets the animator bools and
+  enables the component (its `Update` drops a log on the drop key).
+- `PutDown(fake, drop, equipPrevious, preSpawned)`: not `fake` = take one
+  (`RemoveLog`: hide the model; at 0 clear the bools, re-equip); `drop` =
+  spawn `_logPrefab` in front (a raycast to the ground). `FakeDrop(78)` =
+  `PutDown(true, true, ...)`. Building / fires / repairs take through
+  `RemoveItem(78)` -> `PutDown(false, false, true)`.
+- Readers of `Amount` / `HasLogs`: the log sled `LogHolder.Update` (take
+  while `Amount < 2`, add while `> 0`, holds 7), `MultiHolder`
+  (`LogContentUpdate`, `GrabEnter`), `RepairTool`, `BuildingRepair`; and
+  the forced drops before an action (rope top, zipline, crane, glider,
+  bench, skinning, eating, cave entry, `FallDownDead`, swimming), energy
+  (`GetTired`: 1 log 0.15, 2 logs 0.25) and calories.
+- A world log: `Log(Clone)` (layer PickUp), its `Trigger` child's
+  `PickUp.Collect` is the pickup.
+
+`Game/LogStore` (the *Logs in the inventory* mod) keeps the count in
+`_logs` and patches around it - see its header.
+
 ---
 
 ## Endgame splits — the separate triggers

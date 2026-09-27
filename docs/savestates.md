@@ -60,3 +60,6 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   `updateSpawns` top up a random family; weapons are whatever the spawn
   gives (game-notes *Cannibal kinds and families*). Restores are refused
   at the title screen (v0.24.73).
+  With *Logs in the inventory* on, the `logs` header keeps the stored
+  count and it is set back when the restore ends (`LogStore.Apply`,
+  v0.24.135; the game's own `_logs` round trip was unreliable once).

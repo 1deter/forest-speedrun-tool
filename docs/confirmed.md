@@ -138,3 +138,9 @@ Sun shadows every second frame (`SunShadowsEveryOtherFrame`, v0.24.125):
 no visible difference in play (author, 2026-09-26); 0.66 -> 0.32 ms a
 frame (bridge). Caves: no grass bending (v0.24.128): off in the cave,
 back on in the frame you leave, no hitch at the entry (bridge).
+
+Logs in the inventory (v0.24.134-135, bridge, released builds): arm logs
+move to the store on switching on, a real `PickUp.Collect` stores one, the
+cap refuses with a notice, the axe equips with a full store,
+`RemoveItem(78)` takes from the store, off puts 2 back in the arms and
+drops the rest, Quick and Full load give back the captured count.
