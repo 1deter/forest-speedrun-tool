@@ -467,3 +467,11 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     theories (v0.24.141-143). Also: a game list that is appended to and
     merged each time must be checked for ever being cleared
     (`dummyNavBounds` never was).
+
+60. **A config write saves the whole file.** Setting a BepInEx
+    `ConfigEntry.Value` writes `com.deter.forestoverlay.cfg` at once: a
+    bridge `set ..._panelOpacity.Value` took 86 ms. A slider or a text
+    field that writes on every change hitches on every step / keystroke.
+    Keep the value in the module while it changes and write once after it
+    settles (the splits opacity slider and runner name write 0.5 s after
+    the last change, v0.24.150); drags write on mouse release.

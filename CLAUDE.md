@@ -512,6 +512,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player".
 58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB.
 59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared.
+60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release.
 
 ---
 
@@ -563,29 +564,46 @@ identity.
 
 ## Current status
 
-**Released: v0.24.148** (2026-09-27). The author runs it via the in-game
-updater. **395 tests.**
+**Released: v0.24.151** (2026-09-27). The author runs it via the in-game
+updater. **396 tests.**
 
-### Pick up here (2026-09-27, v0.24.147 in the game)
+### Pick up here (2026-09-27, v0.24.151 in the game)
 
-**v0.24.146-148 (this session): the LiveSplit-style splits table** -
-on screen (`DrawScreen`, a new `OverlayModule` hook) and in the Runs tab
+**Next session: the website** (author, 2026-09-27: "get everything done
+and start working on the site"). Brief in *Next up* 10 and
+[`docs/website.md`](docs/website.md) - read that first.
+
+**v0.24.146-151: the LiveSplit-style splits table** - on screen
+(`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while
+F2 is open, position written on release; background opacity slider;
+column titles) and in the Runs tab, which scrolls below its buttons
 (`Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` tested). Every
 LiveSplit column / summary line toggleable (Runs -> Splits options),
-Compare to + best segments drives table / delta / ghost / lines, an
-unbound key cycles it. Attempts save `splits|` and `runner|<id>|<name>`
-(`Data/AttemptFormat`, pure; id = `Game/RunnerIdentity`, SHA-256 of the
-Steam id), segments `split = <name>` after a check / end line (Practice
-editor *split* fields). Checked over the bridge (docs/confirmed.md). A
-test segment `s-splitstest01` ("Splits test", category Test, 2 attempts)
-is in the author's `my-segments.txt` (backup of the file before it:
+precision 0-3 decimals for times and deltas (files keep ms), Compare to
++ best segments drives table / delta / ghost / lines, an unbound key
+cycles it. The finished run stays on the splits through a restart and
+clears when the next clock starts (stats rebuilt then, as LiveSplit
+commits on reset - author). Attempts save `splits|` and
+`runner|<id>|<name>` (`Data/AttemptFormat`, pure; id =
+`Game/RunnerIdentity`, SHA-256 of the Steam id); one runner-name field,
+pre-filled with the Steam name (stored as "" so a Steam rename follows).
+Segments `split = <name>` after a check / end line (Practice editor
+*split* fields). All checked over the bridge except the **drag**, which
+needs the author's mouse (docs/confirmed.md). A test segment
+`s-splitstest01` ("Splits test", category Test) is in the author's
+`my-segments.txt` (backup before it:
 `%TEMP%/my-segments.before-splits-test.txt`) - remove it per *Removing
-test spots* once the author has looked. **Next for splits:** other
+test spots* when the author is done with it. **Left for splits:** other
 runners' attempts as comparisons (Import stops ignoring `.foseg`
-attempts; keep them apart from the runner's own, per runner PB), then
-the `.lss` import (Next up 9), then the website (Next up 10). Not built:
-dragging the panel (preset positions + width / rows buttons instead),
-LiveSplit's PB chance / total playtime lines.
+attempts; keep them apart, per-runner PB) - the website needs the same
+plumbing; the `.lss` import (Next up 9, after the site if the author
+prefers). Not built: LiveSplit's PB chance / total playtime lines.
+
+**QA (2026-09-27):** one consolidated list per tester, on the author's
+request - maks (`1553807713593597984`, `docs/tests/2026-09-27-maks-open-items.md`,
+pinned by maks) and sxczurass (`1553811127278764167`,
+`docs/tests/2026-09-27-sxczurass-open-items.md`); the to-do list links
+both. Answer them per number; the FPS parts stay with the FPS session.
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
@@ -1208,12 +1226,9 @@ list so we can move onto expanding more features".
 9. **LiveSplit split file import** (`.lss`/`.lsl`); the splits view it
    needs is done (v0.24.146-148); the author's autosplitter is the
    reference (memory `autosplitter-repo`).
-10. **forest.deter.cloud - shared runs and a web viewer** *(runner)*.
-   Built by Claude (author); reads `.foseg` files (Data/SegmentBundle)
-   and can serve the community index as a second URL (`Community.Url`).
-   Local-first, export always; keyed on segment id + route fingerprint.
-   Everyone's runs vs yours (Momentum Mod), 3D terrain from the heightmap,
-   caves need a geometry dump, scrub bar and annotations.
+10. **forest.deter.cloud - shared runs and a web viewer** *(runner)* -
+   **next** (author, 2026-09-27). Brief: [`docs/website.md`](docs/website.md)
+   (formats, identity, decisions, open questions for the author).
 11. **TAS** - exploratory only, on savestates and the recorder.
 12. **Speedrun tech research** (author, QA Discord 2026-09-26, "later
     down the line"): helping runners place ziplines precisely (the big

@@ -186,3 +186,8 @@ and a forced texture rebuild then runs safely.
   of best 7.11 and best possible 13.15 (all hand-checked); attempts saved
   with `2 split time(s) saved, runner 'deter' (r-...)`; the tab scrolls
   with the options open (v0.24.147).
+- **Splits follow-ups (v0.24.149-151, bridge, 2026-09-27):** column titles
+  on the panel, background opacity (30% shown), one runner field
+  pre-filled `deter`, the finished run kept through an auto-restart
+  (-1.11 gold / -0.52 / -0.53 still shown after it), times at 3 decimals.
+  Dragging the panel: awaiting the author's mouse.
