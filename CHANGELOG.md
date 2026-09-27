@@ -5,14 +5,20 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.139 - 2026-09-27
+
+- The crash on **Reload save on death** after dying in the Megan fight is
+  now really fixed: v0.24.138 still crashed in testing. The grass camera
+  patch now checks right before the game's grass code runs, instead of a
+  frame later.
+
 ## v0.24.138 - 2026-09-27
 
 - Fixed a game crash on **Reload save on death** after dying in the Megan
   fight (and possibly other reloads out of the endgame). The performance
   patch that switches off the terrain's unused grass camera could switch it
   off in the middle of the load, which made the game crash a moment after
-  the save loaded. It now waits until the game is drawing normally again,
-  and puts the camera back while a load runs.
+  the save loaded.
 
 ## v0.24.137 - 2026-09-27
 

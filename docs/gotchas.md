@@ -436,3 +436,18 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     could never close (runner Ruben, v0.24.134; fixed v0.24.137). Before
     deleting or resetting "everything outside the player", list the
     player's other roots.
+
+58. **Switching a camera off changes which camera Unity calls
+    "current".** Unity keeps the last camera drawn as its current camera
+    into the next frame's `Update` (`Camera.current` reads it there). In
+    Unity 5.6, setting `targetTexture` on the current camera outside
+    rendering writes through a null render context: a native crash
+    (`Camera::SetTargetTextureBuffers`, write to `0xf8`). The terrain
+    grass camera patch switched a depth-0 camera off mid-load, leaving
+    the grass controller's depth -1 camera last; the controller then
+    rebuilt its texture and the game died after a death reload out of
+    the Megan fight (v0.24.137, fixed v0.24.139). A native crash is
+    readable: Unity's symbol server has the player PDB
+    (`symbolserver.unity3d.com/player_win_x64.pdb/<guid><age>/player_win_x64.pd_`,
+    `expand` it), and the PDB's public symbols plus a stack scan of
+    `crash.dmp` name the function - no debugger needed.

@@ -148,7 +148,7 @@ namespace ForestOverlay.Game
         {
             _log = log;
             _harmony = new Harmony(harmonyId + ".perf");
-            _cameras = new CameraTrim(log);
+            _cameras = new CameraTrim(log, _harmony);
 
             Add(config, "OverlayLayoutOnlyForWindows", "Overlay: no GUI layout pass without a window",
                 "Skip Unity's GUI layout pass for the overlay while none of its windows is open (saves ~40 KB/s of garbage).",

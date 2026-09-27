@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -36,9 +37,15 @@ namespace ForestOverlay.Game
     //    context, null outside rendering: a native crash (the author's death
     //    reload out of the Megan fight, crash dump symbolised against
     //    Unity's player PDB; reproduced 2 of 2, gone with this switch off).
-    //    So: switched off only after two scans in a row with another camera
-    //    drawn last (Camera.current in Update = last frame's last camera),
-    //    and back on in the first frame the controller's camera is last.
+    //    So, while switched off: a prefix on the controller's Update puts
+    //    the scene camera back on and skips that one Update whenever the
+    //    controller's camera is Unity's current camera (the next frame draws
+    //    the scene camera last again, and the controller carries on) - the
+    //    guard at the crash site itself, since which camera a load leaves
+    //    last cannot be foreseen (v0.24.138 guarded only from our own tick,
+    //    one frame late, and still crashed). Switched off again only after
+    //    two scans in a row with another camera drawn last (Camera.current
+    //    in Update = last frame's last camera).
     //
     // 2. The endgame's plane screen. `Sections/ControlRoom/redcircles/
     //    Camera` renders a diorama (with post-processing) into 'EndPLane',
@@ -96,6 +103,9 @@ namespace ForestOverlay.Game
         private const string ScreenTextureName = "EndPLane";
 
         private readonly ManualLogSource _log;
+        private readonly Harmony _harmony;
+        private MethodInfo _ctlUpdate;
+        private static CameraTrim _active;      // for the controller's Update prefix
         private float _nextScan;
 
         public bool GrassOn { get; private set; }
@@ -120,9 +130,10 @@ namespace ForestOverlay.Game
         private float _nextBendScan;
         private Camera _caveGrassOff;
 
-        public CameraTrim(ManualLogSource log)
+        public CameraTrim(ManualLogSource log, Harmony harmony)
         {
             _log = log;
+            _harmony = harmony;
         }
 
         private string ResolveController()
@@ -139,6 +150,10 @@ namespace ForestOverlay.Game
         {
             string why = ResolveController();
             if (why.Length > 0) return why;
+            _ctlUpdate = _controllerType.GetMethod("Update", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (_ctlUpdate == null) return "the grass controller's Update not found";
+            _harmony.Patch(_ctlUpdate, new HarmonyMethod(typeof(CameraTrim).GetMethod("GrassUpdatePrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+            _active = this;
             GrassOn = true;
             _grassRefusedId = 0;
             _grassCalm = 0;
@@ -149,6 +164,8 @@ namespace ForestOverlay.Game
         public void RemoveGrass()
         {
             GrassOn = false;
+            if (_ctlUpdate != null) _harmony.Unpatch(_ctlUpdate, HarmonyPatchType.Prefix, _harmony.Id);
+            _active = null;
             if (_grassOff != null)
             {
                 _grassOff.enabled = true;
@@ -314,10 +331,32 @@ namespace ForestOverlay.Game
         {
             Camera last = Camera.current;
             if (last != null && last != _grassBend) return;
+            ReleaseGrassForLoad("nothing drew after the grass cameras (a load)");
+        }
+
+        private void ReleaseGrassForLoad(string why)
+        {
             _grassOff.enabled = true;
             _grassOff = null;
             _grassCalm = 0;
-            _log.LogInfo("Performance: terrain grass camera back on - nothing drew after the grass cameras (a load); off again once the game draws after them.");
+            _log.LogInfo("Performance: terrain grass camera back on - " + why + "; off again once the game draws after them.");
+        }
+
+        // Before AfsGrassDisplacementController.Update, while the switch is
+        // on. With the controller's camera current, its texture rebuild
+        // would crash: the scene camera goes back on, this Update is
+        // skipped once.
+        private static bool GrassUpdatePrefix(Camera ___DisplacementCamera)
+        {
+            try
+            {
+                CameraTrim t = _active;
+                if (t == null || t._grassOff == null) return true;
+                if (___DisplacementCamera == null || Camera.current != ___DisplacementCamera) return true;
+                t.ReleaseGrassForLoad("the grass controller's camera was drawn last (its Update skipped once)");
+                return false;
+            }
+            catch (Exception) { return true; }
         }
 
         // ------------------------------------------------------------------

@@ -507,6 +507,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom.
 56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one.
 57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player".
+58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB.
 
 ---
 
