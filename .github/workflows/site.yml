@@ -1,0 +1,71 @@
+name: site
+
+# forest.deter.cloud (docs/website.md): test, publish for the VPS (arm64),
+# ship over SSH to site/deploy/deploy.sh (the deploy key can run nothing
+# else), then check the live site answers.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'community/**'
+      - 'src/Data/**'
+      - 'tests/ForestOverlay.Tests/UnityShim.cs'
+      - '.github/workflows/site.yml'
+  pull_request:
+    paths: ['site/**']
+  workflow_dispatch:
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: false
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test site/ForestSite.Tests -c Release --nologo
+
+      - name: Publish (linux-arm64)
+        run: |
+          dotnet publish site/ForestSite -c Release -r linux-arm64 --self-contained false -o out
+          tar czf site.tgz -C out .
+          ls -l site.tgz
+
+      - name: Deploy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KEY: ${{ secrets.DEPLOY_KEY }}
+          HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$KEY" ] || [ -z "$HOST_KEY" ]; then
+            echo "::warning::Deploy secrets not set (site/deploy/README.md) - built and tested only."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes -o BatchMode=yes forestdeploy@"$HOST" < site.tgz
+
+      - name: Check the live site
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          [ -n "$HOST" ] || exit 0
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://forest.deter.cloud/api/spots || true)
+            [ "$code" = 200 ] && { echo "live: 200"; exit 0; }
+            echo "attempt $i: $code"; sleep 5
+          done
+          exit 1

@@ -1,0 +1,140 @@
+/* The Forest's loading screen: its progress bar's yellow on black, its
+   #222 backing, Montserrat (read from the game's UI over the bridge). */
+:root {
+  --bg: #000;
+  --panel: #0d0d0d;
+  --line: #222;
+  --yellow: #e5c501;
+  --text: #e5c501;
+  --dim: #8a7a1c;
+  --muted: #6b6b6b;
+  --white: #eaeaea;
+  --ahead-gain: #29d17a;
+  --ahead-lose: #7ee0a8;
+  --behind-gain: #e37f7f;
+  --behind-lose: #e0413b;
+  --gold: #ffd84d;
+  --radius: 2px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 500 15px/1.5 Montserrat, system-ui, sans-serif;
+  letter-spacing: .01em;
+}
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--white); }
+button, input, select { font: inherit; color: inherit; }
+::selection { background: var(--yellow); color: #000; }
+
+.top {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  max-width: 1100px; margin: 0 auto; padding: 28px 16px 12px;
+}
+.brand { font-weight: 600; letter-spacing: .32em; font-size: 14px; }
+.brand span { color: var(--muted); letter-spacing: .12em; font-weight: 500; margin-left: .6em; text-transform: lowercase; }
+.top nav a { margin-left: 20px; color: var(--muted); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
+.top nav a:hover, .top nav a.on { color: var(--yellow); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 64px; }
+
+h1 { font-weight: 500; font-size: 26px; letter-spacing: .06em; margin: 18px 0 4px; color: var(--yellow); }
+h2 {
+  font-weight: 600; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--muted); margin: 36px 0 10px;
+}
+p { margin: 0 0 12px; }
+.sub { color: var(--muted); font-size: 13px; }
+.note { color: var(--dim); max-width: 70ch; }
+.loading { color: var(--muted); letter-spacing: .3em; text-transform: uppercase; font-size: 12px; margin-top: 40px; }
+.error { color: var(--behind-lose); }
+
+/* --- the spot list --------------------------------------------------- */
+.search {
+  width: 100%; max-width: 420px; background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  padding: 8px 0; outline: none; color: var(--white);
+}
+.search::placeholder { color: var(--muted); }
+.search:focus { border-color: var(--yellow); }
+
+.spots { list-style: none; margin: 0; padding: 0; }
+.spots a {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: baseline;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.spots a:hover .name { color: var(--white); }
+.spots .name { overflow-wrap: anywhere; }
+.spots .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.spots .best { font-variant-numeric: tabular-nums; min-width: 6ch; text-align: right; }
+.empty { color: var(--muted); padding: 12px 0; }
+
+/* --- a spot ---------------------------------------------------------- */
+.routes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip {
+  border: 1px solid var(--line); background: transparent; padding: 4px 10px; border-radius: var(--radius);
+  font-size: 12px; color: var(--muted); cursor: pointer;
+}
+.chip.on, .chip:hover { border-color: var(--yellow); color: var(--yellow); }
+
+.mapwrap { position: relative; margin-top: 20px; border: 1px solid var(--line); background: #050505; }
+.mapwrap canvas { display: block; width: 100%; height: min(58vh, 520px); touch-action: none; cursor: grab; }
+.mapwrap canvas.drag { cursor: grabbing; }
+.maphint { position: absolute; right: 10px; top: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
+.mapempty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+
+.scrub { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.scrub button {
+  background: transparent; border: 1px solid var(--line); width: 34px; height: 30px; cursor: pointer; border-radius: var(--radius);
+}
+.scrub button:hover { border-color: var(--yellow); }
+.scrub input[type=range] { flex: 1; accent-color: var(--yellow); min-width: 60px; }
+.scrub .clock { font-variant-numeric: tabular-nums; min-width: 7ch; text-align: right; color: var(--white); }
+.scrub select { background: #000; border: 1px solid var(--line); padding: 3px 4px; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th {
+  text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+td { padding: 8px; border-bottom: 1px solid #141414; white-space: nowrap; }
+td.name { white-space: normal; overflow-wrap: anywhere; }
+th.r, td.r { text-align: right; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: #0b0b0b; }
+tr.focus td { background: #151300; }
+.rank { color: var(--muted); width: 2ch; }
+.swatch {
+  display: inline-block; width: 12px; height: 12px; border: 1px solid var(--muted); vertical-align: -1px; border-radius: 50%;
+}
+.swatch.on { border-color: transparent; }
+.flag { color: var(--behind-lose); font-size: 11px; margin-left: 6px; }
+.date { color: var(--muted); font-size: 13px; }
+
+.splitsbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between; }
+.splitsbar select { background: #000; border: 1px solid var(--line); padding: 3px 6px; }
+.c-ahead-gain { color: var(--ahead-gain); }
+.c-ahead-lose { color: var(--ahead-lose); }
+.c-behind-gain { color: var(--behind-gain); }
+.c-behind-lose { color: var(--behind-lose); }
+.c-gold { color: var(--gold); }
+.summary td { color: var(--muted); border-bottom: 0; }
+.summary td.r { color: var(--white); }
+
+.btn {
+  display: inline-block; border: 1px solid var(--line); padding: 4px 10px; font-size: 12px; color: var(--muted);
+  border-radius: var(--radius); margin-top: 12px;
+}
+.btn:hover { border-color: var(--yellow); color: var(--yellow); }
+
+.about { max-width: 68ch; }
+.about ol { padding-left: 20px; }
+.about li { margin-bottom: 8px; }
+.about code { color: var(--white); font-size: 13px; }

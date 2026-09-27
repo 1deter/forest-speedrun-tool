@@ -59,17 +59,62 @@ the starting point; decisions made while building go here too.
 - Coordinates are Unity world metres (y up); the surface map spans about
   -1750..1750 on x / z; caves are below the terrain (y < 0 in places).
 
-## Open questions for the author (ask at the start)
+## Decided at the start of the build (2026-09-27)
 
-1. **Hosting:** what is behind forest.deter.cloud today (a VPS, Cloudflare,
-   GitHub Pages)? That decides static site + small API vs a full server.
-2. **Upload endpoint and abuse:** anonymous uploads keyed on the runner id,
-   or a token per install? (No anti-cheat needed; spam protection is.)
-3. **Repo:** a `site/` folder in this repo (formats shared, one CI) or its
-   own repo?
-4. **First version scope:** suggestion - browse community spots, upload /
-   view runs per spot and route, per-runner PB table with splits, a 2D map
-   of the lines (x / z) with a scrub bar; 3D terrain after.
+- **Hosting (author):** the author's Oracle free-tier VPS (aarch64, Ubuntu
+  minimal), Cloudflare in front (SSL Full), Caddy in Docker (`~/website`,
+  network `caddy-navidrome`) as for deter.cloud and music.deter.cloud.
+- **Stack (Claude, author: "up to you"):** ASP.NET Core (.NET 10) + SQLite
+  + plain HTML / JS, one process, in the stock `aspnet:10.0` container on
+  Caddy's network (`reverse_proxy forest-site:8080`, no host port). The
+  server **links the plugin's own pure files** (`AttemptFormat`,
+  `SplitTable`, `SegmentFormat`, `SegmentBundle`, with the tests' Unity
+  shim) - one parser and one splits maths for game and site.
+- **Repo (author: `site/` is fine):** `site/` in this repo.
+- **Deploys (author asked for automatic):** `.github/workflows/site.yml` -
+  test, publish linux-arm64, tarball over SSH to `site/deploy/deploy.sh`
+  (a forced command: the key can run nothing else), container restart,
+  live check. One-time setup: `site/deploy/README.md`.
+- **Uploads:** a token per install (`POST /api/register`, first
+  registration owns the runner id; the author can reset a token). Rate
+  limits per IP (`CF-Connecting-IP`) and token, 4 MB bodies. A time under
+  0.8 x the route's best (3+ runs) is flagged "under review".
+- **First version (author agreed):** browse spots, upload / view runs per
+  spot and route, per-runner best with splits, a 2D map with a scrub bar.
+  3D terrain after.
+- **Look (author):** minimalist, intuitive, The Forest's loading screen:
+  its progress bar's yellow `rgb(229, 197, 1)` on black, `#222` backing,
+  Montserrat (read from `HUD_Ngui/LoadCam` over the bridge).
+
+## What is built (2026-09-27, not deployed yet)
+
+- `site/ForestSite`: `Store` (SQLite + gzip run files), `Runs` (upload
+  rules, community packs from `community/` shipped with the site, the
+  JSON), `Program` (endpoints, rate limits, admin). Pages in `wwwroot`:
+  spot list with search, a spot (map: zones, lines, ghost dots, play /
+  scrub / speed; runners board with map toggles; splits vs #1 or best
+  segments, LiveSplit colours; .run download; older route versions as
+  chips), about. Phone width checked.
+- `site/ForestSite.Tests`: 8 end-to-end tests (register, upload, board,
+  golds, duplicates, refusals, moved zone = new route, flag, community,
+  submissions).
+- Checked locally with the author's real `s-splitstest01` attempts: all 6
+  accepted (route fingerprints match the plugin's).
+- API: `GET /api/spots`, `/api/spots/{id}`, `/api/spots/{id}/{route}/runner/{runner}`,
+  `/api/runs/{id}` (path `[t,x,y,z,speed]`), `/api/runs/{id}/file`;
+  `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
+  (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`;
+  `/api/admin/...` with `X-Admin-Token`.
+
+## Next
+
+1. The author's one-time setup (`site/deploy/README.md`), first deploy.
+2. The plugin side: register once, upload each finished attempt (a
+   `.foseg` of the segment + that attempt) in the background, a Settings
+   switch (on once the site is live - author), show the upload state.
+3. Other runners' PBs as split comparisons in game (`GET /api/spots/{id}`).
+4. A spot submission button in Practice; an admin page instead of curl.
+5. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later
 

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    forest.deter.cloud: shared runs and a web viewer (docs/website.md).
+
+    The plugin's own pure format and splits files are LINKED IN, as the
+    tests do, against the same tiny UnityEngine shim - one parser and one
+    splits maths for the game and the site.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ForestSite</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);CS0618;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../tests/ForestOverlay.Tests/UnityShim.cs" Link="Linked/UnityShim.cs" />
+    <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
+    <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
+    <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
+    <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
+    <Compile Include="../../src/Data/SegmentBundle.cs" Link="Linked/SegmentBundle.cs" />
+  </ItemGroup>
+
+  <!-- The community packs ship with the site, as they do in the repo. -->
+  <ItemGroup>
+    <Content Include="../../community/*.foseg" Link="community/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

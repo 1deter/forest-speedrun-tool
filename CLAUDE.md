@@ -48,6 +48,7 @@ dotnet build tools/BridgeMcp -c Release
 ```
 
 ```bash
+dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: preview "forest-site" (.claude/launch.json)
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
@@ -92,6 +93,7 @@ folders because it is the code that can break an install.
 | `patcher/` | `ForestOverlay.Updater` preloader patcher. Embedded in the plugin, never shipped alone |
 | `tools/ILScan/` | Offline IL query tool. Dev-time only, never shipped |
 | `tools/BridgeMcp/` | MCP server over the live test bridge (`.mcp.json`: `forest`). Dev-time only, never shipped |
+| `site/` | forest.deter.cloud: ASP.NET Core + SQLite + plain JS, links the pure `src/Data` format files; `site/deploy` + `.github/workflows/site.yml` deploy it to the author's VPS ([`docs/website.md`](docs/website.md)) |
 | `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
 
 Modules never reach for globals or each other — shared services arrive via
@@ -570,9 +572,13 @@ updater. **396 tests.**
 
 ### Pick up here (2026-09-27, v0.24.152 in the game)
 
-**Next session: the website** (author, 2026-09-27: "get everything done
-and start working on the site"). Brief in *Next up* 10 and
-[`docs/website.md`](docs/website.md) - read that first.
+**The website is built, not deployed yet** (2026-09-27): `site/` - the
+server, pages, 8 tests, the deploy workflow; decisions, API and *Next* in
+[`docs/website.md`](docs/website.md) - read that first. Waiting on the
+author's one-time VPS setup (`site/deploy/README.md`: Cloudflare record,
+`setup.sh`, three GitHub secrets). Then the plugin side (register +
+upload each finished attempt). The workflow runs on pushes to `site/`,
+`src/Data/`, `community/` and skips the deploy until the secrets exist.
 
 **v0.24.146-151: the LiveSplit-style splits table** - on screen
 (`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while

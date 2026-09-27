@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "forest-site",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "site/ForestSite", "--urls", "http://localhost:5080"],
+      "port": 5080
+    }
+  ]
+}

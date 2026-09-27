@@ -1,2 +1,4 @@
 # Shell scripts run under bash and break with CRLF line endings.
 *.sh text eol=lf
+# Scripts that run on Linux keep LF on Windows checkouts.
+site/deploy/* text eol=lf
