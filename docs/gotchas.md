@@ -446,8 +446,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     grass camera patch switched a depth-0 camera off mid-load, leaving
     the grass controller's depth -1 camera last; the controller then
     rebuilt its texture and the game died after a death reload out of
-    the Megan fight (v0.24.137, fixed v0.24.139). A native crash is
+    the Megan fight (v0.24.137). The current camera only changes at the
+    next render: a guard that switches the camera back on earlier in the
+    same frame does not make the rebuild safe, so the guard at the crash
+    site must not depend on it (v0.24.138-139 still crashed; fixed
+    v0.24.140). A native crash is
     readable: Unity's symbol server has the player PDB
     (`symbolserver.unity3d.com/player_win_x64.pdb/<guid><age>/player_win_x64.pd_`,
     `expand` it), and the PDB's public symbols plus a stack scan of
-    `crash.dmp` name the function - no debugger needed.
+    `crash.dmp` name the function - no debugger needed
+    (`scripts/symbolize-crash.py`; `scripts/sample-stacks.py` samples or
+    stack-walks the live game's threads the same way).

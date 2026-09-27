@@ -37,13 +37,16 @@ namespace ForestOverlay.Game
     //    context, null outside rendering: a native crash (the author's death
     //    reload out of the Megan fight, crash dump symbolised against
     //    Unity's player PDB; reproduced 2 of 2, gone with this switch off).
-    //    So, while switched off: a prefix on the controller's Update puts
-    //    the scene camera back on and skips that one Update whenever the
-    //    controller's camera is Unity's current camera (the next frame draws
-    //    the scene camera last again, and the controller carries on) - the
+    //    So, while the switch is on: a prefix on the controller's Update
+    //    skips it in every frame where the controller's camera is Unity's
+    //    current camera, and puts the scene camera back on if it is off (the
+    //    next render draws it last, and the controller carries on) - the
     //    guard at the crash site itself, since which camera a load leaves
-    //    last cannot be foreseen (v0.24.138 guarded only from our own tick,
-    //    one frame late, and still crashed). Switched off again only after
+    //    last cannot be foreseen. It must not depend on whether the scene
+    //    camera is still off: the current camera only changes at the next
+    //    render, so a release earlier in the same frame (our tick) does not
+    //    make the rebuild safe - v0.24.139 checked "still off" and crashed
+    //    that way, v0.24.138 had no prefix. Switched off again only after
     //    two scans in a row with another camera drawn last (Camera.current
     //    in Update = last frame's last camera).
     //
@@ -116,6 +119,7 @@ namespace ForestOverlay.Game
         private Camera _grassOff;
         private Camera _grassBend;      // the controller's camera, when _grassOff was switched off
         private int _grassCalm;         // scans in a row with another camera drawn last
+        private int _skipLastFrame = -2; // the last frame the controller's Update was skipped
         private Camera _screenCam;
         private readonly List<RenderOnView> _hooks = new List<RenderOnView>();
         private Type _controllerType;
@@ -351,9 +355,14 @@ namespace ForestOverlay.Game
             try
             {
                 CameraTrim t = _active;
-                if (t == null || t._grassOff == null) return true;
+                if (t == null) return true;
                 if (___DisplacementCamera == null || Camera.current != ___DisplacementCamera) return true;
-                t.ReleaseGrassForLoad("the grass controller's camera was drawn last (its Update skipped once)");
+                if (t._grassOff != null) t.ReleaseGrassForLoad("the grass controller's camera was drawn last");
+                int frame = Time.frameCount;
+                if (frame != t._skipLastFrame + 1)
+                    t._log.LogInfo("Performance: grass controller's Update skipped while its camera is Unity's current one (a load) - " +
+                                   "a texture rebuild there crashes Unity.");
+                t._skipLastFrame = frame;
                 return false;
             }
             catch (Exception) { return true; }

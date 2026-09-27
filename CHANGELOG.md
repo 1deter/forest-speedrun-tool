@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.140 - 2026-09-27
+
+- The crash after dying in the Megan fight with **Reload save on death**
+  could still happen on v0.24.138-139 (it crashed again in testing). The
+  grass patch now always holds the game's grass code back for the moment
+  where it would crash, whatever else happened in that frame.
+
 ## v0.24.139 - 2026-09-27
 
 - The crash on **Reload save on death** after dying in the Megan fight is
