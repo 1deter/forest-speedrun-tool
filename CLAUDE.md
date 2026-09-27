@@ -634,8 +634,18 @@ Since v0.24.156 both are in the QA tab (`qa/2026-09-27-<tester>.txt`,
 `QaList.DefaultIndex`); maks's report of 20:58 was the stale 09-25 list,
 unanswered. **maks's note (v0.24.145, 'Boost Elev' = a Quick load 1.5 s
 into the red elevator's ride): the door opens while the car still runs,
-and it is light instead of pitch black (fog carried over?)** - a lead for
-Next 3; report in `Downloads\qa-reports\yirequ\...2026-09-27_20-58`.
+and it is light instead of pitch black (fog carried over?)** -
+reproduced over the bridge (`elevPre` / `elevMid` too): his capture
+(and ours) has `activearea = none` - taken right after a title-screen
+load of his save, where no endgame section is entered - so the car's
+renderers / lights are off and the sky shows through. `call
+Sections/HellCorridor Area.OnEnter null` brings the car back (dark,
+lamps, closed door). **Not fixed on purpose**: his segments are
+"Labskip" / "Blind Elevator Boost", so a real run may be in the same
+unloaded state. Asked maks (QA `1553850964174438401`): real run dark or
+invisible? If dark: `AreaKeeper.Restore` with `none` while inside a
+section (`InsideASection`) enters that section. Report in
+`Downloads\qa-reports\yirequ\...2026-09-27_20-58`.
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
