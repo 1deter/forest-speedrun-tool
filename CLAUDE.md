@@ -591,13 +591,13 @@ git, pyramid L0-6, 0.21 m/px); `FOREST_SITE_ADMIN_TOKEN=... python
 scripts/aerial-upload.py` (the author's token - ask them to run it or set
 it) -> the site's data folder; map.js draws Photo / Ground / Relief (a
 helper agent built it, tested on fake tiles only).
-**Next steps, in order:** (1) a full capture on v0.24.168 was running at
-handoff (150/~250 tiles) - v0.24.169 turns off eye adaptation (tiles
-exposed differently: snow greyer / whiter per tile) and the vignette
-(darker tile corners): **install v0.24.169 and capture again**, then bake,
-look at the whole mosaic (seams, light), check locally (preview
-`forest-site`, copy `site/aerial-out` into the local data folder's
-`aerial/`), upload. (2) Caves / endgame sections / overlook are not in the
+**Next steps, in order:** (1) **The photo map is live** (2026-09-28): a
+full capture on v0.24.169 (234 tiles + 22 sea, 955 s; eye adaptation and
+vignette off), baked (3784 top-level tiles per layer), uploaded by the
+author. Nobody has looked at it yet: open a spot page on
+forest.deter.cloud, check the whole island at every zoom (seams, even
+light, the Photo / Ground switch, the underground fade), fix what shows;
+a re-capture + bake + upload is ~25 min. Ask the author how it looks. (2) Caves / endgame sections / overlook are not in the
 terrain: a collider-mesh dump -> 2D floor plan at the ghost's height + 3D
 (author wants it "true to the game state", incl. invisible sections like
 the lab skip). (3) Separate toggles for buildings / other objects (author:
