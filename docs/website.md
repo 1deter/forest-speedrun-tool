@@ -198,10 +198,14 @@ spot's saved runs" and "Open on the website".
    thirst, armour, cold armour, battery, body temp, stealth, cold, light;
    plus speed from the path) - and `?all=1` every channel, behind the
    panel's *Show all* (author: "a smaller preset useful for the runners").
-   Values step (the last 5 Hz sample), not blended. **Not recorded:
-   inventory counts (sodas, meds ...)** - the `.run` holds PlayerStats
-   only; adding them means new plugin channels (the site picks up any
-   named channel via Show all; add a name to the preset).
+   Values step (the last 5 Hz sample), not blended. **Inventory counts
+   since v0.24.160** (`Game/ItemChannels`): `item:<database name>`
+   channels after the PlayerStats ones (Soda, Booze, EnergyMix, Meds,
+   Aloe, Coins, Battery, Stick, Rock, Log, Rope, Cloth, Molotov,
+   BombTimed, Dynamite, Flare), from the game's `AmountOf(id, false)`
+   (held item included); the page lists them under *Carrying*, only the
+   ones the run ever held. Checked over the bridge (3 sodas read 3); not
+   seen yet in an uploaded run - the next finished run shows it.
 4. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later

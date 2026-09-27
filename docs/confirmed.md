@@ -204,3 +204,6 @@ and a forced texture rebuild then runs safely.
   (...): 52 samples`), table titled "vs" them with split deltas, live HUD
   delta and ghost in a run, own sum of best / attempts unchanged, the
   cycle key Runner -> Best -> ... -> Runner.
+- **v0.24.160 inventory counts in runs** (bridge, 2026-09-27): `Run item
+  channels: 16 items.`; 98 state channels (82 stats + 16 items), 3 sodas
+  added read `item:Soda = 3`.
