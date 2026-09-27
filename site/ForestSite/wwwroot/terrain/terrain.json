@@ -1,0 +1,22 @@
+{
+ "x0": -1750.0,
+ "z0": -1742.631,
+ "y0": 0.0,
+ "sizeX": 3500.0,
+ "sizeY": 250.0,
+ "sizeZ": 3500.0,
+ "sea": 41.5,
+ "image": "map.jpg",
+ "heights": "heights.u16",
+ "grid": 1025,
+ "layers": [
+  "Ground_guiFloodedMud_1k_alb",
+  "Ground_MossyNew",
+  "Ground_BigRock",
+  "Ground_LakeEdge",
+  "ground_desertSandSmallDunes_1k_d",
+  "Ground_CliffRockColor",
+  "Ground_Leaves",
+  "Grass_diffuse_spec"
+ ]
+}

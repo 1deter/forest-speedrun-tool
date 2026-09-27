@@ -219,8 +219,19 @@ spot's saved runs" and "Open on the website".
    [[t, name, count]]`; the panel's *Carrying* lists the items the run
    ever held, 0 dimmed. v0.24.160 recorded a fixed list as `item:<name>`
    channels instead - still read (only runs from that version).
-4. **The map: terrain heightmap underlay, then 3D** - next (a new
-   session, author 2026-09-27). Known (bridge, 2026-09-27, Slot 2): one
+4. **The map: terrain heightmap underlay, then 3D** - the 2D underlay
+   is **done** (2026-09-27): v0.24.162's bridge call `call
+   static:ForestOverlay.Game.TerrainDump Write` writes
+   `config/ForestOverlay/terrain/` (heights uint16, splat alpha, texture
+   colours), `python scripts/terrain-bake.py` (numpy + pillow) bakes
+   `wwwroot/terrain/` (map.jpg 2048 px relief, heights.u16 1025^2,
+   terrain.json; sea level 41.5 = Ceto `Ocean.level`); map.js draws it
+   under the grid, fades it with "UNDERGROUND" while every ghost is 3 m+
+   below the ground (caves, endgame), and draws the 12 plane crash sites
+   (`PlaneCrashLocations.finalPositions`, HullRef). Heights checked
+   against `Terrain.SampleHeight` at 4 points. Left: 3D (secondary view),
+   caves / endgame sections / overlook (not in the terrain - a mesh dump),
+   which plane a save has. Originally: Known (bridge, 2026-09-27, Slot 2): one
    terrain, `Terrain.activeTerrain` = `MainTerrain`,
    `terrainData.size` (3500, 250, 3500), at (-1750, 0, -1742.63) - so it
    covers x -1750..1750, z -1742.63..1757.37; `heightmapResolution` 2049

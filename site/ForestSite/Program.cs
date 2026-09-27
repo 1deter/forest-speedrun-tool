@@ -52,8 +52,12 @@ app.UseRateLimiter();
 // deploy changes their URLs: Cloudflare's Browser Cache TTL (4 h, it
 // overrides the origin's no-cache) can never pair an old app.js with a new
 // API. The page itself is served with no-cache and never edge-cached.
+// The map's terrain height grid (scripts/terrain-bake.py) is raw uint16s.
+var contentTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+contentTypes.Mappings[".u16"] = "application/octet-stream";
 app.UseStaticFiles(new StaticFileOptions
 {
+    ContentTypeProvider = contentTypes,
     OnPrepareResponse = f =>
         f.Context.Response.Headers.CacheControl = f.Context.Request.Query.ContainsKey("v")
             ? "public, max-age=31536000, immutable" : "no-cache",

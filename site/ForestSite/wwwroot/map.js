@@ -1,10 +1,46 @@
 // A top-down map of a spot: its zones, the chosen runs' lines and a ghost
 // dot per run at the scrub time. World x runs east, z north (Unity metres),
-// so z is drawn upwards. Drag to pan, wheel / pinch to zoom.
+// so z is drawn upwards. Drag to pan, wheel / pinch to zoom. Under it all,
+// the game's terrain (scripts/terrain-bake.py -> /terrain/): a shaded relief
+// image and a height grid, shared by every map on the page.
 "use strict";
 
 window.RunMap = (function () {
   const YELLOW = "#e5c501";
+  const SEA = "#0a1822";
+
+  // The 12 places the plane can crash (PlaneCrashLocations.finalPositions,
+  // HullRef, read live 2026-09-27): x, z, yaw. A save uses one of them.
+  const PLANES = [
+    [-577.19, 1437.1, 333.3], [-117.11, 1496.41, 317.9], [-928.96, 998.02, 31.4], [-211.94, 563.2, 281.3],
+    [893.66, 349.33, 290.6], [239.32, 849.33, 20.3], [443.3, 645.09, 240.9], [816.57, 621.1, 121.5],
+    [-246.74, 417.52, 174.8], [447.31, 246.9, 97.0], [355.7, 1055.42, 10.6], [-437.69, 1416.01, 296.1],
+  ];
+
+  // --- terrain, loaded once per page ---------------------------------------
+  const terrain = { meta: null, image: null, heights: null, maps: new Set() };
+  const terrainReady = fetch("/terrain/terrain.json").then(r => r.ok ? r.json() : null).then(meta => {
+    if (!meta) return;
+    terrain.meta = meta;
+    const img = new Image();
+    img.onload = () => { terrain.image = img; terrain.maps.forEach(m => m.draw()); };
+    img.src = "/terrain/" + meta.image;
+    return fetch("/terrain/" + meta.heights).then(r => r.ok ? r.arrayBuffer() : null).then(buf => {
+      if (buf) { terrain.heights = new Uint16Array(buf); terrain.maps.forEach(m => m.draw()); }
+    });
+  }).catch(() => { /* no terrain: the plain grid, as before */ });
+
+  /// The ground's height (world y) at x, z, or null outside the terrain.
+  function groundAt(x, z) {
+    const m = terrain.meta, h = terrain.heights;
+    if (!m || !h) return null;
+    const n = m.grid - 1, u = (x - m.x0) / m.sizeX * n, v = (z - m.z0) / m.sizeZ * n;
+    if (!(u >= 0 && v >= 0 && u <= n && v <= n)) return null;
+    const i = Math.min(n - 1, Math.floor(u)), j = Math.min(n - 1, Math.floor(v)), fu = u - i, fv = v - j;
+    const g = (a, b) => h[b * m.grid + a];
+    const top = g(i, j) * (1 - fu) + g(i + 1, j) * fu, bottom = g(i, j + 1) * (1 - fu) + g(i + 1, j + 1) * fu;
+    return m.y0 + (top * (1 - fv) + bottom * fv) / 65535 * m.sizeY;
+  }
 
   function RunMap(canvas) {
     this.canvas = canvas;
@@ -14,6 +50,8 @@ window.RunMap = (function () {
     this.time = 0;
     this.view = null;      // { cx, cz, scale } - pixels per metre
     this.pointers = new Map();
+    this.showTerrain = true;
+    terrain.maps.add(this);
     this.bind();
     new ResizeObserver(() => this.draw()).observe(canvas);
   }
@@ -59,7 +97,10 @@ window.RunMap = (function () {
     if (!this.view) this.fit();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    this.grid(w, h);
+    const relief = this.showTerrain && terrain.image;
+    if (relief) this.relief(w, h);
+    this.grid(w, h, relief);
+    if (relief) this.planes();
     for (const zn of this.zones) this.zone(zn);
 
     for (const run of this.runs) {
@@ -67,6 +108,11 @@ window.RunMap = (function () {
       if (p.length < 2) continue;
       // The whole line dim, the part already run bright.
       ctx.lineJoin = "round"; ctx.lineCap = "round";
+      if (relief) {
+        // A dark edge keeps a line readable on light ground.
+        ctx.globalAlpha = 0.45; ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
+        this.line(p, this.time);
+      }
       ctx.globalAlpha = 0.28; ctx.strokeStyle = run.color; ctx.lineWidth = 1.5;
       this.line(p, Infinity);
       ctx.globalAlpha = 1; ctx.lineWidth = 2.2;
@@ -83,6 +129,45 @@ window.RunMap = (function () {
     ctx.globalAlpha = 1;
   };
 
+  /// The relief image at world coordinates; faded while every ghost on the
+  /// map is underground (a cave or the endgame, which the terrain does not
+  /// show), so a cave line does not read as a surface one.
+  RunMap.prototype.relief = function (w, h) {
+    const ctx = this.ctx, m = terrain.meta;
+    ctx.fillStyle = SEA; ctx.fillRect(0, 0, w, h);
+    const [x0, y0] = this.toScreen(m.x0, m.z0 + m.sizeZ), [x1, y1] = this.toScreen(m.x0 + m.sizeX, m.z0);
+    this.underground = this.runs.length > 0 && this.runs.every(run => {
+      const s = at(run.path, this.time), g = s && groundAt(s[1], s[3]);
+      return s && g !== null && s[2] < g - 3;
+    });
+    ctx.globalAlpha = this.underground ? 0.25 : 1;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(terrain.image, x0, y0, x1 - x0, y1 - y0);
+    ctx.globalAlpha = 1;
+    if (this.underground) {
+      ctx.fillStyle = "#bbb"; ctx.font = "600 11px Montserrat, sans-serif";
+      ctx.fillText("UNDERGROUND", 8, 16);
+    }
+  };
+
+  /// The plane's possible crash sites: a small hull, nose along its yaw.
+  RunMap.prototype.planes = function () {
+    const ctx = this.ctx, dpr = window.devicePixelRatio || 1, k = Math.max(6, Math.min(16, 30 * this.view.scale));
+    ctx.save();
+    ctx.fillStyle = "rgba(235,235,235,.8)"; ctx.strokeStyle = "rgba(0,0,0,.7)"; ctx.lineWidth = 1;
+    for (const [x, z, yaw] of PLANES) {
+      const [sx, sy] = this.toScreen(x, z);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.translate(sx, sy); ctx.rotate(yaw * Math.PI / 180);
+      ctx.beginPath();
+      ctx.moveTo(0, -k); ctx.lineTo(k * .18, -k * .2); ctx.lineTo(k * .8, k * .15); ctx.lineTo(k * .18, k * .1);
+      ctx.lineTo(k * .12, k * .75); ctx.lineTo(k * .4, k); ctx.lineTo(-k * .4, k); ctx.lineTo(-k * .12, k * .75);
+      ctx.lineTo(-k * .18, k * .1); ctx.lineTo(-k * .8, k * .15); ctx.lineTo(-k * .18, -k * .2); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
   RunMap.prototype.line = function (p, until) {
     const ctx = this.ctx;
     ctx.beginPath();
@@ -97,14 +182,14 @@ window.RunMap = (function () {
   };
 
   /// Metre grid: a step that keeps lines ~60-150 px apart, labelled.
-  RunMap.prototype.grid = function (w, h) {
+  RunMap.prototype.grid = function (w, h, relief) {
     const ctx = this.ctx, v = this.view;
     const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
     let step = steps[steps.length - 1];
     for (const s of steps) if (s * v.scale >= 70) { step = s; break; }
     const x0 = v.cx - w / 2 / v.scale, x1 = v.cx + w / 2 / v.scale;
     const z0 = v.cz - h / 2 / v.scale, z1 = v.cz + h / 2 / v.scale;
-    ctx.lineWidth = 1; ctx.strokeStyle = "#161616"; ctx.fillStyle = "#3a3a3a";
+    ctx.lineWidth = 1; ctx.strokeStyle = relief ? "rgba(0,0,0,.22)" : "#161616"; ctx.fillStyle = relief ? "rgba(255,255,255,.7)" : "#3a3a3a";
     ctx.font = "500 10px Montserrat, sans-serif";
     ctx.beginPath();
     for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
@@ -117,7 +202,7 @@ window.RunMap = (function () {
     }
     ctx.stroke();
     // North arrow.
-    ctx.fillStyle = "#555"; ctx.fillText("N ↑", w - 30, h - 8);
+    ctx.fillStyle = relief ? "#ddd" : "#555"; ctx.fillText("N ↑", w - 30, h - 8);
   };
 
   RunMap.prototype.zone = function (zn) {
@@ -212,5 +297,8 @@ window.RunMap = (function () {
   };
 
   RunMap.at = at;
+  RunMap.groundAt = groundAt;
+  RunMap.terrain = terrain;
+  RunMap.terrainReady = terrainReady;
   return RunMap;
 })();
