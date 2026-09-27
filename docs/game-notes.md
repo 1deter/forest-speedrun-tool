@@ -2253,6 +2253,42 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   scenes cost no hitch; in the cave state the game streams the cave
   scenes straight back.
 
+## Terrain, and the world from above (bridge + IL, 2026-09-27, v0.24.162-166)
+
+- **Terrain:** one `MainTerrain`, 3500 x 250 x 3500 m at (-1750, 0,
+  -1742.63), heightmap 2049^2, 8 splat layers at 512^2 (mud, moss, big
+  rock, lake edge, sand, cliff, leaves, grass), shader `Nature/Terrain/CMU_3
+  5_2 boosted`. Dumped by `Game/TerrainDump`; heights match
+  `Terrain.SampleHeight`. Sea level: Ceto `Ocean.level` 41.5.
+- **Plane crash sites:** `PlaneCrashLocations.finalPositions` (12 `HullRef`,
+  static); the save's own is `PlaneCrashController.planePosition` /
+  `planeRotation` (saved with the game; `Game/PlaneSite`).
+- **Detail follows the player twice** (`Game/AerialCapture`): the LOD an
+  object shows is measured from the static `PlayerCamLocation.PlayerLoc`
+  (`LOD_Settings.GetLOD`, 2D for trees), written by a script on the main
+  camera (paused by our freecam); whether it is refreshed at all follows
+  the real player - with PlayerLoc alone, 500 m from the player, a tile
+  stayed bare and the terrain drew its glossy far shading.
+- **LOD ranges:** `LOD_Manager.Update` recomputes every frame: base ranges x
+  `RangeMultiplierPerQuality(Small)[quality]` x an fps-based quality
+  (`FpsQualityScaling`, target 30 fps - ranges shrink below 30 fps). At the
+  author's settings: trees 15 / 115 / 212 m (then a billboard - invisible
+  from straight above), bushes 25 / 132, small bushes 10 / 60, rocks 20 /
+  77 / 176, small rocks 10 / 30 / 65, pickups 10 / 80.
+- **Camera cull distances:** `CullDistanceManager.Update` re-writes the
+  main camera's `layerCullDistances` every frame (spherical): Default 85,
+  pickups 100, PropSmall 120, treeSmall (bushes, layer 12) 300, trees
+  (layer 11) 487, Prop 450.
+- **Shadows** reach ~200 m from the camera (`QualitySettings.shadowDistance`,
+  re-set every frame by `TheForestAtmosphere.Update` and others);
+  Sunshine's own cascade is 60 m / 256 px at the author's settings.
+  `Sunshine.OvercastTexture` drifts cloud shadows over the ground.
+- **Fog:** `TheForestAtmosphere.Visibility` (~1 km) unless
+  `overrideVisibility`; a sun overhead (`TimeOfDay` near 0-45) makes the
+  terrain's specular glare from above; `TimeOfDay` 320 = sun in the west,
+  ~40 degrees up, no glare.
+- **HUD:** NGUI cameras under `HudGui` (`Camera_HUD`, `ActionIconCamera`).
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a
