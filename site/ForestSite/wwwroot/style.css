@@ -104,8 +104,9 @@ p { margin: 0 0 12px; }
 .scrub .clock { font-variant-numeric: tabular-nums; min-width: 7ch; text-align: right; color: var(--white); }
 .scrub select { background: #000; border: 1px solid var(--line); padding: 3px 4px; }
 
-.cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; }
-@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+/* Runners, then splits, each as wide as the map (author, 2026-09-27: the
+   board side by side with the splits was trimmed). */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
 
 /* Tables fit their column at any width: names wrap, the date shortens and
    goes when there is no room (container queries on the column). */
