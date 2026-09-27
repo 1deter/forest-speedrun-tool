@@ -415,3 +415,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     restores reach it, and hiding it in that window was the complete
     fix (v0.24.129). Before hunting the cause of a fallback, check
     whether its effect matters.
+
+56. **`Camera.CopyFrom` copies the Camera only.** Freecam spawned its
+    own camera with `CopyFrom` and looked darker, with no arms, for many
+    versions: the game's look (Sunshine shadows, atmosphere / fog,
+    post-processing, SSAO, clouds, water - ~20 components on
+    `MainCamNew`) lives in sibling components, which stayed on the
+    disabled original. v0.24.136 flies the game's own camera instead,
+    parking its gameplay children (Grabber, hitTrigger, water sensor) on
+    a stand-in and pausing `SimpleMouseRotator` / `PlayerCamLocation`.
+    `inspect camera` before copying any game object's behaviour.

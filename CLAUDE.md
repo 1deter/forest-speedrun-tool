@@ -505,6 +505,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 53. **A game's own database can be wrong** - spot-check it against live objects before building on it.
 54. **Drive a UI the way the game does** - `SetActive` pokes skip the game's teardown; show things through its own click path.
 55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom.
+56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one.
 
 ---
 
@@ -650,8 +651,8 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.133 in Slot 2 at (817, 91, 620) (the
-slot's own spot), God mode on (loaded from the
+**State:** the game runs v0.24.136 in Slot 2 at (817, 91, 620) (the
+slot's own spot, loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
 survival game).
@@ -794,7 +795,8 @@ line says it next time.
    On high effort. Done: the endgame load in a run (v0.24.107-108),
    the heap step (not a leak), the load's animation sweep (v0.24.109-110),
    two idle cameras (v0.24.116).
-2. ~~Next up 7~~ done (passengers, logs in the inventory).
+2. ~~Next up 7, 8~~ done (passengers, logs in the inventory; freecam
+   lighting v0.24.136).
 3. **Next up 5, Quick load physics parity** - the heap lead above first;
    decide with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
