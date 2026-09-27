@@ -98,6 +98,38 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   values), so the live game's clouds / rain carry into a restore. If it
   is confirmed, capture and put back those fields.
 
+- **Run mode and anti-splicing** (maks `1553862408836087920`, author
+  `1553862524430975130` + the ideas dump `1553857387687968869`,
+  2026-09-27): a *run mode* toggle that disables practice features until
+  the game restarts, with clear indicators of every mode / cheat feature
+  on (no stagger, no blood, ...); the clock starts on the first input (the
+  rules' "takes control with intent") and ends as the game does, in the
+  background, shown on a results screen after the run so the video's time
+  can be compared (maks). Anti-splice, no game files needed (maks asked
+  to build on it): at run start the plugin registers the run with the
+  site (runner id, a random run key, server time); the HUD shows a short
+  rolling code derived from that key and the run clock (changes every
+  few seconds); the finish uploads the run. A verifier opens the run on
+  the site and scrubs the video: every visible code must match the clock
+  beside it, and a splice shows a jump. Or (author) a verifier tool that
+  checks uploaded files. Not before the rules talk with the moderators
+  (*Project intent*); ask before building.
+- **Start on first input** as an event trigger (author
+  `1553860590295056475`), for rules compliance; plus the other common
+  interactions as events (entering a cave, a rope - see *More event
+  checkpoints*) and how to display them all (`1553860730900455527`).
+- **Site: spots** (author, 2026-09-27): categories for runners' spots
+  (theirs, later admin-set), collapsible groups (community spots will be
+  mostly teleports, runners' spots the timed ones - maybe less prominent),
+  a runner deleting their own spot (or moderators with accounts later).
+  The owner's name is shown since the owner change (docs/website.md).
+- **The author's ideas dump** (`1553857387687968869`, and the ideas file
+  on their desktop): an in-game 3D map of saved spots and routes (caves
+  too), 1v1 on the website, tournament / practice / run mode indicators,
+  a customisable info overlay (UI/UX overhaul), a knowledge-base Discord
+  bot on the game's internals, tech hunting (the game without a keycard),
+  archiving the conversation history, confirming the Megan boss AI notes.
+
 ## For the final exhaustive feature testing
 
 - **Megan fight: health bar empty, died only a few hits later** (author,
