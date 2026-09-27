@@ -562,10 +562,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.143** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.144** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.143 in the game)
+### Pick up here (2026-09-27, v0.24.144 in the game)
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
@@ -598,22 +598,17 @@ every graph update (bounds, caller, duration) and each AstarPath
 teardown's wait. Not checked: a natural arrival / death in the endgame
 with many buildings (should be the game's own grouped route).
 
-**New bug (author, 2026-09-27): a repeat Quick load of the Megan start
-state during the fight leaves the old Megan.** Restored in place while
-the fight ran (1.1 s restore): `body candidates ... girlMutant(Clone)
-x2`; the transformation was fast-forwarded on one, the other sat on the
-floor untransformed, and the boss charged. `MeganKeeper` /
-`BossHold` should clear the running fight's Megan first. Lead from the
-freeze tests: a second in-place `ruben-megan` restore logged `megan:
-seated Megan put back (removed girlMutant(Clone))`. **This is the next
-item.**
+**v0.24.144: the old Megan left by a mid-fight Quick load is fixed**
+(checked over the bridge, docs/confirmed.md): `MeganKeeper` removed the
+fight's leftovers within 80 m of her seat only, and the boss roams the
+boss room (72 m seen); Megan's own objects now go at any distance.
 
 **Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
-checked over the bridge; Ruben asked to confirm (QA). After the Megan
-bug: the LiveSplit-style splits table in Runs (author, 2026-09-27: an
-`.lss` import only makes sense with a LiveSplit-like, customisable splits
-view - build that first from our own attempts, import after), or the
-ride / climb modes in savestates.
+checked over the bridge; Ruben asked to confirm (QA). **Next:** the
+LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
+import only makes sense with a LiveSplit-like, customisable splits view
+- build that first from our own attempts, import after), or the ride /
+climb modes in savestates.
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
@@ -704,7 +699,7 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.143 in Slot 2 at (817, 91, 620), god
+**State:** the game runs v0.24.144 in Slot 2 at (817, 91, 620), god
 mode off (a death test reloaded the slot; the slot's own spot, loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a

@@ -171,3 +171,8 @@ and a forced texture rebuild then runs safely.
   Quick load 0.3-0.6 s (were one 16-60 s update), a repeat Quick load
   0.65 s (was 31.5 s), `Death (BossWake)` reload waits 116 ms in
   `AstarPath.OnDestroy` (was 28.6 s), no crash.
+- **Mid-fight Megan Quick load leaves one Megan (v0.24.144, bridge,
+  2026-09-27, Slot 2 + `ruben-megan`):** boss moved 116 m from her seat,
+  then a Quick load: `removed girlMutant(Clone), girlSpawnGo`, one
+  `girlMutant(Clone)` at the seat, transformation replayed (v0.24.143
+  left two).
