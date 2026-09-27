@@ -44,7 +44,7 @@ public sealed class Runs
         if (b.Attempts.Count == 0) { res.Error = "no [attempt] sections"; return res; }
 
         string route = seg.RouteFingerprint();
-        _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false);
+        _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, runnerId);
         string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
 
         for (int i = 0; i < b.Attempts.Count; i++)
@@ -136,7 +136,7 @@ public sealed class Runs
             list.Add(new JsonObject
             {
                 ["id"] = r.Segment, ["name"] = r.Name, ["category"] = r.Category, ["community"] = r.Community,
-                ["runs"] = r.Runs, ["runners"] = r.Runners, ["best"] = Num(r.Best), ["lastRun"] = r.LastRun,
+                ["by"] = r.Community ? "" : r.By, ["runs"] = r.Runs, ["runners"] = r.Runners, ["best"] = Num(r.Best), ["lastRun"] = r.LastRun,
             });
         }
         return list;
@@ -189,7 +189,7 @@ public sealed class Runs
         return new JsonObject
         {
             ["id"] = segmentId, ["name"] = top.Name, ["category"] = top.Category, ["community"] = top.Community,
-            ["notes"] = ParseBlock(top.Block).Notes, ["routes"] = outRoutes,
+            ["by"] = top.Community ? "" : top.By, ["notes"] = ParseBlock(top.Block).Notes, ["routes"] = outRoutes,
         };
     }
 
@@ -252,7 +252,7 @@ public sealed class Runs
 
     private sealed class RouteRow
     {
-        public string Segment, Route, Name, Category, Block, FirstSeen, LastRun;
+        public string Segment, Route, Name, Category, Block, FirstSeen, LastRun, By;
         public bool Community;
         public int Runs, Runners;
         public float Best = float.NaN;
@@ -282,7 +282,9 @@ public sealed class Runs
         using var cmd = c.CreateCommand();
         cmd.CommandText = @"
 SELECT r.segment_id, r.route, r.name, r.category, r.block, r.community, r.first_seen,
-       COUNT(x.id), COUNT(DISTINCT x.runner_id), MIN(x.duration), MAX(x.uploaded)
+       COUNT(x.id), COUNT(DISTINCT x.runner_id), MIN(x.duration), MAX(x.uploaded),
+       COALESCE((SELECT o.runner_name FROM runs o WHERE o.runner_id = r.owner ORDER BY o.id DESC LIMIT 1),
+                (SELECT n.name FROM runners n WHERE n.id = r.owner), '')
 FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.route AND x.hidden = 0
 " + (segmentId != null ? "WHERE r.segment_id = $s " : "") + "GROUP BY r.segment_id, r.route";
         if (segmentId != null) cmd.Parameters.AddWithValue("$s", segmentId);
@@ -296,6 +298,7 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
                 Runs = rd.GetInt32(7), Runners = rd.GetInt32(8),
                 Best = rd.IsDBNull(9) ? float.NaN : (float)rd.GetDouble(9),
                 LastRun = rd.IsDBNull(10) ? null : rd.GetString(10),
+                By = rd.GetString(11),
             });
         return list;
     }

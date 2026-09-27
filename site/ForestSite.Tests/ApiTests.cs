@@ -116,6 +116,29 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task OwnersRenameReachesTheSite_OthersDoNot()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A), tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)));
+
+        // The owner renames it in game and runs again.
+        seg.Name = "Renamed dash"; seg.Category = "Mine"; seg.Notes = "new description";
+        await Upload(ta, Bundle(seg, RunText(seg, A, 9f, 4f, 2)));
+        // Someone else's copy under the same id changes nothing.
+        seg.Name = "Stolen"; seg.Notes = "theirs";
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9.5f, 4f, 3)));
+
+        JsonNode spot = (await _http.GetFromJsonAsync<JsonArray>("/api/spots")).Single(s => s["id"].GetValue<string>() == seg.Id);
+        Assert.Equal("Renamed dash", spot["name"].GetValue<string>());
+        Assert.Equal("Mine", spot["category"].GetValue<string>());
+        Assert.Equal("Runner 0000", spot["by"].GetValue<string>());
+        var detail = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        Assert.Equal("new description", detail["notes"].GetValue<string>());
+        Assert.Equal("Runner 0000", detail["by"].GetValue<string>());
+    }
+
+    [Fact]
     public async Task Upload_ThenBoardShowsEachRunnersBest()
     {
         Segment seg = TestSegment();

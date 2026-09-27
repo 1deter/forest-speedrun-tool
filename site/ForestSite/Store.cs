@@ -51,6 +51,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS runs_once ON runs (runner_id, segment_id, reco
 CREATE TABLE IF NOT EXISTS submissions (
   id INTEGER PRIMARY KEY AUTOINCREMENT, runner_id TEXT NOT NULL, segment_id TEXT NOT NULL,
   name TEXT NOT NULL, uploaded TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open');");
+
+        // A runner's spot belongs to the runner who first uploaded a run on
+        // it (2026-09-27): their later uploads carry its renames, and the
+        // site shows who made it. Older databases get the column and the
+        // first uploader of each route.
+        if (!HasColumn(c, "routes", "owner"))
+        {
+            Exec(c, "ALTER TABLE routes ADD COLUMN owner TEXT NOT NULL DEFAULT '';");
+            Exec(c, @"UPDATE routes SET owner = COALESCE((SELECT x.runner_id FROM runs x
+                      WHERE x.segment_id = routes.segment_id AND x.route = routes.route ORDER BY x.id LIMIT 1), '')
+                      WHERE community = 0;");
+        }
+    }
+
+    private static bool HasColumn(SqliteConnection c, string table, string column)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(" + table + ")";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            if (r.GetString(1) == column) return true;
+        return false;
     }
 
     public SqliteConnection Open()
@@ -102,19 +124,28 @@ ON CONFLICT(id) DO UPDATE SET token_hash = $hash, name = $name WHERE runners.tok
 
     /// Records a route (a segment at one fingerprint) the first time it is
     /// seen. A community pack always wins the name and marks it community.
-    public void SeeRoute(string segmentId, string route, string name, string category, string block, bool community)
+    /// A runner's upload makes them the owner of a new route; the owner's
+    /// later uploads update its description (block) and the spot's name and
+    /// category on all their routes (maks, 2026-09-27: a rename in game did
+    /// not reach the site). Anyone else's copy changes nothing.
+    public void SeeRoute(string segmentId, string route, string name, string category, string block, bool community, string owner = "")
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = community
-            ? @"INSERT INTO routes VALUES ($s, $r, $n, $c, $b, 1, $now)
+            ? @"INSERT INTO routes (segment_id, route, name, category, block, community, first_seen, owner)
+                VALUES ($s, $r, $n, $c, $b, 1, $now, '')
                 ON CONFLICT DO UPDATE SET name = $n, category = $c, block = $b, community = 1"
-            : @"INSERT INTO routes VALUES ($s, $r, $n, $c, $b, 0, $now) ON CONFLICT DO NOTHING";
+            : @"INSERT INTO routes (segment_id, route, name, category, block, community, first_seen, owner)
+                VALUES ($s, $r, $n, $c, $b, 0, $now, $o)
+                ON CONFLICT DO UPDATE SET block = $b WHERE community = 0 AND owner = $o;
+                UPDATE routes SET name = $n, category = $c WHERE segment_id = $s AND community = 0 AND owner = $o;";
         cmd.Parameters.AddWithValue("$s", segmentId);
         cmd.Parameters.AddWithValue("$r", route);
         cmd.Parameters.AddWithValue("$n", name);
         cmd.Parameters.AddWithValue("$c", category);
         cmd.Parameters.AddWithValue("$b", block);
+        cmd.Parameters.AddWithValue("$o", owner ?? "");
         cmd.Parameters.AddWithValue("$now", Now());
         cmd.ExecuteNonQuery();
     }

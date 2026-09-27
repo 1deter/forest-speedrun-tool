@@ -121,6 +121,11 @@ spot's saved runs" and "Open on the website".
 
 - **A runner's own spot** appears by itself under "Runners' spots" with
   its first uploaded run (the upload carries the segment).
+- **The spot's owner** is the runner who first uploaded a run on it
+  (`routes.owner`, 2026-09-27): shown as "by <name>", and only their
+  later uploads change its name, category and description (maks: a
+  rename in game did not reach the site). A rename shows with the
+  owner's next upload (a finished run, or *upload saved runs*).
 - **Community spots** (the curated list every plugin fetches): the author
   approves. Today: Practice -> select -> Share -> Export writes
   `config/ForestOverlay/shared/<name>.foseg`; copy it into `community/`

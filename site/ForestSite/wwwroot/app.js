@@ -96,7 +96,7 @@ async function homePage() {
       el("h2", null, title),
       g.length ? el("ul", { class: "spots" }, g.map(s => el("li", null,
         el("a", { href: "#/spot/" + encodeURIComponent(s.id) },
-          el("span", { class: "name" }, s.name, el("span", { class: "sub" }, "  " + s.category)),
+          el("span", { class: "name" }, s.name, el("span", { class: "sub" }, "  " + s.category + (s.by ? " · by " + s.by : ""))),
           el("span", { class: "meta" }, s.runners ? s.runners + (s.runners === 1 ? " runner" : " runners") : "no runs yet"),
           el("span", { class: "best" }, time(s.best)))))) :
         el("p", { class: "empty" }, title === "Community spots" ? "None published yet." :
@@ -256,7 +256,7 @@ async function spotPage(id, routeId) {
 
   show(
     el("h1", null, spot.name),
-    el("p", { class: "sub" }, spot.category + (spot.community ? " · community spot" : "") + " · " +
+    el("p", { class: "sub" }, spot.category + (spot.community ? " · community spot" : spot.by ? " · by " + spot.by : "") + " · " +
       r.runs + (r.runs === 1 ? " run" : " runs") + (r === spot.routes[0] ? "" : " · an older version of this route")),
     spot.notes ? el("p", { class: "note" }, spot.notes) : null,
     routeChips,
