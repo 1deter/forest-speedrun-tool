@@ -425,3 +425,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     parking its gameplay children (Grabber, hitTrigger, water sensor) on
     a stand-in and pausing `SimpleMouseRotator` / `PlayerCamLocation`.
     `inspect camera` before copying any game object's behaviour.
+
+57. **The player's things are not all under the player.** The
+    inventory's item views live under `PlayerInventory._inventoryGO`, a
+    scene root of its own (`INVENTORY`, parent null), like held models
+    unparented by `FakeParent`. A restore from another save deleted them
+    as "not in the save"; their `InventoryItemViewsCache` lists were left
+    empty, `CraftingCog.IngredientCleanUp` reads `[0]` of each, and
+    `PlayerInventory.Close` threw before `timeScale 1` - the inventory
+    could never close (runner Ruben, v0.24.134; fixed v0.24.137). Before
+    deleting or resetting "everything outside the player", list the
+    player's other roots.

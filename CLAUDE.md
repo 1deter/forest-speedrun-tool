@@ -506,6 +506,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 54. **Drive a UI the way the game does** - `SetActive` pokes skip the game's teardown; show things through its own click path.
 55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom.
 56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one.
+57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player".
 
 ---
 
@@ -557,10 +558,29 @@ identity.
 
 ## Current status
 
-**Released: v0.24.136** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.137** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.136 in the game)
+### Pick up here (2026-09-27, v0.24.137 in the game)
+
+**v0.24.137 (this session): Ruben stuck in the inventory** (QA report
+`Downloads\qa-reports\d.eter\ForestOverlay-report-Ruben-*`, his Megan
+start state copied to savestates as `ruben-megan`): a cross-save Quick
+load deleted the inventory's views (gotcha 57); fixed and checked over
+the bridge. Ruben asked to confirm (QA). Next for this session's line:
+the LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
+import only makes sense with a LiveSplit-like, customisable splits view
+- build that first from our own attempts, import after), or the ride /
+climb modes in savestates.
+
+**Hang on a death reload (seen here, 2026-09-27, v0.24.137):** the author
+died to Megan on Ruben's cross-save start state; `Death (BossWake)` reloaded
+Slot 2 without the menu, `ForestMain_v08` loaded (30 s hitch), the player
+bound (`PlayerInventory bound`), then the main thread blocked in a kernel
+wait (0 CPU, bridge unread) where `MainSceneGreebles` normally loads. Same
+place as maks's crash (log ends at the player bind) and the v0.22.6
+runner's hang (a load started from a death). No debugger on this machine
+for a native stack (WinDbg would need installing).
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
@@ -651,7 +671,7 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.136 in Slot 2 at (817, 91, 620) (the
+**State:** the game runs v0.24.137 in Slot 2 at (817, 91, 620) (the
 slot's own spot, loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a

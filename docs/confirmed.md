@@ -150,3 +150,8 @@ the flown view keeps fog, shadows and post-processing (screenshots on /
 flown / outside / off); `PlayerCamLocation.PlayerLoc` and the Grabber
 stay at the player; off puts the camera's local pose, its 6 children and
 both paused scripts back. WASD / mouse flying not driven by hand yet.
+
+Cross-save restore keeps the inventory views (v0.24.137, bridge,
+released build, Ruben's Megan-fight start state in Slot 2): `deleted 0`,
+`kept 54 inventory view object(s)`, no duplicate views; the inventory
+opens and closes (our close and the game's toggle), timeScale back to 1.
