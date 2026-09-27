@@ -216,7 +216,9 @@ namespace ForestOverlay.Modules
 
             // With the window open the mouse is on buttons and the keys are
             // typing into fields; the view should not fly around meanwhile.
-            _freeCam.InputEnabled = Host == null || !Host.AnyPanelOpen();
+            // The aerial capture flies it alone: the game reads the mouse even
+            // unfocused, and a turned camera ruins a tile (author, 2026-09-27).
+            _freeCam.InputEnabled = (Host == null || !Host.AnyPanelOpen()) && !_aerial.Running;
 
             if (_draw != null)
             {

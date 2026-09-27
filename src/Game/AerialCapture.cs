@@ -155,12 +155,14 @@ namespace ForestOverlay.Game
                         cam.layerCullDistances = new float[32];
 
                         cam.cullingMask = _saved.CullingMask;
+                        freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);   // nothing may have turned it
                         yield return new WaitForEndOfFrame();
                         Save(read, px, Path.Combine(Path.Combine(dir, "canopy"), ix + "_" + iz + ".jpg"));
 
                         cam.cullingMask = _saved.CullingMask & ~(1 << TreeLayer);
                         yield return null;
                         cam.layerCullDistances = new float[32];   // CullDistanceManager.Update re-set them
+                        freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
                         yield return new WaitForEndOfFrame();
                         Save(read, px, Path.Combine(Path.Combine(dir, "ground"), ix + "_" + iz + ".jpg"));
                         cam.cullingMask = _saved.CullingMask;
