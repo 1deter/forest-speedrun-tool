@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.154 - 2026-09-27
+
+- "Upload this spot's saved runs" works with practice mode off too: it
+  uploads the runs of the spot you last went to.
+
 ## v0.24.153 - 2026-09-27
 
 - Your finished timed runs now upload to the new website,

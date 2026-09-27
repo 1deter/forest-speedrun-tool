@@ -110,6 +110,7 @@ Where things live:
 | Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
+| Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
 | Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
@@ -318,7 +319,8 @@ Instance.TimeOfDay`; `set ... TimeOfDay <deg>` moves the clock.
 `OverlayPlugin._host._modules[i]` in `BuildModules` order: 0 main
 window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type explorer, 8
 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths, 13 QA, 14
-bridge, 15 community. `call ..._modules[i].OpenMyTab` shows a tab;
+bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
+`EnqueueSaved`, `_state`). `call ..._modules[i].OpenMyTab` shows a tab;
 `_modules[0].TogglePanel` **toggles** - read `_modules[0].PanelOpen`
 and leave the window as found. Every `shot` / `set` / `call` marks
 practice (expected). QA answers reload from `qa/answers/<id>.txt` on
@@ -567,7 +569,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.152** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.154** (2026-09-27). The author runs it via the in-game
 updater. **396 tests.**
 
 ### Pick up here (2026-09-27, v0.24.152 in the game)
@@ -577,9 +579,18 @@ updater. **396 tests.**
 [`docs/website.md`](docs/website.md) - read that first. Every push to
 `site/`, `src/Data/`, `community/` deploys by itself
 (`.github/workflows/site.yml`; setup and day-to-day in
-`site/deploy/README.md`). **Next: the plugin side** (register + upload
-each finished attempt). Watch a deploy by polling the live page, never
-`api.github.com`.
+`site/deploy/README.md`). Watch a deploy by polling the live page, never
+`api.github.com`. **v0.24.153-154: finished runs upload** (on by default,
+author) - checked over the bridge against a local site (register, the
+saved-runs button, a finished run, offline -> retried and sent); the
+author's config was set back to the live URL with an empty token, so the
+live registration happens on their next finished run. **Test the plugin
+against a local site**: preview `forest-site`, delete
+`site/ForestSite/bin/Debug/net10.0/data` first (a runner id registers
+once), `set ..._modules[16]._url.Value http://localhost:5080`, and set
+URL + `_token.Value ""` back after. Next for the site: *Next* in
+docs/website.md (other runners' PBs in game, spot submissions, admin
+page, terrain).
 
 **v0.24.146-151: the LiveSplit-style splits table** - on screen
 (`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while

@@ -149,11 +149,18 @@ namespace ForestOverlay.Modules
 
         private RunUploadModule _upload;
 
-        private Segment SegmentForUpload() { return _segment; }
+        /// The spot the runner is on: the armed segment, else the Practice
+        /// tab's current spot (practice mode off arms nothing).
+        private Segment SegmentForUpload()
+        {
+            if (_segment != null) return _segment;
+            return _practice != null ? _practice.CurrentSegment : null;
+        }
 
         private List<string> SavedRunsForUpload()
         {
-            return _segment != null ? _store.RunTexts(_segment.Id) : null;
+            Segment s = SegmentForUpload();
+            return s != null ? _store.RunTexts(s.Id) : null;
         }
 
         private float[] ReadState()

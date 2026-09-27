@@ -193,3 +193,8 @@ and a forced texture rebuild then runs safely.
   Dragging the panel: works (author, v0.24.151, windowed; log `Splits
   panel moved to (1066, 0)`); the left edge fixed in v0.24.152 and confirmed
   by the author (flush, no jump).
+- **Run uploads (v0.24.153)**, over the bridge against a local copy of the
+  site: first upload registers (`Upload: registered on ... as 'deter'`),
+  "Upload this spot's saved runs" sent 6, a finished run uploaded by
+  itself, and with the site down it waited ("retrying in 30 s") and was
+  sent when the site came back.
