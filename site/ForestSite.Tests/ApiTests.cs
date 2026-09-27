@@ -208,6 +208,24 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Page_LinksHashedAssets_ApiMissesAreJson()
+    {
+        var page = await _http.GetAsync("/");
+        string html = await page.Content.ReadAsStringAsync();
+        Assert.Equal("no-cache", page.Headers.CacheControl.ToString());
+        Assert.Matches(@"src=""/app\.js\?v=[0-9a-f]{10}""", html);
+        Assert.Matches(@"href=""/style\.css\?v=[0-9a-f]{10}""", html);
+
+        Assert.Equal(html, await _http.GetStringAsync("/spot/anything"));
+        var missing = await _http.GetAsync("/api/nope");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Contains("no such endpoint", await missing.Content.ReadAsStringAsync());
+
+        var asset = await _http.GetAsync("/app.js?v=1");
+        Assert.Contains("immutable", asset.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
     public async Task Submission_ReachesTheAuthor()
     {
         string ta = await Register(A);

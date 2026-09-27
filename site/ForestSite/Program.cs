@@ -42,13 +42,17 @@ builder.Services.AddRateLimiter(o =>
 
 var app = builder.Build();
 app.UseRateLimiter();
-app.UseDefaultFiles();
-// Revalidate every page file (ETag): a deploy is seen at once, never an old
-// app.js against a new API from a browser's or Cloudflare's cache.
+// Scripts and styles are linked as `/app.js?v=<hash of the file>`, so each
+// deploy changes their URLs: Cloudflare's Browser Cache TTL (4 h, it
+// overrides the origin's no-cache) can never pair an old app.js with a new
+// API. The page itself is served with no-cache and never edge-cached.
 app.UseStaticFiles(new StaticFileOptions
 {
-    OnPrepareResponse = f => f.Context.Response.Headers.CacheControl = "no-cache",
+    OnPrepareResponse = f =>
+        f.Context.Response.Headers.CacheControl = f.Context.Request.Query.ContainsKey("v")
+            ? "public, max-age=31536000, immutable" : "no-cache",
 });
+string indexHtml = Pages.Index(app.Environment.WebRootPath);
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
 app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}", dataDir, packs, adminToken.Length > 0 ? "on" : "off");
@@ -168,8 +172,16 @@ admin.MapPost("/runners/{id}/reset-token", (string id) => store.ResetToken(id) ?
 admin.MapPost("/runners/{id}/ban", (string id) => store.Ban(id, true) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/unban", (string id) => store.Ban(id, false) ? Results.Ok() : Problem(404, "no such runner"));
 
-// Pages use hash routes (#/spot/<id>); anything else unknown is the app.
-app.MapFallbackToFile("index.html");
+// Pages use hash routes (#/spot/<id>); any other path is the app, except
+// under /api, which answers 404 as JSON.
+IResult Page(HttpContext c)
+{
+    c.Response.Headers.CacheControl = "no-cache";
+    return Results.Content(indexHtml, "text/html; charset=utf-8");
+}
+app.MapGet("/", Page);
+api.MapFallback(() => Problem(404, "no such endpoint"));
+app.MapFallback(Page);
 
 app.Run();
 
@@ -177,6 +189,23 @@ public sealed class RegisterRequest
 {
     public string runner { get; set; }
     public string name { get; set; }
+}
+
+public static class Pages
+{
+    /// index.html with every local script / stylesheet link stamped with a
+    /// hash of that file.
+    public static string Index(string webRoot)
+    {
+        string html = File.ReadAllText(Path.Combine(webRoot, "index.html"));
+        return System.Text.RegularExpressions.Regex.Replace(html, @"(src|href)=""/([a-z0-9_.-]+\.(?:js|css))""", m =>
+        {
+            string path = Path.Combine(webRoot, m.Groups[2].Value);
+            if (!File.Exists(path)) return m.Value;
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path));
+            return m.Groups[1].Value + "=\"/" + m.Groups[2].Value + "?v=" + Convert.ToHexString(hash, 0, 5).ToLowerInvariant() + "\"";
+        });
+    }
 }
 
 public static class RunnerIds
