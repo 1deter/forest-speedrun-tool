@@ -133,8 +133,8 @@ async function homePage() {
 
 /// The map's background: Photo (the aerial capture), Ground (the same with
 /// the trees removed) or Relief. Shown only when aerial tiles are uploaded;
-/// the choice is remembered in this browser.
-function mapLayers(map) {
+/// the choice is remembered in this browser. onChange: the 3D view follows.
+function mapLayers(map, onChange) {
   const KEY = "forest.mapLayer";
   let saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) { /* private window: the default */ }
@@ -144,6 +144,7 @@ function mapLayers(map) {
   const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map background", hidden: true }, buttons);
   function pick(layer, remember) {
     map.setLayer(layer);
+    if (onChange) onChange(layer);
     for (const b of buttons) { const on = b.dataset.layer === layer; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
     if (remember) try { localStorage.setItem(KEY, layer); } catch (e) { /* not kept: fine */ }
   }
@@ -155,6 +156,60 @@ function mapLayers(map) {
     box.hidden = false;
   });
   return box;
+}
+
+/// The map's 2D / 3D switch and, in 3D, Follow (a camera behind the focused
+/// run's ghost). 2D is the default and not remembered. map3d.js (three.js) is
+/// loaded the first time 3D opens; its URL carries a version like the other
+/// scripts (index.html's data-map3d-src, stamped by the server).
+function mapViews(canvas, map, hint, empty, hooks) {
+  const canvas3d = el("canvas", { class: "map3d", hidden: true, "aria-label": "3D view of the spot's zones and the runs shown" });
+  const HINT2 = hint.textContent;
+  const HINT3 = "click a line · drag to turn · right-drag to move · scroll to zoom · double-click to fit";
+  let view = null, loading = null, on = false, gone = false;
+  const b2 = el("button", { type: "button", onclick: () => show(false) }, "2D");
+  const b3 = el("button", { type: "button", onclick: () => show(true) }, "3D");
+  const follow = el("button", { type: "button", hidden: true, title: "Ride behind the focused run's ghost", onclick: () => setFollow(!follow.classList.contains("on")) }, "Follow");
+  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map view" }, b2, b3, follow);
+  function mark() {
+    for (const [b, v] of [[b2, !on], [b3, on]]) { b.classList.toggle("on", v); b.setAttribute("aria-pressed", v); }
+    follow.hidden = !on;
+    hint.textContent = on ? HINT3 : HINT2;
+  }
+  function setFollow(v) {
+    follow.classList.toggle("on", v); follow.setAttribute("aria-pressed", v);
+    if (view) view.setMode(v ? "follow" : "orbit");
+  }
+  async function show(want) {
+    if (want === on) return;
+    if (want && !view) {
+      if (!loading) {
+        const src = (document.querySelector("[data-map3d-src]") || { dataset: {} }).dataset.map3dSrc || "/map3d.js";
+        empty.dataset.busy = "Loading 3D…"; empty.textContent = empty.dataset.busy;
+        loading = import(src).then(mod => mod.create(canvas3d, hooks)).finally(() => { delete empty.dataset.busy; });
+      }
+      try { view = await loading; } catch (e) {
+        loading = null;
+        empty.textContent = "3D could not start: " + (e && e.message || e);
+        return;
+      }
+      if (gone) { view.dispose(); return; }
+      canvas.hidden = true; canvas3d.hidden = false;   // shown first: the first fit needs its size
+      hooks.sync(view);
+    }
+    on = want;
+    canvas.hidden = on; canvas3d.hidden = !on;
+    if (view) view.setVisible(on);
+    if (!on) map.draw();
+    hooks.empty();
+    mark();
+  }
+  mark();
+  return {
+    box, canvas: canvas3d,
+    get view() { return view; },
+    dispose() { gone = true; if (view) view.dispose(); },
+  };
 }
 
 async function spotPage(id, routeId) {
@@ -171,7 +226,8 @@ async function spotPage(id, routeId) {
 
   const canvas = el("canvas", { "aria-label": "Map of the spot's zones and the runs shown" });
   const map = new RunMap(canvas);
-  const layerCtl = mapLayers(map);
+  const layerCtl = mapLayers(map, layer => { if (views && views.view) views.view.setLayer(layer); });
+  let views = null;
   const zones = [];
   const addZone = (t, role, label) => { if (t && (t.kind === "zone" || t.kind === "box")) zones.push(Object.assign({ role, label }, t)); };
   addZone(r.start, "start", "Start");
@@ -199,6 +255,7 @@ async function spotPage(id, routeId) {
     const m = maxTime();
     slider.value = m ? Math.round(state.time / m * 1000) : 0;
     map.setTime(state.time);
+    if (views && views.view) views.view.setTime(state.time);
     renderState();
   }
 
@@ -310,11 +367,18 @@ async function spotPage(id, routeId) {
       s ? null : el("p", { class: "empty" }, data.failed ? "Could not load this run." : "This run has no player state recorded.")].filter(Boolean));
   }
 
+  let shownRuns = [], emptyText = "";
+  function showEmpty() { if (!mapEmpty.dataset.busy) mapEmpty.textContent = emptyText; }
+  function setFocus(id) { state.focus = id; if (views && views.view) views.view.setFocus(id); }
+
   async function refreshMap(refit) {
     const ids = [...state.shown.keys()];
     await Promise.all(ids.map(id => load(id, false)));
-    map.setRuns(ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id), plane: (state.runs.get(id) || {}).plane })), refit);
-    mapEmpty.textContent = ids.length ? "" : r.board.length ? "Tick a run to show its line." : "No runs on this route yet.";
+    shownRuns = ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id), plane: (state.runs.get(id) || {}).plane }));
+    map.setRuns(shownRuns, refit);
+    if (views && views.view) views.view.setRuns(shownRuns, refit);
+    emptyText = ids.length ? "" : r.board.length ? "Tick a run to show its line." : "No runs on this route yet.";
+    showEmpty();
     setTime(state.time);
   }
 
@@ -332,7 +396,7 @@ async function spotPage(id, routeId) {
         "aria-pressed": on ? "true" : "false",
         onclick: e => { e.stopPropagation(); if (on) state.shown.delete(b.id); else state.shown.set(b.id, nextColor()); renderBoard(); refreshMap(false); },
       }, sw);
-      return el("tr", { class: b.id === state.focus ? "focus" : "", onclick: () => { state.focus = b.id; renderBoard(); renderSplits(); renderState(); } },
+      return el("tr", { class: b.id === state.focus ? "focus" : "", onclick: () => { setFocus(b.id); renderBoard(); renderSplits(); renderState(); } },
         el("td", { class: "rank" }, i + 1),
         el("td", null, toggle),
         el("td", { class: "name" }, b.name || b.runner, b.flagged ? el("span", { class: "flag", title: "Much faster than the route's best so far: waiting for a look" }, "under review") : null),
@@ -398,7 +462,7 @@ async function spotPage(id, routeId) {
   // A click on a line: that run, at that point.
   map.onPick = (run, t) => {
     if (state.playing) toggle();
-    if (state.focus !== run.id) { state.focus = run.id; renderBoard(); renderSplits(); }
+    if (state.focus !== run.id) { setFocus(run.id); renderBoard(); renderSplits(); }
     setTime(t);
   };
   play.addEventListener("click", toggle);
@@ -406,7 +470,15 @@ async function spotPage(id, routeId) {
   speed.addEventListener("change", () => { state.speed = +speed.value; });
   const onKey = e => { if (e.code === "Space" && e.target.tagName !== "INPUT" && e.target.tagName !== "SELECT") { e.preventDefault(); toggle(); } };
   document.addEventListener("keydown", onKey);
-  cleanup = () => { state.playing = false; cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); };
+  cleanup = () => { state.playing = false; cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); if (views) views.dispose(); };
+
+  const hint = el("div", { class: "maphint" }, "click a line · drag · scroll to zoom · double-click to fit");
+  views = mapViews(canvas, map, hint, mapEmpty, {
+    onPick: (run, t) => map.onPick(run, t),
+    empty: showEmpty,
+    /// A new 3D view gets what the 2D map shows.
+    sync(v) { v.setLayer(map.layer); v.setZones(zones); v.setFocus(state.focus); v.setRuns(shownRuns, true); v.setTime(state.time); },
+  });
 
   const routeChips = spot.routes.length > 1 ? el("div", { class: "routes" }, spot.routes.map((x, i) =>
     el("a", { class: "chip" + (x === r ? " on" : ""), href: "/spot/" + encodeURIComponent(spot.id) + "/" + x.route },
@@ -418,8 +490,8 @@ async function spotPage(id, routeId) {
       r.runs + (r.runs === 1 ? " run" : " runs") + (r === spot.routes[0] ? "" : " · an older version of this route")),
     spot.notes ? el("p", { class: "note" }, spot.notes) : null,
     routeChips,
-    el("div", { class: "mapwrap" }, canvas, mapEmpty, layerCtl,
-      el("div", { class: "maphint" }, "click a line · drag · scroll to zoom · double-click to fit"),
+    el("div", { class: "mapwrap" }, canvas, views.canvas, mapEmpty,
+      el("div", { class: "maptools" }, views.box, layerCtl, hint),
       el("div", { class: "scrub" }, play, slider, clock, speed)),
     statePanel,
     el("div", { class: "cols" },

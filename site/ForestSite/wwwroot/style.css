@@ -92,8 +92,16 @@ p { margin: 0 0 12px; }
 .mapwrap { position: relative; margin-top: 20px; border: 1px solid var(--line); background: #050505; }
 .mapwrap canvas { display: block; width: 100%; height: min(58vh, 520px); touch-action: none; cursor: grab; }
 .mapwrap canvas.drag { cursor: grabbing; }
-.maphint { position: absolute; right: 10px; top: 8px; max-width: calc(100% - 210px); text-align: right; font-size: 11px; color: var(--muted); pointer-events: none; }
-.maplayers { position: absolute; left: 8px; top: 8px; display: flex; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.72); }
+.mapwrap canvas[hidden] { display: none; }
+/* Over the map's top edge: 2D / 3D (+ Follow), the background, the hint on
+   the right - one row that wraps, so nothing overlaps on a phone. */
+.maptools { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; pointer-events: none; }
+.maptools > * { pointer-events: auto; }
+.maphint { margin-left: auto; max-width: 46ch; text-align: right; font-size: 11px; color: var(--muted); pointer-events: none !important; }
+@media (max-width: 560px) { .maphint { display: none; } }
+.maplayers { display: flex; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.72); }
+.map3dnote { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); padding: 2px 8px; background: rgba(0,0,0,.72); color: #bbb; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
+.map3dnote[hidden] { display: none; }
 .maplayers[hidden], .maplayers button[hidden] { display: none; }
 .maplayers button {
   background: transparent; border: 0; padding: 4px 10px; cursor: pointer;

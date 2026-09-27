@@ -235,7 +235,15 @@ spot's saved runs" and "Open on the website".
    scripts/aerial-upload.py`) over the relief, Photo / Ground / Relief
    on the map (remembered per browser; hidden with no `aerial.json`, which
    answers 204 then); tested with fake tiles only - no real bake uploaded
-   yet. Left: 3D (secondary view),
+   yet. **3D view** (2026-09-27, site only): the map's 2D / 3D switch
+   (2D stays the default) loads `wwwroot/map3d.js` (three.js 0.170 from
+   jsdelivr, versioned via index.html's `data-map3d-src`): the heights as
+   a coarse island mesh + a full-resolution patch around the runs, the
+   relief or aerial tiles (level <= 5) on it, run lines bright up to the
+   scrub time, ghosts, zones (spheres, turned boxes); orbit, or *Follow*
+   behind the focused run's ghost; the terrain fades when the ghost is
+   underground. Checked in headless Chromium (desktop, phone touch, fake
+   aerial tiles); not yet on a real GPU / phone. Left:
    caves / endgame sections / overlook (not in the terrain - a mesh dump),
    which plane a save has. **Photo map** (v0.24.164-169, `Game/AerialCapture`
    -> `scripts/aerial-bake.py` -> `scripts/aerial-upload.py` -> the map's

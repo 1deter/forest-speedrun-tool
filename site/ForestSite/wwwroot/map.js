@@ -415,5 +415,6 @@ window.RunMap = (function () {
   RunMap.aerial = aerial;
   RunMap.aerialReady = aerialReady;   // resolves to aerial.json's content, or null
   RunMap.aerialLevel = aerialLevel;
+  RunMap.tileKey = tileKey;           // with aerial.missing: tiles known absent (map3d.js)
   return RunMap;
 })();
