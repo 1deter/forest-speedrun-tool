@@ -603,11 +603,14 @@ state during the fight leaves the old Megan.** Restored in place while
 the fight ran (1.1 s restore): `body candidates ... girlMutant(Clone)
 x2`; the transformation was fast-forwarded on one, the other sat on the
 floor untransformed, and the boss charged. `MeganKeeper` /
-`BossHold` should clear the running fight's Megan first.
+`BossHold` should clear the running fight's Megan first. Lead from the
+freeze tests: a second in-place `ruben-megan` restore logged `megan:
+seated Megan put back (removed girlMutant(Clone))`. **This is the next
+item.**
 
 **Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
-checked over the bridge; Ruben asked to confirm (QA). Next after the
-freeze: the LiveSplit-style splits table in Runs (author, 2026-09-27: an
+checked over the bridge; Ruben asked to confirm (QA). After the Megan
+bug: the LiveSplit-style splits table in Runs (author, 2026-09-27: an
 `.lss` import only makes sense with a LiveSplit-like, customisable splits
 view - build that first from our own attempts, import after), or the
 ride / climb modes in savestates.
@@ -701,8 +704,8 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.137 in Slot 2 at (817, 91, 620) (the
-slot's own spot, loaded from the
+**State:** the game runs v0.24.143 in Slot 2 at (817, 91, 620), god
+mode off (a death test reloaded the slot; the slot's own spot, loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
 survival game).
