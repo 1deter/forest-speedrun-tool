@@ -91,6 +91,8 @@ namespace ForestOverlay.Modules
         private float _tabW;
         private float _tabH;
         private Vector2 _scroll;
+        private Vector2 _pageScroll;
+        private float _pageH;
         private GUIStyle _rowStyle;
 
         // Run line rendering.
@@ -724,15 +726,28 @@ namespace ForestOverlay.Modules
             if (auto != _autoRestart.Value) _autoRestart.Value = auto;
 
             // Flowing, each line as tall as its text (UiText) - these
-            // messages vary in length and clipped at fixed heights.
-            float y = 106f;
-            y += UiText.Draw(0, y, w, _statusText);
-            y += UiText.Draw(0, y, w, _diagnoseText);
-            y += UiText.Draw(0, y, w, _eventText);
-            y = DrawSplitsSection(y + 4f, w);
+            // messages vary in length and clipped at fixed heights. The rest
+            // of the tab scrolls: with the splits table and its options open
+            // it outgrows the window (v0.24.147).
+            const float top = 106f;
+            float viewH = _tabH - top - 4f;
+            bool scrolls = _pageH > viewH;
+            float cw = scrolls ? w - 20f : w;
+            _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
-            y = Mathf.Max(y + 4f, 190f);
-            DrawAttemptList(new Rect(0, y, w, Mathf.Max(80f, _tabH - y - 4f)));
+            float y = 0f;
+            y += UiText.Draw(0, y, cw, _statusText);
+            y += UiText.Draw(0, y, cw, _diagnoseText);
+            y += UiText.Draw(0, y, cw, _eventText);
+            y = DrawSplitsSection(y + 4f, cw);
+
+            // The attempts keep their own scrolling list: the room left, or
+            // at least 160 px below everything else.
+            y += 4f;
+            float listH = Mathf.Max(160f, viewH - y - 4f);
+            DrawAttemptList(new Rect(0, y, cw, listH));
+            _pageH = y + listH + 4f;
+            GUI.EndScrollView();
         }
 
         // Tab text, rebuilt from Tick a few times a second - never in

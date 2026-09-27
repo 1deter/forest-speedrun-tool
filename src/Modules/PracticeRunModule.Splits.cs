@@ -65,6 +65,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent[] _lineOptionText = new GUIContent[LineCount];
         private readonly GUIContent _compareTitle = new GUIContent("");
         private readonly GUIContent _runnerText = new GUIContent("");
+        private readonly GUIContent _panelSizeText = new GUIContent("");
         private readonly GUIContent _splitsHint = new GUIContent("");
         private int _shownRows;
         private bool _splitsOptionsOpen;
@@ -198,6 +199,7 @@ namespace ForestOverlay.Modules
                 string name = RunnerNameNow();
                 _runnerText.text = "Runner: " + (name.Length > 0 ? name : "(no name - Steam not found; type one above)") +
                                    (_runnerName.Value.Trim().Length == 0 && name.Length > 0 ? "  (your Steam name)" : "");
+                _panelSizeText.text = "width " + Mathf.RoundToInt(_panelWidth.Value) + " px, " + _panelRows.Value + " rows";
             }
 
             int rows = SplitRows;
@@ -409,10 +411,11 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(302, y - 1, 90, 22), "Lower right")) { _panelX.Value = -1f; _panelY.Value = Screen.height * 0.55f; }
             y += 26f;
             GUI.Label(new Rect(0, y, 110, 20), "Width / rows");
-            if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) _panelWidth.Value = Mathf.Max(160f, _panelWidth.Value - 20f);
-            if (GUI.Button(new Rect(148, y - 1, 30, 22), "+")) _panelWidth.Value = Mathf.Min(900f, _panelWidth.Value + 20f);
-            if (GUI.Button(new Rect(190, y - 1, 30, 22), "-")) _panelRows.Value = Mathf.Max(3, _panelRows.Value - 1);
-            if (GUI.Button(new Rect(224, y - 1, 30, 22), "+")) _panelRows.Value = Mathf.Min(40, _panelRows.Value + 1);
+            if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _panelWidth.Value = Mathf.Max(160f, _panelWidth.Value - 20f); _splitsDirty = true; }
+            if (GUI.Button(new Rect(148, y - 1, 30, 22), "+")) { _panelWidth.Value = Mathf.Min(900f, _panelWidth.Value + 20f); _splitsDirty = true; }
+            if (GUI.Button(new Rect(190, y - 1, 30, 22), "-")) { _panelRows.Value = Mathf.Max(3, _panelRows.Value - 1); _splitsDirty = true; }
+            if (GUI.Button(new Rect(224, y - 1, 30, 22), "+")) { _panelRows.Value = Mathf.Min(40, _panelRows.Value + 1); _splitsDirty = true; }
+            GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _panelSizeText);
             y += 26f;
 
             GUI.Label(new Rect(0, y, 110, 20), "Runner name");

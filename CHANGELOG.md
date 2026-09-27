@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.147 - 2026-09-27
+
+- Runs tab: everything below the buttons now scrolls, so the splits
+  table, its options and your attempt list all fit. Splits options show
+  the panel's width and row count beside their buttons.
+
 ## v0.24.146 - 2026-09-27
 
 - **Splits, LiveSplit style.** A timed segment now has a splits table: on
