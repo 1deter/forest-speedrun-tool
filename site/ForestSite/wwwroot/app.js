@@ -48,9 +48,13 @@ function colour(d, segDelta, seg, best) {
 
 function num(x) { return x === null || x === undefined ? NaN : x; }
 function segAt(cum, i) { return num(cum[i]) - (i === 0 ? 0 : num(cum[i - 1])); }
+/// "27 Sep" this year, "27 Sep 2025" before.
 function date(iso) {
   const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  if (isNaN(d)) return "";
+  const opts = { month: "short", day: "numeric" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString(undefined, opts);
 }
 
 // --- router -------------------------------------------------------------------------
@@ -181,7 +185,7 @@ async function spotPage(id, routeId) {
         el("td", null, toggle),
         el("td", { class: "name" }, b.name || b.runner, b.flagged ? el("span", { class: "flag", title: "Much faster than the route's best so far: waiting for a look" }, "under review") : null),
         el("td", { class: "r" }, time(b.duration)),
-        el("td", { class: "r date" }, date(b.recorded)));
+        el("td", { class: "r date col-date" }, date(b.recorded)));
     }));
     if (!r.board.length) board.append(el("tr", null, el("td", { colspan: 5, class: "empty" },
       "No runs yet. Runs upload from the game when a runner finishes this spot.")));
@@ -262,7 +266,7 @@ async function spotPage(id, routeId) {
     el("div", { class: "cols" },
       el("section", null, el("h2", null, "Runners"),
         el("div", { class: "tablewrap" }, el("table", null,
-          el("thead", null, el("tr", null, el("th", null, "#"), el("th", null, "Map"), el("th", null, "Runner"), el("th", { class: "r" }, "Time"), el("th", { class: "r" }, "Date"))),
+          el("thead", null, el("tr", null, el("th", null, "#"), el("th", { title: "Show on the map" }, ""), el("th", null, "Runner"), el("th", { class: "r" }, "Time"), el("th", { class: "r col-date" }, "Date"))),
           board))),
       el("section", null, splits)));
 
