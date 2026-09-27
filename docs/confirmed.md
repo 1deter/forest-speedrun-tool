@@ -155,3 +155,11 @@ Cross-save restore keeps the inventory views (v0.24.137, bridge,
 released build, Ruben's Megan-fight start state in Slot 2): `deleted 0`,
 `kept 54 inventory view object(s)`, no duplicate views; the inventory
 opens and closes (our close and the game's toggle), timeScale back to 1.
+
+Death reload out of the Megan fight without the crash (v0.24.139,
+bridge, released build, the author's switches, Ruben's `ruben-megan`
+state in Slot 2): two BossWake reloads (one the author's own death) load
+and play on; forcing the controller's camera to be drawn last (every
+other camera off) puts the scene grass camera back - by the tick guard,
+and with that blinded by the Update prefix (`its Update skipped once`) -
+and a forced texture rebuild then runs safely.

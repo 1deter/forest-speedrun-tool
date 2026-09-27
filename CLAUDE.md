@@ -559,49 +559,41 @@ identity.
 
 ## Current status
 
-**Released: v0.24.137** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.139** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.137 in the game)
+### Pick up here (2026-09-27, v0.24.139 in the game)
 
-**v0.24.137 (this session): Ruben stuck in the inventory** (QA report
-`Downloads\qa-reports\d.eter\ForestOverlay-report-Ruben-*`, his Megan
-start state copied to savestates as `ruben-megan`): a cross-save Quick
-load deleted the inventory's views (gotcha 57); fixed and checked over
-the bridge. Ruben asked to confirm (QA). Next after the crash: the
-LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
-import only makes sense with a LiveSplit-like, customisable splits view
-- build that first from our own attempts, import after), or the ride /
-climb modes in savestates.
+**v0.24.138-139 (this session): the native crash is fixed.** The author's
+death reload out of the Megan fight (`Death (BossWake)`, Reload save on
+death) crashed in Unity's `Camera::SetTargetTextureBuffers` (dump
+symbolised with Unity's player PDB - `scripts/symbolize-crash.py`,
+gotcha 58): `TerrainGrassCameraOff` (PerfPatches 10, on by default since
+v0.24.116) left the grass controller's camera the last one drawn in load
+frames, and the controller's texture rebuild then crashed. Reproduced 4
+of 4 (v0.24.137-138), gone with switch 10 off; v0.24.139 guards the
+controller's `Update` with a prefix (log line `terrain grass camera back
+on - ...`), proven by forcing the state over the bridge, and the Megan
+death reload passed twice. **maks's crash** (v0.24.129, log ends at the
+player bind right after `terrain grass camera off`) has the same
+signature - ask him to update and say if it happens again. v0.24.138
+alone is not enough (still crashed).
 
-**NEXT (high effort): native crash on a death reload out of the endgame
-(author, 2026-09-27, v0.24.137).** The author died to Megan on Ruben's
-cross-save start state (`ruben-megan` savestate); `Death (BossWake)`
-reloaded Slot 2 without the menu, `ForestMain_v08` loaded (30 s hitch),
-the player bound (`PlayerInventory bound`) and the game crashed: Unity
-`Access Violation` in `TheForest.exe`, a write to `000000f8`
-(`mov [rcx+0xf8], rdi`, rcx 0 - a property set on a destroyed native
-object), called from Mono JIT code. What looked like a hang (0 CPU, bridge
-unread) was Unity's crash handler writing the dump. Evidence:
-`Downloads\qa-reports\d.eter\crash-2026-09-27_123358\` (`error.log`,
-`crash.dmp`, `LogOutput.log`; the original folder is beside
-`TheForest.exe`). **Prime suspect:** the log's last Performance lines
-after the load, `endgame screen camera back to rendering every frame (its
-scene was unloaded)` - `EndgameScreenOnDemand` (PerfPatches index 11, ON
-by default) touching `ControlRoom/redcircles/Camera` after its scene
-unloaded; also on: 12 sun shadows, 13 cave grass. Same place as maks's
-native crash (QA message `1553525841344856146`: first launch of
-v0.24.129, log ends at the player bind; his crash folder and switches
-asked for, message `1553710935607214143`) and maybe the v0.22.6 runner's
-hang (a load started from a death). Plan: read the code that logs that
-line (`Game/PerfPatches`), check every Unity call it makes on an object
-that can be destroyed (`== null` on the UnityEngine.Object, not a C#
-null check), reproduce (restore `ruben-megan`, die - `set
-static:Cheats GodMode false`, or kill via PlayerStats - with Reload save
-on death on) before and after the fix. No debugger on this machine; the
-author OK'd installing WinDbg if a stack is needed.
-`Game/PerfPatches` is the FPS session's area: `git fetch` first and
-check its latest commits there before editing.
+**Now: the 26-37 s freeze on a death reload out of the endgame**
+(author, 2026-09-27: "any way to remove the freeze?"). One frame from
+the scene switch to `ForestMain_v08 loaded`; the same reload from the
+surface is 1.4 s, and it is 26 s with every Performance switch off - the
+game's own teardown of 9 scenes (endgame_streaming, endgame_animPrefabs,
+6 cave prop scenes, main). Next: time an async unload of the endgame /
+cave scenes before `Resume()` (bridge: restore `ruben-megan`, unload,
+read `Load timing:`), then decide with the author.
+
+**Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
+checked over the bridge; Ruben asked to confirm (QA). Next after the
+freeze: the LiveSplit-style splits table in Runs (author, 2026-09-27: an
+`.lss` import only makes sense with a LiveSplit-like, customisable splits
+view - build that first from our own attempts, import after), or the
+ride / climb modes in savestates.
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
