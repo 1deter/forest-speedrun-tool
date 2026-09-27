@@ -32,9 +32,9 @@ namespace ForestOverlay.Game
     // else `transformed` / `gone`. After a Quick load of a seated capture,
     // when the live Megan is not seated: stop a running transformation
     // (the game's own unlockPlayerParams), remove what the fight left
-    // within 80 m of her seat (the boss, her ragdoll and pickup,
-    // girlSpawnGo, boss babies and their spawners - all scene roots; the
-    // overworld Megan is never that close), reset the trigger and the
+    // (the boss, her ragdoll and pickup, girlSpawnGo wherever they are;
+    // boss babies and their spawners within 80 m of her seat - all scene
+    // roots), reset the trigger and the
     // sequence, and re-arm setupGirlMutant with a new placeholder. BossHold
     // holds the trigger until the new Megan exists; the cutscene
     // fast-forward then works as after a Full load.
@@ -56,11 +56,17 @@ namespace ForestOverlay.Game
         private const float Reach = 80f;
 
         // Scene roots the transformation and the fight leave (confirmed live).
+        // The first AnyDistance are boss Megan's own - nothing else in the
+        // world has those names (bridge, v0.24.144), and she roams the boss
+        // room: 137 m from her seat mid-fight she was missed and a second
+        // Megan sat down beside the fighting one (author, 2026-09-27).
+        // Babies stay within Reach - caves have their own.
         private static readonly string[] Leftovers =
         {
             "girlMutant(Clone)", "girlMutant_RAGDOLL(Clone)", "girl_Pickup(Clone)",
             "girlSpawnGo", "bossBabySpawner(Clone)", "mutant_baby(Clone)"
         };
+        private const int AnyDistance = 4;
 
         private readonly ManualLogSource _log;
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -296,9 +302,10 @@ namespace ForestOverlay.Game
                 {
                     GameObject go = roots[i];
                     if (go == null) continue;
-                    string kind = Leftover(go.name);
-                    if (kind == null) continue;
-                    if (Vector3.Distance(go.transform.position, seat) > Reach) continue;
+                    int k = Leftover(go.name);
+                    if (k < 0) continue;
+                    if (k >= AnyDistance && Vector3.Distance(go.transform.position, seat) > Reach) continue;
+                    string kind = Leftovers[k];
                     if (visible != null && visible.Contains(go)) visible.Remove(go);
                     go.SetActive(false);
                     UnityEngine.Object.Destroy(go);
@@ -312,11 +319,11 @@ namespace ForestOverlay.Game
         }
 
         // Babies carry a number after the name (mutant_baby(Clone)0010).
-        private static string Leftover(string name)
+        private static int Leftover(string name)
         {
             for (int i = 0; i < Leftovers.Length; i++)
-                if (name.StartsWith(Leftovers[i], StringComparison.Ordinal)) return Leftovers[i];
-            return null;
+                if (name.StartsWith(Leftovers[i], StringComparison.Ordinal)) return i;
+            return -1;
         }
     }
 }

@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.144 - 2026-09-27
+
+- **Quick load of a Megan start state during the fight no longer leaves
+  the old Megan behind.** When the boss had run far across the boss room,
+  the restore missed her: a new Megan sat down while the old one kept
+  fighting. The fighting Megan is now removed wherever she is.
+
 ## v0.24.143 - 2026-09-27
 
 - New performance patch (on by default, Debug views -> Performance):
