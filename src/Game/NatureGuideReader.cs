@@ -221,13 +221,31 @@ namespace ForestOverlay.Game
                 order[j + 1] = id;
             }
 
+            // The book's own page names (author, 2026-09-27: not the object
+            // names, "15 0 Info Tick Off 1"). Every nature page is titled
+            // "NATURE GUIDE"; the links leading to a page carry its name
+            // ("PLANT LIFE 1" ... "ANIMALS 3", translated by the game).
+            // Fallback: the printed title, numbered when repeated.
+            List<string> titles = new List<string>();
             for (int p = 0; p < order.Count; p++)
             {
-                NaturePage page = new NaturePage();
                 Transform t;
-                page.Name = order[p] != PageGrouping.NoPage && byId.TryGetValue(order[p], out t)
-                    ? Tidy(t.name)
+                string title = order[p] != PageGrouping.NoPage && byId.TryGetValue(order[p], out t)
+                    ? (LinkName(t) ?? PrintedTitle(t) ?? Tidy(t.name))
                     : "Other";
+                titles.Add(title);
+            }
+            for (int p = 0; p < order.Count; p++)
+            {
+                int same = 0, number = 0;
+                for (int q = 0; q < titles.Count; q++)
+                {
+                    if (titles[q] != titles[p]) continue;
+                    same++;
+                    if (q <= p) number = same;
+                }
+                NaturePage page = new NaturePage();
+                page.Name = same > 1 ? titles[p] + " - page " + number : titles[p];
                 _pages.Add(page);
             }
 
@@ -238,6 +256,62 @@ namespace ForestOverlay.Game
             }
 
             _log.LogInfo("Nature guide: " + _entries.Count + " entries on " + _pages.Count + " page(s).");
+        }
+
+        /// The text on a book link (SelectPageNumber.MyPageNew) that leads to
+        /// this page, in title case; null when none has text.
+        private static string LinkName(Transform page)
+        {
+            Transform book = page.parent;
+            Type select = GameBridge.FindGameType("SelectPageNumber");
+            FieldInfo target = select != null ? select.GetField("MyPageNew", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) : null;
+            if (book == null || target == null) return null;
+            // Page 1 is also linked from the index, the tabs and the crafting
+            // guide as "NATURE GUIDE" (the section); the neighbouring page's
+            // link names the page itself ("PLANT LIFE 1") - prefer that.
+            string printed = PrintedTitle(page);
+            string any = null;
+            Component[] links = book.GetComponentsInChildren(select, true);
+            for (int i = 0; i < links.Length; i++)
+            {
+                GameObject to = target.GetValue(links[i]) as GameObject;
+                if (to == null || to.transform != page) continue;
+                TextMesh mesh = links[i].GetComponentInChildren<TextMesh>(true);
+                string text = mesh != null ? mesh.text : null;
+                if (string.IsNullOrEmpty(text) || text.Trim().Length == 0) continue;
+                string name = TitleCase(text.Trim());
+                if (name != printed) return name;
+                if (any == null) any = name;
+            }
+            return any;
+        }
+
+        /// The title text printed on a book page, in title case; null when
+        /// the page has none.
+        private static string PrintedTitle(Transform page)
+        {
+            for (int i = 0; i < page.childCount; i++)
+            {
+                Transform c = page.GetChild(i);
+                if (!c.name.StartsWith("TrTextMesh - Title")) continue;
+                TextMesh mesh = c.GetComponent<TextMesh>();
+                string text = mesh != null ? mesh.text : null;
+                if (string.IsNullOrEmpty(text) || text.Trim().Length == 0) continue;
+                return TitleCase(text.Trim());
+            }
+            return null;
+        }
+
+        private static string TitleCase(string s)
+        {
+            char[] c = s.ToLowerInvariant().ToCharArray();
+            bool start = true;
+            for (int i = 0; i < c.Length; i++)
+            {
+                if (start && char.IsLetter(c[i])) c[i] = char.ToUpperInvariant(c[i]);
+                start = c[i] == ' ' || c[i] == '-';
+            }
+            return new string(c);
         }
 
         private void UpdateTicks()

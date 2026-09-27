@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.132 - 2026-09-27
+
+- 100% tab: nature guide pages now carry the book's own names (Plant
+  Life 1, Plant Life 2, Animals 1-3) instead of "15 0 Info Tick Off 1".
+
 ## v0.24.131 - 2026-09-27
 
 - 100% tab: passenger seats are listed in order (1A, 1B, ... 11E), like
