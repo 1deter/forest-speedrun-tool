@@ -55,3 +55,13 @@ thrown spears removed, the Quick / Full load switch (v0.24.38, awaiting maks), t
 
 Idea (author, QA #general, 2026-09-26): a ranked or custom 1v1 system - later,
 when the tool is mainly finished and mature.
+
+Requests (sxczurass, QA #general, 2026-09-27, messages
+`1553776769826295818` / `1553778115413540885`; picture in
+`Downloads\qa-reports\sxczurass\image-1553776769826295818.png`):
+- **Any item's carry cap**, like logs in the inventory: an Inventory-tab
+  filter (type an item, *Add*) adds an "<item> it holds [n]" row, *Delete*
+  removes it (e.g. 50 rocks instead of 5). Gameplay mod, practice.
+- **Creative-speed building in any mode**: hold to keep adding resources
+  to a blueprint (Creative does), not one click per item - speed only, no
+  free resources. Gameplay mod, practice.
