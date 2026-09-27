@@ -97,6 +97,27 @@ namespace ForestOverlay.Game
             catch (Exception ex) { _log.LogWarning("AreaKeeper: capture failed: " + ex.Message); return ""; }
         }
 
+        /// At capture: "" normally; a warning when no area is active but the
+        /// player stands inside a section - its walls, lamps and doors are
+        /// not drawn, and every Quick load keeps it that way. The game only
+        /// enters an area through its doorways, so a save loaded in place
+        /// (maks, the red elevator after a title-screen load, v0.24.157)
+        /// leaves the section dark. Not changed on capture: the labskip
+        /// "invisible section" is a real run with no area active.
+        public string UnenteredSection(Vector3 p)
+        {
+            try
+            {
+                if (!Bind() || Live() != null) return "";
+                if (UnityEngine.Object.FindObjectOfType(_type) == null) return "";
+                if (_members == null) InsideASection(p);
+                if (_members == null || _renderers == null || !InsideASection(p)) return "";
+                return "the endgame section around you is not turned on (walls, lamps, doors not drawn - " +
+                       "as right after loading a save here); walk out through a doorway and back in, then capture again";
+            }
+            catch (Exception ex) { _log.LogWarning("AreaKeeper: section check failed: " + ex.Message); return ""; }
+        }
+
         /// Before a plain teleport to `dest`; returns the log note ("" when
         /// nothing to do). Cheap when no area is active and no overlook.
         public string ForTeleport(Vector3 dest)

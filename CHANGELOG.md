@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.157 - 2026-09-27
+
+- Capturing a savestate or start state inside an endgame section the game
+  has not "turned on" (right after loading a save there, e.g. in the red
+  elevator) now warns you: its walls, lamps and doors are not drawn, and
+  every Quick load would keep it that way. Walk out through a doorway and
+  back in, then capture again.
+
 ## v0.24.156 - 2026-09-27
 
 - QA tab: each tester's own open-items list is in the tab now (maks,

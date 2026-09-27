@@ -77,6 +77,27 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   nothing below the spot (raycast) and the endgame not loaded -> the
   game's EndgameLoader first (`EndgameLoader.EnsureLoaded`), then place.
 
+- **The lighter stays lit through a Quick load** (author, QA #general
+  2026-09-27 20:30, `1553851224502182012`): now the hands are put away
+  (`SavestateBridge.StashHands`) and the game's own load re-equips
+  (`PlayerInventory.OnDeserialized`: `HideAllEquiped`, then `Equip` 1.5 s
+  later - game-notes *Held items across an in-place restore*), so the
+  lighter re-ignites and a runner waits for it. Wanted: when the held
+  items already match the capture, keep them (no stash, and the game's
+  hide / re-equip step skipped for those slots). Needs a patch on that
+  coroutine - look at it with `ilscan body` first.
+- **Website links as Discord embeds** (author, `1553852129234518177`):
+  a shared spot link previews in Discord (OpenGraph), maybe with an
+  embedded replay. Site work, `docs/website.md` *Next*.
+- **More event checkpoints** (author, `1553852597138493522`): entering a
+  cave, grabbing a rope, other common interactions as `event` triggers -
+  the author's autosplitter (memory `autosplitter-repo`) lists ideas.
+- **Weather in savestates** (maks's fog after a Quick load, 2026-09-27,
+  waiting on his screenshot `1553853576554610781`): the save has no
+  weather (`TheForest.World.WeatherSystem`: State, CurrentType, cloud
+  values), so the live game's clouds / rain carry into a restore. If it
+  is confirmed, capture and put back those fields.
+
 ## For the final exhaustive feature testing
 
 - **Megan fight: health bar empty, died only a few hits later** (author,

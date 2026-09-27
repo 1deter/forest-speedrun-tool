@@ -348,6 +348,7 @@ namespace ForestOverlay.Modules
             string elevators = _elevators.Capture(rideAge);
             string keypadDoor = cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
             string activeArea = _area.Capture();
+            string areaWarning = activeArea == AreaKeeper.None ? _area.UnenteredSection(pos) : "";
             string blueprint = BuildMode.Capture();
             string stance = Stance.Capture();
             int logs = LogStore.Stored();
@@ -378,6 +379,11 @@ namespace ForestOverlay.Modules
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
                 string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, logs);
+                if (error == null && areaWarning.Length > 0)
+                {
+                    Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
+                    Ctx.Notice.Show("Captured - but " + areaWarning + ".", 10f);
+                }
                 if (after != null) after(error);
             }));
         }
