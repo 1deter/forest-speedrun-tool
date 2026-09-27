@@ -180,3 +180,9 @@ and a forced texture rebuild then runs safely.
   game's own load (v0.24.145, bridge, 2026-09-27, Slot 2):** `Performance:
   endgame load in play outside a cutscene ... no hold`, one 4610 ms frame,
   the player not pinned (maks was held for the whole load before).
+- **Splits table (v0.24.146-147, bridge, 2026-09-27, Slot 2, `s-splitstest01`):**
+  two teleport runs then a third mid-segment: panel + Runs tab showed PB
+  splits, +0.50 on the first split, a live +5.04 on the current row, sum
+  of best 7.11 and best possible 13.15 (all hand-checked); attempts saved
+  with `2 split time(s) saved, runner 'deter' (r-...)`; the tab scrolls
+  with the options open (v0.24.147).

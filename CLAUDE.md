@@ -108,7 +108,8 @@ Where things live:
 | Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
-| Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
+| Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
+| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
@@ -562,10 +563,29 @@ identity.
 
 ## Current status
 
-**Released: v0.24.145** (2026-09-27). The author runs it via the in-game
-updater. **384 tests.**
+**Released: v0.24.148** (2026-09-27). The author runs it via the in-game
+updater. **395 tests.**
 
-### Pick up here (2026-09-27, v0.24.144 in the game)
+### Pick up here (2026-09-27, v0.24.147 in the game)
+
+**v0.24.146-148 (this session): the LiveSplit-style splits table** -
+on screen (`DrawScreen`, a new `OverlayModule` hook) and in the Runs tab
+(`Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` tested). Every
+LiveSplit column / summary line toggleable (Runs -> Splits options),
+Compare to + best segments drives table / delta / ghost / lines, an
+unbound key cycles it. Attempts save `splits|` and `runner|<id>|<name>`
+(`Data/AttemptFormat`, pure; id = `Game/RunnerIdentity`, SHA-256 of the
+Steam id), segments `split = <name>` after a check / end line (Practice
+editor *split* fields). Checked over the bridge (docs/confirmed.md). A
+test segment `s-splitstest01` ("Splits test", category Test, 2 attempts)
+is in the author's `my-segments.txt` (backup of the file before it:
+`%TEMP%/my-segments.before-splits-test.txt`) - remove it per *Removing
+test spots* once the author has looked. **Next for splits:** other
+runners' attempts as comparisons (Import stops ignoring `.foseg`
+attempts; keep them apart from the runner's own, per runner PB), then
+the `.lss` import (Next up 9), then the website (Next up 10). Not built:
+dragging the panel (preset positions + width / rows buttons instead),
+LiveSplit's PB chance / total playtime lines.
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
@@ -608,11 +628,9 @@ fight's leftovers within 80 m of her seat only, and the boss roams the
 boss room (72 m seen); Megan's own objects now go at any distance.
 
 **Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
-checked over the bridge; Ruben asked to confirm (QA). **Next:** the
-LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
-import only makes sense with a LiveSplit-like, customisable splits view
-- build that first from our own attempts, import after), or the ride /
-climb modes in savestates.
+checked over the bridge; Ruben asked to confirm (QA). The ride /
+climb modes in savestates are the author's, in another session
+(2026-09-27).
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
@@ -1187,9 +1205,9 @@ list so we can move onto expanding more features".
    - God mode: done (v0.24.101, Deaths tab).
 8. ~~Freecam keeps the game's lighting~~ done (v0.24.136: flies the
    game's own camera; `FreeCamBehaviour` in `Game/DebugDraw`).
-9. **LiveSplit split file import** (`.lss`/`.lsl`) plus HUD / layout
-   customisation; the author's autosplitter is the reference (memory
-   `autosplitter-repo`).
+9. **LiveSplit split file import** (`.lss`/`.lsl`); the splits view it
+   needs is done (v0.24.146-148); the author's autosplitter is the
+   reference (memory `autosplitter-repo`).
 10. **forest.deter.cloud - shared runs and a web viewer** *(runner)*.
    Built by Claude (author); reads `.foseg` files (Data/SegmentBundle)
    and can serve the community index as a second URL (`Community.Url`).
