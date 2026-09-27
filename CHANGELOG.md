@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.156 - 2026-09-27
+
+- QA tab: each tester's own open-items list is in the tab now (maks,
+  sxczurass). Type your name in "Your name" and the tab opens on your
+  list; everyone else still gets the general one (< > steps through all).
+- The QA name field saves once you stop typing, not on every key.
+
 ## v0.24.155 - 2026-09-27
 
 - Race other runners: on a timed spot, the Runs tab lists every other

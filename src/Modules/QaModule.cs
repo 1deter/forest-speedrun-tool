@@ -118,6 +118,7 @@ namespace ForestOverlay.Modules
         public override void Shutdown()
         {
             SaveAnswers();
+            if (_testerName != null && _testerName.Value != _testerField) _testerName.Value = _testerField;
             if (_listener != null) BepInEx.Logging.Logger.Listeners.Remove(_listener);
         }
 
@@ -146,8 +147,8 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("QA: could not read the test lists: " + ex.Message);
             }
 
-            // Newest list (files are dated) first.
-            _listIndex = _lists.Count - 1;
+            // The tester's own newest list, else the newest for everyone.
+            _listIndex = QaList.DefaultIndex(_lists, _testerField);
             SelectList(_listIndex);
             Ctx.Log.LogInfo("QA: " + _lists.Count + " test list(s)" +
                             (_list != null ? ", showing '" + _list.Id + "' (" + _list.Items.Count + " items)" : ""));
@@ -255,6 +256,24 @@ namespace ForestOverlay.Modules
         {
             DrainLog();
             if (_dirty && Time.realtimeSinceStartup >= _saveAt) SaveAnswers();
+            if (_nameSettleAt > 0f && Time.realtimeSinceStartup >= _nameSettleAt) NameSettled();
+        }
+
+        // The name is written once typing stops (a config write saves the
+        // whole file - gotcha 60), then the tab moves to that tester's own
+        // list if it has one and nothing is answered on the current one.
+        private float _nameSettleAt;
+
+        private void NameSettled()
+        {
+            _nameSettleAt = 0f;
+            _testerName.Value = _testerField;
+            int pick = QaList.DefaultIndex(_lists, _testerField);
+            if (pick == _listIndex || _list == null) return;
+            foreach (KeyValuePair<int, QaAnswer> kv in _answers)
+                if (!kv.Value.IsEmpty) return;
+            _listIndex = pick;
+            SelectList(_listIndex);
         }
 
         private readonly List<string> _drained = new List<string>();
@@ -484,7 +503,7 @@ namespace ForestOverlay.Modules
             if (name != _testerField)
             {
                 _testerField = name;
-                _testerName.Value = name;
+                _nameSettleAt = Time.realtimeSinceStartup + 1.5f;
             }
             y += 28f;
 

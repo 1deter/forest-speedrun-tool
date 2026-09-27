@@ -39,6 +39,23 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void OpensOnTheTestersOwnList()
+        {
+            List<QaList> lists = new List<QaList>();
+            lists.Add(QaList.Parse("id = general\n1) a\n"));
+            lists.Add(QaList.Parse("id = maks\ntester = maks\n1) a\n"));
+            lists.Add(QaList.Parse("id = sx\ntester = sxczurass\ntester = sx\n1) a\n"));
+            Assert.Empty(lists[2].Problems);
+            Assert.Equal(1, QaList.DefaultIndex(lists, " Maks "));
+            Assert.Equal(2, QaList.DefaultIndex(lists, "sx"));
+            Assert.Equal(0, QaList.DefaultIndex(lists, "Ruben"));
+            Assert.Equal(0, QaList.DefaultIndex(lists, ""));
+            lists.RemoveAt(0);
+            Assert.Equal(1, QaList.DefaultIndex(lists, "")); // no general list: the newest
+            Assert.Equal(-1, QaList.DefaultIndex(new List<QaList>(), "maks"));
+        }
+
+        [Fact]
         public void ReportsBadLines()
         {
             QaList l = QaList.Parse("seen = x\n1) a\n1) b\nnonsense\ncolour = red\n");

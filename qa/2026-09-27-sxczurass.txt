@@ -1,0 +1,26 @@
+# sxczurass's open items (sent 2026-09-27 for v0.24.151), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-09-27-sxczurass-open-items.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-09-27-sxczurass
+title = sxczurass - your tasks (2026-09-27)
+tester = sxczurass
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+intro = Something weird? Press Mark right when it happens and add a note. When you are done, click "Write report" and send the zip.
+
+section = Crouch in savestates
+1) Toggle crouch on. Capture a savestate standing, crouch, then Quick load it - you should stand up.
+seen = stood up (captured standing)
+2) Capture one crouched, stand, then Quick load it - you should be crouched again.
+seen = crouched (captured crouched)
+3) Same two with Full load.
+seen = captured crouched
+seen = captured standing
+
+section = Logs in the inventory
+4) With logs stored, repair a damaged building. It should take the logs from the store.
+seen = Logs in the inventory: stored
+
+section = LiveSplit-style splits
+5) Run a timed segment with a couple of checkpoints a few times. Do the splits, deltas and colours make sense to you as a runner? Anything you miss from LiveSplit? Name the checkpoints in the Practice editor's "split" fields; drag the panel with F2 open; Splits options has the columns, opacity and precision.

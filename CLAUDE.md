@@ -569,8 +569,8 @@ identity.
 
 ## Current status
 
-**Released: v0.24.155** (2026-09-27). The author runs it via the in-game
-updater. **415 tests** (+ 10 site tests).
+**Released: v0.24.156** (2026-09-27). The author runs it via the in-game
+updater. **416 tests** (+ 10 site tests).
 
 ### Pick up here (2026-09-27, v0.24.152 in the game)
 
@@ -629,6 +629,13 @@ request - maks (`1553807713593597984`, `docs/tests/2026-09-27-maks-open-items.md
 pinned by maks) and sxczurass (`1553811127278764167`,
 `docs/tests/2026-09-27-sxczurass-open-items.md`); the to-do list links
 both. Answer them per number; the FPS parts stay with the FPS session.
+Since v0.24.156 both are in the QA tab (`qa/2026-09-27-<tester>.txt`,
+`tester = <name>`: the tab opens on the list for the name typed in it -
+`QaList.DefaultIndex`); maks's report of 20:58 was the stale 09-25 list,
+unanswered. **maks's note (v0.24.145, 'Boost Elev' = a Quick load 1.5 s
+into the red elevator's ride): the door opens while the car still runs,
+and it is light instead of pitch black (fog carried over?)** - a lead for
+Next 3; report in `Downloads\qa-reports\yirequ\...2026-09-27_20-58`.
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on

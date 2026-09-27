@@ -16,6 +16,7 @@ namespace ForestOverlay.Data
     //   id = qa-2026-09-25
     //   title = ForestOverlay v0.24.43 - QA list
     //   intro = A line shown above the items (repeatable)
+    //   tester = maks               (repeatable: whose list it is)
     //   section = Resetting mid-swing
     //   1) Swing, then press F7 halfway through. ...
     //   seen = ended attack state
@@ -23,6 +24,10 @@ namespace ForestOverlay.Data
     // `seen` belongs to the item above it (repeatable): when a log line
     // containing that text appears, the item shows the line - evidence to
     // look at, not a pass. Pass / Fail stays the tester's call.
+    //
+    // `tester` makes a list one tester's own (v0.24.156): the tab opens
+    // on the newest list for the name typed in it, else the newest list
+    // for everyone (DefaultIndex).
     //
     // Answers live in qa/answers/<id>.txt:
     //
@@ -59,6 +64,7 @@ namespace ForestOverlay.Data
     {
         public string Id = "";
         public string Title = "";
+        public readonly List<string> Testers = new List<string>();
         public readonly List<string> Intro = new List<string>();
         public readonly List<QaItem> Items = new List<QaItem>();
         /// Lines that could not be read, for the tab to show.
@@ -112,6 +118,7 @@ namespace ForestOverlay.Data
                     case "id": list.Id = value; break;
                     case "title": list.Title = value; break;
                     case "intro": list.Intro.Add(value); break;
+                    case "tester": if (value.Length > 0) list.Testers.Add(value); break;
                     case "section": section = value; break;
                     case "seen":
                         if (list.Items.Count == 0 || value.Length == 0)
@@ -156,6 +163,30 @@ namespace ForestOverlay.Data
         private static string[] SplitLines(string text)
         {
             return (text ?? "").Replace("\r\n", "\n").Split('\n');
+        }
+
+        // --------------------------------------------------------------
+        /// Whether the list names this tester (case and spaces ignored).
+        public bool IsFor(string tester)
+        {
+            if (tester == null) return false;
+            tester = tester.Trim();
+            if (tester.Length == 0) return false;
+            for (int i = 0; i < Testers.Count; i++)
+                if (string.Equals(Testers[i].Trim(), tester, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// The list the tab opens on: the last (newest - files are dated
+        /// and sorted) that names the tester, else the last with no
+        /// tester, else the last. -1 when there are none.
+        public static int DefaultIndex(List<QaList> lists, string tester)
+        {
+            for (int i = lists.Count - 1; i >= 0; i--)
+                if (lists[i].IsFor(tester)) return i;
+            for (int i = lists.Count - 1; i >= 0; i--)
+                if (lists[i].Testers.Count == 0) return i;
+            return lists.Count - 1;
         }
 
         // --------------------------------------------------------------

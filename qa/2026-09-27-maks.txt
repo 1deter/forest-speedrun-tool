@@ -1,0 +1,28 @@
+# maks's open items (sent 2026-09-27 for v0.24.148), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-09-27-maks-open-items.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-09-27-maks
+title = maks - everything still open (2026-09-27)
+tester = maks
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+intro = Something weird? Press Mark right when it happens and add a note. When you are done, click "Write report" and send the zip.
+
+section = Elevator boost after a Quick load
+1) Take a savestate in the red elevator BEFORE pressing the button, then Quick load it and try the boost. Does it work?
+2) Same savestate set to Full load (Practice editor, Start state row). Does the boost work there?
+seen = restoring its start state with a load
+3) If it fails after a Quick load: walk around for ~10 s, go back and try again. Does it start working?
+4) When it fails, what happens: you don't clip through the door at all, or you clip but don't get launched?
+5) On a fresh game start, using only Quick loads: do boosts ever stop working after a while? If they do, press Mark right then and send a report.
+
+section = Rope start state (cave 4 rope entrance)
+6) Capture the start state again while on the rope (the old one is from before the rope fix). Then F7 from the surface, and again from inside the cave: do you land back on the rope every time, with no launch?
+seen = back on the rope
+7) Same with the spot set to Full load.
+seen = back on the rope
+8) After a few restarts, go out through the entrances: do the textures stay loaded?
+
+section = Game crash
+9) Very likely fixed since v0.24.140. If the game ever crashes again: send the crash folder (in The Forest game folder, a folder named by date and time with error.log / crash.dmp) plus your log.
