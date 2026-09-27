@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Game;
 using UnityEngine;
@@ -17,6 +18,9 @@ namespace ForestOverlay.Modules
     // All display strings are rebuilt on a 4 Hz throttle rather than per
     // frame - reflection over the item list plus string building is far
     // too expensive to do at OnGUI rate.
+    //
+    // Also the home of "Logs in the inventory" (Game/LogStore), a
+    // gameplay mod - off by default, marks practice when on.
     // ------------------------------------------------------------------
     public sealed class InventoryModule : OverlayModule
     {
@@ -56,6 +60,37 @@ namespace ForestOverlay.Modules
         private string _shownFilter = "";
         private bool _wasShowing;
 
+        // Logs in the inventory (Game/LogStore).
+        private ConfigEntry<bool> _logsCfg;
+        private ConfigEntry<int> _logCapCfg;
+        private string _capText;
+        private bool _logsMarked;
+        private string _logsHud;
+        private readonly GUIContent _logsStatus = new GUIContent("");
+        private static readonly GUIContent LogsText = new GUIContent(
+            "Picked-up logs go into the inventory up to the cap instead of into your arms - hands stay free, " +
+            "no energy cost. A full store leaves the log on the ground. Building, fires, the log sled, holders " +
+            "and repairs take from the store; a log on a zipline still needs the arms (turn this off). " +
+            "Turning it off puts up to 2 back in your arms and drops the rest. Changes gameplay: marks practice.");
+
+        public override void Initialise(ModuleContext ctx)
+        {
+            base.Initialise(ctx);
+            _logsCfg = Ctx.Config.Bind("Inventory", "LogsInInventory", false,
+                "Gameplay mod: picked-up logs are stored with a counter up to LogsInInventoryCap instead of carried in the arms. Marks practice.");
+            _logCapCfg = Ctx.Config.Bind("Inventory", "LogsInInventoryCap", 5,
+                "How many logs the inventory holds with LogsInInventory on (1-99).");
+            _capText = _logCapCfg.Value.ToString();
+            LogStore.Init(ctx.Log, OverlayPlugin.PluginGuid);
+            LogStore.Full = cap => Ctx.Notice.Show("Logs: the inventory holds " + cap + " - full", 3f);
+        }
+
+        public override void Shutdown()
+        {
+            LogStore.Full = null;
+            LogStore.Shutdown();
+        }
+
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("tab.inventory", KeyCode.None, "Open Inventory tab", OpenMyTab);
@@ -73,6 +108,7 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
+            TickLogs();
             Ctx.Inventory.Resolve();
 
             // Always refresh: the HUD total is derived from the live list
@@ -85,6 +121,25 @@ namespace ForestOverlay.Modules
 
             RefreshTitle();
             RebuildWatchLines();
+        }
+
+        private void TickLogs()
+        {
+            LogStore.Cap = Mathf.Clamp(_logCapCfg.Value, 1, 99);
+            LogStore.Maintain(_logsCfg.Value && !PlayerRef.AtTitleScreen);
+            if (LogStore.Active && !_logsMarked)
+            {
+                _logsMarked = true;
+                Ctx.Practice.Mark("logs in the inventory");
+            }
+            if (!_logsCfg.Value) _logsMarked = false;
+
+            int stored = LogStore.Stored();
+            string hud = stored >= 0 ? stored + " / " + LogStore.Cap : null;
+            if (hud != _logsHud) _logsHud = hud;
+            string status = !_logsCfg.Value ? "" :
+                stored >= 0 ? "Stored: " + stored + " / " + LogStore.Cap + " logs" : "Logs in the inventory: " + LogStore.Status;
+            if (status != _logsStatus.text) _logsStatus.text = status;
         }
 
         private void RebuildRowLabels()
@@ -145,6 +200,7 @@ namespace ForestOverlay.Modules
                 hud.Pair("Items", _total + "   (" + _stackCount + " stacks)");
             else
                 hud.Pair("Items", "(inventory not resolved)");
+            if (_logsHud != null) hud.Pair("Logs", _logsHud);
 
             for (int i = 0; i < _watchLines.Count; i++)
                 hud.Pair("", "  " + _watchLines[i]);
@@ -182,12 +238,14 @@ namespace ForestOverlay.Modules
                 _rowStyle.padding = new RectOffset(4, 4, 0, 0);
             }
 
-            GUI.Label(new Rect(10, 26, 46, 22), "Filter");
-            _filter = GUI.TextField(new Rect(58, 26, 200, 22), _filter);
+            float top = DrawLogs(4f);
 
-            if (GUI.Button(new Rect(266, 26, 56, 22), "Clear")) _filter = "";
+            GUI.Label(new Rect(10, top, 46, 22), "Filter");
+            _filter = GUI.TextField(new Rect(58, top, 200, 22), _filter);
+
+            if (GUI.Button(new Rect(266, top, 56, 22), "Clear")) _filter = "";
             if (!ReferenceEquals(_filter, _shownFilter)) RebuildShown();
-            if (GUI.Button(new Rect(326, 26, 64, 22), "Refresh"))
+            if (GUI.Button(new Rect(326, top, 64, 22), "Refresh"))
             {
                 Ctx.Inventory.Refresh();
                 RebuildRowLabels();
@@ -197,7 +255,7 @@ namespace ForestOverlay.Modules
             // proved are not real inventory contents (dev id 302 and
             // anything outside 29-311), but seeing the raw list is exactly
             // the kind of thing this tool exists for.
-            bool filter = GUI.Toggle(new Rect(10, 52, 130, 20),
+            bool filter = GUI.Toggle(new Rect(10, top + 26, 130, 20),
                                      Ctx.Inventory.FilterPhantomItems, " hide phantoms");
             if (filter != Ctx.Inventory.FilterPhantomItems)
             {
@@ -206,7 +264,7 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            bool zeros = GUI.Toggle(new Rect(146, 52, 120, 20),
+            bool zeros = GUI.Toggle(new Rect(146, top + 26, 120, 20),
                                     Ctx.Inventory.ShowZeroAmounts, " show x0");
             if (zeros != Ctx.Inventory.ShowZeroAmounts)
             {
@@ -215,11 +273,35 @@ namespace ForestOverlay.Modules
                 RebuildRowLabels();
             }
 
-            float y = 76f + UiText.Draw(10, 76, _tabW - 20, _summary);
+            float y = top + 50f + UiText.Draw(10, top + 50f, _tabW - 20, _summary);
 
             Rect listRect = new Rect(8, y, _tabW - 16, _tabH - y - 10);
             DrawList(listRect);
 
+        }
+
+        // The gameplay mod, above the list. Returns the y below it.
+        private float DrawLogs(float y)
+        {
+            float w = _tabW - 20f;
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
+                                 " Logs in the inventory (gameplay mod, practice)");
+            if (on != _logsCfg.Value) _logsCfg.Value = on;
+            y += 24f;
+            if (!_logsCfg.Value) return y + 4f;
+
+            GUI.Label(new Rect(30, y, 110, 22), "Logs it holds");
+            string t = GUI.TextField(new Rect(140, y, 50, 22), _capText);
+            if (t != _capText)
+            {
+                _capText = t;
+                int cap;
+                if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99) _logCapCfg.Value = cap;
+            }
+            y += 26f;
+            y += UiText.Draw(30, y, w - 20f, _logsStatus) + 2f;
+            y += UiText.DrawDim(30, y, w - 20f, LogsText) + 8f;
+            return y;
         }
 
         private void DrawList(Rect listRect)

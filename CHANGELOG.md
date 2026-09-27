@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.134 - 2026-09-27
+
+- New gameplay mod, Inventory tab: **Logs in the inventory**. Picked-up
+  logs are stored (5 by default, set how many) instead of carried, so
+  your hands stay free. Building, fires, the log sled, holders and
+  repairs use the stored logs. Off by default; turning it on marks the
+  session as practice.
+
 ## v0.24.133 - 2026-09-27
 
 - 100% tab: nature guide entries use the names printed in the book
