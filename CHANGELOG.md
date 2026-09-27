@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.160 - 2026-09-27
+
+- Timed runs now record what you carry (sodas, booze, meds, sticks, rocks,
+  logs, bombs and more), so the website can show your inventory at any
+  point of a run.
+
 ## v0.24.159 - 2026-09-27
 
 - Submit to community now always shows its answer under the button (it

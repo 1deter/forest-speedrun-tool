@@ -198,6 +198,18 @@ async function spotPage(id, routeId) {
     BodyTemp: { label: "Body temp", unit: " °C", decimals: 1 }, Stealth: {},
     Cold: { yesNo: true }, IsLit: { label: "Light on", yesNo: true },
   };
+  // Inventory counts ("item:<database name>", plugin v0.24.160+).
+  const ITEMS = {
+    Soda: "Soda", Booze: "Booze", EnergyMix: "Energy mix", Meds: "Meds", Aloe: "Aloe",
+    Stick: "Sticks", Rock: "Rocks", Log: "Logs", Rope: "Rope", Cloth: "Cloth", Molotov: "Molotovs",
+    BombTimed: "Bombs", Dynamite: "Dynamite", Flare: "Flares", Battery: "Batteries", Coins: "Coins",
+  };
+  /// Item channels the run ever carried (a run's bag, not every item at 0).
+  function carried(st) {
+    if (!st.carried) st.carried = st.channels.map((name, i) =>
+      !name.startsWith("item:") || st.samples.some(row => row[i + 1] > 0));
+    return st.carried;
+  }
   /// The last sample at or before t (state is stepped, not blended).
   function sampleAt(samples, t) {
     if (!samples || !samples.length) return null;
@@ -226,8 +238,17 @@ async function spotPage(id, routeId) {
     stateKey = key;
     const items = [];
     if (pos) items.push(el("div", { class: "stat" }, el("span", { class: "k" }, "Speed"), el("span", { class: "v" }, pos[4].toFixed(1) + " m/s")));
+    const bag = [];
     if (s) st.channels.forEach((name, i) => {
-      const d = SHOWN[name] || {}, v = s[i + 1];
+      const v = s[i + 1];
+      if (name.startsWith("item:")) {
+        if (!state.showAll && !carried(st)[i]) return;
+        const key = name.slice(5);
+        bag.push(el("div", { class: "stat" + (v > 0 ? "" : " zero") },
+          el("span", { class: "k" }, state.showAll ? name : ITEMS[key] || key), el("span", { class: "v" }, fmt(v, {}))));
+        return;
+      }
+      const d = SHOWN[name] || {};
       const bar = d.bar && v !== null ? el("span", { class: "bar" },
         el("span", { style: "width:" + Math.max(0, Math.min(100, (d.of ? d.of(v) : v) / d.bar * 100)) + "%" })) : null;
       items.push(el("div", { class: "stat" },
@@ -238,6 +259,8 @@ async function spotPage(id, routeId) {
     statePanel.replaceChildren(...[
       el("div", { class: "splitsbar" }, el("h2", null, "State · " + (run.name || run.runner) + " at " + time(state.time)), more),
       el("div", { class: state.showAll ? "stats all" : "stats" }, items),
+      bag.length ? el("h3", { class: "bagtitle" }, "Carrying") : null,
+      bag.length ? el("div", { class: state.showAll ? "stats all" : "stats bag" }, bag) : null,
       s ? null : el("p", { class: "empty" }, data.failed ? "Could not load this run." : "This run has no player state recorded.")].filter(Boolean));
   }
 

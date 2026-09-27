@@ -254,6 +254,10 @@ public sealed class Runs
     {
         "Health", "Stamina", "Energy", "Fullness", "Thirst", "Armor", "ColdArmor",
         "BatteryCharge", "BodyTemp", "Stealth", "Cold", "IsLit",
+        // Inventory counts (plugin v0.24.160+, Game/ItemChannels).
+        "item:Soda", "item:Booze", "item:EnergyMix", "item:Meds", "item:Aloe",
+        "item:Stick", "item:Rock", "item:Log", "item:Rope", "item:Cloth",
+        "item:Molotov", "item:BombTimed", "item:Dynamite", "item:Flare", "item:Battery",
     };
 
     /// { channels: [names], samples: [[t, v...]] } - the 5 Hz `v|` lines:

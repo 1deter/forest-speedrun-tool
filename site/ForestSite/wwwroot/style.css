@@ -114,6 +114,9 @@ p { margin: 0 0 12px; }
 .stat .v { color: var(--white); font-variant-numeric: tabular-nums; }
 .stat .bar { flex-basis: 100%; height: 3px; background: #1a1a1a; margin-top: 4px; }
 .stat .bar span { display: block; height: 100%; background: var(--yellow); }
+.bagtitle { font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.stats.bag { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.stat.zero .v { color: var(--muted); }
 .linkbtn { background: none; border: 0; padding: 0; color: var(--dim); cursor: pointer; font: inherit; font-size: 13px; }
 .linkbtn:hover { color: var(--yellow); }
 

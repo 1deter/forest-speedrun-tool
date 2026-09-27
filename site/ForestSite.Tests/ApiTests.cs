@@ -54,9 +54,9 @@ public sealed class ApiTests : IDisposable
         for (int i = 0; i <= 10; i++)
             a.Samples.Add(new RunSample { T = duration * i / 10, P = new Vector3(0, 0, 4 * i), Speed = 6 });
         // State channels as the game writes them: shown ones among internal ones.
-        a.Channels = new[] { "HeartRate", "Stamina", "Health", "explodeHash" };
+        a.Channels = new[] { "HeartRate", "Stamina", "Health", "explodeHash", "item:Soda" };
         for (int i = 0; i <= 4; i++)
-            a.States.Add(new StateSample { T = duration * i / 4, Values = new float[] { 70, 100 - 10 * i, 100, 12345 } });
+            a.States.Add(new StateSample { T = duration * i / 4, Values = new float[] { 70, 100 - 10 * i, 100, 12345, i / 2 } });
         return AttemptFormat.Write(a);
     }
 
@@ -179,11 +179,11 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(40.0, run["path"][10][3].GetValue<double>());
         // Only the shown channels, in the page's order (Health before Stamina).
         var state = run["state"].AsObject();
-        Assert.Equal(new[] { "Health", "Stamina" }, state["channels"].AsArray().Select(n => n.GetValue<string>()));
+        Assert.Equal(new[] { "Health", "Stamina", "item:Soda" }, state["channels"].AsArray().Select(n => n.GetValue<string>()));
         Assert.Equal(5, state["samples"].AsArray().Count);
-        Assert.Equal(new[] { 9.0, 100, 60 }, state["samples"][4].AsArray().Select(n => n.GetValue<double>()));
+        Assert.Equal(new[] { 9.0, 100, 60, 2 }, state["samples"][4].AsArray().Select(n => n.GetValue<double>()));
         var every = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + id + "?all=1");
-        Assert.Equal(4, every["state"]["channels"].AsArray().Count);
+        Assert.Equal(5, every["state"]["channels"].AsArray().Count);
 
         string file = await _http.GetStringAsync("/api/runs/" + id + "/file");
         Assert.Contains("duration|9.000", file);
