@@ -114,6 +114,11 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   beside it, and a splice shows a jump. Or (author) a verifier tool that
   checks uploaded files. Not before the rules talk with the moderators
   (*Project intent*); ask before building.
+- **Category start states true to the game** (author, QA
+  `1553867722964607110`, if runs are allowed with the tool): a savestate
+  for a category loads the player into the right game mode with no
+  difference from vanilla - for route / tech analysis and comparisons.
+  Also: replay blueprint placements and other interactions from a run.
 - **Start on first input** as an event trigger (author
   `1553860590295056475`), for rules compliance; plus the other common
   interactions as events (entering a cave, a rope - see *More event

@@ -169,7 +169,12 @@ spot's saved runs" and "Open on the website".
    `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
 2. ~~A spot submission button in Practice; an admin page~~ done
    (v0.24.158; the in-game submit still to check against the live site).
-3. The map: terrain heightmap underlay, then 3D.
+3. **The player's state at a point of a run** (author, QA
+   `1553867722964607110`): click a line (or scrub) at 1:00 of maks's run
+   and see his health, stamina, sodas, ... - the `.run`'s 5 Hz `v|`
+   channels already carry them (`channels|` names them); the run JSON
+   needs to serve them.
+4. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later
 
