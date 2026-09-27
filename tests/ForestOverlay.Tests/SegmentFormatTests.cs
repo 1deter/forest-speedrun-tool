@@ -83,6 +83,24 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void SplitNamesRoundTripAndStayOutOfTheRoute()
+        {
+            Segment s = Sample();
+            string route = s.RouteFingerprint();
+            s.SetCheckpointName(1, "Timmy");
+            s.EndName = "Cave 5";
+
+            Segment r = Parse(Write(s))[0];
+            Assert.Equal("Checkpoint 1", r.SplitName(0));
+            Assert.Equal("Timmy", r.SplitName(1));
+            Assert.Equal("Cave 5", r.SplitName(2));
+            Assert.Equal(route, r.RouteFingerprint());
+
+            r.RemoveCheckpoint(0);
+            Assert.Equal("Timmy", r.SplitName(0));
+        }
+
+        [Fact]
         public void RoundTripIsStableAcrossTwoPasses()
         {
             // A save-load-save cycle must not drift, or a file would churn

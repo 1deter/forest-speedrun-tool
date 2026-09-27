@@ -789,9 +789,15 @@ namespace ForestOverlay.Modules
                     y = DrawTrigger(y, cw, CheckName(i), ref t, i);
                     s.Checkpoints[i] = t;
 
+                    // The splits table's name for it (v0.24.146).
+                    string split = i < s.CheckpointNames.Count ? s.CheckpointNames[i] : "";
+                    string before2 = split;
+                    y = Field(y, cw, "  split", ref split);
+                    if (split != before2) s.SetCheckpointName(i, split);
+
                     if (GUI.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
                     {
-                        s.Checkpoints.RemoveAt(i);
+                        s.RemoveCheckpoint(i);
                         Touch();
                         break;
                     }
@@ -805,6 +811,7 @@ namespace ForestOverlay.Modules
                 y += 28f;
 
                 y = DrawTrigger(y, cw, "End", ref s.End, -3);
+                y = Field(y, cw, "  split", ref s.EndName);
             }
 
             _editHeight = y + 40f;   // room for the item search results below a trigger
@@ -825,6 +832,7 @@ namespace ForestOverlay.Modules
                 s.Start = new Trigger();
                 s.End = new Trigger();
                 s.Checkpoints.Clear();
+                s.CheckpointNames.Clear();
             }
 
             Touch();
@@ -1138,6 +1146,8 @@ namespace ForestOverlay.Modules
             s.Start = src.Start;
             s.End = src.End;
             s.Checkpoints.AddRange(src.Checkpoints);
+            s.CheckpointNames.AddRange(src.CheckpointNames);
+            s.EndName = src.EndName;
 
             // Copies land in the user's own file, never back in a shared set.
             s.SourceFile = SegmentLibrary.UserFileName;

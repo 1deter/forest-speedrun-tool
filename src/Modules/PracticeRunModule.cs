@@ -24,9 +24,9 @@ namespace ForestOverlay.Modules
     // A segment with no triggers is just a teleport; this module ignores
     // it rather than inventing a run around it.
     // ------------------------------------------------------------------
-    public sealed class PracticeRunModule : OverlayModule
+    public sealed partial class PracticeRunModule : OverlayModule
     {
-        public enum Reference { Best, Last, Average }
+        public enum Reference { Best, Last, Average, BestSegments }
 
         public override string Id { get { return "practicerun"; } }
         public override string DisplayName { get { return "Practice runs"; } }
@@ -131,6 +131,8 @@ namespace ForestOverlay.Modules
             _autoRestart = ctx.Config.Bind("Runs", "AutoRestartAtEnd", false,
                 "Restart the spot (as F7 does, start state included) as soon as a timed run finishes. " +
                 "The time shows on screen for a moment.");
+
+            InitSplits(ctx);
         }
 
         private float[] ReadState()
@@ -143,6 +145,7 @@ namespace ForestOverlay.Modules
             map.Add("run.toggleMode", KeyCode.F9, "Practice mode on / off", ToggleMode);
             map.Add("run.manualSplit", KeyCode.F12, "Manual split / finish", ManualAdvance);
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
+            map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
         }
 
@@ -223,6 +226,7 @@ namespace ForestOverlay.Modules
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             SelectReference();
+            ResetSplits();
             _status = "armed: " + _segment.Name;
         }
 
@@ -252,6 +256,7 @@ namespace ForestOverlay.Modules
         {
             BuildEventLine();
             RefreshTabText();
+            RefreshSplits();
 
             if (_autoRestartAt > 0f && Time.unscaledTime >= _autoRestartAt)
             {
@@ -342,6 +347,7 @@ namespace ForestOverlay.Modules
                 {
                     case SplitEvent.Split:
                         _splits.Add(_recorder.Elapsed);
+                        RecordSplit(_splits.Count - 1, _recorder.Elapsed);
                         _status = "split " + _splits.Count + "/" + _segment.Checkpoints.Count +
                                   "  " + Format(_recorder.Elapsed);
                         Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _splits.Count + "/" +
@@ -414,6 +420,7 @@ namespace ForestOverlay.Modules
             if (_segment != null && !_sequence.OnlyEndLeft)
             {
                 _splits.Add(_recorder.Elapsed);
+                RecordSplit(_splits.Count - 1, _recorder.Elapsed);
                 _sequence.SkipCheckpoint();
                 _status = "split " + _splits.Count + " (manual)";
                 Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _splits.Count + " split by hand at " +
@@ -429,8 +436,10 @@ namespace ForestOverlay.Modules
             Attempt done = _recorder.Finish();
             if (done == null) { _status = "no run in progress"; return; }
 
+            StampAttempt(done);
             _attempts.Add(done);
             _store.Save(done);
+            FinishSplits(done.Duration);
 
             Attempt best = RunCompare.Best(_attempts);
             bool isPb = ReferenceEquals(best, done);
@@ -438,7 +447,8 @@ namespace ForestOverlay.Modules
             _status = "finished " + Format(done.Duration) + (isPb ? "   NEW BEST" : "");
             SelectReference();
             ClearRunPreview();
-            Ctx.Log.LogInfo("Run '" + done.AnchorLabel + "': finished in " + Format(done.Duration) + (isPb ? " (best)" : "") + ".");
+            Ctx.Log.LogInfo("Run '" + done.AnchorLabel + "': finished in " + Format(done.Duration) + (isPb ? " (best)" : "") +
+                            " - " + done.Splits.Length + " split time(s) saved, runner '" + done.RunnerName + "' (" + done.RunnerId + ").");
 
             if (_autoRestart.Value && _segment != null)
             {
@@ -471,6 +481,7 @@ namespace ForestOverlay.Modules
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
+            ResetSplits();
         }
 
         private void LeaveLevel()
@@ -533,6 +544,7 @@ namespace ForestOverlay.Modules
             switch (_referenceKind)
             {
                 case Reference.Best:
+                case Reference.BestSegments:   // no single attempt: race the PB's line
                     _reference = RunCompare.Best(_attempts);
                     break;
                 case Reference.Last:
@@ -701,13 +713,14 @@ namespace ForestOverlay.Modules
             if (GUI.Toggle(new Rect(84, 58, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
             if (GUI.Toggle(new Rect(148, 58, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
             if (GUI.Toggle(new Rect(212, 58, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
-            if (kind != _referenceKind) { _referenceKind = kind; SelectReference(); }
+            if (GUI.Toggle(new Rect(296, 58, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            if (kind != _referenceKind) { _referenceKind = kind; SelectReference(); _splitsDirty = true; }
 
-            bool lines = GUI.Toggle(new Rect(300, 58, 110, 20), _showLines, " run lines");
+            bool lines = GUI.Toggle(new Rect(0, 82, 110, 20), _showLines, " run lines");
             if (lines != _showLines) _showLines = lines;
 
-            bool auto = GUI.Toggle(new Rect(0, 82, w, 20), _autoRestart.Value,
-                                   " Auto-restart: restart the spot as soon as a run finishes");
+            bool auto = GUI.Toggle(new Rect(114, 82, w - 114, 20), _autoRestart.Value,
+                                   " Auto-restart when a run finishes");
             if (auto != _autoRestart.Value) _autoRestart.Value = auto;
 
             // Flowing, each line as tall as its text (UiText) - these
@@ -715,11 +728,11 @@ namespace ForestOverlay.Modules
             float y = 106f;
             y += UiText.Draw(0, y, w, _statusText);
             y += UiText.Draw(0, y, w, _diagnoseText);
-            y += UiText.Draw(0, y, w, _splitsText);
             y += UiText.Draw(0, y, w, _eventText);
+            y = DrawSplitsSection(y + 4f, w);
 
             y = Mathf.Max(y + 4f, 190f);
-            DrawAttemptList(new Rect(0, y, w, _tabH - y - 4f));
+            DrawAttemptList(new Rect(0, y, w, Mathf.Max(80f, _tabH - y - 4f)));
         }
 
         // Tab text, rebuilt from Tick a few times a second - never in
@@ -729,12 +742,10 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _segmentText = new GUIContent("");
         private readonly GUIContent _statusText = new GUIContent("");
         private readonly GUIContent _diagnoseText = new GUIContent("");
-        private readonly GUIContent _splitsText = new GUIContent("");
         private readonly GUIContent _eventText = new GUIContent("");
         private readonly GUIContent _emptyListText = new GUIContent("");
         private readonly List<GUIContent> _attemptRows = new List<GUIContent>();
         private bool _rowsDirty = true;
-        private int _splitsShown = -1;
 
         private void RefreshTabText()
         {
@@ -749,17 +760,6 @@ namespace ForestOverlay.Modules
             _diagnoseText.text = Diagnose();
             _eventText.text = _eventLine;
 
-            if (_splitsShown != _splits.Count)
-            {
-                _splitsShown = _splits.Count;
-                if (_splits.Count == 0) _splitsText.text = "";
-                else
-                {
-                    System.Text.StringBuilder sb = new System.Text.StringBuilder("splits:");
-                    for (int i = 0; i < _splits.Count; i++) sb.Append("  ").Append(Format(_splits[i]));
-                    _splitsText.text = sb.ToString();
-                }
-            }
         }
 
         private void RebuildAttemptRows()
@@ -831,6 +831,7 @@ namespace ForestOverlay.Modules
             _attempts.Clear();
             _rowsDirty = true;
             SelectReference();
+            ResetSplits();
             ClearLines();
             _status = "times cleared from view (files kept)";
         }

@@ -54,7 +54,14 @@ namespace ForestOverlay.Data
                     return TriggerParser.Parse(value, out s.Start) ? null : "bad start: " + value;
 
                 case "end":
+                    s.ParseNameTarget = Segment.EndNameTarget;
                     return TriggerParser.Parse(value, out s.End) ? null : "bad end: " + value;
+
+                // Names the checkpoint (or end) written just before it.
+                case "split":
+                    if (s.ParseNameTarget == Segment.EndNameTarget) { s.EndName = value; return null; }
+                    if (s.ParseNameTarget >= 0) { s.SetCheckpointName(s.ParseNameTarget, value); return null; }
+                    return "split name before any checkpoint or end: " + value;
 
                 case "check":
                 case "checkpoint":
@@ -62,6 +69,7 @@ namespace ForestOverlay.Data
                         Trigger t;
                         if (!TriggerParser.Parse(value, out t)) return "bad checkpoint: " + value;
                         s.Checkpoints.Add(t);
+                        s.ParseNameTarget = s.Checkpoints.Count - 1;
                         return null;
                     }
 
@@ -100,9 +108,15 @@ namespace ForestOverlay.Data
             {
                 if (!s.Checkpoints[i].IsSet) continue;
                 sb.Append("check    = ").Append(TriggerParser.Write(s.Checkpoints[i])).Append(nl);
+                string name = i < s.CheckpointNames.Count ? s.CheckpointNames[i] : "";
+                if (!string.IsNullOrEmpty(name)) sb.Append("split    = ").Append(name).Append(nl);
             }
 
-            if (s.End.IsSet) sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
+            if (s.End.IsSet)
+            {
+                sb.Append("end      = ").Append(TriggerParser.Write(s.End)).Append(nl);
+                if (!string.IsNullOrEmpty(s.EndName)) sb.Append("split    = ").Append(s.EndName).Append(nl);
+            }
 
             if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
             if (!string.IsNullOrEmpty(s.StartState)) sb.Append("startstate = ").Append(s.StartState).Append(nl);

@@ -329,6 +329,17 @@ namespace ForestOverlay.Core
         }
 
         // ------------------------------------------------------------------
+        public void DrawScreens()
+        {
+            for (int i = 0; i < _modules.Count; i++)
+            {
+                OverlayModule m = _modules[i];
+                if (!IsLive(m)) continue;
+                try { m.DrawScreen(); }
+                catch (Exception ex) { Disable(m, "DrawScreen", ex); }
+            }
+        }
+
         public void DrawPanels()
         {
             for (int i = 0; i < _modules.Count; i++)

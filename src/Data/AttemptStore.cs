@@ -18,23 +18,10 @@ namespace ForestOverlay.Data
     // folder per anchor, so a folder is a "track" and can be zipped and
     // sent to someone else as-is.
     //
-    //   anchor|<label>
-    //   recorded|<utc iso>
-    //   duration|<seconds>
-    //   route|<fingerprint>                 which version of the route
-    //   channels|Health|Stamina|Energy|...
-    //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
-    //   v|<t>|<v0>|<v1>|...                state,    5 Hz
-    //
-    // Coordinates use InvariantCulture for the same reason location files
-    // do: a comma-decimal machine would otherwise silently reject them.
+    // The file format itself is Data/AttemptFormat (pure, tested).
     // ------------------------------------------------------------------
     public sealed class AttemptStore
     {
-        // Char code rather than a backslash-n escape: tooling that
-        // rewrites this file has mangled those literals more than once.
-        private static readonly char NL = (char)10;
-
         private readonly ManualLogSource _log;
         private readonly string _root;
 
@@ -63,46 +50,7 @@ namespace ForestOverlay.Data
                 string name = attempt.RecordedUtc.ToString("yyyyMMdd_HHmmss") + "_" +
                               attempt.Duration.ToString("F3", CultureInfo.InvariantCulture) + ".run";
 
-                StringBuilder sb = new StringBuilder();
-                sb.Append("anchor|").Append(attempt.AnchorLabel).Append('\n');
-                sb.Append("recorded|").Append(attempt.RecordedUtc.ToString("o")).Append('\n');
-                sb.Append("duration|").Append(F(attempt.Duration)).Append(NL);
-
-                // Which version of the route this was run on. Without it,
-                // moving a start zone would leave old times silently
-                // competing with new ones under the same segment id.
-                if (!string.IsNullOrEmpty(attempt.Route))
-                    sb.Append("route|").Append(attempt.Route).Append(NL);
-
-                if (attempt.Channels != null && attempt.Channels.Length > 0)
-                {
-                    sb.Append("channels");
-                    for (int i = 0; i < attempt.Channels.Length; i++)
-                        sb.Append('|').Append(attempt.Channels[i]);
-                    sb.Append(NL);
-                }
-
-                for (int i = 0; i < attempt.Samples.Count; i++)
-                {
-                    RunSample s = attempt.Samples[i];
-                    sb.Append("s|").Append(F(s.T)).Append('|')
-                      .Append(F(s.P.x)).Append('|').Append(F(s.P.y)).Append('|').Append(F(s.P.z))
-                      .Append('|').Append(F(s.Speed)).Append('\n');
-                }
-
-                for (int i = 0; i < attempt.States.Count; i++)
-                {
-                    StateSample v = attempt.States[i];
-                    sb.Append("v|").Append(F(v.T));
-
-                    if (v.Values != null)
-                        for (int c = 0; c < v.Values.Length; c++)
-                            sb.Append('|').Append(F(v.Values[c]));
-
-                    sb.Append(NL);
-                }
-
-                File.WriteAllText(Path.Combine(dir, name), sb.ToString(), Encoding.UTF8);
+                File.WriteAllText(Path.Combine(dir, name), AttemptFormat.Write(attempt), Encoding.UTF8);
                 return true;
             }
             catch (Exception ex)
@@ -229,71 +177,13 @@ namespace ForestOverlay.Data
         {
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                Attempt a = new Attempt();
-
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    string line = lines[i].Trim();
-                    if (line.Length == 0 || line[0] == '#') continue;
-
-                    string[] p = line.Split('|');
-
-                    if (p[0] == "anchor" && p.Length > 1) a.AnchorLabel = p[1];
-                    else if (p[0] == "recorded" && p.Length > 1)
-                    {
-                        DateTime dt;
-                        if (DateTime.TryParse(p[1], CultureInfo.InvariantCulture,
-                                              DateTimeStyles.RoundtripKind, out dt))
-                            a.RecordedUtc = dt;
-                    }
-                    else if (p[0] == "duration" && p.Length > 1) a.Duration = P(p[1]);
-                    else if (p[0] == "route" && p.Length > 1) a.Route = p[1];
-                    else if (p[0] == "channels" && p.Length > 1)
-                    {
-                        string[] names = new string[p.Length - 1];
-                        for (int c = 1; c < p.Length; c++) names[c - 1] = p[c];
-                        a.Channels = names;
-                    }
-                    else if (p[0] == "v" && p.Length >= 2)
-                    {
-                        StateSample v;
-                        v.T = P(p[1]);
-                        v.Values = new float[p.Length - 2];
-                        for (int c = 2; c < p.Length; c++) v.Values[c - 2] = P(p[c]);
-                        a.States.Add(v);
-                    }
-                    else if (p[0] == "s" && p.Length >= 6)
-                    {
-                        RunSample s;
-                        s.T = P(p[1]);
-                        s.P = new Vector3(P(p[2]), P(p[3]), P(p[4]));
-                        s.Speed = P(p[5]);
-                        a.Samples.Add(s);
-                    }
-                }
-
-                if (a.Samples.Count == 0) return null;
-                a.Completed = true;
-                return a;
+                return AttemptFormat.Parse(File.ReadAllLines(path));
             }
             catch (Exception ex)
             {
                 _log.LogWarning("Could not read " + Path.GetFileName(path) + ": " + ex.Message);
                 return null;
             }
-        }
-
-        private static string F(float v)
-        {
-            return v.ToString("F3", CultureInfo.InvariantCulture);
-        }
-
-        private static float P(string s)
-        {
-            float v;
-            float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
-            return v;
         }
 
         // Anchor labels become folder names, and they come from

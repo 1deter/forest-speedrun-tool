@@ -5,6 +5,25 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.146 - 2026-09-27
+
+- **Splits, LiveSplit style.** A timed segment now has a splits table: on
+  the game screen while the segment is current (F5 hides it) and in the
+  Runs tab. Each checkpoint is a row and the end is the last one, with the
+  delta (green / red, gold for a best segment), split time, segment time,
+  segment delta, best segment and possible time save as columns, and
+  previous segment, sum of best, best possible time, current pace,
+  personal best and attempts below. Pick what shows under Runs ->
+  Splits options, along with the panel's position, width and rows.
+- **Compare to** has a new choice, best segments, and it drives
+  everything: the splits, the delta, the ghost and the lines. A new
+  (unbound) key cycles it mid-run.
+- Checkpoints (and the end) can be named in the Practice editor's new
+  *split* fields. Renaming does not retire any times.
+- Attempts now save their split times and who ran them (your Steam name
+  by default; change it under Splits options). Times recorded before this
+  version show by their total only.
+
 ## v0.24.145 - 2026-09-27
 
 - **Endgame load trigger outside the vault door's cutscene**: walking back

@@ -277,6 +277,40 @@ namespace ForestOverlay.Data
         public Trigger End;
         public readonly List<Trigger> Checkpoints = new List<Trigger>();
 
+        /// Split names for the splits table (v0.24.146), index-aligned with
+        /// Checkpoints; missing or empty = "Checkpoint n". EndName names the
+        /// last row (empty = "End"). Display only: not in the route
+        /// fingerprint, so renaming a split retires nothing.
+        public readonly List<string> CheckpointNames = new List<string>();
+        public string EndName = "";
+
+        /// Which trigger a `split =` line names while parsing: -1 none,
+        /// a checkpoint index, or EndNameTarget.
+        public int ParseNameTarget = -1;
+        public const int EndNameTarget = int.MaxValue;
+
+        /// The name of splits-table row `row` (0..Checkpoints.Count; the
+        /// last is the end).
+        public string SplitName(int row)
+        {
+            if (row >= Checkpoints.Count) return EndName.Length > 0 ? EndName : "End";
+            string n = row < CheckpointNames.Count ? CheckpointNames[row] : null;
+            return string.IsNullOrEmpty(n) ? "Checkpoint " + (row + 1) : n;
+        }
+
+        public void SetCheckpointName(int index, string name)
+        {
+            while (CheckpointNames.Count <= index) CheckpointNames.Add("");
+            CheckpointNames[index] = name ?? "";
+        }
+
+        /// Removes a checkpoint and its name together.
+        public void RemoveCheckpoint(int index)
+        {
+            Checkpoints.RemoveAt(index);
+            if (index < CheckpointNames.Count) CheckpointNames.RemoveAt(index);
+        }
+
         /// Where to place the player to attempt this segment. Optional -
         /// without it the segment can still be timed, just not practised
         /// from a teleport.

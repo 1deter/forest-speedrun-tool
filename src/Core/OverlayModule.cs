@@ -114,6 +114,11 @@ namespace ForestOverlay.Core
 
         public virtual void DrawPanel(int windowId) { }
 
+        /// Draws on the game screen itself (the splits panel), every
+        /// OnGUI pass while the overlay UI is shown - under the windows.
+        /// Plain GUI calls only (no GUILayout), and never allocate here.
+        public virtual void DrawScreen() { }
+
         public virtual void OnPanelToggled(bool open) { }
 
         public virtual void Shutdown() { }

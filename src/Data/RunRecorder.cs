@@ -48,6 +48,17 @@ namespace ForestOverlay.Data
         public DateTime RecordedUtc;
         public float Duration;
         public bool Completed;
+
+        /// Each checkpoint's time from the start, in route order (the end
+        /// is Duration). Empty for attempts recorded before v0.24.146 -
+        /// Data/SplitTable shows those by their total only.
+        public float[] Splits = new float[0];
+
+        /// Who ran it: a stable id (a hash of the Steam id, never the id
+        /// itself - author, 2026-09-27) and the name at the time. The id
+        /// decides whose run it is; the newest name is what is shown.
+        public string RunnerId = "";
+        public string RunnerName = "";
         public readonly List<RunSample> Samples = new List<RunSample>();
 
         /// Names of the state channels, index-aligned with every
