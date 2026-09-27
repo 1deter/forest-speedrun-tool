@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.145 - 2026-09-27
+
+- **Endgame load trigger outside the vault door's cutscene**: walking back
+  through the endgame's load trigger after the door opened (e.g. after a
+  Go, when the endgame had not loaded) held you in place until the load
+  was done. That load is now the game's own again: one short freeze, and
+  you keep your speed. The door's cutscene still loads in the background.
+
 ## v0.24.144 - 2026-09-27
 
 - **Quick load of a Megan start state during the fight no longer leaves

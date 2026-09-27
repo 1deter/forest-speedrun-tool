@@ -148,14 +148,22 @@ namespace ForestOverlay.Game
         // 16.7 s with the async load) - the switch removes a frozen picture,
         // not run time. Async measured: 1.09 s, 293 frames, longest 12 ms,
         // all inside the cutscene, no hold.
-        // With the switch every endgame_streaming load that is not ours goes
-        // async; the rest of the routine is unchanged, as for restores. If
-        // the load outlasts the cutscene (or starts outside one - a save
-        // loaded into the endgame), the player is pinned where they stand
-        // until it is in, as HoldUntilLoaded does.
+        // With the switch a load that is not ours goes async only when it
+        // starts inside a cutscene (the door's); the rest of the routine is
+        // unchanged, as for restores. If the load outlasts the cutscene, the
+        // player is pinned where they stand until it is in, as
+        // HoldUntilLoaded does.
+        // A load that starts outside a cutscene keeps the game's own
+        // synchronous load (v0.24.145): maks opened the door after a Go
+        // (the endgame did not load), ran back through LoadEndgame, and the
+        // forward crossing's load pinned him for the whole load - in the
+        // game it is one frozen frame and the player's speed carries on.
         // ------------------------------------------------------------------
         public static ManualLogSource Log;
         private static bool _streamPatched;
+        // The cutscene flag as of the last Tick (StreamLoad runs inside the
+        // game's routine, without GameEvents).
+        private static bool _cutsceneNow;
         private static bool _forRestores, _inRuns;
         private static MethodInfo _streamMoveNext;
         private static int _streamReplaced;
@@ -246,7 +254,9 @@ namespace ForestOverlay.Game
             {
                 restore = Time.realtimeSinceStartup <= _asyncUntil;
                 _asyncUntil = -1f;
-                async = restore ? _forRestores : _inRuns;
+                async = restore ? _forRestores : _inRuns && _cutsceneNow;
+                if (!restore && _inRuns && !_cutsceneNow && Log != null)
+                    Log.LogInfo("Performance: endgame load in play outside a cutscene (a crossing of the load trigger, not the vault door) - the game's own load, no background load, no hold.");
             }
             if (async)
             {
@@ -301,10 +311,11 @@ namespace ForestOverlay.Game
         /// priority back when it is done.
         public static void Tick(PlayerRef player, GameEvents events)
         {
+            bool cutscene = events != null && events.CutsceneRunning != null;
+            _cutsceneNow = cutscene;
             if (_watched == null) return;
             _watchFrames++;
             if (Time.unscaledDeltaTime > _watchLongest) _watchLongest = Time.unscaledDeltaTime;
-            bool cutscene = events != null && events.CutsceneRunning != null;
             if (cutscene) _cutsceneFrames++;
             bool done;
             try { done = _watched.isDone; }

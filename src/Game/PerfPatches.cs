@@ -186,7 +186,7 @@ namespace ForestOverlay.Game
                 "The game's own load of the endgame area after the vault door opens runs in the background during the door's cutscene, " +
                 "instead of freezing the picture for one ~5 s frame. The cutscene ends at the same moment either way (the game counts " +
                 "the frozen frame as time passed), so a run's time does not change. If the load outlasts the cutscene you are held in " +
-                "place until it is in.",
+                "place until it is in. A load started outside the cutscene (walking back through the endgame's load trigger) is the game's own.",
                 delegate { return EndgameLoader.PatchStream(_harmony, _log, true); }, delegate { EndgameLoader.UnpatchStream(_harmony, true); });
             _fixes[_fixes.Count - 1].Note = "The door's cutscene plays smoothly instead of freezing for ~5 s; a run's time is the same.";
             Add(config, "SkipEndgameAnimSweepAtLoad", "Loads: skip the endgame-animation clean-up",
