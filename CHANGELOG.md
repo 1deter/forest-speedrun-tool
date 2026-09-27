@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.142 - 2026-09-27
+
+- **Quick load no longer leaves the game busy for half a minute** in a
+  save with buildings. After a Quick load the game recalculated enemy
+  paths for one huge area covering every building on the map, which
+  took 16-60 s. Meanwhile enemies could not find new paths, and a death
+  (Reload save on death) or another Quick load froze until it finished
+  (about 30 s out of the Megan fight). The buildings are now handled
+  the way a normal save load handles them: in small groups, done in
+  moments.
+
 ## v0.24.141 - 2026-09-27
 
 - Diagnostics for the long freeze when a death reloads the save out of

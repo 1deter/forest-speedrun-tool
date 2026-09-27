@@ -26,6 +26,21 @@ namespace ForestOverlay.Game
     // watches GraphUpdateProcessor.IsAnyGraphUpdateInProgress and logs how
     // long the burst ran; AstarPath.Awake / OnDestroy log, the latter with
     // how long it blocked.
+    //
+    // FOUND (v0.24.141 lines): the long update is ONE graph update of
+    // 1533 x 81 x 1407 m from sceneTracker.doStructureBoundsNavRemove.
+    // A Quick load re-creates the Astar object and every structure; the
+    // structures' gridObjectBlocker.Start sees Scene.FinishGameLoad and
+    // registers without doingOnGameStartCheck, so each takes the
+    // one-at-a-time route, which merges every structure waiting at that
+    // moment into one box - across the map. A load takes the other route
+    // (loadGameNavSetup: doingOnGameStartCheck = true ->
+    // doGlobalStructureBoundsNavRemove), which groups structures within
+    // 100 m and cuts each group (0.2 s for Slot 2 at a title load).
+    //
+    // FIX: a prefix on gridObjectBlocker.Start. During an in-place restore
+    // and 2 s after, a blocker takes Start's load branch (findRootTr in
+    // 0.1 s + loadGameNavSetup) - the cut a Full load makes.
     // ------------------------------------------------------------------
     public static class PathfindingWatch
     {
@@ -45,6 +60,13 @@ namespace ForestOverlay.Game
         private static float _burstStart;
         private static int _burstQueued;
         private static int _burstUnlogged;
+        private const float AfterRestore = 2f;
+        private const float RestoreTimeout = 120f;
+        private static bool _restoring;
+        private static float _restoreStarted = -1000f;
+        private static float _restoreEnded = -1000f;
+        private static int _loadRouted;
+        private static MethodInfo _loadGameNavSetup;
         private static float _destroyStart;
         private static bool _destroyWasBusy;
 
@@ -81,6 +103,13 @@ namespace ForestOverlay.Game
                     _harmony.Patch(m, prefix: queued, finalizer: queuedEnd);
                     patched++;
                 }
+                Type blocker = GameBridge.FindGameType("gridObjectBlocker");
+                MethodInfo start = blocker != null ? blocker.GetMethod("Start", all, null, Type.EmptyTypes, null) : null;
+                _loadGameNavSetup = blocker != null ? blocker.GetMethod("loadGameNavSetup", all, null, Type.EmptyTypes, null) : null;
+                if (start != null && _loadGameNavSetup != null)
+                    _harmony.Patch(start, prefix: new HarmonyMethod(typeof(PathfindingWatch).GetMethod("BlockerStartPrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+                else
+                    _log.LogWarning("PathfindingWatch: gridObjectBlocker.Start / loadGameNavSetup not found - a Quick load's structure nav cut stays the slow one.");
                 MethodInfo awake = astar.GetMethod("Awake", all, null, Type.EmptyTypes, null);
                 if (awake != null)
                     _harmony.Patch(awake, postfix: new HarmonyMethod(typeof(PathfindingWatch).GetMethod("AwakePostfix", BindingFlags.Static | BindingFlags.NonPublic)));
@@ -103,6 +132,49 @@ namespace ForestOverlay.Game
         {
             try { if (_harmony != null) _harmony.UnpatchSelf(); }
             catch (Exception) { }
+        }
+
+        /// An in-place restore begins.
+        public static void RestoreStarted()
+        {
+            _restoring = true;
+            _restoreStarted = Time.realtimeSinceStartup;
+            _loadRouted = 0;
+        }
+
+        /// It has finished (or failed); the window stays open a moment -
+        /// re-created objects start on the next frame.
+        public static void RestoreEnded()
+        {
+            _restoring = false;
+            _restoreEnded = Time.realtimeSinceStartup;
+        }
+
+        private static bool InRestoreWindow()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_restoring && now - _restoreStarted < RestoreTimeout) return true;
+            return now - _restoreEnded < AfterRestore;
+        }
+
+        /// Start's load branch for a blocker re-created by a restore.
+        private static bool BlockerStartPrefix(MonoBehaviour __instance)
+        {
+            try
+            {
+                if (!InRestoreWindow() || __instance == null) return true;
+                __instance.Invoke("findRootTr", 0.1f);
+                _loadGameNavSetup.Invoke(__instance, null);
+                if (_loadRouted++ == 0)
+                    _log.LogInfo("Pathfinding: the restore's structures cut the navmesh the way a load does (grouped by place), " +
+                                 "not in one box across the map - first: " + __instance.transform.root.name + ".");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning("Pathfinding: load-style nav cut failed (" + (ex.InnerException ?? ex).Message + ") - the game's own Start runs.");
+                return true;
+            }
         }
 
         /// Every frame from the savestate module: only reads while a burst

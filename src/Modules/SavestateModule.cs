@@ -560,6 +560,7 @@ namespace ForestOverlay.Modules
             SetStatus("restoring " + what + " in place...");
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
             FullCapacityWatch.RestoreStarted();
+            PathfindingWatch.RestoreStarted();
             int cannibalsBefore, familiesBefore;
             _bridge.CountEnemies(out cannibalsBefore, out familiesBefore);
 
@@ -587,6 +588,7 @@ namespace ForestOverlay.Modules
             {
                 _busy = false;
                 FullCapacityWatch.RestoreEnded();
+                PathfindingWatch.RestoreEnded();
 
                 // The restore can bring the saved body's speed back, and a
                 // fall in progress keeps its air time (runner: restoring in

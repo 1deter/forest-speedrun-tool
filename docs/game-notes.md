@@ -2190,6 +2190,35 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   `sceneTracker.doStructureBoundsNavRemove` /
   `doGlobalStructureBoundsNavRemove`, `stumpRemove`,
   `RecastTileUpdateHandler`.
+- **Read live 2026-09-27 (v0.24.140):** a Quick load re-creates the
+  `Astar` object (`type AstarPath` gives a new handle after each
+  restore, as does `AiMaster` / `sceneTracker`), so the old one's
+  `OnDestroy` runs inside `LoadNow`: a Quick load started while the
+  previous one's update ran took **31.5 s** (not only death reloads).
+  During the update all 6 path receivers are parked
+  (`pathProcessor.queue.AllReceiversBlocked`), `graphUpdateQueueAsync`
+  is empty (the batch is on the thread), `graphUpdateQueueRegular` holds
+  a `FloodFill`, and `sceneTracker.graphsBeingUpdated` is true.
+  `graphUpdateQueue` holds one waiting GUO at (806.5, 96.1, 627.4) ext
+  (36.8, 22.2, 33.2) after every restore - the bounds of a plane
+  wreck's `collision_hull` collider (Slot 2's site) - but that item is
+  the next one, not the running one. A lone plane cut by hand
+  (`call <collision_hull> gridObjectBlocker.doPlaneNavCut`) finishes
+  in under 1.3 s, so the wreck alone is not the 16-35 s.
+- Structure cuts: `gridObjectBlocker.doNavCut` ->
+  `sceneTracker.doStructureBoundsNavRemove` (one at a time, each waits
+  while `graphsBeingUpdated`; sets `recastGraph.rasterizeColliders =
+  false` first) or `doGlobalStructureBoundsNavRemove` (at load: all
+  structures, then `FlushWorkItems` on the main thread). The recast
+  graph: tiles 60 cells x 0.75 m = 45 m; `rasterizeColliders` true
+  until a structure cut sets it false (it stays false). Ruben's
+  `ruben-megan` save has 5 structures (fires, drying racks).
+  `gridObjectBlocker.OnDisable` / `OnDestroy` queue nothing.
+- v0.24.141 `Game/PathfindingWatch` logs `Pathfinding: graph update
+  queued (+t s) at <centre> size <size>, from <caller>`, `graph updates
+  done N s after the first of M queued`, and `AstarPath #id destroyed
+  in N ms (a graph update was running ...)` - read those after a Quick
+  load of `ruben-megan` to name the long update.
 - Scene unloads by themselves are cheap: `UnloadSceneAsync` of
   `endgame_streaming`, `endgame_animPrefabs` and the six cave prop
   scenes cost no hitch; in the cave state the game streams the cave
