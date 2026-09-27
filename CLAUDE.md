@@ -567,20 +567,40 @@ updater. **384 tests.**
 `Downloads\qa-reports\d.eter\ForestOverlay-report-Ruben-*`, his Megan
 start state copied to savestates as `ruben-megan`): a cross-save Quick
 load deleted the inventory's views (gotcha 57); fixed and checked over
-the bridge. Ruben asked to confirm (QA). Next for this session's line:
-the LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
+the bridge. Ruben asked to confirm (QA). Next after the crash: the
+LiveSplit-style splits table in Runs (author, 2026-09-27: an `.lss`
 import only makes sense with a LiveSplit-like, customisable splits view
 - build that first from our own attempts, import after), or the ride /
 climb modes in savestates.
 
-**Hang on a death reload (seen here, 2026-09-27, v0.24.137):** the author
-died to Megan on Ruben's cross-save start state; `Death (BossWake)` reloaded
-Slot 2 without the menu, `ForestMain_v08` loaded (30 s hitch), the player
-bound (`PlayerInventory bound`), then the main thread blocked in a kernel
-wait (0 CPU, bridge unread) where `MainSceneGreebles` normally loads. Same
-place as maks's crash (log ends at the player bind) and the v0.22.6
-runner's hang (a load started from a death). No debugger on this machine
-for a native stack (WinDbg would need installing).
+**NEXT (high effort): native crash on a death reload out of the endgame
+(author, 2026-09-27, v0.24.137).** The author died to Megan on Ruben's
+cross-save start state (`ruben-megan` savestate); `Death (BossWake)`
+reloaded Slot 2 without the menu, `ForestMain_v08` loaded (30 s hitch),
+the player bound (`PlayerInventory bound`) and the game crashed: Unity
+`Access Violation` in `TheForest.exe`, a write to `000000f8`
+(`mov [rcx+0xf8], rdi`, rcx 0 - a property set on a destroyed native
+object), called from Mono JIT code. What looked like a hang (0 CPU, bridge
+unread) was Unity's crash handler writing the dump. Evidence:
+`Downloads\qa-reports\d.eter\crash-2026-09-27_123358\` (`error.log`,
+`crash.dmp`, `LogOutput.log`; the original folder is beside
+`TheForest.exe`). **Prime suspect:** the log's last Performance lines
+after the load, `endgame screen camera back to rendering every frame (its
+scene was unloaded)` - `EndgameScreenOnDemand` (PerfPatches index 11, ON
+by default) touching `ControlRoom/redcircles/Camera` after its scene
+unloaded; also on: 12 sun shadows, 13 cave grass. Same place as maks's
+native crash (QA message `1553525841344856146`: first launch of
+v0.24.129, log ends at the player bind; his crash folder and switches
+asked for, message `1553710935607214143`) and maybe the v0.22.6 runner's
+hang (a load started from a death). Plan: read the code that logs that
+line (`Game/PerfPatches`), check every Unity call it makes on an object
+that can be destroyed (`== null` on the UnityEngine.Object, not a C#
+null check), reproduce (restore `ruben-megan`, die - `set
+static:Cheats GodMode false`, or kill via PlayerStats - with Reload save
+on death on) before and after the fix. No debugger on this machine; the
+author OK'd installing WinDbg if a stack is needed.
+`Game/PerfPatches` is the FPS session's area: `git fetch` first and
+check its latest commits there before editing.
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
