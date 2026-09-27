@@ -570,13 +570,8 @@ identity.
 
 ## Current status
 
-<<<<<<< Updated upstream
-**Released: v0.24.161** (2026-09-27). The author runs it via the in-game
-updater (v0.24.161 in the game at handoff, Slot 2 loaded). **455 tests** (+ 16 site tests).
-=======
 **Released: v0.24.169** (2026-09-27). The author runs it via the in-game
-updater (v0.24.168 in the game at handoff, Slot 2). **424 tests** (+ 17 site tests).
->>>>>>> Stashed changes
+updater (v0.24.168 in the game at handoff, Slot 2). **455 tests** (+ 17 site tests).
 
 ### Pick up here (2026-09-27 evening, v0.24.168 in the game)
 
