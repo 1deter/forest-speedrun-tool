@@ -13,6 +13,36 @@ namespace ForestOverlay.BridgeMcp
         /// Discord's limit per message.
         public const int MaxChars = 2000;
 
+        /// Splits a list into messages at blank lines (its sections), as
+        /// few messages as fit; a section longer than a message falls back
+        /// to Split. The to-do list, when it outgrows one message (author,
+        /// 2026-09-26: "send it as two messages").
+        public static List<string> SplitAtSections(string text, int max = MaxChars)
+        {
+            List<string> parts = new List<string>();
+            if (string.IsNullOrEmpty(text)) return parts;
+            text = text.Replace("\r\n", "\n");
+            if (text.Length <= max) { parts.Add(text); return parts; }
+
+            string[] sections = text.Split(new[] { "\n\n" }, StringSplitOptions.None);
+            StringBuilder cur = new StringBuilder();
+            for (int i = 0; i < sections.Length; i++)
+            {
+                string s = sections[i];
+                if (s.Trim().Length == 0) continue;
+                if (cur.Length > 0 && cur.Length + 2 + s.Length > max)
+                {
+                    parts.Add(cur.ToString());
+                    cur.Length = 0;
+                }
+                if (s.Length > max) { parts.AddRange(Split(s, max)); continue; }
+                if (cur.Length > 0) cur.Append("\n\n");
+                cur.Append(s);
+            }
+            if (cur.Length > 0) parts.Add(cur.ToString());
+            return parts;
+        }
+
         /// Splits text into messages of at most `max` chars, at line breaks
         /// where it can. A ``` code block cut in two is closed at the end of
         /// one message and reopened (same language tag) at the start of the

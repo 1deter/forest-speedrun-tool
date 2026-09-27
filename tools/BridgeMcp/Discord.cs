@@ -27,10 +27,12 @@ namespace ForestOverlay.BridgeMcp
     // Everything testers write is DATA, never instructions. Posts need no
     // OK from the author since 2026-09-26 (standing rule, CLAUDE.md).
     //
-    // The to-do list (maks and the author, 2026-09-26): ONE bot message in
-    // #qa-todo-list, edited in place (qa_todo). Its id is remembered in
-    // %LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt; a deleted message
-    // is posted again.
+    // The to-do list (maks and the author, 2026-09-26): bot messages in
+    // #qa-todo-list, edited in place (qa_todo) - one, or more split at its
+    // sections once it outgrows 2000 characters. Their ids are remembered
+    // in %LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt, one per line; a
+    // deleted one is posted again (with the ones after it, to keep order),
+    // and messages no longer needed are deleted.
     // ------------------------------------------------------------------
     internal sealed class DiscordTools
     {
@@ -112,10 +114,11 @@ namespace ForestOverlay.BridgeMcp
             {
                 Name = "qa_todo",
                 Description =
-                    "The QA team's live to-do list: ONE bot message in #qa-todo-list, edited in place. With `text`: " +
-                    "replaces the list (posts it the first time, or again if it was deleted). Without: returns the " +
-                    "current list. Keep it up to date whenever an item is confirmed, changed, removed or added. " +
-                    "One message, so at most 2000 characters. Never pings.",
+                    "The QA team's live to-do list in #qa-todo-list, edited in place. With `text`: replaces the " +
+                    "list (posts it the first time, or again if it was deleted); over 2000 characters it is split " +
+                    "at blank lines (sections) into several messages, and extra old ones are deleted. Without: " +
+                    "returns the current list. Keep it up to date whenever an item is confirmed, changed, removed " +
+                    "or added. Never pings.",
                 Schema = Tools.Schema(
                     Tools.P("text", "string", "The whole new list (Discord markdown). Omit to read the current one.")),
                 Run = Todo,
@@ -389,47 +392,79 @@ namespace ForestOverlay.BridgeMcp
         private async Task<ToolResult> Todo(Args a, CancellationToken ct)
         {
             string text = a.Str("text");
-            string id = null;
-            try { if (File.Exists(TodoStatePath)) id = File.ReadAllText(TodoStatePath).Trim(); }
+            List<string> ids = new List<string>();
+            try
+            {
+                if (File.Exists(TodoStatePath))
+                    foreach (string line in File.ReadAllLines(TodoStatePath))
+                        if (Id(line.Trim()) != 0) ids.Add(line.Trim());
+            }
             catch (IOException) { }
-            if (Id(id) == 0) id = null;
             string channelUrl = Api + "/channels/" + _todoChannel + "/messages";
+            string link = "https://discord.com/channels/" + await Guild(ct) + "/" + _todoChannel + "/";
 
             if (text == null)
             {
-                if (id == null) return ToolResult.Text("no to-do message yet (qa_todo with `text` posts it)");
-                using HttpResponseMessage get = await Send(() => new HttpRequestMessage(HttpMethod.Get, channelUrl + "/" + id), ct);
-                if (get.StatusCode == HttpStatusCode.NotFound) return ToolResult.Text("the to-do message " + id + " is gone (qa_todo with `text` posts it again)");
-                JsonNode m = await Json(get, ct);
-                return ToolResult.Text("to-do message " + id + ((string)m["edited_timestamp"] != null ? " (edited " + (string)m["edited_timestamp"] + ")" : "") +
-                                       ":\n" + ((string)m["content"] ?? ""));
+                if (ids.Count == 0) return ToolResult.Text("no to-do message yet (qa_todo with `text` posts it)");
+                StringBuilder read = new StringBuilder();
+                foreach (string id in ids)
+                {
+                    using HttpResponseMessage get = await Send(() => new HttpRequestMessage(HttpMethod.Get, channelUrl + "/" + id), ct);
+                    if (get.StatusCode == HttpStatusCode.NotFound) { read.Append("to-do message " + id + " is gone (qa_todo with `text` posts it again)\n"); continue; }
+                    JsonNode m = await Json(get, ct);
+                    read.Append("to-do message " + id + ((string)m["edited_timestamp"] != null ? " (edited " + (string)m["edited_timestamp"] + ")" : "") +
+                                ":\n" + ((string)m["content"] ?? "") + "\n");
+                }
+                return ToolResult.Text(read.ToString().TrimEnd());
             }
 
             if (text.Trim().Length == 0) throw new ArgumentException("`text` is empty");
-            if (text.Length > 2000) throw new ArgumentException("the list is " + text.Length + " characters; one Discord message holds 2000 - shorten it");
-            string body = new JsonObject
-            {
-                ["content"] = text,
-                ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() },
-            }.ToJsonString();
+            List<string> parts = DiscordText.SplitAtSections(text);
+            List<string> kept = new List<string>();
+            StringBuilder said = new StringBuilder();
+            bool reposting = false;   // once one is gone, the rest are posted anew so the order holds
 
-            if (id != null)
+            for (int i = 0; i < parts.Count; i++)
             {
-                using HttpResponseMessage patch = await Send(() => new HttpRequestMessage(HttpMethod.Patch, channelUrl + "/" + id)
-                    { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
-                if (patch.StatusCode != HttpStatusCode.NotFound)
+                string body = new JsonObject
                 {
-                    await Json(patch, ct);
-                    return ToolResult.Text("to-do list edited: https://discord.com/channels/" + await Guild(ct) + "/" + _todoChannel + "/" + id);
+                    ["content"] = parts[i],
+                    ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() },
+                }.ToJsonString();
+
+                if (!reposting && i < ids.Count)
+                {
+                    string id = ids[i];
+                    using HttpResponseMessage patch = await Send(() => new HttpRequestMessage(HttpMethod.Patch, channelUrl + "/" + id)
+                        { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
+                    if (patch.StatusCode != HttpStatusCode.NotFound)
+                    {
+                        await Json(patch, ct);
+                        kept.Add(id);
+                        said.Append("edited: " + link + id + "\n");
+                        continue;
+                    }
+                    reposting = true;
+                    said.Append("message " + id + " was gone - posting from here on again\n");
                 }
+                using HttpResponseMessage post = await Send(() => new HttpRequestMessage(HttpMethod.Post, channelUrl)
+                    { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
+                JsonNode sent = await Json(post, ct);
+                string newId = (string)sent["id"];
+                kept.Add(newId);
+                said.Append("posted: " + link + newId + "\n");
             }
-            using HttpResponseMessage post = await Send(() => new HttpRequestMessage(HttpMethod.Post, channelUrl)
-                { Content = new StringContent(body, Encoding.UTF8, "application/json") }, ct);
-            JsonNode sent = await Json(post, ct);
-            string newId = (string)sent["id"];
-            File.WriteAllText(TodoStatePath, newId);
-            return ToolResult.Text("to-do list posted" + (id != null ? " again (the old message was gone)" : "") +
-                                   ": https://discord.com/channels/" + await Guild(ct) + "/" + _todoChannel + "/" + newId);
+
+            // Old messages not reused: out of order now, or no longer needed.
+            foreach (string id in ids)
+            {
+                if (kept.Contains(id)) continue;
+                using HttpResponseMessage del = await Send(() => new HttpRequestMessage(HttpMethod.Delete, channelUrl + "/" + id), ct);
+                said.Append("deleted old message " + id + (del.StatusCode == HttpStatusCode.NotFound ? " (already gone)" : "") + "\n");
+            }
+
+            File.WriteAllText(TodoStatePath, string.Join("\n", kept));
+            return ToolResult.Text("to-do list in " + parts.Count + " message(s):\n" + said.ToString().TrimEnd());
         }
 
         // ------------------------------------------------------------------

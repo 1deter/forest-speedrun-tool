@@ -9,6 +9,23 @@ namespace ForestOverlay.Tests
     public class DiscordTextTests
     {
         [Fact]
+        public void TodoListSplitsAtSections()
+        {
+            string a = "**A**\n" + new string('a', 900);
+            string b = "**B**\n" + new string('b', 900);
+            string c = "**C**\n" + new string('c', 900);
+            Assert.Single(DiscordText.SplitAtSections(a + "\n\n" + b));
+            List<string> parts = DiscordText.SplitAtSections(a + "\n\n" + b + "\r\n\r\n" + c);
+            Assert.Equal(2, parts.Count);
+            Assert.Equal(a + "\n\n" + b, parts[0]);
+            Assert.Equal(c, parts[1]);
+            // A section too long for one message still fits by lines.
+            string big = "**Big**\n" + new string('x', 1500) + "\n" + new string('y', 1500);
+            foreach (string p in DiscordText.SplitAtSections(a + "\n\n" + big))
+                Assert.True(p.Length <= DiscordText.MaxChars);
+        }
+
+        [Fact]
         public void Short_text_is_one_message()
         {
             Assert.Equal(new[] { "hello" }, DiscordText.Split("hello"));
