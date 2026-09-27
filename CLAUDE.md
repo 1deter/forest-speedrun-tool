@@ -924,6 +924,11 @@ line says it next time.
   id so a rename does not split one runner in two. Other runners' attempts
   (`.foseg`, community, later the website) are comparisons only, never in
   your PB / golds; only the same route compares.
+  The id is a **hash of the Steam id** (a plain one links to the Steam
+  profile from public files); non-Steam copies get a random id. Community
+  spots: **approved by the author for now**, runner-managed and hands-off
+  later. Run uploads: off until the website is live, **automatic** after
+  (author, 2026-09-27). Spots stay curated in the repo; runs go to the site.
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
