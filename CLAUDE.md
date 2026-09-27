@@ -552,7 +552,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.129** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.132** (2026-09-27). The author runs it via the in-game
 updater. **383 tests.**
 
 ### Pick up here (2026-09-26, v0.24.128 in the game)
@@ -638,7 +638,7 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.129 in Slot 2 at (817, 91, 620) (the
+**State:** the game runs v0.24.132 in Slot 2 at (817, 91, 620) (the
 slot's own spot), God mode on (loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
@@ -700,6 +700,23 @@ performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
 #general: confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
+**This session (2026-09-27, v0.24.129-132):** passengers on the 100%
+tab (`Game/PassengerReader`, v0.24.130-131; seats sorted; warns when
+the manifest is not carried - the game only counts then); nature guide
+pages named as in the book (v0.24.132: Plant Life 1-2, Animals 1-3,
+from the links' text); title-screen scans gone (`SurvivalBookReader`,
+`InventoryReader`, v0.24.130). All checked over the bridge. Offered,
+not done: the nature guide **entry** names as the book prints them
+("Chanterelle Mushroom", not "Mushroom Chant" - the page's
+`TrTextMesh - NatureGuideL/R - <name>` texts). **maks's game crash**
+(QA message `1553525841344856146`, log in `Downloads\qa-reports\yirequ\`):
+first launch of v0.24.129, native crash right after a title-screen
+save load (log ends at the player bind, no exception); asked for the
+Unity crash folder and his Performance switches (message
+`1553710935607214143`). sxczurass's FPS follow-up answer (message
+`1553661518703497236`, files in `Downloads\qa-reports\sxczurass\`) was
+read here - the FPS session's `qa_read new_only` will not show it.
+
 **The plane axe message: fixed v0.24.129** (the game's post-load
 re-equip fallback; hidden during a restore, verified both sides over the
 bridge - game-notes *Held items across an in-place restore*). What held
@@ -754,8 +771,8 @@ line says it next time.
    On high effort. Done: the endgame load in a run (v0.24.107-108),
    the heap step (not a leak), the load's animation sweep (v0.24.109-110),
    two idle cameras (v0.24.116).
-2. **Next up 7** - passengers on the 100% tab, logs in the inventory
-   (labelled gameplay mod).
+2. **Next up 7** - logs in the inventory (labelled gameplay mod);
+   passengers done.
 3. **Next up 5, Quick load physics parity** - the heap lead above first;
    decide with the author whether it leaves "deferred".
 4. Then the rest of *Next up*; the deferred runner feedback waits
@@ -994,8 +1011,6 @@ current items are in *Pick up here*):
   (15-100 ms) while the player binds during a load, and `deaths` /
   `savestates` (~100-490 ms) while a load starts, are the load itself -
   left alone.
-- **Nature guide page names are unverified** (`Data/PageGrouping.cs`); maks
-  should send a `natureguide_*.txt` from the 100% tab's **Write dumps**.
 - **Installs older than v0.16.2 cannot download updates**; older than
   v0.19.2 can hit the post-release 404 (click Download again later).
 - `gh` is not installed on this machine: release pages cannot be edited
@@ -1075,8 +1090,8 @@ list so we can move onto expanding more features".
      measure before / after in one session. Anything changing timing
      or outcomes is a gameplay change - label it honestly.
 7. **The author's list of 2026-09-23:**
-   - **100%: passengers** - list which were found, like the nature guide
-     (IL; note the three `PassengerManifest` objects on the player).
+   - ~~100%: passengers~~ done (v0.24.130-131; no locations - the
+     game's database paths are wrong, game-notes *Passengers*).
    - **Logs in the inventory** *(runner sxczurass, clarified with the
      author)*: picked-up logs go into the inventory with a counter up to a
      cap (runner 5; author: configurable in the GUI); not held in the

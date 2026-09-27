@@ -68,7 +68,9 @@ stay cut after a Full load, also for a capture taken after restores
 (v0.24.65-66), the plane axe taken before a capture not back after a
 Quick load (v0.24.68) - all bridge. v0.24.129 (bridge): the post-restore
 "can't carry any more" message hidden inside a restore, still shown
-12 s after one; a hand-locked restore logs `hands still busy after 2 s`. maks: Quick load restarts in the
+12 s after one; a hand-locked restore logs `hands still busy after 2 s`. v0.24.130-132
+(bridge): passengers found / missing by seat, sorted; nature guide page
+names from the book; no repeating title-screen Slow ticks. maks: Quick load restarts in the
 red elevator "tested and working" (v0.24.64 retest, 2026-09-26).
 Bridge, v0.24.79-82: savestates 1.6 s and 4.6 s into the red elevator's
 keycard cutscene, Quick / Full load / F7 / F7 mid-ride - ride replayed,

@@ -370,6 +370,33 @@ twice. Not used.
 
 ---
 
+### Nature guide page names (bridge, v0.24.132)
+
+Five pages, `SurvivalBook/Pages/15 0 Info_TickOff 1` ... `15 4 Info_TickOff
+5`. Each page's `TrTextMesh - Title - NatureGuide` reads "NATURE GUIDE";
+the page names are on the links (`SelectPageNumber`, target
+`MyPageNew`, text on a `TrTextMesh - Link - ...` child): PLANT LIFE 1,
+PLANT LIFE 2, ANIMALS 1, ANIMALS 2, ANIMALS 3. Links to page 1 from the
+index, tabs and crafting guide say "NATURE GUIDE". Entry names as
+printed: `Texts Left` / `Texts Right` children `TrTextMesh -
+NatureGuideL - Aloe` etc. Setting a page active by hand leaves the main
+index layer drawn over it - switch pages through a link.
+
+### Passengers (IL + bridge, v0.24.130)
+
+`TheForest.Player.PassengerManifest` on
+`player/ControllerObjects/SpecialItems` (`PlayerInventory._specialItems`):
+`_displayName` (43 seat names, game order "8C", "1A"...), `_foundGOs`
+(43), `_foundPassengersIds` (saved), `_itemId` 197 (the manifest).
+`FoundPassenger(id)` (called by `PassengerView.OnTriggerEnter`) counts
+only while `Inventory.Owns(197, true)`, not upside down, and for id - 1 <
+43; seat = `_displayName[id - 1]` (bridge: id 4 = 6C, 18 = 6D, as the
+game's HUD said). `PassengerDatabase._passengers` (56 entries, ids to 59)
+has **wrong scene paths**: Cave 6's main cavern holds `PassengerView`
+ids 18, 14, 4, 20, 6 (`Greeble_HangingBodies*`); the database puts
+those in Caves 1 and 9. Locations would need a per-cave `type
+PassengerView all` scan.
+
 ## Deaths
 
 All in `PlayerStats` (IL):
