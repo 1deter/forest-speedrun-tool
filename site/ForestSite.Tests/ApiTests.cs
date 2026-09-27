@@ -426,4 +426,33 @@ public sealed class ApiTests : IDisposable
         wrong.Headers.Add("X-Admin-Token", "nope");
         Assert.Equal(HttpStatusCode.Forbidden, (await _http.SendAsync(wrong)).StatusCode);
     }
+
+    [Fact]
+    public async Task AerialTilesUploadByTheOwnerOnly()
+    {
+        byte[] Zip(params string[] names)
+        {
+            using var ms = new MemoryStream();
+            using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, true))
+                foreach (string n in names)
+                {
+                    using var w = new StreamWriter(zip.CreateEntry(n).Open());
+                    w.Write("jpg bytes");
+                }
+            return ms.ToArray();
+        }
+        async Task<HttpResponseMessage> Post(byte[] body, string token)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/admin/aerial?clear=1") { Content = new ByteArrayContent(body) };
+            req.Headers.Add("X-Admin-Token", token);
+            return await _http.SendAsync(req);
+        }
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await Post(Zip("canopy/6/1_2.jpg"), "wrong")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Post(Zip("../evil.jpg"), "admin-secret")).StatusCode);
+        var ok = await Post(Zip("canopy/6/1_2.jpg", "aerial.json"), "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/aerial/canopy/6/9_9.jpg")).StatusCode);
+    }
 }
