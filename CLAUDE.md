@@ -103,7 +103,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`) |
@@ -552,7 +552,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.128** (2026-09-26). The author runs it via the in-game
+**Released: v0.24.129** (2026-09-26). The author runs it via the in-game
 updater. **383 tests.**
 
 ### Pick up here (2026-09-26, v0.24.128 in the game)
@@ -638,13 +638,14 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.128 on the surface at (428, 78, -4),
-God mode on (Slot 2, loaded from the
+**State:** the game runs v0.24.129 in Slot 2 at (817, 91, 620) (the
+slot's own spot), God mode on (loaded from the
 title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
 Hard, 4 Peaceful; a runner's survival start state restores only in a
 survival game).
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
-`elevMid`, `rope104` kept. The author's config has Performance
+`elevMid`, `rope104` kept; `axe-held` / `axe-lighter` (Slot 2, Axe
+Plane / + Lighter in hand) for held-item tests. The author's config has Performance
 switches 12 (sun shadows) and 13 (cave grass) on, 14 (physics) off.
 
 **maks's performance report** (message `1553417650607235164`, read):
@@ -699,19 +700,11 @@ performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
 #general: confirm before a capture overwrites a start state (maks); a
 full replay system (sxczurass + author, "lets go all the way").
 
-**The plane axe message** (author, 2026-09-26, once after a Full load):
-"can't carry any more plane axes" = `HudGui.ToggleFullCapacityHud`, only
-from `PlayerInventory.AddItemNF` at the cap. `StashEquipedWeapon` ->
-`UnequipItemAtSlot` does `AddItem` back to the bag, so the lead is
-`RefreshHeld`'s put-away racing the load's own equip. Not reproduced
-(four Full loads of `phantom-a` clean; a hand stash + Equip keeps 1 axe).
-v0.24.98 logs `Inventory full: ... - from <call stack>`. **Seen here
-(v0.24.123, 2026-09-26)** after a Quick load (the ESC menu closed by
-F7, Axe Plane held): `... <- PlayerInventory.AddItem <-
-<OnDeserialized>c__Iterator0.MoveNext` - the restore's own deserialize
-adds item 80 while one is held; the iterator's type is not named (look
-for `OnDeserialized` coroutines calling `AddItem`, e.g.
-`PlayerInventory.OnDeserialized`).
+**The plane axe message: fixed v0.24.129** (the game's post-load
+re-equip fallback; hidden during a restore, verified both sides over the
+bridge - game-notes *Held items across an in-place restore*). What held
+Cheesecake's hands 2 s is unknown: a `hands still busy after 2 s - ...`
+line says it next time.
 
 **Open, not blocking:**
 - **The endgame flag on a Go is fixed for the vault entrance only**
@@ -761,7 +754,6 @@ for `OnDeserialized` coroutines calling `AddItem`, e.g.
    On high effort. Done: the endgame load in a run (v0.24.107-108),
    the heap step (not a leak), the load's animation sweep (v0.24.109-110),
    two idle cameras (v0.24.116).
-1b. **The plane axe message** (above) - waits for the log line.
 2. **Next up 7** - passengers on the 100% tab, logs in the inventory
    (labelled gameplay mod).
 3. **Next up 5, Quick load physics parity** - the heap lead above first;

@@ -462,6 +462,26 @@ unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
 ids to the file (`held = ...`), and 0.3 s after the restore
 `SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
 
+**The fallback's message after restores (IL + bridge, v0.24.129).** The
+step runs 1.5 s (scaled) + one frame after the load: `HideAllEquiped`,
+then per saved slot `_equipmentSlots[i] = null`, `UnlockEquipmentSlot`,
+`Equip(id, true)`, and `AddItem(id)` when that returns false. Before it
+the same coroutine adds the default light (48) / default weapon
+(`_defaultWeaponItemId`, 80 = Axe Plane) when neither possessed nor in a
+saved slot. `Equip(id, true)` refuses when `AmountOf(id) + 1` exceeds the
+cap, when logs are carried (right hand), `AnimControl.carry`, build mode
+(weapons), or the slot is locked; bridge: `Equip 80 true` on a held axe
+returns false. `AddItemNF` at the cap only calls
+`HudGui.ToggleFullCapacityHud` and returns false - nothing changes. A
+load from the title starts with empty hands, so only a restore reaches
+it: Cheesecake's v0.24.97 log had item 80 (a wall blueprint out at F7)
+and item 48 twice (hands still busy 2 s, cause unknown). Reproduced by
+starting `PlayerInventory.OnDeserialized` over the bridge and lifting a
+log inside its 1.5 s wait - the same stack. `FullCapacityWatch` hides
+that one message during a restore + 8 s; since v0.24.129 a restore
+whose hands stay busy 2 s logs `hands still busy after 2 s - <lighter
+routine | left-hand slot locked> | <PlayerHold>`.
+
 ### Held weapons and the hit trigger (IL + save + log, v0.24.8)
 
 A hit is one trigger, `hitTrigger` under the player's arm: its
