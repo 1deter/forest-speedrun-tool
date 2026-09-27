@@ -339,6 +339,59 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, timed.StatusCode);
     }
 
+    private async Task<HttpResponseMessage> AdminSend(HttpMethod method, string path, string token = "admin-secret", string body = null)
+    {
+        var msg = new HttpRequestMessage(method, path);
+        msg.Headers.Add("X-Admin-Token", token);
+        if (body != null) msg.Content = new StringContent(body, Encoding.UTF8, "text/plain");
+        return await _http.SendAsync(msg);
+    }
+
+    [Fact]
+    public async Task Admins_OwnerMakesAndRevokesTokens_ChangesAreLogged()
+    {
+        var made = await (await AdminSend(HttpMethod.Post, "/api/admin/admins", body: "maks")).Content.ReadFromJsonAsync<JsonObject>();
+        string token = made["token"].GetValue<string>();
+        Assert.StartsWith("fa_", token);
+
+        var me = await (await AdminSend(HttpMethod.Get, "/api/admin/check", token)).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("maks", me["name"].GetValue<string>());
+        Assert.False(me["owner"].GetValue<bool>());
+
+        // An admin does the work, but cannot manage admins.
+        string ta = await Register(A);
+        Assert.Equal(HttpStatusCode.OK, (await AdminSend(HttpMethod.Post, "/api/admin/runners/" + A + "/ban", token)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/admins", token)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Post, "/api/admin/admins", token, "x")).StatusCode);
+
+        var log = (await Admin("/api/admin/log")).AsArray();
+        Assert.Contains(log, l => l["admin"].GetValue<string>() == "maks" && l["action"].GetValue<string>().EndsWith("/ban")
+                                  && l["status"].GetValue<long>() == 200);
+        Assert.Contains(log, l => l["admin"].GetValue<string>() == "owner" && l["action"].GetValue<string>() == "POST /api/admin/admins");
+
+        Assert.Equal(HttpStatusCode.OK, (await AdminSend(HttpMethod.Delete, "/api/admin/admins/" + made["id"])).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/check", token)).StatusCode);
+        Assert.True((await Admin("/api/admin/admins")).AsArray()[0]["revoked"].GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Admin_DeletesARunnersSpot_NotACommunityOne()
+    {
+        string ta = await Register(A);
+        var seg = TestSegment("s-eeeeeeeeeeee");
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f), RunText(seg, A, 11f, 5f, 1)));
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/api/spots/s-eeeeeeeeeeee")).StatusCode);
+
+        var del = await AdminSend(HttpMethod.Delete, "/api/admin/spots/s-eeeeeeeeeeee");
+        Assert.Equal(2, (await del.Content.ReadFromJsonAsync<JsonObject>())["runs"].GetValue<int>());
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/spots/s-eeeeeeeeeeee")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await AdminSend(HttpMethod.Delete, "/api/admin/spots/s-eeeeeeeeeeee")).StatusCode);
+
+        var spots = await _http.GetFromJsonAsync<JsonArray>("/api/spots");
+        var community = spots.First(s => s["community"].GetValue<bool>())["id"].GetValue<string>();
+        Assert.Equal(HttpStatusCode.BadRequest, (await AdminSend(HttpMethod.Delete, "/api/admin/spots/" + community)).StatusCode);
+    }
+
     [Fact]
     public async Task Admin_ListsRunnersAndChecksTheToken()
     {

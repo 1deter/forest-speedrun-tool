@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.RateLimiting;
 // /api and the pages from wwwroot. Behind Caddy + Cloudflare in Docker.
 //
 //   FOREST_DATA         where the database and uploads live (default ./data)
-//   FOREST_ADMIN_TOKEN  enables /api/admin (the author's; unset = off)
+//   FOREST_ADMIN_TOKEN  the owner's admin token (the author's; unset = no
+//                       owner). The owner makes named tokens for other
+//                       admins on /admin; they can do everything but that.
 // ------------------------------------------------------------------
 const int MaxBody = 4 * 1024 * 1024;
 
@@ -140,16 +142,30 @@ api.MapPost("/submissions", async (HttpRequest req) =>
 
 // --- the author ----------------------------------------------------------------
 
+// Who is asking: "owner" (the env token) or a named admin. Every change
+// (not a read) is logged with its answer's status.
 var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
 {
-    string given = ctx.HttpContext.Request.Headers["X-Admin-Token"].FirstOrDefault() ?? "";
-    bool ok = adminToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+    var http = ctx.HttpContext;
+    string given = http.Request.Headers["X-Admin-Token"].FirstOrDefault() ?? "";
+    bool owner = adminToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
         Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(adminToken));
-    return ok ? await next(ctx) : Problem(403, "admin token required");
+    string who = owner ? "owner" : store.AdminOf(given);
+    if (who == null) return Problem(403, "admin token required");
+    http.Items["admin"] = who;
+    http.Items["owner"] = owner;
+
+    object result = await next(ctx);
+    if (!HttpMethods.IsGet(http.Request.Method))
+        store.LogAdmin(who, http.Request.Method + " " + http.Request.Path.Value,
+                       result is IStatusCodeHttpResult s ? s.StatusCode ?? 200 : 200);
+    return result;
 }).RequireRateLimiting("admin");
 
-// The admin page (/admin) asks this first: is the token right?
-admin.MapGet("/check", () => Results.Json(new { ok = true }));
+static bool IsOwner(HttpContext c) => c.Items["owner"] is true;
+
+// The admin page (/admin) asks this first: is the token right, and whose?
+admin.MapGet("/check", (HttpContext c) => Results.Json(new { ok = true, name = c.Items["admin"], owner = IsOwner(c) }));
 admin.MapGet("/submissions", () => Results.Json(store.Submissions()));
 admin.MapGet("/submissions/{id:long}", (long id) =>
     store.SubmissionText(id) is { } t ? Results.File(Encoding.UTF8.GetBytes(t), "text/plain; charset=utf-8", "submission-" + id + ".foseg") : Problem(404, "no such submission"));
@@ -173,6 +189,25 @@ admin.MapGet("/flagged", () =>
     return Results.Json(list);
 });
 admin.MapGet("/runners", () => Results.Json(store.Runners()));
+admin.MapDelete("/spots/{id}", (string id) =>
+{
+    var (n, error) = store.DeleteSpot(id);
+    return error == "no such spot" ? Problem(404, error) : error != null ? Problem(400, error) : Results.Json(new { runs = n });
+});
+admin.MapGet("/log", () => Results.Json(store.AdminLog()));
+
+// Admins: the owner only.
+admin.MapGet("/admins", (HttpContext c) => IsOwner(c) ? Results.Json(store.Admins()) : Problem(403, "only the owner manages admins"));
+admin.MapPost("/admins", async (HttpContext c) =>
+{
+    if (!IsOwner(c)) return Problem(403, "only the owner manages admins");
+    string name = ForestOverlay.Data.AttemptFormat.Clean((await Body(c.Request)).Trim());
+    if (name.Length == 0 || name.Length > 40) return Problem(400, "a name, 1-40 characters");
+    var (id, token) = store.AddAdmin(name);
+    return Results.Json(new { id, name, token });
+});
+admin.MapDelete("/admins/{id:long}", (HttpContext c, long id) =>
+    !IsOwner(c) ? Problem(403, "only the owner manages admins") : store.RevokeAdmin(id) ? Results.Ok() : Problem(404, "no such admin"));
 admin.MapPost("/runs/{id:long}/unflag", (long id) =>
     store.Update("UPDATE runs SET flagged = 0 WHERE id = $id", ("$id", id)) == 1 ? Results.Ok() : Problem(404, "no such run"));
 admin.MapPost("/runs/{id:long}/hide", (long id) => store.HideRun(id, true) ? Results.Ok() : Problem(404, "no such run"));

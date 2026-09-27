@@ -174,6 +174,10 @@ table.admin tbody tr { cursor: default; }
   background: #000; border: 1px solid var(--line); padding: 10px; margin: 8px 0; color: var(--white);
   font: 12px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto;
 }
+td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.made { border: 1px solid var(--yellow); padding: 10px 12px; margin: 4px 0 16px; color: var(--white); }
+.made p { margin-bottom: 8px; }
+.token { font: 13px ui-monospace, Consolas, monospace; color: var(--yellow); overflow-wrap: anywhere; user-select: all; }
 .steps { padding-left: 20px; color: var(--white); font-size: 13px; }
 .steps code, .subdetail code { color: var(--yellow); }
 

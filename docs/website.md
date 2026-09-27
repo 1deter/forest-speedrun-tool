@@ -121,10 +121,17 @@ the starting point; decisions made while building go here too.
   Submissions (the `[segment]` block, start state size, Download as
   `<slug>.foseg`, Approve / Reject / Back to open; after Approve the three
   publish steps), Under review (flagged runs: Looks fine = unflag, Hide /
-  Show, Delete with a second click), Runners (runs, last upload, Ban,
-  Reset token with a second click). The live token is in
-  `/opt/forest-site/.env` on the VPS (`FOREST_ADMIN_TOKEN`); locally the
-  `forest-site` preview uses `local-admin`.
+  Show, Delete with a second click), Spots (Delete a runner's spot with
+  all its runs - an accidental upload; community spots are refused, and a
+  deleted spot returns if its owner uploads on it again), Runners (runs,
+  last upload, Ban, Reset token with a second click), Activity (every
+  change: who, what, the answer's status - `admin_log`).
+- **Admins (author, 2026-09-27: not one shared key):** the env token
+  (`FOREST_ADMIN_TOKEN`, in `/opt/forest-site/.env` on the VPS) is the
+  **owner**; the owner's Admins tab makes a named `fa_...` token per admin
+  (shown once, only its hash kept - `admins`), and revokes it. Admins can
+  do everything except manage admins. Locally the `forest-site` preview's
+  owner token is `local-admin`.
 
 The plugin side is done (v0.24.153-154, `Modules/RunUploadModule`):
 each finished timed run is queued on disk and uploaded, on by default;

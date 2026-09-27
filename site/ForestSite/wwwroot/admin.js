@@ -1,7 +1,8 @@
 // forest.deter.cloud: the author's page, /admin (not in the nav).
 // Spot submissions (approve / reject), runs flagged as much faster than the
-// route's best, runners (ban, reset a lost token). Every call carries the
-// admin token (FOREST_ADMIN_TOKEN on the server), kept in this browser only.
+// route's best, spots (delete an accidental upload), runners (ban, reset a
+// lost token), the activity log, and - the owner only - other admins' tokens.
+// Every call carries this admin's token, kept in this browser only.
 // Uses el / time / date / show / loading from app.js.
 "use strict";
 
@@ -43,26 +44,37 @@ async function adminPage(tab) {
   document.title = "Admin · Forest Practice Runs";
   if (!adminToken()) return adminSignIn("");
   loading();
-  try { await adminCall("GET", "/check"); }
+  let me;
+  try { me = await adminCall("GET", "/check"); }
   catch (e) { return adminSignIn(e.denied ? "That token was refused." : "Could not reach the site: " + e.message); }
 
-  let subs, flagged, runners;
+  let subs, flagged, runners, spots;
   try {
-    [subs, flagged, runners] = await Promise.all([adminCall("GET", "/submissions"), adminCall("GET", "/flagged"), adminCall("GET", "/runners")]);
+    [subs, flagged, runners, spots] = await Promise.all([adminCall("GET", "/submissions"), adminCall("GET", "/flagged"),
+      adminCall("GET", "/runners"), api("/spots")]);
   } catch (e) { return failed(e); }
 
   const tabs = [
     ["submissions", "Submissions", subs.filter(s => s.status === "open").length],
     ["flagged", "Under review", flagged.filter(f => !f.hidden).length],
+    ["spots", "Spots", spots.length],
     ["runners", "Runners", runners.length],
+    ["activity", "Activity", 0],
   ];
+  if (me.owner) tabs.push(["admins", "Admins", 0]);
   tab = tabs.some(t => t[0] === tab) ? tab : "submissions";
-  const body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners) : submissionsView(subs);
+  let body;
+  try {
+    body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners)
+      : tab === "spots" ? spotsView(spots) : tab === "activity" ? activityView(await adminCall("GET", "/log"))
+      : tab === "admins" ? adminsView(await adminCall("GET", "/admins")) : submissionsView(subs);
+  } catch (e) { return failed(e); }
 
   show(
     el("div", { class: "adminbar" },
       el("h1", null, "Admin"),
-      el("button", { class: "chip", onclick: () => { setAdminToken(""); adminSignIn("Signed out."); } }, "Sign out")),
+      el("div", { class: "btnrow" }, el("span", { class: "sub" }, "Signed in as " + me.name),
+        el("button", { class: "chip", onclick: () => { setAdminToken(""); adminSignIn("Signed out."); } }, "Sign out"))),
     el("div", { class: "routes" }, tabs.map(([id, label, n]) =>
       el("a", { class: "chip" + (id === tab ? " on" : ""), href: "/admin/" + id }, label + (n ? " · " + n : "")))),
     body);
@@ -138,7 +150,7 @@ function submissionDetail(s, rerender) {
     const cut = t.indexOf("\n[startstate]");
     const segment = (cut >= 0 ? t.slice(0, cut) : t).split("\n").filter(l => !l.startsWith("#")).join("\n").trim();
     const kb = cut >= 0 ? Math.round((t.length - cut) / 1024) : 0;
-    box.replaceChildren(
+    box.replaceChildren(...[
       el("div", { class: "sub" }, "Segment " + s.segment + " · from " + (s.runnerName || s.runner) + " (" + s.runner + ") · " +
         (cut >= 0 ? "start state " + kb + " KB" : "no start state")),
       el("pre", { class: "foseg" }, segment),
@@ -146,7 +158,7 @@ function submissionDetail(s, rerender) {
         el("li", null, "Download the file into community/ as ", el("code", null, file), "."),
         el("li", null, "Run ", el("code", null, "python scripts/community-index.py"), "."),
         el("li", null, "Commit and push: CI checks it, the site redeploys, every plugin gets it on its next start.")) : null,
-      a.box);
+      a.box].filter(Boolean));
   }).catch(e => box.replaceChildren(el("p", { class: "error" }, "Could not load the file: " + e.message), a.box));
   return box;
 }
@@ -174,6 +186,92 @@ function flaggedView(list) {
   return el("section", null, el("div", { class: "tablewrap" }, el("table", { class: "admin" },
     el("thead", null, el("tr", null, el("th", null, "Spot"), el("th", null, "Runner"), el("th", { class: "r" }, "Time"), el("th", { class: "r col-date" }, "Sent"))),
     rows)));
+}
+
+// --- spots ---------------------------------------------------------------------------
+
+function spotsView(list) {
+  if (!list.length) return el("p", { class: "empty" }, "No spots on the site yet.");
+  const rows = el("tbody");
+  function render() {
+    rows.replaceChildren(...list.map(s => {
+      const a = actions(s.community
+        ? el("span", { class: "sub" }, "A community spot: remove its file from community/ to take it down.")
+        : confirmButton("Delete spot", "Click again: the spot and all " + s.runs + " run(s) go",
+            () => act(a.say, "DELETE", "/spots/" + encodeURIComponent(s.id), () => { list.splice(list.indexOf(s), 1); render(); })));
+      return el("tr", null,
+        el("td", { class: "name" }, el("a", { href: "/spot/" + encodeURIComponent(s.id) }, s.name),
+          el("span", { class: "tag" }, s.community ? "community" : "by " + (s.by || "?")), a.box),
+        el("td", { class: "r" }, s.runs),
+        el("td", { class: "r date col-date" }, s.lastRun ? date(s.lastRun) : "-"));
+    }));
+  }
+  render();
+  return el("section", null,
+    el("p", { class: "note" }, "Deleting a runner's spot removes it and every run on it. It comes back if its owner uploads a run on it again - ban the runner if it keeps happening."),
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" },
+      el("thead", null, el("tr", null, el("th", null, "Spot"), el("th", { class: "r" }, "Runs"), el("th", { class: "r col-date" }, "Last run"))),
+      rows)));
+}
+
+// --- the activity log ------------------------------------------------------------------
+
+function activityView(log) {
+  if (!log.length) return el("p", { class: "empty" }, "No admin changes yet.");
+  return el("section", null,
+    el("p", { class: "note" }, "Every change made on this page, newest first, by who made it."),
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" },
+      el("thead", null, el("tr", null, el("th", null, "Admin"), el("th", null, "Change"), el("th", { class: "r" }, "Answer"), el("th", { class: "r" }, "When"))),
+      el("tbody", null, log.map(l => el("tr", null,
+        el("td", null, l.admin),
+        el("td", { class: "name mono" }, l.action.replace(/^(\w+) \/api\/admin/, "$1 ")),
+        el("td", { class: "r" + (l.status >= 400 ? " status-rejected" : "") }, l.status),
+        el("td", { class: "r date" }, new Date(l.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))))))));
+}
+
+// --- admins (the owner only) ---------------------------------------------------------
+
+function adminsView(list) {
+  const name = el("input", { class: "search", placeholder: "New admin's name", "aria-label": "New admin's name", maxlength: 40 });
+  const made = el("div");
+  const rows = el("tbody");
+  function render() {
+    rows.replaceChildren(...list.map(x => {
+      const a = actions(x.revoked ? null : confirmButton("Revoke", "Click again: their token stops working",
+        () => act(a.say, "DELETE", "/admins/" + x.id, () => { x.revoked = true; render(); })));
+      return el("tr", null,
+        el("td", { class: "name" }, x.name, x.revoked ? el("span", { class: "tag bad" }, "revoked") : null, a.box),
+        el("td", { class: "r date" }, date(x.created)));
+    }));
+    if (!list.length) rows.append(el("tr", null, el("td", { colspan: 2, class: "empty" }, "No other admins yet.")));
+  }
+  async function create() {
+    const n = name.value.trim();
+    if (!n) { made.replaceChildren(el("p", { class: "sub" }, "Type their name first.")); return; }
+    made.replaceChildren(el("p", { class: "sub" }, "…"));
+    try {
+      const r = await fetch("/api/admin/admins", { method: "POST", headers: { "X-Admin-Token": adminToken() }, body: n });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.statusText);
+      list.push({ id: j.id, name: j.name, created: new Date().toISOString(), revoked: false });
+      name.value = "";
+      render();
+      const tok = el("code", { class: "token" }, j.token);
+      const copy = el("button", { class: "chip", onclick: () => navigator.clipboard.writeText(j.token).then(() => { copy.textContent = "Copied"; }, () => { copy.textContent = "Select it and copy"; }) }, "Copy");
+      made.replaceChildren(el("div", { class: "made" },
+        el("p", null, "Token for " + j.name + " - shown this once. Send it to them privately; they sign in at /admin with it."),
+        el("div", { class: "btnrow" }, tok, copy)));
+    } catch (e) { made.replaceChildren(el("p", { class: "error" }, "Not made: " + e.message)); }
+  }
+  name.addEventListener("keydown", e => { if (e.key === "Enter") create(); });
+  render();
+  return el("section", null,
+    el("p", { class: "note" }, "Each admin gets their own token: they can do everything on this page except manage admins, and their changes show under their name in Activity. Revoke a token to take access away."),
+    el("div", { class: "signin" }, name, el("button", { class: "chip", onclick: create }, "Make a token")),
+    made,
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" },
+      el("thead", null, el("tr", null, el("th", null, "Admin"), el("th", { class: "r" }, "Added"))),
+      rows)));
 }
 
 // --- runners -------------------------------------------------------------------------

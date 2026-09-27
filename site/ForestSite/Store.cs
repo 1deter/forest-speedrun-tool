@@ -63,6 +63,16 @@ CREATE TABLE IF NOT EXISTS submissions (
                       WHERE x.segment_id = routes.segment_id AND x.route = routes.route ORDER BY x.id LIMIT 1), '')
                       WHERE community = 0;");
         }
+        // Admins besides the owner (FOREST_ADMIN_TOKEN): a named token each,
+        // made and revoked by the owner on /admin (author, 2026-09-27: not
+        // one shared key). Every change an admin makes is logged.
+        Exec(c, @"
+CREATE TABLE IF NOT EXISTS admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+  created TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS admin_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, admin TEXT NOT NULL, action TEXT NOT NULL,
+  status INTEGER NOT NULL, at TEXT NOT NULL);");
         if (!HasColumn(c, "submissions", "start_state"))
             Exec(c, "ALTER TABLE submissions ADD COLUMN start_state INTEGER NOT NULL DEFAULT 0;");
     }
@@ -250,6 +260,65 @@ ON CONFLICT DO NOTHING RETURNING id";
         string path = RunPath(seg, id);
         if (File.Exists(path)) File.Delete(path);
         return true;
+    }
+
+    /// Removes a runner's spot from the site: every route and every run
+    /// (a runner's accidental upload). A community spot is refused - it
+    /// comes back from community/ on the next start. The spot reappears if
+    /// its owner uploads a run on it again.
+    public (int runs, string error) DeleteSpot(string segmentId)
+    {
+        if (Convert.ToInt64(Scalar("SELECT COUNT(*) FROM routes WHERE segment_id = $s AND community = 1", ("$s", segmentId))) > 0)
+            return (0, "a community spot - remove its file from community/ instead");
+        int routes = Update("DELETE FROM routes WHERE segment_id = $s", ("$s", segmentId));
+        int runs = Update("DELETE FROM runs WHERE segment_id = $s", ("$s", segmentId));
+        if (routes == 0 && runs == 0) return (0, "no such spot");
+        string dir = Path.Combine(_dir, "runs", SafeName(segmentId));
+        if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        return (runs, null);
+    }
+
+    // --- admins -------------------------------------------------------------
+
+    /// A new admin: the token is returned once, only its hash is kept.
+    public (long id, string token) AddAdmin(string name)
+    {
+        string token = "fa_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+        long id = (long)Scalar("INSERT INTO admins (name, token_hash, created) VALUES ($n, $h, $now) RETURNING id",
+                               ("$n", name), ("$h", Hash(token)), ("$now", Now()));
+        return (id, token);
+    }
+
+    /// The admin a token belongs to; null for unknown or revoked.
+    public string AdminOf(string token) =>
+        string.IsNullOrEmpty(token) ? null : Scalar("SELECT name FROM admins WHERE token_hash = $h AND revoked = 0", ("$h", Hash(token))) as string;
+
+    public bool RevokeAdmin(long id) => Update("UPDATE admins SET revoked = 1 WHERE id = $id AND revoked = 0", ("$id", id)) == 1;
+
+    public List<object> Admins()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT id, name, created, revoked FROM admins ORDER BY id";
+        var list = new List<object>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add(new { id = r.GetInt64(0), name = r.GetString(1), created = r.GetString(2), revoked = r.GetInt64(3) == 1 });
+        return list;
+    }
+
+    public void LogAdmin(string admin, string action, int status) =>
+        Update("INSERT INTO admin_log (admin, action, status, at) VALUES ($a, $x, $s, $now)",
+               ("$a", admin), ("$x", action), ("$s", status), ("$now", Now()));
+
+    public List<object> AdminLog()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT admin, action, status, at FROM admin_log ORDER BY id DESC LIMIT 200";
+        var list = new List<object>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add(new { admin = r.GetString(0), action = r.GetString(1), status = r.GetInt64(2), at = r.GetString(3) });
+        return list;
     }
 
     // --- spot submissions -------------------------------------------------

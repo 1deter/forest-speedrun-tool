@@ -570,18 +570,19 @@ identity.
 ## Current status
 
 **Released: v0.24.159** (2026-09-27). The author runs it via the in-game
-updater. **419 tests** (+ 14 site tests).
+updater. **419 tests** (+ 16 site tests).
 
 ### Pick up here (2026-09-27, v0.24.158 in the game)
 
 **Site, v0.24.158-159 (this session, author: "build on the website"):**
 clean paths instead of `#/` (author asked; old links rewritten), the
-admin page `/admin` (submissions / under review / runners; checked on the
-local site; live token in `/opt/forest-site/.env`), and Practice ->
+admin page `/admin` (submissions / under review / spots / runners /
+activity, and per-admin tokens the owner makes - docs/website.md; checked
+on the local site; the author signed in live and rejected a test
+submission), and Practice ->
 Share -> **Submit to community** (checked over the bridge against the
 local site up to the request - 401, the live token was left in place; the
-success path is in the site tests). Not seen yet: a real submission on
-the live site and the author's first admin sign-in. Detail and *Next*
+success path is in the site tests; the author's live submit arrived). Detail and *Next*
 (the map: terrain underlay, then 3D) in docs/website.md.
 
 **The website is live: https://forest.deter.cloud** (2026-09-27):
