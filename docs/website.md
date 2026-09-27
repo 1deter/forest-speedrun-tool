@@ -237,7 +237,10 @@ spot's saved runs" and "Open on the website".
    answers 204 then); tested with fake tiles only - no real bake uploaded
    yet. Left: 3D (secondary view),
    caves / endgame sections / overlook (not in the terrain - a mesh dump),
-   which plane a save has. Originally: Known (bridge, 2026-09-27, Slot 2): one
+   which plane a save has. **Photo map** (v0.24.164-169, `Game/AerialCapture`
+   -> `scripts/aerial-bake.py` -> `scripts/aerial-upload.py` -> the map's
+   Photo / Ground layers): state and next steps in CLAUDE.md *Pick up here*.
+   (The plane line is done too, v0.24.163.) Originally: Known (bridge, 2026-09-27, Slot 2): one
    terrain, `Terrain.activeTerrain` = `MainTerrain`,
    `terrainData.size` (3500, 250, 3500), at (-1750, 0, -1742.63) - so it
    covers x -1750..1750, z -1742.63..1757.37; `heightmapResolution` 2049
