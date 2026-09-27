@@ -130,11 +130,30 @@ namespace ForestOverlay.Modules
             // frame and thrown away.
             _recorder.StateSource = ReadState;
 
+            // Finished runs to the website (Modules/RunUploadModule).
+            _upload = Host.Find<RunUploadModule>();
+            if (_upload != null)
+            {
+                _upload.CurrentSegment = SegmentForUpload;
+                _upload.SavedRunTexts = SavedRunsForUpload;
+                _upload.RunnerIdNow = RunnerIdNow;
+                _upload.RunnerNameNow = RunnerNameNow;
+            }
+
             _autoRestart = ctx.Config.Bind("Runs", "AutoRestartAtEnd", false,
                 "Restart the spot (as F7 does, start state included) as soon as a timed run finishes. " +
                 "The time shows on screen for a moment.");
 
             InitSplits(ctx);
+        }
+
+        private RunUploadModule _upload;
+
+        private Segment SegmentForUpload() { return _segment; }
+
+        private List<string> SavedRunsForUpload()
+        {
+            return _segment != null ? _store.RunTexts(_segment.Id) : null;
         }
 
         private float[] ReadState()
@@ -442,6 +461,8 @@ namespace ForestOverlay.Modules
             StampAttempt(done);
             _attempts.Add(done);
             _store.Save(done);
+            if (_upload != null && _segment != null)
+                _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done.Duration);
 
             Attempt best = RunCompare.Best(_attempts);
@@ -740,6 +761,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, cw, _statusText);
             y += UiText.Draw(0, y, cw, _diagnoseText);
             y += UiText.Draw(0, y, cw, _eventText);
+            if (_upload != null) y = _upload.DrawSection(y + 4f, cw);
             y = DrawSplitsSection(y + 4f, cw);
 
             // The attempts keep their own scrolling list: the room left, or
@@ -766,6 +788,7 @@ namespace ForestOverlay.Modules
         private void RefreshTabText()
         {
             if (_rowsDirty) RebuildAttemptRows();
+            if (_upload != null) _upload.RefreshText();
             // At once: it answers a click.
             if (!ReferenceEquals(_statusText.text, _status)) _statusText.text = _status;
             if (Time.unscaledTime < _nextTabText) return;

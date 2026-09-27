@@ -5,6 +5,19 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.153 - 2026-09-27
+
+- Your finished timed runs now upload to the new website,
+  forest.deter.cloud, where everyone's runs of a spot are shown together:
+  lines on a map, ghosts, and splits. A run sends its path, split times
+  and your runner name (your Steam name unless you set one); your Steam id
+  itself is never sent.
+- The Runs tab has a Website section: switch uploads off there, see what
+  was sent, upload a spot's older saved runs, or open the spot on the
+  website.
+- Runs wait on disk while the game is offline or the site is down and are
+  sent later.
+
 ## v0.24.152 - 2026-09-27
 
 - Dragging the splits panel to the left edge of the screen now stops

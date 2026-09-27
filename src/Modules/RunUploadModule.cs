@@ -1,0 +1,349 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using BepInEx.Configuration;
+using ForestOverlay.Core;
+using ForestOverlay.Data;
+using UnityEngine;
+
+namespace ForestOverlay.Modules
+{
+    // ------------------------------------------------------------------
+    // Finished runs to forest.deter.cloud (docs/website.md; the author,
+    // 2026-09-27: "once the site is live i don't see a reason not to
+    // submit the runs automatically").
+    //
+    // Every finished attempt of a timed segment is written as a small .foseg
+    // (the segment + that attempt) to config/ForestOverlay/uploads/pending/
+    // first, so a closed game or a site that is down loses nothing; a
+    // coroutine sends the pending files oldest first. The first upload
+    // registers this install (runner id -> a token kept in the config).
+    // A file the site refuses (another route version, ...) moves to
+    // uploads/refused/ with the reason beside it; network trouble retries
+    // with a growing delay. Answers are sorted by Data/SiteProtocol.
+    //
+    // No tab of its own: the Runs tab draws its section (DrawSection).
+    // Writes no game state - not practice-only.
+    // ------------------------------------------------------------------
+    public sealed class RunUploadModule : OverlayModule
+    {
+        public override string Id { get { return "upload"; } }
+        public override string DisplayName { get { return "Run uploads"; } }
+
+        private const float RequestTimeout = 30f;
+        private const int MaxBundleBytes = 3 * 1024 * 1024;
+
+        private ConfigEntry<bool> _enabled;
+        private ConfigEntry<string> _url;
+        private ConfigEntry<string> _token;
+
+        private string _pendingDir, _refusedDir;
+        private bool _busy;
+        private float _nextTry;
+        private int _failures;
+        private bool _tokenBad;
+        private int _uploaded;
+        private string _state = "";
+        private string _runnerId = "", _runnerName = "";
+        private int _seq;
+
+        /// The Runs module's current segment and its saved .run texts (for
+        /// "Upload saved runs"); set by it.
+        public Func<Segment> CurrentSegment;
+        public Func<List<string>> SavedRunTexts;
+        /// Who this install uploads as (the Runs module's runner id / name).
+        public Func<string> RunnerIdNow;
+        public Func<string> RunnerNameNow;
+
+        public override void Initialise(ModuleContext ctx)
+        {
+            base.Initialise(ctx);
+            _enabled = ctx.Config.Bind("Site", "UploadRuns", true,
+                "Upload each finished timed run to the website (forest.deter.cloud): its path, split times and your runner name.");
+            _url = ctx.Config.Bind("Site", "Url", SiteProtocol.DefaultUrl, "The website's address.");
+            _token = ctx.Config.Bind("Site", "Token", "",
+                "Given by the website on the first upload; it proves the runs are yours. Keep it private.");
+
+            string root = Path.Combine(ctx.ConfigDirectory, "uploads");
+            _pendingDir = Path.Combine(root, "pending");
+            _refusedDir = Path.Combine(root, "refused");
+            _state = _enabled.Value ? "on" : "off";
+            _nextTry = Time.unscaledTime + 8f;   // not in the startup rush
+        }
+
+        // --- queueing ---------------------------------------------------------
+
+        /// A finished attempt of `segment` (its .run text).
+        public void Enqueue(Segment segment, string runText, string runnerId, string runnerName)
+        {
+            if (!_enabled.Value || segment == null || !segment.IsTimed || string.IsNullOrEmpty(segment.Id)) return;
+            List<string> one = new List<string>(1);
+            one.Add(runText);
+            Write(segment, one, runnerId, runnerName);
+        }
+
+        /// Every saved run of the current segment (the button). The site
+        /// keeps one copy of each, so pressing twice uploads nothing twice.
+        public void EnqueueSaved()
+        {
+            Segment seg = CurrentSegment != null ? CurrentSegment() : null;
+            if (seg == null || !seg.IsTimed) { _state = "pick a timed segment first (Practice tab, Go)"; return; }
+            List<string> texts = SavedRunTexts != null ? SavedRunTexts() : null;
+            if (texts == null || texts.Count == 0) { _state = "no saved runs for '" + seg.Name + "'"; return; }
+
+            // In bundles of a few, so one big file never hits the size cap.
+            int files = 0;
+            for (int i = 0; i < texts.Count; i += 20)
+            {
+                Write(seg, texts.GetRange(i, Math.Min(20, texts.Count - i)), null, null);
+                files++;
+            }
+            _nextTry = 0f;
+            _state = texts.Count + " saved run(s) of '" + seg.Name + "' queued";
+            Ctx.Log.LogInfo("Upload: " + texts.Count + " saved run(s) of '" + seg.Id + "' queued in " + files + " file(s).");
+        }
+
+        private void Write(Segment segment, List<string> runTexts, string runnerId, string runnerName)
+        {
+            if (!string.IsNullOrEmpty(runnerId)) { _runnerId = runnerId; _runnerName = runnerName ?? ""; }
+            try
+            {
+                SegmentBundle b = new SegmentBundle();
+                b.Segment = segment;
+                b.Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                b.PluginVersion = OverlayPlugin.PluginVersion;
+                b.Attempts.AddRange(runTexts);
+                Directory.CreateDirectory(_pendingDir);
+                string name = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + "_" + (_seq++).ToString("000") + "_" +
+                              Safe(segment.Id) + SegmentBundle.Extension;
+                File.WriteAllText(Path.Combine(_pendingDir, name), b.Write(), new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                Ctx.Log.LogWarning("Upload: could not queue a run of '" + segment.Id + "': " + ex.Message);
+            }
+        }
+
+        // --- sending ------------------------------------------------------------
+
+        public override void Tick()
+        {
+            if (_busy || !_enabled.Value || _tokenBad || Time.unscaledTime < _nextTry) return;
+            _nextTry = Time.unscaledTime + 5f;
+            string next = Oldest();
+            if (next == null) return;
+            _busy = true;
+            Ctx.Runner.StartCoroutine(Pump(next));
+        }
+
+        private string Oldest()
+        {
+            if (!Directory.Exists(_pendingDir)) return null;
+            string[] files = Directory.GetFiles(_pendingDir, "*" + SegmentBundle.Extension);
+            if (files.Length == 0) return null;
+            Array.Sort(files, StringComparer.Ordinal);
+            return files[0];
+        }
+
+        public int PendingCount
+        {
+            get { return Directory.Exists(_pendingDir) ? Directory.GetFiles(_pendingDir, "*" + SegmentBundle.Extension).Length : 0; }
+        }
+
+        private IEnumerator Pump(string path)
+        {
+            string text;
+            try { text = File.ReadAllText(path); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Upload: cannot read " + Path.GetFileName(path) + ": " + ex.Message); _busy = false; yield break; }
+
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+
+            if (string.IsNullOrEmpty(_token.Value))
+            {
+                bool ok = false;
+                yield return Ctx.Runner.StartCoroutine(Register(baseUrl, text, delegate(bool r) { ok = r; }));
+                if (!ok) { _busy = false; yield break; }
+            }
+
+            if (text.Length > MaxBundleBytes) { Refuse(path, "larger than " + (MaxBundleBytes >> 20) + " MB"); _busy = false; yield break; }
+
+            long code = 0; string body = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/runs", Encoding.UTF8.GetBytes(text),
+                "text/plain; charset=utf-8", _token.Value, RequestTimeout,
+                delegate(long c, string b, string e) { code = c; body = b; error = e; }));
+
+            string name = Path.GetFileName(path);
+            switch (SiteProtocol.Classify(code))
+            {
+                case UploadOutcome.Done:
+                    int added = SiteProtocol.Ids(body, "added").Count, existing = SiteProtocol.Ids(body, "existing").Count;
+                    TryDelete(path);
+                    _failures = 0;
+                    _uploaded += added;
+                    _nextTry = 0f;
+                    _state = "uploaded " + _uploaded + " run(s) this session (" + DateTime.Now.ToString("HH:mm") + ")";
+                    Ctx.Log.LogInfo("Upload: " + name + " -> " + added + " new, " + existing + " already on the site" +
+                                    Skipped(body) + ".");
+                    break;
+                case UploadOutcome.Refused:
+                    Refuse(path, "HTTP " + code + ": " + (SiteProtocol.Field(body, "error") ?? body));
+                    _nextTry = 0f;
+                    break;
+                case UploadOutcome.TokenBad:
+                    _tokenBad = true;
+                    _state = "the site does not know this install's token - clear Token in the config to register again";
+                    Ctx.Log.LogWarning("Upload: token refused (401); uploads paused. " + PendingCount + " run file(s) wait.");
+                    break;
+                default:
+                    _failures++;
+                    float wait = SiteProtocol.RetryDelay(_failures);
+                    _nextTry = Time.unscaledTime + wait;
+                    _state = "site not reachable (" + (error ?? "HTTP " + code) + ") - retrying in " + Mathf.RoundToInt(wait) + " s; " +
+                             PendingCount + " run file(s) wait";
+                    Ctx.Log.LogWarning("Upload: " + name + " not sent: " + (error ?? "HTTP " + code) + "; retry in " + Mathf.RoundToInt(wait) + " s.");
+                    break;
+            }
+            _busy = false;
+        }
+
+        private IEnumerator Register(string baseUrl, string bundleText, Action<bool> done)
+        {
+            string id = RunnerIdNow != null ? RunnerIdNow() : _runnerId;
+            string name = RunnerNameNow != null ? RunnerNameNow() : _runnerName;
+            if (string.IsNullOrEmpty(id)) { id = _runnerId; name = _runnerName; }
+            if (string.IsNullOrEmpty(id))
+            {
+                // After a restart: the runner stamped on the queued run.
+                int a = bundleText.IndexOf("\n[attempt]", StringComparison.Ordinal);
+                if (a < 0 || !SiteProtocol.RunnerOf(bundleText.Substring(a), out id, out name))
+                {
+                    _state = "waiting for a finished run to register with";
+                    done(false);
+                    yield break;
+                }
+            }
+
+            long code = 0; string body = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/register",
+                Encoding.UTF8.GetBytes(SiteProtocol.RegisterBody(id, name)), "application/json", null, RequestTimeout,
+                delegate(long c, string b, string e) { code = c; body = b; error = e; }));
+
+            string token = code == 200 ? SiteProtocol.Field(body, "token") : null;
+            if (!string.IsNullOrEmpty(token))
+            {
+                _token.Value = token;
+                Ctx.Log.LogInfo("Upload: registered on " + baseUrl + " as '" + name + "' (" + id + ").");
+                done(true);
+                yield break;
+            }
+
+            if (code == 409)
+            {
+                _tokenBad = true;
+                _state = "this runner is registered on the site already (a lost token?) - the site's admin can reset it";
+                Ctx.Log.LogWarning("Upload: runner " + id + " is registered already (409); uploads paused.");
+            }
+            else
+            {
+                _failures++;
+                float wait = SiteProtocol.RetryDelay(_failures);
+                _nextTry = Time.unscaledTime + wait;
+                _state = "could not register (" + (error ?? "HTTP " + code) + ") - retrying in " + Mathf.RoundToInt(wait) + " s";
+                Ctx.Log.LogWarning("Upload: register failed: " + (error ?? "HTTP " + code + " " + body) + ".");
+            }
+            done(false);
+        }
+
+        private void Refuse(string path, string why)
+        {
+            string name = Path.GetFileName(path);
+            try
+            {
+                Directory.CreateDirectory(_refusedDir);
+                string to = Path.Combine(_refusedDir, name);
+                if (File.Exists(to)) File.Delete(to);
+                File.Move(path, to);
+                File.WriteAllText(to + ".txt", why + "\n");
+            }
+            catch (Exception) { TryDelete(path); }
+            _state = "the site refused a run: " + why;
+            Ctx.Log.LogWarning("Upload: " + name + " refused - " + why + " (moved to uploads/refused).");
+        }
+
+        private static string Skipped(string body)
+        {
+            int k = body != null ? body.IndexOf("\"skipped\":[\"", StringComparison.Ordinal) : -1;
+            return k < 0 ? "" : ", some skipped: " + body.Substring(k + 11, Math.Min(200, body.Length - k - 11));
+        }
+
+        private static void TryDelete(string path)
+        {
+            try { File.Delete(path); } catch (Exception) { }
+        }
+
+        private static string Safe(string id)
+        {
+            StringBuilder sb = new StringBuilder(id.Length);
+            for (int i = 0; i < id.Length; i++) sb.Append(char.IsLetterOrDigit(id[i]) || id[i] == '-' ? id[i] : '_');
+            return sb.ToString();
+        }
+
+        // --- the Runs tab's section ---------------------------------------------------
+
+        private readonly GUIContent _stateText = new GUIContent("");
+        private readonly GUIContent _toggleText = new GUIContent(" Upload finished runs to the website");
+        private float _nextText;
+
+        /// Called from the Runs tab's Tick-side refresh; never allocates in draw.
+        public void RefreshText()
+        {
+            if (Time.unscaledTime < _nextText) return;
+            _nextText = Time.unscaledTime + 0.5f;
+            int pending = PendingCount;
+            string s = !_enabled.Value ? "Website uploads are off."
+                     : "Website: " + _state + (pending > 0 && !_state.Contains("wait") ? " - " + pending + " run file(s) to send" : "");
+            if (_stateText.text != s) _stateText.text = s;
+            string t = " Upload finished runs to " + HostName();
+            if (_toggleText.text != t) _toggleText.text = t;
+        }
+
+        /// The section under the Runs tab's status lines; returns the new y.
+        public float DrawSection(float y, float w)
+        {
+            bool on = GUI.Toggle(new Rect(0, y, w, 20), _enabled.Value, _toggleText);
+            if (on != _enabled.Value)
+            {
+                _enabled.Value = on;
+                _tokenBad = false;
+                _nextTry = 0f;
+                _nextText = 0f;
+                if (on) _state = "on";
+            }
+            y += 22f;
+            y += UiText.Draw(0, y, w, _stateText);
+
+            if (GUI.Button(new Rect(0, y + 2, 200, 22), "Upload this spot's saved runs")) { EnqueueSaved(); _nextText = 0f; }
+            if (GUI.Button(new Rect(206, y + 2, 150, 22), "Open on the website"))
+            {
+                Segment seg = CurrentSegment != null ? CurrentSegment() : null;
+                Application.OpenURL(seg != null ? SiteProtocol.SpotUrl(_url.Value, seg.Id) : SiteProtocol.TrimUrl(_url.Value));
+            }
+            return y + 28f;
+        }
+
+        private string _hostName, _hostFor;
+        private string HostName()
+        {
+            if (_hostFor != _url.Value)
+            {
+                _hostFor = _url.Value;
+                string u = SiteProtocol.TrimUrl(_url.Value);
+                int s = u.IndexOf("://", StringComparison.Ordinal);
+                _hostName = s >= 0 ? u.Substring(s + 3) : u;
+            }
+            return _hostName;
+        }
+    }
+}
