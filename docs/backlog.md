@@ -145,3 +145,10 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   `ruben-megan`, log `Stats.Health` every few tenths while the author
   fights, and note which hit drops it and which kills (Megan's vs the
   babies' damage path; the start state's own health).
+
+## Website (author, QA #general 2026-09-27)
+
+- **Stuttering playback on the spot page** - open investigation; the author suspects reading all
+  state values per frame (the State panel / *Show all*). Profile the scrub loop first.
+- Community spots on the site: keep them - they can carry **official category saves** (start
+  states), not just teleport spots; shared runner times stay the main feature.
