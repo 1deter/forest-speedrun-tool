@@ -57,6 +57,8 @@ public sealed class ApiTests : IDisposable
         a.Channels = new[] { "HeartRate", "Stamina", "Health", "explodeHash", "item:Soda" };
         for (int i = 0; i <= 4; i++)
             a.States.Add(new StateSample { T = duration * i / 4, Values = new float[] { 70, 100 - 10 * i, 100, 12345, i / 2 } });
+        a.Items.Add(new ItemChange { T = 0, Name = "Soda", Count = 3 });
+        a.Items.Add(new ItemChange { T = duration / 2, Name = "Soda", Count = 2 });
         return AttemptFormat.Write(a);
     }
 
@@ -182,6 +184,9 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(new[] { "Health", "Stamina", "item:Soda" }, state["channels"].AsArray().Select(n => n.GetValue<string>()));
         Assert.Equal(5, state["samples"].AsArray().Count);
         Assert.Equal(new[] { 9.0, 100, 60, 2 }, state["samples"][4].AsArray().Select(n => n.GetValue<double>()));
+        Assert.Equal(2, run["items"].AsArray().Count);
+        Assert.Equal("Soda", run["items"][1][1].GetValue<string>());
+        Assert.Equal(2, run["items"][1][2].GetValue<int>());
         var every = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + id + "?all=1");
         Assert.Equal(5, every["state"]["channels"].AsArray().Count);
 

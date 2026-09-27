@@ -21,6 +21,7 @@ namespace ForestOverlay.Data
     //   channels|Health|Stamina|Energy|...
     //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
     //   v|<t>|<v0>|<v1>|...                state,    5 Hz
+    //   i|<t>|<item>:<count>|...           item counts that changed (v0.24.161)
     //
     // Numbers use InvariantCulture: a comma-decimal machine would otherwise
     // silently reject them.
@@ -78,6 +79,17 @@ namespace ForestOverlay.Data
                 sb.Append(NL);
             }
 
+            // Changes at the same time share a line.
+            for (int i = 0; i < attempt.Items.Count; )
+            {
+                float t = attempt.Items[i].T;
+                sb.Append("i|").Append(F(t));
+                for (; i < attempt.Items.Count && attempt.Items[i].T == t; i++)
+                    sb.Append('|').Append(Clean(attempt.Items[i].Name)).Append(':')
+                      .Append(attempt.Items[i].Count.ToString(CultureInfo.InvariantCulture));
+                sb.Append(NL);
+            }
+
             return sb.ToString();
         }
 
@@ -127,6 +139,22 @@ namespace ForestOverlay.Data
                     v.Values = new float[p.Length - 2];
                     for (int c = 2; c < p.Length; c++) v.Values[c - 2] = P(p[c]);
                     a.States.Add(v);
+                }
+                else if (p[0] == "i" && p.Length >= 3)
+                {
+                    float t = P(p[1]);
+                    for (int c = 2; c < p.Length; c++)
+                    {
+                        // The last colon: the count never has one, a name might.
+                        int at = p[c].LastIndexOf(':');
+                        int n;
+                        if (at <= 0 || !int.TryParse(p[c].Substring(at + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) continue;
+                        ItemChange ic;
+                        ic.T = t;
+                        ic.Name = p[c].Substring(0, at);
+                        ic.Count = n;
+                        a.Items.Add(ic);
+                    }
                 }
                 else if (p[0] == "s" && p.Length >= 6)
                 {

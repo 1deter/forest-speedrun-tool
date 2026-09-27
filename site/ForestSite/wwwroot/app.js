@@ -198,12 +198,25 @@ async function spotPage(id, routeId) {
     BodyTemp: { label: "Body temp", unit: " °C", decimals: 1 }, Stealth: {},
     Cold: { yesNo: true }, IsLit: { label: "Light on", yesNo: true },
   };
-  // Inventory counts ("item:<database name>", plugin v0.24.160+).
+  // Items by the game's database name: the run's `items` track (plugin
+  // v0.24.161+, every item, as changes) or v0.24.160's "item:<name>"
+  // channels. Names not listed here are spaced out ("CamCorderTape").
   const ITEMS = {
-    Soda: "Soda", Booze: "Booze", EnergyMix: "Energy mix", Meds: "Meds", Aloe: "Aloe",
-    Stick: "Sticks", Rock: "Rocks", Log: "Logs", Rope: "Rope", Cloth: "Cloth", Molotov: "Molotovs",
-    BombTimed: "Bombs", Dynamite: "Dynamite", Flare: "Flares", Battery: "Batteries", Coins: "Coins",
+    EnergyMix: "Energy mix", Stick: "Sticks", Rock: "Rocks", Log: "Logs", Molotov: "Molotovs",
+    BombTimed: "Bombs", Flare: "Flares", Battery: "Batteries",
   };
+  const itemLabel = n => ITEMS[n] || n.replace(/([a-z])([A-Z])/g, "$1 $2");
+  /// Each item's count at t from the change track: [{ name, n, ever }].
+  function bagAt(changes, t) {
+    const bag = new Map();
+    for (const [ct, name, n] of changes) {
+      const e = bag.get(name) || { name, n: 0, ever: false };
+      if (ct <= t) e.n = n;
+      if (n > 0) e.ever = true;
+      bag.set(name, e);
+    }
+    return [...bag.values()].filter(e => e.ever).sort((a, b) => itemLabel(a.name).localeCompare(itemLabel(b.name)));
+  }
   /// Item channels the run ever carried (a run's bag, not every item at 0).
   function carried(st) {
     if (!st.carried) st.carried = st.channels.map((name, i) =>
@@ -242,10 +255,11 @@ async function spotPage(id, routeId) {
     if (s) st.channels.forEach((name, i) => {
       const v = s[i + 1];
       if (name.startsWith("item:")) {
+        if (data.items && data.items.length) return;   // the change track wins
         if (!state.showAll && !carried(st)[i]) return;
         const key = name.slice(5);
         bag.push(el("div", { class: "stat" + (v > 0 ? "" : " zero") },
-          el("span", { class: "k" }, state.showAll ? name : ITEMS[key] || key), el("span", { class: "v" }, fmt(v, {}))));
+          el("span", { class: "k" }, state.showAll ? name : itemLabel(key)), el("span", { class: "v" }, fmt(v, {}))));
         return;
       }
       const d = SHOWN[name] || {};
@@ -254,6 +268,10 @@ async function spotPage(id, routeId) {
       items.push(el("div", { class: "stat" },
         el("span", { class: "k" }, state.showAll ? name : d.label || name), el("span", { class: "v" }, fmt(v, d)), bar));
     });
+    if (data.items && data.items.length)
+      for (const e of bagAt(data.items, state.time))
+        bag.push(el("div", { class: "stat" + (e.n > 0 ? "" : " zero") },
+          el("span", { class: "k" }, itemLabel(e.name)), el("span", { class: "v" }, e.n)));
     const more = st || state.showAll ? el("button", { class: "linkbtn", onclick: () => { state.showAll = !state.showAll; renderState(); } },
       state.showAll ? "Show fewer" : "Show all") : null;
     statePanel.replaceChildren(...[

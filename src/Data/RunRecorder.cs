@@ -28,6 +28,18 @@ namespace ForestOverlay.Data
         public float[] Values;
     }
 
+    /// One item count changing (v0.24.161): written only when a count
+    /// differs from the last sample, so any item is tracked without a fixed
+    /// list and a bag that stays the same costs nothing in the file. The
+    /// first sample of a run lists everything carried; a count going to 0
+    /// is written as 0.
+    public struct ItemChange
+    {
+        public float T;
+        public string Name;
+        public int Count;
+    }
+
     // ------------------------------------------------------------------
     // One recorded attempt: the path taken and how long it took.
     //
@@ -65,6 +77,19 @@ namespace ForestOverlay.Data
         /// StateSample.Values. Empty when state was not captured.
         public string[] Channels = new string[0];
         public readonly List<StateSample> States = new List<StateSample>();
+
+        /// Inventory count changes, in time order (see ItemChange).
+        public readonly List<ItemChange> Items = new List<ItemChange>();
+
+        /// An item's count at time t: its last change at or before t, 0
+        /// before its first.
+        public int ItemCountAt(string name, float t)
+        {
+            int n = 0;
+            for (int i = 0; i < Items.Count && Items[i].T <= t; i++)
+                if (Items[i].Name == name) n = Items[i].Count;
+            return n;
+        }
 
         public int ChannelIndex(string name)
         {
@@ -318,6 +343,17 @@ namespace ForestOverlay.Data
         /// state array.
         public Func<float[]> StateSource;
 
+        /// Asked on the state cadence: fill the dictionary (cleared first)
+        /// with the item counts now, by name, and return true - or return
+        /// false when nothing changed since the last fill (event-driven: the
+        /// source knows when the inventory was touched). `force` (a run's
+        /// first sample) must always fill. Only changes are recorded.
+        public Func<Dictionary<string, int>, bool, bool> ItemSource;
+
+        private Dictionary<string, int> _itemsNow = new Dictionary<string, int>();
+        private Dictionary<string, int> _itemsLast = new Dictionary<string, int>();
+        private bool _itemsFirst;
+
         public void Arm(Vector3 anchor, string label)
         {
             _anchor = anchor;
@@ -372,9 +408,10 @@ namespace ForestOverlay.Data
         private void SampleState(float[] state)
         {
             if (Elapsed < _nextStateTime) return;
+            _nextStateTime = Elapsed + StateInterval;
+            SampleItems();
             if (state == null && StateSource != null) state = StateSource();
             if (state == null || state.Length == 0) return;
-            _nextStateTime = Elapsed + StateInterval;
 
             StateSample ss;
             ss.T = Elapsed;
@@ -384,6 +421,37 @@ namespace ForestOverlay.Data
             Array.Copy(state, ss.Values, state.Length);
 
             Current.States.Add(ss);
+        }
+
+        private void SampleItems()
+        {
+            if (ItemSource == null) return;
+            _itemsNow.Clear();
+            if (!ItemSource(_itemsNow, _itemsFirst)) return;
+            _itemsFirst = false;
+
+            foreach (KeyValuePair<string, int> kv in _itemsNow)
+            {
+                int last;
+                bool had = _itemsLast.TryGetValue(kv.Key, out last);
+                if (had ? last == kv.Value : kv.Value == 0) continue;
+                AddItemChange(kv.Key, kv.Value);
+            }
+            foreach (KeyValuePair<string, int> kv in _itemsLast)
+                if (kv.Value != 0 && !_itemsNow.ContainsKey(kv.Key)) AddItemChange(kv.Key, 0);
+
+            Dictionary<string, int> swap = _itemsLast;
+            _itemsLast = _itemsNow;
+            _itemsNow = swap;
+        }
+
+        private void AddItemChange(string name, int count)
+        {
+            ItemChange c;
+            c.T = Elapsed;
+            c.Name = name;
+            c.Count = count;
+            Current.Items.Add(c);
         }
 
         /// Overload for callers with no state source (and for tests).
@@ -408,6 +476,8 @@ namespace ForestOverlay.Data
             Elapsed = 0f;
             _nextSampleTime = 0f;
             _nextStateTime = 0f;
+            _itemsLast.Clear();
+            _itemsFirst = true;
 
             Current = new Attempt();
             Current.AnchorLabel = _anchorLabel;

@@ -40,12 +40,8 @@ namespace ForestOverlay.Modules
 
         private readonly RunRecorder _recorder = new RunRecorder();
 
-        // Inventory counts recorded after the PlayerStats channels (sodas,
-        // meds ... for the website's state panel). The split is fixed when
-        // a run arms, so every sample matches the run's channel list.
-        private ItemChannels _items;
-        private int _armedStatCount, _armedItemCount;
-        private float[] _stateBuffer = new float[0];
+        // Inventory counts, recorded as changes (the website's state panel).
+        private ItemCounter _items;
         private readonly List<Attempt> _attempts = new List<Attempt>();
         private AttemptStore _store;
         private PracticeModule _practice;
@@ -136,7 +132,9 @@ namespace ForestOverlay.Modules
             // Pulled only when a state sample is due (5 Hz), not read every
             // frame and thrown away.
             _recorder.StateSource = ReadState;
-            _items = new ItemChannels(ctx.Log);
+            _items = new ItemCounter(ctx.Log, ctx.Inventory);
+            ItemCounter.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            _recorder.ItemSource = _items.Fill;
 
             // Finished runs to the website (Modules/RunUploadModule).
             _upload = Host.Find<RunUploadModule>();
@@ -173,29 +171,7 @@ namespace ForestOverlay.Modules
 
         private float[] ReadState()
         {
-            float[] stats = Ctx.PlayerState.Read();
-            if (_armedItemCount == 0) return stats;
-            int n = _armedStatCount + _armedItemCount;
-            if (_stateBuffer.Length != n) _stateBuffer = new float[n];
-            if (stats != null) System.Array.Copy(stats, _stateBuffer, System.Math.Min(stats.Length, _armedStatCount));
-            _items.Read(_stateBuffer, _armedStatCount, _armedItemCount);
-            return _stateBuffer;
-        }
-
-        /// PlayerStats channels, then the item counts ("item:Soda" ...).
-        private string[] ArmStateChannels()
-        {
-            string[] stats = Ctx.PlayerState.Channels ?? new string[0];
-            string[] items = _items != null ? _items.Channels : new string[0];
-            _armedStatCount = stats.Length;
-            // Items only with the stats bound: a run armed before PlayerStats
-            // would record stats-length samples under a stats-less list.
-            _armedItemCount = stats.Length > 0 ? items.Length : 0;
-            if (_armedItemCount == 0) return stats;
-            string[] all = new string[stats.Length + items.Length];
-            System.Array.Copy(stats, all, stats.Length);
-            System.Array.Copy(items, 0, all, stats.Length, items.Length);
-            return all;
+            return Ctx.PlayerState.Read();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -210,6 +186,7 @@ namespace ForestOverlay.Modules
         public override void Shutdown()
         {
             if (_lineHost != null) Object.Destroy(_lineHost);
+            ItemCounter.Uninstall();
         }
 
         // ------------------------------------------------------------------
@@ -279,7 +256,7 @@ namespace ForestOverlay.Modules
             _armedScene = SceneManager.GetActiveScene().buildIndex;
             _armedRoute = _segment.RouteFingerprint();
 
-            _recorder.StateChannels = ArmStateChannels();
+            _recorder.StateChannels = Ctx.PlayerState.Channels;
             _recorder.Route = _armedRoute;
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 

@@ -244,6 +244,12 @@ public sealed class Runs
         o["route"] = r.Route;
         o["path"] = path;
         o["state"] = StateJson(a, allChannels);
+        // Item count changes (plugin v0.24.161+): [t, name, count], time order.
+        var items = new JsonArray();
+        if (a != null)
+            foreach (ItemChange c in a.Items)
+                items.Add(new JsonArray(R(c.T), c.Name, c.Count));
+        o["items"] = items;
         return o;
     }
 
@@ -254,7 +260,8 @@ public sealed class Runs
     {
         "Health", "Stamina", "Energy", "Fullness", "Thirst", "Armor", "ColdArmor",
         "BatteryCharge", "BodyTemp", "Stealth", "Cold", "IsLit",
-        // Inventory counts (plugin v0.24.160+, Game/ItemChannels).
+        // v0.24.160's fixed item channels (runs from that version only; since
+        // v0.24.161 items are the run's `items` track).
         "item:Soda", "item:Booze", "item:EnergyMix", "item:Meds", "item:Aloe",
         "item:Stick", "item:Rock", "item:Log", "item:Rope", "item:Cloth",
         "item:Molotov", "item:BombTimed", "item:Dynamite", "item:Flare", "item:Battery",

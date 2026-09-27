@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.161 - 2026-09-27
+
+- Runs now record every item you carry, not a fixed list: sodas, coins,
+  energy mix, anything a route picks up. Only changes are written, and the
+  inventory is read only when the game changes it, so it costs nothing
+  while your bag stays the same.
+
 ## v0.24.160 - 2026-09-27
 
 - Timed runs now record what you carry (sodas, booze, meds, sticks, rocks,
