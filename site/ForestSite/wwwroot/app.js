@@ -131,6 +131,32 @@ async function homePage() {
 
 // --- a spot -------------------------------------------------------------------------
 
+/// The map's background: Photo (the aerial capture), Ground (the same with
+/// the trees removed) or Relief. Shown only when aerial tiles are uploaded;
+/// the choice is remembered in this browser.
+function mapLayers(map) {
+  const KEY = "forest.mapLayer";
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* private window: the default */ }
+  map.layer = saved || "canopy";
+  const buttons = [["canopy", "Photo"], ["ground", "Ground"], ["relief", "Relief"]].map(([layer, label]) =>
+    el("button", { type: "button", "data-layer": layer, onclick: () => pick(layer, true) }, label));
+  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map background", hidden: true }, buttons);
+  function pick(layer, remember) {
+    map.setLayer(layer);
+    for (const b of buttons) { const on = b.dataset.layer === layer; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+    if (remember) try { localStorage.setItem(KEY, layer); } catch (e) { /* not kept: fine */ }
+  }
+  RunMap.aerialReady.then(meta => {
+    if (!meta) return;
+    for (const b of buttons) b.hidden = b.dataset.layer !== "relief" && !meta.layers.includes(b.dataset.layer);
+    const usable = buttons.some(b => !b.hidden && b.dataset.layer === map.layer);
+    pick(usable ? map.layer : meta.layers[0], false);
+    box.hidden = false;
+  });
+  return box;
+}
+
 async function spotPage(id, routeId) {
   loading();
   let spot;
@@ -145,6 +171,7 @@ async function spotPage(id, routeId) {
 
   const canvas = el("canvas", { "aria-label": "Map of the spot's zones and the runs shown" });
   const map = new RunMap(canvas);
+  const layerCtl = mapLayers(map);
   const zones = [];
   const addZone = (t, role, label) => { if (t && (t.kind === "zone" || t.kind === "box")) zones.push(Object.assign({ role, label }, t)); };
   addZone(r.start, "start", "Start");
@@ -391,7 +418,7 @@ async function spotPage(id, routeId) {
       r.runs + (r.runs === 1 ? " run" : " runs") + (r === spot.routes[0] ? "" : " · an older version of this route")),
     spot.notes ? el("p", { class: "note" }, spot.notes) : null,
     routeChips,
-    el("div", { class: "mapwrap" }, canvas, mapEmpty,
+    el("div", { class: "mapwrap" }, canvas, mapEmpty, layerCtl,
       el("div", { class: "maphint" }, "click a line · drag · scroll to zoom · double-click to fit"),
       el("div", { class: "scrub" }, play, slider, clock, speed)),
     statePanel,

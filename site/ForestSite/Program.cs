@@ -77,7 +77,8 @@ app.UseStaticFiles(new StaticFileOptions
 app.Use((c, next) =>
 {
     if (!c.Request.Path.StartsWithSegments("/aerial")) return next(c);
-    c.Response.StatusCode = 404;
+    // No tiles uploaded: "nothing here" without a 404 in every visitor's console.
+    c.Response.StatusCode = c.Request.Path == "/aerial/aerial.json" ? 204 : 404;
     return Task.CompletedTask;
 });
 string indexHtml = Pages.Index(app.Environment.WebRootPath);

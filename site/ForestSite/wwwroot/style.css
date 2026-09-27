@@ -92,7 +92,16 @@ p { margin: 0 0 12px; }
 .mapwrap { position: relative; margin-top: 20px; border: 1px solid var(--line); background: #050505; }
 .mapwrap canvas { display: block; width: 100%; height: min(58vh, 520px); touch-action: none; cursor: grab; }
 .mapwrap canvas.drag { cursor: grabbing; }
-.maphint { position: absolute; right: 10px; top: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
+.maphint { position: absolute; right: 10px; top: 8px; max-width: calc(100% - 210px); text-align: right; font-size: 11px; color: var(--muted); pointer-events: none; }
+.maplayers { position: absolute; left: 8px; top: 8px; display: flex; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.72); }
+.maplayers[hidden], .maplayers button[hidden] { display: none; }
+.maplayers button {
+  background: transparent; border: 0; padding: 4px 10px; cursor: pointer;
+  font-family: Montserrat, system-ui, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.maplayers button:not([hidden]) ~ button { border-left: 1px solid var(--line); }
+.maplayers button:hover { color: var(--white); }
+.maplayers button.on { color: #000; background: var(--yellow); }
 .mapempty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
 
 .scrub { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }

@@ -448,11 +448,13 @@ public sealed class ApiTests : IDisposable
             return await _http.SendAsync(req);
         }
 
+        Assert.Equal(HttpStatusCode.NoContent, (await _http.GetAsync("/aerial/aerial.json")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await Post(Zip("canopy/6/1_2.jpg"), "wrong")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Post(Zip("../evil.jpg"), "admin-secret")).StatusCode);
         var ok = await Post(Zip("canopy/6/1_2.jpg", "aerial.json"), "admin-secret");
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/aerial/aerial.json")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/aerial/canopy/6/9_9.jpg")).StatusCode);
     }
 }

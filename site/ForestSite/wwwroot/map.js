@@ -2,7 +2,8 @@
 // dot per run at the scrub time. World x runs east, z north (Unity metres),
 // so z is drawn upwards. Drag to pan, wheel / pinch to zoom. Under it all,
 // the game's terrain (scripts/terrain-bake.py -> /terrain/): a shaded relief
-// image and a height grid, shared by every map on the page.
+// image and a height grid, shared by every map on the page; over the relief,
+// when uploaded, the aerial photo tiles (scripts/aerial-bake.py -> /aerial/).
 "use strict";
 
 window.RunMap = (function () {
@@ -30,6 +31,56 @@ window.RunMap = (function () {
     });
   }).catch(() => { /* no terrain: the plain grid, as before */ });
 
+  // --- aerial photo tiles, loaded as seen ---------------------------------------
+  // scripts/aerial-bake.py -> /aerial/: <layer>/<L>/<tx>_<ty>.jpg, 256 px. Level
+  // L has 2^L x 2^L tiles over the terrain's square, the north-west corner at
+  // (x0, z0 + sizeX); tx east, ty south. Open sea has no tiles (404): the
+  // relief shows there. No aerial.json = no photo layer, the map as before.
+  const aerial = { meta: null, cache: new Map(), missing: new Set(), redraw: 0 };
+  const CACHE_MAX = 500;
+  const aerialReady = fetch("/aerial/aerial.json").then(r => r.status === 200 ? r.json() : null).then(meta => {
+    if (!meta || !(meta.levels >= 0) || !Array.isArray(meta.layers) || !meta.layers.length) return null;
+    aerial.meta = { levels: meta.levels | 0, tile: meta.tile || 256, layers: meta.layers };
+    terrain.maps.forEach(m => m.draw());
+    return aerial.meta;
+  }).catch(() => null);
+
+  /// The pyramid level whose tile pixels are at least the screen's: a level-L
+  /// tile is sizeX / 2^L metres and `tile` px wide.
+  function aerialLevel(sizeX, scale, dpr, tile, levels) {
+    const L = Math.ceil(Math.log2(sizeX * scale * dpr / tile));
+    return L > levels ? levels : L > 0 ? L : 0;
+  }
+
+  /// A number per tile (no string per lookup): layer, level, tx, ty.
+  function tileKey(li, L, tx, ty) { return ((li * 32 + L) * 65536 + tx) * 65536 + ty; }
+
+  function redrawSoon() {
+    if (aerial.redraw) return;
+    aerial.redraw = requestAnimationFrame(() => { aerial.redraw = 0; terrain.maps.forEach(m => m.draw()); });
+  }
+
+  /// A tile's entry once loaded (refreshed as the newest in the cache),
+  /// null while loading or missing. Starts the load the first time asked.
+  function tileImage(layer, li, L, tx, ty, request) {
+    const key = tileKey(li, L, tx, ty);
+    const e = aerial.cache.get(key);
+    if (e) {
+      aerial.cache.delete(key); aerial.cache.set(key, e);
+      return e.ok ? e.img : null;
+    }
+    if (!request || aerial.missing.has(key)) return null;
+    // A missing ancestor means a missing tile (the bake writes every parent).
+    for (let k = 1; k <= L; k++) if (aerial.missing.has(tileKey(li, L - k, tx >> k, ty >> k))) { aerial.missing.add(key); return null; }
+    const img = new Image(), entry = { img, ok: false };
+    img.onload = () => { entry.ok = true; redrawSoon(); };
+    img.onerror = () => { aerial.cache.delete(key); aerial.missing.add(key); };
+    img.src = "/aerial/" + layer + "/" + L + "/" + tx + "_" + ty + ".jpg";
+    aerial.cache.set(key, entry);
+    if (aerial.cache.size > CACHE_MAX) aerial.cache.delete(aerial.cache.keys().next().value);
+    return null;
+  }
+
   /// The ground's height (world y) at x, z, or null outside the terrain.
   function groundAt(x, z) {
     const m = terrain.meta, h = terrain.heights;
@@ -51,6 +102,7 @@ window.RunMap = (function () {
     this.view = null;      // { cx, cz, scale } - pixels per metre
     this.pointers = new Map();
     this.showTerrain = true;
+    this.layer = "canopy"; // an aerial layer, or "relief"; see setLayer
     terrain.maps.add(this);
     this.bind();
     new ResizeObserver(() => this.draw()).observe(canvas);
@@ -59,6 +111,15 @@ window.RunMap = (function () {
   RunMap.prototype.setZones = function (zones) { this.zones = zones; };
   RunMap.prototype.setRuns = function (runs, refit) { this.runs = runs; if (refit || !this.view) this.fit(); this.draw(); };
   RunMap.prototype.setTime = function (t) { this.time = t; this.draw(); };
+  /// "canopy" / "ground" (the aerial photo, with or without trees) or "relief".
+  RunMap.prototype.setLayer = function (layer) { this.layer = layer; this.draw(); };
+
+  /// The aerial layer to draw now, or null (none uploaded, or relief chosen).
+  RunMap.prototype.photoLayer = function () {
+    const a = aerial.meta;
+    if (!a || !terrain.meta || !this.showTerrain || this.layer === "relief") return null;
+    return a.layers.includes(this.layer) ? this.layer : a.layers[0];
+  };
 
   /// Every zone and line in view, with a margin.
   RunMap.prototype.fit = function () {
@@ -97,8 +158,9 @@ window.RunMap = (function () {
     if (!this.view) this.fit();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    const relief = this.showTerrain && terrain.image;
-    if (relief) this.relief(w, h);
+    const photo = this.photoLayer();
+    const relief = !!(photo || (this.showTerrain && terrain.image));
+    if (relief) this.relief(w, h, photo, dpr);
     this.grid(w, h, relief);
     if (relief) this.planes();
     for (const zn of this.zones) this.zone(zn);
@@ -129,24 +191,62 @@ window.RunMap = (function () {
     ctx.globalAlpha = 1;
   };
 
-  /// The relief image at world coordinates; faded while every ghost on the
-  /// map is underground (a cave or the endgame, which the terrain does not
-  /// show), so a cave line does not read as a surface one.
-  RunMap.prototype.relief = function (w, h) {
+  /// The ground: sea, the relief image at world coordinates, then the aerial
+  /// photo tiles of `photo` (a layer name, or null). Faded while every ghost
+  /// on the map is underground (a cave or the endgame, which neither shows),
+  /// so a cave line does not read as a surface one.
+  RunMap.prototype.relief = function (w, h, photo, dpr) {
     const ctx = this.ctx, m = terrain.meta;
     ctx.fillStyle = SEA; ctx.fillRect(0, 0, w, h);
-    const [x0, y0] = this.toScreen(m.x0, m.z0 + m.sizeZ), [x1, y1] = this.toScreen(m.x0 + m.sizeX, m.z0);
     this.underground = this.runs.length > 0 && this.runs.every(run => {
       const s = at(run.path, this.time), g = s && groundAt(s[1], s[3]);
       return s && g !== null && s[2] < g - 3;
     });
-    ctx.globalAlpha = this.underground ? 0.25 : 1;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(terrain.image, x0, y0, x1 - x0, y1 - y0);
-    ctx.globalAlpha = 1;
+    if (terrain.image) {
+      const [x0, y0] = this.toScreen(m.x0, m.z0 + m.sizeZ), [x1, y1] = this.toScreen(m.x0 + m.sizeX, m.z0);
+      ctx.drawImage(terrain.image, x0, y0, x1 - x0, y1 - y0);
+    }
+    if (photo) this.tiles(photo, w, h, dpr);
     if (this.underground) {
+      // The same as drawing the ground at 25% over the sea, for every layer.
+      ctx.globalAlpha = 0.75; ctx.fillStyle = SEA; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
       ctx.fillStyle = "#bbb"; ctx.font = "600 11px Montserrat, sans-serif";
-      ctx.fillText("UNDERGROUND", 8, 16);
+      ctx.textAlign = "center"; ctx.fillText("UNDERGROUND", w / 2, 16); ctx.textAlign = "start";
+    }
+  };
+
+  /// The visible aerial tiles at the level whose pixels are at least the
+  /// screen's. A tile still loading shows its nearest loaded ancestor's part
+  /// instead, so a zoom never flashes empty; a missing one (sea) shows the
+  /// relief under it.
+  RunMap.prototype.tiles = function (layer, w, h, dpr) {
+    const ctx = this.ctx, v = this.view, m = terrain.meta, a = aerial.meta;
+    const li = a.layers.indexOf(layer), size = m.sizeX, north = m.z0 + size;
+    const L = aerialLevel(size, v.scale, dpr, a.tile, a.levels), n = 1 << L, ts = size / n;
+    const wx0 = v.cx - w / 2 / v.scale, wx1 = v.cx + w / 2 / v.scale;
+    const wz0 = v.cz - h / 2 / v.scale, wz1 = v.cz + h / 2 / v.scale;
+    const tx0 = Math.max(0, Math.floor((wx0 - m.x0) / ts)), tx1 = Math.min(n - 1, Math.floor((wx1 - m.x0) / ts));
+    const ty0 = Math.max(0, Math.floor((north - wz1) / ts)), ty1 = Math.min(n - 1, Math.floor((north - wz0) / ts));
+    // Tile edges on whole device pixels, shared by neighbours: no seams.
+    const px = x => Math.round((w / 2 + (x - v.cx) * v.scale) * dpr) / dpr;
+    const py = z => Math.round((h / 2 - (z - v.cz) * v.scale) * dpr) / dpr;
+    for (let ty = ty0; ty <= ty1; ty++) {
+      const sy0 = py(north - ty * ts), sy1 = py(north - (ty + 1) * ts);
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const sx0 = px(m.x0 + tx * ts), sx1 = px(m.x0 + (tx + 1) * ts);
+        const img = tileImage(layer, li, L, tx, ty, true);
+        if (img) { ctx.drawImage(img, sx0, sy0, sx1 - sx0, sy1 - sy0); continue; }
+        if (aerial.missing.has(tileKey(li, L, tx, ty))) continue;
+        for (let k = 1; k <= L; k++) {
+          const up = tileImage(layer, li, L - k, tx >> k, ty >> k, false);
+          if (!up) continue;
+          const part = a.tile / (1 << k);
+          ctx.drawImage(up, (tx - ((tx >> k) << k)) * part, (ty - ((ty >> k) << k)) * part, part, part,
+            sx0, sy0, sx1 - sx0, sy1 - sy0);
+          break;
+        }
+      }
     }
   };
 
@@ -312,5 +412,8 @@ window.RunMap = (function () {
   RunMap.groundAt = groundAt;
   RunMap.terrain = terrain;
   RunMap.terrainReady = terrainReady;
+  RunMap.aerial = aerial;
+  RunMap.aerialReady = aerialReady;   // resolves to aerial.json's content, or null
+  RunMap.aerialLevel = aerialLevel;
   return RunMap;
 })();

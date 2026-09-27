@@ -229,7 +229,13 @@ spot's saved runs" and "Open on the website".
    under the grid, fades it with "UNDERGROUND" while every ghost is 3 m+
    below the ground (caves, endgame), and draws the 12 plane crash sites
    (`PlaneCrashLocations.finalPositions`, HullRef). Heights checked
-   against `Terrain.SampleHeight` at 4 points. Left: 3D (secondary view),
+   against `Terrain.SampleHeight` at 4 points. **Aerial photo layer**
+   (2026-09-27, site only): map.js draws the tiles of `/aerial/` (bake:
+   `scripts/aerial-bake.py`, upload: `FOREST_SITE_ADMIN_TOKEN=... python
+   scripts/aerial-upload.py`) over the relief, Photo / Ground / Relief
+   on the map (remembered per browser; hidden with no `aerial.json`, which
+   answers 204 then); tested with fake tiles only - no real bake uploaded
+   yet. Left: 3D (secondary view),
    caves / endgame sections / overlook (not in the terrain - a mesh dump),
    which plane a save has. Originally: Known (bridge, 2026-09-27, Slot 2): one
    terrain, `Terrain.activeTerrain` = `MainTerrain`,
