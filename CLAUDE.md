@@ -572,13 +572,14 @@ updater. **396 tests.**
 
 ### Pick up here (2026-09-27, v0.24.152 in the game)
 
-**The website is built, not deployed yet** (2026-09-27): `site/` - the
-server, pages, 8 tests, the deploy workflow; decisions, API and *Next* in
-[`docs/website.md`](docs/website.md) - read that first. Waiting on the
-author's one-time VPS setup (`site/deploy/README.md`: Cloudflare record,
-`setup.sh`, three GitHub secrets). Then the plugin side (register +
-upload each finished attempt). The workflow runs on pushes to `site/`,
-`src/Data/`, `community/` and skips the deploy until the secrets exist.
+**The website is live: https://forest.deter.cloud** (2026-09-27):
+`site/` - server, pages, 9 tests; decisions, API and *Next* in
+[`docs/website.md`](docs/website.md) - read that first. Every push to
+`site/`, `src/Data/`, `community/` deploys by itself
+(`.github/workflows/site.yml`; setup and day-to-day in
+`site/deploy/README.md`). **Next: the plugin side** (register + upload
+each finished attempt). Watch a deploy by polling the live page, never
+`api.github.com`.
 
 **v0.24.146-151: the LiveSplit-style splits table** - on screen
 (`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while

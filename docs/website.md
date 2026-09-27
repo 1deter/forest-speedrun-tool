@@ -90,7 +90,7 @@ the starting point; decisions made while building go here too.
   titles - **not the logo image itself**, plus a "not affiliated with
   Endnight" footer (Claude's advice, 2026-09-27).
 
-## What is built (2026-09-27, not deployed yet)
+## What is built (2026-09-27, live at https://forest.deter.cloud)
 
 - `site/ForestSite`: `Store` (SQLite + gzip run files), `Runs` (upload
   rules, community packs from `community/` shipped with the site, the
@@ -112,13 +112,12 @@ the starting point; decisions made while building go here too.
 
 ## Next
 
-1. The author's one-time setup (`site/deploy/README.md`), first deploy.
-2. The plugin side: register once, upload each finished attempt (a
+1. The plugin side: register once, upload each finished attempt (a
    `.foseg` of the segment + that attempt) in the background, a Settings
    switch (on once the site is live - author), show the upload state.
-3. Other runners' PBs as split comparisons in game (`GET /api/spots/{id}`).
-4. A spot submission button in Practice; an admin page instead of curl.
-5. The map: terrain heightmap underlay, then 3D.
+2. Other runners' PBs as split comparisons in game (`GET /api/spots/{id}`).
+3. A spot submission button in Practice; an admin page instead of curl.
+4. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later
 
