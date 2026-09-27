@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.166 - 2026-09-27
+
+- Developer tooling only: no cloud shadows in the map photo capture.
+  Nothing changes in game.
+
 ## v0.24.165 - 2026-09-27
 
 - Developer tooling only: the map photo capture now looks the same across

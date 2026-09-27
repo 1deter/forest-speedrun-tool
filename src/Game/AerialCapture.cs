@@ -43,6 +43,9 @@ namespace ForestOverlay.Game
     //    only (QualitySettings.shadowDistance, re-set by the game every
     //    frame), so any lower and a tile's middle came out darker than its
     //    edges; from 400 m no tile has shadows and all are lit alike.
+    //  - Cloud shadows drift over the ground (Sunshine.OvercastTexture): one
+    //    tile of four came out darker, and fine when taken again. The
+    //    game's own BlankOvercastTexture stands in while capturing.
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
     //
@@ -219,6 +222,8 @@ namespace ForestOverlay.Game
             public float[] Ranges, RangesSmall;
             public float PixelError;
             public readonly List<KeyValuePair<Camera, int>> Hud = new List<KeyValuePair<Camera, int>>();
+            public UnityEngine.Object Sunshine;
+            public object Overcast;
             public bool GodModeWasOn;
             public Vector3 PlayerLoc;
         }
@@ -258,6 +263,15 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < rs.Length; i++) rs[i] = s.RangesSmall[i] * rangeScale;
             }
 
+            Type sunshine = GameBridge.FindGameType("Sunshine");
+            s.Sunshine = sunshine != null ? UnityEngine.Object.FindObjectOfType(sunshine) : null;
+            if (s.Sunshine != null)
+            {
+                s.Overcast = Get(s.Sunshine, "OvercastTexture");
+                object blank = Get(s.Sunshine, "BlankOvercastTexture");
+                if (blank != null) Set(s.Sunshine, "OvercastTexture", blank);
+            }
+
             Terrain t = Terrain.activeTerrain;
             s.PixelError = t.heightmapPixelError;
             t.heightmapPixelError = 1f;
@@ -279,7 +293,8 @@ namespace ForestOverlay.Game
             HoldSun(sunTime);
             if (Log != null)
                 Log.LogInfo("Aerial capture: tile " + F(tile) + " m at " + Screen.height + " px, LOD ranges x" + F(rangeScale)
-                    + ", " + s.Hud.Count + " HUD camera(s) emptied, fog off, sun at " + F(sunTime));
+                    + ", " + s.Hud.Count + " HUD camera(s) emptied, fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
+                    + "sun at " + F(sunTime));
         }
 
         private void Restore()
@@ -310,6 +325,7 @@ namespace ForestOverlay.Game
                     Array.Copy(s.RangesSmall, rs, Math.Min(rs.Length, s.RangesSmall.Length));
                 }
                 if (Terrain.activeTerrain != null) Terrain.activeTerrain.heightmapPixelError = s.PixelError;
+                if (s.Sunshine != null && s.Overcast != null) Set(s.Sunshine, "OvercastTexture", s.Overcast);
                 for (int i = 0; i < s.Hud.Count; i++)
                     if (s.Hud[i].Key != null) s.Hud[i].Key.cullingMask = s.Hud[i].Value;
                 if (!s.GodModeWasOn) DeathHooks.SetGodMode(false);
