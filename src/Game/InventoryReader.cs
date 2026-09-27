@@ -326,8 +326,12 @@ namespace ForestOverlay.Game
 
             if (comp == null)
             {
-                // Fallback for a build where the static is missing or the
-                // player has not spawned yet.
+                // The static exists but is empty: no save loaded (the title).
+                // The scan below then found nothing, at 5-18 ms every tick
+                // there (maks's v0.24.129 log).
+                if (StaticExists()) return;
+
+                // Fallback for a build where the static is missing.
                 Type invType = GameBridge.FindGameType("TheForest.Items.Inventory.PlayerInventory");
                 if (invType == null) return;
 
@@ -342,6 +346,18 @@ namespace ForestOverlay.Game
             _inventory = comp;
             _inventoryType = comp.GetType();
             BindFields();
+        }
+
+        private int _staticExists = -1;   // -1 not checked, 0 no, 1 yes
+
+        private bool StaticExists()
+        {
+            if (_staticExists < 0)
+            {
+                Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                _staticExists = local != null && local.GetField("Inventory", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) != null ? 1 : 0;
+            }
+            return _staticExists == 1;
         }
 
         private void BindFields()

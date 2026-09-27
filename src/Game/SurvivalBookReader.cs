@@ -78,6 +78,10 @@ namespace ForestOverlay.Game
             {
                 if (Time.unscaledTime < _nextSearch) return;
                 _nextSearch = Time.unscaledTime + SearchInterval;
+                // No save loaded, no book: the full scan below was a 12-24 ms
+                // hitch every 5 s at the title (maks's v0.24.129 log), as the
+                // nature guide's was before v0.24.11.
+                if (GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Inventory") as UnityEngine.Object == null) return;
 
                 // The serialisable version is the live one in current builds;
                 // the older type is checked too rather than assuming.

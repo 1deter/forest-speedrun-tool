@@ -15,6 +15,7 @@ namespace ForestOverlay.Modules
     //   2. the survival book's nature guide - animals, birds, fish,
     //      plants, grouped by the book page they are on
     //   3. the survival book's To Do List
+//   4. the passenger manifest - found / missing by seat (Game/PassengerReader)
     //
     // The collection list is DATA (config/ForestOverlay/collectibles), not
     // code, because what counts is an admin decision that will change
@@ -45,6 +46,7 @@ namespace ForestOverlay.Modules
 
         private SurvivalBookReader _book;
         private NatureGuideReader _nature;
+        private PassengerReader _passengers;
         private CollectionList _list;
         private float _nextRefresh;
         private bool _resolved;
@@ -73,6 +75,7 @@ namespace ForestOverlay.Modules
 
             _book = new SurvivalBookReader(ctx.Log);
             _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);
+            _passengers = new PassengerReader(ctx.Log);
             _list = new CollectionList(ctx.Log, ctx.ConfigDirectory);
             _list.WriteReadmeIfMissing();
             _list.Reload();
@@ -90,6 +93,7 @@ namespace ForestOverlay.Modules
 
             _book.Refresh();
             _nature.Refresh();
+            _passengers.Refresh();
 
             // Names resolve once the item catalogue exists, which needs the
             // game loaded - so keep trying until it takes.
@@ -163,6 +167,7 @@ namespace ForestOverlay.Modules
             if (_list.Total > 0) hud.Pair("Items", _list.SeenCount + "/" + _list.Total);
             if (_nature.Entries.Count > 0) hud.Pair("Nature", _nature.TickedCount + "/" + _nature.Entries.Count);
             if (_book.Todo.Count > 0) hud.Pair("Tasks", _book.TodoDone + "/" + _book.Todo.Count);
+            if (_passengers.Seats.Count > 0) hud.Pair("Passengers", _passengers.FoundCount + "/" + _passengers.Seats.Count);
         }
 
         // ------------------------------------------------------------------
@@ -241,6 +246,23 @@ namespace ForestOverlay.Modules
                     n = Add(n, "      " + e.Name + "   -   " + (e.Ticked ? "found" : "not found"),
                             e.Ticked ? 1 : 2);
                 }
+            }
+
+            // --- passengers ------------------------------------------------
+            n = Add(n, "", 0);
+            IList<PassengerSeat> seats = _passengers.Seats;
+            n = Add(n, "PASSENGERS   " + _passengers.FoundCount + "/" + seats.Count, 0);
+            if (seats.Count == 0)
+                n = Add(n, "  " + _passengers.Status, 3);
+            else if (!_passengers.HasManifest)
+                n = Add(n, "  Not carrying the passenger manifest - passengers only count while you have it", 3);
+
+            for (int i = 0; i < seats.Count; i++)
+            {
+                if (seats[i].Found && !_showFound) continue;
+                if (!seats[i].Found && !_showMissing) continue;
+                n = Add(n, "      Seat " + seats[i].Seat + "   -   " + (seats[i].Found ? "found" : "not found"),
+                        seats[i].Found ? 1 : 2);
             }
 
             // --- todo ------------------------------------------------------

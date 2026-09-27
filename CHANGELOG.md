@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.130 - 2026-09-27
+
+- 100% tab: a new **Passengers** section - every seat on the passenger
+  manifest, found or not, with the total (also on the HUD with "show
+  totals on the HUD"). It warns when you are not carrying the manifest:
+  the game only counts a passenger while you have it.
+- No more small hitches every few seconds on the title screen (the 100%
+  and Inventory tabs were searching for a game that was not loaded yet).
+
 ## v0.24.129 - 2026-09-26
 
 - Savestates: no more stray "can't carry any more plane axes / lighters"
