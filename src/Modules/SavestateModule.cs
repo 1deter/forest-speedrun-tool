@@ -347,6 +347,7 @@ namespace ForestOverlay.Modules
             string activeArea = _area.Capture();
             string blueprint = BuildMode.Capture();
             string stance = Stance.Capture();
+            int logs = LogStore.Stored();
             string rope = RopeClimb.Capture();
             string bushes = _nature.CaptureMark();
             List<string> cutBushes = _nature.CaptureCuts();
@@ -373,7 +374,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, logs);
                 if (after != null) after(error);
             }));
         }
@@ -382,7 +383,7 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance, string rope)
+                                  List<string> greebles, string stance, string rope, int logs)
         {
             _busy = false;
             if (!r.Ok)
@@ -415,6 +416,7 @@ namespace ForestOverlay.Modules
                 f.KeypadDoor = keypadDoor;
                 f.Blueprint = blueprint;
                 f.Stance = stance;
+                f.Logs = logs;
                 f.Rope = rope;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
@@ -684,6 +686,7 @@ namespace ForestOverlay.Modules
                 string placeNote = r.Ok && file != null ? PutPlayerBack(file, false) : "";
                 // Toggle crouch outlives the restore (runner sxczurass).
                 string stanceNote = r.Ok && file != null ? Stance.Apply(file.Stance) : "";
+                if (r.Ok && file != null) LogStore.Apply(file.Logs, "Savestate restore " + what);
 
                 // The hands were emptied for the restore; put back what they
                 // held at capture (runner maks: the lighter came back away,
@@ -1187,6 +1190,7 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { panels = "panels: restore failed (" + ex.Message + ")"; }
                     string endgame = EndgameLoader.EnsureLoaded(f.Areas);
                     string stance = Stance.Apply(f.Stance);
+                    LogStore.Apply(f.Logs, "Savestate after the load");
                     Ctx.Log.LogInfo("Savestate after the load: " + _book.Apply(f.Book) +
                                     (panels.Length > 0 ? " | " + panels : "") +
                                     (stance.Length > 0 ? " | " + stance : "") +

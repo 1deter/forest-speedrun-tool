@@ -156,6 +156,10 @@ namespace ForestOverlay.Data
         /// before v0.24.102, and then the stance is left as it is.
         public string Stance = "";
 
+        /// Logs stored by Game/LogStore at capture; -1 when it was off or
+        /// before v0.24.135 (the count is then left as it is).
+        public int Logs = -1;
+
         /// Game/RopeClimb's rope at capture (a scene path); "" when not
         /// on a rope or before v0.24.104.
         public string Rope = "";
@@ -198,6 +202,7 @@ namespace ForestOverlay.Data
             if (KeypadDoor.Length > 0) Line(sb, "keypaddoor", KeypadDoor);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
             if (Stance.Length > 0) Line(sb, "stance", Stance);
+            if (Logs >= 0) Line(sb, "logs", Logs.ToString(CultureInfo.InvariantCulture));
             if (Rope.Length > 0) Line(sb, "rope", Rope);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
@@ -256,6 +261,12 @@ namespace ForestOverlay.Data
                     case "keypaddoor": s.KeypadDoor = value; break;
                     case "blueprint": s.Blueprint = value; break;
                     case "stance": s.Stance = value; break;
+                    case "logs":
+                        {
+                            int n;
+                            if (int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) s.Logs = n;
+                            break;
+                        }
                     case "rope": s.Rope = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":

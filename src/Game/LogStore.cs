@@ -251,11 +251,13 @@ namespace ForestOverlay.Game
                 if (n >= Cap)
                 {
                     __result = false;
+                    Evidence("full at " + n + ", refused");
                     if (Full != null) Full(Cap);
                     return false;
                 }
                 SetLogs(__instance, n + 1);
                 PlayWhoosh();
+                Evidence(n + " -> " + (n + 1));
                 __result = true;
                 return false;
             }
@@ -270,12 +272,48 @@ namespace ForestOverlay.Game
                 int n = Logs(__instance);
                 if (n <= 0) { __result = false; return false; }
                 SetLogs(__instance, n - 1);
+                Evidence(n + " -> " + (n - 1));
                 // The rest of PutDown with nothing taken: the drop (if any)
                 // and the log-count sync.
                 fake = true;
                 return true;
             }
             catch (Exception) { return true; }
+        }
+
+        /// One line per change of the stored count, with who asked -
+        /// pickups, building, holders, a load (gotcha 16). Rare events.
+        private static void Evidence(string what)
+        {
+            try
+            {
+                System.Diagnostics.StackFrame[] frames = new System.Diagnostics.StackTrace(2, false).GetFrames();
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                int shown = 0;
+                for (int i = 0; frames != null && i < frames.Length && shown < 4; i++)
+                {
+                    MethodBase mb = frames[i].GetMethod();
+                    Type t = mb != null ? mb.DeclaringType : null;
+                    if (t == null || t.Namespace == "HarmonyLib" || t == typeof(LogStore)) continue;
+                    if (shown++ > 0) sb.Append(" <- ");
+                    sb.Append(t.Name).Append('.').Append(mb.Name);
+                }
+                _log.LogInfo("Logs in the inventory: stored " + what + " (" + sb + ").");
+            }
+            catch (Exception) { }
+        }
+
+        /// A savestate's stored count, set after its restore (the game's
+        /// own serialization of _logs is not relied on). -1 = not recorded.
+        public static void Apply(int logs, string context)
+        {
+            if (logs < 0 || !_patched || !Resolve()) return;
+            object c = Controller();
+            if (c == null) return;
+            int was = Logs(c);
+            SetLogs(c, Math.Min(logs, Cap));
+            PutHeldAway(c);
+            _log.LogInfo(context + ": logs in the inventory " + was + " -> " + Logs(c) + " (as captured).");
         }
 
         private static bool AmountPrefix(ref int __result) { __result = 0; return false; }

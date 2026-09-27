@@ -181,6 +181,23 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void StoredLogsRoundTripAndAreUnsetInOldFiles()
+        {
+            string error;
+            Assert.Equal(-1, SavestateFile.Parse(Sample().Write(), out error).Logs);
+            Assert.DoesNotContain("\nlogs", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Logs = 0;
+            Assert.Equal(0, SavestateFile.Parse(s.Write(), out error).Logs);
+            s.Logs = 4;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(4, back.Logs);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RopeRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.135 - 2026-09-27
+
+- Logs in the inventory: savestates (Quick and Full load) now bring
+  back the number of stored logs from the capture.
+
 ## v0.24.134 - 2026-09-27
 
 - New gameplay mod, Inventory tab: **Logs in the inventory**. Picked-up
