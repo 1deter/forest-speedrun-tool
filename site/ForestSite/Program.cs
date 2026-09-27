@@ -83,6 +83,11 @@ api.MapGet("/spots/{id}", (string id) =>
 api.MapGet("/spots/{id}/{route}/runner/{runner}", (string id, string route, string runner) =>
     Results.Json(runs.RunnerRuns(id, route, runner))).RequireRateLimiting("read");
 
+// The plugin's comparisons: each runner's best on a route, as text
+// (src/Data/SiteBoard). An unknown spot or route is an empty board.
+api.MapGet("/spots/{id}/{route}/board.txt", (string id, string route) =>
+    Results.Text(runs.BoardText(id, route), "text/plain; charset=utf-8")).RequireRateLimiting("read");
+
 api.MapGet("/runs/{id:long}", (long id) =>
     runs.Run(id) is { } r ? Results.Json(r) : Problem(404, "no such run")).RequireRateLimiting("read");
 

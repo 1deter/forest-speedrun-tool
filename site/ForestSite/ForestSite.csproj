@@ -29,6 +29,8 @@
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
     <Compile Include="../../src/Data/SegmentBundle.cs" Link="Linked/SegmentBundle.cs" />
+    <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
+    <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
   </ItemGroup>
 
   <!-- The community packs ship with the site, as they do in the repo. -->

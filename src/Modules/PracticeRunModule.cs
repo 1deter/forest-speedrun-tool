@@ -26,7 +26,7 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule : OverlayModule
     {
-        public enum Reference { Best, Last, Average, BestSegments }
+        public enum Reference { Best, Last, Average, BestSegments, Runner }
 
         public override string Id { get { return "practicerun"; } }
         public override string DisplayName { get { return "Practice runs"; } }
@@ -253,6 +253,7 @@ namespace ForestOverlay.Modules
             _recorder.Route = _armedRoute;
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
+            MaybeFetchBoard();
             SelectReference();
             ArmSplits();
             _status = "armed: " + _segment.Name;
@@ -584,6 +585,9 @@ namespace ForestOverlay.Modules
                 case Reference.Average:
                     _reference = NearestToAverage();
                     break;
+                case Reference.Runner:   // another runner's PB from the website
+                    _reference = RunnerReference();
+                    break;
             }
         }
 
@@ -764,7 +768,7 @@ namespace ForestOverlay.Modules
             float cw = scrolls ? w - 20f : w;
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
-            float y = 0f;
+            float y = DrawRunnersSection(0f, cw);
             y += UiText.Draw(0, y, cw, _statusText);
             y += UiText.Draw(0, y, cw, _diagnoseText);
             y += UiText.Draw(0, y, cw, _eventText);

@@ -51,6 +51,9 @@ namespace ForestOverlay.Modules
 
         /// The Runs module's current segment and its saved .run texts (for
         /// "Upload saved runs"); set by it.
+        /// The website's address (Practice runs reads other runners' PBs there).
+        public string SiteUrl { get { return _url != null ? _url.Value : null; } }
+
         public Func<Segment> CurrentSegment;
         public Func<List<string>> SavedRunTexts;
         /// Who this install uploads as (the Runs module's runner id / name).

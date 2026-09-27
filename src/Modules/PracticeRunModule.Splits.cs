@@ -219,14 +219,16 @@ namespace ForestOverlay.Modules
                 case Reference.Last: return _stats.LastSplits;
                 case Reference.Average: return _stats.AverageSplits;
                 case Reference.BestSegments: return _stats.BestSegmentSplits;
+                case Reference.Runner: return PickedRunner != null ? PickedRunner.Splits : _stats.PbSplits;
                 default: return _stats.PbSplits;
             }
         }
 
-        private static string ComparisonName(Reference r)
+        private string ComparisonName()
         {
-            switch (r)
+            switch (_referenceKind)
             {
+                case Reference.Runner: return PickedRunner != null ? PickedRunner.Name : "Personal best";
                 case Reference.Last: return "Last run";
                 case Reference.Average: return "Average";
                 case Reference.BestSegments: return "Best segments";
@@ -236,10 +238,16 @@ namespace ForestOverlay.Modules
 
         private void CycleComparison()
         {
-            _referenceKind = (Reference)(((int)_referenceKind + 1) % 4);
-            SelectReference();
+            // Your own four, then each other runner on the website's board.
+            if (_referenceKind == Reference.Runner)
+            {
+                if (_runnerPick + 1 < _others.Count) PickRunner(_runnerPick + 1);
+                else { _referenceKind = Reference.Best; SelectReference(); }
+            }
+            else if (_referenceKind == Reference.BestSegments && _others.Count > 0) PickRunner(0);
+            else { _referenceKind = (Reference)(((int)_referenceKind + 1) % 4); SelectReference(); }
             _splitsDirty = true;
-            if (!TabShowing) Ctx.Notice.Show("Compare to: " + ComparisonName(_referenceKind), 1.5f);
+            if (!TabShowing) Ctx.Notice.Show("Compare to: " + ComparisonName(), 1.5f);
         }
 
         // --- text (Tick) ---------------------------------------------------------
@@ -277,7 +285,7 @@ namespace ForestOverlay.Modules
             }
 
             _summary = SplitTable.Fill(_stats, compare, _times, running, _recorder.Elapsed, _rowsData);
-            _compareTitle.text = _segment.Name + "  -  vs " + ComparisonName(_referenceKind);
+            _compareTitle.text = _segment.Name + "  -  vs " + ComparisonName();
             _splitsHint.text = _stats.Completed == 0 ? "No finished attempts yet: the columns fill in as you run it."
                              : _stats.WithSplits == 0 && rows > 1 ? "Your earlier times were recorded before split times were saved - only their totals show."
                              : "";

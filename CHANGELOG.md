@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.155 - 2026-09-27
+
+- Race other runners: on a timed spot, the Runs tab lists every other
+  runner's best from forest.deter.cloud under "Compare to" (pick one
+  with < >). The splits table, the delta, the ghost and the run lines
+  then race their run. Only runs of the same version of the spot show,
+  and their times never count toward your own PB or best segments.
+- The comparison key now cycles through the other runners too.
+
 ## v0.24.154 - 2026-09-27
 
 - "Upload this spot's saved runs" works with practice mode off too: it

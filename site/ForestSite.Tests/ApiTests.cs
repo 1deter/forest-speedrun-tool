@@ -92,6 +92,30 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task BoardText_EachRunnersBest_ForThePlugin()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A), tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1), RunText(seg, A, 9f, 4.5f, 2)));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9.5f, 3.5f)));
+
+        string url = SiteBoard.Url("", seg.Id, seg.RouteFingerprint());
+        List<BoardEntry> board = SiteBoard.Parse(await _http.GetStringAsync(url));
+        Assert.Equal(2, board.Count);
+        Assert.Equal(A, board[0].RunnerId);
+        Assert.Equal(new[] { 4.5f, 9f }, board[0].Splits);
+        Assert.Equal(B, board[1].RunnerId);
+
+        // The run file behind an entry is an ordinary .run (the ghost).
+        string run = await _http.GetStringAsync(SiteBoard.RunFileUrl("", board[0].RunId));
+        Assert.Equal(9f, AttemptFormat.Parse(run.Split('\n')).Duration, 3);
+
+        // Another route, or no spot at all: an empty board, not an error.
+        Assert.Empty(SiteBoard.Parse(await _http.GetStringAsync(SiteBoard.Url("", seg.Id, "other"))));
+        Assert.Empty(SiteBoard.Parse(await _http.GetStringAsync(SiteBoard.Url("", "s-none", "x"))));
+    }
+
+    [Fact]
     public async Task Upload_ThenBoardShowsEachRunnersBest()
     {
         Segment seg = TestSegment();

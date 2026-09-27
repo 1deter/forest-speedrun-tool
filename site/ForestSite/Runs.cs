@@ -193,6 +193,27 @@ public sealed class Runs
         };
     }
 
+    /// Each runner's best on one route, fastest first, for the plugin's
+    /// comparisons (Data/SiteBoard). Runs under review are left out.
+    public string BoardText(string segmentId, string route)
+    {
+        Segment seg = ParseBlock(Routes(segmentId).FirstOrDefault(x => x.Route == route)?.Block ?? "");
+        int rows = seg.Checkpoints.Count + 1;
+        var entries = new List<BoardEntry>();
+        foreach (var g in RunsOn(segmentId, route).Where(x => !x.Flagged).GroupBy(x => x.Runner))
+        {
+            RunRow best = g.OrderBy(x => x.Duration).First();
+            entries.Add(new BoardEntry
+            {
+                RunId = best.Id, RunnerId = best.Runner, Duration = best.Duration,
+                Name = g.OrderByDescending(x => x.Recorded).First().Name,
+                Splits = SplitStats.SplitsOf(best.AsAttempt(), rows),
+            });
+        }
+        entries.Sort((a, b) => a.Duration.CompareTo(b.Duration));
+        return SiteBoard.Write(entries);
+    }
+
     /// One runner's runs on one route, fastest first.
     public JsonArray RunnerRuns(string segmentId, string route, string runnerId)
     {
