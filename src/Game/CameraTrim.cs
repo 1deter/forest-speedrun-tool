@@ -25,6 +25,20 @@ namespace ForestOverlay.Game
     //    scene camera's texture in any property. So the scene camera is a
     //    leftover: switched off (0.24-0.28 ms a frame), after checking
     //    that the controller's camera and the global are not it.
+    //    Only while the game draws after the grass cameras (v0.24.138):
+    //    the scene camera (depth 0) renders after the controller's (depth
+    //    -1). In frames where nothing else draws - a load, before the main
+    //    camera is up - switching it off leaves the controller's camera the
+    //    last one drawn, and Unity keeps the last camera as its "current"
+    //    one into the next Update. When the controller then rebuilds its
+    //    texture there (`camera.targetTexture = ...`), Unity's
+    //    Camera::SetTargetTextureBuffers writes through the render loop's
+    //    context, null outside rendering: a native crash (the author's death
+    //    reload out of the Megan fight, crash dump symbolised against
+    //    Unity's player PDB; reproduced 2 of 2, gone with this switch off).
+    //    So: switched off only after two scans in a row with another camera
+    //    drawn last (Camera.current in Update = last frame's last camera),
+    //    and back on in the first frame the controller's camera is last.
     //
     // 2. The endgame's plane screen. `Sections/ControlRoom/redcircles/
     //    Camera` renders a diorama (with post-processing) into 'EndPLane',
@@ -90,6 +104,8 @@ namespace ForestOverlay.Game
         public bool CaveGrassOn { get; private set; }
 
         private Camera _grassOff;
+        private Camera _grassBend;      // the controller's camera, when _grassOff was switched off
+        private int _grassCalm;         // scans in a row with another camera drawn last
         private Camera _screenCam;
         private readonly List<RenderOnView> _hooks = new List<RenderOnView>();
         private Type _controllerType;
@@ -125,6 +141,7 @@ namespace ForestOverlay.Game
             if (why.Length > 0) return why;
             GrassOn = true;
             _grassRefusedId = 0;
+            _grassCalm = 0;
             _nextScan = 0f;
             return "";
         }
@@ -264,6 +281,15 @@ namespace ForestOverlay.Game
                     CaveGrassOn = false;
                 }
             }
+            if (_grassOff != null)
+            {
+                try { GuardGrass(); }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Performance: terrain grass camera guard failed: " + ex.Message);
+                    _grassOff = null;
+                }
+            }
             if (!GrassOn && !ScreenOn && !SunOn) return;
             float now = Time.unscaledTime;
             if (now < _nextScan) return;
@@ -280,6 +306,20 @@ namespace ForestOverlay.Game
             }
         }
 
+        // Every frame while the terrain grass camera is off. Camera.current
+        // here is the last camera drawn last frame; the controller's camera
+        // there means nothing drew after it (a load has started) - the scene
+        // camera goes back on so it is drawn last again.
+        private void GuardGrass()
+        {
+            Camera last = Camera.current;
+            if (last != null && last != _grassBend) return;
+            _grassOff.enabled = true;
+            _grassOff = null;
+            _grassCalm = 0;
+            _log.LogInfo("Performance: terrain grass camera back on - nothing drew after the grass cameras (a load); off again once the game draws after them.");
+        }
+
         // ------------------------------------------------------------------
         private void ScanGrass()
         {
@@ -291,6 +331,15 @@ namespace ForestOverlay.Game
                 _grassOff = null;
                 return;
             }
+            // Only while another camera draws after the grass cameras, seen
+            // on two scans in a row (not mid-load).
+            Camera last = Camera.current;
+            if (last == null || last.name == BendCameraName || last.name == GrassCameraName)
+            {
+                _grassCalm = 0;
+                return;
+            }
+            if (++_grassCalm < 2) return;
             Camera[] cams = Camera.allCameras;
             for (int i = 0; i < cams.Length; i++)
             {
@@ -324,6 +373,7 @@ namespace ForestOverlay.Game
             if (usedTex == c.targetTexture) return "the controller draws into its texture";
             if (Shader.GetGlobalTexture("_AfsGrassDisplacementTex") == c.targetTexture) return "the grass reads its texture";
             _grassReadBy = used.name;
+            _grassBend = used;
             return "";
         }
 
