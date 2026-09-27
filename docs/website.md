@@ -115,6 +115,24 @@ each finished timed run is queued on disk and uploaded, on by default;
 the Runs tab's Website section has the switch, the state, "Upload this
 spot's saved runs" and "Open on the website".
 
+## How spots get onto the site (2026-09-27)
+
+- **A runner's own spot** appears by itself under "Runners' spots" with
+  its first uploaded run (the upload carries the segment).
+- **Community spots** (the curated list every plugin fetches): the author
+  approves. Today: Practice -> select -> Share -> Export writes
+  `config/ForestOverlay/shared/<name>.foseg`; copy it into `community/`
+  (an old entry with a `spot.my...` id gets a fresh `s-` id first -
+  `community/README.md`), run `python scripts/community-index.py`, commit
+  and push - CI checks the index, the site redeploys with it, plugins pick
+  it up on their next startup check. Remove `demo-template.foseg` when the
+  first real pack goes in.
+- **Planned** (Next 2): a "Submit to community" button next to Export
+  (`POST /api/submissions`, already on the site), an admin page listing
+  submissions with Approve / Reject; approve still ends as a commit to
+  `community/` (the repo stays the source of truth) - by hand at first,
+  maybe the GitHub API later.
+
 ## Next
 
 1. Other runners' PBs as split comparisons in game (`GET /api/spots/{id}`).
