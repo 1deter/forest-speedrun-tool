@@ -510,6 +510,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one.
 57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player".
 58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB.
+59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared.
 
 ---
 
@@ -561,10 +562,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.140** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.143** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.140 in the game)
+### Pick up here (2026-09-27, v0.24.143 in the game)
 
 **v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
@@ -583,22 +584,19 @@ enough. **maks's crash** (v0.24.129, log ends at the player bind right
 after `terrain grass camera off`) has the same signature - asked to
 update (QA).
 
-**Now: the 26-51 s freeze on a death reload out of the Megan fight**
-(author: "any way to remove the freeze?"). Found with
-`scripts/sample-stacks.py` (samples / stack-walks the live game): the
-main thread is not working, it waits - `AstarPath.OnDestroy` flushes the
-pathfinding work before the old world goes. **A Quick load of the Megan
-start state starts an A* graph update that runs 16-35 s** (bridge: `get
-static:AstarPath active.graphUpdates.IsAnyGraphUpdateInProgress` true,
-`pathProcessor.queue.blocked` true - enemies cannot path meanwhile); a
-death in that window waits for it. A death after it ended reloaded in
-1.6 s; a surface death reload is 1.4 s. Pre-unloading the endgame / cave
-scenes does not help (async unloads cost nothing; the game streams the
-caves back while in the cave state). Next: find who queues that graph
-update during the restore (a logging prefix on `AstarPath.UpdateGraphs`
-/ `AddWorkItem` with the caller and bounds) and why it is so long, then
-decide: avoid queuing it in the restore, or let the reload skip the
-wait. Check whether a natural arrival in the endgame has it too.
+**v0.24.141-143: the 26-51 s freeze on a death reload out of the Megan
+fight is fixed** (checked over the bridge: `AstarPath ... destroyed in
+116 ms`, was 28584 ms; a repeat Quick load 0.65 s, was 31.5 s). Cause:
+after a Quick load the game's pathfinding rebuilt one area covering
+every building on the map (16-60 s in the background: enemies could not
+path, and any load waited for it) - two game merges, game-notes
+*Pathfinding (A\*) and the reload freeze*. Fixes: a restore's
+structures take the load's grouped nav cut (`Game/PathfindingWatch`,
+restore-only), and `NavRemovalOwnArea` (PerfPatches 15, on) - the
+game's removal list is never cleared. `Pathfinding:` log lines name
+every graph update (bounds, caller, duration) and each AstarPath
+teardown's wait. Not checked: a natural arrival / death in the endgame
+with many buildings (should be the game's own grouped route).
 
 **New bug (author, 2026-09-27): a repeat Quick load of the Megan start
 state during the fight leaves the old Megan.** Restored in place while

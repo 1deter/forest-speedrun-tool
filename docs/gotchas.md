@@ -457,3 +457,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     `crash.dmp` name the function - no debugger needed
     (`scripts/symbolize-crash.py`; `scripts/sample-stacks.py` samples or
     stack-walks the live game's threads the same way).
+
+59. **Log the work, not the queue.** A work queue shows what waits, not
+    what runs: `graphUpdateQueue` held the same stale item through three
+    restores (its `_version` never moved) while the real 16-60 s update
+    ran on a thread. A read-only prefix on the enqueue (`AstarPath.UpdateGraphs`:
+    bounds + caller) named it in one launch - one update of 1533 x 1407 m,
+    a game merge across the map - after hours of live reads and IL
+    theories (v0.24.141-143). Also: a game list that is appended to and
+    merged each time must be checked for ever being cleared
+    (`dummyNavBounds` never was).

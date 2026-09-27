@@ -165,3 +165,9 @@ and play on; forcing the controller's camera to be drawn last (every
 other camera off) puts the scene grass camera back - by the tick guard,
 and with that blinded by the Update prefix (`its Update skipped once`) -
 and a forced texture rebuild then runs safely.
+
+- **Death reload freeze out of the Megan fight gone (v0.24.142-143,
+  bridge, 2026-09-27, Slot 2 + `ruben-megan`):** graph updates after a
+  Quick load 0.3-0.6 s (were one 16-60 s update), a repeat Quick load
+  0.65 s (was 31.5 s), `Death (BossWake)` reload waits 116 ms in
+  `AstarPath.OnDestroy` (was 28.6 s), no crash.

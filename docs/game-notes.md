@@ -2190,35 +2190,40 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   `sceneTracker.doStructureBoundsNavRemove` /
   `doGlobalStructureBoundsNavRemove`, `stumpRemove`,
   `RecastTileUpdateHandler`.
-- **Read live 2026-09-27 (v0.24.140):** a Quick load re-creates the
-  `Astar` object (`type AstarPath` gives a new handle after each
-  restore, as does `AiMaster` / `sceneTracker`), so the old one's
-  `OnDestroy` runs inside `LoadNow`: a Quick load started while the
-  previous one's update ran took **31.5 s** (not only death reloads).
-  During the update all 6 path receivers are parked
-  (`pathProcessor.queue.AllReceiversBlocked`), `graphUpdateQueueAsync`
-  is empty (the batch is on the thread), `graphUpdateQueueRegular` holds
-  a `FloodFill`, and `sceneTracker.graphsBeingUpdated` is true.
-  `graphUpdateQueue` holds one waiting GUO at (806.5, 96.1, 627.4) ext
-  (36.8, 22.2, 33.2) after every restore - the bounds of a plane
-  wreck's `collision_hull` collider (Slot 2's site) - but that item is
-  the next one, not the running one. A lone plane cut by hand
-  (`call <collision_hull> gridObjectBlocker.doPlaneNavCut`) finishes
-  in under 1.3 s, so the wreck alone is not the 16-35 s.
-- Structure cuts: `gridObjectBlocker.doNavCut` ->
-  `sceneTracker.doStructureBoundsNavRemove` (one at a time, each waits
-  while `graphsBeingUpdated`; sets `recastGraph.rasterizeColliders =
-  false` first) or `doGlobalStructureBoundsNavRemove` (at load: all
-  structures, then `FlushWorkItems` on the main thread). The recast
-  graph: tiles 60 cells x 0.75 m = 45 m; `rasterizeColliders` true
-  until a structure cut sets it false (it stays false). Ruben's
-  `ruben-megan` save has 5 structures (fires, drying racks).
-  `gridObjectBlocker.OnDisable` / `OnDestroy` queue nothing.
-- v0.24.141 `Game/PathfindingWatch` logs `Pathfinding: graph update
-  queued (+t s) at <centre> size <size>, from <caller>`, `graph updates
-  done N s after the first of M queued`, and `AstarPath #id destroyed
-  in N ms (a graph update was running ...)` - read those after a Quick
-  load of `ruben-megan` to name the long update.
+- **Solved 2026-09-27 (v0.24.141-143, `Game/PathfindingWatch` lines).**
+  The long update was ONE graph update of **1533 x 81 x 1407 m** from
+  `sceneTracker.doStructureBoundsNavRemove`: a Quick load re-creates the
+  save's structures; `gridObjectBlocker.Start` sees
+  `Scene.FinishGameLoad` and registers without
+  `doingOnGameStartCheck`, so each structure takes the one-at-a-time
+  route, which merges every structure waiting at that moment
+  (`currentNavStructures`) into one box - across the map for Ruben's 5
+  fires / drying racks. A load sets `doingOnGameStartCheck`
+  (`loadGameNavSetup`, written nowhere else) -> `doNavCut` takes
+  `doGlobalStructureBoundsNavRemove`, which groups structures within
+  100 m (`sqrMagnitude < 10000`), one update per group, then
+  `FlushWorkItems` on the main thread. v0.24.142: during an in-place
+  restore (+2 s) `Start` takes its load branch -> 5 small updates, 0.6 s.
+- Second source: `setupNavRemoveRoot.OnDestroy` (added by `doNavCut` to
+  structures, and on the plane wreck) -> `sceneTracker.startDummyNavRemove`
+  adds the bounds to `dummyNavBounds`, waits 7 s, spawns
+  `dummyRootNavRemove` -> `navRemoveRoot.doRootNavRemove` ->
+  `startRemove` (0.5 s) -> one update over ALL of `dummyNavBounds`.
+  **The game never clears `dummyNavBounds`** (only
+  `dummyNavStructures`): every removal re-covers every earlier one. The
+  old wreck our restore removes after a cross-save restore merged both
+  wreck sites: 988 x 930 m, 16.2 s. v0.24.143 PerfPatches 15
+  `NavRemovalOwnArea` clears the list when no batch is gathering.
+- Result (bridge, Slot 2 + `ruben-megan`): every graph update after a
+  Quick load <= 0.6 s; a repeat Quick load 0.65 s (was 31.5 s); a death
+  in the Megan fight (`Death (BossWake)`): `AstarPath ... destroyed in
+  116 ms` (was 28584 ms), biggest hitch 1.6 s - the surface reload's.
+- A Quick load does **not** re-create `AstarPath` (one `awake` line per
+  launch). `graphUpdates.graphUpdateQueue` keeps the next GUO waiting
+  while a batch runs on the thread; the running one is not readable -
+  log the enqueue (bounds + caller) instead. A lone wreck cut
+  (`call <collision_hull> gridObjectBlocker.doPlaneNavCut`) takes
+  < 1.3 s; the recast graph's tiles are 45 m (60 cells x 0.75 m).
 - Scene unloads by themselves are cheap: `UnloadSceneAsync` of
   `endgame_streaming`, `endgame_animPrefabs` and the six cave prop
   scenes cost no hitch; in the cave state the game streams the cave
