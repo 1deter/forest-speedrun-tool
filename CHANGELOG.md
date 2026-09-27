@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.152 - 2026-09-27
+
+- Dragging the splits panel to the left edge of the screen now stops
+  there, flush with the edge, instead of jumping to the right side.
+
 ## v0.24.151 - 2026-09-27
 
 - **Time precision** for the splits (Splits options): 0 to 3 decimal

@@ -368,7 +368,10 @@ namespace ForestOverlay.Modules
             float h = PanelHeight(w);
             float px = _dragging ? _dragX : _panelX.Value;
             float py = _dragging ? _dragY : _panelY.Value;
-            float x = px < 0f ? Screen.width - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
+            // PanelX < 0 means "against the right edge" - but only as a
+            // saved setting: a drag past the left edge must stop at 0, not
+            // read as that and jump right (author, v0.24.151, windowed).
+            float x = px < 0f && !_dragging ? Screen.width - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
             float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
             Rect panel = new Rect(x, y, w, h);
 
@@ -408,8 +411,8 @@ namespace ForestOverlay.Modules
                     break;
                 case EventType.MouseDrag:
                     if (!_dragging) return;
-                    _dragX = e.mousePosition.x - _dragOffset.x;
-                    _dragY = e.mousePosition.y - _dragOffset.y;
+                    _dragX = Mathf.Max(0f, e.mousePosition.x - _dragOffset.x);
+                    _dragY = Mathf.Max(0f, e.mousePosition.y - _dragOffset.y);
                     e.Use();
                     break;
                 case EventType.MouseUp:
