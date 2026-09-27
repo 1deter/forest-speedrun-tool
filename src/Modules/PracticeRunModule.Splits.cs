@@ -84,6 +84,24 @@ namespace ForestOverlay.Modules
         // from Tick when the options open; null = not filled yet.
         private string _runnerEdit;
         private string _steamName;
+
+        // A config write saves the whole file (86 ms measured, bridge
+        // 2026-09-27): the slider and the name field would hitch on every
+        // step / keystroke. They hold their value here and write once,
+        // half a second after the last change (FlushSplitSettings, Tick).
+        private float _opacityNow = -1f;       // < 0 = the config's value
+        private string _pendingName;           // null = nothing to write
+        private bool _opacityPending;
+        private float _writeAt;
+
+        private float Opacity { get { return _opacityNow >= 0f ? _opacityNow : _panelOpacity.Value; } }
+
+        private void FlushSplitSettings()
+        {
+            if ((!_opacityPending && _pendingName == null) || Time.unscaledTime < _writeAt) return;
+            if (_opacityPending) { _panelOpacity.Value = _opacityNow; _opacityPending = false; }
+            if (_pendingName != null) { _runnerName.Value = _pendingName; _pendingName = null; }
+        }
         private readonly GUIContent _splitsHint = new GUIContent("");
         private int _shownRows;
         private bool _splitsOptionsOpen;
@@ -124,7 +142,7 @@ namespace ForestOverlay.Modules
 
         private string RunnerNameNow()
         {
-            string typed = _runnerName.Value != null ? _runnerName.Value.Trim() : "";
+            string typed = _pendingName ?? (_runnerName.Value != null ? _runnerName.Value.Trim() : "");
             if (typed.Length > 0) return typed;
             string steam = RunnerIdentity.SteamName();
             return steam ?? "";
@@ -149,9 +167,27 @@ namespace ForestOverlay.Modules
 
         private int SplitRows { get { return _segment == null ? 0 : _segment.Checkpoints.Count + 1; } }
 
-        /// Before a run: stats from the attempts so far, no times yet.
+        // Which segment + route the stats were built for.
+        private string _statsKey = "";
+
+        /// On arming (a restart, auto-restart, Go): the last run's times
+        /// stay on screen until the next run's clock starts (author,
+        /// 2026-09-27: "so you can skim through your times once you've
+        /// finished a run"), as LiveSplit keeps them until a reset. Only a
+        /// different segment or route clears them now.
+        private void ArmSplits()
+        {
+            string key = _segment == null ? "" : _segment.Id + "|" + _armedRoute + "|" + SplitRows;
+            if (_stats == null || key != _statsKey) ResetSplits();
+            else _splitsDirty = true;
+        }
+
+        /// When a run starts (and on a new segment): stats from every
+        /// attempt so far - golds are judged against the ones before this
+        /// run - and no times yet.
         private void ResetSplits()
         {
+            _statsKey = _segment == null ? "" : _segment.Id + "|" + _armedRoute + "|" + SplitRows;
             int rows = SplitRows;
             _stats = rows > 0 ? SplitStats.Build(_attempts, rows - 1) : null;
             if (_times.Length != rows) _times = new float[rows];
@@ -207,6 +243,7 @@ namespace ForestOverlay.Modules
 
         private void RefreshSplits()
         {
+            FlushSplitSettings();
             bool running = _recorder.State == RunRecorder.RunState.Running;
             if (!_splitsDirty && !(running && Time.unscaledTime >= _nextSplitText)) return;
             if (!_splitsDirty && !TabShowing && !PanelShowing) return;
@@ -222,7 +259,7 @@ namespace ForestOverlay.Modules
                     _runnerEdit = typed.Length > 0 ? typed : (_steamName ?? "");
                 }
                 _panelSizeText.text = "width " + Mathf.RoundToInt(_panelWidth.Value) + " px, " + _panelRows.Value + " rows";
-                _opacityText.text = Mathf.RoundToInt(_panelOpacity.Value * 100f) + "%";
+                _opacityText.text = Mathf.RoundToInt(Opacity * 100f) + "%";
             }
 
             int rows = SplitRows;
@@ -270,7 +307,7 @@ namespace ForestOverlay.Modules
             _lineValues[(int)Line.Pace].text = SplitTable.Time(_summary.CurrentPace);
             _lineValues[(int)Line.Save].text = SplitTable.Time(_summary.PossibleSave);
             _lineValues[(int)Line.Pb].text = SplitTable.Time(_summary.Pb);
-            _lineValues[(int)Line.Attempts].text = _stats.Completed.ToString();
+            _lineValues[(int)Line.Attempts].text = _attempts.Count.ToString();   // counts the run just finished too
         }
 
         // --- drawing ---------------------------------------------------------------
@@ -333,7 +370,7 @@ namespace ForestOverlay.Modules
 
             // Opacity on the background only: the text stays readable.
             Color before = GUI.color;
-            GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(_panelOpacity.Value));
+            GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Opacity));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
             if (_dragging) GUI.Box(panel, GUIContent.none);   // an outline while moving
@@ -496,8 +533,14 @@ namespace ForestOverlay.Modules
             y += 26f;
             GUI.Label(new Rect(0, y, 110, 20), "Background");
             float sliderW = Mathf.Max(80f, w - 184f);
-            float op = GUI.HorizontalSlider(new Rect(114, y + 5, sliderW, 16), _panelOpacity.Value, 0f, 1f);
-            if (Mathf.Abs(op - _panelOpacity.Value) > 0.004f) { _panelOpacity.Value = Mathf.Round(op * 100f) / 100f; _splitsDirty = true; }
+            float op = GUI.HorizontalSlider(new Rect(114, y + 5, sliderW, 16), Opacity, 0f, 1f);
+            if (Mathf.Abs(op - Opacity) > 0.004f)
+            {
+                _opacityNow = Mathf.Round(op * 100f) / 100f;
+                _opacityPending = true;
+                _writeAt = Time.unscaledTime + 0.5f;
+                _splitsDirty = true;
+            }
             GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
             y += 26f;
             GUI.Label(new Rect(0, y, 110, 20), "Width / rows");
@@ -518,7 +561,8 @@ namespace ForestOverlay.Modules
                     // The Steam name (or nothing) is stored as "", so the
                     // name follows a Steam rename; anything else is kept.
                     string t = typed.Trim();
-                    _runnerName.Value = t.Length == 0 || t == _steamName ? "" : t;
+                    _pendingName = t.Length == 0 || t == _steamName ? "" : t;
+                    _writeAt = Time.unscaledTime + 0.5f;
                 }
             }
             y += 26f;

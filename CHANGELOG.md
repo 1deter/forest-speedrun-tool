@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.150 - 2026-09-27
+
+- **Your last run stays on the splits** after it finishes, through the
+  restart (auto-restart too), so you can read your times and deltas.
+  They clear when the next run's clock starts; golds and your personal
+  best update at that moment, as in LiveSplit.
+- The opacity slider and the runner name no longer cause a small hitch
+  while you move / type: the setting is saved once you stop.
+
 ## v0.24.149 - 2026-09-27
 
 - **Move the splits panel by dragging it** with the mouse while the

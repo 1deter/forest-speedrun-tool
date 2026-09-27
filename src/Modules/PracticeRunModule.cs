@@ -228,7 +228,7 @@ namespace ForestOverlay.Modules
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             SelectReference();
-            ResetSplits();
+            ArmSplits();
             _status = "armed: " + _segment.Name;
         }
 
@@ -376,6 +376,7 @@ namespace ForestOverlay.Modules
         {
             _recorder.ForceStart(pos);
             _sequence.Begin(_segment.Checkpoints, _segment.End);
+            ResetSplits();   // the last run's times stay up until now
         }
 
         // What an item trigger reads now - the log line a "checkpoint never
@@ -483,7 +484,7 @@ namespace ForestOverlay.Modules
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
-            ResetSplits();
+            _splitsDirty = true;
         }
 
         private void LeaveLevel()
