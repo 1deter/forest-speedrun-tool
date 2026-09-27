@@ -144,3 +144,9 @@ move to the store on switching on, a real `PickUp.Collect` stores one, the
 cap refuses with a notice, the axe equips with a full store,
 `RemoveItem(78)` takes from the store, off puts 2 back in the arms and
 drops the rest, Quick and Full load give back the captured count.
+
+Freecam with the game's lighting (v0.24.136, bridge, released build):
+the flown view keeps fog, shadows and post-processing (screenshots on /
+flown / outside / off); `PlayerCamLocation.PlayerLoc` and the Grabber
+stay at the player; off puts the camera's local pose, its 6 children and
+both paused scripts back. WASD / mouse flying not driven by hand yet.

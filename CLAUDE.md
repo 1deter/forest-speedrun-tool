@@ -556,17 +556,19 @@ identity.
 
 ## Current status
 
-**Released: v0.24.135** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.136** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.135 in the game)
+### Pick up here (2026-09-27, v0.24.136 in the game)
 
 **Two sessions run side by side (author, 2026-09-27):** one on FPS
 performance and patches (everything under *Raw FPS* below), one on the
-rest. Logs in the inventory is done (v0.24.134-135, *This session*); a
-non-FPS session picks up *Next, in this order* 3 (Quick load physics,
-waiting on maks) or 4 (Next up 8, freecam lighting), and watches maks's
-crash answer and the logs QA answers. Both release: **`git fetch` and check `HEAD..origin/main`
+rest. Logs in the inventory (v0.24.134-135) and freecam lighting
+(v0.24.136, Next up 8) are done; a non-FPS session picks up *Next, in
+this order* 3 (Quick load physics - maks reminded 2026-09-27, QA message
+`1553725259579002942`, of it, his crash folder and the rope list) or
+Next up 9 (LiveSplit import), and watches maks's answers and the logs QA
+answers. Both release: **`git fetch` and check `HEAD..origin/main`
 before bumping the version**, and read `qa_read new_only` as shared -
 a message one session reads is gone from the other's new list (tell the
 author what belongs to the other session). The author prefers **direct
@@ -1115,9 +1117,8 @@ list so we can move onto expanding more features".
    - ~~Logs in the inventory~~ done (v0.24.134-135, `Game/LogStore`;
      QA on the sled / repairs pending).
    - God mode: done (v0.24.101, Deaths tab).
-8. **Freecam keeps the game's lighting.** Freecam goes darker (author);
-   `CopyFrom` does not copy the game camera's image effects - dump the main
-   camera's components first.
+8. ~~Freecam keeps the game's lighting~~ done (v0.24.136: flies the
+   game's own camera; `FreeCamBehaviour` in `Game/DebugDraw`).
 9. **LiveSplit split file import** (`.lss`/`.lsl`) plus HUD / layout
    customisation; the author's autosplitter is the reference (memory
    `autosplitter-repo`).
