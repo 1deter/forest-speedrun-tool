@@ -49,6 +49,8 @@ dotnet build tools/BridgeMcp -c Release
 
 ```bash
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
+python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
+python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
 ```
 
 Deploy fails with "user-mapped section open" if the game is running. **Do not

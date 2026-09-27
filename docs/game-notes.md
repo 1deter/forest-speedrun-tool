@@ -2137,6 +2137,64 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   author's quality level 0 does not (`Sunshine Cascade Camera 0` x0/f).
   Measure at their quality level before judging shadows.
 
+## The grass-bending cameras and Unity's "current" camera (dump + IL + bridge, v0.24.138-140)
+
+- `AfsSetupAndSkin` carries the one `AfsGrassDisplacementController`
+  (A* is unrelated). `Awake` -> `CreateComponents` makes
+  `AFSGrassDisplacementCameraTest` at runtime (depth = main - 1 = -1),
+  unless `GameObject.Find` already finds one. `createDisplacementTexture`
+  runs before the camera is made, so it sets the texture on whatever
+  `DisplacementCamera` held then - the scene's
+  `_TerrainEtc_/AFSGrassDisplacementCamera` (depth 0) keeps an unnamed
+  runtime texture nothing reads (why `TerrainGrassCameraOff` exists).
+- `Update` rebuilds the texture when `DisplacementCamera.targetTexture`
+  or `DisplacementTexture` reads null (or `RenderTexSize` changed;
+  nothing writes it, the scene has `_128`) and sets
+  `camera.targetTexture` again. It happens around a load's activation.
+- Unity 5.6 keeps the last camera drawn as its current camera until the
+  next render (`Camera.current` in `Update` = last frame's last camera:
+  `ActionIconCamera` in play, `CameraGhostTint` on the title screen).
+  `Camera::SetTargetTextureBuffers` (TheForest.exe RVA 0x1cfb60): an
+  enabled camera that is the current one and had a target, given a new
+  target, writes it into the render loop's context
+  (`GetRenderManager()+8`, then `+0xf8`) - null outside rendering: the
+  access violation at `+0x1bd`. So setting `targetTexture` on the current
+  camera outside rendering crashes; only order of cameras decides it.
+- Symbols: `TheForest.exe` is Unity's `player_win_x64.pdb`, GUID+age
+  `4A35955D96D04F0A89A4669DC0C913D11`, on symbolserver.unity3d.com
+  (`scripts/symbolize-crash.py`, cached in
+  `%LOCALAPPDATA%\ForestOverlay\symbols`).
+
+## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
+
+- A* Pathfinding Project 3.8.4 (`AstarPath.Version`, branch
+  `rvo_fix_Pro`), one `Astar` object; 6 path threads
+  (`pathProcessor.queue.numReceivers`), a graph-update thread
+  (`graphUpdates.graphUpdateThread`).
+- `AstarPath.OnDestroy` (the old world going, any scene load):
+  `BlockUntilPathQueueBlocked` (Block, then `Thread.Sleep(1)` until all
+  receivers park), `FlushWorkItemsInternal(false)`, terminate receivers,
+  `GraphUpdateProcessor.DisableMultithreading` (`Join(5000)`),
+  `PathProcessor.JoinThreads` (`Join(50)` each, then Abort), return
+  paths, destroy graphs. It waits for work in flight.
+- A Quick load of the Megan-fight start state (`ruben-megan`) starts a
+  graph update 2 s after the restore that runs 16-35 s
+  (`graphUpdates.IsAnyGraphUpdateInProgress` true, one
+  `graphUpdateQueue` item, `pathProcessor.queue.blocked` true - no
+  paths meanwhile). A death in that window: the reload's one frame waits
+  for it (26-51 s, main thread in a managed wait, one other thread busy
+  in managed code; `scripts/sample-stacks.py --snapshot`). After it:
+  1.6 s. Source not found yet; no `DynamicGridObstacle` /
+  `GraphUpdateScene` in the world. `UpdateGraphs` callers in the game:
+  `gridObjectBlocker` nav cuts, `navRemoveRoot` / `navRemoveReceiver`,
+  `sceneTracker.doStructureBoundsNavRemove` /
+  `doGlobalStructureBoundsNavRemove`, `stumpRemove`,
+  `RecastTileUpdateHandler`.
+- Scene unloads by themselves are cheap: `UnloadSceneAsync` of
+  `endgame_streaming`, `endgame_animPrefabs` and the six cave prop
+  scenes cost no hitch; in the cave state the game streams the cave
+  scenes straight back.
+
 ## The game ships a debug console — 256 methods
 
 `TheForest.DebugConsole` (static `Instance`, `_availableConsoleMethods`) is a
