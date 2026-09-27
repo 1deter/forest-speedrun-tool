@@ -559,34 +559,51 @@ identity.
 
 ## Current status
 
-**Released: v0.24.139** (2026-09-27). The author runs it via the in-game
+**Released: v0.24.140** (2026-09-27). The author runs it via the in-game
 updater. **384 tests.**
 
-### Pick up here (2026-09-27, v0.24.139 in the game)
+### Pick up here (2026-09-27, v0.24.140 in the game)
 
-**v0.24.138-139 (this session): the native crash is fixed.** The author's
+**v0.24.138-140 (this session): the native crash is fixed.** The author's
 death reload out of the Megan fight (`Death (BossWake)`, Reload save on
 death) crashed in Unity's `Camera::SetTargetTextureBuffers` (dump
 symbolised with Unity's player PDB - `scripts/symbolize-crash.py`,
 gotcha 58): `TerrainGrassCameraOff` (PerfPatches 10, on by default since
 v0.24.116) left the grass controller's camera the last one drawn in load
 frames, and the controller's texture rebuild then crashed. Reproduced 4
-of 4 (v0.24.137-138), gone with switch 10 off; v0.24.139 guards the
-controller's `Update` with a prefix (log line `terrain grass camera back
-on - ...`), proven by forcing the state over the bridge, and the Megan
-death reload passed twice. **maks's crash** (v0.24.129, log ends at the
-player bind right after `terrain grass camera off`) has the same
-signature - ask him to update and say if it happens again. v0.24.138
-alone is not enough (still crashed).
+of 4 (v0.24.137-138) and once on v0.24.139; gone with switch 10 off.
+v0.24.140's prefix skips the controller's `Update` whenever its camera
+is `Camera.current` (log `grass controller's Update skipped while its
+camera is Unity's current one`) - seen acting in the exact state that
+crashed v0.24.139, and the reload carried on. v0.24.138 (guard in our
+tick only) and v0.24.139 (prefix that checked "still off") were not
+enough. **maks's crash** (v0.24.129, log ends at the player bind right
+after `terrain grass camera off`) has the same signature - asked to
+update (QA).
 
-**Now: the 26-37 s freeze on a death reload out of the endgame**
-(author, 2026-09-27: "any way to remove the freeze?"). One frame from
-the scene switch to `ForestMain_v08 loaded`; the same reload from the
-surface is 1.4 s, and it is 26 s with every Performance switch off - the
-game's own teardown of 9 scenes (endgame_streaming, endgame_animPrefabs,
-6 cave prop scenes, main). Next: time an async unload of the endgame /
-cave scenes before `Resume()` (bridge: restore `ruben-megan`, unload,
-read `Load timing:`), then decide with the author.
+**Now: the 26-51 s freeze on a death reload out of the Megan fight**
+(author: "any way to remove the freeze?"). Found with
+`scripts/sample-stacks.py` (samples / stack-walks the live game): the
+main thread is not working, it waits - `AstarPath.OnDestroy` flushes the
+pathfinding work before the old world goes. **A Quick load of the Megan
+start state starts an A* graph update that runs 16-35 s** (bridge: `get
+static:AstarPath active.graphUpdates.IsAnyGraphUpdateInProgress` true,
+`pathProcessor.queue.blocked` true - enemies cannot path meanwhile); a
+death in that window waits for it. A death after it ended reloaded in
+1.6 s; a surface death reload is 1.4 s. Pre-unloading the endgame / cave
+scenes does not help (async unloads cost nothing; the game streams the
+caves back while in the cave state). Next: find who queues that graph
+update during the restore (a logging prefix on `AstarPath.UpdateGraphs`
+/ `AddWorkItem` with the caller and bounds) and why it is so long, then
+decide: avoid queuing it in the restore, or let the reload skip the
+wait. Check whether a natural arrival in the endgame has it too.
+
+**New bug (author, 2026-09-27): a repeat Quick load of the Megan start
+state during the fight leaves the old Megan.** Restored in place while
+the fight ran (1.1 s restore): `body candidates ... girlMutant(Clone)
+x2`; the transformation was fast-forwarded on one, the other sat on the
+floor untransformed, and the boss charged. `MeganKeeper` /
+`BossHold` should clear the running fight's Megan first.
 
 **Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
 checked over the bridge; Ruben asked to confirm (QA). Next after the

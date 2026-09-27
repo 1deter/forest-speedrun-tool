@@ -156,7 +156,9 @@ released build, Ruben's Megan-fight start state in Slot 2): `deleted 0`,
 `kept 54 inventory view object(s)`, no duplicate views; the inventory
 opens and closes (our close and the game's toggle), timeScale back to 1.
 
-Death reload out of the Megan fight without the crash (v0.24.139,
+Death reload out of the Megan fight without the crash (v0.24.140: the
+controller's Update skipped in the exact state that crashed v0.24.139,
+reload carried on; earlier, v0.24.139,
 bridge, released build, the author's switches, Ruben's `ruben-megan`
 state in Slot 2): two BossWake reloads (one the author's own death) load
 and play on; forcing the controller's camera to be drawn last (every
