@@ -105,6 +105,9 @@ namespace ForestOverlay.Game
                     }
                 }
 
+                // The game's order is arbitrary ("8C", "1A", "7B"...); row then letter.
+                _seats.Sort(CompareSeats);
+
                 int item = (int)_itemId.GetValue(_manifest);
                 HasManifest = _owns != null && (bool)_owns.Invoke(inv, new object[] { item, true });
                 Status = FoundCount + "/" + seats + " found";
@@ -113,6 +116,21 @@ namespace ForestOverlay.Game
             {
                 Status = "passengers: read failed (" + (ex.InnerException ?? ex).Message + ")";
             }
+        }
+
+        private static int CompareSeats(PassengerSeat a, PassengerSeat b)
+        {
+            int ra = Row(a.Seat), rb = Row(b.Seat);
+            if (ra != rb) return ra.CompareTo(rb);
+            return string.CompareOrdinal(a.Seat, b.Seat);
+        }
+
+        // The leading number of a seat name ("11E" -> 11); names without one last.
+        private static int Row(string seat)
+        {
+            int row = 0, i = 0;
+            while (seat != null && i < seat.Length && seat[i] >= '0' && seat[i] <= '9') row = row * 10 + (seat[i++] - '0');
+            return i == 0 ? int.MaxValue : row;
         }
 
         private bool Resolve()

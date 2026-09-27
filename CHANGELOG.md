@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.131 - 2026-09-27
+
+- 100% tab: passenger seats are listed in order (1A, 1B, ... 11E), like
+  the paper manifest.
+
 ## v0.24.130 - 2026-09-27
 
 - 100% tab: a new **Passengers** section - every seat on the passenger
