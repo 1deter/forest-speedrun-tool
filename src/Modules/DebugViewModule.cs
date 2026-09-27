@@ -110,6 +110,14 @@ namespace ForestOverlay.Modules
             _aerial = _host.AddComponent<AerialCapture>();
             AerialCapture.Log = Ctx.Log;
             _aerial.SetOverlayUi = on => { if (Host != null) Host.UiVisible = on; };
+            _aerial.PlayerPosition = () => Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
+            _aerial.MovePlayer = to =>
+            {
+                Ctx.Bridge.SyncCaveState(to);
+                bool moved = Ctx.Player.MoveTo(to, Ctx.Player.Transform.rotation);
+                Ctx.Bridge.EndFall();
+                return moved;
+            };
             FrameTimer.Install(_host);
             FrameTimer.Log = Ctx.Log;
             RenderProbe.Log = Ctx.Log;

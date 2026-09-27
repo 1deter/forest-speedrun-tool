@@ -20,9 +20,13 @@ namespace ForestOverlay.Game
     //
     // What makes a tile look like the game (bridge, 2026-09-27; game-notes
     // *Aerial capture*):
-    //  - Detail follows PlayerCamLocation.PlayerLoc (LOD_Settings.GetLOD
-    //    measures from it), not the camera, and the script that writes it is
-    //    paused by the freecam - so each tile sets it to its own centre.
+    //  - Detail follows the player twice over: which LOD an object shows is
+    //    measured from PlayerCamLocation.PlayerLoc (LOD_Settings.GetLOD; the
+    //    script that writes it is paused by the freecam), and whether it is
+    //    looked at at all follows the real player (with PlayerLoc alone, a
+    //    tile 500 m from the player came out bare, the ground in its glossy
+    //    far shading). So the player is moved to each tile's centre and
+    //    PlayerLoc set there; he goes back where he stood at the end.
     //  - LOD ranges (trees mid 115 m, small bushes 60 m, pickups 80 m) come
     //    from LOD_Manager's RangeMultiplierPerQuality(Small) x an fps-based
     //    quality, recomputed every frame: the multipliers are raised and the
@@ -31,6 +35,14 @@ namespace ForestOverlay.Game
     //  - The atmosphere's fog (Visibility ~1 km) is overridden; the sun is
     //    held at TimeOfDay 320 (from the west, ~40 degrees up): overhead,
     //    the terrain's specular turns every slope to glare.
+    //  - The camera culls layers by distance (Default 85 m, pickups 100,
+    //    small props 120, bushes 300, trees 487 - layerCullDistances,
+    //    re-written by CullDistanceManager.Update every frame): set to 0 (=
+    //    the far plane) after Update, right before each captured frame. The camera sits 400 m above the
+    //    tile's highest ground: shadows are drawn within ~200 m of the camera
+    //    only (QualitySettings.shadowDistance, re-set by the game every
+    //    frame), so any lower and a tile's middle came out darker than its
+    //    edges; from 400 m no tile has shadows and all are lit alike.
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
     //
@@ -49,6 +61,10 @@ namespace ForestOverlay.Game
 
         /// Set by the module: hides / shows the overlay's own UI.
         public Action<bool> SetOverlayUi;
+
+        /// Set by the module: moves the player (the bridge's tp).
+        public Func<Vector3, bool> MovePlayer;
+        public Func<Vector3> PlayerPosition;
 
         private Coroutine _run;
         private bool _stop;
@@ -96,6 +112,7 @@ namespace ForestOverlay.Game
             float started = Time.realtimeSinceStartup;
 
             Apply(cam, tile, rangeScale, sunTime);
+            Vector3 home = PlayerPosition != null ? PlayerPosition() : Vector3.zero;
             try
             {
                 // Settle the raised ranges once before the first tile.
@@ -111,8 +128,9 @@ namespace ForestOverlay.Game
                         if (hi < Sea - 3f) { skipped++; continue; }   // open sea
 
                         float ground = terrain.SampleHeight(new Vector3(cx, 0f, cz)) + terrain.transform.position.y;
+                        if (MovePlayer != null) MovePlayer(new Vector3(cx, Mathf.Max(ground, Sea) + 1f, cz));
                         SetPlayerLoc(new Vector3(cx, ground + 1.8f, cz));
-                        float top = hi + 120f;
+                        float top = hi + 400f;
                         freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
                         cam.nearClipPlane = 1f;
                         cam.farClipPlane = top - lo + 60f;
@@ -120,7 +138,12 @@ namespace ForestOverlay.Game
                         Status = "tile " + (ix + 1) + "," + (iz + 1) + " of " + nx + "x" + nz + " (" + done + " saved, " + skipped + " sea)";
 
                         float until = Time.realtimeSinceStartup + settle;
-                        while (Time.realtimeSinceStartup < until) yield return null;
+                        while (Time.realtimeSinceStartup < until)
+                        {
+                            HoldSun(sunTime);   // the clock runs
+                            yield return null;
+                        }
+                        cam.layerCullDistances = new float[32];
 
                         cam.cullingMask = _saved.CullingMask;
                         yield return new WaitForEndOfFrame();
@@ -128,6 +151,7 @@ namespace ForestOverlay.Game
 
                         cam.cullingMask = _saved.CullingMask & ~(1 << TreeLayer);
                         yield return null;
+                        cam.layerCullDistances = new float[32];   // CullDistanceManager.Update re-set them
                         yield return new WaitForEndOfFrame();
                         Save(read, px, Path.Combine(Path.Combine(dir, "ground"), ix + "_" + iz + ".jpg"));
                         cam.cullingMask = _saved.CullingMask;
@@ -141,6 +165,7 @@ namespace ForestOverlay.Game
             }
             finally
             {
+                if (MovePlayer != null && home != Vector3.zero) MovePlayer(home);
                 File.WriteAllText(Path.Combine(dir, "tiles.txt"), index.ToString());
                 UnityEngine.Object.Destroy(read);
                 Restore();
@@ -185,6 +210,7 @@ namespace ForestOverlay.Game
             public bool Orthographic;
             public float OrthoSize, Near, Far;
             public int CullingMask;
+            public float[] CullDistances;
             public object Atmosphere;
             public bool OverrideVisibility;
             public float Visibility, FogStart;
@@ -203,8 +229,10 @@ namespace ForestOverlay.Game
             s.Camera = cam;
             s.Orthographic = cam.orthographic; s.OrthoSize = cam.orthographicSize;
             s.Near = cam.nearClipPlane; s.Far = cam.farClipPlane; s.CullingMask = cam.cullingMask;
+            s.CullDistances = cam.layerCullDistances;
             cam.orthographic = true;
             cam.orthographicSize = tile / 2f;
+            cam.layerCullDistances = new float[32];
 
             s.Atmosphere = StaticGet("TheForestAtmosphere", "Instance");
             if (s.Atmosphere != null)
@@ -265,6 +293,7 @@ namespace ForestOverlay.Game
                 {
                     s.Camera.orthographic = s.Orthographic; s.Camera.orthographicSize = s.OrthoSize;
                     s.Camera.nearClipPlane = s.Near; s.Camera.farClipPlane = s.Far; s.Camera.cullingMask = s.CullingMask;
+                    if (s.CullDistances != null) s.Camera.layerCullDistances = s.CullDistances;
                 }
                 if (s.Atmosphere != null)
                 {
