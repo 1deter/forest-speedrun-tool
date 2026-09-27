@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.162 - 2026-09-27
+
+- Developer tooling only: the overlay can write the world's terrain
+  (heights and ground textures) to files, for the website's map. Nothing
+  changes in game.
+
 ## v0.24.161 - 2026-09-27
 
 - Runs now record every item you carry, not a fixed list: sodas, coins,
