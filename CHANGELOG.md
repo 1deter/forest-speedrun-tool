@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.136 - 2026-09-27
+
+- Freecam now looks like the game: it flies the game's own camera, so
+  the lighting, fog, shadows and effects stay on (it used to go dark).
+
 ## v0.24.135 - 2026-09-27
 
 - Logs in the inventory: savestates (Quick and Full load) now bring

@@ -196,6 +196,7 @@ namespace ForestOverlay.Modules
             // level load); stop holding the player when it does.
             if (_freeCamOn && !_freeCam.Active)
             {
+                _freeCam.End();
                 _freeCamOn = false;
                 _status = "freecam ended (camera changed)";
             }
@@ -247,6 +248,7 @@ namespace ForestOverlay.Modules
 
                 _freeCam.Begin(cam);
                 _freeCamOn = true;
+                Ctx.Log.LogInfo(_freeCam.LastReport);
 
                 // The host holds the player (HoldsPlayer), which writes
                 // game state.

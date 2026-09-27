@@ -28,7 +28,7 @@ namespace ForestOverlay.Game
     // view, but also reflection and UI cameras. Drawing a long run line
     // into each of them multiplied the cost for nothing anyone could see.
     // Only the view the player is looking through is drawn: the freecam
-    // while it is on, otherwise Camera.main (the camera freecam copies,
+    // while it is on, otherwise Camera.main (the camera freecam flies,
     // so it is the world view). If there is no main camera at all, draw
     // everywhere rather than nowhere.
     // ------------------------------------------------------------------
@@ -259,13 +259,27 @@ namespace ForestOverlay.Game
     }
 
     // ------------------------------------------------------------------
-    // Detached free camera.
+    // Free camera: flies the game's own camera.
     //
-    // Rather than unparenting the game's camera - which leaves
-    // SimpleMouseRotator and the head-bob still driving it - this spawns
-    // its own camera, copies the important settings across, and disables
-    // the original. Nothing the game owns is modified, so exiting is just
-    // "destroy mine, re-enable theirs".
+    // Until v0.24.136 this spawned a second camera with CopyFrom and
+    // disabled the game's. CopyFrom copies the Camera settings only - the
+    // ~20 effect scripts on MainCamNew (Sunshine shadows, the atmosphere
+    // and fog, post-processing, SSAO, clouds, water) stayed behind, so the
+    // freecam view was much darker and had no arms (author: "freecam goes
+    // darker"). Now the game's camera itself is moved; every effect keeps
+    // running on it.
+    //
+    // What must NOT fly with it: the camera's gameplay children (the
+    // pickup Grabber, the weapon hitTrigger, WaterLevelSensor, SBookPos,
+    // followMe) move onto a stand-in left at the camera's place, and the
+    // two scripts that steer or report it (SimpleMouseRotator,
+    // PlayerCamLocation - its static PlayerLoc is where the game thinks
+    // the player's eyes are) are paused. Children the camera renders with
+    // (ParticleCam, the cloud plane) stay on it. End puts every piece back
+    // where it was and re-enables only what was enabled before.
+    //
+    // The camera stays in the game's hierarchy, so a level load destroys
+    // it as usual and freecam ends itself.
     //
     // Mouse look reads Input.GetAxis("Mouse X"/"Mouse Y"), which keeps
     // working while the hardware cursor is locked.
@@ -277,10 +291,21 @@ namespace ForestOverlay.Game
         public float SlowMultiplier = 0.25f;
         public float LookSensitivity = 2.5f;
 
+        /// Scripts on the camera that steer it or report its position.
+        private static readonly string[] PausedScripts = { "SimpleMouseRotator", "PlayerCamLocation" };
+
         private Camera _camera;
-        private Camera _suppressed;
+        private Vector3 _homeLocalPos;
+        private Quaternion _homeLocalRot;
+        private Transform _standIn;
+        private readonly List<Transform> _moved = new List<Transform>();
+        private readonly List<Behaviour> _paused = new List<Behaviour>();
+        private Vector3 _pos;
         private float _yaw;
         private float _pitch;
+
+        /// Set when Begin / End has something to say (logged by the module).
+        public string LastReport = "";
 
         /// False while the overlay window is open: the mouse is then
         /// pointing at buttons and the keys are typing into fields.
@@ -288,7 +313,7 @@ namespace ForestOverlay.Game
 
         public bool Active { get { return _camera != null; } }
 
-        /// The detached camera, or null when freecam is off. Debug drawing
+        /// The flown camera, or null when freecam is off. Debug drawing
         /// centres on this while it is active.
         public Camera Camera { get { return _camera; } }
 
@@ -297,68 +322,117 @@ namespace ForestOverlay.Game
             if (_camera != null) return;
             if (source == null) return;
 
-            _suppressed = source;
+            _camera = source;
+            Transform t = source.transform;
+            _homeLocalPos = t.localPosition;
+            _homeLocalRot = t.localRotation;
 
-            GameObject go = new GameObject("ForestOverlay_FreeCam");
-            go.hideFlags = HideFlags.HideAndDontSave;
+            // The stand-in holds the gameplay children at the camera's
+            // place under the camera's own parent, so they follow the
+            // player exactly as before.
+            GameObject standIn = new GameObject("ForestOverlay_CamStandIn");
+            _standIn = standIn.transform;
+            _standIn.SetParent(t.parent, false);
+            _standIn.localPosition = _homeLocalPos;
+            _standIn.localRotation = _homeLocalRot;
+            _standIn.localScale = t.localScale;
 
-            _camera = go.AddComponent<Camera>();
-            _camera.CopyFrom(source);
-            // CopyFrom brings the target texture and culling mask across,
-            // which is what makes the view look identical.
-            _camera.transform.position = source.transform.position;
-            _camera.transform.rotation = source.transform.rotation;
+            _moved.Clear();
+            for (int i = t.childCount - 1; i >= 0; i--)
+            {
+                Transform child = t.GetChild(i);
+                if (RendersWithCamera(child)) continue;
+                _moved.Add(child);
+            }
+            for (int i = 0; i < _moved.Count; i++) _moved[i].SetParent(_standIn, true);
 
-            Vector3 e = source.transform.eulerAngles;
+            _paused.Clear();
+            for (int i = 0; i < PausedScripts.Length; i++)
+            {
+                Behaviour b = source.GetComponent(PausedScripts[i]) as Behaviour;
+                if (b == null || !b.enabled) continue;
+                b.enabled = false;
+                _paused.Add(b);
+            }
+
+            _pos = t.position;
+            Vector3 e = t.eulerAngles;
             _yaw = e.y;
             _pitch = e.x > 180f ? e.x - 360f : e.x;
 
-            _suppressed.enabled = false;
             DrawTarget.FreeCam = _camera;
+            LastReport = "Freecam: flying '" + source.name + "', " + _moved.Count
+                + " child(ren) left at the player, " + _paused.Count + " script(s) paused";
         }
 
         public void End()
         {
             DrawTarget.FreeCam = null;
-            if (_suppressed != null) _suppressed.enabled = true;
-            _suppressed = null;
+            Camera cam = _camera;
+            _camera = null;
 
-            if (_camera != null)
+            if (cam != null)
             {
-                UnityEngine.Object.Destroy(_camera.gameObject);
-                _camera = null;
+                Transform t = cam.transform;
+                t.localPosition = _homeLocalPos;
+                t.localRotation = _homeLocalRot;
+                for (int i = 0; i < _moved.Count; i++)
+                    if (_moved[i] != null) _moved[i].SetParent(t, true);
+                for (int i = 0; i < _paused.Count; i++)
+                    if (_paused[i] != null) _paused[i].enabled = true;
             }
+            _moved.Clear();
+            _paused.Clear();
+
+            if (_standIn != null) UnityEngine.Object.Destroy(_standIn.gameObject);
+            _standIn = null;
+        }
+
+        /// A child the camera renders with (ParticleCam, the cloud plane):
+        /// a camera, or a renderer with no collider. Everything else is
+        /// gameplay and stays with the player.
+        private static bool RendersWithCamera(Transform child)
+        {
+            if (child.GetComponent<Camera>() != null) return true;
+            return child.GetComponent<Renderer>() != null && child.GetComponent<Collider>() == null;
         }
 
         private void Update()
         {
             if (_camera == null) return;
-
-            // If the game tore down its camera (level load), stop rather
-            // than leaving an orphan view the player cannot escape.
-            if (_suppressed == null) { End(); return; }
             if (!InputEnabled) return;
 
             _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
             _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89f, 89f);
 
-            Transform t = _camera.transform;
-            t.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
-
             float speed = Speed;
             if (Input.GetKey(KeyCode.LeftShift)) speed *= FastMultiplier;
             if (Input.GetKey(KeyCode.LeftControl)) speed *= SlowMultiplier;
 
+            Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
+            Vector3 forward = rot * Vector3.forward;
+            Vector3 right = rot * Vector3.right;
+
             Vector3 move = Vector3.zero;
-            if (Input.GetKey(KeyCode.W)) move += t.forward;
-            if (Input.GetKey(KeyCode.S)) move -= t.forward;
-            if (Input.GetKey(KeyCode.D)) move += t.right;
-            if (Input.GetKey(KeyCode.A)) move -= t.right;
+            if (Input.GetKey(KeyCode.W)) move += forward;
+            if (Input.GetKey(KeyCode.S)) move -= forward;
+            if (Input.GetKey(KeyCode.D)) move += right;
+            if (Input.GetKey(KeyCode.A)) move -= right;
             if (Input.GetKey(KeyCode.E)) move += Vector3.up;
             if (Input.GetKey(KeyCode.Q)) move -= Vector3.up;
 
-            t.position += move.normalized * speed * Time.unscaledDeltaTime;
+            _pos += move.normalized * speed * Time.unscaledDeltaTime;
+        }
+
+        // The camera is still a child of the player's head, which the game
+        // moves; the pose is written late in the frame, from our own state.
+        private void LateUpdate()
+        {
+            if (_camera == null) return;
+            Transform t = _camera.transform;
+            t.position = _pos;
+            t.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
         }
 
         private void OnDestroy()
