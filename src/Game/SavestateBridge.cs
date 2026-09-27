@@ -99,6 +99,7 @@ namespace ForestOverlay.Game
 
         // Hands
         private FieldInfo _inventory;             // LocalPlayer.Inventory
+        private FieldInfo _inventoryGo;           // PlayerInventory._inventoryGO (root "INVENTORY")
         private MethodInfo _stashWeapon;          // PlayerInventory.StashEquipedWeapon(bool)
         private MethodInfo _stashLeftHand;        // PlayerInventory.StashLeftHand()
 
@@ -300,6 +301,7 @@ namespace ForestOverlay.Game
                 _specialActions = local.GetField("SpecialActions", stat);
                 _inOverlook = local.GetProperty("IsInOverlookArea", stat);
                 _inventory = local.GetField("Inventory", stat);
+                if (_inventory != null) _inventoryGo = _inventory.FieldType.GetField("_inventoryGO", inst);
             }
 
             _upgradeReceiverType = GameBridge.FindGameType("TheForest.Items.Craft.UpgradeViewReceiver");
@@ -559,6 +561,7 @@ namespace ForestOverlay.Game
             // LoadNow never deletes for a full-level save; do it here.
             List<string> deletedNames = new List<string>();
             int keptReceivers = 0, keptHeld = 0;
+            _keptInventoryViews = 0;
             int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames, ref keptReceivers, ref keptHeld) : 0;
             if (deleted > 0) yield return null;   // let Destroy land before the loader looks
 
@@ -627,6 +630,7 @@ namespace ForestOverlay.Game
                     if (deletedNames.Count > 0) sb.Append(deletedNames.Count > 6 ? ", ...)" : ")");
                     if (keptReceivers > 0) sb.Append(", kept ").Append(keptReceivers).Append(" weapon-upgrade receiver(s) the save lacks");
                     if (keptHeld > 0) sb.Append(", kept ").Append(keptHeld).Append(" held-item object(s) of the player the save lacks");
+                    if (_keptInventoryViews > 0) sb.Append(", kept ").Append(_keptInventoryViews).Append(" inventory view object(s) the save lacks");
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
@@ -1021,9 +1025,33 @@ namespace ForestOverlay.Game
         // returns at once when it is null: no chop, no hit, no panel -
         // and re-equipping could not help, because the script that links
         // the held weapon (setupHeldWeapon, on its OnEnable) was gone.
+        // The inventory's views are exempt as well (runner Ruben, v0.24.134:
+        // stuck in the inventory in the Megan fight). They sit under
+        // PlayerInventory._inventoryGO, a scene root of its own ("INVENTORY",
+        // parent null), not under the player, so a state from another save
+        // deleted them (Bomb/CraftedBomb1..5, Weapons/Spear_Upgraded_Inv, ...).
+        // Their items' lists in InventoryItemViewsCache were left empty, and
+        // the crafting cog's close (CraftingCog.IngredientCleanUp ->
+        // ToggleItemInventoryView) reads [0] of each: ArgumentOutOfRange, so
+        // PlayerInventory.Close stopped before timeScale 1 - the inventory
+        // could never close again, by Tab or by our F7.
+        private int _keptInventoryViews;
+
+        private Transform InventoryRoot()
+        {
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                GameObject go = inv != null && _inventoryGo != null ? _inventoryGo.GetValue(inv) as GameObject : null;
+                return go != null ? go.transform : null;
+            }
+            catch (Exception) { return null; }
+        }
+
         private int DeleteUnsaved(HashSet<string> stored, Transform keepRoot, List<string> names, ref int keptReceivers, ref int keptHeld)
         {
             if (_allIdentifiers == null || _uidId == null) return 0;
+            Transform inventoryRoot = InventoryRoot();
 
             IList all;
             try { all = _allIdentifiers.GetValue(null, null) as IList; }
@@ -1045,6 +1073,7 @@ namespace ForestOverlay.Game
                 if (string.IsNullOrEmpty(id) || stored.Contains(id)) continue;
                 if (_upgradeReceiverType != null && u.GetComponent(_upgradeReceiverType) != null) { keptReceivers++; continue; }
                 if (HeldByPlayer(u.transform, keepRoot)) { keptHeld++; continue; }
+                if (inventoryRoot != null && u.transform.IsChildOf(inventoryRoot)) { _keptInventoryViews++; continue; }
 
                 Transform parent = u.transform.parent;
                 names.Add(parent != null ? parent.name + "/" + u.gameObject.name : u.gameObject.name);

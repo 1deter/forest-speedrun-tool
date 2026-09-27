@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.137 - 2026-09-27
+
+- A start state captured in another save no longer breaks the inventory.
+  Restoring one used to remove some of the inventory's item pictures, and
+  after that the inventory could not be closed again (stuck in it, e.g. in
+  the Megan fight). Restart the game once if it already happened to you.
+
 ## v0.24.136 - 2026-09-27
 
 - Freecam now looks like the game: it flies the game's own camera, so
