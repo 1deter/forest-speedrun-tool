@@ -570,17 +570,49 @@ identity.
 
 ## Current status
 
+<<<<<<< Updated upstream
 **Released: v0.24.161** (2026-09-27). The author runs it via the in-game
 updater (v0.24.161 in the game at handoff, Slot 2 loaded). **455 tests** (+ 16 site tests).
+=======
+**Released: v0.24.169** (2026-09-27). The author runs it via the in-game
+updater (v0.24.168 in the game at handoff, Slot 2). **424 tests** (+ 17 site tests).
+>>>>>>> Stashed changes
 
-### Pick up here (2026-09-27, v0.24.161 in the game)
+### Pick up here (2026-09-27 evening, v0.24.168 in the game)
 
-**Next session: the terrain map on the website** (author, 2026-09-27:
-"work on terrain in a new session"). Start with
-[`docs/website.md`](docs/website.md) - *Next* 4 has what is known
-(terrain read live: one `MainTerrain`, 3500 x 250 x 3500 m at
-(-1750, 0, -1742.63), heightmap 2049^2) and a plan; the map is
-`site/ForestSite/wwwroot/map.js` (a 2D canvas, x east / z north).
+**The terrain / photo map is mid-way (author back Wednesday; usage ran
+out - resume it).** Done: relief underlay live on the site (v0.24.162
+`Game/TerrainDump` -> `scripts/terrain-bake.py` -> `wwwroot/terrain/`),
+runs record the save's plane (v0.24.163 `plane|`, map shows it bright,
+the other 11 sites faint), site times 3 d.p.; the **aerial photo capture**
+(`Game/AerialCapture`, v0.24.164-169; everything it learned in game-notes
+*Terrain, and the world from above*): bridge `call BepInEx_Manager
+OverlayPlugin._host._modules[8].AerialStart -1750 -1742.631 1750 1757.369
+218.75 4 4 320` (x0 z0 x1 z1 tile settle rangeScale sunTime; tiles on the
+pyramid grid, ~20 min for the island, `_aerial.Status`, `AerialStop`),
+writes `config/ForestOverlay/aerial/{canopy,ground}/<ix>_<iz>.jpg` +
+`tiles.txt`; `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
+git, pyramid L0-6, 0.21 m/px); `FOREST_SITE_ADMIN_TOKEN=... python
+scripts/aerial-upload.py` (the author's token - ask them to run it or set
+it) -> the site's data folder; map.js draws Photo / Ground / Relief (a
+helper agent built it, tested on fake tiles only).
+**Next steps, in order:** (1) a full capture on v0.24.168 was running at
+handoff (150/~250 tiles) - v0.24.169 turns off eye adaptation (tiles
+exposed differently: snow greyer / whiter per tile) and the vignette
+(darker tile corners): **install v0.24.169 and capture again**, then bake,
+look at the whole mosaic (seams, light), check locally (preview
+`forest-site`, copy `site/aerial-out` into the local data folder's
+`aerial/`), upload. (2) Caves / endgame sections / overlook are not in the
+terrain: a collider-mesh dump -> 2D floor plan at the ghost's height + 3D
+(author wants it "true to the game state", incl. invisible sections like
+the lab skip). (3) Separate toggles for buildings / other objects (author:
+later, "just work on terrain for now"). (4) The 3D view is a cloud task
+(text given to the author, 2026-09-27; memory `offload-to-cloud`), as is
+the LiveSplit `.lss` parser. Known: the spot page scrolls sideways at phone
+width (a wide table); `scripts/__pycache__/*.pyc` is tracked in git.
+**Remote agents**: `Agent` with `isolation: "remote"` ran in a local
+worktree here, not in the cloud - for cloud credit the author starts a
+cloud session with a task text.
 
 **Done this session (site + v0.24.160-161):** the spot page's **State**
 panel - the selected run at the scrub time (health, stamina ... a preset

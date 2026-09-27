@@ -52,6 +52,10 @@ namespace ForestOverlay.Game
     //  - Cloud shadows drift over the ground (Sunshine.OvercastTexture): one
     //    tile of four came out darker, and fine when taken again. The
     //    game's own BlankOvercastTexture stands in while capturing.
+    //  - The camera's post-processing profile: eye adaptation re-exposed
+    //    each tile to its own content (snow tiles greyer or whiter than their
+    //    neighbours) and the vignette darkens every tile's corners - both off
+    //    while capturing; colour grading and bloom stay (the game's look).
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
     //
@@ -231,6 +235,7 @@ namespace ForestOverlay.Game
             public float[] Ranges, RangesSmall;
             public float PixelError;
             public readonly List<KeyValuePair<Camera, int>> Hud = new List<KeyValuePair<Camera, int>>();
+            public readonly List<KeyValuePair<object, bool>> PostEffects = new List<KeyValuePair<object, bool>>();
             public UnityEngine.Object Sunshine;
             public object Overcast;
             public bool GodModeWasOn;
@@ -279,6 +284,19 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < rs.Length; i++) rs[i] = s.RangesSmall[i] * rangeScale;
             }
 
+            // PostProcessingBehaviour.profile.{eyeAdaptation, vignette}.enabled
+            Component post = cam.GetComponent("PostProcessingBehaviour");
+            object profile = post != null ? Get(post, "profile") : null;
+            if (profile != null)
+                foreach (string effect in new[] { "eyeAdaptation", "vignette" })
+                {
+                    object model = Get(profile, effect);
+                    object on = model != null ? Get(model, "enabled") : null;
+                    if (!(on is bool)) continue;
+                    s.PostEffects.Add(new KeyValuePair<object, bool>(model, (bool)on));
+                    Set(model, "enabled", false);
+                }
+
             Type sunshine = GameBridge.FindGameType("Sunshine");
             s.Sunshine = sunshine != null ? UnityEngine.Object.FindObjectOfType(sunshine) : null;
             if (s.Sunshine != null)
@@ -309,7 +327,7 @@ namespace ForestOverlay.Game
             HoldSun(sunTime);
             if (Log != null)
                 Log.LogInfo("Aerial capture: tile " + F(tile) + " m at " + Screen.height + " px, LOD ranges x" + F(rangeScale)
-                    + ", " + s.Hud.Count + " HUD camera(s) emptied, fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
+                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
                     + "sun at " + F(sunTime));
         }
 
@@ -346,6 +364,7 @@ namespace ForestOverlay.Game
                 }
                 if (Terrain.activeTerrain != null) Terrain.activeTerrain.heightmapPixelError = s.PixelError;
                 if (s.Sunshine != null && s.Overcast != null) Set(s.Sunshine, "OvercastTexture", s.Overcast);
+                for (int i = 0; i < s.PostEffects.Count; i++) Set(s.PostEffects[i].Key, "enabled", s.PostEffects[i].Value);
                 for (int i = 0; i < s.Hud.Count; i++)
                     if (s.Hud[i].Key != null) s.Hud[i].Key.cullingMask = s.Hud[i].Value;
                 if (!s.GodModeWasOn) DeathHooks.SetGodMode(false);
