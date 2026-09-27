@@ -146,12 +146,24 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal("9.50", SplitTable.Time(9.5f));
             Assert.Equal("1:02.34", SplitTable.Time(62.34f));
-            Assert.Equal("1:00:05.2", SplitTable.Time(3605.2f));
+            Assert.Equal("1:00:05.20", SplitTable.Time(3605.2f));
             Assert.Equal("-", SplitTable.Time(float.NaN));
             Assert.Equal("+1.23", SplitTable.Delta(1.234f));
             Assert.Equal("-0.45", SplitTable.Delta(-0.45f));
-            Assert.Equal("+1:02.3", SplitTable.Delta(62.3f));
+            Assert.Equal("+1:02.30", SplitTable.Delta(62.3f));
             Assert.Equal("", SplitTable.Delta(float.NaN));
+        }
+
+        [Fact]
+        public void PrecisionIsZeroToThreeDecimals()
+        {
+            Assert.Equal("9", SplitTable.Time(9.4f, 0));
+            Assert.Equal("9.5", SplitTable.Time(9.46f, 1));
+            Assert.Equal("9.457", SplitTable.Time(9.457f, 3));
+            Assert.Equal("1:00.000", SplitTable.Time(59.9996f, 3));   // rounds up into the minute
+            Assert.Equal("+0.057", SplitTable.Delta(0.0571f, 3));
+            Assert.Equal("-1:02", SplitTable.Delta(-62.3f, 0));
+            Assert.Equal("9.457", SplitTable.Time(9.457f, 7));       // clamped to 3
         }
     }
 

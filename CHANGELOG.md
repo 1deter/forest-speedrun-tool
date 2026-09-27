@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.151 - 2026-09-27
+
+- **Time precision** for the splits (Splits options): 0 to 3 decimal
+  places, set separately for times and for deltas, as in LiveSplit.
+  Your attempts always save milliseconds, whatever is shown.
+
 ## v0.24.150 - 2026-09-27
 
 - **Your last run stays on the splits** after it finishes, through the

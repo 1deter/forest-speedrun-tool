@@ -254,35 +254,45 @@ namespace ForestOverlay.Data
 
         // --- text -----------------------------------------------------------
 
-        /// "12.34", "1:02.34", "1:02:03.4"; "-" when unknown.
-        public static string Time(float t)
+        /// "12.34", "1:02.34", "1:02:03.45" at 2 decimals; "-" when unknown.
+        public static string Time(float t) { return Time(t, 2); }
+
+        /// A time with `decimals` (0-3) places - LiveSplit's accuracy
+        /// setting. Rounded to that accuracy; files keep milliseconds.
+        public static string Time(float t, int decimals)
         {
             if (float.IsNaN(t) || float.IsInfinity(t)) return "-";
+            decimals = Math.Max(0, Math.Min(3, decimals));
             bool neg = t < 0f;
             if (neg) t = -t;
-            int cs = (int)Math.Round(t * 100.0);
-            int h = cs / 360000;
-            int m = cs / 6000 % 60;
-            int s = cs / 100 % 60;
-            int f = cs % 100;
+            long scale = Pow10(decimals);
+            long u = (long)Math.Round(t * (double)scale);
+            long whole = u / scale;
+            long frac = u % scale;
+            long h = whole / 3600, m = whole / 60 % 60, s = whole % 60;
             string text;
-            if (h > 0) text = h + ":" + m.ToString("00") + ":" + s.ToString("00") + "." + (f / 10).ToString(CultureInfo.InvariantCulture);
-            else if (m > 0) text = m + ":" + s.ToString("00") + "." + f.ToString("00");
-            else text = s + "." + f.ToString("00");
+            if (h > 0) text = h + ":" + m.ToString("00") + ":" + s.ToString("00");
+            else if (m > 0) text = m + ":" + s.ToString("00");
+            else text = s.ToString(CultureInfo.InvariantCulture);
+            if (decimals > 0) text += "." + frac.ToString(new string('0', decimals));
             return neg ? "-" + text : text;
         }
 
-        /// "+1.23", "-0.45", "+1:02.3"; "" when unknown.
-        public static string Delta(float d)
+        /// "+1.23", "-0.45", "+1:02.30" at 2 decimals; "" when unknown.
+        public static string Delta(float d) { return Delta(d, 2); }
+
+        public static string Delta(float d, int decimals)
         {
             if (float.IsNaN(d) || float.IsInfinity(d)) return "";
             string sign = d < 0f ? "-" : "+";
-            float a = Math.Abs(d);
-            if (a < 60f) return sign + a.ToString("0.00", CultureInfo.InvariantCulture);
-            int ds = (int)Math.Round(a * 10.0);
-            int m = ds / 600;
-            int s = ds / 10 % 60;
-            return sign + m + ":" + s.ToString("00") + "." + (ds % 10).ToString(CultureInfo.InvariantCulture);
+            return sign + Time(Math.Abs(d), decimals);
+        }
+
+        private static long Pow10(int n)
+        {
+            long p = 1;
+            for (int i = 0; i < n; i++) p *= 10;
+            return p;
         }
     }
 }

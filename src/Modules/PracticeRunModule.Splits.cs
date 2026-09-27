@@ -41,7 +41,7 @@ namespace ForestOverlay.Modules
 
         private ConfigEntry<bool> _splitsPanel;
         private ConfigEntry<float> _panelX, _panelY, _panelWidth, _panelOpacity;
-        private ConfigEntry<int> _panelRows;
+        private ConfigEntry<int> _panelRows, _timeDecimals, _deltaDecimals;
         private readonly ConfigEntry<bool>[] _cols = new ConfigEntry<bool>[ColCount];
         private readonly ConfigEntry<bool>[] _lines2 = new ConfigEntry<bool>[LineCount];
         private ConfigEntry<string> _runnerName, _localRunnerId;
@@ -66,6 +66,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _compareTitle = new GUIContent("");
         private readonly GUIContent _panelSizeText = new GUIContent("");
         private readonly GUIContent _opacityText = new GUIContent("");
+        private readonly GUIContent _precisionText = new GUIContent("");
         private readonly GUIContent _dragHint = new GUIContent(
             "Drag the splits panel with the mouse to move it (while this window is open).");
         private readonly GUIContent _noSteamHint = new GUIContent(
@@ -118,6 +119,8 @@ namespace ForestOverlay.Modules
             _panelY = c.Bind("Splits", "PanelY", 140f, "Panel position from the top, in pixels.");
             _panelWidth = c.Bind("Splits", "PanelWidth", 300f, "Panel width in pixels.");
             _panelRows = c.Bind("Splits", "PanelRows", 12, "Most split rows the panel shows at once (the end is always shown).");
+            _timeDecimals = c.Bind("Splits", "TimeDecimals", 2, "Decimal places for split times (0-3). Attempts always save milliseconds.");
+            _deltaDecimals = c.Bind("Splits", "DeltaDecimals", 2, "Decimal places for deltas (0-3).");
             _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");
             bool[] colDefaults = { true, true, false, false, false, false };
             for (int i = 0; i < ColCount; i++)
@@ -260,6 +263,7 @@ namespace ForestOverlay.Modules
                 }
                 _panelSizeText.text = "width " + Mathf.RoundToInt(_panelWidth.Value) + " px, " + _panelRows.Value + " rows";
                 _opacityText.text = Mathf.RoundToInt(Opacity * 100f) + "%";
+                _precisionText.text = "times " + _timeDecimals.Value + ", deltas " + _deltaDecimals.Value + " decimal place(s)";
             }
 
             int rows = SplitRows;
@@ -291,22 +295,24 @@ namespace ForestOverlay.Modules
                 bool reached = !float.IsNaN(d.Time);
                 // A row not reached shows the comparison's time in its split
                 // and segment columns, as LiveSplit does.
-                _cells[r * ColCount + (int)Col.Delta].text = SplitTable.Delta(d.Delta);
-                _cells[r * ColCount + (int)Col.SplitTime].text = SplitTable.Time(reached ? d.Time : d.Compare);
-                _cells[r * ColCount + (int)Col.SegmentTime].text = SplitTable.Time(reached ? d.Segment : d.CompareSegment);
-                _cells[r * ColCount + (int)Col.SegmentDelta].text = SplitTable.Delta(d.SegmentDelta);
-                _cells[r * ColCount + (int)Col.BestSegment].text = SplitTable.Time(d.BestSegment);
-                _cells[r * ColCount + (int)Col.TimeSave].text = float.IsNaN(d.TimeSave) ? "" : SplitTable.Time(d.TimeSave);
+                int td = _timeDecimals.Value, dd = _deltaDecimals.Value;
+                _cells[r * ColCount + (int)Col.Delta].text = SplitTable.Delta(d.Delta, dd);
+                _cells[r * ColCount + (int)Col.SplitTime].text = SplitTable.Time(reached ? d.Time : d.Compare, td);
+                _cells[r * ColCount + (int)Col.SegmentTime].text = SplitTable.Time(reached ? d.Segment : d.CompareSegment, td);
+                _cells[r * ColCount + (int)Col.SegmentDelta].text = SplitTable.Delta(d.SegmentDelta, dd);
+                _cells[r * ColCount + (int)Col.BestSegment].text = SplitTable.Time(d.BestSegment, td);
+                _cells[r * ColCount + (int)Col.TimeSave].text = float.IsNaN(d.TimeSave) ? "" : SplitTable.Time(d.TimeSave, td);
             }
             _shownRows = rows;
 
-            _lineValues[(int)Line.Previous].text = SplitTable.Delta(_summary.PreviousSegment) + (_summary.PreviousLive ? " (live)" : "");
+            int tdl = _timeDecimals.Value, ddl = _deltaDecimals.Value;
+            _lineValues[(int)Line.Previous].text = SplitTable.Delta(_summary.PreviousSegment, ddl) + (_summary.PreviousLive ? " (live)" : "");
             _lineLabels[(int)Line.Previous].text = _summary.PreviousLive ? "Live segment" : "Previous segment";
-            _lineValues[(int)Line.SumOfBest].text = SplitTable.Time(_summary.SumOfBest);
-            _lineValues[(int)Line.BestPossible].text = SplitTable.Time(_summary.BestPossible);
-            _lineValues[(int)Line.Pace].text = SplitTable.Time(_summary.CurrentPace);
-            _lineValues[(int)Line.Save].text = SplitTable.Time(_summary.PossibleSave);
-            _lineValues[(int)Line.Pb].text = SplitTable.Time(_summary.Pb);
+            _lineValues[(int)Line.SumOfBest].text = SplitTable.Time(_summary.SumOfBest, tdl);
+            _lineValues[(int)Line.BestPossible].text = SplitTable.Time(_summary.BestPossible, tdl);
+            _lineValues[(int)Line.Pace].text = SplitTable.Time(_summary.CurrentPace, tdl);
+            _lineValues[(int)Line.Save].text = SplitTable.Time(_summary.PossibleSave, tdl);
+            _lineValues[(int)Line.Pb].text = SplitTable.Time(_summary.Pb, tdl);
             _lineValues[(int)Line.Attempts].text = _attempts.Count.ToString();   // counts the run just finished too
         }
 
@@ -441,7 +447,8 @@ namespace ForestOverlay.Modules
         /// the column titles (the tab has room for them).
         private float DrawSplitsTable(float x, float y, float w, int maxRows, bool header)
         {
-            const float rowH = 18f, colW = 62f;
+            const float rowH = 18f;
+            float colW = 50f + 6f * Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value);   // 62 at 2 decimals
             float y0 = y;
             int cols = 0;
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
@@ -542,6 +549,13 @@ namespace ForestOverlay.Modules
                 _splitsDirty = true;
             }
             GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
+            y += 26f;
+            GUI.Label(new Rect(0, y, 110, 20), "Precision");
+            if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _timeDecimals.Value = Mathf.Max(0, _timeDecimals.Value - 1); _splitsDirty = true; }
+            if (GUI.Button(new Rect(148, y - 1, 30, 22), "+")) { _timeDecimals.Value = Mathf.Min(3, _timeDecimals.Value + 1); _splitsDirty = true; }
+            if (GUI.Button(new Rect(190, y - 1, 30, 22), "-")) { _deltaDecimals.Value = Mathf.Max(0, _deltaDecimals.Value - 1); _splitsDirty = true; }
+            if (GUI.Button(new Rect(224, y - 1, 30, 22), "+")) { _deltaDecimals.Value = Mathf.Min(3, _deltaDecimals.Value + 1); _splitsDirty = true; }
+            GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _precisionText);
             y += 26f;
             GUI.Label(new Rect(0, y, 110, 20), "Width / rows");
             if (GUI.Button(new Rect(114, y - 1, 30, 22), "-")) { _panelWidth.Value = Mathf.Max(160f, _panelWidth.Value - 20f); _splitsDirty = true; }
