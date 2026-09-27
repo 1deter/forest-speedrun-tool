@@ -915,6 +915,15 @@ line says it next time.
   gameplay-altering" section** of the Performance patches, and only when
   it genuinely improves performance or playability. "True to the game"
   is the default; the label is the rule when it is not.
+- **Splits and comparisons** (author, 2026-09-27): a LiveSplit-style splits
+  table on screen (movable, F5 hides) + in the Runs tab; every LiveSplit
+  column, each toggleable; one comparison setting (the Runs tab's Compare
+  to, + best segments) drives table, delta, ghost and lines. Attempts get
+  their split times saved and a runner identity: **the Steam name by
+  default** (editable; new users would never set one), keyed on a stable
+  id so a rename does not split one runner in two. Other runners' attempts
+  (`.foseg`, community, later the website) are comparisons only, never in
+  your PB / golds; only the same route compares.
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
