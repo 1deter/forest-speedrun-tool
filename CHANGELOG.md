@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.133 - 2026-09-27
+
+- 100% tab: nature guide entries use the names printed in the book
+  ("Chanterelle Mushroom", "Oval-Leaves Blueberries", "Loggerhead Sea
+  Turtle") instead of the game's internal ones.
+
 ## v0.24.132 - 2026-09-27
 
 - 100% tab: nature guide pages now carry the book's own names (Plant

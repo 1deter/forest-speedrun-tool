@@ -184,6 +184,7 @@ namespace ForestOverlay.Game
             if (array == null) return;
 
             List<int[]> chains = new List<int[]>(array.Count);
+            List<GameObject> ticks = new List<GameObject>(array.Count);
             Dictionary<int, Transform> byId = new Dictionary<int, Transform>();
 
             for (int i = 0; i < array.Count; i++)
@@ -201,6 +202,7 @@ namespace ForestOverlay.Game
                 catch (Exception) { }
 
                 chains.Add(Chain(tick, byId));
+                ticks.Add(tick);
                 e.TickPath = tick != null ? PathOf(tick.transform) : "(no tick)";
                 _entries.Add(e);
             }
@@ -255,7 +257,40 @@ namespace ForestOverlay.Game
                 _pages[_entries[i].PageIndex].Total++;
             }
 
-            _log.LogInfo("Nature guide: " + _entries.Count + " entries on " + _pages.Count + " page(s).");
+            int printed = UseBookNames(ticks, pageIds, byId);
+            _log.LogInfo("Nature guide: " + _entries.Count + " entries on " + _pages.Count + " page(s), " +
+                         printed + " named as printed in the book.");
+        }
+
+        // The names as the book prints them (author, 2026-09-27): each entry's
+        // tick mark sits beside its name, a "TrTextMesh - NatureGuideL/R -
+        // ..." text on the same page (bridge: Aloe's tick 5 cm from "ALOE").
+        // The nearest one wins; an entry with no tick or page keeps its
+        // item / animal name. Returns how many were named from the book.
+        private int UseBookNames(List<GameObject> ticks, int[] pageIds, Dictionary<int, Transform> byId)
+        {
+            int named = 0;
+            for (int i = 0; i < _entries.Count && i < ticks.Count; i++)
+            {
+                Transform page;
+                if (ticks[i] == null || pageIds[i] == PageGrouping.NoPage || !byId.TryGetValue(pageIds[i], out page)) continue;
+
+                Vector3 at = ticks[i].transform.position;
+                TextMesh best = null;
+                float bestDistance = float.MaxValue;
+                TextMesh[] texts = page.GetComponentsInChildren<TextMesh>(true);
+                for (int t = 0; t < texts.Length; t++)
+                {
+                    if (!texts[t].name.StartsWith("TrTextMesh - NatureGuide")) continue;
+                    float d = (texts[t].transform.position - at).sqrMagnitude;
+                    if (d < bestDistance) { bestDistance = d; best = texts[t]; }
+                }
+                string text = best != null ? best.text : null;
+                if (string.IsNullOrEmpty(text) || text.Trim().Length == 0) continue;
+                _entries[i].Name = TitleCase(text.Trim().Replace('\n', ' '));
+                named++;
+            }
+            return named;
         }
 
         /// The text on a book link (SelectPageNumber.MyPageNew) that leads to
