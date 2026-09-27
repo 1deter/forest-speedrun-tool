@@ -599,6 +599,16 @@ over the bridge against a local site with a fake second runner
 Next for the site: *Next* in docs/website.md (spot submissions + admin
 page, terrain).
 
+**Site, 2026-09-27 (later):** a spot's owner (`routes.owner`, the first
+uploader; migrated live, maks's spots show "by maks") - only the owner's
+uploads rename it / change its description (maks's report). The author's
+"grey block at the bottom" of the site is **not reproduced** (live CSS =
+repo, fit fix intact, nothing grey on the home / spot pages) - asked for
+the page and a screenshot. `qa_todo` now splits a long list into several
+messages (worked live: 2 messages). New backlog from QA: run mode /
+anti-splicing (maks), first-input start, site spot ideas, the author's
+ideas dump (`Desktop\ideas.txt`).
+
 **v0.24.146-151: the LiveSplit-style splits table** - on screen
 (`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while
 F2 is open, position written on release; background opacity slider;
