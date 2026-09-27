@@ -34,7 +34,13 @@ namespace ForestOverlay.Game
     //    corners.
     //  - The atmosphere's fog (Visibility ~1 km) is overridden; the sun is
     //    held at TimeOfDay 320 (from the west, ~40 degrees up): overhead,
-    //    the terrain's specular turns every slope to glare.
+    //    the terrain's specular turns every slope to glare. Setting TimeOfDay
+    //    alone is not enough: the sun's angle follows DelayedTimeOfDay, which
+    //    catches up in eased steps, and the colours follow the running clock
+    //    (tiles came out orange, blue, with long shadows). The game's own
+    //    way, as its plane-crash cutscene does: OverrideLightingTimeOfDay +
+    //    LightingTimeOfDayOverrideValue (the sun snapped every frame), and
+    //    Animate off (the clock stopped).
     //  - The camera culls layers by distance (Default 85 m, pickups 100,
     //    small props 120, bushes 300, trees 487 - layerCullDistances,
     //    re-written by CullDistanceManager.Update every frame): set to 0 (=
@@ -118,8 +124,8 @@ namespace ForestOverlay.Game
             Vector3 home = PlayerPosition != null ? PlayerPosition() : Vector3.zero;
             try
             {
-                // Settle the raised ranges once before the first tile.
-                yield return new WaitForSeconds(1f);
+                // Settle the raised ranges and the held light before the first tile.
+                yield return new WaitForSeconds(3f);
 
                 for (int iz = 0; iz < nz && !_stop; iz++)
                 {
@@ -215,7 +221,8 @@ namespace ForestOverlay.Game
             public int CullingMask;
             public float[] CullDistances;
             public object Atmosphere;
-            public bool OverrideVisibility;
+            public bool OverrideVisibility, Animate, OverrideLighting;
+            public float LightingValue, TimeOfDay;
             public float Visibility, FogStart;
             public object Lod;
             public bool FpsScaling;
@@ -245,6 +252,13 @@ namespace ForestOverlay.Game
                 s.OverrideVisibility = (bool)Get(s.Atmosphere, "overrideVisibility");
                 s.Visibility = (float)Get(s.Atmosphere, "Visibility");
                 s.FogStart = (float)Get(s.Atmosphere, "FogStartDistance");
+                s.Animate = (bool)Get(s.Atmosphere, "Animate");
+                s.OverrideLighting = (bool)Get(s.Atmosphere, "OverrideLightingTimeOfDay");
+                s.LightingValue = (float)Get(s.Atmosphere, "LightingTimeOfDayOverrideValue");
+                s.TimeOfDay = (float)Get(s.Atmosphere, "TimeOfDay");
+                Set(s.Atmosphere, "Animate", false);
+                Set(s.Atmosphere, "OverrideLightingTimeOfDay", true);
+                Set(s.Atmosphere, "LightingTimeOfDayOverrideValue", sunTime);
                 Set(s.Atmosphere, "overrideVisibility", true);
                 Set(s.Atmosphere, "Visibility", 100000f);
                 Set(s.Atmosphere, "FogStartDistance", 5000f);
@@ -313,6 +327,10 @@ namespace ForestOverlay.Game
                 if (s.Atmosphere != null)
                 {
                     Set(s.Atmosphere, "overrideVisibility", s.OverrideVisibility);
+                    Set(s.Atmosphere, "OverrideLightingTimeOfDay", s.OverrideLighting);
+                    Set(s.Atmosphere, "LightingTimeOfDayOverrideValue", s.LightingValue);
+                    Set(s.Atmosphere, "TimeOfDay", s.TimeOfDay);
+                    Set(s.Atmosphere, "Animate", s.Animate);
                     Set(s.Atmosphere, "Visibility", s.Visibility);
                     Set(s.Atmosphere, "FogStartDistance", s.FogStart);
                 }
