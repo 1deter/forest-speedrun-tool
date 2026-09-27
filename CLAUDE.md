@@ -570,24 +570,30 @@ identity.
 ## Current status
 
 **Released: v0.24.159** (2026-09-27). The author runs it via the in-game
-updater. **419 tests** (+ 16 site tests).
+updater (v0.24.158 in the game at handoff). **419 tests** (+ 16 site tests).
 
 ### Pick up here (2026-09-27, v0.24.158 in the game)
 
-**Site, v0.24.158-159 (this session, author: "build on the website"):**
-clean paths instead of `#/` (author asked; old links rewritten), the
-admin page `/admin` (submissions / under review / spots / runners /
-activity, and per-admin tokens the owner makes - docs/website.md; checked
-on the local site; the author signed in live and rejected a test
-submission), and Practice ->
-Share -> **Submit to community** (checked over the bridge against the
-local site up to the request - 401, the live token was left in place; the
-success path is in the site tests; the author's live submit arrived). Detail and *Next*
-(the map: terrain underlay, then 3D) in docs/website.md.
+**The author continues on the website in the next session** (author,
+2026-09-27). Start with [`docs/website.md`](docs/website.md): decisions,
+API, admin, how to test the plugin against a local site (the author's
+live upload token is in their config now - read that paragraph before
+touching `_token`), and *Next* - **3: the player's state at a point of a
+run** (health, stamina, sodas ... from the `.run`'s 5 Hz `v|` channels,
+author's QA idea `1553867722964607110`), then 4: the terrain map.
+
+**Site, done this session (v0.24.158-159 + site pushes):** clean paths
+instead of `#/` (author asked; old links rewritten); the admin page
+`/admin` - submissions, under review, spots (delete a runner's spot),
+runners, activity log, and per-admin tokens the owner makes / revokes
+(author: "not the same key with everyone"); Practice -> Share ->
+**Submit to community**. The author signed in live, got a real
+submission from the game and rejected it as a test. Not built: approving
+straight into `community/` (still a commit by hand; maybe the GitHub API
+later).
 
 **The website is live: https://forest.deter.cloud** (2026-09-27):
-`site/` - server, pages, 9 tests; decisions, API and *Next* in
-[`docs/website.md`](docs/website.md) - read that first. Every push to
+`site/` - server, pages, 16 tests. Every push to
 `site/`, `src/Data/`, `community/` deploys by itself
 (`.github/workflows/site.yml`; setup and day-to-day in
 `site/deploy/README.md`). Watch a deploy by polling the live page, never
@@ -595,11 +601,9 @@ success path is in the site tests; the author's live submit arrived). Detail and
 author) - checked over the bridge against a local site (register, the
 saved-runs button, a finished run, offline -> retried and sent); the
 author's config was set back to the live URL with an empty token, so the
-live registration happens on their next finished run. **Test the plugin
-against a local site**: preview `forest-site`, delete
-`site/ForestSite/bin/Debug/net10.0/data` first (a runner id registers
-once), `set ..._modules[16]._url.Value http://localhost:5080`, and set
-URL + `_token.Value ""` back after. **v0.24.155: other runners' PBs as
+live registration happens on their next finished run (it has since:
+the config holds a live token). **Testing against a local site**: the
+recipe is in docs/website.md. **v0.24.155: other runners' PBs as
 comparisons** - the site's `board.txt` (`Data/SiteBoard`, tested both
 sides) is read on arming (again after 2 min); Runs tab -> "another
 runner" `<` `>` under Compare to (and the cycle key); a pick fetches

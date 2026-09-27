@@ -99,9 +99,11 @@ the starting point; decisions made while building go here too.
   scrub / speed; runners board with map toggles; splits vs #1 or best
   segments, LiveSplit colours; .run download; older route versions as
   chips), about. Phone width checked.
-- `site/ForestSite.Tests`: 8 end-to-end tests (register, upload, board,
+- `site/ForestSite.Tests`: 16 end-to-end tests (register, upload, board,
   golds, duplicates, refusals, moved zone = new route, flag, community,
-  submissions).
+  submissions + replace + refusals, page routes, admin tokens / log, spot
+  delete). `dotnet test site/ForestSite.Tests` - stop a running
+  `forest-site` preview first (it locks `ForestSite.exe`).
 - Checked locally with the author's real `s-splitstest01` attempts: all 6
   accepted (route fingerprints match the plugin's).
 - API: `GET /api/spots`, `/api/spots/{id}`, `/api/spots/{id}/{route}/runner/{runner}`,
@@ -109,8 +111,13 @@ the starting point; decisions made while building go here too.
   `/api/spots/{id}/{route}/board.txt` (each runner's best as text for the
   plugin, `Data/SiteBoard`; runs under review left out);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
-  (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`;
-  `/api/admin/...` with `X-Admin-Token` (own rate limit, 120 / min).
+  (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`
+  (-> `{id, replaced}`); `/api/admin/...` with `X-Admin-Token` (own rate
+  limit, 120 / min): `check` (`{name, owner}`), `submissions[/{id}[/{status}]]`,
+  `flagged`, `runs/{id}/hide|show|unflag`, `DELETE runs/{id}`, `runners`,
+  `runners/{id}/ban|unban|reset-token`, `DELETE spots/{id}`, `log`, and
+  the owner's `admins` (GET / POST a name -> `{token}` / `DELETE {id}`).
+  Every non-GET admin call is logged (`admin_log`) by the auth filter.
 - **Clean paths** (author, 2026-09-27: the `#/` "doesn't look clean"):
   `/spot/<id>[/<route>]`, `/about`, `/admin[/<tab>]` - the server answers
   each with the page (mapped by name: the fallback skips paths with a
@@ -132,6 +139,20 @@ the starting point; decisions made while building go here too.
   (shown once, only its hash kept - `admins`), and revokes it. Admins can
   do everything except manage admins. Locally the `forest-site` preview's
   owner token is `local-admin`.
+
+**Testing the plugin against a local site** (preview `forest-site`,
+`http://localhost:5080`, owner token `local-admin` from
+`.claude/launch.json`): `set ..._modules[16]._url.Value
+http://localhost:5080`, and back to `https://forest.deter.cloud` after.
+The author's config holds a **live token** now: leave it in place (the
+local site answers 401 - enough to test a request path; a session may
+not copy the token aside) or, to test a full registration locally, clear
+it and have the author **Reset token** for their runner on the live
+`/admin` afterwards, so the plugin registers again live. A local test
+that sets `_tokenBad` (401) needs `set ..._modules[16]._tokenBad false`.
+Pressing Submit over the bridge: `call ..._modules[9].SubmitSelected`
+(after `QuickSaveSpot`, which selects the new spot; remove it after per
+*Removing test spots*).
 
 The plugin side is done (v0.24.153-154, `Modules/RunUploadModule`):
 each finished timed run is queued on disk and uploaded, on by default;
@@ -168,7 +189,7 @@ spot's saved runs" and "Open on the website".
 1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:
    `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
 2. ~~A spot submission button in Practice; an admin page~~ done
-   (v0.24.158; the in-game submit still to check against the live site).
+   (v0.24.158-159; the author submitted and rejected one live).
 3. **The player's state at a point of a run** (author, QA
    `1553867722964607110`): click a line (or scrub) at 1:00 of maks's run
    and see his health, stamina, sodas, ... - the `.run`'s 5 Hz `v|`
