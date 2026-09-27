@@ -365,6 +365,20 @@ namespace ForestOverlay.Game
                 + " child(ren) left at the player, " + _paused.Count + " script(s) paused";
         }
 
+        /// Puts the flown camera at a pose (the aerial capture, the bridge);
+        /// held there by LateUpdate like a flown one.
+        public void Place(Vector3 position, float pitch, float yaw)
+        {
+            _pos = position;
+            _pitch = pitch;
+            _yaw = yaw;
+            if (_camera != null)
+            {
+                _camera.transform.position = position;
+                _camera.transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
+            }
+        }
+
         public void End()
         {
             DrawTarget.FreeCam = null;

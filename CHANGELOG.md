@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.164 - 2026-09-27
+
+- Developer tooling only: a top-down photo capture of the world for the
+  website's map. Nothing changes in game.
+
 ## v0.24.163 - 2026-09-27
 
 - Finished runs now remember where your save's plane crashed, so the

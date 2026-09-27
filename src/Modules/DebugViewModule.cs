@@ -55,6 +55,7 @@ namespace ForestOverlay.Modules
         private DebugDrawBehaviour _draw;
         private WireframeBehaviour _wireframe;
         private FreeCamBehaviour _freeCam;
+        private AerialCapture _aerial;
 
         private bool _freeCamOn;
         private bool _wireOn;
@@ -106,6 +107,9 @@ namespace ForestOverlay.Modules
 
             _draw = _host.AddComponent<DebugDrawBehaviour>();
             _freeCam = _host.AddComponent<FreeCamBehaviour>();
+            _aerial = _host.AddComponent<AerialCapture>();
+            AerialCapture.Log = Ctx.Log;
+            _aerial.SetOverlayUi = on => { if (Host != null) Host.UiVisible = on; };
             FrameTimer.Install(_host);
             FrameTimer.Log = Ctx.Log;
             RenderProbe.Log = Ctx.Log;
@@ -257,6 +261,21 @@ namespace ForestOverlay.Modules
                 _status = "freecam on - close the window to fly";
             }
         }
+
+        /// Bridge: top-down photographs of an area for the website's map
+        /// (Game/AerialCapture): tiles of `tile` m from (x0, z0) to (x1, z1),
+        /// `settle` s per tile, LOD ranges x `rangeScale`, the sun held at
+        /// `sunTime`. Turns the freecam on; read `_aerial.Status`.
+        public string AerialStart(float x0, float z0, float x1, float z1, float tile, float settle, float rangeScale, float sunTime)
+        {
+            if (!_freeCamOn) ToggleFreeCam();
+            if (!_freeCamOn) return "freecam could not start: " + _status;
+            _freeCam.InputEnabled = false;
+            Ctx.Practice.Mark("aerial capture");
+            return _aerial.Begin(_freeCam, x0, z0, x1, z1, tile, settle, rangeScale, sunTime);
+        }
+
+        public string AerialStop() { return _aerial.Stop(); }
 
         private Camera RenderingCamera()
         {
