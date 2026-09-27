@@ -67,6 +67,16 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   free resources. Gameplay mod, practice.
 
 
+- **A teleport into the endgame from a save without it loaded falls
+  through the world** (author's report, 2026-09-27, v0.24.155): F7 on
+  "Labskip Jumping Section" (start state captured in Creative) in a Normal
+  save - the restore is refused (cross-mode), the teleport alone lands in
+  the lab with `endgame_streaming` not loaded. Same for a plain Go. The
+  author: keep teleport as it is for now, "some ideas for this
+  functionality later" - ask before building. A candidate, not decided:
+  nothing below the spot (raycast) and the endgame not loaded -> the
+  game's EndgameLoader first (`EndgameLoader.EnsureLoaded`), then place.
+
 ## For the final exhaustive feature testing
 
 - **Megan fight: health bar empty, died only a few hits later** (author,
