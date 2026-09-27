@@ -578,9 +578,10 @@ updater (v0.24.158 in the game at handoff). **419 tests** (+ 16 site tests).
 2026-09-27). Start with [`docs/website.md`](docs/website.md): decisions,
 API, admin, how to test the plugin against a local site (the author's
 live upload token is in their config now - read that paragraph before
-touching `_token`), and *Next* - **3: the player's state at a point of a
-run** (health, stamina, sodas ... from the `.run`'s 5 Hz `v|` channels,
-author's QA idea `1553867722964607110`), then 4: the terrain map.
+touching `_token`), and *Next* - 3 (the player's state at a point of a
+run) is done (site *State* panel, 2026-09-27; inventory counts such as
+sodas are not in the `.run` yet - a plugin channel if the author wants
+them), next is 4: the terrain map.
 
 **Site, done this session (v0.24.158-159 + site pushes):** clean paths
 instead of `#/` (author asked; old links rewritten); the admin page

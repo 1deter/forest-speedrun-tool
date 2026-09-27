@@ -190,11 +190,18 @@ spot's saved runs" and "Open on the website".
    `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
 2. ~~A spot submission button in Practice; an admin page~~ done
    (v0.24.158-159; the author submitted and rejected one live).
-3. **The player's state at a point of a run** (author, QA
-   `1553867722964607110`): click a line (or scrub) at 1:00 of maks's run
-   and see his health, stamina, sodas, ... - the `.run`'s 5 Hz `v|`
-   channels already carry them (`channels|` names them); the run JSON
-   needs to serve them.
+3. ~~The player's state at a point of a run~~ done (2026-09-27, site
+   only): the spot page's *State* panel shows the selected run at the
+   scrub time; a click on a line jumps there (that run, that moment).
+   `/api/runs/{id}` serves `state: {channels, samples: [[t, v...]]}` -
+   a preset (`Runs.ShownChannels`: health, stamina, energy, fullness,
+   thirst, armour, cold armour, battery, body temp, stealth, cold, light;
+   plus speed from the path) - and `?all=1` every channel, behind the
+   panel's *Show all* (author: "a smaller preset useful for the runners").
+   Values step (the last 5 Hz sample), not blended. **Not recorded:
+   inventory counts (sodas, meds ...)** - the `.run` holds PlayerStats
+   only; adding them means new plugin channels (the site picks up any
+   named channel via Show all; add a name to the preset).
 4. The map: terrain heightmap underlay, then 3D.
 
 ## Useful from the game later

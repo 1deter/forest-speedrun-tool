@@ -227,8 +227,9 @@ public sealed class Runs
         return list;
     }
 
-    /// One run with its path: [t, x, y, z, speed] per sample.
-    public JsonObject Run(long id)
+    /// One run with its path: [t, x, y, z, speed] per sample, and its
+    /// state: the shown channels, or every channel with allChannels.
+    public JsonObject Run(long id, bool allChannels = false)
     {
         RunRow r = RunById(id);
         if (r == null) return null;
@@ -242,7 +243,44 @@ public sealed class Runs
         o["segment"] = r.SegmentId;
         o["route"] = r.Route;
         o["path"] = path;
+        o["state"] = StateJson(a, allChannels);
         return o;
+    }
+
+    /// The player's state channels the page shows, in its order: the
+    /// `.run` carries every PlayerStats number (~80, most of them internal);
+    /// the full set stays in the file download.
+    public static readonly string[] ShownChannels =
+    {
+        "Health", "Stamina", "Energy", "Fullness", "Thirst", "Armor", "ColdArmor",
+        "BatteryCharge", "BodyTemp", "Stealth", "Cold", "IsLit",
+    };
+
+    /// { channels: [names], samples: [[t, v...]] } - the 5 Hz `v|` lines:
+    /// the shown channels the run has (the preset runners read), or all of
+    /// them (the page's "Show all", ~80 - fetched only when asked for).
+    /// Null when there are none.
+    private static JsonObject StateJson(Attempt a, bool all)
+    {
+        if (a == null || a.States.Count == 0) return null;
+        var names = new JsonArray();
+        var index = new List<int>();
+        foreach (string name in all ? a.Channels : ShownChannels)
+        {
+            int i = a.ChannelIndex(name);
+            if (i < 0) continue;
+            names.Add(name);
+            index.Add(i);
+        }
+        if (index.Count == 0) return null;
+        var samples = new JsonArray();
+        foreach (StateSample s in a.States)
+        {
+            var row = new JsonArray(R(s.T));
+            foreach (int i in index) row.Add(s.Values != null && i < s.Values.Length ? Num(s.Values[i]) : null);
+            samples.Add(row);
+        }
+        return new JsonObject { ["channels"] = names, ["samples"] = samples };
     }
 
     public (string segment, string text) RunFile(long id)

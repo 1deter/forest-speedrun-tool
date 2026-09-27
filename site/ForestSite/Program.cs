@@ -94,8 +94,8 @@ api.MapGet("/spots/{id}/{route}/runner/{runner}", (string id, string route, stri
 api.MapGet("/spots/{id}/{route}/board.txt", (string id, string route) =>
     Results.Text(runs.BoardText(id, route), "text/plain; charset=utf-8")).RequireRateLimiting("read");
 
-api.MapGet("/runs/{id:long}", (long id) =>
-    runs.Run(id) is { } r ? Results.Json(r) : Problem(404, "no such run")).RequireRateLimiting("read");
+api.MapGet("/runs/{id:long}", (long id, int? all) =>
+    runs.Run(id, all == 1) is { } r ? Results.Json(r) : Problem(404, "no such run")).RequireRateLimiting("read");
 
 api.MapGet("/runs/{id:long}/file", (long id) =>
 {

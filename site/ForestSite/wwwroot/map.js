@@ -165,8 +165,20 @@ window.RunMap = (function () {
       this.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
     }, { passive: false });
     c.addEventListener("dblclick", () => { this.fit(); this.draw(); });
-    c.addEventListener("pointerdown", e => { c.setPointerCapture(e.pointerId); this.pointers.set(e.pointerId, [e.clientX, e.clientY]); c.classList.add("drag"); });
-    const end = e => { this.pointers.delete(e.pointerId); if (!this.pointers.size) c.classList.remove("drag"); this.pinch = 0; };
+    let down = null;
+    c.addEventListener("pointerdown", e => {
+      c.setPointerCapture(e.pointerId); this.pointers.set(e.pointerId, [e.clientX, e.clientY]); c.classList.add("drag");
+      down = this.pointers.size === 1 ? [e.clientX, e.clientY] : null;
+    });
+    const end = e => {
+      // A click (no drag): the nearest point of a line, if one is close.
+      if (e.type === "pointerup" && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5 && this.onPick) {
+        const r = c.getBoundingClientRect(), hit = this.nearest(e.clientX - r.left, e.clientY - r.top, 14);
+        if (hit) this.onPick(hit.run, hit.t);
+      }
+      down = null;
+      this.pointers.delete(e.pointerId); if (!this.pointers.size) c.classList.remove("drag"); this.pinch = 0;
+    };
     c.addEventListener("pointerup", end);
     c.addEventListener("pointercancel", end);
     c.addEventListener("pointermove", e => {
@@ -187,6 +199,16 @@ window.RunMap = (function () {
       this.view.cz += (e.clientY - prev[1]) / this.view.scale;
       this.draw();
     });
+  };
+
+  /// The run sample nearest a screen point, within maxPx: { run, t }.
+  RunMap.prototype.nearest = function (px, py, maxPx) {
+    let best = null, bestD = maxPx;
+    for (const run of this.runs) for (const s of run.path) {
+      const [x, y] = this.toScreen(s[1], s[3]), d = Math.hypot(x - px, y - py);
+      if (d < bestD) { bestD = d; best = { run, t: s[0] }; }
+    }
+    return best;
   };
 
   RunMap.at = at;

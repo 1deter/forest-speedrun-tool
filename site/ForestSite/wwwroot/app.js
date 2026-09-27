@@ -138,7 +138,7 @@ async function spotPage(id, routeId) {
   const r = spot.routes.find(x => x.route === routeId) || spot.routes[0];
 
   // What is shown: the top three on the map, the best one's splits.
-  const state = { shown: new Map(), focus: null, compare: "first", paths: new Map(), time: 0, playing: false, speed: 1 };
+  const state = { shown: new Map(), focus: null, compare: "first", runs: new Map(), all: new Map(), showAll: false, time: 0, playing: false, speed: 1 };
   r.board.slice(0, 3).forEach((b, i) => state.shown.set(b.id, COLORS[i]));
   state.focus = r.board.length ? r.board[0].id : null;
 
@@ -158,10 +158,11 @@ async function spotPage(id, routeId) {
   const speed = el("select", { "aria-label": "Playback speed" }, [0.5, 1, 2, 4].map(s => el("option", { value: s, selected: s === 1 }, s + "×")));
   const board = el("tbody");
   const splits = el("div");
+  const statePanel = el("section", { class: "statepanel" });
 
   function maxTime() {
     let m = 0;
-    for (const id of state.shown.keys()) { const p = state.paths.get(id); if (p && p.length) m = Math.max(m, p[p.length - 1][0]); }
+    for (const id of state.shown.keys()) { const p = pathOf(id); if (p.length) m = Math.max(m, p[p.length - 1][0]); }
     return m;
   }
   function setTime(t) {
@@ -170,14 +171,80 @@ async function spotPage(id, routeId) {
     const m = maxTime();
     slider.value = m ? Math.round(state.time / m * 1000) : 0;
     map.setTime(state.time);
+    renderState();
+  }
+
+  function pathOf(id) { const run = state.runs.get(id); return run && run.path || []; }
+  /// A run's JSON (path + state), fetched once; all = every state channel.
+  async function load(id, all) {
+    const cache = all ? state.all : state.runs;
+    if (!cache.has(id)) {
+      let run;
+      try { run = await api("/runs/" + id + (all ? "?all=1" : "")); } catch { run = { path: [], state: null, failed: true }; }
+      cache.set(id, run);
+    }
+    return cache.get(id);
+  }
+
+  // The player's state at the scrub time, from the .run's 5 Hz channels.
+  // A preset of what runners read (author, 2026-09-27); "Show all" fetches
+  // every channel the game records.
+  const pct = v => v * 100;
+  const SHOWN = {
+    Health: { bar: 100 }, Stamina: { bar: 100 }, Energy: { bar: 100 },
+    Fullness: { bar: 100, of: pct, unit: "%" }, Thirst: { bar: 100, of: pct, unit: "%" },
+    Armor: { label: "Armour" }, ColdArmor: { label: "Cold armour" },
+    BatteryCharge: { label: "Battery", bar: 100, unit: "%" },
+    BodyTemp: { label: "Body temp", unit: " °C", decimals: 1 }, Stealth: {},
+    Cold: { yesNo: true }, IsLit: { label: "Light on", yesNo: true },
+  };
+  /// The last sample at or before t (state is stepped, not blended).
+  function sampleAt(samples, t) {
+    if (!samples || !samples.length) return null;
+    let lo = 0, hi = samples.length - 1;
+    while (hi > lo) { const mid = (lo + hi + 1) >> 1; if (samples[mid][0] <= t) lo = mid; else hi = mid - 1; }
+    return samples[lo];
+  }
+  function fmt(v, d) {
+    if (v === null || v === undefined) return "-";
+    if (d.yesNo) return v ? "yes" : "no";
+    const x = d.of ? d.of(v) : v;
+    const text = Math.abs(x) >= 1e5 ? x.toExponential(2) : x.toFixed(d.decimals ?? (Number.isInteger(x) ? 0 : 1));
+    return text + (d.unit || "");
+  }
+  let stateKey = "";
+  function renderState() {
+    const run = r.board.find(b => b.id === state.focus);
+    if (!run) { statePanel.replaceChildren(); stateKey = ""; return; }
+    const data = (state.showAll ? state.all : state.runs).get(run.id);
+    if (!data) { load(run.id, state.showAll).then(renderState); return; }
+    const st = data.state, s = st && sampleAt(st.samples, state.time);
+    const pos = RunMap.at(data.path || [], state.time);
+    // Rebuilt only when what it shows changes (the scrub fires every frame).
+    const key = run.id + "|" + state.showAll + "|" + (s ? s[0] : "") + "|" + (pos ? pos[4].toFixed(1) : "") + "|" + time(state.time);
+    if (key === stateKey) return;
+    stateKey = key;
+    const items = [];
+    if (pos) items.push(el("div", { class: "stat" }, el("span", { class: "k" }, "Speed"), el("span", { class: "v" }, pos[4].toFixed(1) + " m/s")));
+    if (s) st.channels.forEach((name, i) => {
+      const d = SHOWN[name] || {}, v = s[i + 1];
+      const bar = d.bar && v !== null ? el("span", { class: "bar" },
+        el("span", { style: "width:" + Math.max(0, Math.min(100, (d.of ? d.of(v) : v) / d.bar * 100)) + "%" })) : null;
+      items.push(el("div", { class: "stat" },
+        el("span", { class: "k" }, state.showAll ? name : d.label || name), el("span", { class: "v" }, fmt(v, d)), bar));
+    });
+    const more = st || state.showAll ? el("button", { class: "linkbtn", onclick: () => { state.showAll = !state.showAll; renderState(); } },
+      state.showAll ? "Show fewer" : "Show all") : null;
+    statePanel.replaceChildren(...[
+      el("div", { class: "splitsbar" }, el("h2", null, "State · " + (run.name || run.runner) + " at " + time(state.time)), more),
+      el("div", { class: state.showAll ? "stats all" : "stats" }, items),
+      s ? null : el("p", { class: "empty" }, data.failed ? "Could not load this run." : "This run has no player state recorded.")].filter(Boolean));
   }
 
   async function refreshMap(refit) {
     const ids = [...state.shown.keys()];
-    await Promise.all(ids.filter(id => !state.paths.has(id)).map(async id => {
-      try { state.paths.set(id, (await api("/runs/" + id)).path); } catch { state.paths.set(id, []); }
-    }));
-    map.setRuns(ids.filter(id => state.shown.has(id)).map(id => ({ color: state.shown.get(id), path: state.paths.get(id) || [] })), refit);
+    await Promise.all(ids.map(id => load(id, false)));
+    map.setRuns(ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id) })), refit);
     mapEmpty.textContent = ids.length ? "" : r.board.length ? "Tick a run to show its line." : "No runs on this route yet.";
     setTime(state.time);
   }
@@ -196,7 +263,7 @@ async function spotPage(id, routeId) {
         "aria-pressed": on ? "true" : "false",
         onclick: e => { e.stopPropagation(); if (on) state.shown.delete(b.id); else state.shown.set(b.id, nextColor()); renderBoard(); refreshMap(false); },
       }, sw);
-      return el("tr", { class: b.id === state.focus ? "focus" : "", onclick: () => { state.focus = b.id; renderBoard(); renderSplits(); } },
+      return el("tr", { class: b.id === state.focus ? "focus" : "", onclick: () => { state.focus = b.id; renderBoard(); renderSplits(); renderState(); } },
         el("td", { class: "rank" }, i + 1),
         el("td", null, toggle),
         el("td", { class: "name" }, b.name || b.runner, b.flagged ? el("span", { class: "flag", title: "Much faster than the route's best so far: waiting for a look" }, "under review") : null),
@@ -259,6 +326,12 @@ async function spotPage(id, routeId) {
     play.setAttribute("aria-label", state.playing ? "Pause" : "Play");
     if (state.playing) { if (state.time >= maxTime()) setTime(0); last = 0; raf = requestAnimationFrame(tick); }
   }
+  // A click on a line: that run, at that point.
+  map.onPick = (run, t) => {
+    if (state.playing) toggle();
+    if (state.focus !== run.id) { state.focus = run.id; renderBoard(); renderSplits(); }
+    setTime(t);
+  };
   play.addEventListener("click", toggle);
   slider.addEventListener("input", () => { setTime(slider.value / 1000 * maxTime()); });
   speed.addEventListener("change", () => { state.speed = +speed.value; });
@@ -277,8 +350,9 @@ async function spotPage(id, routeId) {
     spot.notes ? el("p", { class: "note" }, spot.notes) : null,
     routeChips,
     el("div", { class: "mapwrap" }, canvas, mapEmpty,
-      el("div", { class: "maphint" }, "drag · scroll to zoom · double-click to fit"),
+      el("div", { class: "maphint" }, "click a line · drag · scroll to zoom · double-click to fit"),
       el("div", { class: "scrub" }, play, slider, clock, speed)),
+    statePanel,
     el("div", { class: "cols" },
       el("section", null, el("h2", null, "Runners"),
         el("div", { class: "tablewrap" }, el("table", null,
@@ -288,6 +362,7 @@ async function spotPage(id, routeId) {
 
   renderBoard();
   renderSplits();
+  renderState();
   refreshMap(true);
 }
 
