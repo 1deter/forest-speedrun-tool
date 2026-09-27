@@ -394,7 +394,10 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, w, _splitsHint);
 
             if (GUI.Button(new Rect(0, y, 150, 22), _splitsOptionsOpen ? "Splits options  ^" : "Splits options  v"))
+            {
                 _splitsOptionsOpen = !_splitsOptionsOpen;
+                _splitsDirty = true;   // the runner and size lines are built on a refresh
+            }
             y += 26f;
             if (!_splitsOptionsOpen) return y;
 
