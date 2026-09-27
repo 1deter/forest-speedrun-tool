@@ -124,6 +124,7 @@ namespace ForestOverlay.Modules
             _greebles.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            PathfindingWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             RefreshFiles();
 
@@ -173,6 +174,7 @@ namespace ForestOverlay.Modules
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
             FullCapacityWatch.Uninstall();
+            PathfindingWatch.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
 
@@ -191,6 +193,7 @@ namespace ForestOverlay.Modules
                                     " s after in game - " + PlayerHold.Describe() + ".");
             }
             WatchLoads();
+            PathfindingWatch.Tick();
 
             // A reset that closed the book: free a pitch lock it left
             // (Game/BookClose), once no restore is running.

@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.141 - 2026-09-27
+
+- Diagnostics for the long freeze when a death reloads the save out of
+  the Megan fight: the log now says which pathfinding updates the game
+  starts after a Quick load, how long they run, and how long the next
+  load waits for them. No change to gameplay.
+
 ## v0.24.140 - 2026-09-27
 
 - The crash after dying in the Megan fight with **Reload save on death**
