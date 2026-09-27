@@ -190,4 +190,5 @@ and a forced texture rebuild then runs safely.
   on the panel, background opacity (30% shown), one runner field
   pre-filled `deter`, the finished run kept through an auto-restart
   (-1.11 gold / -0.52 / -0.53 still shown after it), times at 3 decimals.
-  Dragging the panel: awaiting the author's mouse.
+  Dragging the panel: works (author, v0.24.151, windowed; log `Splits
+  panel moved to (1066, 0)`); the left edge fixed in v0.24.152.
