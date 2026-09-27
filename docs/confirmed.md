@@ -191,4 +191,5 @@ and a forced texture rebuild then runs safely.
   pre-filled `deter`, the finished run kept through an auto-restart
   (-1.11 gold / -0.52 / -0.53 still shown after it), times at 3 decimals.
   Dragging the panel: works (author, v0.24.151, windowed; log `Splits
-  panel moved to (1066, 0)`); the left edge fixed in v0.24.152.
+  panel moved to (1066, 0)`); the left edge fixed in v0.24.152 and confirmed
+  by the author (flush, no jump).

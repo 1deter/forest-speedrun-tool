@@ -475,3 +475,10 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     Keep the value in the module while it changes and write once after it
     settles (the splits opacity slider and runner name write 0.5 s after
     the last change, v0.24.150); drags write on mouse release.
+
+61. **A sentinel inside the value's range is reachable.** The splits
+    panel's `PanelX = -1` means "against the right edge". Dragging past
+    the left edge made the live x negative, which read as the sentinel,
+    and the panel jumped to the right side (author, v0.24.151, windowed).
+    Clamp live input to the real range, and apply a sentinel only to the
+    saved setting, never to a value being edited (v0.24.152).

@@ -513,6 +513,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB.
 59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared.
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release.
+61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting.
 
 ---
 
@@ -567,7 +568,7 @@ identity.
 **Released: v0.24.152** (2026-09-27). The author runs it via the in-game
 updater. **396 tests.**
 
-### Pick up here (2026-09-27, v0.24.151 in the game, v0.24.152 released)
+### Pick up here (2026-09-27, v0.24.152 in the game)
 
 **Next session: the website** (author, 2026-09-27: "get everything done
 and start working on the site"). Brief in *Next up* 10 and
@@ -589,9 +590,7 @@ commits on reset - author). Attempts save `splits|` and
 pre-filled with the Steam name (stored as "" so a Steam rename follows).
 Segments `split = <name>` after a check / end line (Practice editor
 *split* fields). All checked over the bridge; the **drag** confirmed by
-the author (v0.24.151, windowed), except the left edge, which jumped to
-the right (the `PanelX < 0` "right edge" setting) - fixed in v0.24.152,
-the author's re-check pending (docs/confirmed.md). A test segment
+the author (v0.24.152, windowed, both edges; docs/confirmed.md). A test segment
 `s-splitstest01` ("Splits test", category Test) is in the author's
 `my-segments.txt` (backup before it:
 `%TEMP%/my-segments.before-splits-test.txt`) - remove it per *Removing
