@@ -591,25 +591,51 @@ git, pyramid L0-6, 0.21 m/px); `FOREST_SITE_ADMIN_TOKEN=... python
 scripts/aerial-upload.py` (the author's token - ask them to run it or set
 it) -> the site's data folder; map.js draws Photo / Ground / Relief (a
 helper agent built it, tested on fake tiles only).
-**2026-09-28 (short session, author at 7% weekly usage):** author asks
-(QA 1553910257628086335) to **keep water in the capture with an option
-to hide it (like trees)** and **recapture every playable area** (the
-bake missed corners), and wants the map to become **the most detailed
-3D map possible** - real models popping out in the 3D view, an
-"endgame", exhaustive tool. Found live: the missing east / corner
-blocks are the sea tiles `AerialCapture` skips (`hi < Sea - 3`); the
-terrain is exactly -1750..1750 x -1742.63..1757.37, so the capture area
-was right. A coast tile (ix 14, 1312-1531 x 445-664) shows glossy
-ripples over the sea floor, but they are **not Ceto**: the same with
-`Ocean.level -10000` and with the `CetoTF/Ocean` GameObject inactive -
-probably caustics / a terrain effect; whether Ceto's projected grid
-draws for an orthographic camera at all is unknown (next: a
-perspective shot of the open sea from the freecam, then look for the
-caustics projector). The test captures **overwrote
-`aerial/tiles.txt` and `canopy|ground/0_0.jpg`** of the full capture -
-the next bake needs the recapture. maks asked (QA 1554074251831672943)
-for a website YouTube side-by-side run comparison (start / end frame
-per run, segment times) - backlog, site-only (cloud-able).
+**2026-09-28: water in the photo map, and the 3D world.** Author: keep
+the sea in the capture with an option to hide it (like trees),
+recapture every area (QA 1553910257628086335), and make the map "the
+most detailed 3D map possible", real models in the 3D view - an
+exhaustive "endgame" tool; caves too.
+- **Water (v0.24.170, live):** the missing coasts / corners were the
+  sea tiles `AerialCapture` skipped. Ceto's ocean *does* draw for the
+  orthographic capture camera (an early "no change" was the Read tool
+  showing a cached image of the same path - name test shots uniquely);
+  `CetoTF/Ocean` inactive hides it. Every tile is captured now, tiles
+  reaching sea level again with the ocean off (`canopy-dry` /
+  `ground-dry`); the bake falls back to the wet tile; the site's
+  **Water** button (app.js `mapLayers`). Recaptured (256 tiles, 141 dry,
+  1042 s), baked (4096 top tiles x 4 layers), uploaded by the author.
+  Nobody has looked at the live result yet.
+- **The 3D world (site `world3d.js`, `scripts/world-extract.py`):** game
+  meshes are not readable in game (`isReadable` false, collision too),
+  so they are read **offline from the game's files with UnityPy**
+  (`pip install UnityPy`): level2 main scene, level7 endgame, level11,
+  level15-30 cave props. Export (35 s, ~62 MB, `site/world-out`, not in
+  git): unique meshes + textures (256 px) + instances in 250 m chunks
+  per area; render / collision (mesh colliders + box / sphere / capsule,
+  non-trigger). The site streams chunks within 700 m of the camera
+  target, one InstancedMesh per model, Models / Collision switches;
+  surface models fade underground with the terrain. Upload:
+  `python scripts/aerial-upload.py --world` (`/api/admin/world`, owner
+  token `FOREST_SITE_ADMIN_TOKEN`, User-scope - read it explicitly).
+  Checked on the local site (Labskip spot). Lessons: a PPtr's m_FileID
+  is relative to the *referencing* file (`ref_key` resolves it);
+  switched-off primitive / Blocker / Water renderers are volumes with
+  debug materials (dropped); the endgame's props are switched off in the
+  file (Area turns them on - kept).
+- **Open, in order:** (1) the endgame lab looked **sparse** on the local
+  site (props, few walls / floors; box colliders show the shape). Not
+  the `Walls` / `Ceiling` objects in level7 - those are empty, switched
+  off leftovers. Next: a `shot` in the lab (walk in - a `tp` lands with
+  the sections unloaded) beside the site's view at the same spot, then
+  `find` a missing wall live and read its mesh name / scene. (2) Trees and other pooled / spawned objects
+  (LOD_Trees, greebles, pickups) are not in the scene files - an
+  in-game dump of positions + prefab / mesh names, joined to the
+  offline meshes by name. (3) Heavy chunks (endgame up to 2M triangles)
+  want decimation / LODs for phones; `.bin` is served uncompressed.
+maks asked (QA 1554074251831672943) for a website YouTube side-by-side
+run comparison (start / end frame per run, segment times) - backlog,
+site-only (cloud-able).
 **Next steps, in order:** (1) **The photo map is live** (2026-09-28): a
 full capture on v0.24.169 (234 tiles + 22 sea, 955 s; eye adaptation and
 vignette off), baked (3784 top-level tiles per layer), uploaded by the
