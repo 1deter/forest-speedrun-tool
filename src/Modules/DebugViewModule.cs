@@ -122,6 +122,7 @@ namespace ForestOverlay.Modules
             FrameTimer.Log = Ctx.Log;
             RenderProbe.Log = Ctx.Log;
             TerrainDump.Log = Ctx.Log;
+            WorldDump.Log = Ctx.Log;
 
             _limitSizeCfg = Ctx.Config.Bind("DebugViews", "LimitVolumeSize", true,
                 "Hide collider/trigger volumes whose largest side exceeds MaxVolumeSize.");
