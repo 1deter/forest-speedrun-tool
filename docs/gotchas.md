@@ -491,3 +491,42 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     ran (ilscan `writes <Type>::<field>` lists them all; postfix each, plus
     a slow full read as a net). Before a per-sample reader of game state,
     ask: can the list be "whatever is there", and is there a write to hook?
+
+63. **An image read at the same path can be the old picture.** Testing
+    whether the ocean draws in the aerial capture, three captures of one
+    tile written to the same `canopy/0_0.jpg` looked identical, and the
+    session concluded "hiding the ocean changes nothing" (2026-09-28). The
+    Read tool had shown a cached copy; a shot under a new name showed the
+    difference at once. Give every test shot its own name before comparing.
+
+64. **A Unity PPtr's file id is relative to the file holding it.** The
+    offline world export keyed meshes by `(m_FileID, path_id)`: the same
+    pair in another scene is another mesh, so cave pickups were drawn with
+    an endgame mesh at 12x - 1.7 km planes across the map. Resolve the id
+    through the referencing file's externals (`world-extract.py`
+    `ref_key`), and note UnityPy's attribute is `pptr.assetsfile`, not
+    `assets_file` (a `getattr` default hid the typo).
+
+65. **A release chain must stop when a step fails.** A Python edit
+    (heredoc) failed its assert, but the next `dotnet build && sed ... &&
+    git tag` ran anyway: v0.24.172 shipped as a bare version bump with a
+    changelog line for a fix it did not contain (v0.24.173 carried it; the
+    .172 entry now says so). Join the edit to the release with `&&`, or
+    check the edit's output before bumping.
+
+66. **Uploaded files cached for a day need a version in their URL.** The
+    photo map re-upload still showed black corners: browsers and
+    Cloudflare kept day-old tiles (`max-age=86400`) from before. Every
+    uploaded set (aerial tiles, 3D world) now carries a build stamp in its
+    json (fetched `no-cache`) and every file URL `?v=<build>`.
+
+67. **Scene files hold placeholders, not the world.** Trees, bushes,
+    rocks and the caves' walls are spawned from pools near the player by
+    LOD scripts (`LOD_Base.High/Mid/Low`, at `_position` and the
+    placeholder's rotation, the prefab's own scale - checked live); a
+    scene read shows none of them. An in-game dump of the placeholders
+    (`Game/WorldDump`) + the meshes read offline by name and vertex count
+    gives the whole world. Also: a shader's look can come from more than
+    `_MainTex` - the Lux rock shader lays snow / grass over faces that
+    look up (`_WnAlbedoSmoothness`), and keeps smoothness, not a cut-out,
+    in its alpha.

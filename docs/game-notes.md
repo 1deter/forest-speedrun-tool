@@ -2288,6 +2288,33 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   terrain's specular glare from above; `TimeOfDay` 320 = sun in the west,
   ~40 degrees up, no glare.
 - **HUD:** NGUI cameras under `HudGui` (`Camera_HUD`, `ActionIconCamera`).
+- **The ocean from above (2026-09-28):** Ceto's ocean (`CetoTF/Ocean`,
+  `Ceto.Ocean`, level 41.5) draws for an orthographic, straight-down
+  camera too; switching its GameObject off hides it at once (changing
+  `Ocean.level` does not). Shallow water shows the sea floor through it.
+- **Meshes are not readable** (`Mesh.isReadable` false, collision meshes
+  too): geometry is read offline from the game's files
+  (`scripts/world-extract.py`, UnityPy). Scene order = BuildSettings:
+  level2 ForestMain_v08, 7 endgame_streaming, 10 MainSceneGreebles
+  (empty), 11 MainSceneWorldStorySpots, 15-30 the cave prop scenes.
+  Meshes live in `sharedassets*.assets`.
+- **Pooled objects:** trees, bushes, saplings, plants, rocks and the
+  caves' walls are **not** in the scene files - their placeholders are
+  (`LOD_Base` subclasses: LOD_Trees 17.5k, LOD_Bush, LOD_Sapling,
+  LOD_Plant, LOD_Rocks, LOD_SmallRocks, LOD_Cave, LOD_CaveEntrance; 30.6k
+  outside `Pooling`). `LOD_Base.SetLOD` spawns `High` / `Mid` / `Low` at
+  `_position` with the placeholder's rotation and the prefab's own scale
+  (a tree placeholder 9.79, its spawned Mid 11 = the prefab's). Greeble
+  rocks under `Pooling/Pool_Greebles` are spawned again per visit.
+- **The endgame's props are switched off in the scene file** (7.2k
+  renderers, 5.3k of them disabled; Area turns them on). Switched-off
+  Cubes on the Blocker layer with `Base_Orange` are invisible volumes;
+  the empty `Walls` / `Ceiling` objects in level7 are leftovers.
+- **Rock / cliff look (Lux "Standard Specular Custom Ambient Water
+  Flow"):** `_MainTex` is the grey rock; `_WnAlbedoSmoothness` (snow
+  `FlatWhite`, grass, moss) is laid over faces that look up; the albedo
+  alpha is smoothness, not a cut-out. Foliage uses AFS shaders (alpha
+  cut-out).
 
 ## The game ships a debug console — 256 methods
 

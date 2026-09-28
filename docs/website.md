@@ -192,6 +192,63 @@ spot's saved runs" and "Open on the website".
   `/admin`; publishing is still the commit to `community/` above (the repo
   stays the source of truth) - maybe the GitHub API later.
 
+## The photo map (2026-09-27 / 28)
+
+Top-down photos of the whole island, the map's Photo / Ground layers,
+with a Water switch.
+
+1. **Capture** (game, bridge, ~17 min): `call BepInEx_Manager
+   OverlayPlugin._host._modules[8].AerialStart -1750 -1742.631 1750
+   1757.369 218.75 4 4 320` (x0 z0 x1 z1 tile settle rangeScale sunTime);
+   read `_aerial.Status`. Writes `config/ForestOverlay/aerial/`
+   `{canopy,ground,canopy-dry,ground-dry}/<ix>_<iz>.jpg` + `tiles.txt`.
+   Every tile, sea included; tiles reaching sea level again with the
+   ocean off (the `-dry` layers). A test capture of one tile overwrites
+   `tiles.txt` - recapture before the next bake.
+2. **Bake**: `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
+   git; pyramid L0-6, 256 px, a dry tile falls back to the wet one;
+   `aerial.json` carries `build`, the tiles' `?v=`).
+3. **Upload** (owner token): `python scripts/aerial-upload.py` - chunks
+   under 90 MB to `/api/admin/aerial`, the first clears the folder.
+
+## The 3D world (2026-09-28)
+
+The game's own models and collision in the spot page's 3D view
+(`wwwroot/world3d.js`, Models / Collision switches), streamed in 250 m
+chunks within 700 m of the camera's target, one InstancedMesh per model.
+
+1. **Pooled objects** (game, bridge, <1 s): `call
+   static:ForestOverlay.Game.WorldDump Write` ->
+   `config/ForestOverlay/world/spawned.txt` - every LOD placeholder (trees,
+   bushes, saplings, rocks, cave walls; not greebles under `Pooling`) and
+   its prefab's parts. Only needed again after a game update.
+2. **Export** (offline, ~40 s, `pip install UnityPy`): `python
+   scripts/world-extract.py export` reads the scenes from the game's files
+   (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
+   `site/world-out/` (not in git): `world.json` (materials, meshes, models,
+   chunks, `build`), `m/<i>.bin` meshes, `t/<i>.jpg` (+ `.png` for
+   cut-outs), `c/<area>_<x>_<z>.bin` instances. `stats [level ...]` prints
+   what a scene holds. The format is in the script's docstring.
+3. **Upload**: `python scripts/aerial-upload.py --world` (to
+   `/api/admin/world`, clears first).
+
+What the export decides (details: gotchas 64-67):
+- Areas: `surface` (fades with the terrain when the view is underground),
+  `caves`, `endgame`.
+- Kinds: `render`, `render-off` (switched off in the file - the endgame's
+  props, turned on by Area as sections are entered; kept), `collide`.
+  Switched-off primitives and Blocker / Water layer renderers are volumes
+  with debug materials - dropped.
+- Materials: `_MainTex` + `_Color`; `top` / `topScale` = the Lux shader's
+  snow / grass / moss over faces that look up (`_WnAlbedoSmoothness`);
+  `cut` (alpha test) for foliage / transparent / Standard-cutout shaders
+  only (Lux keeps smoothness in its alpha); `fx` (particles, sheen) -
+  skipped by the site.
+
+Open: the endgame lab looks sparse; a spot loads thousands of files and
+`.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;
+greebles and pickups are missing; per-kind toggles.
+
 ## Next
 
 1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:

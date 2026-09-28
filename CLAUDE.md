@@ -519,6 +519,11 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release.
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting.
 62. **Record what changed, when the game changes it** - not a fixed list per sample: `ilscan writes` finds every writer to hook (v0.24.161 items).
+63. **An image read at the same path can be the old picture** - name every test shot uniquely before comparing.
+64. **A Unity PPtr's file id is relative to the file holding it** - resolve through the referencing file's externals (`ref_key`).
+65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty).
+66. **Uploaded files cached for a day need a version in their URL** - build stamp in the json, `?v=` on every file.
+67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`.
 
 ---
 
@@ -570,89 +575,62 @@ identity.
 
 ## Current status
 
-**Released: v0.24.169** (2026-09-27). The author runs it via the in-game
-updater (v0.24.168 in the game at handoff, Slot 2). **455 tests** (+ 17 site tests).
+**Released: v0.24.173** (2026-09-28). The author runs it via the in-game
+updater (v0.24.173 in the game at handoff, Slot 2). **455 tests** (+ 17 site tests).
 
-### Pick up here (2026-09-27 evening, v0.24.168 in the game)
+### Pick up here (2026-09-28, v0.24.173 in the game)
 
-**The terrain / photo map is mid-way (author back Wednesday; usage ran
-out - resume it).** Done: relief underlay live on the site (v0.24.162
-`Game/TerrainDump` -> `scripts/terrain-bake.py` -> `wwwroot/terrain/`),
-runs record the save's plane (v0.24.163 `plane|`, map shows it bright,
-the other 11 sites faint), site times 3 d.p.; the **aerial photo capture**
-(`Game/AerialCapture`, v0.24.164-169; everything it learned in game-notes
-*Terrain, and the world from above*): bridge `call BepInEx_Manager
-OverlayPlugin._host._modules[8].AerialStart -1750 -1742.631 1750 1757.369
-218.75 4 4 320` (x0 z0 x1 z1 tile settle rangeScale sunTime; tiles on the
-pyramid grid, ~20 min for the island, `_aerial.Status`, `AerialStop`),
-writes `config/ForestOverlay/aerial/{canopy,ground}/<ix>_<iz>.jpg` +
-`tiles.txt`; `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
-git, pyramid L0-6, 0.21 m/px); `FOREST_SITE_ADMIN_TOKEN=... python
-scripts/aerial-upload.py` (the author's token - ask them to run it or set
-it) -> the site's data folder; map.js draws Photo / Ground / Relief (a
-helper agent built it, tested on fake tiles only).
-**2026-09-28: water in the photo map, and the 3D world.** Author: keep
-the sea in the capture with an option to hide it (like trees),
-recapture every area (QA 1553910257628086335), and make the map "the
-most detailed 3D map possible", real models in the 3D view - an
-exhaustive "endgame" tool; caves too.
-- **Water (v0.24.170, live):** the missing coasts / corners were the
-  sea tiles `AerialCapture` skipped. Ceto's ocean *does* draw for the
-  orthographic capture camera (an early "no change" was the Read tool
-  showing a cached image of the same path - name test shots uniquely);
-  `CetoTF/Ocean` inactive hides it. Every tile is captured now, tiles
-  reaching sea level again with the ocean off (`canopy-dry` /
-  `ground-dry`); the bake falls back to the wet tile; the site's
-  **Water** button (app.js `mapLayers`). Recaptured (256 tiles, 141 dry,
-  1042 s), baked (4096 top tiles x 4 layers), uploaded by the author.
-  Nobody has looked at the live result yet.
-- **The 3D world (site `world3d.js`, `scripts/world-extract.py`):** game
-  meshes are not readable in game (`isReadable` false, collision too),
-  so they are read **offline from the game's files with UnityPy**
-  (`pip install UnityPy`): level2 main scene, level7 endgame, level11,
-  level15-30 cave props. Export (35 s, ~62 MB, `site/world-out`, not in
-  git): unique meshes + textures (256 px) + instances in 250 m chunks
-  per area; render / collision (mesh colliders + box / sphere / capsule,
-  non-trigger). The site streams chunks within 700 m of the camera
-  target, one InstancedMesh per model, Models / Collision switches;
-  surface models fade underground with the terrain. Upload:
-  `python scripts/aerial-upload.py --world` (`/api/admin/world`, owner
-  token `FOREST_SITE_ADMIN_TOKEN`, User-scope - read it explicitly).
-  Checked on the local site (Labskip spot). Lessons: a PPtr's m_FileID
-  is relative to the *referencing* file (`ref_key` resolves it);
-  switched-off primitive / Blocker / Water renderers are volumes with
-  debug materials (dropped); the endgame's props are switched off in the
-  file (Area turns them on - kept).
-- **Open, in order:** (1) the endgame lab looked **sparse** on the local
-  site (props, few walls / floors; box colliders show the shape). Not
-  the `Walls` / `Ceiling` objects in level7 - those are empty, switched
-  off leftovers. Next: a `shot` in the lab (walk in - a `tp` lands with
-  the sections unloaded) beside the site's view at the same spot, then
-  `find` a missing wall live and read its mesh name / scene. (2) Trees and other pooled / spawned objects
-  (LOD_Trees, greebles, pickups) are not in the scene files - an
-  in-game dump of positions + prefab / mesh names, joined to the
-  offline meshes by name. (3) Heavy chunks (endgame up to 2M triangles)
-  want decimation / LODs for phones; `.bin` is served uncompressed.
-maks asked (QA 1554074251831672943) for a website YouTube side-by-side
-run comparison (start / end frame per run, segment times) - backlog,
-site-only (cloud-able).
-**Next steps, in order:** (1) **The photo map is live** (2026-09-28): a
-full capture on v0.24.169 (234 tiles + 22 sea, 955 s; eye adaptation and
-vignette off), baked (3784 top-level tiles per layer), uploaded by the
-author. Nobody has looked at it yet: open a spot page on
-forest.deter.cloud, check the whole island at every zoom (seams, even
-light, the Photo / Ground switch, the underground fade), fix what shows;
-a re-capture + bake + upload is ~25 min. Ask the author how it looks. (2) Caves / endgame sections / overlook are not in the
-terrain: a collider-mesh dump -> 2D floor plan at the ghost's height + 3D
-(author wants it "true to the game state", incl. invisible sections like
-the lab skip). (3) Separate toggles for buildings / other objects (author:
-later, "just work on terrain for now"). (4) The 3D view is a cloud task
-(text given to the author, 2026-09-27; memory `offload-to-cloud`), as is
-the LiveSplit `.lss` parser. Known: the spot page scrolls sideways at phone
-width (a wide table); `scripts/__pycache__/*.pyc` is tracked in git.
-**Remote agents**: `Agent` with `isolation: "remote"` ran in a local
-worktree here, not in the cloud - for cloud credit the author starts a
-cloud session with a task text.
+**The website's map: photo map with water, and a 3D world of the game's
+own models.** Author (2026-09-28): keep the sea with an option to hide
+it (like trees), recapture every area (QA 1553910257628086335), and make
+the map "the most detailed 3D map possible" - models popping out in 3D,
+an exhaustive "endgame" tool, caves included. Recipes and formats:
+[`docs/website.md`](docs/website.md) *The photo map* / *The 3D world*;
+game internals: game-notes *Terrain, and the world from above*.
+
+- **Photo map (live):** `Game/AerialCapture` captures every tile now,
+  sea included, and tiles reaching sea level again with `CetoTF/Ocean`
+  inactive (`canopy-dry` / `ground-dry`, v0.24.170) - the site's
+  **Water** button. Recaptured on v0.24.170 (256 tiles, 141 dry, 1042 s),
+  baked (4096 top tiles x 4 layers), uploaded; `aerial.json` re-uploaded
+  with a build stamp so tile URLs carry `?v=` (gotcha 66: the black
+  corners the author saw were day-old cached tiles). Not yet looked at
+  by anyone after the stamp.
+- **3D world (site `world3d.js`, `scripts/world-extract.py`, v0.24.171-
+  173 `Game/WorldDump`):** meshes are not readable in game, so the scenes
+  are read **offline with UnityPy** (level2, 7, 11, 15-30) and the pooled
+  objects (trees, bushes, saplings, rocks, cave walls - 30.6k LOD
+  placeholders) come from the in-game dump `call
+  static:ForestOverlay.Game.WorldDump Write` (spawned.txt), meshes found
+  by name + vertex count. Render + collision (mesh / box / sphere /
+  capsule, non-trigger); Lux's snow / grass top layer; foliage cut-outs;
+  particles skipped. Export ~81 MB, 37 s. Checked on the local site
+  (forest, Labskip). **Live**: the first world (no trees) was uploaded by
+  the author; this session's full one is uploaded from here after the
+  site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
+  with `[Environment]::GetEnvironmentVariable(..., 'User')`).
+- **Next, in order:** (1) the author's eyes on the live 3D world at the
+  Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
+  photo map's corners. (2) The endgame lab looked **sparse** (props, few
+  walls / floors; box colliders show the shape) - not the empty `Walls` /
+  `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
+  `tp` lands with the sections unloaded) with the site at the same spot,
+  `find` a missing wall live, read its mesh name. (3) Load size: a spot
+  fetches thousands of files (one per mesh / texture) and `.bin` is
+  uncompressed - pack meshes per chunk or serve gzip; heavy chunks
+  (endgame ~2M triangles) want decimation / LODs for phones. (4) Greebles
+  (random per visit) and pickups are not in the world. (5) 2D floor plans
+  of caves from the collision at the ghost's height (author's earlier
+  ask). (6) Separate toggles per kind (trees / rocks / buildings /
+  props) - the models carry their layer.
+- maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
+  comparison (start / end frame per run, segment times) - backlog,
+  site-only.
+- Known: the spot page scrolls sideways at phone width (a wide table);
+  `scripts/__pycache__/*.pyc` is tracked in git. **Remote agents**:
+  `Agent` with `isolation: "remote"` ran in a local worktree here, not in
+  the cloud - for cloud credit the author starts a cloud session with a
+  task text.
 
 **Done this session (site + v0.24.160-161):** the spot page's **State**
 panel - the selected run at the scrub time (health, stamina ... a preset
