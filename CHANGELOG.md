@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.172 - 2026-09-28
+
+- Developer tooling only: the 3D map dump keeps each object's own scale.
+  Nothing changes in game.
+
 ## v0.24.171 - 2026-09-28
 
 - Developer tooling only: a dump of the trees, rocks and cave pieces the
