@@ -609,6 +609,15 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
+- **Author's report (2026-09-28, do first):** at the logboost spots
+  (Cave 6, e.g. 2nd logboost's start) Models on fills the cave with big
+  **flat grey, untextured** shapes - you cannot see in (Collision shows
+  the real cave). Flat grey = a material with no texture or none at all:
+  likely occluder / proxy meshes (a `render` or kept `render-off` model
+  with material -1 / `Default-Material`, or an LOD_Cave prefab part).
+  List the models whose instances sit near (1280, -70, 610) with their
+  materials (the world.json + chunk read used for Glass_low), drop the
+  untextured proxies in world-extract.py, re-export, upload.
 - **Next, in order:** (1) the author's eyes on the live 3D world at the
   Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few
