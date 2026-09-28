@@ -206,20 +206,21 @@ export class World {
     const d = index >= 0 ? this.meta.materials[index] : null;
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
     const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide });
-    if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut);
+    if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut, d.scale);   // scale: the material's tiling
     if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
     this.mats.set(index, mat);
     return mat;
   }
 
-  texture(i, alpha) {
-    const key = alpha ? i + "a" : i;
+  texture(i, alpha, scale) {
+    const key = (alpha ? i + "a" : "" + i) + (scale ? "x" + scale.join(",") : "");
     let t = this.textures.get(key);
     if (!t) {
       t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed());
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      if (scale) t.repeat.set(scale[0], scale[1]);
       this.textures.set(key, t);
     }
     return t;

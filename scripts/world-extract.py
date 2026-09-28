@@ -393,6 +393,9 @@ class Export:
                     continue
                 if name == "_MainTex":
                     entry["tex"] = self.texture(te.m_Texture)
+                    sc = [round(float(te.m_Scale.x), 3), round(float(te.m_Scale.y), 3)]
+                    if sc != [1, 1] and sc[0] and sc[1]:
+                        entry["scale"] = sc     # the material's tiling (cave shells: one texture over 200 m without it)
                 elif name == "_WnAlbedoSmoothness":
                     entry["top"] = self.texture(te.m_Texture)
                     entry["topScale"] = round(float(te.m_Scale.x), 3) or 1
