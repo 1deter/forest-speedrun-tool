@@ -10,7 +10,10 @@
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
 // instance's matrix is S * M with S = diag(1, 1, -1) on the mesh's own
-// (Unity) vertices - mirrored, so every material is double-sided.
+// (Unity) vertices - mirrored; with the indices turned (geometry()) front
+// faces come out counter-clockwise, so solid materials cull back faces as
+// Unity does (a cave shell seen from outside is see-through, not a grey
+// wall). Cut-outs (leaf cards) stay double-sided.
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
 
 const RADIUS = 700, DROP = 1100;           // metres, horizontally from the camera's target
@@ -202,7 +205,7 @@ export class World {
     if (this.mats.has(index)) return this.mats.get(index);
     const d = index >= 0 ? this.meta.materials[index] : null;
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
-    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: THREE.DoubleSide });
+    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide });
     if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut);
     if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
