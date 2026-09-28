@@ -524,6 +524,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty).
 66. **Uploaded files cached for a day need a version in their URL** - build stamp in the json, `?v=` on every file.
 67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`.
+68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done.
 
 ---
 
@@ -609,14 +610,26 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **Cave 6 grey shapes (author, 2026-09-28): fix uploaded, not yet seen.** The cave
-  shells' materials tile `_MainTex` 35-40x (ground 12x); the export dropped the
-  tiling, so one texture stretched over 200 m read as flat grey. `scale` per
-  material now (world-extract.py -> world3d.js `texture(i, alpha, scale)`),
-  re-exported + uploaded. Also: solid materials cull back faces (FrontSide) as
-  Unity does. The author still wants the cave readable ("can't see anything")
-  - if it is still too closed in, a see-through / clip option for the shell.
-  Site JS is cached 4 h (`max-age=14400`): version its URLs (gotcha 66).
+- **TOP PRIORITY - the 3D world's caves are still broken (author, 2026-09-28,
+  after two fixes).** At Cave 6 (logboost spots, (1280, -70, 610)) Models on shows
+  big grey rock shapes and you "can't see anything"; the author: the cave should
+  look like the collision with the rock mapped on it, the textures look far too
+  large. Done so far, both live, neither enough: solid materials cull back faces
+  (`world3d.js` FrontSide; cut-outs double-sided) - a1eb228; each material's
+  `_MainTex` tiling exported and applied (`scale`, cave walls 35-40x, ground 12x;
+  `texture(i, alpha, scale)`) + world re-exported and uploaded - 2056f43.
+  **Do first: look.** Run the local site (docs/website.md, preview
+  "forest-site", local world upload) at the spot, screenshot, and compare with a
+  game `shot` there (`tp 1283.92 -70.59 612.88`). Then check, in order: whether
+  the tiled texture really shows (a `?v=` cache / texture key, repeat applied);
+  whether the shells sit where the collision is (a transform / LOD / wrong
+  mesh-by-name match from spawned.txt - compare shell and collision bounds);
+  whether a shell that is really an outside hull hides the inside (then clip it
+  near the camera / see-through toggle). Near the spot the models are: cave shell
+  `default` 27281 tris (mat CaveType_GenericTyoe2, x17), `BeachRock_Mid:Mesh`,
+  CaveGround, Cliff_Stone3_low; no big untextured proxies (only a 4 m pCube2).
+  Site JS is cached 4 h (`max-age=14400`) - version its URLs (gotcha 66); a hard
+  refresh was done. Gotcha 68.
 - **Next, in order:** (1) the author's eyes on the live 3D world at the
   Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few

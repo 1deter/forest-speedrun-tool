@@ -530,3 +530,12 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     `_MainTex` - the Lux rock shader lays snow / grass over faces that
     look up (`_WnAlbedoSmoothness`), and keeps smoothness, not a cut-out,
     in its alpha.
+
+68. **A texture's size on screen is the mesh's UVs times the material's
+    tiling - check both, and look before claiming a fix.** (2026-09-28, the
+    3D world's Cave 6.) The cave shells' UVs span ~0.6 of one texture over
+    200 m; the materials tile it 35-40x (`m_Scale` of `_MainTex`), which the
+    export dropped - fixed in 2056f43. Two fixes were pushed as "fixed" on
+    offline reasoning alone (back-face culling, then the tiling) and the
+    author still saw the cave broken both times: render the local site at
+    the spot and compare with a game `shot` before telling the author.
