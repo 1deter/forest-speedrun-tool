@@ -21,9 +21,10 @@ namespace ForestOverlay.Game
     //
     // config/ForestOverlay/world/spawned.txt, tab separated:
     //   lod    <type> <high> <mid> <low> <x y z> <qx qy qz qw> <lossy sx sy sz> <active 0/1>
-    //   prefab <name>            (once per prefab, then its parts)
+    //   prefab <name> <root scale x y z>   (once per prefab, then its parts)
     //   part   render|collide <layer> <mesh name> <vertex count> <12 floats: 3x4
-    //          matrix, prefab root space> <material;material...>
+    //          matrix from the root's position and rotation - the root's own
+    //          scale included> <material;material...>
     //   part   box <layer> - 0 <12 floats: the box as a unit cube's matrix> -
     // A prefab is named by its object name; meshes by name + vertex count
     // (enough to find them in the game's files).
@@ -75,8 +76,11 @@ namespace ForestOverlay.Game
             int parts = 0;
             foreach (Transform root in prefabs.Keys)
             {
-                sb.Append("prefab\t").Append(root.name).Append('\n');
-                Matrix4x4 toRoot = root.worldToLocalMatrix;
+                Vector3 rs = root.localScale;
+                sb.Append("prefab\t").Append(Clean(root.name)).Append('\t')
+                  .Append(F(rs.x)).Append(' ').Append(F(rs.y)).Append(' ').Append(F(rs.z)).Append('\n');
+                // Parts relative to the root's position and rotation: its own scale stays in them.
+                Matrix4x4 toRoot = Matrix4x4.TRS(root.position, root.rotation, Vector3.one).inverse;
                 foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
                 {
                     MeshRenderer r = mf.GetComponent<MeshRenderer>();
