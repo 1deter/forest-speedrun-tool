@@ -65,22 +65,31 @@ app.UseStaticFiles(new StaticFileOptions
 // The map's aerial photo tiles (scripts/aerial-bake.py, uploaded by the
 // owner through /api/admin/aerial): too big for git, so they live with the
 // data. A missing tile (open sea) is a plain 404, not the page.
+// The 3D map's world (scripts/world-extract.py, /api/admin/world) the same
+// way: meshes, textures and instance chunks read from the game's files.
 string aerialDir = Path.Combine(dataDir, "aerial");
-Directory.CreateDirectory(aerialDir);
-app.UseStaticFiles(new StaticFileOptions
+string worldDir = Path.Combine(dataDir, "world");
+var binaryTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+binaryTypes.Mappings[".bin"] = "application/octet-stream";
+foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial.json"), (worldDir, "/world", "/world/world.json") })
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(aerialDir),
-    RequestPath = "/aerial",
-    OnPrepareResponse = f => f.Context.Response.Headers.CacheControl = "public, max-age=86400",
-});
-// Not an endpoint: a matched endpoint makes the static files stand aside.
-app.Use((c, next) =>
-{
-    if (!c.Request.Path.StartsWithSegments("/aerial")) return next(c);
-    // No tiles uploaded: "nothing here" without a 404 in every visitor's console.
-    c.Response.StatusCode = c.Request.Path == "/aerial/aerial.json" ? 204 : 404;
-    return Task.CompletedTask;
-});
+    Directory.CreateDirectory(dir);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dir),
+        RequestPath = path,
+        ContentTypeProvider = binaryTypes,
+        OnPrepareResponse = f => f.Context.Response.Headers.CacheControl = "public, max-age=86400",
+    });
+    // Not an endpoint: a matched endpoint makes the static files stand aside.
+    app.Use((c, next) =>
+    {
+        if (!c.Request.Path.StartsWithSegments(path)) return next(c);
+        // Nothing uploaded: "nothing here" without a 404 in every visitor's console.
+        c.Response.StatusCode = c.Request.Path == meta ? 204 : 404;
+        return Task.CompletedTask;
+    });
+}
 string indexHtml = Pages.Index(app.Environment.WebRootPath);
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
@@ -233,16 +242,19 @@ admin.MapDelete("/admins/{id:long}", (HttpContext c, long id) =>
     !IsOwner(c) ? Problem(403, "only the owner manages admins") : store.RevokeAdmin(id) ? Results.Ok() : Problem(404, "no such admin"));
 // Aerial tiles: a zip of <layer>/<level>/<x>_<y>.jpg (+ aerial.json),
 // extracted over what is there; ?clear=1 empties the folder first (the
-// first of several chunks - Cloudflare caps a request at 100 MB).
-admin.MapPost("/aerial", async (HttpContext c) =>
+// first of several chunks - Cloudflare caps a request at 100 MB). The 3D
+// world likewise (UploadPath.IsWorld).
+admin.MapPost("/aerial", (Delegate)((HttpContext c) => Upload(c, aerialDir, UploadPath.IsTile)));   // Delegate: not a RequestDelegate, the IResult counts
+admin.MapPost("/world", (Delegate)((HttpContext c) => Upload(c, worldDir, UploadPath.IsWorld)));
+async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed)
 {
-    if (!IsOwner(c)) return Problem(403, "only the owner uploads map tiles");
+    if (!IsOwner(c)) return Problem(403, "only the owner uploads map files");
     var size = c.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
     if (size != null && !size.IsReadOnly) size.MaxRequestBodySize = 100L * 1024 * 1024;
     using var buffer = new MemoryStream();
     await c.Request.Body.CopyToAsync(buffer);
     if (c.Request.Query["clear"] == "1")
-        foreach (string d in Directory.GetFileSystemEntries(aerialDir))
+        foreach (string d in Directory.GetFileSystemEntries(dir))
             if (Directory.Exists(d)) Directory.Delete(d, true); else File.Delete(d);
     int files = 0;
     try
@@ -251,8 +263,8 @@ admin.MapPost("/aerial", async (HttpContext c) =>
         foreach (var entry in zip.Entries)
         {
             if (entry.FullName.EndsWith("/")) continue;
-            if (!AerialPath.IsTile(entry.FullName)) return Problem(400, "not a map tile: " + entry.FullName);
-            string to = Path.Combine(aerialDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
+            if (!allowed(entry.FullName)) return Problem(400, "not a map file: " + entry.FullName);
+            string to = Path.Combine(dir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
             using var from = entry.Open();
             using var file = File.Create(to);
@@ -262,7 +274,7 @@ admin.MapPost("/aerial", async (HttpContext c) =>
     }
     catch (InvalidDataException) { return Problem(400, "not a zip"); }
     return Results.Json(new { files });
-});
+}
 admin.MapPost("/runs/{id:long}/unflag", (long id) =>
     store.Update("UPDATE runs SET flagged = 0 WHERE id = $id", ("$id", id)) == 1 ? Results.Ok() : Problem(404, "no such run"));
 admin.MapPost("/runs/{id:long}/hide", (long id) => store.HideRun(id, true) ? Results.Ok() : Problem(404, "no such run"));

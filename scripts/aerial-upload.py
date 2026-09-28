@@ -1,6 +1,10 @@
 """Upload the baked aerial map tiles to the website.
 
     python scripts/aerial-upload.py [site url] [tile folder]
+    python scripts/aerial-upload.py --world [site url] [world folder]
+
+--world uploads the 3D map's world instead (scripts/world-extract.py export
+-> site/world-out, to /api/admin/world, world.json last).
 
 Zips the bake's output (scripts/aerial-bake.py -> site/aerial-out, not in
 git) into chunks under 90 MB (whole files per chunk; Cloudflare caps a
@@ -29,25 +33,19 @@ ZIP_OVERHEAD = 200          # local + central directory headers per entry, rough
 USER_AGENT = "ForestOverlay-aerial-upload/1.0 (+https://github.com/1deter/forest-speedrun-tool)"
 
 
-def tile_files(folder):
-    """(zip path, disk path, size) for every file the server accepts, tiles first."""
+def tile_files(folder, meta_name):
+    """(zip path, disk path, size) for every file under the folder, the meta file apart."""
     tiles = []
-    for layer in sorted(os.listdir(folder)):
-        ldir = os.path.join(folder, layer)
-        if not os.path.isdir(ldir):
-            continue
-        for level in sorted(os.listdir(ldir), key=lambda s: (len(s), s)):
-            vdir = os.path.join(ldir, level)
-            if not os.path.isdir(vdir):
-                continue
-            for name in sorted(os.listdir(vdir)):
-                if name.endswith(".jpg"):
-                    p = os.path.join(vdir, name)
-                    tiles.append(("%s/%s/%s" % (layer, level, name), p, os.path.getsize(p)))
-    meta = os.path.join(folder, "aerial.json")
+    for d, _, names in sorted(os.walk(folder)):
+        for name in sorted(names):
+            p = os.path.join(d, name)
+            rel = os.path.relpath(p, folder).replace(os.sep, "/")
+            if rel != meta_name and "/" in rel:
+                tiles.append((rel, p, os.path.getsize(p)))
+    meta = os.path.join(folder, meta_name)
     if not os.path.exists(meta):
-        sys.exit("no aerial.json in %s - run scripts/aerial-bake.py first" % folder)
-    return tiles, ("aerial.json", meta, os.path.getsize(meta))
+        sys.exit("no %s in %s - run the bake / export first" % (meta_name, folder))
+    return tiles, (meta_name, meta, os.path.getsize(meta))
 
 
 def chunks(tiles, meta):
@@ -92,21 +90,25 @@ def post(url, token, body):
 
 
 def main():
-    site = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SITE).rstrip("/")
-    folder = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_TILES
+    args = sys.argv[1:]
+    world = "--world" in args
+    args = [a for a in args if a != "--world"]
+    kind = "world" if world else "aerial"
+    site = (args[0] if args else DEFAULT_SITE).rstrip("/")
+    folder = args[1] if len(args) > 1 else os.path.join(ROOT, "site", "world-out") if world else DEFAULT_TILES
     token = os.environ.get("FOREST_SITE_ADMIN_TOKEN", "").strip()
     if not token:
         sys.exit("set FOREST_SITE_ADMIN_TOKEN to the site owner's admin token first")
     if not os.path.isdir(folder):
         sys.exit("no tile folder %s - run scripts/aerial-bake.py first" % folder)
-    tiles, meta = tile_files(folder)
+    tiles, meta = tile_files(folder, kind + ".json")
     parts = chunks(tiles, meta)
     total = sum(f[2] for f in tiles) + meta[2]
     print("%d tiles, %.1f MB, %d chunk(s) to %s" % (len(tiles), total / 1e6, len(parts), site))
     sent = 0
     for i, files in enumerate(parts):
         body = zipped(files)
-        url = site + "/api/admin/aerial" + ("?clear=1" if i == 0 else "")
+        url = site + "/api/admin/" + kind + ("?clear=1" if i == 0 else "")
         print("chunk %d/%d: %d files, %.1f MB ..." % (i + 1, len(parts), len(files), len(body) / 1e6), end=" ", flush=True)
         answer = post(url, token, body)
         print("server stored %s" % answer.get("files"))

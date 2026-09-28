@@ -9,7 +9,9 @@
 // The terrain is map.js's (RunMap.terrain: heights.u16 + map.jpg); a coarse
 // mesh of the whole island with a hole where a full-resolution patch around
 // the runs sits. Textured with the aerial photo tiles when uploaded.
+// The game's models and collision stream in around the camera (world3d.js).
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
+import { World } from "./world3d.js";
 
 const RunMap = window.RunMap;
 const terrain = RunMap.terrain, aerial = RunMap.aerial;
@@ -171,6 +173,7 @@ class Map3D {
     this.note.hidden = true;
     this.note.textContent = "Underground";
     canvas.insertAdjacentElement("afterend", this.note);
+    this.world = new World(this.scene, () => { this.dirty = true; }, canvas.parentElement);
 
     this.bind();
     this.ro = new ResizeObserver(() => { this.dirty = true; });
@@ -258,6 +261,7 @@ class Map3D {
   setVisible(on) {
     this.visible = on;
     this.note.hidden = !on || this.fadeTo === 1;
+    this.world.box.classList.toggle("off", !on);
     if (on) { this.dirty = true; this.last = 0; this.raf = requestAnimationFrame(this.loop); }
     else cancelAnimationFrame(this.raf);
   }
@@ -531,6 +535,8 @@ class Map3D {
 
     if (this.mode === "follow" && followed) moving = this.followCamera(followed, dt) || moving;
     else this.orbitCamera();
+    this.world.setFade(this.fade);
+    this.world.update(this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target, performance.now());
     return moving;
   }
 
@@ -693,6 +699,7 @@ class Map3D {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.note.remove();
+    this.world.dispose();
     this.scene.traverse(dispose);
     if (this.reliefTex) this.reliefTex.dispose();
     this.renderer.dispose();

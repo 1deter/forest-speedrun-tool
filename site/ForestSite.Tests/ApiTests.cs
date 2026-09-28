@@ -458,5 +458,20 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));
         Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/aerial/aerial.json")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/aerial/canopy/6/9_9.jpg")).StatusCode);
+
+        // The 3D world: its own folder and names; .bin served as bytes.
+        Assert.Equal(HttpStatusCode.NoContent, (await _http.GetAsync("/world/world.json")).StatusCode);
+        async Task<HttpResponseMessage> PostWorld(byte[] body)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/admin/world?clear=1") { Content = new ByteArrayContent(body) };
+            req.Headers.Add("X-Admin-Token", "admin-secret");
+            return await _http.SendAsync(req);
+        }
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostWorld(Zip("canopy/6/1_2.jpg"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PostWorld(Zip("world.json", "m/3.bin", "t/0.jpg", "c/caves_-2_5.bin"))).StatusCode);
+        var bin = await _http.GetAsync("/world/c/caves_-2_5.bin");
+        Assert.Equal(HttpStatusCode.OK, bin.StatusCode);
+        Assert.Equal("application/octet-stream", bin.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));   // untouched
     }
 }

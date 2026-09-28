@@ -102,6 +102,11 @@ p { margin: 0 0 12px; }
 .maplayers { display: flex; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.72); }
 .map3dnote { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); padding: 2px 8px; background: rgba(0,0,0,.72); color: #bbb; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
 .map3dnote[hidden] { display: none; }
+/* The 3D view's world switches (world3d.js), bottom left over the view. */
+.map3dworld { position: absolute; left: 8px; bottom: 58px; align-items: center; }
+.map3dworld.off { display: none; }
+.map3dworldnote { padding: 0 8px; font-size: 11px; color: var(--muted); }
+.map3dworldnote:empty { display: none; }
 .maplayers[hidden], .maplayers button[hidden] { display: none; }
 .maplayers button {
   background: transparent; border: 0; padding: 4px 10px; cursor: pointer;
