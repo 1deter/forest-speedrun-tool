@@ -478,7 +478,7 @@ class Map3D {
         ctx.drawImage(img, x, y, ts * kx, ts * kz);
         this.upload(tex);
       };
-      img.src = "/aerial/" + layer + "/" + L + "/" + tx + "_" + ty + ".jpg";
+      img.src = "/aerial/" + layer + "/" + L + "/" + tx + "_" + ty + ".jpg" + aerial.meta.v;
     }
     return tex;
   }

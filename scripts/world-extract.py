@@ -211,6 +211,8 @@ CHUNK = 250.0
 TEX_MAX = 256
 CAVE_LAYER = 17
 VOLUME_LAYERS = (4, 25)     # Water, Blocker: switched-off cubes with Base_Orange / Default-Diffuse
+CUT_SHADERS = ("Foliage", "Leaves", "Transparent", "Cutout", "Grass")
+FX_SHADERS = ("Particles/", "Lux/Particles", "Custom/Sheen", "Legacy Shaders/Particles")
 PRIMITIVES = ("Cube", "Sphere", "Quad", "Plane", "Cylinder", "Capsule")
 
 
@@ -248,6 +250,7 @@ class Export:
         self.meshes, self.mesh_ix = [], {}
         self.materials, self.mat_ix = [], {}
         self.textures = {}
+        self.clear = {}      # texture index -> share of its pixels under half alpha
         self.models, self.model_ix = [], {}
         self.chunks = collections.defaultdict(list)     # (area, cx, cz) -> [(model, matrix)]
 
@@ -340,10 +343,16 @@ class Export:
             return self.textures[k]
         ix = -1
         try:
-            img = pptr.read().image.convert("RGB")
+            img = pptr.read().image.convert("RGBA")
             img.thumbnail((TEX_MAX, TEX_MAX))
             ix = sum(1 for v in self.textures.values() if v >= 0)
-            img.save(os.path.join(self.out, "t", "%d.jpg" % ix), quality=85)
+            img.convert("RGB").save(os.path.join(self.out, "t", "%d.jpg" % ix), quality=85)
+            # Leaves, grass, fences: the alpha cuts the shape out. Kept as a
+            # PNG beside the JPEG when a real part of the texture is clear.
+            a = np.asarray(img.getchannel("A"))
+            self.clear[ix] = float((a < 128).mean())
+            if self.clear[ix] > 0.05:
+                img.save(os.path.join(self.out, "t", "%d.png" % ix), optimize=True)
         except Exception as e:
             print("   texture failed:", k, e)
         self.textures[k] = ix
@@ -355,23 +364,51 @@ class Export:
         k = self.key(pptr)
         if k in self.mat_ix:
             return self.mat_ix[k]
-        entry = {"name": "", "color": [0.7, 0.7, 0.7, 1], "tex": -1}
-        try:
-            m = pptr.read()
-            entry["name"] = m.m_Name
-            props = m.m_SavedProperties
-            for name, c in props.m_Colors:
-                if name == "_Color":
-                    entry["color"] = [round(c.r, 3), round(c.g, 3), round(c.b, 3), round(c.a, 3)]
-            for name, te in props.m_TexEnvs:
-                if name == "_MainTex" and te.m_Texture and te.m_Texture.path_id:
-                    entry["tex"] = self.texture(te.m_Texture)
-        except Exception as e:
-            print("   material failed:", k, e)
+        entry = self.material_entry(pptr.read, k)
         ix = len(self.materials)
         self.materials.append(entry)
         self.mat_ix[k] = ix
         return ix
+
+    def material_entry(self, read, label):
+        """A material's colour and textures: "tex" the main texture; "top"
+        (+ "topScale") the layer the game's Lux shader lays over upward
+        faces - snow on the snow cliffs, grass on cliffs, moss on rocks
+        (_WnAlbedoSmoothness)."""
+        entry = {"name": "", "color": [0.7, 0.7, 0.7, 1], "tex": -1}
+        try:
+            m = read()
+            entry["name"] = m.m_Name
+            try:
+                entry["shader"] = m.m_Shader.read().m_ParsedForm.m_Name
+            except Exception:
+                entry["shader"] = ""
+            props = m.m_SavedProperties
+            floats = dict(props.m_Floats)
+            for name, c in props.m_Colors:
+                if name == "_Color":
+                    entry["color"] = [round(c.r, 3), round(c.g, 3), round(c.b, 3), round(c.a, 3)]
+            for name, te in props.m_TexEnvs:
+                if not (te.m_Texture and te.m_Texture.path_id):
+                    continue
+                if name == "_MainTex":
+                    entry["tex"] = self.texture(te.m_Texture)
+                elif name == "_WnAlbedoSmoothness":
+                    entry["top"] = self.texture(te.m_Texture)
+                    entry["topScale"] = round(float(te.m_Scale.x), 3) or 1
+            # Cut out by its alpha: foliage / leaves / transparent shaders, a
+            # Standard one in cutout mode (_Mode 1). Never by the texture alone:
+            # the rock and ground shaders (Lux) keep smoothness in the alpha.
+            sh = entry["shader"]
+            t = entry["tex"]
+            if t >= 0 and self.clear.get(t, 0) > 0.05 and (
+                    any(w in sh for w in CUT_SHADERS) or (sh.startswith("Standard") and floats.get("_Mode", 0) == 1)):
+                entry["cut"] = True
+            if sh.startswith(FX_SHADERS):
+                entry["fx"] = True       # glints, particles: not a solid thing (the site skips them)
+        except Exception as e:
+            print("   material failed:", label, e)
+        return entry
 
     def model(self, mesh, mats, kind, layer):
         k = (mesh, tuple(mats), kind, layer)
@@ -433,6 +470,114 @@ class Export:
               len(self.materials), "materials so far")
         sys.stdout.flush()
 
+    def spawned(self, path):
+        """The objects the game spawns from pools (trees, bushes, rocks, cave
+        pieces), from the in-game dump (Game/WorldDump, v0.24.173): each
+        placeholder's High prefab, its parts' meshes found in the game's
+        files by name + vertex count, its materials by name."""
+        prefabs, lods, cur = {}, [], None
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                p = line.rstrip("\n").split("\t")
+                if p[0] == "lod":
+                    lods.append(p)
+                elif p[0] == "prefab":
+                    cur = prefabs.setdefault(p[1], {"scale": [float(v) for v in p[2].split()], "parts": []})
+                elif p[0] == "part" and cur is not None:
+                    cur["parts"].append(p)
+        want_mesh = {(p[3], int(p[4])) for pf in prefabs.values() for p in pf["parts"] if p[1] != "box"}
+        want_mat = {m for pf in prefabs.values() for p in pf["parts"] for m in p[6].split(";") if m != "-"}
+        meshes, mat_objs = {}, {}
+        files = [os.path.join(GAME, n) for n in os.listdir(GAME) if n.endswith(".assets")]
+        for fp in files:
+            env = UnityPy.load(fp)
+            for o in env.objects:
+                if o.type.name == "Mesh":
+                    name = o.peek_name()
+                    if any(name == w[0] for w in want_mesh):
+                        m = o.read()
+                        n = MeshHandler(m)
+                        n.process()
+                        k = (name, len(n.m_Vertices) // 3 if n.m_Vertices and not isinstance(n.m_Vertices[0], (tuple, list)) else len(n.m_Vertices))
+                        if k in want_mesh and k not in meshes:
+                            meshes[k] = o
+                elif o.type.name == "Material":
+                    name = o.peek_name()
+                    if name in want_mat and name not in mat_objs:
+                        mat_objs[name] = o
+        print("spawned: %d placeholders, %d prefabs; meshes found %d of %d, materials %d of %d"
+              % (len(lods), len(prefabs), len(meshes), len(want_mesh), len(mat_objs), len(want_mat)))
+        missing = sorted(want_mesh - set(meshes))
+        if missing:
+            print("   not found:", missing[:12])
+
+        def mesh_of(key):
+            o = meshes.get(key)
+            if o is None:
+                return None
+            k = ("obj", o.assets_file.name, o.path_id)
+            if k not in self.mesh_ix:
+                self.mesh_ix[k] = None
+                try:
+                    m = o.read()
+                    h = MeshHandler(m)
+                    h.process()
+                    v = np.array(h.m_Vertices, dtype=np.float32).reshape(-1, 3)
+                    uv = np.array(h.m_UV0, dtype=np.float32).reshape(-1, 2) if h.m_UV0 else None
+                    if uv is not None and len(uv) != len(v):
+                        uv = None
+                    subs, idx = [], []
+                    for sub in h.get_triangles():
+                        flat = [i for t in sub for i in t]
+                        subs.append([len(idx), len(flat)])
+                        idx.extend(flat)
+                    if len(v) and idx:
+                        self.mesh_ix[k] = self.write_mesh(m.m_Name, v, idx, subs, uv)
+                except Exception as e:
+                    print("   mesh failed:", key, e)
+            return self.mesh_ix[k]
+
+        def mat_of(name):
+            o = mat_objs.get(name)
+            if o is None:
+                return -1
+            k = ("obj", o.assets_file.name, o.path_id)
+            if k not in self.mat_ix:
+                entry = self.material_entry(o.read, name)
+                self.mat_ix[k] = len(self.materials)
+                self.materials.append(entry)
+            return self.mat_ix[k]
+
+        placed = collections.Counter()
+        for p in lods:
+            name = p[2] if p[2] != "-" else p[3] if p[3] != "-" else p[4]
+            pf = prefabs.get(name)
+            if not pf:
+                continue
+            x, y, z = (float(v) for v in p[5].split())
+            q = [float(v) for v in p[6].split()]
+            base = np.eye(4)
+            base[:3, :3] = quat_matrix(q)
+            base[:3, 3] = (x, y, z)
+            area = "caves" if p[1].startswith("LOD_Cave") else "surface"   # the cave pieces fade with nothing
+            for part in pf["parts"]:
+                local = np.eye(4)
+                local[:3, :4] = np.array([float(v) for v in part[5].split()]).reshape(3, 4)
+                if part[1] == "box":
+                    mesh, kind, mats = self.shape(("box",)), "collide", []
+                else:
+                    mesh = mesh_of((part[3], int(part[4])))
+                    kind = part[1]
+                    mats = [mat_of(m) for m in part[6].split(";")] if kind == "render" else []
+                if mesh is None:
+                    continue
+                m = base @ local
+                c = (area, int(np.floor(m[0, 3] / CHUNK)), int(np.floor(m[2, 3] / CHUNK)))
+                self.chunks[c].append((self.model(mesh, mats, kind, int(part[2])), m[:3, :4].astype(np.float32)))
+                placed[(area, p[1], kind)] += 1
+        for k, v in sorted(placed.items()):
+            print("  ", k, v)
+
     def finish(self):
         import json
         chunks = []
@@ -462,6 +607,11 @@ def export(out):
     e = Export(out)
     for level in [2, 7, 11] + list(range(15, 31)):
         e.scene(level)
+    spawned = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world", "spawned.txt")
+    if os.path.exists(spawned):
+        e.spawned(spawned)
+    else:
+        print("no", spawned, "- trees, rocks and cave pieces left out (bridge: call static:ForestOverlay.Game.WorldDump Write)")
     e.finish()
 
 

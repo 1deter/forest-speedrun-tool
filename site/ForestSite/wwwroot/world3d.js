@@ -26,6 +26,30 @@ export function worldMeta() {
   return metaPromise;
 }
 
+/// The game's Lux shader lays a second texture over faces that look up
+/// (snow on the snow cliffs, grass on cliffs, moss on rocks): blended in by
+/// the world normal's height, tiled by the material's own scale.
+function topLayer(mat, tex, scale) {
+  mat.onBeforeCompile = shader => {
+    shader.uniforms.topMap = { value: tex };
+    shader.uniforms.topScale = { value: scale };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vUp;")
+      .replace("#include <beginnormal_vertex>", `#include <beginnormal_vertex>
+        vec3 wn = objectNormal;
+        #ifdef USE_INSTANCING
+          wn = mat3(instanceMatrix) * wn;
+        #endif
+        vUp = normalize(mat3(modelMatrix) * wn).y;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vUp;\nuniform sampler2D topMap;\nuniform float topScale;")
+      .replace("#include <map_fragment>", `#include <map_fragment>
+        vec4 top = texture2D(topMap, vMapUv * topScale);
+        diffuseColor.rgb = mix(diffuseColor.rgb, top.rgb, smoothstep(0.45, 0.75, vUp));`);
+  };
+  mat.customProgramCacheKey = () => "top";
+}
+
 export class World {
   /// scene: where the models go; changed(): something new to draw;
   /// controls: an element the Models / Collision switches go into.
@@ -161,7 +185,9 @@ export class World {
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, 0, m.nv * 3), 3));
       at = m.nv * 12;
       if (m.uv) { g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 2), 2)); at += m.nv * 8; }
-      const idx = m.i32 ? new Uint32Array(buf, at, m.ni) : new Uint16Array(buf.slice(at, at + m.ni * 2));
+      const idx = m.i32 ? new Uint32Array(buf.slice(at, at + m.ni * 4)) : new Uint16Array(buf.slice(at, at + m.ni * 2));
+      // Unity winds front faces clockwise: turned, so the normals face out.
+      for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
       g.setIndex(new THREE.BufferAttribute(idx, 1));
       m.sub.forEach(([start, count], i) => g.addGroup(start, count, i));
       g.computeVertexNormals();
@@ -177,18 +203,23 @@ export class World {
     const d = index >= 0 ? this.meta.materials[index] : null;
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
     const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: THREE.DoubleSide });
-    if (d && d.tex >= 0) {
-      let t = this.textures.get(d.tex);
-      if (!t) {
-        t = new THREE.TextureLoader().load("/world/t/" + d.tex + ".jpg" + this.v, () => this.changed());
-        t.colorSpace = THREE.SRGBColorSpace;
-        t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        this.textures.set(d.tex, t);
-      }
-      mat.map = t;
-    }
+    if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut);
+    if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
+    if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
     this.mats.set(index, mat);
     return mat;
+  }
+
+  texture(i, alpha) {
+    const key = alpha ? i + "a" : i;
+    let t = this.textures.get(key);
+    if (!t) {
+      t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed());
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      this.textures.set(key, t);
+    }
+    return t;
   }
 
   /// One InstancedMesh per model over every ready chunk.
@@ -206,6 +237,8 @@ export class World {
       if (old) { this.group.remove(old); old.dispose(); this.drawn.delete(mi); }
       const list = by.get(mi), model = this.meta.models[mi];
       if (!list.length || !model) continue;
+      // Glints and particles (the pickups' sheen): not a solid thing.
+      if (model.mats.length && model.mats.every(x => x >= 0 && this.meta.materials[x].fx)) continue;
       const g = await this.geometry(model.mesh);
       if (!g || this.disposed || this.drawn.has(mi)) continue;
       let mat;

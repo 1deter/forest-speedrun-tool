@@ -468,7 +468,7 @@ public sealed class ApiTests : IDisposable
             return await _http.SendAsync(req);
         }
         Assert.Equal(HttpStatusCode.BadRequest, (await PostWorld(Zip("canopy/6/1_2.jpg"))).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await PostWorld(Zip("world.json", "m/3.bin", "t/0.jpg", "c/caves_-2_5.bin"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PostWorld(Zip("world.json", "m/3.bin", "t/0.jpg", "t/0.png", "c/caves_-2_5.bin"))).StatusCode);
         var bin = await _http.GetAsync("/world/c/caves_-2_5.bin");
         Assert.Equal(HttpStatusCode.OK, bin.StatusCode);
         Assert.Equal("application/octet-stream", bin.Content.Headers.ContentType?.MediaType);

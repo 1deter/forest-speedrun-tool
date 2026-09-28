@@ -38,9 +38,9 @@ window.RunMap = (function () {
   // relief shows there. No aerial.json = no photo layer, the map as before.
   const aerial = { meta: null, cache: new Map(), missing: new Set(), redraw: 0 };
   const CACHE_MAX = 500;
-  const aerialReady = fetch("/aerial/aerial.json").then(r => r.status === 200 ? r.json() : null).then(meta => {
+  const aerialReady = fetch("/aerial/aerial.json", { cache: "no-cache" }).then(r => r.status === 200 ? r.json() : null).then(meta => {
     if (!meta || !(meta.levels >= 0) || !Array.isArray(meta.layers) || !meta.layers.length) return null;
-    aerial.meta = { levels: meta.levels | 0, tile: meta.tile || 256, layers: meta.layers };
+    aerial.meta = { levels: meta.levels | 0, tile: meta.tile || 256, layers: meta.layers, v: meta.build ? "?v=" + meta.build : "" };
     terrain.maps.forEach(m => m.draw());
     return aerial.meta;
   }).catch(() => null);
@@ -75,7 +75,7 @@ window.RunMap = (function () {
     const img = new Image(), entry = { img, ok: false };
     img.onload = () => { entry.ok = true; redrawSoon(); };
     img.onerror = () => { aerial.cache.delete(key); aerial.missing.add(key); };
-    img.src = "/aerial/" + layer + "/" + L + "/" + tx + "_" + ty + ".jpg";
+    img.src = "/aerial/" + layer + "/" + L + "/" + tx + "_" + ty + ".jpg" + aerial.meta.v;   // ?v=: a new bake is never an old cached tile
     aerial.cache.set(key, entry);
     if (aerial.cache.size > CACHE_MAX) aerial.cache.delete(aerial.cache.keys().next().value);
     return null;

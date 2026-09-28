@@ -21,6 +21,7 @@ else is resampled.
 Needs numpy + pillow. Dev only.
 """
 import json
+import time
 import math
 import os
 import sys
@@ -116,7 +117,7 @@ def main():
         print(layer, len(written), "top-level tiles")
 
     with open(os.path.join(out, "aerial.json"), "w", encoding="utf-8", newline="\n") as f:
-        json.dump({"levels": MAX_LEVEL, "tile": WEB, "layers": layers}, f)
+        json.dump({"levels": MAX_LEVEL, "tile": WEB, "layers": layers, "build": int(time.time())}, f)   # build: the tiles' ?v=
         f.write("\n")
 
 
