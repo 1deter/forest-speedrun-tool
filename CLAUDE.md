@@ -609,14 +609,14 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **Cave 6 grey shapes (author's report, 2026-09-28): fixed on the site, not yet seen.**
-  Not proxies: within 150 m of (1280, -70, 610) the only untextured models are a
-  4 m `pCube2` and a camcorder. The grey was the cave shell's own grey rock
-  texture (t/44), drawn double-sided, so from outside the shell hid the inside.
-  `world3d.js` now culls back faces as Unity does (cut-outs stay double-sided;
-  checked offline: turned indices + the z mirror give outward CCW faces). No
-  re-export needed. Ask the author to look at Cave 6 and a forest spot; a model
-  with negative scale in Unity would now draw inside-out (none looked for).
+- **Cave 6 grey shapes (author, 2026-09-28): fix uploaded, not yet seen.** The cave
+  shells' materials tile `_MainTex` 35-40x (ground 12x); the export dropped the
+  tiling, so one texture stretched over 200 m read as flat grey. `scale` per
+  material now (world-extract.py -> world3d.js `texture(i, alpha, scale)`),
+  re-exported + uploaded. Also: solid materials cull back faces (FrontSide) as
+  Unity does. The author still wants the cave readable ("can't see anything")
+  - if it is still too closed in, a see-through / clip option for the shell.
+  Site JS is cached 4 h (`max-age=14400`): version its URLs (gotcha 66).
 - **Next, in order:** (1) the author's eyes on the live 3D world at the
   Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few
