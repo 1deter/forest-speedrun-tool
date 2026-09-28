@@ -591,6 +591,25 @@ git, pyramid L0-6, 0.21 m/px); `FOREST_SITE_ADMIN_TOKEN=... python
 scripts/aerial-upload.py` (the author's token - ask them to run it or set
 it) -> the site's data folder; map.js draws Photo / Ground / Relief (a
 helper agent built it, tested on fake tiles only).
+**2026-09-28 (short session, author at 7% weekly usage):** author asks
+(QA 1553910257628086335) to **keep water in the capture with an option
+to hide it (like trees)** and **recapture every playable area** (the
+bake missed corners), and wants the map to become **the most detailed
+3D map possible** - real models popping out in the 3D view, an
+"endgame", exhaustive tool. Found live: the missing east / corner
+blocks are the sea tiles `AerialCapture` skips (`hi < Sea - 3`); the
+terrain is exactly -1750..1750 x -1742.63..1757.37, so the capture area
+was right. A coast tile (ix 14, 1312-1531 x 445-664) shows glossy
+ripples over the sea floor, but they are **not Ceto**: the same with
+`Ocean.level -10000` and with the `CetoTF/Ocean` GameObject inactive -
+probably caustics / a terrain effect; whether Ceto's projected grid
+draws for an orthographic camera at all is unknown (next: a
+perspective shot of the open sea from the freecam, then look for the
+caustics projector). The test captures **overwrote
+`aerial/tiles.txt` and `canopy|ground/0_0.jpg`** of the full capture -
+the next bake needs the recapture. maks asked (QA 1554074251831672943)
+for a website YouTube side-by-side run comparison (start / end frame
+per run, segment times) - backlog, site-only (cloud-able).
 **Next steps, in order:** (1) **The photo map is live** (2026-09-28): a
 full capture on v0.24.169 (234 tiles + 22 sea, 955 s; eye adaptation and
 vignette off), baked (3784 top-level tiles per layer), uploaded by the
