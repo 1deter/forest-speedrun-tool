@@ -132,27 +132,41 @@ async function homePage() {
 // --- a spot -------------------------------------------------------------------------
 
 /// The map's background: Photo (the aerial capture), Ground (the same with
-/// the trees removed) or Relief. Shown only when aerial tiles are uploaded;
-/// the choice is remembered in this browser. onChange: the 3D view follows.
+/// the trees removed) or Relief, and Water: the sea on or off (the photo
+/// layers' "-dry" twins, captured with the game's ocean hidden). Shown only
+/// when aerial tiles are uploaded; the choice is remembered in this
+/// browser. onChange: the 3D view follows.
 function mapLayers(map, onChange) {
-  const KEY = "forest.mapLayer";
-  let saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) { /* private window: the default */ }
-  map.layer = saved || "canopy";
+  const KEY = "forest.mapLayer", WATER = "forest.mapWater";
+  let saved = null, water = true, meta = null;
+  try { saved = localStorage.getItem(KEY); water = localStorage.getItem(WATER) !== "off"; } catch (e) { /* private window: the default */ }
+  let base = saved || "canopy";
+  map.layer = base;
   const buttons = [["canopy", "Photo"], ["ground", "Ground"], ["relief", "Relief"]].map(([layer, label]) =>
     el("button", { type: "button", "data-layer": layer, onclick: () => pick(layer, true) }, label));
-  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map background", hidden: true }, buttons);
+  const waterButton = el("button", { type: "button", hidden: true, title: "Show or hide the sea", onclick: () => {
+    water = !water;
+    try { localStorage.setItem(WATER, water ? "on" : "off"); } catch (e) { /* not kept: fine */ }
+    pick(base, false);
+  } }, "Water");
+  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Map background", hidden: true }, [...buttons, waterButton]);
   function pick(layer, remember) {
-    map.setLayer(layer);
-    if (onChange) onChange(layer);
+    base = layer;
+    const dry = layer + "-dry";
+    const shown = !water && meta && meta.layers.includes(dry) ? dry : layer;
+    map.setLayer(shown);
+    if (onChange) onChange(shown);
     for (const b of buttons) { const on = b.dataset.layer === layer; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+    waterButton.hidden = !meta || !meta.layers.includes(dry);
+    waterButton.classList.toggle("on", water); waterButton.setAttribute("aria-pressed", water);
     if (remember) try { localStorage.setItem(KEY, layer); } catch (e) { /* not kept: fine */ }
   }
-  RunMap.aerialReady.then(meta => {
-    if (!meta) return;
+  RunMap.aerialReady.then(m => {
+    if (!m) return;
+    meta = m;
     for (const b of buttons) b.hidden = b.dataset.layer !== "relief" && !meta.layers.includes(b.dataset.layer);
-    const usable = buttons.some(b => !b.hidden && b.dataset.layer === map.layer);
-    pick(usable ? map.layer : meta.layers[0], false);
+    const usable = buttons.some(b => !b.hidden && b.dataset.layer === base);
+    pick(usable ? base : meta.layers[0], false);
     box.hidden = false;
   });
   return box;

@@ -2,7 +2,9 @@
 
 The capture comes from the game (v0.24.164+), over the bridge:
     call BepInEx_Manager OverlayPlugin._host._modules[8].AerialStart x0 z0 x1 z1 tile settle rangeScale sunTime
-which writes BepInEx/config/ForestOverlay/aerial/{tiles.txt, canopy/, ground/}:
+which writes BepInEx/config/ForestOverlay/aerial/{tiles.txt, canopy/, ground/}
+(+ canopy-dry/, ground-dry/ since v0.24.170: the tiles that reach sea level,
+taken again with the ocean hidden; a dry layer falls back to its wet tile):
 one <ix>_<iz>.jpg per tile (north up), tile (ix, iz) covering
 x0 + ix*tile .. +tile, z0 + iz*tile .. +tile.
 
@@ -66,14 +68,19 @@ def main():
         k = relief.width / 2 ** level
         return relief.crop((round(tx * k), round(ty * k), round((tx + 1) * k), round((ty + 1) * k))).resize((WEB, WEB), Image.BILINEAR)
 
-    for layer in ("canopy", "ground"):
+    layers = []
+    for layer in ("canopy", "ground", "canopy-dry", "ground-dry"):
         src = os.path.join(capture, layer)
-        if not os.path.isdir(src):
+        if not os.path.isdir(src) or not os.listdir(src):
             continue
+        wet = os.path.join(capture, layer[:-4]) if layer.endswith("-dry") else src
+        layers.append(layer)
         written = set()
         # Top level: each capture tile resized to its size at mpp, cut into web tiles.
         for ix, iz in tiles:
             path = os.path.join(src, "%d_%d.jpg" % (ix, iz))
+            if not os.path.exists(path):
+                path = os.path.join(wet, "%d_%d.jpg" % (ix, iz))
             if not os.path.exists(path):
                 continue
             cx0, cz1 = ox + ix * tile, oz + (iz + 1) * tile          # west, north edges
@@ -109,7 +116,7 @@ def main():
         print(layer, len(written), "top-level tiles")
 
     with open(os.path.join(out, "aerial.json"), "w", encoding="utf-8", newline="\n") as f:
-        json.dump({"levels": MAX_LEVEL, "tile": WEB, "layers": ["canopy", "ground"]}, f)
+        json.dump({"levels": MAX_LEVEL, "tile": WEB, "layers": layers}, f)
         f.write("\n")
 
 

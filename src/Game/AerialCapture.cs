@@ -16,7 +16,11 @@ namespace ForestOverlay.Game
     // the freecam's camera, orthographic and straight down, is placed over
     // one tile after another and the screen's centre square is saved -
     // once as the game looks ("canopy") and once with the trees' layer
-    // culled ("ground": bushes, rocks, paths, trunks' shadows).
+    // culled ("ground": bushes, rocks, paths, trunks' shadows). A tile that
+    // reaches down to sea level is taken twice more with the game's ocean
+    // (Ceto, CetoTF/Ocean) switched off - "canopy-dry" / "ground-dry", the
+    // map's Water toggle (author, 2026-09-28). Sea tiles are captured too:
+    // skipping them left the map's coasts and corners empty.
     //
     // What makes a tile look like the game (bridge, 2026-09-27; game-notes
     // *Aerial capture*):
@@ -70,6 +74,9 @@ namespace ForestOverlay.Game
         public const float Sea = 41.5f;
 
         public string Status = "idle";
+
+        /// Skip tiles whose ground is all under the sea (the old behaviour).
+        public bool SkipSea;
         public bool Running { get { return _run != null; } }
 
         /// Set by the module: hides / shows the overlay's own UI.
@@ -112,6 +119,9 @@ namespace ForestOverlay.Game
             string dir = Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ForestOverlay"), "aerial");
             Directory.CreateDirectory(Path.Combine(dir, "canopy"));
             Directory.CreateDirectory(Path.Combine(dir, "ground"));
+            Directory.CreateDirectory(Path.Combine(dir, "canopy-dry"));
+            Directory.CreateDirectory(Path.Combine(dir, "ground-dry"));
+            GameObject ocean = FindOcean();
 
             int nx = Mathf.CeilToInt((x1 - x0) / tile), nz = Mathf.CeilToInt((z1 - z0) / tile);
             int px = Screen.height;
@@ -121,7 +131,7 @@ namespace ForestOverlay.Game
                  .Append("origin = ").Append(F(x0)).Append(',').Append(F(z0)).Append('\n')
                  .Append("grid = ").Append(nx).Append(',').Append(nz).Append('\n')
                  .Append("px = ").Append(px).Append('\n');
-            int done = 0, skipped = 0;
+            int done = 0, skipped = 0, dry = 0;
             float started = Time.realtimeSinceStartup;
 
             Apply(cam, tile, rangeScale, sunTime);
@@ -138,7 +148,7 @@ namespace ForestOverlay.Game
                         float cx = x0 + (ix + 0.5f) * tile, cz = z0 + (iz + 0.5f) * tile;
                         float lo, hi;
                         Heights(terrain, cx, cz, tile, out lo, out hi);
-                        if (hi < Sea - 3f) { skipped++; continue; }   // open sea
+                        if (SkipSea && hi < Sea - 3f) { skipped++; continue; }   // open sea
 
                         float ground = terrain.SampleHeight(new Vector3(cx, 0f, cz)) + terrain.transform.position.y;
                         if (MovePlayer != null) MovePlayer(new Vector3(cx, Mathf.Max(ground, Sea) + 1f, cz));
@@ -171,6 +181,27 @@ namespace ForestOverlay.Game
                         Save(read, px, Path.Combine(Path.Combine(dir, "ground"), ix + "_" + iz + ".jpg"));
                         cam.cullingMask = _saved.CullingMask;
 
+                        if (ocean != null && lo < Sea + 1f)
+                        {
+                            // The same two frames with the sea switched off; it is
+                            // back on for the next tile's settle (Ceto rebuilds).
+                            ocean.SetActive(false);
+                            yield return null;
+                            cam.layerCullDistances = new float[32];
+                            freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
+                            yield return new WaitForEndOfFrame();
+                            Save(read, px, Path.Combine(Path.Combine(dir, "canopy-dry"), ix + "_" + iz + ".jpg"));
+                            cam.cullingMask = _saved.CullingMask & ~(1 << TreeLayer);
+                            yield return null;
+                            cam.layerCullDistances = new float[32];
+                            freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
+                            yield return new WaitForEndOfFrame();
+                            Save(read, px, Path.Combine(Path.Combine(dir, "ground-dry"), ix + "_" + iz + ".jpg"));
+                            cam.cullingMask = _saved.CullingMask;
+                            ocean.SetActive(true);
+                            dry++;
+                        }
+
                         index.Append(ix).Append(',').Append(iz).Append('\n');
                         done++;
                         if (done % 10 == 0 && Log != null)
@@ -180,11 +211,12 @@ namespace ForestOverlay.Game
             }
             finally
             {
+                if (ocean != null && !ocean.activeSelf) ocean.SetActive(true);
                 if (MovePlayer != null && home != Vector3.zero) MovePlayer(home);
                 File.WriteAllText(Path.Combine(dir, "tiles.txt"), index.ToString());
                 UnityEngine.Object.Destroy(read);
                 Restore();
-                Status = (_stop ? "stopped: " : "done: ") + done + " tiles saved, " + skipped + " sea, "
+                Status = (_stop ? "stopped: " : "done: ") + done + " tiles saved (" + dry + " also without the sea), " + skipped + " sea skipped, "
                     + (Time.realtimeSinceStartup - started).ToString("0") + " s -> " + dir;
                 if (Log != null) Log.LogInfo("Aerial capture " + Status);
                 _run = null;
@@ -192,6 +224,16 @@ namespace ForestOverlay.Game
         }
 
         // --- the tile -------------------------------------------------------
+
+        /// The game's ocean (Ceto.Ocean on CetoTF/Ocean), or null.
+        private static GameObject FindOcean()
+        {
+            Type t = GameBridge.FindGameType("Ceto.Ocean");
+            UnityEngine.Object o = t != null ? UnityEngine.Object.FindObjectOfType(t) : null;
+            Component c = o as Component;
+            if (c == null && Log != null) Log.LogWarning("Aerial capture: no Ceto.Ocean - no sea-less tiles");
+            return c != null ? c.gameObject : null;
+        }
 
         /// Lowest and highest ground (world y) under a tile, sampled 9 x 9.
         private static void Heights(Terrain t, float cx, float cz, float tile, out float lo, out float hi)

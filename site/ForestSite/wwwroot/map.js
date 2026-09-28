@@ -111,7 +111,8 @@ window.RunMap = (function () {
   RunMap.prototype.setZones = function (zones) { this.zones = zones; };
   RunMap.prototype.setRuns = function (runs, refit) { this.runs = runs; if (refit || !this.view) this.fit(); this.draw(); };
   RunMap.prototype.setTime = function (t) { this.time = t; this.draw(); };
-  /// "canopy" / "ground" (the aerial photo, with or without trees) or "relief".
+  /// "canopy" / "ground" (the aerial photo, with or without trees; "-dry":
+  /// the sea hidden) or "relief".
   RunMap.prototype.setLayer = function (layer) { this.layer = layer; this.draw(); };
 
   /// The aerial layer to draw now, or null (none uploaded, or relief chosen).

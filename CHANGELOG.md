@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.170 - 2026-09-28
+
+- Developer tooling only: the map photo capture now takes the sea too, and
+  a second copy of the coast with the water hidden (the website's Water
+  switch). Nothing changes in game.
+
 ## v0.24.169 - 2026-09-27
 
 - Developer tooling only: even exposure across the map photo capture.

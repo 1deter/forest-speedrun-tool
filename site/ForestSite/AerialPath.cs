@@ -6,7 +6,7 @@ namespace ForestSite;
 /// and `aerial.json` - never a path out of the folder.
 public static class AerialPath
 {
-    private static readonly Regex Tile = new(@"^(canopy|ground)/\d{1,2}/\d{1,5}_\d{1,5}\.jpg$");
+    private static readonly Regex Tile = new(@"^(canopy|ground)(-dry)?/\d{1,2}/\d{1,5}_\d{1,5}\.jpg$");
 
     public static bool IsTile(string path) => path == "aerial.json" || Tile.IsMatch(path);
 }
