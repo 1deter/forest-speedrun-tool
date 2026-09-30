@@ -210,3 +210,7 @@ and a forced texture rebuild then runs safely.
   fixed channels had read 3 sodas as 3 the same way.) Not seen yet: the
   `i|` lines of a real finished run - the site's Carrying row was checked
   with a hand-made track on the local site.
+- **3D world caves (site, 86a9d87, 2026-10-01)** - the author on the live
+  site: "looks good now" - cave pieces at their placeholder's scale and the
+  underground cutaway. Still open: a couple of models missing and the cave
+  floor (CLAUDE.md *Pick up here*).

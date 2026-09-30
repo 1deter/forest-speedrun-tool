@@ -611,26 +611,26 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **The 3D world's caves: fixed and looked at locally (2026-10-01), awaiting the
-  author's eyes live.** Cause: `LOD_Cave.SetLOD` sets the spawned piece's
-  `localScale` to the placeholder's `lossyScale` (0.2 - 50 in the caves); the
-  export used the prefab's scale (1) - Cave 6's walls (0.4 - 0.6) came out 2 - 2.5x
-  too big, ledges (32x) tiny (gotcha 69; checked live: placeholder 0.6 = spawned
-  0.6, prefab 1; rocks / trees keep the prefab's, also checked). Not the LOD
-  level at dump time (author's theory): the dump reads the `High` prefab
-  reference, never what happens to be spawned. Second part: the cave pieces are
-  **closed boulders**, so an orbit / follow camera sitting in the rock around a
-  cave sees only their outsides (back-face culling cannot help) - underground,
-  `world3d.js setCut` now cuts away everything between the camera and its target
-  (one clip plane, kept 4 m in front of the target). Checked on the local site at
-  (1284, -68.9, 613) against game shots: walls / floor / ceiling bulge where the
-  game has them, rock-sized texture, models and collision interleave (same
-  surface), the room readable from 20 m. `window.forest3d.lookFrom(x, y, z, yaw,
-  pitch, dist)` points the 3D view at a game spot (docs/website.md). Also:
-  `world3d.js` is now imported by its stamped URL (was unversioned behind
-  map3d.js - gotcha 66). Not in the world: skinned meshes (Cave 6's body pile).
-- **Next, in order:** (1) the author's eyes on the live 3D world at
-  Cave 6 (cutaway, scale), the Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
+- **NEXT SESSION (author, 2026-10-01): the 3D world's caves - missing models
+  and the floor.** The author looked at the live site after 86a9d87: caves
+  "look good now, just a couple models missing and the floor still seems
+  absent". Done (confirmed, docs/confirmed.md): cave pieces take their
+  placeholder's scale (`LOD_Cave.SetLOD`, gotcha 69) and an underground cutaway
+  (`world3d.js setCut`). **Start by asking the author which spot / where** (a
+  screenshot), then compare there: local site (`window.forest3d.lookFrom`,
+  recipe in docs/website.md *Looking at a spot*) against a game `shot`, and
+  `find` the missing object live (its name, components, mesh). Leads, none
+  checked: the floor may be a mesh the export drops - a `render-off` renderer
+  on a primitive / volume layer (the `VOLUME_LAYERS` / `PRIMITIVES` filter), a
+  renderer in a LODGroup's LOD 1+ (`lod_rest`), a Terrain-like cave floor, or a
+  mesh read failing (`mesh failed:` lines in the export's output); missing
+  props may be skinned meshes (not exported - Cave 6's body pile) or objects
+  spawned at runtime (neither in a scene file nor a `LOD_Base` placeholder:
+  `WorldDump` covers only those). The cutaway keeps 4 m in front of the target
+  - a floor right under the camera's target should survive it, but check with
+  the cut off (`forest3d.world.setCut(false, ...)` or `fadeTo`).
+- **Next, in order (after the caves above):** (1) the author's eyes on the live 3D world at
+  the Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
