@@ -214,6 +214,7 @@ VOLUME_LAYERS = (4, 25)     # Water, Blocker: switched-off cubes with Base_Orang
 CUT_SHADERS = ("Foliage", "Leaves", "Transparent", "Cutout", "Grass")
 FX_SHADERS = ("Particles/", "Lux/Particles", "Custom/Sheen", "Legacy Shaders/Particles")
 PRIMITIVES = ("Cube", "Sphere", "Quad", "Plane", "Cylinder", "Capsule")
+CAVE_LODS = ("LOD_Cave", "LOD_CaveEntrance", "LOD_CaveMedium", "LOD_CaveSmall")   # scaled like their placeholder
 
 
 def lod_rest(scene):
@@ -562,10 +563,19 @@ class Export:
             base = np.eye(4)
             base[:3, :3] = quat_matrix(q)
             base[:3, 3] = (x, y, z)
-            area = "caves" if p[1].startswith("LOD_Cave") else "surface"   # the cave pieces fade with nothing
+            cave = p[1] in CAVE_LODS
+            area = "caves" if cave else "surface"   # the cave pieces fade with nothing
+            # LOD_Cave.SetLOD sets the spawned piece's localScale to the
+            # placeholder's lossyScale (0.2 - 50 in the caves), replacing the
+            # prefab root's own; the other LOD types keep the prefab's.
+            rescale = np.eye(4)
+            if cave:
+                ls = [float(v) for v in p[7].split()]
+                rescale[:3, :3] = np.diag([a / b if b else a for a, b in zip(ls, pf["scale"])])
             for part in pf["parts"]:
                 local = np.eye(4)
                 local[:3, :4] = np.array([float(v) for v in part[5].split()]).reshape(3, 4)
+                local = rescale @ local
                 if part[1] == "box":
                     mesh, kind, mats = self.shape(("box",)), "collide", []
                 else:

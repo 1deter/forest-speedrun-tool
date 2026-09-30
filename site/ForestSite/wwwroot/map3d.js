@@ -11,7 +11,10 @@
 // the runs sits. Textured with the aerial photo tiles when uploaded.
 // The game's models and collision stream in around the camera (world3d.js).
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
-import { World } from "./world3d.js";
+// world3d.js is imported by its stamped URL (index.html's data-world3d-src,
+// ?v=<hash>) in create(): a plain "./world3d.js" import has no version, and
+// Cloudflare's 4 h browser cache could pair it, old, with a new map3d.js.
+let World = null;
 
 const RunMap = window.RunMap;
 const terrain = RunMap.terrain, aerial = RunMap.aerial;
@@ -149,6 +152,7 @@ class Map3D {
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     r.setClearColor(0x050505);
+    r.localClippingEnabled = true;     // the world's cutaway underground (world3d.js setCut)
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, 1, 30000);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.6 * Math.PI));
@@ -167,6 +171,9 @@ class Map3D {
     this.region = null;            // the detail patch, in samples: { i0, j0, i1, j1, step }
     this.gen = 0;                  // texture generation: stale tile loads are dropped
     this.visible = false; this.dirty = true; this.last = 0;
+    // For a session checking the render at a game spot (docs/website.md):
+    // window.forest3d.lookFrom(x, y, z, yaw, pitch, dist) - Unity coordinates.
+    window.forest3d = this;
 
     this.note = document.createElement("div");
     this.note.className = "map3dnote";
@@ -239,6 +246,17 @@ class Map3D {
     }
     if (refit || !this.fitted) this.fit();
     this.updateRegion(false);
+    this.dirty = true;
+  }
+
+  /// The camera at a game position (Unity x, y, z) facing yaw degrees (0 =
+  /// north, as the game's), pitch degrees down, orbiting a point dist ahead -
+  /// the site's picture beside a game shot from the same place (gotcha 68).
+  lookFrom(x, y, z, yaw = 0, pitch = 0, dist = 5) {
+    const a = yaw * Math.PI / 180, p = pitch * Math.PI / 180, o = this.orbit;
+    this.setMode("orbit");
+    o.yaw = -a; o.pitch = p; o.dist = dist;
+    o.target.set(x + Math.sin(a) * Math.cos(p) * dist, y - Math.sin(p) * dist, -(z + Math.cos(a) * Math.cos(p) * dist));
     this.dirty = true;
   }
 
@@ -536,7 +554,9 @@ class Map3D {
     if (this.mode === "follow" && followed) moving = this.followCamera(followed, dt) || moving;
     else this.orbitCamera();
     this.world.setFade(this.fade);
-    this.world.update(this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target, performance.now());
+    const target = this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target;
+    this.world.setCut(this.fadeTo < 1, this.camera.position, target);
+    this.world.update(target, performance.now());
     return moving;
   }
 
@@ -751,6 +771,10 @@ function dispose(o) {
   }
 }
 
-export function create(canvas, hooks) {
+export async function create(canvas, hooks) {
+  if (!World) {
+    const src = (document.querySelector("[data-world3d-src]") || { dataset: {} }).dataset.world3dSrc || "/world3d.js";
+    World = (await import(src)).World;
+  }
   return new Map3D(canvas, hooks);
 }

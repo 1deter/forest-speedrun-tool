@@ -251,12 +251,26 @@ What the export decides (details: gotchas 64-67):
   both sides (2026-09-28). Checked offline on box meshes: the turned indices
   + the z mirror leave CCW faces pointing out.
 
-**Broken (author, 2026-09-28, top priority):** Cave 6 with Models on is still
-big grey rock you cannot see through - see CLAUDE.md *Pick up here*. Neither
-fix above was ever looked at on a rendered page before it was called done
-(gotcha 68).
+- Cave pieces (`LOD_Cave*`) take their placeholder's scale, not the
+  prefab's (`LOD_Cave.SetLOD`; gotcha 69, 2026-10-01); other LOD types keep
+  the prefab's.
+- **Cutaway underground** (2026-10-01): the cave pieces are closed boulders,
+  so a camera in the rock around a cave sees only their outsides. While the
+  view is underground (the terrain fades), `World.setCut` clips everything
+  between the camera and its target, 4 m short of the target - one clip
+  plane on every world material (off = far away, so no shader recompiles).
 
-Open: the site's JS is served `max-age=14400` with no version in its URL, so a deploy can hide for 4 h (gotcha 66 - version it); the endgame lab looks sparse; a spot loads thousands of files and
+**Looking at a spot on the local site** (gotcha 68 - do it before calling a
+render fix done): preview `forest-site`, upload the world locally
+(`FOREST_SITE_ADMIN_TOKEN=local-admin python scripts/aerial-upload.py
+--world http://localhost:5080`), open any spot, 3D, then in the page
+`window.forest3d.lookFrom(x, y, z, yaw, pitch, dist)` (Unity coordinates,
+yaw 0 = north, pitch down) - the game camera's `Transform.position` /
+`eulerAngles` from the bridge give the same view as a `shot`. The game's
+vertical FOV is 95 at 16:10, the site's 55 over a wider canvas - close
+enough to compare shapes.
+
+Open: the endgame lab looks sparse; a spot loads thousands of files and
 `.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;
 greebles and pickups are missing; per-kind toggles.
 

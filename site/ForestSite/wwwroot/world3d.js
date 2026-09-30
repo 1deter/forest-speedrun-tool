@@ -17,6 +17,7 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
 
 const RADIUS = 700, DROP = 1100;           // metres, horizontally from the camera's target
+const CUT_MARGIN = 4;                      // metres kept in front of the target, underground
 const S = new THREE.Matrix4().makeScale(1, 1, -1);
 
 let metaPromise = null;
@@ -73,8 +74,12 @@ export class World {
     this.fade = 1;
     this.target = null;
     this.next = 0;
-    this.collideMat = new THREE.MeshBasicMaterial({ color: 0xff7a2f, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false });
-    this.collideWire = new THREE.MeshBasicMaterial({ color: 0xffb070, wireframe: true, transparent: true, opacity: 0.35 });
+    // One plane, always there (off = far below everything), so switching the
+    // cutaway never recompiles the materials.
+    this.cutPlanes = [new THREE.Plane(new THREE.Vector3(0, 1, 0), 1e9)];
+    this.cutNormal = new THREE.Vector3();
+    this.collideMat = new THREE.MeshBasicMaterial({ color: 0xff7a2f, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false, clippingPlanes: this.cutPlanes });
+    this.collideWire = new THREE.MeshBasicMaterial({ color: 0xffb070, wireframe: true, transparent: true, opacity: 0.35, clippingPlanes: this.cutPlanes });
 
     const button = (key, label, title) => {
       const b = document.createElement("button");
@@ -123,6 +128,21 @@ export class World {
       const o = surface ? this.fade : 1;
       m.transparent = o < 0.99; m.opacity = o; m.depthWrite = o > 0.99;
     }
+  }
+
+  /// Underground, everything between the camera and what it looks at (less
+  /// CUT_MARGIN) is cut away: the orbit / follow camera over a cave sits in
+  /// the rock around it, and the cave's pieces are closed rocks (boulders
+  /// placed as walls, not one-sided shells), so it would see only their
+  /// outsides. eye / target: three.js space. The renderer needs
+  /// localClippingEnabled.
+  setCut(on, eye, target) {
+    const p = this.cutPlanes[0], n = this.cutNormal.subVectors(target, eye);
+    const d = n.length();
+    if (!on || d < 0.01) { p.normal.set(0, 1, 0); p.constant = 1e9; return; }
+    n.divideScalar(d);
+    p.normal.copy(n);
+    p.constant = Math.min(CUT_MARGIN, d * 0.5) - n.dot(target);   // kept: beyond target - n * margin
   }
 
   /// Each frame: which chunks to have, given the camera's target (a Vector3
@@ -205,7 +225,8 @@ export class World {
     if (this.mats.has(index)) return this.mats.get(index);
     const d = index >= 0 ? this.meta.materials[index] : null;
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
-    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide });
+    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide,
+      clippingPlanes: this.cutPlanes });
     if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut, d.scale);   // scale: the material's tiling
     if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs

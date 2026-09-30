@@ -525,6 +525,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 66. **Uploaded files cached for a day need a version in their URL** - build stamp in the json, `?v=` on every file.
 67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`.
 68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done.
+69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder.
 
 ---
 
@@ -610,28 +611,26 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **TOP PRIORITY - the 3D world's caves are still broken (author, 2026-09-28,
-  after two fixes).** At Cave 6 (logboost spots, (1280, -70, 610)) Models on shows
-  big grey rock shapes and you "can't see anything"; the author: the cave should
-  look like the collision with the rock mapped on it, the textures look far too
-  large. Done so far, both live, neither enough: solid materials cull back faces
-  (`world3d.js` FrontSide; cut-outs double-sided) - a1eb228; each material's
-  `_MainTex` tiling exported and applied (`scale`, cave walls 35-40x, ground 12x;
-  `texture(i, alpha, scale)`) + world re-exported and uploaded - 2056f43.
-  **Do first: look.** Run the local site (docs/website.md, preview
-  "forest-site", local world upload) at the spot, screenshot, and compare with a
-  game `shot` there (`tp 1283.92 -70.59 612.88`). Then check, in order: whether
-  the tiled texture really shows (a `?v=` cache / texture key, repeat applied);
-  whether the shells sit where the collision is (a transform / LOD / wrong
-  mesh-by-name match from spawned.txt - compare shell and collision bounds);
-  whether a shell that is really an outside hull hides the inside (then clip it
-  near the camera / see-through toggle). Near the spot the models are: cave shell
-  `default` 27281 tris (mat CaveType_GenericTyoe2, x17), `BeachRock_Mid:Mesh`,
-  CaveGround, Cliff_Stone3_low; no big untextured proxies (only a 4 m pCube2).
-  Site JS is cached 4 h (`max-age=14400`) - version its URLs (gotcha 66); a hard
-  refresh was done. Gotcha 68.
-- **Next, in order:** (1) the author's eyes on the live 3D world at the
-  Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
+- **The 3D world's caves: fixed and looked at locally (2026-10-01), awaiting the
+  author's eyes live.** Cause: `LOD_Cave.SetLOD` sets the spawned piece's
+  `localScale` to the placeholder's `lossyScale` (0.2 - 50 in the caves); the
+  export used the prefab's scale (1) - Cave 6's walls (0.4 - 0.6) came out 2 - 2.5x
+  too big, ledges (32x) tiny (gotcha 69; checked live: placeholder 0.6 = spawned
+  0.6, prefab 1; rocks / trees keep the prefab's, also checked). Not the LOD
+  level at dump time (author's theory): the dump reads the `High` prefab
+  reference, never what happens to be spawned. Second part: the cave pieces are
+  **closed boulders**, so an orbit / follow camera sitting in the rock around a
+  cave sees only their outsides (back-face culling cannot help) - underground,
+  `world3d.js setCut` now cuts away everything between the camera and its target
+  (one clip plane, kept 4 m in front of the target). Checked on the local site at
+  (1284, -68.9, 613) against game shots: walls / floor / ceiling bulge where the
+  game has them, rock-sized texture, models and collision interleave (same
+  surface), the room readable from 20 m. `window.forest3d.lookFrom(x, y, z, yaw,
+  pitch, dist)` points the 3D view at a game spot (docs/website.md). Also:
+  `world3d.js` is now imported by its stamped URL (was unversioned behind
+  map3d.js - gotcha 66). Not in the world: skinned meshes (Cave 6's body pile).
+- **Next, in order:** (1) the author's eyes on the live 3D world at
+  Cave 6 (cutaway, scale), the Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
@@ -644,6 +643,24 @@ game internals: game-notes *Terrain, and the world from above*.
   of caves from the collision at the ghost's height (author's earlier
   ask). (6) Separate toggles per kind (trees / rocks / buildings /
   props) - the models carry their layer.
+- **Tom's crashes (QA 1554188909246681119, v0.24.173; reports in
+  `Downloads\qa-reports\tomyoshi_i\ForestOverlay-report-Tom-2026-09-28_*`):**
+  "reload while in a cutscene: the game crashes", and "reload at the same time
+  you die". Not reproduced, not looked into beyond the logs; no crash dumps sent
+  (asked: the `crash-<date>` folder beside TheForest.exe -> `scripts/
+  symbolize-crash.py`). Sessions that end mid-action: 19:38 in an in-place
+  restore ('big jump or smth', surface, the log stops after its scene unloads +
+  asset sweep - the F7 came right after the previous restore; a
+  `navRemoveRoot.startRemove` graph update over the whole map, 1536 x 1406 m, was
+  queued just before it); 21:20 in an in-place restore of 'Cave 6 boss thing'
+  (cross-save, cave prop scenes still loading); 19:47 ~30 s after taking the
+  Cave 6 keycard, no Restart line (a crash before `Restart` logs?). No `Death`
+  line in any. Leads: an AstarPath teardown / scene load while a threaded graph
+  update runs (compare v0.24.141-143), F7 during a cutscene that parents the
+  player (gotcha 40), F7 on the death frame (`DeathModule` + restore). Try over
+  the bridge: F7 during the keycard / vault door / Megan pickup cutscenes, and
+  `restart` on the frame of a fall death, with Tom's start states (his report has
+  them: `savestates/segments/*.fosave`).
 - maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
   comparison (start / end frame per run, segment times) - backlog,
   site-only.

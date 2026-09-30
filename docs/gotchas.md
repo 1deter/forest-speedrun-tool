@@ -523,7 +523,8 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
 67. **Scene files hold placeholders, not the world.** Trees, bushes,
     rocks and the caves' walls are spawned from pools near the player by
     LOD scripts (`LOD_Base.High/Mid/Low`, at `_position` and the
-    placeholder's rotation, the prefab's own scale - checked live); a
+    placeholder's rotation, the prefab's own scale - checked live on
+    trees and rocks; **not the caves**, gotcha 69); a
     scene read shows none of them. An in-game dump of the placeholders
     (`Game/WorldDump`) + the meshes read offline by name and vertex count
     gives the whole world. Also: a shader's look can come from more than
@@ -539,3 +540,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     offline reasoning alone (back-face culling, then the tiling) and the
     author still saw the cave broken both times: render the local site at
     the spot and compare with a game `shot` before telling the author.
+
+69. **A subclass can override the spawn's scale.** (2026-10-01, the 3D
+    world's caves, the third try.) `LOD_Base.SetLOD` spawns the prefab at
+    its own scale, but `LOD_Cave.SetLOD` (and `LOD_CaveEntrance`,
+    `LOD_CaveMedium` / `Small`) then sets the piece's `localScale` to the
+    placeholder's `lossyScale` - 0.2 to 50 in the caves. Gotcha 67 had
+    checked the scale live on trees and rocks only, so every cave piece was
+    exported at scale 1: walls 2-2.5x too big (the "big grey rock"), ledges
+    tiny. Before trusting how a base class places things, list the
+    overrides (`ilscan type <Base>` subclasses, `ilscan refs
+    set_localScale`) and compare one spawned object of each kind live with
+    its placeholder (`get #h LOD_Cave.CurrentLodTransform.lossyScale`).

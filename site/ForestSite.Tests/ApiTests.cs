@@ -280,6 +280,8 @@ public sealed class ApiTests : IDisposable
         Assert.Matches(@"href=""/style\.css\?v=[0-9a-f]{10}""", html);
         // The 3D view's module, loaded on demand, is versioned the same way.
         Assert.Matches(@"data-map3d-src=""/map3d\.js\?v=[0-9a-f]{10}""", html);
+        // ... and the world it imports (a plain import would carry no version).
+        Assert.Matches(@"data-world3d-src=""/world3d\.js\?v=[0-9a-f]{10}""", html);
 
         Assert.Equal(html, await _http.GetStringAsync("/spot/anything"));
         // Old ids have dots: the fallback alone would take them for files.
