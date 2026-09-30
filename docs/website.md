@@ -244,8 +244,19 @@ What the export decides (details: gotchas 64-67):
   `cut` (alpha test) for foliage / transparent / Standard-cutout shaders
   only (Lux keeps smoothness in its alpha); `fx` (particles, sheen) -
   skipped by the site.
+- `scale` = `_MainTex` tiling when not 1 (cave walls 35-40x, cave ground
+  12x - without it one texture spans a 200 m cave piece; 2026-09-28). The
+  site keys a texture on index + alpha + scale (`texture(i, alpha, scale)`).
+- Faces: solid materials draw front faces only (as Unity culls), cut-outs
+  both sides (2026-09-28). Checked offline on box meshes: the turned indices
+  + the z mirror leave CCW faces pointing out.
 
-Open: the endgame lab looks sparse; a spot loads thousands of files and
+**Broken (author, 2026-09-28, top priority):** Cave 6 with Models on is still
+big grey rock you cannot see through - see CLAUDE.md *Pick up here*. Neither
+fix above was ever looked at on a rendered page before it was called done
+(gotcha 68).
+
+Open: the site's JS is served `max-age=14400` with no version in its URL, so a deploy can hide for 4 h (gotcha 66 - version it); the endgame lab looks sparse; a spot loads thousands of files and
 `.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;
 greebles and pickups are missing; per-kind toggles.
 

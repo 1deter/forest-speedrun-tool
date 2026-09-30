@@ -647,8 +647,8 @@ game internals: game-notes *Terrain, and the world from above*.
 - maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
   comparison (start / end frame per run, segment times) - backlog,
   site-only.
-- Known: the spot page scrolls sideways at phone width (a wide table);
-  `scripts/__pycache__/*.pyc` is tracked in git. **Remote agents**:
+- Known: the spot page scrolls sideways at phone width (a wide table).
+  **Remote agents**:
   `Agent` with `isolation: "remote"` ran in a local worktree here, not in
   the cloud - for cloud credit the author starts a cloud session with a
   task text.
