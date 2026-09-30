@@ -154,7 +154,10 @@ export class World {
     const want = new Set();
     let loading = 0;
     if (this.show.models || this.show.collision) for (const c of this.meta.chunks) {
-      const dx = Math.max(c.x - x, 0, x - (c.x + size)), dz = Math.max(c.z - z, 0, z - (c.z + size));
+      // "bb": where the chunk's instances really reach (a cave ground spans
+      // hundreds of metres); older exports: the 250 m column.
+      const b = c.bb || [c.x, c.z, c.x + size, c.z + size];
+      const dx = Math.max(b[0] - x, 0, x - b[2]), dz = Math.max(b[1] - z, 0, z - b[3]);
       const d = Math.hypot(dx, dz);
       if (d < RADIUS) want.add(c.file);
       if (d < DROP && this.chunks.has(c.file)) want.add(c.file);

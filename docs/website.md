@@ -260,6 +260,22 @@ What the export decides (details: gotchas 64-67):
   between the camera and its target, 4 m short of the target - one clip
   plane on every world material (off = far away, so no shader recompiles).
 
+- **Chunks by the mesh's bounds** (2026-10-01): an instance goes in the
+  column of its mesh's world centre; one wider than 250 m in the column's
+  `_L` chunk; every chunk carries `bb` (where its instances reach) and the
+  site loads by it. Before, the cave grounds, the mountains and the
+  sinkhole (origin 0,0,0, world-space vertices) all sat in the centre
+  chunks - Cave 6's floor never loaded (gotcha 70).
+- **Dropped** (2026-10-01): switched-off renderers with no material /
+  `Default-Material` / `lambert2` (whole-map build leftovers:
+  `navmesh_patch`, `cliff_COMBINED*`, `treesExport*`, `rocksExport*` - ~400k
+  triangles), and the black `CaveN_Blocking` shells round each cave system
+  (they hide the void past a cave's openings in game; on a map they hide
+  the cave).
+- Missing on purpose so far: greebles under `Pooling/Pool_Greebles` (Cave
+  6's body piles, stalactites, sticks - random per visit or placed by
+  greeble zones) and skinned meshes.
+
 **Looking at a spot on the local site** (gotcha 68 - do it before calling a
 render fix done): preview `forest-site`, upload the world locally
 (`FOREST_SITE_ADMIN_TOKEN=local-admin python scripts/aerial-upload.py
@@ -268,7 +284,11 @@ render fix done): preview `forest-site`, upload the world locally
 yaw 0 = north, pitch down) - the game camera's `Transform.position` /
 `eulerAngles` from the bridge give the same view as a `shot`. The game's
 vertical FOV is 95 at 16:10, the site's 55 over a wider canvas - close
-enough to compare shapes.
+enough to compare shapes. Headless (the in-app pane pauses rendering when
+hidden): `pip install playwright`, Edge via `channel="msedge"` - open a spot,
+click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
+`forest3d.canvas`. A second local site beside another session's (port 5081,
+own build output and data): `.claude/launch.json` `forest-site-alt`.
 
 Open: the endgame lab looks sparse; a spot loads thousands of files and
 `.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;

@@ -6,7 +6,7 @@ namespace ForestSite;
 public static class UploadPath
 {
     private static readonly Regex Tile = new(@"^(canopy|ground)(-dry)?/\d{1,2}/\d{1,5}_\d{1,5}\.jpg$");
-    private static readonly Regex World = new(@"^(m/\d{1,6}\.bin|t/\d{1,6}\.(jpg|png)|c/(surface|caves|endgame)_-?\d{1,3}_-?\d{1,3}\.bin)$");
+    private static readonly Regex World = new(@"^(m/\d{1,6}\.bin|t/\d{1,6}\.(jpg|png)|c/(surface|caves|endgame)_-?\d{1,3}_-?\d{1,3}(_L)?\.bin)$");
 
     /// Aerial photo tiles: `<layer>/<level>/<x>_<y>.jpg` and `aerial.json`.
     public static bool IsTile(string path) => path == "aerial.json" || Tile.IsMatch(path);

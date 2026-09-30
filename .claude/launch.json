@@ -15,6 +15,19 @@
       "env": {
         "FOREST_ADMIN_TOKEN": "local-admin"
       }
+    },
+    {
+      "name": "forest-site-alt",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "dotnet build site/ForestSite -c Debug -o C:/Users/deter/AppData/Local/Temp/claude/forest-site-alt/bin -v q && cd site/ForestSite && dotnet C:/Users/deter/AppData/Local/Temp/claude/forest-site-alt/bin/ForestSite.dll --urls http://localhost:5081"
+      ],
+      "port": 5081,
+      "env": {
+        "FOREST_ADMIN_TOKEN": "local-admin",
+        "FOREST_DATA": "C:/Users/deter/AppData/Local/Temp/claude/forest-site-alt/data"
+      }
     }
   ]
 }

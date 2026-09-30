@@ -22,7 +22,12 @@ site/world-out, not in git; uploaded to the site like the aerial tiles):
   t/<i>.jpg    a material's main texture, at most 256 px
   c/<area>_<cx>_<cz>.bin  the instances in one 250 m column of an area:
                uint32 model, then the world matrix's top 3 rows (12 float32,
-               row-major) - Unity's axes (x east, y up, z north)
+               row-major) - Unity's axes (x east, y up, z north). An
+               instance goes in the column of its mesh's centre, not of its
+               origin (the cave grounds sit at 0,0,0 with world-space
+               vertices); one wider than a column goes in <area>_<cx>_<cz>_L
+               with the other wide ones. Each chunk's "bb" [x0, z0, x1, z1]
+               is where its instances really reach - the site loads by it.
 
 A model's kind: "render", "render-off" (a renderer the scene file keeps
 switched off - the game turns it on: the endgame's areas as they are
@@ -213,6 +218,7 @@ CAVE_LAYER = 17
 VOLUME_LAYERS = (4, 25)     # Water, Blocker: switched-off cubes with Base_Orange / Default-Diffuse
 CUT_SHADERS = ("Foliage", "Leaves", "Transparent", "Cutout", "Grass")
 FX_SHADERS = ("Particles/", "Lux/Particles", "Custom/Sheen", "Legacy Shaders/Particles")
+BAKE_MATERIALS = ("Default-Material", "lambert2")   # a switched-off renderer with only these (or none) is never drawn
 PRIMITIVES = ("Cube", "Sphere", "Quad", "Plane", "Cylinder", "Capsule")
 CAVE_LODS = ("LOD_Cave", "LOD_CaveEntrance", "LOD_CaveMedium", "LOD_CaveSmall")   # scaled like their placeholder
 
@@ -253,7 +259,8 @@ class Export:
         self.textures = {}
         self.clear = {}      # texture index -> share of its pixels under half alpha
         self.models, self.model_ix = [], {}
-        self.chunks = collections.defaultdict(list)     # (area, cx, cz) -> [(model, matrix)]
+        self.chunks = collections.defaultdict(list)     # (area, cx, cz, wide) -> [(model, matrix)]
+        self.reach = {}      # chunk key -> [x0, z0, x1, z1] of its instances' bounds
 
     @staticmethod
     def key(pptr):
@@ -414,6 +421,21 @@ class Export:
             print("   material failed:", label, e)
         return entry
 
+    def place(self, area, model, m):
+        """Put an instance in the chunk of its mesh's centre (world bounds of
+        the mesh's box under the matrix), a wide one in the wide chunk."""
+        bb = self.meshes[self.models[model]["mesh"]]["bb"]
+        lo, hi = np.array(bb[:3]), np.array(bb[3:])
+        c, e = (lo + hi) / 2, (hi - lo) / 2
+        wc = m[:3, :3] @ c + m[:3, 3]
+        we = np.abs(m[:3, :3]) @ e
+        wide = max(we[0], we[2]) * 2 > CHUNK
+        k = (area, int(np.floor(wc[0] / CHUNK)), int(np.floor(wc[2] / CHUNK)), wide)
+        self.chunks[k].append((model, m[:3, :4].astype(np.float32)))
+        r = [wc[0] - we[0], wc[2] - we[2], wc[0] + we[0], wc[2] + we[2]]
+        o = self.reach.get(k)
+        self.reach[k] = r if o is None else [min(o[0], r[0]), min(o[1], r[1]), max(o[2], r[2]), max(o[3], r[3])]
+
     def model(self, mesh, mats, kind, layer):
         k = (mesh, tuple(mats), kind, layer)
         if k not in self.model_ix:
@@ -449,14 +471,17 @@ class Export:
                 continue
             if kind == "render-off" and (g[1] in VOLUME_LAYERS or self.meshes[mesh]["name"] in PRIMITIVES):
                 continue    # a volume (blocker, water, trigger box) with a debug material, never seen
+            if kind == "render-off" and all(k < 0 or self.materials[k]["name"] in BAKE_MATERIALS for k in mats):
+                continue    # a build leftover (navmesh_patch, cliff_COMBINED, treesExport ...: whole-map meshes, never drawn)
+            if mats and all(k >= 0 and self.materials[k]["name"] == "black" for k in mats):
+                continue    # Cave1_Blocking ... HC_Blocking: black shells round a whole cave system that hide the void past its openings - on a map they only hide the cave
             if level == 7:
                 area = "endgame"
             elif level >= 15 or g[1] == CAVE_LAYER or root_name(s, g[3]) == "Caves":
                 area = "caves"
             else:
                 area = "surface"
-            c = (area, int(np.floor(m[0, 3] / CHUNK)), int(np.floor(m[2, 3] / CHUNK)))
-            self.chunks[c].append((self.model(mesh, mats, kind, g[1]), m[:3, :4].astype(np.float32)))
+            self.place(area, self.model(mesh, mats, kind, g[1]), m)
             placed[(area, kind)] += 1
         for gid, key, local in s.shapes:
             g = s.gos.get(gid)
@@ -467,8 +492,7 @@ class Export:
                 continue
             m = m @ local
             area = "endgame" if level == 7 else "caves" if (level >= 15 or g[1] == CAVE_LAYER or root_name(s, g[3]) == "Caves") else "surface"
-            c = (area, int(np.floor(m[0, 3] / CHUNK)), int(np.floor(m[2, 3] / CHUNK)))
-            self.chunks[c].append((self.model(self.shape(key), [], "collide", g[1]), m[:3, :4].astype(np.float32)))
+            self.place(area, self.model(self.shape(key), [], "collide", g[1]), m)
             placed[(area, "collide " + key[0])] += 1
         print("level%d %s:" % (level, SCENES.get(level, "?")), dict(placed), "-", len(self.meshes), "meshes,",
               len(self.materials), "materials so far")
@@ -584,9 +608,7 @@ class Export:
                     mats = [mat_of(m) for m in part[6].split(";")] if kind == "render" else []
                 if mesh is None:
                     continue
-                m = base @ local
-                c = (area, int(np.floor(m[0, 3] / CHUNK)), int(np.floor(m[2, 3] / CHUNK)))
-                self.chunks[c].append((self.model(mesh, mats, kind, int(part[2])), m[:3, :4].astype(np.float32)))
+                self.place(area, self.model(mesh, mats, kind, int(part[2])), base @ local)
                 placed[(area, p[1], kind)] += 1
         for k, v in sorted(placed.items()):
             print("  ", k, v)
@@ -594,8 +616,9 @@ class Export:
     def finish(self):
         import json
         chunks = []
-        for (area, cx, cz), items in sorted(self.chunks.items()):
-            name = "c/%s_%d_%d.bin" % (area, cx, cz)
+        for key, items in sorted(self.chunks.items()):
+            area, cx, cz, wide = key
+            name = "c/%s_%d_%d%s.bin" % (area, cx, cz, "_L" if wide else "")
             with open(os.path.join(self.out, name), "wb") as f:
                 for model, mat in items:
                     f.write(np.uint32(model).tobytes())
@@ -603,7 +626,8 @@ class Export:
             tris = sum(self.meshes[self.models[mo]["mesh"]]["ni"] // 3 for mo, _ in items)
             ys = [float(mat[1, 3]) for _, mat in items]
             chunks.append({"file": name, "area": area, "x": cx * CHUNK, "z": cz * CHUNK,
-                           "y0": round(min(ys), 1), "y1": round(max(ys), 1), "n": len(items), "tris": tris})
+                           "y0": round(min(ys), 1), "y1": round(max(ys), 1), "n": len(items), "tris": tris,
+                           "bb": [round(float(v), 1) for v in self.reach[key]]})
         layers = {}
         env = UnityPy.load(os.path.join(GAME, "globalgamemanagers"))
         for o in env.objects:

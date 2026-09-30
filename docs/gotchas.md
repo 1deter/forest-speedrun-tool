@@ -552,3 +552,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     overrides (`ilscan type <Base>` subclasses, `ilscan refs
     set_localScale`) and compare one spawned object of each kind live with
     its placeholder (`get #h LOD_Cave.CurrentLodTransform.lossyScale`).
+
+70. **An object's origin is not where its mesh is.** (2026-10-01, the 3D
+    world's cave floors.) The cave grounds (`Cave06_Ground_Collision`,
+    `Cave0N_Ground_inside` ...), the mountains and the sinkhole sit at
+    (0, 0, 0) with world-space vertices. The export filed instances into
+    250 m chunks by their origin, so every one of them landed in the chunk
+    at the world's centre, and the site (loading within 700 m of the view)
+    never showed Cave 6's floor or collision 1.3 km away - "the floor still
+    seems absent" after two fixes to the walls. Place by the mesh's world
+    bounds and keep each chunk's real reach (`bb`); for a hole in a model,
+    first ask `Physics.OverlapSphere` in game what is there (the bridge
+    lists the colliders), then look for that object in the export.

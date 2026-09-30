@@ -526,6 +526,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`.
 68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done.
 69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder.
+70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there.
 
 ---
 
