@@ -224,6 +224,10 @@ BAKE_MATERIALS = ("Default-Material", "lambert2")   # a switched-off renderer wi
 SKIP_MESHES = ("VRTreeRing",)   # the VR mode's ring round a tree trunk (black, never shown on a screen)
 PRIMITIVES = ("Cube", "Sphere", "Quad", "Plane", "Cylinder", "Capsule")
 CAVE_LODS = ("LOD_Cave", "LOD_CaveEntrance", "LOD_CaveMedium", "LOD_CaveSmall")   # scaled like their placeholder
+# Scene roots the game moves at run time: skipped here, exported from the
+# in-game dump as they stand (world/placed-*.txt, WorldDump.Placed). The
+# yacht: reparented under a spawned yachtWobblePrefab 130 m away.
+MOVED_ROOTS = {2: ("Yacht",)}
 
 
 def lod_rest(scene):
@@ -491,6 +495,7 @@ class Export:
                 d = o.read()
                 mats_of[d.m_GameObject.path_id] = (bool(d.m_Enabled), list(d.m_Materials))
         placed = collections.Counter()
+        moved = MOVED_ROOTS.get(level, ())
         for kind, gid, pptr, enabled in s.parts:
             g = s.gos.get(gid)
             if not g or not pptr or pptr.path_id == 0 or not enabled:
@@ -498,6 +503,8 @@ class Export:
             m, active = s.world(g[3])
             if not active:
                 continue
+            if moved and root_name(s, g[3]) in moved:
+                continue    # the game moves it: placed-*.txt has it as it stands
             mats = []
             if kind == "render":
                 if gid in rest or gid not in mats_of:
@@ -724,7 +731,7 @@ def export(out):
     world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
     spawned = os.path.join(world, "spawned.txt")
     if os.path.exists(spawned):
-        e.spawned([spawned] + sorted(os.path.join(world, n) for n in os.listdir(world) if n.startswith("greebles-")))
+        e.spawned([spawned] + sorted(os.path.join(world, n) for n in os.listdir(world) if n.startswith(("greebles-", "placed-"))))
     else:
         print("no", spawned, "- trees, rocks and cave pieces left out (bridge: call static:ForestOverlay.Game.WorldDump Write)")
     e.finish()

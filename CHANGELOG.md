@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.180 - 2026-10-01
+
+- Developer tooling only: the website map's photo capture keeps the
+  player fed and switches off the screen's blood / frost effects (a hungry
+  player put blood on a tile), shows lakes near a tile's edge as water
+  instead of a black patch, and sees all the way down into the sinkhole.
+  A new world dump writes the yacht where it really floats.
+
 ## v0.24.179 - 2026-10-01
 
 - Developer tooling only: the website map's photo capture holds the

@@ -50,6 +50,16 @@ namespace ForestOverlay.Game
     // The player's own GreebleLayer (sticks and small rocks every 10-12 m
     // around the player) is not in it: its ProceduralSeed is empty in this
     // build, so they are random on every spawn - no place to put them.
+    //
+    // Placed objects (`call static:ForestOverlay.Game.WorldDump Placed
+    // <name> <object path>`, 2026-10-01): a scene object the game moves at
+    // run time, as it stands - the yacht: the scene's `Yacht` is reparented
+    // under a spawned yachtWobblePrefab 130 m from where the scene file
+    // keeps it, and bobs there (the 3D world had it, half its parts
+    // missing, on the shore). world/placed-<name>.txt: its prefab / part
+    // lines (LOD groups: LOD 0 only, as the scene files' export) and one
+    // `greeble` line placing it; world-extract.py skips the scene's copy
+    // (MOVED_ROOTS).
     // ------------------------------------------------------------------
     public static class WorldDump
     {
@@ -103,9 +113,41 @@ namespace ForestOverlay.Game
             return result;
         }
 
+        public static string Placed(string name, string path)
+        {
+            GameObject go = GameObject.Find(path);
+            if (go == null) return "no object '" + path + "'";
+            HashSet<Renderer> rest = new HashSet<Renderer>();
+            foreach (LODGroup g in go.GetComponentsInChildren<LODGroup>(true))
+            {
+                LOD[] lods = g.GetLODs();
+                for (int i = 1; i < lods.Length; i++)
+                    foreach (Renderer r in lods[i].renderers)
+                        if (r != null) rest.Add(r);
+            }
+            StringBuilder sb = new StringBuilder();
+            Transform t = go.transform;
+            int parts = Prefab(sb, t, rest);
+            Vector3 p = t.position;
+            Quaternion q = t.rotation;
+            sb.Append("greeble\t").Append(Clean(t.name))
+              .Append('\t').Append(F(p.x)).Append(' ').Append(F(p.y)).Append(' ').Append(F(p.z))
+              .Append('\t').Append(F(q.x)).Append(' ').Append(F(q.y)).Append(' ').Append(F(q.z)).Append(' ').Append(F(q.w)).Append('\n');
+            string dir = Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ForestOverlay"), "world");
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, "placed-" + Clean(name) + ".txt");
+            File.WriteAllText(file, sb.ToString());
+            string result = "'" + t.name + "' at " + p + ": " + parts + " part(s), " + rest.Count + " LOD 1+ renderer(s) left out -> " + file;
+            if (Log != null) Log.LogInfo("World dump, placed: " + result);
+            return result;
+        }
+
         /// A prefab's parts, relative to its root's position and rotation
         /// (the root's own scale stays in them).
-        private static int Prefab(StringBuilder sb, Transform root)
+        private static int Prefab(StringBuilder sb, Transform root) { return Prefab(sb, root, null); }
+
+        /// skip: renderers left out (a placed object's LOD 1+).
+        private static int Prefab(StringBuilder sb, Transform root, HashSet<Renderer> skip)
         {
             int parts = 0;
             Vector3 rs = root.localScale;
@@ -115,7 +157,7 @@ namespace ForestOverlay.Game
             foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
             {
                 MeshRenderer r = mf.GetComponent<MeshRenderer>();
-                if (mf.sharedMesh == null || r == null || !r.enabled) continue;
+                if (mf.sharedMesh == null || r == null || !r.enabled || (skip != null && skip.Contains(r))) continue;
                 Part(sb, "render", mf.gameObject.layer, mf.sharedMesh, toRoot * mf.transform.localToWorldMatrix, r.sharedMaterials);
                 parts++;
             }

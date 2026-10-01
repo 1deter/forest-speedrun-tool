@@ -72,6 +72,22 @@ namespace ForestOverlay.Game
     //    it is switched back on after (the sky stays clear until it rolls).
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
+    //  - The player's state is in the frame: the camera flown is the game's
+    //    own (MainCamNew), with its hurt / weather overlays. Hunger and
+    //    thirst hurt the player in god mode too - screen blood at the edges
+    //    of tile 13_12 (2026-10-01) - a cold player gets frost, low health
+    //    greys the picture. Those overlays are switched off before every
+    //    frame (the game switches them back on) and the player is kept fed,
+    //    watered and rested on every tile (he ends the run that way).
+    //  - Lakes switch their water for a flat black stand-in ("LakeFake")
+    //    150 m from PlayerLoc, by LOD_GroupToggle's own distances (963 of
+    //    them, not LOD_Manager's ranges): a lake near a tile's edge came out
+    //    black and cut at the edge (Lakes 4 and 12, tiles 10_2 / 14_2). Every
+    //    toggle's distances are scaled by rangeScale while capturing.
+    //  - The far plane reaches below the terrain's lowest point: the
+    //    sinkhole's floor and water (y -300 / -304) are models under a hole
+    //    in the terrain, which bottoms out at y 0 - "60 m below the tile's
+    //    lowest ground" drew the pit black.
     //
     // Everything changed is put back by Stop / the end of the run. The
     // player is left where he stands, in god mode while it runs.
@@ -82,6 +98,12 @@ namespace ForestOverlay.Game
 
         public const int TreeLayer = 11;
         public const float Sea = 41.5f;
+
+        /// The deepest model seen from above: the sinkhole's water (y -304).
+        public const float Deepest = -320f;
+
+        /// The camera's hurt / weather overlays, kept off while capturing.
+        private static readonly string[] Overlays = { "BleedBehavior", "Frost", "Grayscale", "WaterBlurEffect", "Blur" };
 
         public string Status = "idle";
 
@@ -168,8 +190,9 @@ namespace ForestOverlay.Game
                         float top = hi + 400f;
                         freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
                         cam.nearClipPlane = 1f;
-                        cam.farClipPlane = top - lo + 60f;
+                        cam.farClipPlane = top - Mathf.Min(lo, Deepest) + 60f;
                         HoldSun(sunTime);
+                        KeepPlayerWell();
                         Status = "tile " + (ix + 1) + "," + (iz + 1) + " of " + nx + "x" + nz + " (" + done + " saved, " + skipped + " sea)";
 
                         float until = Time.realtimeSinceStartup + settle;
@@ -179,6 +202,8 @@ namespace ForestOverlay.Game
                             yield return null;
                         }
                         cam.layerCullDistances = new float[32];
+                        KeepPlayerWell();
+                        HoldOverlays();
 
                         cam.cullingMask = _saved.CullingMask;
                         freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);   // nothing may have turned it
@@ -188,6 +213,7 @@ namespace ForestOverlay.Game
                         cam.cullingMask = _saved.CullingMask & ~(1 << TreeLayer);
                         yield return null;
                         cam.layerCullDistances = new float[32];   // CullDistanceManager.Update re-set them
+                        HoldOverlays();
                         freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
                         yield return new WaitForEndOfFrame();
                         Save(read, px, Path.Combine(Path.Combine(dir, "ground"), ix + "_" + iz + ".jpg"));
@@ -265,6 +291,8 @@ namespace ForestOverlay.Game
             public object Overcast;
             public bool GodModeWasOn;
             public Vector3 PlayerLoc;
+            public readonly List<KeyValuePair<Behaviour, bool>> Overlays = new List<KeyValuePair<Behaviour, bool>>();
+            public readonly List<KeyValuePair<object, float>> LodDistances = new List<KeyValuePair<object, float>>();
         }
 
         private void Apply(Camera cam, float tile, float rangeScale, float sunTime)
@@ -307,6 +335,29 @@ namespace ForestOverlay.Game
                 s.RangesSmall = (float[])rs.Clone();
                 for (int i = 0; i < r.Length; i++) r[i] = s.Ranges[i] * rangeScale;
                 for (int i = 0; i < rs.Length; i++) rs[i] = s.RangesSmall[i] * rangeScale;
+            }
+
+            // LOD_GroupToggle._levels[i].VisibleDistance (lakes' LakeFake, rocks,
+            // cliffs): the game's worker thread compares them with PlayerLoc.
+            Type toggle = GameBridge.FindGameType("LOD_GroupToggle");
+            UnityEngine.Object[] toggles = toggle != null ? UnityEngine.Object.FindObjectsOfType(toggle) : new UnityEngine.Object[0];
+            for (int i = 0; i < toggles.Length; i++)
+            {
+                Array levels = Get(toggles[i], "_levels") as Array;
+                if (levels == null) continue;
+                foreach (object level in levels)
+                {
+                    object d = level != null ? Get(level, "VisibleDistance") : null;
+                    if (!(d is float)) continue;
+                    s.LodDistances.Add(new KeyValuePair<object, float>(level, (float)d));
+                    Set(level, "VisibleDistance", (float)d * rangeScale);
+                }
+            }
+
+            for (int i = 0; i < Overlays.Length; i++)
+            {
+                Behaviour b = cam.GetComponent(Overlays[i]) as Behaviour;
+                if (b != null) s.Overlays.Add(new KeyValuePair<Behaviour, bool>(b, b.enabled));
             }
 
             // PostProcessingBehaviour.profile.vignette.enabled off;
@@ -388,9 +439,13 @@ namespace ForestOverlay.Game
             if (SetOverlayUi != null) SetOverlayUi(false);
             _saved = s;
             HoldSun(sunTime);
+            HoldOverlays();
+            KeepPlayerWell();
             if (Log != null)
                 Log.LogInfo("Aerial capture: tile " + F(tile) + " m at " + Screen.height + " px, LOD ranges x" + F(rangeScale)
-                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, " + exposure + ", " + weather + ", fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
+                    + " (+ " + s.LodDistances.Count + " LOD toggle distances of " + toggles.Length + " toggles), "
+                    + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, "
+                    + s.Overlays.Count + " hurt / weather overlay(s) held off, player kept well, " + exposure + ", " + weather + ", fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
                     + "sun at " + F(sunTime));
         }
 
@@ -430,6 +485,9 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < s.PostEffects.Count; i++) Set(s.PostEffects[i].Key, "enabled", s.PostEffects[i].Value);
                 if (s.EyeModel != null) Set(s.EyeModel, "settings", s.EyeSettings);
                 if (s.Weather != null) s.Weather.enabled = s.WeatherWasOn;
+                for (int i = 0; i < s.LodDistances.Count; i++) Set(s.LodDistances[i].Key, "VisibleDistance", s.LodDistances[i].Value);
+                for (int i = 0; i < s.Overlays.Count; i++)
+                    if (s.Overlays[i].Key != null) s.Overlays[i].Key.enabled = s.Overlays[i].Value;
                 for (int i = 0; i < s.Hud.Count; i++)
                     if (s.Hud[i].Key != null) s.Hud[i].Key.cullingMask = s.Hud[i].Value;
                 if (!s.GodModeWasOn) DeathHooks.SetGodMode(false);
@@ -453,6 +511,32 @@ namespace ForestOverlay.Game
         }
 
         private static string Fmt(object v) { return v is float ? F((float)v) : "?"; }
+
+        /// The camera's hurt / weather overlays off, right before a frame:
+        /// the game switches them on again as the player's state asks.
+        private void HoldOverlays()
+        {
+            Saved s = _saved;
+            if (s == null) return;
+            for (int i = 0; i < s.Overlays.Count; i++)
+                if (s.Overlays[i].Key != null) s.Overlays[i].Key.enabled = false;
+        }
+
+        /// Fed, watered, rested and healthy, the screen's blood cleared: what
+        /// hurts the player (god mode stops the death, not the hits) also
+        /// shows on the game's camera.
+        private static void KeepPlayerWell()
+        {
+            object stats = StaticGet("TheForest.Utils.LocalPlayer", "Stats");
+            if (stats == null) return;
+            Set(stats, "Fullness", 1f);
+            Set(stats, "Thirst", 0f);
+            Set(stats, "Health", 100f);
+            Set(stats, "HealthTarget", 100f);
+            Set(stats, "Stamina", 100f);
+            Set(stats, "Energy", 100f);
+            DeathHooks.ClearBlood();
+        }
 
         private static void HoldSun(float sunTime)
         {
