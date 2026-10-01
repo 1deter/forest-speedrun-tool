@@ -533,6 +533,8 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open.
 72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one.
 73. **Diff a switch's two outputs before shipping it** - the "-dry" photo layer was the wet one (the ocean never draws in the capture) and "eye adaptation off" did not hold; compare on / off results and read a setting back before building on it.
+74. **A check against a clamped result must clamp its input too** - the 3D patch, clamped inside the map, never "covered" a centre near the edge and was rebuilt every 0.4 s (the white flicker).
+75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model.
 
 ---
 
@@ -609,18 +611,22 @@ to us" - one item per session):
    and the token-reset race: decided, left as they are (About page says
    the id is not anonymous). **A new deploy needs nothing extra**; a
    changed `compose.yaml` needs `setup.sh` again (README).
-4. **The map's polish - next** (the author's review of the new map,
-   2026-10-01, "i'll polish these features in a new session"): five items
-   with their causes / starting points in docs/backlog.md *Website* (blood
-   in tile 13_12, a frozen lake and a black shape cut at tile edges, the
-   sinkhole's black inside, the 3D Water button, lake water showing over
-   land in 3D; then a second round: the 3D terrain flickering white near
-   the map's edge - probably this session's `lookRegion` rebuilding in a
-   loop - the coast flickering while the camera moves, the untextured
-   yacht, and **turning the map 180 degrees, snow at the top**). Nine
-   items; the author does them in a new session. The list itself (bands, Water, 3D textures, playback) was
-   done in v0.24.178-179 (below: *The map list*); the author: "looks a lot
-   better overall".
+4. **The map's polish** (the author's review of the new map,
+   2026-10-01; nine items). **The five site-only ones are done** (this
+   session, site only, deployed by the push; checked headless on the local
+   site, **not yet looked at by the author**): south at the top in 2D and
+   3D; the 3D white flicker / moving coast = the detail patch rebuilt every
+   0.4 s with the centre near the map's edge (gotcha 74; 28 rebuilds in 16 s
+   on the old code, 1 now), plus a finer island mesh on desktop; the dark
+   "lakes" over land = the 3D sea plane filling inland pits (gotcha 75 -
+   not the lake models), now masked like the bake's sea, and the lake
+   models clipped to their shore; the 3D Water button hides the sea, the
+   lakes and their black `LakeFake` planes (docs/website.md *Terrain, sea
+   and water in 3D*). **Next: the four that need the game** (docs/backlog.md
+   *Website* 1-4, one game session + a plugin release): blood in tile
+   13_12, the frozen lake / black shape cut at tile edges, the sinkhole's
+   black inside (in 3D too: the terrain's heights cross the pit at y ~0),
+   the untextured yacht. Headless looks: `scripts/site-look.py`.
 5. 3D world: the sparse endgame lab, load size (thousands of files,
    uncompressed `.bin`), the spot page's sideways scroll on phones.
 6. LiveSplit `.lss` import UI (Next up 9).
@@ -703,9 +709,9 @@ game internals: game-notes *Terrain, and the world from above*.
   memory, for the 2D map (the photo is the game's own renderer; the
   memory route = the 3D item below). Long-term (backlog): **an exact 3D
   world** - the terrain from its splat maps, every prop.
-- **Next, in order:** (1) the map's polish (item 4 above; the author has
-  looked: better overall, five issues); the 3D world at the Elevator Boost
-  end (snow cliffs: the top layer). (2) The endgame lab looked **sparse** (props, few
+- **Next, in order:** (1) the map's polish's game items (item 4 above);
+  the 3D world at the Elevator Boost end (snow cliffs: the top layer; the
+  run's end is past the map's south edge, z -1969). (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
   `tp` lands with the sections unloaded) with the site at the same spot,

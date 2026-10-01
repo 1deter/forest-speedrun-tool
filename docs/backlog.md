@@ -182,42 +182,11 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
      fog / shadow at that depth, a black blocker material (`LakeFake` /
      `black` - world-extract drops "black" shells for caves). A `shot`
      straight down over (0, 400, 0) with the freecam answers it.
-  4. **3D: the Water button does nothing** (flickers the textures - the
-     terrain re-textures with the `-dry` photo, which is the same under
-     the 3D sea plane). `map3d.js` draws its own sea plane (0x0c2231, at
-     `terrain.meta.sea`) and the lakes as water (`world3d.js`): with a
-     `-dry` layer chosen, hide the sea plane (and decide whether the lakes
-     go too).
-  5. **3D: dark "water" over land, coming and going with the camera
-     angle** (Elevator Boost, the lakes round the sinkhole). The lakes'
-     models (shader The Forest/Water, drawn as water since 2026-10-01)
-     are larger than the lakes; the terrain they hide under is the coarse
-     mesh (every 4th height sample, ~14 m) away from the detail patch, and
-     the patch now moves with the camera (`lookRegion`) - so land that
-     dips below the lake level in the coarse mesh shows water, and it
-     changes as the patch moves. Options: clip the water against the real
-     heights (a shader check against the heightmap), or draw lakes only
-     inside the detail patch, or a polygon offset; compare with the game
-     at one lake.
-  6. **3D: the terrain flickers between its photo and white with the
-     camera at one spot** - **when the camera's centre is outside the map's
-     bounds** (author, confirmed). That fits `lookRegion` (map3d.js, added
-     2026-10-01) in a loop: `regionAt` clamps the patch inside the map,
-     so near the edge the centre never counts as covered and the patch is
-     rebuilt every 0.4 s - and each `setRegion` calls `textures()`, which
-     rebuilds **both** the island's 4096 px photo and the patch's (white
-     while a new texture uploads). Fix: skip when the new region equals
-     the current one (or test coverage against the clamped region), and
-     rebuild the island's texture only on a layer change, not per region.
-  7. **3D: the coast flickers / seems to move up and down while the camera
-     moves.** Suspects, in order: the patch following the camera (coarse
-     mesh, ~14 m between samples, swapped for the full-resolution patch
-     where the camera stops - the shore line moves with it); the sea
-     plane against the terrain at sea level (z-fighting - it has a
-     polygon offset); `clip()` changing the near plane with the zoom
-     (`dist * 0.004`, depth precision). Turning `lookRegion` off on the
-     local site tells the first apart.
-  8. **3D: the yacht is untextured** (flat grey). Its export: `yacht_body`
+     In 3D the terrain's heights cross the pit at about y 0 with that
+     black photo, hiding the sinkhole's models below (SinkholeLower,
+     SinkholeWater at -304): a hole in the 3D terrain there (the samples
+     inside the rim) would show them - check the heights' shape first.
+  4. **3D: the yacht is untextured** (flat grey). Its export: `yacht_body`
      / `yacht_chrome` (shader Standard, no `_MainTex`, colour 0.588),
      `YachtCovering` (Standard Specular, no texture), `yacht_glass`,
      `yacht_cushions` (Lux, no main texture, a top layer only) - so the
@@ -225,15 +194,6 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
      / mask map, vertex colour, or the colour alone looks different with
      the game's lighting). Compare with a `shot` of the yacht in game, then
      read the material's properties with UnityPy (`world-extract.py`).
-  9. **Turn the map 180 degrees: the snow at the top** (author: "this is
-     what all maps are oriented at" - the runners' maps put south up).
-     2D (`map.js`): draw rotated (x and z both reversed on screen), with
-     the pointer's pan / pick / zoom-at-cursor, the grid labels and the
-     north marker following; the aerial tiles are drawn per tile at world
-     positions, so they rotate with the transform (a JPEG need not
-     change). 3D (`map3d.js`): the start view (`fit`: `yaw` 0 -> pi), the
-     follow camera unchanged. Check the spot page, the home page's map
-     and anything else drawing `RunMap`.
 
 - **An exact 3D world** (author, 2026-10-01, the long-term goal): the terrain as the game draws
   it (splat textures, not photos under the models - "a tree model on top of a photo of the

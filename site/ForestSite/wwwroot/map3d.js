@@ -20,8 +20,11 @@ let World = null;
 
 const RunMap = window.RunMap;
 const terrain = RunMap.terrain, aerial = RunMap.aerial;
-const COARSE = 4;                 // the island mesh: every 4th height sample
 const MOBILE = matchMedia("(pointer: coarse)").matches;
+// The island mesh: every 2nd height sample (~7 m) on desktop, every 4th on
+// phones. Where the detail patch takes over, the shore moved by up to a
+// coarse cell - the coast "moving up and down" (author, 2026-10-01).
+const COARSE = MOBILE ? 4 : 2;
 const DETAIL = MOBILE ? 320 : 512; // the runs' patch, in samples per side at full resolution
 const UNDER = 3;                  // metres below the ground that count as underground (map.js)
 const ORDER = { terrain: 0, sea: 1, zone: 2, line: 3, xray: 4, ghost: 5, label: 6 };
@@ -171,7 +174,8 @@ class Map3D {
     this.zoneGroup = new THREE.Group(); this.scene.add(this.zoneGroup);
     this.runGroup = new THREE.Group(); this.scene.add(this.runGroup);
     this.region = null;            // the detail patch, in samples: { i0, j0, i1, j1, step }
-    this.gen = 0;                  // texture generation: stale tile loads are dropped
+    this.islandGen = 0; this.detailGen = 0;   // texture generations: stale tile loads are dropped
+    this.island = null;            // the island's photo: { layer, canvas } - the patch's first picture
     this.visible = false; this.dirty = true; this.last = 0;
     // For a session checking the render at a game spot (docs/website.md):
     // window.forest3d.lookFrom(x, y, z, yaw, pitch, dist) - Unity coordinates.
@@ -264,7 +268,23 @@ class Map3D {
 
   setTime(t) { this.time = t; this.dirty = true; }
   setFocus(id) { this.focus = id; this.dirty = true; }
-  setLayer(layer) { if (layer === this.layer) return; this.layer = layer; if (this.coarse) this.textures(); }
+  setLayer(layer) {
+    if (layer === this.layer) return;
+    this.layer = layer;
+    this.applyWater();
+    if (this.coarse) this.textures();
+  }
+
+  /// The Water button: a "-dry" layer hides the sea plane and the lakes'
+  /// surfaces too - the ground under them, as the 2D map's dry photo (before,
+  /// the button changed the terrain's photo only, under the sea: nothing to
+  /// see; author, 2026-10-01).
+  applyWater() {
+    const on = !/-dry$/.test(this.layer);
+    if (this.sea) this.sea.visible = on;
+    this.world.setWater(on);
+    this.dirty = true;
+  }
 
   /// "orbit" or "follow" (behind the focused run's ghost).
   setMode(mode) {
@@ -286,7 +306,8 @@ class Map3D {
     else cancelAnimationFrame(this.raf);
   }
 
-  /// Every run and zone in view, from the south and above.
+  /// Every run and zone in view, from the north and above: south at the top
+  /// of the screen, as the 2D map and the runners' maps (author, 2026-10-01).
   fit() {
     const box = new THREE.Box3();
     for (const run of this.runs) for (const s of run.path) box.expandByPoint(P(s[1], s[2], s[3]));
@@ -300,7 +321,7 @@ class Map3D {
       const aspect = (c.clientWidth || 800) / (c.clientHeight || 500), tv = Math.tan(this.camera.fov * Math.PI / 360);
       o.dist = Math.max(40, size.length() / 2 / Math.min(tv, tv * aspect) * 0.9);
     }
-    o.yaw = 0; o.pitch = 0.75;
+    o.yaw = Math.PI; o.pitch = 0.75;
     this.fitted = true;
     this.follow.yawOff = 0;
     this.dirty = true;
@@ -331,15 +352,22 @@ class Map3D {
     this.coarse.renderOrder = ORDER.terrain;
     this.scene.add(this.coarse);
 
-    // The sea, pushed back where it meets the shore (no flicker there).
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshBasicMaterial({
+    // The sea, pushed back where it meets the shore (no flicker there), and
+    // only over open water (seaMask) - a plane at sea level also filled every
+    // pit below it inland: the sinkhole and the dips round it showed as dark
+    // lakes over land (author, 2026-10-01).
+    const seaMat = new THREE.MeshBasicMaterial({
       color: 0x0c2231, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4,
-    }));
+    });
+    seaMask(seaMat, m, h);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), seaMat);
     sea.rotation.x = -Math.PI / 2;
     sea.position.y = m.sea;
     sea.renderOrder = ORDER.sea;
     this.sea = sea;
     this.scene.add(sea);
+    this.world.setGround(m, h);
+    this.applyWater();
     this.textures();
   }
 
@@ -393,7 +421,7 @@ class Map3D {
     this.region = r;
     this.buildDetail(r);
     this.coarseIndex(this.coarse.geometry, r);
-    this.textures();
+    this.detailTexture();
   }
 
   /// The patch follows the orbit's centre once the camera has settled close
@@ -401,26 +429,31 @@ class Map3D {
   /// island beyond is the coarse mesh with a level-3/4 photo - panning to
   /// the map's middle looked like the textures breaking (author,
   /// 2026-10-01). Rebuilt 0.4 s after the centre stops; a new setRuns puts
-  /// the runs' patch back.
+  /// the runs' patch back. What must be covered is cut to the map: the patch
+  /// is clamped inside it, so a centre near or past the edge (the whole
+  /// coast) never counted as covered and the patch was rebuilt every 0.4 s -
+  /// the terrain flickering white there (author, 2026-10-01).
   lookRegion(target, dist, now) {
     const m = terrain.meta, cur = this.region;
     if (!m || !cur || !this.coarse || this.mode !== "orbit" || dist > 1500) { this.looking = null; return; }
-    const cell = this.cell, cellZ = m.sizeZ / (m.grid - 1);
+    const n = m.grid - 1, cell = this.cell, cellZ = m.sizeZ / n;
     const ci = (target.x - m.x0) / cell, cj = (-target.z - m.z0) / cellZ;
     const half = Math.max(250, Math.min(900, dist * 1.5)) / cell;     // samples
     const seen = half * 0.6;
-    if (ci - seen >= cur.i0 && ci + seen <= cur.i1 && cj - seen >= cur.j0 && cj + seen <= cur.j1) { this.looking = null; return; }
+    const a0 = Math.max(0, ci - seen), a1 = Math.min(n, ci + seen), b0 = Math.max(0, cj - seen), b1 = Math.min(n, cj + seen);
+    if (a0 >= a1 || b0 >= b1 || (a0 >= cur.i0 && a1 <= cur.i1 && b0 >= cur.j0 && b1 <= cur.j1)) { this.looking = null; return; }
     const l = this.looking;
     if (!l || Math.hypot(l.ci - ci, l.cj - cj) > 4) { this.looking = { ci, cj, since: now }; return; }
     if (now - l.since < 400) return;
     this.looking = null;
-    const r = this.regionAt(ci, cj, 2 * half);
+    const r = this.regionAt(Math.max(0, Math.min(n, ci)), Math.max(0, Math.min(n, cj)), 2 * half);
+    if (r.i0 === cur.i0 && r.j0 === cur.j0 && r.i1 === cur.i1 && r.j1 === cur.j1 && r.step === cur.step) return;
     r.look = true;
     this.setRegion(r);
   }
 
   buildDetail(r) {
-    if (this.detail) { this.scene.remove(this.detail); this.detail.geometry.dispose(); }
+    if (this.detail) { this.scene.remove(this.detail); dispose(this.detail, this.detail.userData.borrowed); }
     const m = terrain.meta, h = terrain.heights, n = m.grid, cell = this.cell, cellZ = m.sizeZ / (n - 1);
     const cols = (r.i1 - r.i0) / r.step + 1, rows = (r.j1 - r.j0) / r.step + 1;
     // The grid, then a skirt: each edge vertex again 12 m lower, so the
@@ -459,6 +492,11 @@ class Map3D {
     g.computeVertexNormals();
     this.detail = new THREE.Mesh(g, terrainMaterial());
     this.detail.renderOrder = ORDER.terrain;
+    // Until its own photo is made: the island's (the same picture, coarser).
+    // A patch with no texture drew white for a frame.
+    const map = this.coarse.material.map;
+    if (map) { this.detail.material.map = map; this.detail.userData.borrowed = true; this.detailUv(false); }
+    this.detail.material.opacity = this.fade;
     this.scene.add(this.detail);
     this.dirty = true;
   }
@@ -474,47 +512,72 @@ class Map3D {
   }
 
   /// Relief (map.jpg) everywhere; with aerial tiles and a photo layer chosen,
-  /// the island from level 3 and the patch from the finest level that fits a
-  /// texture, each over the relief (open sea has no tiles).
-  textures() {
-    const gen = ++this.gen, m = terrain.meta, a = aerial.meta;
-    const layer = a && this.layer !== "relief" ? (a.layers.includes(this.layer) ? this.layer : a.layers[0]) : null;
+  /// the island from level 4 (3 where the GPU's textures are smaller) and the
+  /// patch from the finest level that fits a texture (open sea has no tiles).
+  /// The island's photo is made on a layer change only; a moved patch makes
+  /// its own (both were remade per patch - the island white while its 4096 px
+  /// canvas uploaded again; 2026-10-01).
+  textures() { this.islandTexture(); this.detailTexture(); }
+
+  /// The aerial layer drawn, or null (relief).
+  shownLayer() {
+    const a = aerial.meta;
+    return a && this.layer !== "relief" ? (a.layers.includes(this.layer) ? this.layer : a.layers[0]) : null;
+  }
+
+  maxTexture() { return Math.min(MOBILE ? 2048 : 4096, this.renderer.capabilities.maxTextureSize); }
+
+  reliefTexture(img) {
+    if (!this.reliefTex) { this.reliefTex = texture(img); this.reliefTex.userData.shared = true; }
+    return this.reliefTex;
+  }
+
+  islandTexture() {
+    const gen = ++this.islandGen, m = terrain.meta, a = aerial.meta, layer = this.shownLayer();
     reliefImage().then(img => {
-      if (gen !== this.gen || this.disposed) return;
-      const relief = this.reliefTex || (this.reliefTex = texture(img));
-      relief.userData.shared = true;
-      if (!layer) {
-        setMap(this.coarse, relief);
-        if (this.detail) { this.detailUv(false); setMap(this.detail, relief); }
-        this.dirty = true;
-        return;
-      }
-      const max = Math.min(MOBILE ? 2048 : 4096, this.renderer.capabilities.maxTextureSize);
-      // The island: level 4 (4096 px, 0.85 m a pixel) where the GPU takes it, else 3.
-      const island = Math.min(max, 4096) >= 4096 ? 4 : 3;
-      setMap(this.coarse, this.photo(gen, img, layer, Math.min(island, a.levels), { x0: m.x0, z0: m.z0, sx: m.sizeX, sz: m.sizeZ }, Math.min(max, 4096)));
-      if (this.detail) {
-        const r = this.region, cellZ = m.sizeZ / (m.grid - 1);
-        const rect = { x0: m.x0 + r.i0 * this.cell, z0: m.z0 + r.j0 * cellZ, sx: (r.i1 - r.i0) * this.cell, sz: (r.j1 - r.j0) * cellZ };
-        const L = Math.max(0, Math.min(a.levels, Math.floor(Math.log2(max * m.sizeX / (Math.max(rect.sx, rect.sz) * a.tile)))));
-        this.detailUv(true);
-        setMap(this.detail, this.photo(gen, img, layer, L, rect, max));
-      }
+      if (gen !== this.islandGen || this.disposed) return;
+      this.island = null;
+      if (!layer) { setMap(this.coarse, this.reliefTexture(img)); this.dirty = true; return; }
+      const max = this.maxTexture(), level = Math.min(max >= 4096 ? 4 : 3, a.levels);
+      const tex = this.photo(() => gen === this.islandGen, img, null, layer, level, { x0: m.x0, z0: m.z0, sx: m.sizeX, sz: m.sizeZ }, Math.min(max, 4096));
+      this.island = { layer, canvas: tex.image };
+      setMap(this.coarse, tex);
       this.dirty = true;
     });
   }
 
-  /// A canvas texture of rect (world metres) from level L's tiles, over the relief.
-  photo(gen, relief, layer, L, rect, max) {
+  detailTexture() {
+    if (!this.detail) return;
+    const gen = ++this.detailGen, m = terrain.meta, a = aerial.meta, layer = this.shownLayer();
+    reliefImage().then(img => {
+      if (gen !== this.detailGen || this.disposed || !this.detail) return;
+      if (!layer) { this.detailUv(false); setMap(this.detail, this.reliefTexture(img)); this.dirty = true; return; }
+      const max = this.maxTexture(), r = this.region, cellZ = m.sizeZ / (m.grid - 1);
+      const rect = { x0: m.x0 + r.i0 * this.cell, z0: m.z0 + r.j0 * cellZ, sx: (r.i1 - r.i0) * this.cell, sz: (r.j1 - r.j0) * cellZ };
+      const L = Math.max(0, Math.min(a.levels, Math.floor(Math.log2(max * m.sizeX / (Math.max(rect.sx, rect.sz) * a.tile)))));
+      // Starts from the island's photo (when it is this layer's), not the
+      // bare relief: no flash of the relief while the finer tiles arrive.
+      const base = this.island && this.island.layer === layer ? this.island.canvas : null;
+      const tex = this.photo(() => gen === this.detailGen, img, base, layer, L, rect, max);
+      this.detailUv(true);
+      setMap(this.detail, tex);
+      this.dirty = true;
+    });
+  }
+
+  /// A canvas texture of rect (world metres) from level L's tiles, over the
+  /// relief - or over base (the island's photo canvas) when given. current():
+  /// false once a newer texture replaced this one (its late tiles dropped).
+  photo(current, relief, base, layer, L, rect, max) {
     const m = terrain.meta, a = aerial.meta, ts = m.sizeX / (1 << L), ppm = a.tile / ts, north = m.z0 + m.sizeZ;
     const c = document.createElement("canvas");
     c.width = Math.min(max, Math.round(rect.sx * ppm)); c.height = Math.min(max, Math.round(rect.sz * ppm));
     const kx = c.width / rect.sx, kz = c.height / rect.sz, top = rect.z0 + rect.sz;
     const ctx = c.getContext("2d");
     ctx.imageSmoothingQuality = "high";
-    // The relief under it all: rect cut out of map.jpg.
-    const iw = relief.width / m.sizeX, ih = relief.height / m.sizeZ;
-    ctx.drawImage(relief, (rect.x0 - m.x0) * iw, (north - top) * ih, rect.sx * iw, rect.sz * ih, 0, 0, c.width, c.height);
+    // The picture under it all: rect cut out of map.jpg (or the island's photo).
+    const under = base || relief, iw = under.width / m.sizeX, ih = under.height / m.sizeZ;
+    ctx.drawImage(under, (rect.x0 - m.x0) * iw, (north - top) * ih, rect.sx * iw, rect.sz * ih, 0, 0, c.width, c.height);
     const tex = texture(c);
     const tx0 = Math.max(0, Math.floor((rect.x0 - m.x0) / ts)), tx1 = Math.min((1 << L) - 1, Math.floor((rect.x0 + rect.sx - m.x0 - 1e-6) / ts));
     const ty0 = Math.max(0, Math.floor((north - top) / ts)), ty1 = Math.min((1 << L) - 1, Math.floor((north - rect.z0 - 1e-6) / ts));
@@ -528,7 +591,7 @@ class Map3D {
       const img = new Image();
       img.onerror = () => aerial.missing.add(RunMap.tileKey(li, L, tx, ty));
       img.onload = () => {
-        if (gen !== this.gen || this.disposed) return;
+        if (!current() || this.disposed) return;
         const x = (m.x0 + tx * ts - rect.x0) * kx, y = (top - (north - ty * ts)) * kz;
         ctx.drawImage(img, x, y, ts * kx, ts * kz);
         this.upload(tex);
@@ -759,6 +822,7 @@ class Map3D {
     this.ro.disconnect();
     this.note.remove();
     this.world.dispose();
+    if (this.sea) this.sea.material.userData.mask.dispose();
     this.scene.traverse(dispose);
     if (this.reliefTex) this.reliefTex.dispose();
     this.renderer.dispose();
@@ -788,24 +852,73 @@ function texture(source) {
   return t;
 }
 
+/// The sea only where the water is open to the map's edge, as the photo
+/// bake draws it (scripts/aerial-bake.py load_heights): a flood fill from the
+/// edge over the samples under sea level, widened by one sample so the sea
+/// runs under the shore. Outside the map: sea everywhere.
+function seaMask(mat, m, h) {
+  const n = m.grid, sea = Math.round((m.sea - m.y0) / m.sizeY * 65535);
+  const open = new Uint8Array(n * n), stack = [];
+  for (let k = 0; k < n; k++) stack.push(k, (n - 1) * n + k, k * n, k * n + n - 1);
+  while (stack.length) {
+    const k = stack.pop();
+    if (open[k] || h[k] >= sea) continue;
+    open[k] = 255;
+    const i = k % n, j = (k - i) / n;
+    if (i > 0) stack.push(k - 1);
+    if (i < n - 1) stack.push(k + 1);
+    if (j > 0) stack.push(k - n);
+    if (j < n - 1) stack.push(k + n);
+  }
+  const mask = open.slice();
+  for (let k = 0; k < n * n; k++) {
+    if (open[k]) continue;
+    const i = k % n;
+    if ((i > 0 && open[k - 1]) || (i < n - 1 && open[k + 1]) || (k >= n && open[k - n]) || (k < n * n - n && open[k + n])) mask[k] = 255;
+  }
+  const t = new THREE.DataTexture(mask, n, n, THREE.RedFormat, THREE.UnsignedByteType);
+  t.minFilter = t.magFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  const u = { seaMask: { value: t }, seaRect: { value: new THREE.Vector4(m.x0, m.z0, m.sizeX, m.sizeZ) } };
+  mat.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, u);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vSeaXZ;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvec4 sw = modelMatrix * vec4(transformed, 1.0);\nvSeaXZ = vec2(sw.x, -sw.z);");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vSeaXZ;\nuniform sampler2D seaMask;\nuniform vec4 seaRect;")
+      .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+        vec2 sp = (vSeaXZ - seaRect.xy) / seaRect.zw;    // 0..1 over the map; samples at k / (n - 1)
+        if (sp.x > 0.0 && sp.y > 0.0 && sp.x < 1.0 && sp.y < 1.0) {
+          vec2 sn = vec2(textureSize(seaMask, 0));
+          if (texture2D(seaMask, (sp * (sn - 1.0) + 0.5) / sn).r < 0.5) discard;
+        }`);
+  };
+  mat.customProgramCacheKey = () => "seamask";
+  mat.userData.mask = t;
+}
+
 function terrainMaterial() {
   return new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true });
 }
 
-/// Swaps a mesh's texture, freeing the old one unless it is the shared relief.
+/// Swaps a mesh's texture, freeing the old one unless it is the shared relief
+/// or borrowed (the patch showing the island's photo until its own is made).
 function setMap(mesh, tex) {
   const old = mesh.material.map;
   if (old === tex) return;
-  if (old && !old.userData.shared) { clearTimeout(old.userData.pending); old.dispose(); }
+  if (old && !old.userData.shared && !mesh.userData.borrowed) { clearTimeout(old.userData.pending); old.dispose(); }
+  mesh.userData.borrowed = false;
   mesh.material.map = tex;
   mesh.material.needsUpdate = true;
 }
 
-function dispose(o) {
+/// keepMap: the texture is another mesh's (a borrowed one).
+function dispose(o, keepMap) {
   if (o.geometry) o.geometry.dispose();
   const m = o.material;
   if (m) {
-    if (m.map && m.map !== ballTexture && !m.map.userData.shared) m.map.dispose();
+    if (m.map && !keepMap && m.map !== ballTexture && !m.map.userData.shared) { clearTimeout(m.map.userData.pending); m.map.dispose(); }
     m.dispose();
   }
 }

@@ -312,10 +312,43 @@ What the export decides (details: gotchas 64-67):
   trees on the site).
 - Missing so far: skinned meshes.
 
+**Terrain, sea and water in 3D (2026-10-01, `map3d.js` / `world3d.js`):**
+- The island mesh is every 2nd height sample on desktop (~7 m), every 4th
+  on phones; a full-resolution **detail patch** sits round the runs and,
+  once the orbit's centre settles close outside it, follows the centre
+  (`lookRegion`). Its coverage test is cut to the map (gotcha 74 - it
+  looped at the coast before). The island's 4096 px photo is made on a
+  layer change only (`islandTexture`); a new patch starts from the
+  island's photo, then its finer tiles (`detailTexture`).
+- **The sea plane** (one plane at sea level, 41.5) is drawn only where the
+  water is open to the map's edge - the photo bake's flood fill
+  (`seaMask`, a mask texture from the heights); it used to fill every pit
+  below sea level inland (gotcha 75). Outside the map: sea everywhere.
+- **Lakes** are the game's own models: `The Forest/Water` surfaces (drawn
+  as dark water) over a black `LakeFake` plane. The capture never shows
+  them (like the ocean), so in 3D these models are the only water. A
+  surface chunk's lake is clipped to where the terrain's heights are
+  below it (`groundClip`: the models overhang the shore); cave lakes are
+  not clipped.
+- **Water button**: a `-dry` layer hides the sea plane, the lakes and
+  their `LakeFake` planes (`World.setWater`).
+- **South at the top** (author, 2026-10-01): 2D draws turned 180 degrees
+  (`map.js` `UP`, `toScreen` / `fromScreen` / `blit`), the 3D fit looks
+  from the north (`yaw` pi).
+- The sinkhole: the terrain's heights cross it at about y 0 (its photo
+  black), so the 3D terrain hides the sinkhole's models below - backlog
+  *Website* item 3.
+
 **Looking at a spot on the local site** (gotcha 68 - do it before calling a
-render fix done): preview `forest-site`, upload the world locally
+render fix done): `python scripts/site-look.py <scenario>` does all of
+the below (its docstring lists the scenarios: edge / pan rebuild counts,
+lake clip on / off, Models off, layer-hiding JS, raycast-ready eval).
+By hand: preview `forest-site`, upload the world locally
 (`FOREST_SITE_ADMIN_TOKEN=local-admin python scripts/aerial-upload.py
---world http://localhost:5080`), open any spot, 3D, then in the page
+--world http://localhost:5080`; the photo tiles the same way without
+`--world` - both are in the local site's data since 2026-10-01; an
+underground spot fades the terrain: `forest3d.setRuns([], true)`), open
+any spot, 3D, then in the page
 `window.forest3d.lookFrom(x, y, z, yaw, pitch, dist)` (Unity coordinates,
 yaw 0 = north, pitch down) - the game camera's `Transform.position` /
 `eulerAngles` from the bridge give the same view as a `shot`. The game's

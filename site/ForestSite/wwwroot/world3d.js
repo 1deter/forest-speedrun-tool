@@ -61,6 +61,45 @@ function topLayer(mat, tex, scale) {
   mat.customProgramCacheKey = () => "top";
 }
 
+/// A surface lake's water is drawn only where the ground (the terrain's
+/// heights, setGround) is below it: the lakes' models are larger than the
+/// lakes, and away from the detail patch the terrain mesh is coarse (~14 m),
+/// so water showed over the land round them, coming and going as the patch
+/// moved (author, 2026-10-01). Measured: every surface lake model's corners
+/// stand on ground above its water. Cave lakes are under the terrain - not
+/// clipped.
+function groundClip(mat, u) {
+  mat.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, u);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vGroundW;")
+      .replace("#include <project_vertex>", `#include <project_vertex>
+        vec4 gw = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          gw = instanceMatrix * gw;
+        #endif
+        vGroundW = (modelMatrix * gw).xyz;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+        varying vec3 vGroundW;
+        uniform sampler2D groundMap; uniform vec4 groundRect; uniform float groundOn;
+        // The terrain's height at Unity (x, z), bilinear as Unity samples it; very low outside.
+        float groundAt(vec2 xz) {
+          ivec2 size = textureSize(groundMap, 0);
+          vec2 p = (xz - groundRect.xy) / groundRect.zw * vec2(size - 1);
+          if (p.x < 0.0 || p.y < 0.0 || p.x > float(size.x - 1) || p.y > float(size.y - 1)) return -1e9;
+          ivec2 i = min(ivec2(floor(p)), size - 2);
+          vec2 f = p - vec2(i);
+          float a = texelFetch(groundMap, i, 0).r, b = texelFetch(groundMap, i + ivec2(1, 0), 0).r;
+          float c = texelFetch(groundMap, i + ivec2(0, 1), 0).r, d = texelFetch(groundMap, i + ivec2(1, 1), 0).r;
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }`)
+      .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+        if (groundOn > 0.5 && groundAt(vec2(vGroundW.x, -vGroundW.z)) > vGroundW.y + 0.05) discard;`);
+  };
+  mat.customProgramCacheKey = () => "groundclip";
+}
+
 export class World {
   /// scene: where the models go; changed(): something new to draw;
   /// controls: an element the Models / Collision switches go into.
@@ -83,6 +122,9 @@ export class World {
     this.fade = 1;
     this.target = null;
     this.next = 0;
+    this.water = true;                    // the lakes' surfaces shown (map3d.js: the Water button)
+    this.waterMats = new Set();
+    this.ground = { groundMap: { value: null }, groundRect: { value: new THREE.Vector4() }, groundOn: { value: 0 } };
     // One plane, always there (off = far below everything), so switching the
     // cutaway never recompiles the materials.
     this.cutPlanes = [new THREE.Plane(new THREE.Vector3(0, 1, 0), 1e9)];
@@ -129,7 +171,7 @@ export class World {
       for (const p of this.geoms.values()) p.then(g => g && g.dispose());
       for (const t of this.textures.values()) t.dispose();
       for (const x of this.mats.values()) x.dispose();
-      for (const x of [this.drawn, this.geoms, this.textures, this.mats, this.chunks, this.dirtyModels]) x.clear();
+      for (const x of [this.drawn, this.geoms, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
       this.use(m);
     });
   }
@@ -146,6 +188,28 @@ export class World {
   }
 
   wanted(model) { return model.kind === "collide" ? this.show.collision : this.show.models; }
+
+  /// The terrain's heights (terrain.json's meta + heights.u16), for the lakes' clip.
+  setGround(m, heights) {
+    const n = m.grid, f = new Float32Array(n * n), k = m.sizeY / 65535;
+    for (let i = 0; i < f.length; i++) f[i] = m.y0 + heights[i] * k;
+    const t = new THREE.DataTexture(f, n, n, THREE.RedFormat, THREE.FloatType);
+    t.minFilter = t.magFilter = THREE.NearestFilter;
+    t.needsUpdate = true;
+    if (this.ground.groundMap.value) this.ground.groundMap.value.dispose();
+    this.ground.groundMap.value = t;
+    this.ground.groundRect.value.set(m.x0, m.z0, m.sizeX, m.sizeZ);
+    this.ground.groundOn.value = 1;
+    this.changed();
+  }
+
+  /// Water off: every lake's surface hidden (the sea is map3d.js's).
+  setWater(on) {
+    if (on === this.water) return;
+    this.water = on;
+    for (const m of this.waterMats) m.visible = on;
+    this.changed();
+  }
 
   /// Surface models fade with the terrain when the view is underground.
   setFade(f) {
@@ -261,26 +325,42 @@ export class World {
     return p;
   }
 
-  material(index) {
-    if (this.mats.has(index)) return this.mats.get(index);
+  /// surface: the model is in a surface chunk (a lake there is clipped to the ground).
+  material(index, surface) {
     const d = index >= 0 ? this.meta.materials[index] : null;
     // The lakes' surfaces (shaders "The Forest/Water" / "WaterCave": no texture, a 0.7 grey
     // colour - flat grey sheets over the lakes; author, 2026-10-01) are drawn
     // as the water the photo shows there.
     if (d && /\/Water(Cave)?$/.test(d.shader || "")) {
+      const key = surface ? index + "s" : index;
+      if (this.mats.has(key)) return this.mats.get(key);
       const water = new THREE.MeshLambertMaterial({ color: new THREE.Color(0x0e2a33), transparent: true, opacity: 0.85,
         depthWrite: false, clippingPlanes: this.cutPlanes });
       water.userData.opacity = 0.85;
-      this.mats.set(index, water);
+      water.visible = this.water;
+      if (surface) groundClip(water, this.ground);
+      this.waterMats.add(water);
+      this.mats.set(key, water);
       return water;
     }
+    // The black plane the game lays under a lake's water (its dark depth):
+    // part of the water - clipped to the shore with it, off with it (a
+    // black lake with the Water button off; 2026-10-01).
+    const bed = !!(d && /^LakeFake/.test(d.name || ""));
+    const key = bed && surface ? index + "s" : index;
+    if (this.mats.has(key)) return this.mats.get(key);
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
     const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide,
       clippingPlanes: this.cutPlanes });
     if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut, d.scale);   // scale: the material's tiling
     if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
-    this.mats.set(index, mat);
+    if (bed) {
+      if (surface) groundClip(mat, this.ground);
+      mat.visible = this.water;
+      this.waterMats.add(mat);
+    }
+    this.mats.set(key, mat);
     return mat;
   }
 
@@ -319,7 +399,10 @@ export class World {
       if (!g || this.disposed || this.drawn.has(mi)) continue;
       let mat;
       if (model.kind === "collide") mat = [this.collideMat, this.collideWire];
-      else mat = model.mats.length > 1 ? model.mats.map(x => this.material(x)) : this.material(model.mats[0] ?? -1);
+      else {
+        const sf = surface.has(mi);
+        mat = model.mats.length > 1 ? model.mats.map(x => this.material(x, sf)) : this.material(model.mats[0] ?? -1, sf);
+      }
       const mesh = model.kind === "collide" ? this.collisionMesh(g, list) : new THREE.InstancedMesh(g, mat, list.length);
       if (model.kind !== "collide") {
         list.forEach((m, i) => mesh.setMatrixAt(i, m));
@@ -359,6 +442,7 @@ export class World {
     for (const t of this.textures.values()) t.dispose();
     for (const m of this.mats.values()) m.dispose();
     this.collideMat.dispose(); this.collideWire.dispose();
+    if (this.ground.groundMap.value) this.ground.groundMap.value.dispose();
     this.scene.remove(this.group);
   }
 }

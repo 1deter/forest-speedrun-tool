@@ -26,4 +26,5 @@ Thumbs.db
 .DS_Store
 site/aerial-out/
 site/world-out/
+scripts/site-look-shots/
 __pycache__/

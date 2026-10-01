@@ -608,3 +608,26 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     on / off outputs, and the setting read back a second later. When a
     feature is "the same thing with X off", compare the two results
     before building a layer, a button or a release on them.
+
+74. **A check against a clamped result must clamp its input too.**
+    (2026-10-01, the 3D map's white flicker.) The 3D view's detail patch
+    follows the camera: "is the centre covered? if not, build a patch
+    round it". The patch is clamped inside the map; the coverage test was
+    not - so with the centre within ~500 m of the map's edge (the whole
+    coast) or past it, the clamped patch never "covered" it and was
+    rebuilt every 0.4 s, each time remaking both terrain photos (white
+    while they uploaded). 28 rebuilds in 16 s, measured on the old code;
+    once on the new. Whenever a target is clamped, test against the
+    clamped target (or compare the new result with the current one),
+    or the condition can never hold.
+
+75. **Switch layers off before fixing what a symptom looks like.**
+    (2026-10-01, the 3D map's "dark water over land".) The backlog blamed
+    the lakes' models (larger than the lakes, over a coarse terrain) and
+    a ground clip for them was written first. Turning the models off
+    left every "lake" in place: they were the sea plane - one flat plane
+    at sea level, filling every pit below it inland (the sinkhole and the
+    dips round it). The fix was the photo bake's own rule (sea only where
+    it is open to the map's edge). For a render artefact, hide each layer
+    in turn (models, sea, patch, world group) and see which one takes it
+    away; a raycast that hits nothing says it is not a model.

@@ -1,6 +1,8 @@
 // A top-down map of a spot: its zones, the chosen runs' lines and a ghost
-// dot per run at the scrub time. World x runs east, z north (Unity metres),
-// so z is drawn upwards. Drag to pan, wheel / pinch to zoom. Under it all,
+// dot per run at the scrub time. World x runs east, z north (Unity metres);
+// drawn turned 180 degrees - south (the snow) at the top, west on the right,
+// as the runners' maps are (author, 2026-10-01; UP). Drag to pan, wheel /
+// pinch to zoom. Under it all,
 // the game's terrain (scripts/terrain-bake.py -> /terrain/): a shaded relief
 // image and a height grid, shared by every map on the page; over the relief,
 // when uploaded, the aerial photo tiles (scripts/aerial-bake.py -> /aerial/).
@@ -9,6 +11,9 @@
 window.RunMap = (function () {
   const YELLOW = "#e5c501";
   const SEA = "#0a1822";
+  // -1: south up (x grows to the left, z downwards); 1 would be north up.
+  // Everything on screen goes through toScreen / fromScreen and blit.
+  const UP = -1;
 
   // The 12 places the plane can crash (PlaneCrashLocations.finalPositions,
   // HullRef, read live 2026-09-27): x, z, yaw. A save uses one of them.
@@ -136,7 +141,30 @@ window.RunMap = (function () {
 
   RunMap.prototype.toScreen = function (x, z) {
     const v = this.view, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
-    return [w / 2 + (x - v.cx) * v.scale, h / 2 - (z - v.cz) * v.scale];
+    return [w / 2 + UP * (x - v.cx) * v.scale, h / 2 - UP * (z - v.cz) * v.scale];
+  };
+
+  /// The world point (x, z) under a screen point.
+  RunMap.prototype.fromScreen = function (px, py) {
+    const v = this.view, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+    return [v.cx + (px - w / 2) / (UP * v.scale), v.cz - (py - h / 2) / (UP * v.scale)];
+  };
+
+  /// Draws an image (or its source rectangle s: [sx, sy, sw, sh]) over the
+  /// world rectangle x0..x1, z0..z1 - the image's top edge north - turned
+  /// with the map. sr: the screen corners [x, y of (x0, z1); x, y of (x1,
+  /// z0)] when the caller rounded them.
+  RunMap.prototype.blit = function (img, s, x0, z0, x1, z1, sr) {
+    const ctx = this.ctx;
+    let [ax, ay] = this.toScreen(x0, z1), [bx, by] = this.toScreen(x1, z0);
+    if (sr) [ax, ay, bx, by] = sr;
+    const src = s || [0, 0, img.naturalWidth || img.width, img.naturalHeight || img.height];
+    if (UP === 1) { ctx.drawImage(img, src[0], src[1], src[2], src[3], ax, ay, bx - ax, by - ay); return; }
+    // Turned: drawn from that corner with both axes flipped.
+    ctx.save();
+    ctx.translate(ax, ay); ctx.scale(-1, -1);
+    ctx.drawImage(img, src[0], src[1], src[2], src[3], 0, 0, ax - bx, ay - by);
+    ctx.restore();
   };
 
   /// A run's position at time t, interpolated between samples.
@@ -204,10 +232,7 @@ window.RunMap = (function () {
       return s && g !== null && s[2] < g - 3;
     });
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    if (terrain.image) {
-      const [x0, y0] = this.toScreen(m.x0, m.z0 + m.sizeZ), [x1, y1] = this.toScreen(m.x0 + m.sizeX, m.z0);
-      ctx.drawImage(terrain.image, x0, y0, x1 - x0, y1 - y0);
-    }
+    if (terrain.image) this.blit(terrain.image, null, m.x0, m.z0, m.x0 + m.sizeX, m.z0 + m.sizeZ);
     if (photo) this.tiles(photo, w, h, dpr);
     if (this.underground) {
       // The same as drawing the ground at 25% over the sea, for every layer.
@@ -225,26 +250,27 @@ window.RunMap = (function () {
     const ctx = this.ctx, v = this.view, m = terrain.meta, a = aerial.meta;
     const li = a.layers.indexOf(layer), size = m.sizeX, north = m.z0 + size;
     const L = aerialLevel(size, v.scale, dpr, a.tile, a.levels), n = 1 << L, ts = size / n;
+    // The view is symmetric about its centre: the same world box either way up.
     const wx0 = v.cx - w / 2 / v.scale, wx1 = v.cx + w / 2 / v.scale;
     const wz0 = v.cz - h / 2 / v.scale, wz1 = v.cz + h / 2 / v.scale;
     const tx0 = Math.max(0, Math.floor((wx0 - m.x0) / ts)), tx1 = Math.min(n - 1, Math.floor((wx1 - m.x0) / ts));
     const ty0 = Math.max(0, Math.floor((north - wz1) / ts)), ty1 = Math.min(n - 1, Math.floor((north - wz0) / ts));
     // Tile edges on whole device pixels, shared by neighbours: no seams.
-    const px = x => Math.round((w / 2 + (x - v.cx) * v.scale) * dpr) / dpr;
-    const py = z => Math.round((h / 2 - (z - v.cz) * v.scale) * dpr) / dpr;
+    const px = x => Math.round((w / 2 + UP * (x - v.cx) * v.scale) * dpr) / dpr;
+    const py = z => Math.round((h / 2 - UP * (z - v.cz) * v.scale) * dpr) / dpr;
     for (let ty = ty0; ty <= ty1; ty++) {
-      const sy0 = py(north - ty * ts), sy1 = py(north - (ty + 1) * ts);
+      const zt = north - ty * ts, zb = zt - ts;
       for (let tx = tx0; tx <= tx1; tx++) {
-        const sx0 = px(m.x0 + tx * ts), sx1 = px(m.x0 + (tx + 1) * ts);
+        const xl = m.x0 + tx * ts, xr = xl + ts;
+        const sr = [px(xl), py(zt), px(xr), py(zb)];
         const img = tileImage(layer, li, L, tx, ty, true);
-        if (img) { ctx.drawImage(img, sx0, sy0, sx1 - sx0, sy1 - sy0); continue; }
+        if (img) { this.blit(img, null, xl, zb, xr, zt, sr); continue; }
         if (aerial.missing.has(tileKey(li, L, tx, ty))) continue;
         for (let k = 1; k <= L; k++) {
           const up = tileImage(layer, li, L - k, tx >> k, ty >> k, false);
           if (!up) continue;
           const part = a.tile / (1 << k);
-          ctx.drawImage(up, (tx - ((tx >> k) << k)) * part, (ty - ((ty >> k) << k)) * part, part, part,
-            sx0, sy0, sx1 - sx0, sy1 - sy0);
+          this.blit(up, [(tx - ((tx >> k) << k)) * part, (ty - ((ty >> k) << k)) * part, part, part], xl, zb, xr, zt, sr);
           break;
         }
       }
@@ -271,7 +297,7 @@ window.RunMap = (function () {
       ctx.strokeStyle = bright ? "rgba(0,0,0,.7)" : "rgba(0,0,0,.2)";
       const [sx, sy] = this.toScreen(x, z);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.translate(sx, sy); ctx.rotate(yaw * Math.PI / 180);
+      ctx.translate(sx, sy); ctx.rotate(yaw * Math.PI / 180 + (UP === 1 ? 0 : Math.PI));
       ctx.beginPath();
       ctx.moveTo(0, -k); ctx.lineTo(k * .18, -k * .2); ctx.lineTo(k * .8, k * .15); ctx.lineTo(k * .18, k * .1);
       ctx.lineTo(k * .12, k * .75); ctx.lineTo(k * .4, k); ctx.lineTo(-k * .4, k); ctx.lineTo(-k * .12, k * .75);
@@ -314,8 +340,8 @@ window.RunMap = (function () {
       ctx.fillText(Math.round(z), 4, sy - 3);
     }
     ctx.stroke();
-    // North arrow.
-    ctx.fillStyle = relief ? "#ddd" : "#555"; ctx.fillText("N ↑", w - 30, h - 8);
+    // Which way north is.
+    ctx.fillStyle = relief ? "#ddd" : "#555"; ctx.fillText(UP === 1 ? "N ↑" : "N ↓", w - 30, h - 8);
   };
 
   RunMap.prototype.zone = function (zn) {
@@ -347,11 +373,12 @@ window.RunMap = (function () {
 
   // --- pan and zoom -----------------------------------------------------------
 
+  /// Zoom by k, the world point under (px, py) staying there.
   RunMap.prototype.zoomAt = function (px, py, k) {
     const v = this.view, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
-    const wx = v.cx + (px - w / 2) / v.scale, wz = v.cz - (py - h / 2) / v.scale;
+    const [wx, wz] = this.fromScreen(px, py);
     v.scale = Math.min(200, Math.max(0.01, v.scale * k));
-    v.cx = wx - (px - w / 2) / v.scale; v.cz = wz + (py - h / 2) / v.scale;
+    v.cx = wx - (px - w / 2) / (UP * v.scale); v.cz = wz + (py - h / 2) / (UP * v.scale);
     this.draw();
   };
 
@@ -393,8 +420,9 @@ window.RunMap = (function () {
         this.pinch = d;
         return;
       }
-      this.view.cx -= (e.clientX - prev[0]) / this.view.scale;
-      this.view.cz += (e.clientY - prev[1]) / this.view.scale;
+      // The ground follows the pointer, either way up.
+      this.view.cx -= (e.clientX - prev[0]) / (UP * this.view.scale);
+      this.view.cz += (e.clientY - prev[1]) / (UP * this.view.scale);
       this.draw();
     });
   };
