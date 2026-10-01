@@ -13,7 +13,10 @@
 // world.json and starts over (stale()); each 3D view reads it afresh.
 // Meshes come in packs (version 2: "packs", each mesh's "pack" = [pack,
 // offset, length] - scripts/world_pack.py), a few per chunk; version 1
-// exports (one m/<i>.bin per mesh) are still read. The server sends .bin /
+// exports (one m/<i>.bin per mesh) are still read. Textures too since
+// 2026-10-02 ("texpacks", "textures"[i] = [jpg pack, off, len, png pack,
+// off, len]): a texture is cut out of its pack as a blob URL; exports
+// without them read t/<i>.jpg / .png. The server sends .bin /
 // .json gzipped (the upload's .gz copies).
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
@@ -145,6 +148,7 @@ export class World {
     this.chunks = new Map();      // file -> { state: "loading" | "ready", items: [[model, Matrix4]] }
     this.geoms = new Map();       // mesh index -> Promise<BufferGeometry | null>
     this.packs = new Map();       // pack index -> Promise<ArrayBuffer | null> (version 2)
+    this.texPacks = new Map();    // texture pack index -> Promise<ArrayBuffer | null>
     this.textures = new Map();    // texture index -> THREE.Texture
     this.mats = new Map();        // material index -> THREE.Material (render)
     this.drawn = new Map();       // model index -> THREE.InstancedMesh
@@ -216,7 +220,7 @@ export class World {
       for (const p of this.geoms.values()) p.then(g => g && g.dispose());
       for (const t of this.textures.values()) t.dispose();
       for (const x of this.mats.values()) x.dispose();
-      for (const x of [this.drawn, this.geoms, this.packs, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
+      for (const x of [this.drawn, this.geoms, this.packs, this.texPacks, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
       this.use(m);
     });
   }
@@ -437,11 +441,33 @@ export class World {
     return mat;
   }
 
+  /// A texture pack's bytes, fetched once for all its textures.
+  texPack(i) {
+    if (!this.texPacks.has(i)) this.texPacks.set(i, this.bytes(this.meta.texpacks[i]).catch(() => null));
+    return this.texPacks.get(i);
+  }
+
   texture(i, alpha, scale) {
     const key = (alpha ? i + "a" : "" + i) + (scale ? "x" + scale.join(",") : "");
     let t = this.textures.get(key);
     if (!t) {
-      t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed(), undefined, () => this.stale());
+      const e = this.meta.textures && this.meta.textures[i];
+      if (e) {
+        // From its pack: the png (alpha) when there is one, else the jpg.
+        const png = alpha && e[3] >= 0, s = png ? 3 : 0;
+        t = new THREE.Texture();
+        if (e[s] >= 0) {
+          const gen = this.gen;
+          this.texPack(e[s]).then(buf => {
+            if (!buf || gen !== this.gen || this.disposed) return;
+            const url = URL.createObjectURL(new Blob([new Uint8Array(buf, e[s + 1], e[s + 2])], { type: png ? "image/png" : "image/jpeg" }));
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); t.image = img; t.needsUpdate = true; this.changed(); };
+            img.onerror = () => URL.revokeObjectURL(url);
+            img.src = url;
+          });
+        }
+      } else t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed(), undefined, () => this.stale());
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       if (scale) t.repeat.set(scale[0], scale[1]);
@@ -515,6 +541,7 @@ export class World {
     for (const t of this.textures.values()) t.dispose();
     for (const m of this.mats.values()) m.dispose();
     this.packs.clear();
+    this.texPacks.clear();
     this.collideMat.dispose(); this.collideWire.dispose();
     if (this.ground.groundMap.value) this.ground.groundMap.value.dispose();
     this.scene.remove(this.group);

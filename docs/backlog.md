@@ -51,7 +51,6 @@ when the tool is mainly finished and mature.
 Requests (sxczurass, QA #general, 2026-09-27, messages
 `1553776769826295818` / `1553778115413540885`; picture in
 `Downloads\qa-reports\sxczurass\image-1553776769826295818.png`):
-- ~~Creative-speed building~~ done (v0.24.196, Inventory -> Fast building).
 
 
 - **A teleport into the endgame from a save without it loaded falls

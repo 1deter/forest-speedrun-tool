@@ -15,6 +15,12 @@ Which pack a mesh goes in, by the chunks whose instances use it:
   neighbours load together anyway.
 Each pack is cut at PACK_MAX bytes. A mesh no instance uses is dropped.
 
+Textures the same way (2026-10-02: they were most of a 3D view's requests,
+458 of 604 for the Labskip spot): t/<i>.jpg and t/<i>.png joined into
+q/<i>.bin by the chunks whose models' materials use them; world.json
+"texpacks" = the files, "textures"[i] = [jpg pack, offset, length, png
+pack, offset, length] (-1 where that file does not exist). t/ is removed.
+
     python scripts/world_pack.py test              round trip on a synthetic export, both formats
     python scripts/world_pack.py synthetic <out> [1|2]   a tiny world to upload to a local site
 
@@ -82,6 +88,55 @@ def write(out, meshes, users, chunk):
     return packs
 
 
+def write_textures(out, users, chunk):
+    """Packs t/<i>.jpg / .png into q/<i>.bin by users (texture index ->
+    set of chunk keys, as for meshes). Returns (pack names, entries) for
+    world.json's "texpacks" / "textures"; removes t/."""
+    tdir = os.path.join(out, "t")
+    names = os.listdir(tdir) if os.path.isdir(tdir) else []
+    count = 1 + max([int(n.split(".")[0]) for n in names if n.split(".")[0].isdigit()] or [-1])
+    entries = [[-1, 0, 0, -1, 0, 0] for _ in range(count)]
+    shutil.rmtree(os.path.join(out, "q"), ignore_errors=True)
+    os.makedirs(os.path.join(out, "q"))
+    packs = []
+    f, size = None, 0
+    for key, ixs in sorted(groups(users, chunk).items(), key=lambda kv: tuple(str(k) for k in kv[0])):
+        new = True
+        for ix in ixs:
+            for slot, ext in ((0, "jpg"), (3, "png")):
+                path = os.path.join(tdir, "%d.%s" % (ix, ext))
+                if not os.path.exists(path):
+                    continue
+                with open(path, "rb") as t:
+                    data = t.read()
+                if new or (size and size + len(data) > PACK_MAX):
+                    if f:
+                        f.close()
+                    packs.append("q/%d.bin" % len(packs))
+                    f, size, new = open(os.path.join(out, packs[-1]), "wb"), 0, False
+                entries[ix][slot:slot + 3] = [len(packs) - 1, size, len(data)]
+                f.write(data)
+                size += len(data)
+    if f:
+        f.close()
+    shutil.rmtree(tdir, ignore_errors=True)
+    return packs, entries
+
+
+def read_texture(out, meta, ix, ext):
+    """One texture file's bytes from an export in either format (the test)."""
+    if "textures" not in meta:
+        path = os.path.join(out, "t", "%d.%s" % (ix, ext))
+        return open(path, "rb").read() if os.path.exists(path) else None
+    e = meta["textures"][ix] if ix < len(meta["textures"]) else None
+    s = 0 if ext == "jpg" else 3
+    if not e or e[s] < 0:
+        return None
+    with open(os.path.join(out, meta["texpacks"][e[s]]), "rb") as f:
+        f.seek(e[s + 1])
+        return f.read(e[s + 2])
+
+
 def read(out, meta, ix):
     """One mesh's bytes from an export in either format (for the test)."""
     m = meta["meshes"][ix]
@@ -130,7 +185,9 @@ def synthetic(out, version, x0=400.0, z0=-100.0, chunk=250, seed=1):
         meshes.append(e)
     with open(os.path.join(out, "t", "0.png"), "wb") as f:
         f.write(png())     # a cut-out's texture (.png): the site never asks for t/0.jpg then
-    mats = [{"name": "box", "color": [1, 1, 1, 1], "tex": 0, "cut": True}, {"name": "red", "color": [0.8, 0.2, 0.1, 1], "tex": -1}]
+    with open(os.path.join(out, "t", "1.jpg"), "wb") as f:
+        f.write(png(4, 4))  # the red material's (any bytes: the test compares them)
+    mats = [{"name": "box", "color": [1, 1, 1, 1], "tex": 0, "cut": True}, {"name": "red", "color": [0.8, 0.2, 0.1, 1], "tex": 1}]
     models = [{"mesh": k, "mats": [k % 2], "kind": "render", "layer": 0} for k in range(13)]
     models.append({"mesh": 13, "mats": [], "kind": "collide", "layer": 0})
     cx0, cz0 = int(x0 // chunk) - 1, int(z0 // chunk) - 1
@@ -155,6 +212,13 @@ def synthetic(out, version, x0=400.0, z0=-100.0, chunk=250, seed=1):
     if version == 2:
         meta["packs"] = write(out, meshes, users, chunk)
         meta["version"] = 2
+        tusers = {}
+        for mi, model in enumerate(models):
+            for m in model["mats"]:
+                for t in (mats[m].get("tex", -1), mats[m].get("top", -1)):
+                    if t >= 0:
+                        tusers.setdefault(t, set()).update(users.get(model["mesh"], set()))
+        meta["texpacks"], meta["textures"] = write_textures(out, tusers, chunk)
     with open(os.path.join(out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(meta, f, separators=(",", ":"))
     return meta, users
@@ -186,6 +250,12 @@ def test(tmp):
             assert two is None, "unused mesh %d packed" % ix
     for p in m2["packs"]:
         assert os.path.getsize(os.path.join(b, p)) % 4 == 0
+    # Textures: the same bytes out of the packs, t/ gone, a missing file -1.
+    assert not os.path.exists(os.path.join(b, "t")), "t/ left beside the texture packs"
+    for ix, ext in ((0, "png"), (1, "jpg"), (0, "jpg"), (1, "png")):
+        assert read_texture(a, m1, ix, ext) == read_texture(b, m2, ix, ext), (ix, ext)
+    assert read_texture(b, m2, 0, "png") is not None and read_texture(b, m2, 0, "jpg") is None
+    assert len(m2["texpacks"]) >= 1 and len(m2["textures"]) == 2
     # Grouping: the box in every chunk shares a pack with the collider; each
     # chunk's own mesh sits alone; the two-chunk mesh in a "near" pack.
     pk = lambda ix: m2["meshes"][ix]["pack"][0]

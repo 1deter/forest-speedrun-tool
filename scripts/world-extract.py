@@ -772,6 +772,16 @@ class Export:
             for model, _ in items:
                 users[self.models[model]["mesh"]].add(key)
         packs = world_pack.write(self.out, self.meshes, users, CHUNK)
+        tusers = collections.defaultdict(set)    # texture -> the chunks whose models' materials use it
+        for key, items in self.chunks.items():
+            for model, _ in items:
+                for m in self.models[model]["mats"]:
+                    if m < 0:
+                        continue
+                    for t in (self.materials[m].get("tex", -1), self.materials[m].get("top", -1)):
+                        if t is not None and t >= 0:
+                            tusers[t].add(key)
+        texpacks, textures = world_pack.write_textures(self.out, tusers, CHUNK)
         layers = {}
         env = UnityPy.load(os.path.join(GAME, "globalgamemanagers"))
         for o in env.objects:
@@ -779,10 +789,11 @@ class Export:
                 layers = {i: n for i, n in enumerate(o.read_typetree()["layers"]) if n}
         with open(os.path.join(self.out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump({"version": 2, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
-                       "meshes": self.meshes, "models": self.models, "chunks": chunks, "packs": packs}, f, separators=(",", ":"))
+                       "meshes": self.meshes, "models": self.models, "chunks": chunks, "packs": packs,
+                       "texpacks": texpacks, "textures": textures}, f, separators=(",", ":"))
         print(self.under, "instances under the terrain filed with the caves")
         print("wrote", len(chunks), "chunks,", len(self.models), "models,", len(self.meshes), "meshes in", len(packs), "packs,",
-              sum(1 for v in self.textures.values() if v >= 0), "textures ->", self.out)
+              sum(1 for v in self.textures.values() if v >= 0), "textures in", len(texpacks), "packs ->", self.out)
 
 
 def export(out):
