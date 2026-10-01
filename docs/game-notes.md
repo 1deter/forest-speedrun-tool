@@ -2254,6 +2254,17 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   old wreck our restore removes after a cross-save restore merged both
   wreck sites: 988 x 930 m, 16.2 s. v0.24.143 PerfPatches 15
   `NavRemovalOwnArea` clears the list when no batch is gathering.
+  **And one batch is one box however far apart its removals are**
+  (`Encapsulate` over the 7 s): Tom's logs (v0.24.173) show a 1536 x
+  1406 m `navRemoveRoot.startRemove` update queued shortly before both
+  sessions that ended in a native crash (a Quick load from another save
+  deletes structures across the map). Two removals 780 m apart (clones
+  of the wreck's `collision_hull`, moved, `gatherBounds`, destroyed):
+  one 500 x 600 m update, 6.8 s on a 7800X3D. v0.24.177: switch 15 runs
+  the batch itself (same 7 s, the game's `dummyRootNavRemove`) grouped
+  by place (150 m) - the same test: 2 updates, 0.3 s, log `building
+  removals - 3 at once recalculated in 2 places instead of one area of
+  500 x 601 m`.
 - Result (bridge, Slot 2 + `ruben-megan`): every graph update after a
   Quick load <= 0.6 s; a repeat Quick load 0.65 s (was 31.5 s); a death
   in the Megan fight (`Death (BossWake)`): `AstarPath ... destroyed in

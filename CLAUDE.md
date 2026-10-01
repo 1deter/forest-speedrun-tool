@@ -582,10 +582,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.176** (2026-10-01). The author runs it via the in-game
-updater (v0.24.176 in the game at handoff, Slot 2). **457 tests** (+ 17 site tests).
+**Released: v0.24.177** (2026-10-01). The author runs it via the in-game
+updater (v0.24.177 in the game at handoff, Slot 2). **457 tests** (+ 18 site tests).
 
-### Pick up here (2026-10-01, v0.24.176 in the game)
+### Pick up here (2026-10-01, v0.24.177 in the game)
 
 **The website's map: photo map with water, and a 3D world of the game's
 own models.** Author (2026-09-28): keep the sea with an option to hide
@@ -660,23 +660,21 @@ game internals: game-notes *Terrain, and the world from above*.
   ask). (6) Separate toggles per kind (trees / rocks / buildings /
   props) - the models carry their layer.
 - **Tom's crashes (QA 1554188909246681119, v0.24.173; reports in
-  `Downloads\qa-reports\tomyoshi_i\ForestOverlay-report-Tom-2026-09-28_*`):**
-  "reload while in a cutscene: the game crashes", and "reload at the same time
-  you die". Not reproduced, not looked into beyond the logs; no crash dumps sent
-  (asked: the `crash-<date>` folder beside TheForest.exe -> `scripts/
-  symbolize-crash.py`). Sessions that end mid-action: 19:38 in an in-place
-  restore ('big jump or smth', surface, the log stops after its scene unloads +
-  asset sweep - the F7 came right after the previous restore; a
-  `navRemoveRoot.startRemove` graph update over the whole map, 1536 x 1406 m, was
-  queued just before it); 21:20 in an in-place restore of 'Cave 6 boss thing'
-  (cross-save, cave prop scenes still loading); 19:47 ~30 s after taking the
-  Cave 6 keycard, no Restart line (a crash before `Restart` logs?). No `Death`
-  line in any. Leads: an AstarPath teardown / scene load while a threaded graph
-  update runs (compare v0.24.141-143), F7 during a cutscene that parents the
-  player (gotcha 40), F7 on the death frame (`DeathModule` + restore). Try over
-  the bridge: F7 during the keycard / vault door / Megan pickup cutscenes, and
-  `restart` on the frame of a fall death, with Tom's start states (his report has
-  them: `savestates/segments/*.fosave`).
+  `Downloads\qa-reports\tomyoshi_i\`):** "reload while in a cutscene" /
+  "reload as you die" - native crashes, no dumps sent yet (asked: the
+  `crash-<date>` folder beside TheForest.exe -> `scripts/symbolize-crash.py`).
+  **Not reproduced here (2026-10-01, overnight session):** his exact
+  sequence (fresh launch, title load of Slot 2, Go to 'Cave 6 boss thing',
+  F7 with his start state - copied as savestates `tom-c6boss`, `tom-c6`,
+  `tom-c6exit`, `tom-bigjump`, `tom-megan`), also with the restore on the
+  frame after the tp (cave scenes streaming) - no crash. **Common to both
+  of his crashed sessions: a map-sized pathfinding update in flight**
+  (`navRemoveRoot.startRemove`, 1536 x 1406 m - the game boxes every
+  building removed within 7 s into one). v0.24.177 recalculates removals
+  place by place (switch 15; game-notes *Pathfinding*; confirmed over the
+  bridge) - a likely cause gone, not a proven one. Left to try: F7 during
+  the Cave 6 keycard / vault door / Megan pickup cutscenes and on the frame
+  of a fall death (the 19:47 session ended ~30 s after the keycard).
 - maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
   comparison (start / end frame per run, segment times) - backlog,
   site-only.

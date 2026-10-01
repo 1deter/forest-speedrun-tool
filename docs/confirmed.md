@@ -210,6 +210,15 @@ and a forced texture rebuild then runs safely.
   fixed channels had read 3 sodas as 3 the same way.) Not seen yet: the
   `i|` lines of a real finished run - the site's Carrying row was checked
   with a hand-made track on the local site.
+- **v0.24.177 building removals by place** (bridge, 2026-10-01, Slot 2,
+  installed through the updater): three removals at once, two 50 m apart
+  and one 780 m away -> 2 graph updates (40 x 31 m and the lone one),
+  done in 0.3 s; on v0.24.176 two of them made one 500 x 600 m update of
+  6.8 s.
+- **Site: another build's world files refused** (19b319b, 2026-10-01):
+  live `?v=<other>` -> 404 `no-store`; local end-to-end: a page holding
+  build A, `world.json` re-uploaded as B -> 44 refused, re-read, started
+  over, Cave 6 drawn from B's files.
 - **3D world caves (site, 86a9d87, 2026-10-01)** - the author on the live
   site: "looks good now" - cave pieces at their placeholder's scale and the
   underground cutaway. Still open: a couple of models missing and the cave
