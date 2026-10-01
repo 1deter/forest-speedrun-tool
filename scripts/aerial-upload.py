@@ -4,7 +4,9 @@
     python scripts/aerial-upload.py --world [site url] [world folder]
 
 --world uploads the 3D map's world instead (scripts/world-extract.py export
--> site/world-out, to /api/admin/world, world.json last).
+-> site/world-out, to /api/admin/world, world.json last). Its .bin / .json
+are deflated in the zip; the server keeps a gzipped copy of each and serves
+that (Precompressed.cs) - nothing to send for it.
 
 Zips the bake's output (scripts/aerial-bake.py -> site/aerial-out, not in
 git) into chunks under 90 MB (whole files per chunk; Cloudflare caps a
@@ -66,10 +68,12 @@ def chunks(tiles, meta):
 
 def zipped(files):
     buf = io.BytesIO()
-    # Stored: the tiles are JPEGs already, deflate would only cost time.
+    # Stored: the tiles are JPEGs already, deflate would only cost time. The
+    # world's meshes and chunks are raw floats: deflated (the chunks are cut
+    # by the stored size, so they only get smaller).
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
         for name, path, _ in files:
-            z.write(path, name)
+            z.write(path, name, zipfile.ZIP_DEFLATED if name.endswith((".bin", ".json")) else zipfile.ZIP_STORED)
     return buf.getvalue()
 
 

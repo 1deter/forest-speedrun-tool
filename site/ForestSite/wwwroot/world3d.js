@@ -11,6 +11,10 @@
 // draw a new upload's files in the old places (leaves on cave walls): the
 // server refuses another build's ?v= (404) and the page then re-reads
 // world.json and starts over (stale()); each 3D view reads it afresh.
+// Meshes come in packs (version 2: "packs", each mesh's "pack" = [pack,
+// offset, length] - scripts/world_pack.py), a few per chunk; version 1
+// exports (one m/<i>.bin per mesh) are still read. The server sends .bin /
+// .json gzipped (the upload's .gz copies).
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
 // instance's matrix is S * M with S = diag(1, 1, -1) on the mesh's own
@@ -32,7 +36,7 @@ let metaPromise = null;
 export function worldMeta(fresh) {
   if (!metaPromise || fresh) metaPromise = fetch("/world/world.json", { cache: "no-cache" })
     .then(r => r.status === 200 ? r.json() : null)
-    .then(m => m && m.version === 1 && Array.isArray(m.chunks) ? m : null)
+    .then(m => m && (m.version === 1 || m.version === 2 && Array.isArray(m.packs)) && Array.isArray(m.chunks) ? m : null)
     .catch(() => null);
   return metaPromise;
 }
@@ -111,6 +115,7 @@ export class World {
     this.meta = null;
     this.chunks = new Map();      // file -> { state: "loading" | "ready", items: [[model, Matrix4]] }
     this.geoms = new Map();       // mesh index -> Promise<BufferGeometry | null>
+    this.packs = new Map();       // pack index -> Promise<ArrayBuffer | null> (version 2)
     this.textures = new Map();    // texture index -> THREE.Texture
     this.mats = new Map();        // material index -> THREE.Material (render)
     this.drawn = new Map();       // model index -> THREE.InstancedMesh
@@ -171,7 +176,7 @@ export class World {
       for (const p of this.geoms.values()) p.then(g => g && g.dispose());
       for (const t of this.textures.values()) t.dispose();
       for (const x of this.mats.values()) x.dispose();
-      for (const x of [this.drawn, this.geoms, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
+      for (const x of [this.drawn, this.geoms, this.packs, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
       this.use(m);
     });
   }
@@ -301,18 +306,34 @@ export class World {
     }
   }
 
+  /// A world file's bytes, or null (refused: maybe another upload - stale()).
+  bytes(file) {
+    return fetch("/world/" + file + this.v).then(r => {
+      if (r.status === 404) this.stale();
+      return r.ok ? r.arrayBuffer() : null;
+    });
+  }
+
+  /// A pack's bytes, fetched once for all its meshes.
+  pack(i) {
+    if (!this.packs.has(i)) this.packs.set(i, this.bytes(this.meta.packs[i]).catch(() => null));
+    return this.packs.get(i);
+  }
+
   geometry(index) {
     if (this.geoms.has(index)) return this.geoms.get(index);
     const m = this.meta.meshes[index];
-    const p = fetch("/world/m/" + index + ".bin" + this.v).then(r => {
-      if (r.status === 404) this.stale();
-      return r.ok ? r.arrayBuffer() : null;
-    }).then(buf => {
-      if (!buf) return null;
+    // [buffer, where the mesh starts in it]: its pack's (version 2; offsets
+    // 4-byte aligned, the arrays are views) or its own file.
+    const src = !this.meta.packs ? this.bytes("m/" + index + ".bin").then(b => b && [b, 0])
+      : m.pack ? this.pack(m.pack[0]).then(b => b && [b, m.pack[1]]) : Promise.resolve(null);
+    const p = src.then(found => {
+      if (!found) return null;
+      const [buf, base] = found;
       const g = new THREE.BufferGeometry();
-      let at = 0;
-      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, 0, m.nv * 3), 3));
-      at = m.nv * 12;
+      let at = base;
+      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3));
+      at += m.nv * 12;
       if (m.uv) { g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 2), 2)); at += m.nv * 8; }
       const idx = m.i32 ? new Uint32Array(buf.slice(at, at + m.ni * 4)) : new Uint16Array(buf.slice(at, at + m.ni * 2));
       // Unity winds front faces clockwise: turned, so the normals face out.
@@ -443,6 +464,7 @@ export class World {
     for (const p of this.geoms.values()) p.then(g => g && g.dispose());
     for (const t of this.textures.values()) t.dispose();
     for (const m of this.mats.values()) m.dispose();
+    this.packs.clear();
     this.collideMat.dispose(); this.collideWire.dispose();
     if (this.ground.groundMap.value) this.ground.groundMap.value.dispose();
     this.scene.remove(this.group);

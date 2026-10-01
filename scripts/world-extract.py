@@ -15,10 +15,14 @@ stats prints what a scene holds; export writes the web format (default
 site/world-out, not in git; uploaded to the site like the aerial tiles):
 
   world.json   layers, materials (colour, texture), meshes, models
-               (mesh + its materials + render / collide + layer), chunks
-  m/<i>.bin    one mesh: float32 positions (n x 3), float32 uv (n x 2) when
-               "uv", then uint16 or uint32 ("i32") triangle indices; "sub" =
-               [first index, count] per submesh (= per material)
+               (mesh + its materials + render / collide + layer), chunks,
+               packs; "version" 2 (1 = no packs, one m/<i>.bin per mesh)
+  p/<i>.bin    meshes packed (scripts/world_pack.py: which pack, why); a
+               mesh's "pack" = [pack, byte offset, byte length] of: float32
+               positions (n x 3), float32 uv (n x 2) when "uv", then uint16
+               or uint32 ("i32") triangle indices; "sub" = [first index,
+               count] per submesh (= per material). Written as m/<i>.bin
+               while the scenes are read, packed at the end.
   t/<i>.jpg    a material's main texture, at most 256 px
   c/<area>_<cx>_<cz>.bin  the instances in one 250 m column of an area:
                uint32 model, then the world matrix's top 3 rows (12 float32,
@@ -48,6 +52,7 @@ import sys
 
 import numpy as np
 import UnityPy
+import world_pack
 from UnityPy.helpers.MeshHelper import MeshHandler
 
 GAME = os.path.join(os.environ.get("FOREST_ROOT", r"G:\SteamLibrary\steamapps\common\The Forest"), "TheForest_Data")
@@ -716,16 +721,21 @@ class Export:
             chunks.append({"file": name, "area": area, "x": cx * CHUNK, "z": cz * CHUNK,
                            "y0": round(min(ys), 1), "y1": round(max(ys), 1), "n": len(items), "tris": tris,
                            "bb": [round(float(v), 1) for v in self.reach[key]]})
+        users = collections.defaultdict(set)     # mesh -> the chunks whose instances use it
+        for key, items in self.chunks.items():
+            for model, _ in items:
+                users[self.models[model]["mesh"]].add(key)
+        packs = world_pack.write(self.out, self.meshes, users, CHUNK)
         layers = {}
         env = UnityPy.load(os.path.join(GAME, "globalgamemanagers"))
         for o in env.objects:
             if o.type.name == "TagManager":
                 layers = {i: n for i, n in enumerate(o.read_typetree()["layers"]) if n}
         with open(os.path.join(self.out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
-            json.dump({"version": 1, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
-                       "meshes": self.meshes, "models": self.models, "chunks": chunks}, f, separators=(",", ":"))
+            json.dump({"version": 2, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
+                       "meshes": self.meshes, "models": self.models, "chunks": chunks, "packs": packs}, f, separators=(",", ":"))
         print(self.under, "instances under the terrain filed with the caves")
-        print("wrote", len(chunks), "chunks,", len(self.models), "models,", len(self.meshes), "meshes,",
+        print("wrote", len(chunks), "chunks,", len(self.models), "models,", len(self.meshes), "meshes in", len(packs), "packs,",
               sum(1 for v in self.textures.values() if v >= 0), "textures ->", self.out)
 
 
