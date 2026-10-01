@@ -117,6 +117,7 @@ string aerialDir = Path.Combine(dataDir, "aerial");
 string worldDir = Path.Combine(dataDir, "world");
 var binaryTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
 binaryTypes.Mappings[".bin"] = "application/octet-stream";
+binaryTypes.Mappings[".gz"] = "application/gzip";
 foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial.json"), (worldDir, "/world", "/world/world.json") })
 {
     Directory.CreateDirectory(dir);
@@ -137,12 +138,37 @@ foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial
         c.Response.Headers.CacheControl = "no-store";
         return Task.CompletedTask;
     });
+    // The world's .bin / .json: the upload's gzipped copy (Precompressed)
+    // to a client that takes it - served as that file by the static files
+    // below (ETag, ranges, 304s as before), labelled as the original.
+    var served = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dir);
+    app.Use((c, next) =>
+    {
+        if (!c.Request.Path.StartsWithSegments(path, out var rest) || !Precompressed.Compressible(rest.Value ?? "")) return next(c);
+        c.Response.Headers.Vary = "Accept-Encoding";
+        if (Precompressed.AcceptsGzip(c.Request.Headers.AcceptEncoding) && served.GetFileInfo(rest.Value + ".gz").Exists
+            && binaryTypes.TryGetContentType(rest.Value, out string type))
+        {
+            c.Items["gzip-type"] = type;
+            c.Request.Path += ".gz";
+        }
+        return next(c);
+    });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dir),
+        FileProvider = served,
         RequestPath = path,
         ContentTypeProvider = binaryTypes,
-        OnPrepareResponse = f => f.Context.Response.Headers.CacheControl = "public, max-age=86400",
+        OnPrepareResponse = f =>
+        {
+            var r = f.Context.Response;
+            r.Headers.CacheControl = "public, max-age=86400";
+            if (f.Context.Items["gzip-type"] is string type)
+            {
+                r.ContentType = type;
+                r.Headers.ContentEncoding = "gzip";
+            }
+        },
     });
     // Not an endpoint: a matched endpoint makes the static files stand aside.
     app.Use((c, next) =>
@@ -308,8 +334,9 @@ admin.MapDelete("/admins/{id:long}", (HttpContext c, long id) =>
 // first of several chunks - Cloudflare caps a request at 100 MB). The 3D
 // world likewise (UploadPath.IsWorld).
 admin.MapPost("/aerial", (Delegate)((HttpContext c) => Upload(c, aerialDir, UploadPath.IsTile)));   // Delegate: not a RequestDelegate, the IResult counts
-admin.MapPost("/world", (Delegate)((HttpContext c) => Upload(c, worldDir, UploadPath.IsWorld)));
-async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed)
+admin.MapPost("/world", (Delegate)((HttpContext c) => Upload(c, worldDir, UploadPath.IsWorld, true)));
+// gzip: each .bin / .json also written gzipped beside it (Precompressed).
+async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed, bool gzip = false)
 {
     if (!IsOwner(c)) return Problem(403, "only the owner uploads map files");
     var size = c.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
@@ -329,9 +356,10 @@ async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed
             if (!allowed(entry.FullName)) return Problem(400, "not a map file: " + entry.FullName);
             string to = Path.Combine(dir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
-            using var from = entry.Open();
-            using var file = File.Create(to);
-            await from.CopyToAsync(file);
+            using (var from = entry.Open())
+            using (var file = File.Create(to))
+                await from.CopyToAsync(file);
+            if (gzip && Precompressed.Compressible(to)) Precompressed.Write(to);
             files++;
         }
     }

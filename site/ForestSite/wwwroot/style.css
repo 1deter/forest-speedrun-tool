@@ -53,7 +53,7 @@ h1 {
   letter-spacing: .03em; text-transform: uppercase; margin: 18px 0 6px; color: var(--yellow); overflow-wrap: anywhere;
 }
 h2 {
-  font-weight: 600; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
+  font-weight: 600; font-size: 12px; letter-spacing: .28em; text-transform: uppercase; overflow-wrap: anywhere;
   color: var(--muted); margin: 36px 0 10px;
 }
 p { margin: 0 0 12px; }
@@ -172,6 +172,10 @@ tr.focus td { background: #151300; }
 .date { color: var(--muted); font-size: 13px; }
 
 .splitsbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; justify-content: space-between; }
+.splitsbar h2 { min-width: 0; }
+/* Never wider than the page (a phone's 375 px): what still does not fit
+   scrolls inside the table's own box. */
+.tablewrap { max-width: 100%; overflow-x: auto; }
 .splitsbar select { background: #000; border: 1px solid var(--line); padding: 3px 6px; }
 .c-ahead-gain { color: var(--ahead-gain); }
 .c-ahead-lose { color: var(--ahead-lose); }
@@ -180,6 +184,7 @@ tr.focus td { background: #151300; }
 .c-gold { color: var(--gold); }
 .summary td { color: var(--muted); border-bottom: 0; }
 .summary td.r { color: var(--white); }
+@container (max-width: 560px) { .summary td.r { white-space: normal; overflow-wrap: anywhere; } }   /* a long runner name on a phone */
 
 .btn {
   display: inline-block; border: 1px solid var(--line); padding: 4px 10px; font-size: 12px; color: var(--muted);

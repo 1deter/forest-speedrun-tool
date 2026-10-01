@@ -516,6 +516,93 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("mesh B", await _http.GetStringAsync("/world/m/3.bin?v=123"));
     }
 
+    [Fact]
+    public async Task WorldFilesAreServedGzipped()
+    {
+        // The upload gzips each .bin / .json once (Precompressed); a client
+        // taking gzip gets that copy, labelled as the original.
+        async Task Upload(string query, params (string Name, string Text)[] files)
+        {
+            using var ms = new MemoryStream();
+            using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, true))
+                foreach (var (name, text) in files)
+                {
+                    using var w = new StreamWriter(zip.CreateEntry(name).Open());
+                    w.Write(text);
+                }
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/admin/world" + query) { Content = new ByteArrayContent(ms.ToArray()) };
+            req.Headers.Add("X-Admin-Token", "admin-secret");
+            Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(req)).StatusCode);
+        }
+        async Task<HttpResponseMessage> Get(string url, string accept)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, url);
+            if (accept != null) req.Headers.TryAddWithoutValidation("Accept-Encoding", accept);
+            return await _http.SendAsync(req);
+        }
+        static string Gunzip(byte[] b)
+        {
+            using var z = new System.IO.Compression.GZipStream(new MemoryStream(b), System.IO.Compression.CompressionMode.Decompress);
+            using var r = new StreamReader(z);
+            return r.ReadToEnd();
+        }
+
+        string pack = string.Concat(Enumerable.Repeat("mesh bytes ", 400));
+        string json = "{\"version\":2,\"build\":1790815322,\"packs\":[\"p/0.bin\"],\"pad\":\"" + new string('x', 2000) + "\"}";
+        await Upload("?clear=1", ("p/0.bin", pack), ("t/0.jpg", "jpg bytes"), ("world.json", json));
+
+        var gz = await Get("/world/p/0.bin?v=1790815322", "gzip, deflate, br");
+        Assert.Equal(HttpStatusCode.OK, gz.StatusCode);
+        Assert.Equal("gzip", string.Join(",", gz.Content.Headers.ContentEncoding));
+        Assert.Equal("application/octet-stream", gz.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Accept-Encoding", gz.Headers.Vary);
+        Assert.Contains("max-age=86400", gz.Headers.CacheControl?.ToString());
+        byte[] body = await gz.Content.ReadAsByteArrayAsync();
+        Assert.True(body.Length < pack.Length / 10);
+        Assert.Equal(pack, Gunzip(body));
+
+        var plain = await Get("/world/p/0.bin?v=1790815322", null);
+        Assert.Empty(plain.Content.Headers.ContentEncoding);
+        Assert.Contains("Accept-Encoding", plain.Headers.Vary);
+        Assert.Equal(pack, await plain.Content.ReadAsStringAsync());
+        Assert.Empty((await Get("/world/p/0.bin", "gzip;q=0, identity")).Content.Headers.ContentEncoding);
+
+        var meta = await Get("/world/world.json", "gzip");
+        Assert.Equal("gzip", string.Join(",", meta.Content.Headers.ContentEncoding));
+        Assert.Equal("application/json", meta.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(json, Gunzip(await meta.Content.ReadAsByteArrayAsync()));
+        // A revalidation (world.json is fetched no-cache) still answers 304.
+        var again = new HttpRequestMessage(HttpMethod.Get, "/world/world.json");
+        again.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip");
+        again.Headers.IfNoneMatch.Add(meta.Headers.ETag!);
+        Assert.Equal(HttpStatusCode.NotModified, (await _http.SendAsync(again)).StatusCode);
+
+        // Textures are never gzipped; another build's ?v= is still refused.
+        Assert.Empty((await Get("/world/t/0.jpg", "gzip")).Content.Headers.ContentEncoding);
+        var old = await Get("/world/p/0.bin?v=1790000000", "gzip");
+        Assert.Equal(HttpStatusCode.NotFound, old.StatusCode);
+        Assert.Contains("no-store", old.Headers.CacheControl?.ToString());
+        Assert.Equal(HttpStatusCode.NotFound, (await Get("/world/p/9.bin", "gzip")).StatusCode);
+
+        // An upload over a file replaces its .gz; one too small to shrink leaves none.
+        await Upload("", ("p/0.bin", "tiny"));
+        Assert.Equal("tiny", await (await Get("/world/p/0.bin", null)).Content.ReadAsStringAsync());
+        var tiny = await Get("/world/p/0.bin", "gzip");
+        Assert.Empty(tiny.Content.Headers.ContentEncoding);
+        Assert.Equal("tiny", await tiny.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("gzip, deflate, br, zstd", true)]
+    [InlineData("br;q=1.0, GZIP;q=0.5", true)]
+    [InlineData("gzip;q=0", false)]
+    [InlineData("gzip; q=0.0, *", false)]
+    [InlineData("*", true)]
+    [InlineData("identity", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void AcceptsGzip(string header, bool taken) => Assert.Equal(taken, Precompressed.AcceptsGzip(header));
+
     // --- security review (2026-10-01) ------------------------------------------
 
     [Fact]
@@ -607,6 +694,9 @@ public sealed class ApiTests : IDisposable
     [Theory]
     [InlineData("m/1.bin", true)]
     [InlineData("c/caves_-3_12_L.bin", true)]
+    [InlineData("p/12.bin", true)]
+    [InlineData("p/12.bin.gz", false)]
+    [InlineData("world.json.gz", false)]
     [InlineData("m/1.bin\n", false)]
     [InlineData("../m/1.bin", false)]
     [InlineData("m/../../x.bin", false)]

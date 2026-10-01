@@ -246,15 +246,37 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    scripts/world-extract.py export` reads the scenes from the game's files
    (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
    `site/world-out/` (not in git): `world.json` (materials, meshes, models,
-   chunks, `build`), `m/<i>.bin` meshes, `t/<i>.jpg` (+ `.png` for
-   cut-outs), `c/<area>_<x>_<z>.bin` instances. `stats [level ...]` prints
-   what a scene holds. The format is in the script's docstring.
+   chunks, packs, `build`; `version` 2), `p/<i>.bin` mesh packs, `t/<i>.jpg`
+   (+ `.png` for cut-outs), `c/<area>_<x>_<z>.bin` instances. `stats [level
+   ...]` prints what a scene holds. The format is in the script's
+   docstring; the packs in `scripts/world_pack.py`'s.
 3. **Upload**: `python scripts/aerial-upload.py --world` (to
    `/api/admin/world`, clears first; `world.json` last). Files are named
    by index, so the server refuses another build's `?v=` and every `?v=`
    mid-upload (404, `no-store`, `MetaBuild`); `world3d.js` re-reads
    `world.json` per 3D view and starts over when a file is refused
    (`stale()`, gotcha 71). A tab open across an upload recovers by itself.
+
+**Load size** (2026-10-01, branch `cloud/world-load-size`):
+- **Mesh packs** (`version` 2): the meshes joined into a few `p/<i>.bin`
+  (each mesh's `pack` = [pack, offset, length], 4-byte aligned) - a mesh
+  used by one chunk in that chunk's pack, by 8+ chunks in its area's common
+  packs (trees, rocks, cave walls: fetched once), by a few in a pack per
+  area and 1 km cell; cut at 4 MB. A cold chunk = its file + about 2-4 packs
+  instead of one request per mesh. `world3d.js` still reads `version` 1 (one
+  `m/<i>.bin` per mesh) - the live upload until the next export; a page
+  older than the packs shows no world for a `version` 2 json (no errors).
+  `python scripts/world_pack.py test` checks the packs round-trip against
+  the old files; `... synthetic <out> [1|2]` makes a 9-chunk world near the
+  tree spot to upload to a local site.
+- **gzip**: the upload writes `x.gz` beside each `.bin` / `.json` when
+  smaller (`Precompressed.cs`); a client sending `Accept-Encoding: gzip` gets
+  it (`Content-Encoding: gzip`, `Vary: Accept-Encoding`, the original's
+  type; same `Cache-Control`, `?v=` refusal, ETag / 304). Cloudflare does
+  not compress `application/octet-stream` itself. `.gz` names are never
+  accepted in an upload. Textures stay single files: JPEG / PNG gain
+  nothing from gzip, are shared across chunks (cached once) and load
+  through three.js's image loader by URL.
 
 What the export decides (details: gotchas 64-67):
 - Areas: `surface` (fades with the terrain when the view is underground),
@@ -370,8 +392,8 @@ click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
 `forest3d.canvas`. A second local site beside another session's (port 5081,
 own build output and data): `.claude/launch.json` `forest-site-alt`.
 
-Open: the endgame lab looks sparse; a spot loads thousands of files and
-`.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;
+Open: the endgame lab looks sparse; the packs and gzip (*Load size*) are
+not measured on the real export yet; heavy chunks want LODs for phones;
 pickups and the player's random sticks / rocks are missing; per-kind
 toggles. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
