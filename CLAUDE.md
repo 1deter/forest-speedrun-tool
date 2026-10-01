@@ -672,9 +672,15 @@ game internals: game-notes *Terrain, and the world from above*.
   (`navRemoveRoot.startRemove`, 1536 x 1406 m - the game boxes every
   building removed within 7 s into one). v0.24.177 recalculates removals
   place by place (switch 15; game-notes *Pathfinding*; confirmed over the
-  bridge) - a likely cause gone, not a proven one. Left to try: F7 during
-  the Cave 6 keycard / vault door / Megan pickup cutscenes and on the frame
-  of a fall death (the 19:47 session ended ~30 s after the keycard).
+  bridge) - a likely cause gone, not a proven one. Also tried, no crash:
+  F7 0.3 / 1 / 3 s after the Cave 6 keycard pickup (`StoryPickUp.Collect`,
+  no cutscene), a fall death (`Stats.Fell`) then F7 next frame, deaths
+  0-0.45 s into an F7 restore (all revived, `Busy` refuses the second
+  restore), F7 during / after the Megan-transformation replay of
+  `tom-megan`. Left: the vault door / Megan pickup cutscenes. **Test spots
+  to remove** (*Removing test spots*): `s-191b90c5ab6f` (Cave 6, Tom's
+  state) and `s-afcb5c720847` (Megan, Tom's state), plus their
+  `savestates/segments/*.fosave`.
 - maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
   comparison (start / end frame per run, segment times) - backlog,
   site-only.
