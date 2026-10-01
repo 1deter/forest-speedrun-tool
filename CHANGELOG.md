@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.196 - 2026-10-01
+
+- Inventory -> **Fast building** (gameplay mod, practice): hold the build
+  button to keep adding resources to a blueprint, at Creative's pace -
+  every resource still comes from your inventory.
+- Attempts now count every run you start, finished or not, as LiveSplit
+  does: the splits table and HUD show "23 (9 finished)".
+
 ## v0.24.195 - 2026-10-01
 
 - A Go, Restart or Quick load during a cliff climb, sled push, glider

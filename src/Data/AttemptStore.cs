@@ -60,6 +60,32 @@ namespace ForestOverlay.Data
             }
         }
 
+        /// How many runs of this anchor were started (finished or not),
+        /// kept in its folder as started.txt (v0.24.196; runners: failed
+        /// attempts should count, as LiveSplit's do). -1 = not counted yet.
+        public int Started(string anchorLabel)
+        {
+            try
+            {
+                string path = Path.Combine(FolderFor(anchorLabel), "started.txt");
+                if (!File.Exists(path)) return -1;
+                int n;
+                return int.TryParse(File.ReadAllText(path).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n) ? n : -1;
+            }
+            catch (Exception) { return -1; }
+        }
+
+        public void SetStarted(string anchorLabel, int count)
+        {
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "started.txt"), count.ToString(CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex) { _log.LogWarning("Could not count the attempt: " + ex.Message); }
+        }
+
         public List<Attempt> LoadAll(string anchorLabel)
         {
             List<Attempt> result = new List<Attempt>();

@@ -93,6 +93,9 @@ namespace ForestOverlay.Modules
         // Game events: how many of Ctx.Events have been evaluated, and a
         // line for the tab saying the hooks are alive and what fired last.
         private int _eventsSeen;
+        // Runs started on this segment, finished or not (AttemptStore
+        // started.txt); never fewer than the finished ones on file.
+        private int _started;
 
         // `event autosplit` (v0.24.186, a LiveSplit import): what in the
         // segment's autosplit list splits, with the ASL's per-run memory
@@ -325,6 +328,13 @@ namespace ForestOverlay.Modules
             _referencedItemIds.Add(t.ItemId);
         }
 
+        /// "23 attempts (9 finished)", or "9 attempts" when every one finished.
+        private string AttemptsText()
+        {
+            int started = Mathf.Max(_started, _attempts.Count);
+            return started + " attempts" + (started > _attempts.Count ? " (" + _attempts.Count + " finished)" : "");
+        }
+
         private Vector3 PlayerPosition()
         {
             return Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
@@ -471,6 +481,11 @@ namespace ForestOverlay.Modules
         private void StartClock(Vector3 pos)
         {
             _auto.Begin(_live);   // what is held now is the ASL's baseline
+            if (_segment != null)
+            {
+                _started = Mathf.Max(_started, _attempts.Count) + 1;
+                _store.SetStarted(_segment.Id, _started);
+            }
             _recorder.ForceStart(pos);
             _sequence.Begin(_segment.Checkpoints, _segment.End);
             ResetSplits();   // the last run's times stay up until now
@@ -641,6 +656,7 @@ namespace ForestOverlay.Modules
                 else others.Add(all[i]);
             }
             SetLocalOthers(others, s.Checkpoints.Count);
+            _started = Mathf.Max(_store.Started(s.Id), _attempts.Count);
 
             Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
                             (others.Count > 0 ? ", " + others.Count + " by other runners (" + _localOthers.Count + " runner(s), comparisons only)" : "") +
@@ -809,8 +825,7 @@ namespace ForestOverlay.Modules
             else
             {
                 Attempt best = RunCompare.Best(_attempts);
-                hud.Pair("Run", _attempts.Count + " attempts" +
-                                (best != null ? "   best " + Format(best.Duration) : ""));
+                hud.Pair("Run", AttemptsText() + (best != null ? "   best " + Format(best.Duration) : ""));
                 if (_attempts.Count > 0) hud.Pair("Last", Format(_attempts[_attempts.Count - 1].Duration));
             }
         }

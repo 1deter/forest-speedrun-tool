@@ -67,6 +67,13 @@ namespace ForestOverlay.Modules
         // Kept across launches (v0.24.191).
         private ConfigEntry<bool> _hidePhantomsCfg, _showZerosCfg;
 
+        // Fast building (Game/FastBuild, v0.24.196).
+        private ConfigEntry<bool> _fastBuildCfg;
+        private bool _fastBuildMarked;
+        private static readonly GUIContent FastBuildText = new GUIContent(
+            "Hold the build button to keep adding resources to a blueprint, as Creative does - every resource still comes from " +
+            "your inventory. Changes gameplay: marks practice.");
+
         // Item caps (Game/ItemCapPatch, v0.24.192): any item's carry cap.
         private ConfigEntry<bool> _capsOnCfg;
         private ConfigEntry<string> _capsCfg;
@@ -110,6 +117,9 @@ namespace ForestOverlay.Modules
                 "Gameplay mod: the carry caps in ItemCaps replace the game's for those items. Marks practice.");
             _capsCfg = Ctx.Config.Bind("Inventory", "ItemCaps", "", "Item carry caps, item id : cap, separated by ';' (e.g. 53:50;57:30).");
             ItemCapPatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            _fastBuildCfg = Ctx.Config.Bind("Inventory", "FastBuilding", false,
+                "Gameplay mod: hold the build button to keep adding resources to a blueprint (Creative's pace), resources still used. Marks practice.");
+            FastBuild.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _caps = ItemCaps.Parse(_capsCfg.Value);
             ApplyCaps();
             LogStore.Init(ctx.Log, OverlayPlugin.PluginGuid);
@@ -121,6 +131,7 @@ namespace ForestOverlay.Modules
             LogStore.Full = null;
             LogStore.Shutdown();
             ItemCapPatch.Uninstall();
+            FastBuild.Uninstall();
         }
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -199,6 +210,10 @@ namespace ForestOverlay.Modules
             bool active = _capsOnCfg.Value && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
             Ctx.Practice.SetOn("item caps", _capsOnCfg.Value && _caps.Count > 0);
             Ctx.Practice.SetOn("logs in the inventory", _logsCfg.Value);
+            FastBuild.On = _fastBuildCfg.Value && !PlayerRef.AtTitleScreen;
+            Ctx.Practice.SetOn("fast building", _fastBuildCfg.Value);
+            if (FastBuild.On && !_fastBuildMarked) { _fastBuildMarked = true; Ctx.Practice.Mark("fast building"); }
+            if (!_fastBuildCfg.Value) _fastBuildMarked = false;
             if (active && !_capsMarked)
             {
                 _capsMarked = true;
@@ -242,6 +257,17 @@ namespace ForestOverlay.Modules
             _capsCfg.Value = ItemCaps.Format(_caps);
             ApplyCaps();
             _capsStatus.text = "Removed " + name + " - the game's cap again.";
+        }
+
+        private float DrawFastBuild(float y)
+        {
+            float w = _tabW - 20f;
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, " Fast building - hold to add, like Creative (gameplay mod, practice)");
+            if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
+            y += 24f;
+            if (!_fastBuildCfg.Value) return y + 4f;
+            y += UiText.DrawDim(30, y, w - 20f, FastBuildText) + 8f;
+            return y;
         }
 
         // Below the logs; returns the y below it.
@@ -388,7 +414,7 @@ namespace ForestOverlay.Modules
                 _rowStyle.padding = new RectOffset(4, 4, 0, 0);
             }
 
-            float top = DrawCaps(DrawLogs(4f));
+            float top = DrawFastBuild(DrawCaps(DrawLogs(4f)));
 
             GUI.Label(new Rect(10, top, 46, 22), "Filter");
             _filter = GUI.TextField(new Rect(58, top, 200, 22), _filter);

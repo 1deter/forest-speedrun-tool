@@ -334,7 +334,11 @@ namespace ForestOverlay.Modules
             _lineValues[(int)Line.Pace].text = SplitTable.Time(_summary.CurrentPace, tdl);
             _lineValues[(int)Line.Save].text = SplitTable.Time(_summary.PossibleSave, tdl);
             _lineValues[(int)Line.Pb].text = SplitTable.Time(_summary.Pb, tdl);
-            _lineValues[(int)Line.Attempts].text = _attempts.Count.ToString();   // counts the run just finished too
+            // Started runs, as LiveSplit counts them (failed ones too); the
+            // finished ones in brackets when they differ.
+            int started = Mathf.Max(_started, _attempts.Count);
+            _lineValues[(int)Line.Attempts].text = started > _attempts.Count
+                ? started + " (" + _attempts.Count + " finished)" : _attempts.Count.ToString();
         }
 
         // --- drawing ---------------------------------------------------------------
