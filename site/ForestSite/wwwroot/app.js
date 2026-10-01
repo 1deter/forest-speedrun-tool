@@ -338,20 +338,33 @@ async function spotPage(id, routeId) {
     const text = Math.abs(x) >= 1e5 ? x.toExponential(2) : x.toFixed(d.decimals ?? (Number.isInteger(x) ? 0 : 1));
     return text + (d.unit || "");
   }
-  let stateKey = "";
+  // Playback calls this every frame. The panel is rebuilt only when its
+  // structure or a 5 Hz sample changes; the clock and the speed (30 Hz) are
+  // written into their spans in place - rebuilding every frame made playback
+  // stutter (author, 2026-10-01).
+  let stateKey = "", stateLive = null;
   function renderState() {
     const run = r.board.find(b => b.id === state.focus);
-    if (!run) { statePanel.replaceChildren(); stateKey = ""; return; }
+    if (!run) { statePanel.replaceChildren(); stateKey = ""; stateLive = null; return; }
     const data = (state.showAll ? state.all : state.runs).get(run.id);
     if (!data) { load(run.id, state.showAll).then(renderState); return; }
     const st = data.state, s = st && sampleAt(st.samples, state.time);
     const pos = RunMap.at(data.path || [], state.time);
-    // Rebuilt only when what it shows changes (the scrub fires every frame).
-    const key = run.id + "|" + state.showAll + "|" + (s ? s[0] : "") + "|" + (pos ? pos[4].toFixed(1) : "") + "|" + time(state.time);
-    if (key === stateKey) return;
+    const bagKey = data.items && data.items.length ? data.items.filter(c => c[0] <= state.time).length : 0;
+    const key = run.id + "|" + state.showAll + "|" + (s ? s[0] : "") + "|" + !!pos + "|" + bagKey;
+    if (key === stateKey && stateLive) {
+      const clockText = "State · " + (run.name || run.runner) + " at " + time(state.time);
+      if (stateLive.title.textContent !== clockText) stateLive.title.textContent = clockText;
+      if (pos && stateLive.speed) {
+        const v = pos[4].toFixed(1) + " m/s";
+        if (stateLive.speed.textContent !== v) stateLive.speed.textContent = v;
+      }
+      return;
+    }
     stateKey = key;
     const items = [];
-    if (pos) items.push(el("div", { class: "stat" }, el("span", { class: "k" }, "Speed"), el("span", { class: "v" }, pos[4].toFixed(1) + " m/s")));
+    const speed = pos ? el("span", { class: "v" }, pos[4].toFixed(1) + " m/s") : null;
+    if (pos) items.push(el("div", { class: "stat" }, el("span", { class: "k" }, "Speed"), speed));
     const bag = [];
     if (s) st.channels.forEach((name, i) => {
       const v = s[i + 1];
@@ -375,8 +388,10 @@ async function spotPage(id, routeId) {
           el("span", { class: "k" }, itemLabel(e.name)), el("span", { class: "v" }, e.n)));
     const more = st || state.showAll ? el("button", { class: "linkbtn", onclick: () => { state.showAll = !state.showAll; renderState(); } },
       state.showAll ? "Show fewer" : "Show all") : null;
+    const title = el("h2", null, "State · " + (run.name || run.runner) + " at " + time(state.time));
+    stateLive = { title, speed };
     statePanel.replaceChildren(...[
-      el("div", { class: "splitsbar" }, el("h2", null, "State · " + (run.name || run.runner) + " at " + time(state.time)), more),
+      el("div", { class: "splitsbar" }, title, more),
       el("div", { class: state.showAll ? "stats all" : "stats" }, items),
       bag.length ? el("h3", { class: "bagtitle" }, "Carrying") : null,
       bag.length ? el("div", { class: state.showAll ? "stats all" : "stats bag" }, bag) : null,

@@ -151,18 +151,6 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 
 ## Website (author, QA #general 2026-09-27)
 
-- **Stuttering playback on the spot page** - open investigation; the author suspects reading all
-  state values per frame (the State panel / *Show all*). Profile the scrub loop first. Author
-  (2026-10-01): keep the always-shown State panel (better UX than click-a-point) but make it
-  cheaper - e.g. update the panel a few times a second / only on a changed value, not per frame.
-- **Photo map shading** (author, 2026-10-01, screenshots): the 2D photo tiles come in bands of
-  different brightness (the sun / light moving during the ~17 min capture?) - fix in the
-  capture (fixed time of day / exposure) or normalise in the bake.
-- **Water toggle does nothing** on the photo map (author, 2026-10-01) - check that the `-dry`
-  layers were baked / uploaded and that the button switches them.
-- **3D photo terrain textures break / unload** at some places (author, 2026-10-01: elevator
-  boost spot, right-drag to the middle of the map and turn the camera) - the aerial tile level
-  or the detail patch around the target.
 - **An exact 3D world** (author, 2026-10-01, the long-term goal): the terrain as the game draws
   it (splat textures, not photos under the models - "a tree model on top of a photo of the
   tree"), for planning 100% routes; the 2D map can keep photos. Also greebles / pickups /

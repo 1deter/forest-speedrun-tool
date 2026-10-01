@@ -158,7 +158,7 @@ export class World {
     const surface = mesh.userData.surface;
     for (const m of [].concat(mesh.material)) {
       if (m === this.collideMat || m === this.collideWire) continue;
-      const o = surface ? this.fade : 1;
+      const o = (surface ? this.fade : 1) * (m.userData.opacity ?? 1);
       m.transparent = o < 0.99; m.opacity = o; m.depthWrite = o > 0.99;
     }
   }
@@ -264,6 +264,16 @@ export class World {
   material(index) {
     if (this.mats.has(index)) return this.mats.get(index);
     const d = index >= 0 ? this.meta.materials[index] : null;
+    // The lakes' surfaces (shaders "The Forest/Water" / "WaterCave": no texture, a 0.7 grey
+    // colour - flat grey sheets over the lakes; author, 2026-10-01) are drawn
+    // as the water the photo shows there.
+    if (d && /\/Water(Cave)?$/.test(d.shader || "")) {
+      const water = new THREE.MeshLambertMaterial({ color: new THREE.Color(0x0e2a33), transparent: true, opacity: 0.85,
+        depthWrite: false, clippingPlanes: this.cutPlanes });
+      water.userData.opacity = 0.85;
+      this.mats.set(index, water);
+      return water;
+    }
     const c = d ? d.color : [0.7, 0.7, 0.7, 1];
     const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear(), side: d && d.cut ? THREE.DoubleSide : THREE.FrontSide,
       clippingPlanes: this.cutPlanes });

@@ -532,6 +532,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there.
 71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open.
 72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one.
+73. **Diff a switch's two outputs before shipping it** - the "-dry" photo layer was the wet one (the ocean never draws in the capture) and "eye adaptation off" did not hold; compare on / off results and read a setting back before building on it.
 
 ---
 
@@ -583,10 +584,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.177** (2026-10-01). The author runs it via the in-game
-updater (v0.24.177 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
+**Released: v0.24.179** (2026-10-01). The author runs it via the in-game
+updater (v0.24.178 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
 
-### Pick up here (2026-10-01, v0.24.177 in the game)
+### Pick up here (2026-10-01, v0.24.178 in the game)
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back
@@ -608,11 +609,9 @@ to us" - one item per session):
    and the token-reset race: decided, left as they are (About page says
    the id is not anonymous). **A new deploy needs nothing extra**; a
    changed `compose.yaml` needs `setup.sh` again (README).
-4. **Next: the author's map list**: photo tiles in brightness bands (check first
-   whether it is the same stale-page effect: a tab open across an aerial
-   upload), the Water button, 3D terrain textures dropping out, playback
-   stutter.
-5. 3D world: the sparse endgame lab, load size (thousands of files,
+4. ~~The author's map list~~ **done** (2026-10-01, v0.24.178-179 + site,
+   below: *The map list*). Waiting on the author's eyes on the live page.
+5. **Next:** 3D world: the sparse endgame lab, load size (thousands of files,
    uncompressed `.bin`), the spot page's sideways scroll on phones.
 6. LiveSplit `.lss` import UI (Next up 9).
 7. Waiting on others: raw FPS (the FPS session), Quick load physics
@@ -626,14 +625,13 @@ an exhaustive "endgame" tool, caves included. Recipes and formats:
 [`docs/website.md`](docs/website.md) *The photo map* / *The 3D world*;
 game internals: game-notes *Terrain, and the world from above*.
 
-- **Photo map (live):** `Game/AerialCapture` captures every tile now,
-  sea included, and tiles reaching sea level again with `CetoTF/Ocean`
-  inactive (`canopy-dry` / `ground-dry`, v0.24.170) - the site's
-  **Water** button. Recaptured on v0.24.170 (256 tiles, 141 dry, 1042 s),
-  baked (4096 top tiles x 4 layers), uploaded; `aerial.json` re-uploaded
-  with a build stamp so tile URLs carry `?v=` (gotcha 66: the black
-  corners the author saw were day-old cached tiles). Not yet looked at
-  by anyone after the stamp.
+- **Photo map (live, recaptured 2026-10-01 on v0.24.178):** every tile at
+  one exposure, the sea drawn by the bake from the heights (the Water
+  button = the `-dry` layers, the raw capture) - recipe docs/website.md
+  *The photo map*, why game-notes *The ocean from above* / *Eye
+  adaptation*. Backups of the captures: `%TEMP%/claude/aer/aerial-0928`
+  (v0.24.170's) and `aerial-1001` (the first v0.24.178 run, rows 7-15
+  dark).
 - **3D world (site `world3d.js`, `scripts/world-extract.py`, v0.24.171-
   173 `Game/WorldDump`):** meshes are not readable in game, so the scenes
   are read **offline with UnityPy** (level2, 7, 11, 15-30) and the pooled
@@ -669,16 +667,32 @@ game internals: game-notes *Terrain, and the world from above*.
   game. The same once-per-page read holds for the photo map's
   `aerial.json` (map.js): its tiles of an older build now 404 (holes, not
   mixed tiles) until a reload.
-- **The author's map list (2026-10-01, docs/backlog.md *Website*):** photo
-  map tiles in bands of different brightness, the Water button doing
-  nothing, 3D photo terrain textures breaking / unloading (Elevator Boost,
-  right-drag to the map's middle), playback stutter (keep the always-shown
-  State panel, make it cheaper), and the long-term goal: **an exact 3D
-  world for planning 100% routes** - the terrain as the game draws it, not
-  photos under the models, every prop.
-- **Next, in order (after the caves above):** (1) the author's eyes on the live 3D world at
-  the Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
-  photo map's corners. (2) The endgame lab looked **sparse** (props, few
+- **The map list (author, 2026-10-01) - done, all checked here, not yet
+  by the author:** (1) **brightness bands**: the capture's "eye adaptation
+  off" never held (the game turns it back on from OnGUI) - v0.24.178 clamps
+  it to one EV; an overcast sky rolling in mid-run darkened the rest 1.6x
+  (twice, confirmed by retaking a tile clear) - those rows were retaken
+  with the weather cleared by hand, v0.24.179 holds it clear, and the bake
+  warns of a row step (gotcha 73). v0.24.179's hold is not yet run in a
+  capture (the next capture's start line says `weather held clear`). (2) **Water button**: the game's
+  ocean never draws in the capture, so the "-dry" tiles were the wet ones;
+  the bake now draws the sea (open water joined to the map's edge, by
+  depth). (3) **3D textures "breaking"**: two things - the lakes are models
+  with the game's water shader (no texture, 0.7 grey: flat grey sheets),
+  now drawn as water (`world3d.js`); and off the runs the island was the
+  coarse mesh at level 3 - the detail patch now follows the orbit's centre
+  when the camera is close (`map3d.js` `lookRegion`) and the island is
+  level 4 on desktop. (4) **Playback stutter**: the State panel was rebuilt
+  every frame (its key held the clock) - now on a sample change only, the
+  clock / speed written in place (`app.js`). Checked headless locally
+  (Playwright + Edge): one rebuild in 180 frames, the patch moves, lakes
+  water, no page errors. Answered the author: why photos, not the game's
+  memory, for the 2D map (the photo is the game's own renderer; the
+  memory route = the 3D item below). Long-term (backlog): **an exact 3D
+  world** - the terrain from its splat maps, every prop.
+- **Next, in order:** (1) the author's eyes on the live photo map (bands,
+  Water), the 3D view panned off the runs, playback; and the 3D world at
+  the Elevator Boost end (snow cliffs: the top layer). (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
   `tp` lands with the sections unloaded) with the site at the same spot,

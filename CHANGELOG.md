@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.179 - 2026-10-01
+
+- Developer tooling only: the website map's photo capture holds the
+  weather clear while it runs (rain or clouds rolling in made the rest of
+  the map darker), and logs the weather with its progress.
+
 ## v0.24.178 - 2026-10-01
 
 - Developer tooling only: the website map's photo capture now uses one

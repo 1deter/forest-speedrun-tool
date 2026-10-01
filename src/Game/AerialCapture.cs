@@ -65,6 +65,11 @@ namespace ForestOverlay.Game
     //    with its luminance range clamped to one value (ExposureEv) and
     //    Fixed adaptation: one exposure for every tile. The vignette (darker
     //    corners) is off; colour grading and bloom stay (the game's look).
+    //  - The weather (TheForest.World.WeatherSystem) rolls rain and clouds
+    //    while a ~20 min capture runs: an overcast sky made every tile after
+    //    it 1.6x darker (2026-10-01, twice). The rain is stopped (AllOff), the
+    //    overcast set clear and the WeatherSystem switched off for the run;
+    //    it is switched back on after (the sky stays clear until it rolls).
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
     //
@@ -191,7 +196,7 @@ namespace ForestOverlay.Game
                         index.Append(ix).Append(',').Append(iz).Append('\n');
                         done++;
                         if (done % 10 == 0 && Log != null)
-                            Log.LogInfo("Aerial capture: " + done + " tiles saved, " + skipped + " sea, " + Status);
+                            Log.LogInfo("Aerial capture: " + done + " tiles saved, " + skipped + " sea, " + Status + ", " + Weather());
                     }
                 }
             }
@@ -254,6 +259,8 @@ namespace ForestOverlay.Game
             public readonly List<KeyValuePair<Camera, int>> Hud = new List<KeyValuePair<Camera, int>>();
             public readonly List<KeyValuePair<object, bool>> PostEffects = new List<KeyValuePair<object, bool>>();
             public object EyeModel, EyeSettings;
+            public Behaviour Weather;
+            public bool WeatherWasOn;
             public UnityEngine.Object Sunshine;
             public object Overcast;
             public bool GodModeWasOn;
@@ -342,6 +349,26 @@ namespace ForestOverlay.Game
                 if (blank != null) Set(s.Sunshine, "OvercastTexture", blank);
             }
 
+            string weather = "weather not held (no WeatherSystem)";
+            Behaviour w = StaticGet("TheForest.Utils.Scene", "WeatherSystem") as Behaviour;
+            if (w != null)
+            {
+                try
+                {
+                    MethodInfo off = w.GetType().GetMethod("AllOff", Any);
+                    if (off != null) off.Invoke(w, null);
+                    object state = Get(w, "State");
+                    if (state != null) Set(w, "State", Enum.Parse(state.GetType(), "Idle"));
+                    foreach (string f in new[] { "CloudOvercastCurrentValue", "CloudOvercastTargetValue" }) Set(w, f, 0.1f);
+                    foreach (string f in new[] { "VCloudCoverageCurrentValue", "VCloudCoverageTargetValue" }) Set(w, f, 0f);
+                    s.Weather = w;
+                    s.WeatherWasOn = w.enabled;
+                    w.enabled = false;
+                    weather = "weather held clear";
+                }
+                catch (Exception e) { weather = "weather not held: " + e.GetType().Name; }
+            }
+
             Terrain t = Terrain.activeTerrain;
             s.PixelError = t.heightmapPixelError;
             t.heightmapPixelError = 1f;
@@ -363,7 +390,7 @@ namespace ForestOverlay.Game
             HoldSun(sunTime);
             if (Log != null)
                 Log.LogInfo("Aerial capture: tile " + F(tile) + " m at " + Screen.height + " px, LOD ranges x" + F(rangeScale)
-                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, " + exposure + ", fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
+                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, " + exposure + ", " + weather + ", fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
                     + "sun at " + F(sunTime));
         }
 
@@ -402,6 +429,7 @@ namespace ForestOverlay.Game
                 if (s.Sunshine != null && s.Overcast != null) Set(s.Sunshine, "OvercastTexture", s.Overcast);
                 for (int i = 0; i < s.PostEffects.Count; i++) Set(s.PostEffects[i].Key, "enabled", s.PostEffects[i].Value);
                 if (s.EyeModel != null) Set(s.EyeModel, "settings", s.EyeSettings);
+                if (s.Weather != null) s.Weather.enabled = s.WeatherWasOn;
                 for (int i = 0; i < s.Hud.Count; i++)
                     if (s.Hud[i].Key != null) s.Hud[i].Key.cullingMask = s.Hud[i].Value;
                 if (!s.GodModeWasOn) DeathHooks.SetGodMode(false);
@@ -413,6 +441,18 @@ namespace ForestOverlay.Game
                 if (Log != null) Log.LogWarning("Aerial capture: restoring settings failed: " + e.Message);
             }
         }
+
+        /// The weather on the progress line - held clear since v0.24.179; a
+        /// line that shows rain or overcast means the hold failed.
+        private static string Weather()
+        {
+            object w = StaticGet("TheForest.Utils.Scene", "WeatherSystem");
+            if (w == null) return "weather unknown";
+            return "weather " + Get(w, "State") + " / rain " + Get(w, "CurrentType")
+                + ", overcast " + Fmt(Get(w, "CloudOvercastCurrentValue")) + ", cloud cover " + Fmt(Get(w, "VCloudCoverageCurrentValue"));
+        }
+
+        private static string Fmt(object v) { return v is float ? F((float)v) : "?"; }
 
         private static void HoldSun(float sunTime)
         {

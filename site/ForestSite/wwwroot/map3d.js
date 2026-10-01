@@ -369,21 +369,54 @@ class Map3D {
     for (const zn of this.zones) add(zn.at[0], zn.at[2]);
     if (!isFinite(x0)) return;
     const toI = x => (x - m.x0) / cell, toJ = z => (z - m.z0) / (m.sizeZ / (n - 1));
-    const ci = (toI(x0) + toI(x1)) / 2, cj = (toJ(z0) + toJ(z1)) / 2;
     const margin = 200 / cell;
     const want = Math.max(256, toI(x1) - toI(x0) + 2 * margin, toJ(z1) - toJ(z0) + 2 * margin);
+    const r = this.regionAt((toI(x0) + toI(x1)) / 2, (toJ(z0) + toJ(z1)) / 2, want);
+    const cur = this.region;
+    const inside = cur && cur.step === r.step && toI(x0) >= cur.i0 && toI(x1) <= cur.i1 && toJ(z0) >= cur.j0 && toJ(z1) <= cur.j1;
+    if (!force && inside && !cur.look) return;
+    this.setRegion(r);
+  }
+
+  /// A patch of `want` samples a side centred on sample (ci, cj).
+  regionAt(ci, cj, want) {
+    const n = terrain.meta.grid;
     const step = want <= DETAIL ? 1 : want <= DETAIL * 2 ? 2 : 4;
     const side = Math.min(n - 1, Math.ceil(Math.min(want, DETAIL * step) / 4) * 4);
     const place = c => Math.max(0, Math.min(n - 1 - side, Math.floor((c - side / 2) / 4) * 4));
     const r = { i0: place(ci), j0: place(cj), step };
     r.i1 = r.i0 + side; r.j1 = r.j0 + side;
-    const cur = this.region;
-    const inside = cur && cur.step === step && toI(x0) >= cur.i0 && toI(x1) <= cur.i1 && toJ(z0) >= cur.j0 && toJ(z1) <= cur.j1;
-    if (!force && inside) return;
+    return r;
+  }
+
+  setRegion(r) {
     this.region = r;
     this.buildDetail(r);
     this.coarseIndex(this.coarse.geometry, r);
     this.textures();
+  }
+
+  /// The patch follows the orbit's centre once the camera has settled close
+  /// to the ground outside it: the runs' patch covers the runs only, and the
+  /// island beyond is the coarse mesh with a level-3/4 photo - panning to
+  /// the map's middle looked like the textures breaking (author,
+  /// 2026-10-01). Rebuilt 0.4 s after the centre stops; a new setRuns puts
+  /// the runs' patch back.
+  lookRegion(target, dist, now) {
+    const m = terrain.meta, cur = this.region;
+    if (!m || !cur || !this.coarse || this.mode !== "orbit" || dist > 1500) { this.looking = null; return; }
+    const cell = this.cell, cellZ = m.sizeZ / (m.grid - 1);
+    const ci = (target.x - m.x0) / cell, cj = (-target.z - m.z0) / cellZ;
+    const half = Math.max(250, Math.min(900, dist * 1.5)) / cell;     // samples
+    const seen = half * 0.6;
+    if (ci - seen >= cur.i0 && ci + seen <= cur.i1 && cj - seen >= cur.j0 && cj + seen <= cur.j1) { this.looking = null; return; }
+    const l = this.looking;
+    if (!l || Math.hypot(l.ci - ci, l.cj - cj) > 4) { this.looking = { ci, cj, since: now }; return; }
+    if (now - l.since < 400) return;
+    this.looking = null;
+    const r = this.regionAt(ci, cj, 2 * half);
+    r.look = true;
+    this.setRegion(r);
   }
 
   buildDetail(r) {
@@ -457,7 +490,9 @@ class Map3D {
         return;
       }
       const max = Math.min(MOBILE ? 2048 : 4096, this.renderer.capabilities.maxTextureSize);
-      setMap(this.coarse, this.photo(gen, img, layer, Math.min(3, a.levels), { x0: m.x0, z0: m.z0, sx: m.sizeX, sz: m.sizeZ }, 2048));
+      // The island: level 4 (4096 px, 0.85 m a pixel) where the GPU takes it, else 3.
+      const island = Math.min(max, 4096) >= 4096 ? 4 : 3;
+      setMap(this.coarse, this.photo(gen, img, layer, Math.min(island, a.levels), { x0: m.x0, z0: m.z0, sx: m.sizeX, sz: m.sizeZ }, Math.min(max, 4096)));
       if (this.detail) {
         const r = this.region, cellZ = m.sizeZ / (m.grid - 1);
         const rect = { x0: m.x0 + r.i0 * this.cell, z0: m.z0 + r.j0 * cellZ, sx: (r.i1 - r.i0) * this.cell, sz: (r.j1 - r.j0) * cellZ };
@@ -559,6 +594,8 @@ class Map3D {
     const target = this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target;
     this.world.setCut(this.fadeTo < 1, this.camera.position, target);
     this.world.update(target, performance.now());
+    if (this.mode === "orbit") this.lookRegion(this.orbit.target, this.orbit.dist, performance.now());
+    if (this.looking) moving = true;     // keep frames coming until the patch is placed
     return moving;
   }
 

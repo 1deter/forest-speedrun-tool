@@ -2,11 +2,16 @@
 
 The capture comes from the game (v0.24.164+), over the bridge:
     call BepInEx_Manager OverlayPlugin._host._modules[8].AerialStart x0 z0 x1 z1 tile settle rangeScale sunTime
-which writes BepInEx/config/ForestOverlay/aerial/{tiles.txt, canopy/, ground/}
-(+ canopy-dry/, ground-dry/ since v0.24.170: the tiles that reach sea level,
-taken again with the ocean hidden; a dry layer falls back to its wet tile):
+which writes BepInEx/config/ForestOverlay/aerial/{tiles.txt, canopy/, ground/}:
 one <ix>_<iz>.jpg per tile (north up), tile (ix, iz) covering
-x0 + ix*tile .. +tile, z0 + iz*tile .. +tile.
+x0 + ix*tile .. +tile, z0 + iz*tile .. +tile. (v0.24.170-177 also wrote
+canopy-dry/ ground-dry/ - ignored: the game's ocean never shows in the
+capture, so those were the same pictures.)
+
+The water is drawn here, from the terrain's heights (terrain.json +
+heights.u16): "canopy" / "ground" get the sea over every pixel whose ground
+is under sea level, shading with depth; "canopy-dry" / "ground-dry" are the
+capture as it is (the map's Water button switches between them).
 
     python scripts/aerial-bake.py [capture folder] [out folder]
 
@@ -26,6 +31,7 @@ import math
 import os
 import sys
 
+import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +41,104 @@ DEFAULT_OUT = os.path.join(ROOT, "site", "aerial-out")      # not in git; upload
 WEB = 256
 MAX_LEVEL = 6                  # 3500 m / (256 * 64) = 0.21 m per pixel
 QUALITY = 82
+
+# The sea from above, as the game draws it straight down at midday-ish light
+# (bridge shots, 2026-10-01): a dark teal, the floor showing through only
+# in the first metres.
+DEEP = np.array([16, 44, 52], np.float32)
+SHALLOW = np.array([64, 128, 126], np.float32)
+FOAM = np.array([225, 232, 228], np.float32)
+
+
+def row_steps(src, tiles):
+    """Brightness steps between capture rows, as warnings. The capture holds
+    one exposure, but the game's light can still change during the ~20 min
+    run: v0.24.178's came out 1.6x darker from its 8th row on (taken in
+    order, so a straight line across the map) and those rows were taken
+    again. A step shows at a row boundary: the median, over the columns, of
+    the brightness ratio across the seam (4 px strips of each tile at
+    128 px; snow - clipped - and near black edges left out). Not corrected
+    here: the game's tonemapping bends a light change, and a plain gain
+    over- or under-shoots - retake the rows from the step on."""
+    S, E = 128, 4
+    edge = {}
+    for ix, iz in tiles:
+        p = os.path.join(src, "%d_%d.jpg" % (ix, iz))
+        if not os.path.exists(p):
+            continue
+        a = np.asarray(Image.open(p).convert("RGB").resize((S, S), Image.BILINEAR), np.float32) + 4.0
+        edge[(ix, iz)] = (a[:E].mean((0, 1)), a[-E:].mean((0, 1)))     # north (image top), south
+    usable = lambda v: v.max() < 225 and v.min() > 16
+    steps = []
+    for iz in sorted({iz for _, iz in edge})[1:]:
+        r = [np.log(edge[(ix, iz)][1] / edge[(ix, iz - 1)][0]).mean()
+             for ix, z in edge if z == iz - 1 and (ix, iz) in edge
+             and usable(edge[(ix, iz)][1]) and usable(edge[(ix, iz - 1)][0])]
+        if len(r) >= 3 and abs(np.median(r)) > 0.12:
+            steps.append((iz, float(np.exp(np.median(r)))))
+    return steps
+
+
+def load_heights(terrain):
+    """The terrain's heights as world y, [z row][x column] (map.js groundAt),
+    and the sea's depth there: sea level minus the ground, only where the
+    water is open to the map's edge (the sinkhole and other pits below sea
+    level stay dry), 0 elsewhere."""
+    path = os.path.join(ROOT, "site", "ForestSite", "wwwroot", "terrain", terrain["heights"])
+    g = terrain["grid"]
+    h = np.fromfile(path, dtype="<u2").astype(np.float32).reshape(g, g)
+    h = terrain["y0"] + h / 65535.0 * terrain["sizeY"]
+    under = h < terrain["sea"]
+    sea = np.zeros_like(under)
+    stack = [(j, i) for j in range(g) for i in (0, g - 1)] + [(j, i) for i in range(g) for j in (0, g - 1)]
+    while stack:
+        j, i = stack.pop()
+        if sea[j, i] or not under[j, i]:
+            continue
+        sea[j, i] = True
+        if j > 0: stack.append((j - 1, i))
+        if j < g - 1: stack.append((j + 1, i))
+        if i > 0: stack.append((j, i - 1))
+        if i < g - 1: stack.append((j, i + 1))
+    # A sample just above the sea beside open water keeps its (negative)
+    # depth, so the shore fades between samples instead of stepping.
+    near = sea.copy()
+    near[1:, :] |= sea[:-1, :]; near[:-1, :] |= sea[1:, :]
+    near[:, 1:] |= sea[:, :-1]; near[:, :-1] |= sea[:, 1:]
+    depth = np.where(near, terrain["sea"] - h, -10.0).astype(np.float32)
+    return depth
+
+
+def sample(grid, terrain, x, z):
+    """Bilinear sample of a terrain-grid array at world x, z (arrays)."""
+    n = terrain["grid"] - 1
+    u = np.clip((x - terrain["x0"]) / terrain["sizeX"] * n, 0, n)
+    v = np.clip((z - terrain["z0"]) / terrain["sizeZ"] * n, 0, n)
+    i = np.minimum(np.floor(u).astype(np.int32), n - 1)
+    j = np.minimum(np.floor(v).astype(np.int32), n - 1)
+    fu, fv = u - i, v - j
+    top = grid[j, i] * (1 - fu) + grid[j, i + 1] * fu
+    bottom = grid[j + 1, i] * (1 - fu) + grid[j + 1, i + 1] * fu
+    return top * (1 - fv) + bottom * fv
+
+
+def add_water(img, sea_depth, terrain, west, north, tile):
+    """The sea over a capture tile resized to img's size (west / north edge, metres)."""
+    w = img.width
+    step = tile / w
+    xs = west + (np.arange(w, dtype=np.float32) + 0.5) * step
+    zs = north - (np.arange(w, dtype=np.float32) + 0.5) * step
+    depth = sample(sea_depth, terrain, xs[None, :], zs[:, None])
+    if depth.max() <= 0:
+        return img
+    d = np.clip(depth, 0, None)[..., None]
+    colour = SHALLOW + (DEEP - SHALLOW) * np.clip(d / 12.0, 0, 1)
+    alpha = np.where(d > 0, 0.55 + 0.42 * (1 - np.exp(-d / 3.0)), 0)
+    foam = np.where((d > 0) & (d < 0.35), 0.5 * (1 - d / 0.35), 0)
+    a = np.asarray(img, np.float32)
+    a = a * (1 - alpha) + colour * alpha
+    a = a * (1 - foam) + FOAM * foam
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
 def read_index(path):
@@ -69,25 +173,29 @@ def main():
         k = relief.width / 2 ** level
         return relief.crop((round(tx * k), round(ty * k), round((tx + 1) * k), round((ty + 1) * k))).resize((WEB, WEB), Image.BILINEAR)
 
+    sea_depth = load_heights(terrain)
+    for iz, k in row_steps(os.path.join(capture, "canopy"), tiles):
+        print("WARNING: capture row %d is %.2fx as bright as row %d below it - the light changed mid-capture; "
+              "retake rows %d+ (docs/website.md, The photo map)" % (iz, k, iz - 1, iz))
     layers = []
     for layer in ("canopy", "ground", "canopy-dry", "ground-dry"):
-        src = os.path.join(capture, layer)
+        dry = layer.endswith("-dry")
+        src = os.path.join(capture, layer[:-4] if dry else layer)
         if not os.path.isdir(src) or not os.listdir(src):
             continue
-        wet = os.path.join(capture, layer[:-4]) if layer.endswith("-dry") else src
         layers.append(layer)
         written = set()
         # Top level: each capture tile resized to its size at mpp, cut into web tiles.
         for ix, iz in tiles:
             path = os.path.join(src, "%d_%d.jpg" % (ix, iz))
             if not os.path.exists(path):
-                path = os.path.join(wet, "%d_%d.jpg" % (ix, iz))
-            if not os.path.exists(path):
                 continue
             cx0, cz1 = ox + ix * tile, oz + (iz + 1) * tile          # west, north edges
             px = tile / mpp
             left, top = (cx0 - tx0) / mpp, (top_z - cz1) / mpp        # in top-level pixels
             img = Image.open(path).convert("RGB").resize((round(px), round(px)), Image.LANCZOS)
+            if not dry:
+                img = add_water(img, sea_depth, terrain, cx0, cz1, tile)
             for tx in range(int(left // WEB), int(math.ceil((left + px) / WEB))):
                 for ty in range(int(top // WEB), int(math.ceil((top + px) / WEB))):
                     if not (0 <= tx < n and 0 <= ty < n):

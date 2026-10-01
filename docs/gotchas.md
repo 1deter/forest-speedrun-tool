@@ -595,3 +595,16 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     spot's labels and owner. Whenever rows are folded into one shown
     thing (newest wins, first wins, a join), ask who can create a row
     that wins - not only who can edit an existing one.
+
+73. **Diff a switch's two outputs before shipping it.** (2026-10-01, the
+    photo map's Water button.) v0.24.170 captured every coastal tile a
+    second time with Ceto's ocean switched off, the bake made "-dry"
+    layers of them and the site a Water button - which "did nothing"
+    (author): the two pictures differed by JPEG noise, because the ocean
+    never draws inside the capture at all. The same capture "switched
+    off" eye adaptation, which the game turns back on from OnGUI (gotcha
+    1 again), so every tile kept its own exposure - the map's brightness
+    bands. Both were one numeric check away: the mean difference of the
+    on / off outputs, and the setting read back a second later. When a
+    feature is "the same thing with X off", compare the two results
+    before building a layer, a button or a release on them.

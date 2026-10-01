@@ -197,16 +197,28 @@ spot's saved runs" and "Open on the website".
 Top-down photos of the whole island, the map's Photo / Ground layers,
 with a Water switch.
 
-1. **Capture** (game, bridge, ~17 min): `call BepInEx_Manager
+1. **Capture** (game, bridge, ~25 min): `call BepInEx_Manager
    OverlayPlugin._host._modules[8].AerialStart -1750 -1742.631 1750
    1757.369 218.75 4 4 320` (x0 z0 x1 z1 tile settle rangeScale sunTime);
    read `_aerial.Status`. Writes `config/ForestOverlay/aerial/`
-   `{canopy,ground,canopy-dry,ground-dry}/<ix>_<iz>.jpg` + `tiles.txt`.
-   Every tile, sea included; tiles reaching sea level again with the
-   ocean off (the `-dry` layers). A test capture of one tile overwrites
-   `tiles.txt` - recapture before the next bake.
+   `{canopy,ground}/<ix>_<iz>.jpg` + `tiles.txt`. Every tile, sea
+   included, at one exposure (v0.24.178: `_aerial.ExposureEv`, -3.5 -
+   game-notes *Eye adaptation*). The game's ocean never shows in these
+   frames (game-notes *The ocean from above*). A test capture of one tile
+   overwrites `tiles.txt` - recapture before the next bake. **The weather
+   changed the light mid-run** on v0.24.178 (an overcast sky: rows 1.6x
+   darker from the moment it rolled in, twice); v0.24.179 holds it clear
+   (the start line says `weather held clear`, the progress lines show it).
+   The bake still prints `WARNING: capture row N ...` for a step. Retake
+   rows N+ with `AerialStart -1750 <z0 + N*218.75> 1750 1757.369 ...` -
+   its files are numbered from row 0 again and it overwrites `tiles.txt`,
+   so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`
+   and put the full `tiles.txt` back (done this way on 2026-10-01).
 2. **Bake**: `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
-   git; pyramid L0-6, 256 px, a dry tile falls back to the wet one;
+   git; pyramid L0-6, 256 px; `canopy` / `ground` get the sea drawn from
+   the terrain's heights - open water joined to the map's edge, shaded by
+   depth, the sinkhole and other pits stay dry; `canopy-dry` /
+   `ground-dry` are the capture as it is: the Water button;
    `aerial.json` carries `build`, the tiles' `?v=`). The server refuses
    a file asked for with another build's `?v=`, and any `?v=` while the
    json is missing (mid-upload) - 404, `no-store` (`MetaBuild`, gotcha 71).

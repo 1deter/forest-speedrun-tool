@@ -2315,10 +2315,37 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   terrain's specular glare from above; `TimeOfDay` 320 = sun in the west,
   ~40 degrees up, no glare.
 - **HUD:** NGUI cameras under `HudGui` (`Camera_HUD`, `ActionIconCamera`).
-- **The ocean from above (2026-09-28):** Ceto's ocean (`CetoTF/Ocean`,
-  `Ceto.Ocean`, level 41.5) draws for an orthographic, straight-down
-  camera too; switching its GameObject off hides it at once (changing
-  `Ocean.level` does not). Shallow water shows the sea floor through it.
+- **The ocean from above (2026-09-28, corrected 2026-10-01):** Ceto's
+  ocean (`CetoTF/Ocean`, `Ceto.Ocean`, level 41.5) draws for the freecam
+  turned orthographic and straight down, and switching its GameObject off
+  hides it within a frame - **but not inside `Game/AerialCapture`**: there
+  the sea never shows (a sandy floor with rippled light), on or off. Every
+  setting the capture changes was put back one at a time over the bridge
+  (fog, sun hold, post effects, LOD ranges, pixel error, HUD cameras,
+  player / `PlayerLoc` position, god mode, overlay UI) - the ocean stayed
+  away; cloud shadows (`Sunshine.OvercastTexture`) could not be set from
+  the bridge and remain untested. Not `IsInClosedArea` (false), not
+  `OceanQualitySettings` (quality only). So v0.24.170-177's "-dry" tiles
+  were the same pictures; since v0.24.178 the bake draws the sea from the
+  heights. `ImageEffectOptimizer.Update` switches `Scene.OceanCeto` /
+  `OceanFlat` by the Ocean quality option and off in a closed area.
+- **Weather** (`TheForest.World.WeatherSystem`, `Scene.WeatherSystem`,
+  2026-10-01): rolls rain and clouds on its own; an overcast sky
+  (`CloudOvercastCurrentValue` 1, `State` Raining) lit the ground ~1.6x
+  darker from above than a clear one (0.1). `AllOff()` stops the rain;
+  in `Idle` the overcast does not ease back - set `CloudOvercastCurrentValue`
+  itself. `ForceRain(dice)` did not start rain at once (minutes later,
+  probably). `Game/AerialCapture` sets it clear and disables the component
+  for a capture (v0.24.179).
+- **Eye adaptation can't be switched off** (2026-10-01): setting
+  `PostProcessingBehaviour.profile.eyeAdaptation.enabled` false is undone
+  by `PostProcessingBehaviour.OnGUI` (`EnableScionEyeAdaption(PostEffects
+  System == 0)` + `CheckScionEyeAdaptation`: one frame of Scion's own auto
+  exposure, then eye adaptation back on). To hold one exposure, clamp its
+  `settings` (a struct - write back a changed copy): `minLuminance =
+  maxLuminance = EV`, `adaptationType = Fixed`. From 500 m up at midday
+  light, EV -3.5 looks like the adapted forest; the auto exposure lifts
+  dark forest and holds snow down (the photo map's brightness bands).
 - **Meshes are not readable** (`Mesh.isReadable` false, collision meshes
   too): geometry is read offline from the game's files
   (`scripts/world-extract.py`, UnityPy). Scene order = BuildSettings:
