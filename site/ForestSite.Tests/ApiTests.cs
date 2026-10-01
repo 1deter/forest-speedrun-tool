@@ -195,6 +195,25 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task SpotPage_CarriesItsPreviewTags()
+    {
+        Segment seg = TestSegment();
+        seg.Name = "Dash <to> the rock";
+        string ta = await Register(A);
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 75.5f, 4f)))).StatusCode);
+
+        string html = await _http.GetStringAsync("/spot/" + seg.Id);
+        Assert.Contains("<title>Dash &lt;to&gt; the rock - Forest Practice Runs</title>", html);
+        Assert.Contains("<meta property=\"og:title\" content=\"Dash &lt;to&gt; the rock - Forest Practice Runs\">", html);
+        Assert.Contains("1 run by 1 runner, best 1:15.500 by Runner 0000", html);
+        Assert.Contains("og:url\" content=\"https://localhost/spot/" + seg.Id, html);
+
+        string plain = await _http.GetStringAsync("/spot/s-nothere");
+        Assert.DoesNotContain("og:title", plain);
+        Assert.Contains("<title>Forest Practice Runs</title>", plain);
+    }
+
+    [Fact]
     public async Task Upload_SameAttemptTwice_IsStoredOnce()
     {
         Segment seg = TestSegment();

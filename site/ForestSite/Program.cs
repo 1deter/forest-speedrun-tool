@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading.RateLimiting;
 using ForestSite;
 using Microsoft.AspNetCore.RateLimiting;
@@ -384,8 +385,21 @@ IResult Page(HttpContext c)
     c.Response.Headers.CacheControl = "no-cache";
     return Results.Content(indexHtml, "text/html; charset=utf-8");
 }
+// A spot's page carries its name and best time as OpenGraph tags, so a link
+// pasted in Discord shows a preview (author, QA 2026-09-27). The script
+// still builds the page itself.
+IResult SpotPage(HttpContext c, string rest)
+{
+    c.Response.Headers.CacheControl = "no-cache";
+    string id = (rest ?? "").Split('/')[0];
+    JsonObject s = id.Length > 0 && id.Length <= 80 ? runs.Spot(id) : null;
+    if (s == null) return Results.Content(indexHtml, "text/html; charset=utf-8");
+    var (title, description) = Pages.SpotSummary(s);
+    string url = "https://" + c.Request.Host.Value + "/spot/" + Uri.EscapeDataString(id);
+    return Results.Content(Pages.WithMeta(indexHtml, title, description, url), "text/html; charset=utf-8");
+}
 app.MapGet("/", Page);
-app.MapGet("/spot/{**rest}", Page);
+app.MapGet("/spot/{**rest}", SpotPage).RequireRateLimiting("read");
 app.MapGet("/admin/{**rest}", Page);
 app.MapGet("/about", Page);
 api.MapFallback(() => Problem(404, "no such endpoint"));
@@ -401,6 +415,54 @@ public sealed class RegisterRequest
 
 public static class Pages
 {
+    /// A spot's title and one-line summary for link previews.
+    public static (string title, string description) SpotSummary(JsonObject s)
+    {
+        string name = (string)s["name"] ?? "A spot";
+        string by = (string)s["by"] ?? "";
+        string category = (string)s["category"] ?? "";
+        JsonNode route = s["routes"] is JsonArray r && r.Count > 0 ? r[0] : null;
+        int runs = route?["runs"]?.GetValue<int>() ?? 0;
+        JsonArray board = route?["board"] as JsonArray;
+        var sb = new StringBuilder();
+        sb.Append(category.Length > 0 ? category + " spot" : "A spot");
+        if (by.Length > 0) sb.Append(" by ").Append(by);
+        sb.Append(" in The Forest. ");
+        if (runs > 0 && board != null && board.Count > 0)
+        {
+            JsonNode best = board[0];
+            sb.Append(runs).Append(runs == 1 ? " run" : " runs").Append(" by ").Append(board.Count).Append(board.Count == 1 ? " runner" : " runners");
+            double d = best["duration"]?.GetValue<double>() ?? 0;
+            sb.Append(", best ").Append(Time(d)).Append(" by ").Append((string)best["name"] ?? "a runner").Append(". ");
+        }
+        else sb.Append("No runs yet. ");
+        sb.Append("Lines, ghosts and splits from ForestOverlay.");
+        return (name + " - Forest Practice Runs", sb.ToString());
+    }
+
+    private static string Time(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(seconds);
+        return t.TotalHours >= 1 ? ((int)t.TotalHours) + ":" + t.ToString(@"mm\:ss\.fff") : ((int)t.TotalMinutes) + ":" + t.ToString(@"ss\.fff");
+    }
+
+    /// The page with its title, description and OpenGraph / Twitter tags
+    /// for this page (HTML-encoded).
+    public static string WithMeta(string html, string title, string description, string url)
+    {
+        string t = System.Net.WebUtility.HtmlEncode(title), d = System.Net.WebUtility.HtmlEncode(description), u = System.Net.WebUtility.HtmlEncode(url);
+        html = System.Text.RegularExpressions.Regex.Replace(html, "<title>[^<]*</title>", "<title>" + t + "</title>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, "<meta name=\"description\" content=\"[^\"]*\">",
+            "<meta name=\"description\" content=\"" + d + "\">\n  " +
+            "<meta property=\"og:type\" content=\"website\">\n  " +
+            "<meta property=\"og:site_name\" content=\"Forest Practice Runs\">\n  " +
+            "<meta property=\"og:title\" content=\"" + t + "\">\n  " +
+            "<meta property=\"og:description\" content=\"" + d + "\">\n  " +
+            "<meta property=\"og:url\" content=\"" + u + "\">\n  " +
+            "<meta name=\"twitter:card\" content=\"summary\">");
+        return html;
+    }
+
     /// index.html with every local script / stylesheet link stamped with a
     /// hash of that file.
     public static string Index(string webRoot)
