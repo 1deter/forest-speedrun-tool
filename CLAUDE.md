@@ -589,10 +589,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.181** (2026-10-01). The author runs it via the in-game
-updater (v0.24.181 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
+**Released: v0.24.183** (2026-10-01). The author runs it via the in-game
+updater (v0.24.183 in the game at handoff, Slot 1). **457 tests** (+ 45 site tests).
 
-### Pick up here (2026-10-01, v0.24.181 in the game)
+### Pick up here (2026-10-01, v0.24.183 in the game)
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back
@@ -627,8 +627,17 @@ to us" - one item per session):
    `MOVED_ROOTS`, gotcha 77; a LOD 0 renderer also in LOD 1 was dropped,
    in 9 scene LOD groups too). Detail: game-notes *Terrain, and the world
    from above*, docs/website.md.
-5. 3D world: the sparse endgame lab, load size (thousands of files,
-   uncompressed `.bin`), the spot page's sideways scroll on phones.
+5. ~~3D world: the sparse lab, load size, the phone scroll~~ **done**
+   (2026-10-01, live, not yet looked at by the author): the lab's floors,
+   ceilings, signs and whiteboard drawings were dropped as "debug
+   primitives" - the export now keeps what the endgame's areas switch on
+   (v0.24.182-183 `WorldDump.AreaMembers`, keyed by object path; measured
+   by diffing every area's live renderers - docs/website.md *The 3D
+   world*); glass drawn see-through; mesh packs + gzip and the phone fix
+   came from a cloud session (merged). Measured live, the Labskip spot's
+   3D view: 604 requests (458 textures, 55 packs, 90 chunks), 38 MB on the
+   wire (61 MB decoded). Left: textures are now most requests (atlas /
+   pack them), LODs for phones, skinned meshes (Timmy, the dead girl).
 6. LiveSplit `.lss` import UI (Next up 9).
 7. Waiting on others: raw FPS (the FPS session), Quick load physics
    (maks), the testers' open lists; QoL in docs/backlog.md.
@@ -711,14 +720,11 @@ game internals: game-notes *Terrain, and the world from above*.
   world** - the terrain from its splat maps, every prop.
 - **Next, in order:** (1) the 3D world at the Elevator Boost end (snow
   cliffs: the top layer; the run's end is past the map's south edge, z
-  -1969). (2) The endgame lab looked **sparse** (props, few
-  walls / floors; box colliders show the shape) - not the empty `Walls` /
-  `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
-  `tp` lands with the sections unloaded) with the site at the same spot,
-  `find` a missing wall live, read its mesh name. (3) Load size: a spot
-  fetches thousands of files (one per mesh / texture) and `.bin` is
-  uncompressed - pack meshes per chunk or serve gzip; heavy chunks
-  (endgame ~2M triangles) want decimation / LODs for phones. (4) Greebles
+  -1969). (2) ~~The sparse lab, load size~~ done (item 5 above);
+  left: texture requests (458 per spot), decimation / LODs for heavy
+  chunks on phones. Lab tip: a `tp` lands with the sections off - `call
+  Sections/<area> Area.OnEnter null` switches one on (entering one leaves
+  the last). (4) Greebles
   (random per visit) and pickups are not in the world. (5) 2D floor plans
   of caves from the collision at the ghost's height (author's earlier
   ask). (6) Separate toggles per kind (trees / rocks / buildings /
@@ -748,13 +754,15 @@ game internals: game-notes *Terrain, and the world from above*.
 - maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
   comparison (start / end frame per run, segment times) - backlog,
   site-only.
-- The spot page no longer scrolls sideways at phone width (branch
-  `cloud/world-load-size`: long runner names wrap, tables scroll in their
-  own box; checked headless at 375 px, desktop pixel-identical).
-  **Remote agents**:
-  `Agent` with `isolation: "remote"` ran in a local worktree here, not in
-  the cloud - for cloud credit the author starts a cloud session with a
-  task text.
+- The spot page no longer scrolls sideways at phone width (live: long
+  runner names wrap, tables scroll in their own box; checked headless at
+  375 px, desktop pixel-identical).
+  **Cloud sessions**: `Agent` with `isolation: "remote"` runs in a local
+  worktree, not the cloud. What does run in the cloud: a one-time routine
+  (`/schedule` skill -> `RemoteTrigger` create with `run_once_at` a minute
+  ahead, repo 1deter/forest-speedrun-tool, a self-contained prompt; it
+  pushes a branch - never main, a push to `site/` deploys) - read it with
+  `list_runs` / `get_run_log`, then merge here (2026-10-01, worked).
 
 **Done this session (site + v0.24.160-161):** the spot page's **State**
 panel - the selected run at the scrub time (health, stamina ... a preset
@@ -994,10 +1002,9 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State (2026-10-01 handoff, the map-polish session):** the game runs
-v0.24.181 in Slot 2 (loaded from the title, not saved since), the player
-at the tree spot (428, 78, -4), god mode / infinite energy off, freecam
-off. Slot 2 is the only
+**State (2026-10-01 handoff, the 3D-lab session):** the game runs
+v0.24.183 in Slot 1 (the endgame lab, Creative; loaded from the title, not
+saved since), god mode / infinite energy off, freecam off. Slot 2 is the only
 Normal slot: Slots 1 and 5 are Creative, 3 Hard, 4 Peaceful; a runner's
 survival start state restores only in a survival game.
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,

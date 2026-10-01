@@ -419,8 +419,12 @@ click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
 `forest3d.canvas`. A second local site beside another session's (port 5081,
 own build output and data): `.claude/launch.json` `forest-site-alt`.
 
-Open: the packs and gzip (*Load size*) are
-not measured on the real export yet; heavy chunks want LODs for phones;
+Measured live (2026-10-01, the Labskip spot's 3D view, its own fit): 604
+world requests - 458 textures, 55 packs, 90 chunks, the json - 38 MB on
+the wire, 61 MB decoded.
+
+Open: textures are now most of the requests (pack / atlas them); heavy
+chunks want LODs for phones;
 pickups and the player's random sticks / rocks are missing; per-kind
 toggles. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
