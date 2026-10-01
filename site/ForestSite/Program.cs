@@ -425,7 +425,9 @@ public static class Pages
         int runs = route?["runs"]?.GetValue<int>() ?? 0;
         JsonArray board = route?["board"] as JsonArray;
         var sb = new StringBuilder();
-        sb.Append(category.Length > 0 ? category + " spot" : "A spot");
+        // The plugin's default category says nothing about the spot.
+        bool plain = category.Length == 0 || category.EndsWith("spots", StringComparison.OrdinalIgnoreCase) || category == "Segments";
+        sb.Append(plain ? "A spot" : category + " spot");
         if (by.Length > 0) sb.Append(" by ").Append(by);
         sb.Append(" in The Forest. ");
         if (runs > 0 && board != null && board.Count > 0)
