@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.174 - 2026-10-01
+
+- Developer tooling only: the 3D map dump can list the small things the game
+  scatters around (sticks, rocks, bodies, stalactites), for the website's 3D
+  map. Nothing changes in game.
+
 ## v0.24.173 - 2026-09-28
 
 - Developer tooling only: the 3D map dump keeps each object's own scale.
