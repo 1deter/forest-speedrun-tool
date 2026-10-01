@@ -530,7 +530,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done.
 69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder.
 70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there.
-71. **Right place is not right model; look the way the author looks** - the greebles matched positions to 1 cm but showed leaves / big shards in Cave 6: assets matched by name (+ vertex count) are ambiguous (`default` = 107 parts); check a real spot in the page's default view before "done".
+71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open.
 
 ---
 
@@ -627,29 +627,17 @@ game internals: game-notes *Terrain, and the world from above*.
   (user error - dropped). Tools: a headless look (Playwright + Edge,
   docs/website.md *Looking at a spot*), a second local site on 5081
   (`forest-site-alt`).
-- **NEXT SESSION (author, 2026-10-01): the greebles broke Cave 6 in 3D.**
-  *1st logboost* (`s-6a42bcf056fb`, live) in the page's default 3D view:
-  huge green leaves and big grey shards fill the cave ("similar to the
-  initial cave issue"; the author's screenshot was in chat, not saved).
-  Checked before handing off: **no foliage is placed within 70 m** of the
-  spot (greebles-caves.txt / spawned.txt) - what is there: 66 cave spike
-  clusters (`LOD_CaveMedium` -> `CaveSpikesCluster1_High`, scale 0.7), body
-  piles, stalactites (`Stalactite1-4_low`), `Cave_Rock01-06`, wood chunks,
-  `Cave_LongHangy_High`. So the right objects are drawn with the **wrong
-  mesh / material** (gotcha 71). Leads, in order: (1) `spawned()` in
-  scripts/world-extract.py finds meshes by (name, vertex count) and
-  materials by name, first match across all `.assets` - `default` names 107
-  parts, and greeble prefabs (stalactites, cave rocks) are mostly `default`;
-  print, for the prefabs above, which asset file / path id each part got
-  and compare live (`find` one, `get #h MeshFilter.sharedMesh.bounds` /
-  `MeshRenderer.sharedMaterials`). Fix: have WorldDump write something unique
-  per mesh (bounds + the first vertex; materials: the main texture's name)
-  and match on it. (2) scale: a loader's `lod` line carries the loader
-  prefab's own scale; `LOD_CaveMedium` takes the placeholder's lossyScale
-  (gotcha 69) - check a live `CaveSpikesCluster1_High(Clone)` lossyScale
-  against the export. If it cannot be fixed quickly, drop the greebles from
-  the export (no `greebles-*.txt` read) and re-upload, so the live site is
-  as before. Then look with the page's default view (gotcha 71).
+- **Cave 6 "leaves and shards" in 3D (2026-10-01): not the greebles** -
+  a stale page: the author's tab held the previous upload's `world.json`
+  and got the new upload's index-named files (gotcha 71). Fixed on the
+  site: another build's `?v=` (or any during an upload) is a 404, the page
+  re-reads `world.json` per 3D view and starts over on a refused file
+  (`site/ForestSite/MetaBuild.cs`, `world3d.js` `stale()`; tested + checked
+  headless against a local site). The export itself was checked: every
+  mesh / material near the spot has one candidate, live renders match the
+  game. The same once-per-page read holds for the photo map's
+  `aerial.json` (map.js): its tiles of an older build now 404 (holes, not
+  mixed tiles) until a reload.
 - **The author's map list (2026-10-01, docs/backlog.md *Website*):** photo
   map tiles in bands of different brightness, the Water button doing
   nothing, 3D photo terrain textures breaking / unloading (Elevator Boost,

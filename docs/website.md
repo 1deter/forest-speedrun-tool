@@ -207,7 +207,9 @@ with a Water switch.
    `tiles.txt` - recapture before the next bake.
 2. **Bake**: `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
    git; pyramid L0-6, 256 px, a dry tile falls back to the wet one;
-   `aerial.json` carries `build`, the tiles' `?v=`).
+   `aerial.json` carries `build`, the tiles' `?v=`). The server refuses
+   a file asked for with another build's `?v=`, and any `?v=` while the
+   json is missing (mid-upload) - 404, `no-store` (`MetaBuild`, gotcha 71).
 3. **Upload** (owner token): `python scripts/aerial-upload.py` - chunks
    under 90 MB to `/api/admin/aerial`, the first clears the folder.
 

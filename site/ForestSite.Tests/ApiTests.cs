@@ -476,4 +476,43 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("application/octet-stream", bin.Content.Headers.ContentType?.MediaType);
         Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));   // untouched
     }
+
+    [Fact]
+    public async Task WorldFilesOfAnotherBuildAreRefused()
+    {
+        // Files are named by index: a page holding the previous upload's
+        // world.json must not get this upload's m/3.bin in its place.
+        async Task Upload(string query, params (string Name, string Text)[] files)
+        {
+            using var ms = new MemoryStream();
+            using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, true))
+                foreach (var (name, text) in files)
+                {
+                    using var w = new StreamWriter(zip.CreateEntry(name).Open());
+                    w.Write(text);
+                }
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/admin/world" + query) { Content = new ByteArrayContent(ms.ToArray()) };
+            req.Headers.Add("X-Admin-Token", "admin-secret");
+            Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(req)).StatusCode);
+        }
+
+        await Upload("?clear=1", ("m/3.bin", "mesh A"), ("world.json", "{\"version\":1,\"build\":1790815322}"));
+        Assert.Equal("mesh A", await _http.GetStringAsync("/world/m/3.bin?v=1790815322"));
+        Assert.Equal("mesh A", await _http.GetStringAsync("/world/m/3.bin"));   // no version: served
+        var old = await _http.GetAsync("/world/m/3.bin?v=1790000000");
+        Assert.Equal(HttpStatusCode.NotFound, old.StatusCode);
+        Assert.Contains("no-store", old.Headers.CacheControl?.ToString());
+
+        // Mid-upload (?clear=1 removed the json, which goes last): no version is served.
+        await Upload("?clear=1", ("m/3.bin", "mesh B"));
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/world/m/3.bin?v=1790815322")).StatusCode);
+        await Upload("", ("world.json", "{\"version\":1,\"build\":1790900000}"));
+        Assert.Equal("mesh B", await _http.GetStringAsync("/world/m/3.bin?v=1790900000"));
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/world/m/3.bin?v=1790815322")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/world/world.json")).StatusCode);
+
+        // A json without a stamp (an older export) refuses nothing.
+        await Upload("", ("world.json", "{\"version\":1}"));
+        Assert.Equal("mesh B", await _http.GetStringAsync("/world/m/3.bin?v=123"));
+    }
 }

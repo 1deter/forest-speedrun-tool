@@ -74,6 +74,23 @@ binaryTypes.Mappings[".bin"] = "application/octet-stream";
 foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial.json"), (worldDir, "/world", "/world/world.json") })
 {
     Directory.CreateDirectory(dir);
+    // A file asked for with another build's ?v= is refused: the files are
+    // named by index, so a page still holding the previous upload's json
+    // (open since before it, or mid-upload) would get this upload's file at
+    // that index - leaves on a cave wall - and the browser / Cloudflare
+    // would keep it for a day under the old URL. 404 + no-store: the page
+    // re-reads the json (world3d.js) and nothing caches the miss. During an
+    // upload (the json goes last; ?clear=1 deleted it) every ?v= is refused.
+    var build = new MetaBuild(Path.Combine(dir, Path.GetFileName(meta)));
+    app.Use((c, next) =>
+    {
+        if (!c.Request.Path.StartsWithSegments(path) || c.Request.Path == meta) return next(c);
+        string v = c.Request.Query["v"];
+        if (v == null || build.Accepts(v)) return next(c);
+        c.Response.StatusCode = 404;
+        c.Response.Headers.CacheControl = "no-store";
+        return Task.CompletedTask;
+    });
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dir),

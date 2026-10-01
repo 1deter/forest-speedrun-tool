@@ -7,6 +7,10 @@
 // one InstancedMesh over all loaded chunks, so the draw calls stay at the
 // number of models in view, not of objects. Files are fetched with
 // ?v=<build> (world.json's export time): cached for a day, never stale.
+// Files are named by index, so a page holding an older world.json would
+// draw a new upload's files in the old places (leaves on cave walls): the
+// server refuses another build's ?v= (404) and the page then re-reads
+// world.json and starts over (stale()); each 3D view reads it afresh.
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
 // instance's matrix is S * M with S = diag(1, 1, -1) on the mesh's own
@@ -21,9 +25,10 @@ const CUT_MARGIN = 4;                      // metres kept in front of the target
 const S = new THREE.Matrix4().makeScale(1, 1, -1);
 
 let metaPromise = null;
-/// world.json's content, or null (nothing uploaded).
-export function worldMeta() {
-  if (!metaPromise) metaPromise = fetch("/world/world.json", { cache: "no-cache" })
+/// world.json's content, or null (nothing uploaded). fresh: read it again
+/// (a new 3D view, a file refused as another upload's).
+export function worldMeta(fresh) {
+  if (!metaPromise || fresh) metaPromise = fetch("/world/world.json", { cache: "no-cache" })
     .then(r => r.status === 200 ? r.json() : null)
     .then(m => m && m.version === 1 && Array.isArray(m.chunks) ? m : null)
     .catch(() => null);
@@ -69,6 +74,8 @@ export class World {
     this.mats = new Map();        // material index -> THREE.Material (render)
     this.drawn = new Map();       // model index -> THREE.InstancedMesh
     this.dirtyModels = new Set();
+    this.gen = 0;                 // + 1 on each start-over (stale()): late loads of the old world are dropped
+    this.staleAt = 0;
     this.show = { models: true, collision: false };
     try { const s = JSON.parse(localStorage.getItem("forest.world3d") || "null"); if (s) Object.assign(this.show, s); } catch (e) { /* defaults */ }
     this.fade = 1;
@@ -98,7 +105,31 @@ export class World {
     this.status.className = "map3dworldnote";
     this.box.append(this.status);
 
-    worldMeta().then(m => { if (!m || this.disposed) return; this.meta = m; this.v = "?v=" + (m.build || 0); this.box.hidden = false; this.next = 0; this.changed(); });
+    worldMeta(true).then(m => this.use(m));
+  }
+
+  use(m) {
+    if (!m || this.disposed) return;
+    this.meta = m; this.v = "?v=" + (m.build || 0); this.box.hidden = false; this.next = 0; this.changed();
+  }
+
+  /// A file refused (404): the world may have been uploaded again while this
+  /// page was open. Read world.json again (at most every 30 s - a file really
+  /// missing would ask on every chunk) and, if it changed, start over with it.
+  stale() {
+    const now = performance.now();
+    if (this.disposed || now < this.staleAt) return;
+    this.staleAt = now + 30000;
+    worldMeta(true).then(m => {
+      if (!m || this.disposed || !this.meta || m.build === this.meta.build) return;
+      this.gen++;
+      for (const [, mesh] of this.drawn) { this.group.remove(mesh); mesh.dispose(); }
+      for (const p of this.geoms.values()) p.then(g => g && g.dispose());
+      for (const t of this.textures.values()) t.dispose();
+      for (const x of this.mats.values()) x.dispose();
+      for (const x of [this.drawn, this.geoms, this.textures, this.mats, this.chunks, this.dirtyModels]) x.clear();
+      this.use(m);
+    });
   }
 
   mark(b, on) { b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
@@ -176,6 +207,7 @@ export class World {
     this.chunks.set(file, entry);
     try {
       const r = await fetch("/world/" + file + this.v);
+      if (r.status === 404) this.stale();
       if (!r.ok) throw new Error(r.status);
       const buf = await r.arrayBuffer();
       if (this.disposed || this.chunks.get(file) !== entry) return;
@@ -204,7 +236,10 @@ export class World {
   geometry(index) {
     if (this.geoms.has(index)) return this.geoms.get(index);
     const m = this.meta.meshes[index];
-    const p = fetch("/world/m/" + index + ".bin" + this.v).then(r => r.ok ? r.arrayBuffer() : null).then(buf => {
+    const p = fetch("/world/m/" + index + ".bin" + this.v).then(r => {
+      if (r.status === 404) this.stale();
+      return r.ok ? r.arrayBuffer() : null;
+    }).then(buf => {
       if (!buf) return null;
       const g = new THREE.BufferGeometry();
       let at = 0;
@@ -241,7 +276,7 @@ export class World {
     const key = (alpha ? i + "a" : "" + i) + (scale ? "x" + scale.join(",") : "");
     let t = this.textures.get(key);
     if (!t) {
-      t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed());
+      t = new THREE.TextureLoader().load("/world/t/" + i + (alpha ? ".png" : ".jpg") + this.v, () => this.changed(), undefined, () => this.stale());
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       if (scale) t.repeat.set(scale[0], scale[1]);
@@ -252,7 +287,7 @@ export class World {
 
   /// One InstancedMesh per model over every ready chunk.
   async rebuild() {
-    const models = [...this.dirtyModels];
+    const models = [...this.dirtyModels], gen = this.gen;
     this.dirtyModels.clear();
     const by = new Map(models.map(mi => [mi, []]));
     const surface = new Map();
@@ -268,6 +303,7 @@ export class World {
       // Glints and particles (the pickups' sheen): not a solid thing.
       if (model.mats.length && model.mats.every(x => x >= 0 && this.meta.materials[x].fx)) continue;
       const g = await this.geometry(model.mesh);
+      if (gen !== this.gen) return;      // started over meanwhile (stale())
       if (!g || this.disposed || this.drawn.has(mi)) continue;
       let mat;
       if (model.kind === "collide") mat = [this.collideMat, this.collideWire];

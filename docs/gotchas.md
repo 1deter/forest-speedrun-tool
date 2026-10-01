@@ -565,17 +565,22 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     first ask `Physics.OverlapSphere` in game what is there (the bridge
     lists the colliders), then look for that object in the export.
 
-71. **Right place is not right model - and look the way the author looks.**
-    (2026-10-01, the 3D world's greebles.) The greeble dump matched the
-    game's positions to 1 cm, renders from hand-placed cameras looked fine,
-    and it was announced as done; the author opened *1st logboost* in 3D with
-    the page's own view and saw Cave 6 full of huge leaves and big grey
-    shards - nothing leafy is placed there, so objects in the right spots
-    were drawn with the wrong mesh or material. The export finds a pooled
-    prefab's meshes by **name + vertex count** and its materials by **name**
-    across every `.assets` file, first match wins - `default` alone names
-    107 different parts. Two lessons: identify an asset by something unique
-    (the dump can write the mesh's bounds / first vertices, or the asset's
-    file + path id via `Resources` / instance id), and before calling a
-    render done, open a real spot the way a runner does (the page's default
-    3D view, then orbit), not only a camera placed to compare one shot.
+71. **A `?v=` the server ignores protects nothing - and reproduce on a
+    fresh load before blaming the data.** (2026-10-01, the 3D world.) The
+    author saw Cave 6 full of leaves and big grey shards 3 minutes after a
+    world upload; the handoff blamed the export's asset matching (name +
+    vertex count). Wrong: every mesh / material near the spot had exactly
+    one candidate, and a fresh load of the live site looked right. The
+    author's tab had been open since before the upload: `world3d.js` read
+    `world.json` once per page (the site navigates without reloading), the
+    files are **named by index**, and the static server ignored `?v=` - so
+    the old index got the new upload's files at those numbers (a tree's
+    leaves where a cave wall was), cached a day under the old URL. Fixed
+    (`MetaBuild`): another build's `?v=` - or any while an upload runs (the
+    json goes last) - is a 404 with `no-store`, and the page re-reads the
+    json on each 3D view and starts over on a refused file. Lessons: a
+    version in the URL only helps if the server checks it whenever the
+    content behind a name can change; and when a report shows what fresh
+    renders do not, ask *when* and *how long the page was open* - the
+    author's screenshot is in the previous session's transcript (`type:
+    image` in its `.jsonl`) even when the handoff says it was not saved.
