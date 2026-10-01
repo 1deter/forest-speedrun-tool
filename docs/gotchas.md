@@ -651,3 +651,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     handle). Compare an exported object's position with the live one
     (`find`) before chasing its look; export moved objects from the live
     game (`WorldDump.Placed`).
+
+78. **A folder read whole turns a diagnostic dump into data.** (2026-10-01,
+    the 3D lab.) The export reads every `placed-*.txt` in the world dump
+    folder; 28 `WorldDump.Placed` dumps made to diff the lab went into two
+    exports as duplicate geometry, and the diff against those exports
+    matched the dumps against themselves (5857 "matched", 5690 really).
+    Write diagnostic dumps under a name the reader skips, or move them out
+    before the next run; check an improvement against a clean input.
+    Same session: key "the game lists this object" on its path, not its
+    place - props physics nudged (whiteboards and their drawings) did not
+    match by position.

@@ -242,6 +242,11 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `config/ForestOverlay/world/spawned.txt` - every LOD placeholder (trees,
    bushes, saplings, rocks, cave walls; not greebles under `Pooling`) and
    its prefab's parts. Only needed again after a game update.
+   **Endgame area members** (v0.24.182, in the endgame - its scene
+   loaded): `call static:ForestOverlay.Game.WorldDump AreaMembers` ->
+   `world/area-members.txt`, what each area switches on (below). Every
+   `placed-*.txt` / `greebles-*.txt` in that folder goes into the export:
+   keep diagnostic `Placed` dumps elsewhere (gotcha 78).
 2. **Export** (offline, ~40 s, `pip install UnityPy`): `python
    scripts/world-extract.py export` reads the scenes from the game's files
    (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
@@ -257,7 +262,7 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `world.json` per 3D view and starts over when a file is refused
    (`stale()`, gotcha 71). A tab open across an upload recovers by itself.
 
-**Load size** (2026-10-01, branch `cloud/world-load-size`):
+**Load size** (2026-10-01, a cloud session, merged):
 - **Mesh packs** (`version` 2): the meshes joined into a few `p/<i>.bin`
   (each mesh's `pack` = [pack, offset, length], 4-byte aligned) - a mesh
   used by one chunk in that chunk's pack, by 8+ chunks in its area's common
@@ -335,7 +340,27 @@ What the export decides (details: gotchas 64-67):
 - Dropped too: `VRTreeRing` (the VR mode's black ring round trunks); the AFS
   tree shaders' `_Color` is ignored (0,0,0 on pines / fig trees - black
   trees on the site).
-- Missing so far: skinned meshes.
+- **The endgame's area members** (2026-10-01, v0.24.182): every endgame
+  renderer is switched off in the scene file; entering an area runs its
+  `AreaMembers.TurnOnMembers`, which switches on exactly its `_renderers`
+  list. A switched-off primitive (Cube / Quad / Plane ...) used to be
+  dropped as a debug volume - the lab's office floors, ceiling tiles,
+  concrete cubes, door signs, whiteboard drawings, bloody footprints went
+  with it (~250; "the lab looks sparse"). Now one an area lists is kept
+  (`area-members.txt`); a rock-textured blocker cube in the same section
+  stays off in game and out of the export. Measured over the bridge: each
+  of the 24 areas entered in turn (`call Sections/<area> Area.OnEnter
+  null` - entering one leaves the last), its renderers dumped and diffed
+  against the export: what is left is props that physics moved (0.1-0.3
+  m), skinned meshes and the pickups' glints.
+- **Glass** (2026-10-01): a Standard material in Fade / Transparent mode
+  (`_Mode` 2 / 3) or a legacy transparent shader is `glass` (opacity = the
+  colour's alpha, drawn see-through, both sides) - lab windows, glass
+  walls, cabinet doors; with a texture full of holes it is a cut-out
+  instead (grills, dirt decals).
+- Missing so far: skinned meshes (Timmy, the dead girl, the artifact's
+  door). The site has no lighting, so the lab reads white where the game
+  is dark - its textures are right (checked).
 
 **Terrain, sea and water in 3D (2026-10-01, `map3d.js` / `world3d.js`):**
 - The island mesh is every 2nd height sample on desktop (~7 m), every 4th
@@ -386,13 +411,15 @@ any spot, 3D, then in the page
 yaw 0 = north, pitch down) - the game camera's `Transform.position` /
 `eulerAngles` from the bridge give the same view as a `shot`. The game's
 vertical FOV is 95 at 16:10, the site's 55 over a wider canvas - close
-enough to compare shapes. Headless (the in-app pane pauses rendering when
+enough to compare shapes; for a like-for-like look set the site's
+`forest3d.camera.fov = 95; forest3d.camera.near = 0.2;
+forest3d.camera.updateProjectionMatrix()` first. Headless (the in-app pane pauses rendering when
 hidden): `pip install playwright`, Edge via `channel="msedge"` - open a spot,
 click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
 `forest3d.canvas`. A second local site beside another session's (port 5081,
 own build output and data): `.claude/launch.json` `forest-site-alt`.
 
-Open: the endgame lab looks sparse; the packs and gzip (*Load size*) are
+Open: the packs and gzip (*Load size*) are
 not measured on the real export yet; heavy chunks want LODs for phones;
 pickups and the player's random sticks / rocks are missing; per-kind
 toggles. The photo map's `aerial.json` is still read once per page

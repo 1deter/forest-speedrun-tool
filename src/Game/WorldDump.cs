@@ -67,8 +67,10 @@ namespace ForestOverlay.Game
     // switches on the renderers in its _renderers list - and only those (a
     // rock-textured blocker cube in the same section stays off). The export
     // keeps a switched-off primitive (floor quads, concrete cubes, signs)
-    // only when an area lists it. world/area-members.txt:
-    //   member <area> <mesh name> <vertex count> <x y z>
+    // only when an area lists it - by its path in the scene, not where it is
+    // now (a whiteboard's drawings move with the board when physics nudges
+    // it). world/area-members.txt:
+    //   member <area> <mesh name> <vertex count> <x y z> <object path>
     // ------------------------------------------------------------------
     public static class WorldDump
     {
@@ -177,7 +179,8 @@ namespace ForestOverlay.Game
                     Vector3 p = r.transform.position;
                     sb.Append("member\t").Append(Clean(c.name)).Append('\t').Append(Clean(mf.sharedMesh.name)).Append('\t')
                       .Append(mf.sharedMesh.vertexCount).Append('\t')
-                      .Append(F(p.x)).Append(' ').Append(F(p.y)).Append(' ').Append(F(p.z)).Append('\n');
+                      .Append(F(p.x)).Append(' ').Append(F(p.y)).Append(' ').Append(F(p.z)).Append('\t')
+                      .Append(Clean(FullPath(r.transform))).Append('\n');
                     members++;
                 }
             }
@@ -554,6 +557,12 @@ namespace ForestOverlay.Game
         }
 
         private static string Name(Transform t) { return t != null ? Clean(t.name) : "-"; }
+        private static string FullPath(Transform t)
+        {
+            string p = t.name;
+            for (t = t.parent; t != null; t = t.parent) p = t.name + "/" + p;
+            return p;
+        }
         private static string Clean(string s) { return string.IsNullOrEmpty(s) ? "-" : s.Replace('\t', ' ').Replace('\n', ' ').Replace(';', ','); }
         private static string F(float v) { return v.ToString("0.#####", CultureInfo.InvariantCulture); }
     }

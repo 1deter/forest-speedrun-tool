@@ -537,6 +537,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model.
 76. **A game can have more than one distance switch** - LOD_Manager's ranges and 963 `LOD_GroupToggle`s with their own; a shape cut at a tile edge = a switch on the tile's centre (`ilscan refs PlayerCamLocation::PlayerLoc`).
 77. **A scene object can be moved at run time** - the yacht stands 130 m from its scene position (a positive handle under a spawned root); check an exported object against `find` before chasing its look.
+78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places.
 
 ---
 

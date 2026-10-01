@@ -266,6 +266,17 @@ def root_name(scene, tid):
     return g[0] if g else ""
 
 
+def obj_path(scene, tid):
+    """An object's path from its root ("Sections/GlassOffice_A/GEO/Floor (1)"),
+    written as WorldDump writes it (';' -> ',')."""
+    names = []
+    while tid:
+        g = scene.gos.get(scene.go_of.get(tid))
+        names.append(g[0] if g else "")
+        tid = scene.local.get(tid, (0, 0))[1]
+    return "/".join(reversed(names)).replace("\t", " ").replace(";", ",")
+
+
 class Ground:
     """The terrain's height at a point, from the site's own bake
     (wwwroot/terrain, scripts/terrain-bake.py) - as map.js groundAt."""
@@ -307,7 +318,7 @@ class Export:
         self.chunks = collections.defaultdict(list)     # (area, cx, cz, wide) -> [(model, matrix)]
         self.reach = {}      # chunk key -> [x0, z0, x1, z1] of its instances' bounds
         self.under = 0       # "surface" instances moved to the caves (under the terrain)
-        self.members = {}    # (mesh name, vertex count) -> positions an endgame area switches on (area-members.txt)
+        self.members = set()     # (object path, mesh name, vertex count) an endgame area switches on (area-members.txt)
 
     @staticmethod
     def key(pptr):
@@ -508,15 +519,16 @@ class Export:
             return
         for line in open(path, encoding="utf-8"):
             f = line.rstrip("\n").split("\t")
-            if len(f) == 5 and f[0] == "member":
-                self.members.setdefault((f[2], int(f[3])), []).append(tuple(map(float, f[4].split())))
+            if len(f) == 6 and f[0] == "member":
+                self.members.add((f[5], f[2], int(f[3])))
+        if not self.members:
+            print(path, "has no object paths - write it again (v0.24.183+)")
 
-    def member(self, mesh, m):
-        """Whether an endgame area switches this renderer on: its mesh at its place."""
+    def member(self, scene, g, mesh):
+        """Whether an endgame area switches this renderer on: its object's path
+        in the scene and its mesh (not its place: physics nudges props)."""
         me = self.meshes[mesh]
-        p = m[:3, 3]
-        return any(abs(p[0] - x) + abs(p[1] - y) + abs(p[2] - z) < 0.05
-                   for x, y, z in self.members.get((me["name"], me["nv"]), ()))
+        return (obj_path(scene, g[3]), me["name"], me["nv"]) in self.members
 
     def model(self, mesh, mats, kind, layer):
         k = (mesh, tuple(mats), kind, layer)
@@ -559,7 +571,7 @@ class Export:
             # switches it on (AreaMembers): office floors, ceiling tiles,
             # concrete cubes, signs, whiteboard drawings (2026-10-01).
             if kind == "render-off" and (g[1] in VOLUME_LAYERS or self.meshes[mesh]["name"] in PRIMITIVES) \
-                    and not (level == 7 and self.member(mesh, m)):
+                    and not (level == 7 and self.member(s, g, mesh)):
                 continue
             if kind == "render-off" and all(k < 0 or self.materials[k]["name"] in BAKE_MATERIALS for k in mats):
                 continue    # a build leftover (navmesh_patch, cliff_COMBINED, treesExport ...: whole-map meshes, never drawn)
