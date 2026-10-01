@@ -255,8 +255,12 @@ namespace ForestOverlay.Data
         public static Segment Build(LssRun run, LssAutoSplit asl, string fallbackName)
         {
             Segment s = new Segment();
+            // "The Forest Any%"; without a category the file's own name says
+            // more ("The Forest Coop Any%.lss" has only a game name).
             string title = (run.GameName + " " + run.CategoryName).Trim();
-            s.Name = title.Length > 0 ? title : (fallbackName ?? "LiveSplit run");
+            s.Name = run.CategoryName.Trim().Length > 0 || string.IsNullOrEmpty(fallbackName)
+                ? (title.Length > 0 ? title : "LiveSplit run")
+                : fallbackName;
             s.Category = Category;
 
             string[] starts = asl != null ? asl.StartEvents() : new string[0];

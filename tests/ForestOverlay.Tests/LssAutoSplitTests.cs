@@ -187,6 +187,8 @@ namespace ForestOverlay.Tests
             Segment s = LssSegmentBuilder.Build(run, ReadReal(), "file");
 
             Assert.Equal("The Forest Coop Any%", s.Name);
+            run.CategoryName = "";
+            Assert.Equal("my file", LssSegmentBuilder.Build(run, null, "my file").Name);
             Assert.Equal("LiveSplit", s.Category);
             Assert.True(s.IsTimed);
             Assert.Equal("event moving", TriggerParser.Write(s.Start));

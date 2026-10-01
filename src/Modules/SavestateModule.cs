@@ -124,6 +124,7 @@ namespace ForestOverlay.Modules
             _greebles.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            NatureGuideKeeper.Install(ctx.Log, OverlayPlugin.PluginGuid);
             PathfindingWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             RefreshFiles();
@@ -174,6 +175,7 @@ namespace ForestOverlay.Modules
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
             FullCapacityWatch.Uninstall();
+            NatureGuideKeeper.Uninstall();
             PathfindingWatch.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
@@ -682,6 +684,14 @@ namespace ForestOverlay.Modules
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
+                // The nature guide's ticks: the save's list is back, the
+                // entries are not (NatureGuideKeeper).
+                string guideNote = "";
+                if (r.Ok)
+                {
+                    try { guideNote = NatureGuideKeeper.Restore(); }
+                    catch (Exception ex) { guideNote = "nature guide: failed (" + ex.Message + ")"; }
+                }
                 // The sticks / rocks around trees come from pool objects
                 // that carry their own seed (GreebleKeeper).
                 string greebleNote = "";
@@ -736,6 +746,7 @@ namespace ForestOverlay.Modules
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
+                              (guideNote.Length == 0 ? "" : " | " + guideNote) +
                               (greebleNote.Length == 0 ? "" : " | " + greebleNote) +
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote);
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);

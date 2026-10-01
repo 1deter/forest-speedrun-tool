@@ -2068,6 +2068,21 @@ namespace ForestOverlay.Modules
             }
         }
 
+        /// The bridge's way in (a click it cannot make): Import on the
+        /// LiveSplit file of that name in livesplit/.
+        public string ImportLiveSplitFile(string fileName)
+        {
+            ScanImports();
+            for (int i = 0; i < _imports.Count; i++)
+                if (_imports[i].Run != null &&
+                    string.Equals(System.IO.Path.GetFileName(_imports[i].Path), fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ImportLiveSplit(_imports[i]);
+                    return _importStatus.text;
+                }
+            return "no LiveSplit file '" + fileName + "' in " + _lssDir;
+        }
+
         /// A LiveSplit file -> a new timed spot where the player stands, its
         /// rows named and split as the file's (Data/LssSegmentBuilder), the
         /// file linked as its comparison, armed at once.

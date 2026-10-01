@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.187 - 2026-10-01
+
+- Quick load now puts the nature guide back as it was at the capture:
+  entries found since are un-ticked (finding them again ticks them), and
+  entries ticked in the savestate are ticked.
+- A LiveSplit import with no category in the file is named after the
+  file ("The Forest Coop Any%") instead of just "The Forest".
+
 ## v0.24.186 - 2026-10-01
 
 - **Import a LiveSplit file as a spot, in one click**: put your `.lss`
