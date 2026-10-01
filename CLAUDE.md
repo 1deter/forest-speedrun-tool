@@ -595,6 +595,59 @@ updater (v0.24.185 in the game at handoff, Slot 1). **459 tests** (+ 45 site tes
 
 ### Pick up here (2026-10-01, v0.24.185 in the game)
 
+**NEXT, in this order (author, QA 2026-10-01 19:57-20:22; "3 first, then
+a new session for the rest"):**
+1. **One-click `.lss` import that builds the spot** (author: "make it
+   also import the splitting logic and create a spot for you ... a
+   singular import button"; the current link-a-file-to-a-spot flow is
+   "very difficult to understand in terms of UX"). NOT STARTED. Design
+   (agreed in chat): a `.lss` holds the ASL's settings when the
+   autosplitter was activated from the splits editor -
+   `<AutoSplitterSettings><Start/Split/Reset><CustomSettings><Setting
+   id=".." type="bool">` (ids: `mealStart`, `velocityStart`,
+   `endSplits`, `Cave Splits`, `Cave01`..`UnderwaterCave3` + `..EnterSplit`
+   / `..ExitSplit`, `Item Splits` / `itemSplit_<id>` / `multiItemSplit_<id>`,
+   `Clothing Splits` / `clothingSplit_<id>`, `Passenger Splits` /
+   `passengerSplit_<n>`; a parent off disables its children - see the
+   ASL, scratch clone in any session: `git clone --depth 1
+   https://github.com/1deter/auto-splitters`). The author's
+   `Desktop\Desktop\Applications\LiveSplit_1.8.37\The Forest Splits\The
+   Forest Coop Any%.lss` has velocityStart + Cave06 enter/exit +
+   endSplits. LiveSplit splits are positional, so build: a new segment
+   (fresh `s-` id, name = game + category / file name, spawn = where the
+   player stands), start = `event moving` or `event hold-interact`, one
+   checkpoint per LiveSplit split (last = end) named as in the file,
+   each trigger = "the next event the ASL settings would split on" - a
+   new event kind/name (e.g. `event autosplit`) fired by WorldEvents /
+   GameEvents when ANY enabled setting's event fires (caves per
+   setting, `endgame-cutscene` for endSplits, `clothing-<id>`,
+   `passenger-<n>`, item first pickup / every change via
+   `Game/ItemCounter`); the enabled set stored in the segment as data
+   (e.g. `autosplit = cave-enter-cave06 cave-exit-cave06
+   endgame-cutscene`, parsed in `Data/SegmentFormat`, part of the route
+   fingerprint) so it is shareable and editable. Then link the file
+   (`LssLink`, map null) and pick Compare to -> LiveSplit. UI: one
+   **Import LiveSplit file** button (Practice tab or Runs -> LiveSplit
+   file panel) listing `livesplit/*.lss`; message under the button
+   (UiText). A file without `<AutoSplitterSettings>` (layout-loaded
+   ASL: settings live in the `.lsl` - same `<CustomSettings>` block under
+   the component) -> say so, offer the `.lsl` beside it, else build
+   manual checkpoints. Pure parts (settings parse, event set) in
+   `Data/LssFile.cs` with tests. Pre-made test segment `s-lsstest00001`
+   exists (remove after).
+2. **Quick load does not restore the nature guide's found entries**
+   (author). Reproduce over the bridge: capture, tick a new entry
+   (`Game/SurvivalBookReader` / game-notes *Nature guide -
+   TheForest.Player.TickOffSystem*), Quick load, read the ticks; add a
+   keeper like the others (docs/savestates.md).
+3. **Audit what else Quick load misses** (author: "look into what else
+   the savestates are currently missing (for quick loads)") - an
+   investigation, keep it in one session: capture, change each kind of
+   state (book, passengers, clothing, 100% list, stats, map pieces,
+   crafting, buildings, inventory views, story flags), Quick load, diff
+   against the capture / a Full load; fix or list each gap in
+   docs/savestates.md.
+
 **This session (v0.24.184-185): autosplitter parity + the `.lss` import
 UI** (author: "make sure we have all the splitting features imported
 from my autosplitter ... so that we can match the splitting
