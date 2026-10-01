@@ -231,7 +231,10 @@ MOVED_ROOTS = {2: ("Yacht",)}
 
 
 def lod_rest(scene):
-    """GameObject path ids of renderers in LOD 1+ of a LOD group (skipped)."""
+    """GameObject path ids of renderers in LOD 1+ of a LOD group (skipped),
+    less those LOD 0 draws too: a group can list one renderer in several
+    levels (9 of level2's 156 - the yacht's hull, walls and sails were
+    lost that way until 2026-10-01)."""
     renderer_go = {}
     for o in scene.env.objects:
         if o.type.name == "MeshRenderer":
@@ -239,10 +242,12 @@ def lod_rest(scene):
     rest = set()
     for o in scene.env.objects:
         if o.type.name == "LODGroup":
-            for i, l in enumerate(o.read_typetree()["m_LODs"]):
-                if i == 0:
-                    continue
+            lods = o.read_typetree()["m_LODs"]
+            first = {r["renderer"]["m_PathID"] for r in lods[0]["renderers"]} if lods else set()
+            for l in lods[1:]:
                 for r in l["renderers"]:
+                    if r["renderer"]["m_PathID"] in first:
+                        continue
                     g = renderer_go.get(r["renderer"]["m_PathID"])
                     if g:
                         rest.add(g)

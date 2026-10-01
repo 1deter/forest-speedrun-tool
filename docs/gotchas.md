@@ -631,3 +631,23 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     it is open to the map's edge). For a render artefact, hide each layer
     in turn (models, sea, patch, world group) and see which one takes it
     away; a raycast that hits nothing says it is not a model.
+
+76. **A game can have more than one distance switch.** (2026-10-01, the
+    photo map's black lakes.) The aerial capture raised LOD_Manager's
+    ranges and called detail "even to the tile's corners" - but 963
+    objects (every lake among them) switch by `LOD_GroupToggle`'s own
+    distances, which LOD_Manager never touches. A lake 150 m from the
+    tile's centre drew its black stand-in, cut at the tile's edge. Before
+    scaling "the" LOD distance, list every type that compares something
+    with the player's position (`ilscan refs PlayerCamLocation::PlayerLoc`);
+    a shape cut exactly at a tile edge means a switch on the tile's
+    centre.
+
+77. **A scene object can be moved at run time.** (2026-10-01, the 3D
+    yacht.) The scene file had the yacht 130 m from where it floats: the
+    game reparents the scene's `Yacht` under a spawned prefab and moves
+    it; the export placed it from the scene file, on the shore. The tell
+    is a scene object (positive handle) under a spawned root (negative
+    handle). Compare an exported object's position with the live one
+    (`find`) before chasing its look; export moved objects from the live
+    game (`WorldDump.Placed`).

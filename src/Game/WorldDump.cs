@@ -117,13 +117,17 @@ namespace ForestOverlay.Game
         {
             GameObject go = GameObject.Find(path);
             if (go == null) return "no object '" + path + "'";
+            // LOD 1+ renderers that LOD 0 does not draw too: a group can list
+            // one renderer in several levels (the yacht's hull is in 0 and 1).
             HashSet<Renderer> rest = new HashSet<Renderer>();
             foreach (LODGroup g in go.GetComponentsInChildren<LODGroup>(true))
             {
                 LOD[] lods = g.GetLODs();
+                if (lods.Length == 0) continue;
+                HashSet<Renderer> first = new HashSet<Renderer>(lods[0].renderers);
                 for (int i = 1; i < lods.Length; i++)
                     foreach (Renderer r in lods[i].renderers)
-                        if (r != null) rest.Add(r);
+                        if (r != null && !first.Contains(r)) rest.Add(r);
             }
             StringBuilder sb = new StringBuilder();
             Transform t = go.transform;

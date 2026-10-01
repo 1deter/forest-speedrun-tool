@@ -2346,6 +2346,36 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   maxLuminance = EV`, `adaptationType = Fixed`. From 500 m up at midday
   light, EV -3.5 looks like the adapted forest; the auto exposure lifts
   dark forest and holds snow down (the photo map's brightness bands).
+- **Lakes' far stand-in** (bridge + IL, 2026-10-01): each lake under
+  `Water_placed` (`Lake 4`, ... 20 of them) carries a `LOD_GroupToggle`
+  - level 0 the lake itself (`TheForest.Graphics.Lake`, shader "The
+  Forest/Water", `SnowLake` in the snow) within **150 m**, level 1 its
+  child `LakeLod` (material `LakeFake`, Standard Specular, black) within
+  400 m. `LOD_GroupToggle.ThreadedRefresh` (a worker thread) compares the
+  horizontal distance from `PlayerCamLocation.PlayerLoc` with its own
+  `_levels[i].VisibleDistance` (5 m hysteresis) - **not** LOD_Manager's
+  ranges. 963 toggles (lakes, boulders, cliffs). Changing a
+  `VisibleDistance` takes effect within a second (checked both ways).
+- **The sinkhole is a hole in the terrain** (2026-10-01): the heights go
+  to 0 (the terrain's lowest) over a ~10k-sample pit centred near (161,
+  52); the game draws no terrain there, and the pit's floor, cliffs and
+  water are models down to y -304 (`Cave_SH_Streaming ... sinkhole_floor`,
+  `Nature_Placed/SinkHole`, `SinkHoleCenter` -274). A teleport to (120, 90,
+  20) falls into it (a death). The only other height-0 samples inland of
+  the coast are under the open sea (the yacht's cove).
+- **The yacht moves at run time** (2026-10-01): the scene's `Yacht` root
+  (level2, at about (469, 71, 1315)) is reparented under a spawned
+  `yachtWobblePrefab(Clone)` and stands at (367, 41, 1390), bobbing - its
+  parts keep their scene handles (positive) under the clone's negative
+  one. Hull `BodyHigh` ("BoatHull deferred", `Custom/NewSurfaceShader`, no
+  texture; teak decking), `Exterior_Tophull` (`MoldyWall`), `LodFar` (LOD
+  1, Simplygon). `Game/WorldDump.Placed` dumps it as it stands.
+- **The player's camera carries the hurt / weather overlays**:
+  `MainCamNew` has `BleedBehavior` (screen blood: `BloodAmount`, set by
+  `Hit` - starvation and thirst damage hit even in god mode), `Frost`
+  (`coverage` with the cold), `Grayscale` (low health), `WaterBlurEffect`,
+  `Blur`, `Ceto.UnderWaterPostEffect`. Anything that flies that camera
+  (our freecam, the aerial capture) shows them.
 - **Meshes are not readable** (`Mesh.isReadable` false, collision meshes
   too): geometry is read offline from the game's files
   (`scripts/world-extract.py`, UnityPy). Scene order = BuildSettings:
