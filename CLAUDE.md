@@ -602,9 +602,10 @@ to us" - one item per session):
    push can do it): `site/deploy/README.md` *Hardening* - re-run
    `setup.sh` (non-root, read-only container), the origin lock
    (Cloudflare Transform Rule + `FOREST_ORIGIN_SECRET`), optionally a
-   network without Navidrome; and two decisions in *Security* (Steam ids
-   are recoverable from runner ids; the token-reset race). Remind the
-   author once if not done.
+   network without Navidrome - the author was doing these 2026-10-01;
+   when they report back, check the live site (200, an upload works) and
+   move this to done. The two open points (Steam ids recoverable from
+   runner ids, the token-reset race) were decided: left as they are.
 4. **Next: the author's map list**: photo tiles in brightness bands (check first
    whether it is the same stale-page effect: a tab open across an aerial
    upload), the Water button, 3D terrain textures dropping out, playback

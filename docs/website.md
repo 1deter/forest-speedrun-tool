@@ -430,7 +430,12 @@ and every zip entry must match `UploadPath`; the deploy key can only run
   (`compose.yaml`) are in the code; **both need the author's steps on
   the VPS / Cloudflare**: `site/deploy/README.md` *Hardening*.
 
-**Open, for the author to decide:**
+**Decided (author, 2026-10-01, on Claude's recommendation): both left as
+they are**; the About page says the runner id is not anonymous. Revisit the
+first if a runner asks (fix: the plugin sends the Steam id once at
+registration, the server derives the public id with a secret HMAC and maps
+old ids over - it knows the old hash), the second if a takeover ever
+happens.
 - **Runner ids can be reversed to a Steam account.** The id is SHA-256 of
   a fixed prefix + the Steam id, and individual Steam ids are ~2^31
   values - a few minutes of hashing maps every id on the site back to its

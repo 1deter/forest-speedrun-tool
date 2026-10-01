@@ -535,7 +535,8 @@ function aboutPage() {
     el("ol", null,
       el("li", null, "Install ForestOverlay (BepInEx plugin) and practise a timed spot."),
       el("li", null, "Finished attempts upload by themselves once uploads are switched on in the game."),
-      el("li", null, "Each runner shows under their Steam name; the id behind it is a hash, never the Steam id.")),
+      el("li", null, "Each runner shows under their Steam name (changeable in the game). The runner id behind it is " +
+        "made from your Steam account and is not anonymous: someone determined could match it to your Steam profile.")),
     el("h2", null, "What the numbers mean"),
     el("p", null, "Times only compare on the same version of a spot. When a spot's zones or start state change, " +
       "older runs stay under “Older version”. This is a comparison board, not a verified leaderboard."),
