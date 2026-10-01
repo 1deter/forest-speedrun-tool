@@ -169,10 +169,19 @@ namespace ForestOverlay.Modules
             return _practice != null ? _practice.CurrentSegment : null;
         }
 
+        /// The runner's own saved runs only - an imported .foseg's runs are
+        /// other runners' and theirs to upload.
         private List<string> SavedRunsForUpload()
         {
             Segment s = SegmentForUpload();
-            return s != null ? _store.RunTexts(s.Id) : null;
+            if (s == null) return null;
+            List<string> texts = _store.RunTexts(s.Id);
+            if (texts == null) return null;
+            string own = RunnerIdNow();
+            List<string> mine = new List<string>(texts.Count);
+            for (int i = 0; i < texts.Count; i++)
+                if (AttemptOwners.IsOwn(AttemptOwners.RunnerIdOf(texts[i]), own)) mine.Add(texts[i]);
+            return mine;
         }
 
         private float[] ReadState()
@@ -589,6 +598,10 @@ namespace ForestOverlay.Modules
             // a different route are kept on disk and left out of the
             // comparison rather than silently racing the new one.
             List<Attempt> all = _store.LoadAll(s.Id);
+            // Other runners' attempts (an imported .foseg) compare, never
+            // count (Data/AttemptOwners, v0.24.190).
+            string own = RunnerIdNow();
+            List<Attempt> others = new List<Attempt>();
 
             for (int i = 0; i < all.Count; i++)
             {
@@ -601,10 +614,13 @@ namespace ForestOverlay.Modules
                     continue;
                 }
 
-                _attempts.Add(all[i]);
+                if (AttemptOwners.IsOwn(all[i].RunnerId, own)) _attempts.Add(all[i]);
+                else others.Add(all[i]);
             }
+            SetLocalOthers(others, s.Checkpoints.Count);
 
             Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
+                            (others.Count > 0 ? ", " + others.Count + " by other runners (" + _localOthers.Count + " runner(s), comparisons only)" : "") +
                             (_otherRouteCount > 0 ? " (" + _otherRouteCount + " from another route)" : ""));
         }
 

@@ -100,9 +100,9 @@ component's DelayedAwake / OnDeserialized as well (gotcha 79).
 | The held items, the book open at restore | as captured |
 | A long teleport, cave visit, a different item equipped | as captured |
 | The cave map's visited areas | unchanged in the test (all false) |
+| Worn clothing (`_wornClothingItems`, the visible outfit) | as captured |
 
-Not covered yet (no bridge call, or needs hands): clothing changes
-(`AddClothingOutfit` takes a list), buildings placed since (handled by
+Not covered yet (no bridge call, or needs hands): buildings placed since (handled by
 the restore's "delete objects not in the save"), the crafting cog, the
 inventory open at capture (`PlayerInventory.Open` needs the input path),
 achievements, the weather (not in the save: `WeatherSystem` keeps only

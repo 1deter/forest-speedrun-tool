@@ -21,7 +21,12 @@ namespace ForestOverlay.Modules
     {
         private const float BoardMaxAge = 120f;   // re-read on an arm after this
 
-        private readonly List<BoardEntry> _others = new List<BoardEntry>();
+        private readonly List<BoardEntry> _others = new List<BoardEntry>();   // the website's + local, merged
+        private readonly List<BoardEntry> _siteOthers = new List<BoardEntry>();
+        // Other runners' bests from imported .foseg files (v0.24.190):
+        // offline, RunId negative, their run already here.
+        private List<BoardEntry> _localOthers = new List<BoardEntry>();
+        private readonly List<Attempt> _localRuns = new List<Attempt>();
         private string _boardKey = "";            // segment|route the list is for
         private string _boardFetching;            // key of the request in flight
         private float _boardFetchedAt = -999f;
@@ -77,15 +82,31 @@ namespace ForestOverlay.Modules
                 yield break;
             }
 
-            _others.Clear();
-            _others.AddRange(SiteBoard.Others(board, RunnerIdNow(), rows));
-            Ctx.Log.LogInfo("Site board '" + key + "': " + board.Count + " runner(s), " + _others.Count + " to compare with.");
-            _boardState = _others.Count == 0
+            _siteOthers.Clear();
+            _siteOthers.AddRange(SiteBoard.Others(board, RunnerIdNow(), rows));
+            Ctx.Log.LogInfo("Site board '" + key + "': " + board.Count + " runner(s), " + _siteOthers.Count + " to compare with.");
+            _boardState = _siteOthers.Count == 0
                 ? (board.Count == 0 ? "Other runners: no runs of this version of the spot on the website yet."
                                     : "Other runners: only your own runs of this version so far.")
-                : "Other runners: " + _others.Count + " on this version of the spot.";
+                : "Other runners: " + _siteOthers.Count + " on this version of the spot.";
+            MergeOthers();
+        }
 
-            // Keep the picked runner through a re-read.
+        /// Imported runners for the segment just loaded (LoadAttemptsFor).
+        private void SetLocalOthers(List<Attempt> others, int checkpoints)
+        {
+            _localOthers = AttemptOwners.OthersBest(others, checkpoints, _localRuns);
+            MergeOthers();
+        }
+
+        /// _others = the website's list + the imported ones; the picked
+        /// runner kept through it.
+        private void MergeOthers()
+        {
+            _others.Clear();
+            _others.AddRange(AttemptOwners.Merge(_siteOthers, _localOthers));
+            for (int i = 0; i < _localOthers.Count && i < _localRuns.Count; i++) _runnerRuns[_localOthers[i].RunId] = _localRuns[i];
+
             _runnerPick = -1;
             for (int i = 0; i < _others.Count; i++)
                 if (_others[i].RunnerId == _runnerPickId) _runnerPick = i;
@@ -98,12 +119,10 @@ namespace ForestOverlay.Modules
         private void ClearBoard(string key)
         {
             _boardKey = key;
-            _others.Clear();
+            _siteOthers.Clear();
             _runnerRuns.Clear();
-            _runnerPick = -1;
             _boardState = "";
-            if (_referenceKind == Reference.Runner) _referenceKind = Reference.Best;
-            RefreshRunnerPickText();
+            MergeOthers();   // the imported runners stay
         }
 
         private BoardEntry PickedRunner
@@ -118,7 +137,7 @@ namespace ForestOverlay.Modules
             if (e == null) return null;
             Attempt a;
             if (_runnerRuns.TryGetValue(e.RunId, out a)) return a;
-            if (_runnerRunFetching != e.RunId && !string.IsNullOrEmpty(SiteUrl))
+            if (e.RunId > 0 && _runnerRunFetching != e.RunId && !string.IsNullOrEmpty(SiteUrl))
             {
                 _runnerRunFetching = e.RunId;
                 Ctx.Runner.StartCoroutine(FetchRunRoutine(_boardKey, e));
@@ -165,7 +184,8 @@ namespace ForestOverlay.Modules
         {
             BoardEntry e = PickedRunner ?? (_others.Count > 0 ? _others[0] : null);
             _runnerPickText.text = e == null ? "" :
-                (PickedRunner == null ? 1 : _runnerPick + 1) + "/" + _others.Count + "  " + e.Name + "  " + Format(e.Duration);
+                (PickedRunner == null ? 1 : _runnerPick + 1) + "/" + _others.Count + "  " + e.Name +
+                (e.RunId < 0 ? " (file)" : "") + "  " + Format(e.Duration);
             _boardText.text = _boardState;
         }
 

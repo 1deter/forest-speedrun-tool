@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.190 - 2026-10-01
+
+- Other runners' attempts that came in with an imported `.foseg` no longer
+  count as yours (they were in your PB, best segments and sum of best).
+  Each of those runners' best is now under Runs -> Compare to -> "another
+  runner", marked "(file)", next to the website's - no download needed.
+- "Upload saved runs" sends only your own runs.
+
 ## v0.24.189 - 2026-10-01
 
 - A savestate captured with the survival book open really gives your
