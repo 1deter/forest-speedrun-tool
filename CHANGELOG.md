@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.176 - 2026-10-01
+
+- Developer tooling only: the 3D map dump also covers the ferns, bushes,
+  rocks and cave spikes that greebles place. Nothing changes in game.
+
 ## v0.24.175 - 2026-10-01
 
 - Developer tooling only: the 3D map dump also lists the sticks and rocks

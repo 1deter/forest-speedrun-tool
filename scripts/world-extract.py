@@ -534,21 +534,34 @@ class Export:
               len(self.materials), "materials so far")
         sys.stdout.flush()
 
-    def spawned(self, path):
+    def spawned(self, paths):
         """The objects the game spawns from pools (trees, bushes, rocks, cave
         pieces), from the in-game dump (Game/WorldDump, v0.24.173): each
         placeholder's High prefab, its parts' meshes found in the game's
-        files by name + vertex count, its materials by name."""
-        prefabs, lods, cur = {}, [], None
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                p = line.rstrip("\n").split("\t")
-                if p[0] == "lod":
-                    lods.append(p)
-                elif p[0] == "prefab":
-                    cur = prefabs.setdefault(p[1], {"scale": [float(v) for v in p[2].split()], "parts": []})
-                elif p[0] == "part" and cur is not None:
-                    cur["parts"].append(p)
+        files by name + vertex count, its materials by name. Also the
+        greebles (greebles-*.txt, v0.24.174-175): each placed instance of a
+        prefab, the same once across the files (surface / cave dumps)."""
+        prefabs, lods, greebles, seen, cur = {}, [], [], set(), None
+        for path in paths:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    p = line.rstrip("\n").split("\t")
+                    if p[0] == "lod":
+                        # a greeble that is a placeholder (greebles-*.txt): once across the files
+                        k = ("lod", p[2], tuple(round(float(v), 2) for v in p[5].split()))
+                        if path == paths[0] or k not in seen:
+                            seen.add(k)
+                            lods.append(p)
+                    elif p[0] == "greeble":
+                        k = (p[1], tuple(round(float(v), 2) for v in p[2].split()))
+                        if k not in seen:
+                            seen.add(k)
+                            greebles.append(p)
+                    elif p[0] == "prefab":
+                        # a prefab listed by two files: its parts once
+                        cur = None if p[1] in prefabs else prefabs.setdefault(p[1], {"scale": [float(v) for v in p[2].split()], "parts": []})
+                    elif p[0] == "part" and cur is not None:
+                        cur["parts"].append(p)
         want_mesh = {(p[3], int(p[4])) for pf in prefabs.values() for p in pf["parts"] if p[1] != "box"}
         want_mat = {m for pf in prefabs.values() for p in pf["parts"] for m in p[6].split(";") if m != "-"}
         meshes, mat_objs = {}, {}
@@ -569,8 +582,8 @@ class Export:
                     name = o.peek_name()
                     if name in want_mat and name not in mat_objs:
                         mat_objs[name] = o
-        print("spawned: %d placeholders, %d prefabs; meshes found %d of %d, materials %d of %d"
-              % (len(lods), len(prefabs), len(meshes), len(want_mesh), len(mat_objs), len(want_mat)))
+        print("spawned: %d placeholders, %d greebles, %d prefabs; meshes found %d of %d, materials %d of %d"
+              % (len(lods), len(greebles), len(prefabs), len(meshes), len(want_mesh), len(mat_objs), len(want_mat)))
         missing = sorted(want_mesh - set(meshes))
         if missing:
             print("   not found:", missing[:12])
@@ -646,6 +659,28 @@ class Export:
                     continue
                 self.place(area, self.model(mesh, mats, kind, int(part[2])), base @ local)
                 placed[(area, p[1], kind)] += 1
+        # Greebles: the prefab at the placed position and rotation, its own
+        # scale (GreeblePlugin.Instantiate); under the terrain = caves (place).
+        for p in greebles:
+            pf = prefabs.get(p[1])
+            if not pf:
+                continue
+            base = np.eye(4)
+            base[:3, :3] = quat_matrix([float(v) for v in p[3].split()])
+            base[:3, 3] = [float(v) for v in p[2].split()]
+            for part in pf["parts"]:
+                local = np.eye(4)
+                local[:3, :4] = np.array([float(v) for v in part[5].split()]).reshape(3, 4)
+                if part[1] == "box":
+                    mesh, kind, mats = self.shape(("box",)), "collide", []
+                else:
+                    mesh = mesh_of((part[3], int(part[4])))
+                    kind = part[1]
+                    mats = [mat_of(m) for m in part[6].split(";")] if kind == "render" else []
+                if mesh is None:
+                    continue
+                self.place("surface", self.model(mesh, mats, kind, int(part[2])), base @ local)
+                placed[("greeble", kind)] += 1
         for k, v in sorted(placed.items()):
             print("  ", k, v)
 
@@ -681,9 +716,10 @@ def export(out):
     e = Export(out)
     for level in [2, 7, 11] + list(range(15, 31)):
         e.scene(level)
-    spawned = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world", "spawned.txt")
+    world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
+    spawned = os.path.join(world, "spawned.txt")
     if os.path.exists(spawned):
-        e.spawned(spawned)
+        e.spawned([spawned] + sorted(os.path.join(world, n) for n in os.listdir(world) if n.startswith("greebles-")))
     else:
         print("no", spawned, "- trees, rocks and cave pieces left out (bridge: call static:ForestOverlay.Game.WorldDump Write)")
     e.finish()

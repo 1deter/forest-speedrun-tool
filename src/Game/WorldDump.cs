@@ -44,7 +44,12 @@ namespace ForestOverlay.Game
     // once on the surface (MainSceneGreebles) and once in a cave (the cave
     // prop scenes). world/greebles-<name>.txt:
     //   greeble <prefab> <x y z> <qx qy qz qw>
+    //   lod ... as above, for a greeble that is itself an LOD placeholder
+    //       (Cave_SpikesSmall, Fern2_Loader: the model spawns from its High)
     //   prefab / part lines as above
+    // The player's own GreebleLayer (sticks and small rocks every 10-12 m
+    // around the player) is not in it: its ProceduralSeed is empty in this
+    // build, so they are random on every spawn - no place to put them.
     // ------------------------------------------------------------------
     public static class WorldDump
     {
@@ -171,6 +176,13 @@ namespace ForestOverlay.Game
             int zones = 0, skipped = 0;
             g.Out = sb;
             g.Prefabs = prefabs;
+            g.Lod = GameBridge.FindGameType("LOD_Base");
+            if (g.Lod != null)
+            {
+                g.High = g.Lod.GetField("High", Any);
+                g.Mid = g.Lod.GetField("Mid", Any);
+                g.Low = g.Lod.GetField("Low", Any);
+            }
             FieldInfo randomSeed = zoneType.GetField("RandomSeed", Any);
             UnityEngine.Random.State saved = UnityEngine.Random.state;
             GameObject temp = new GameObject("ForestOverlay_GreebleProbe");
@@ -280,13 +292,28 @@ namespace ForestOverlay.Game
                 Vector3 pos;
                 Quaternion rot;
                 if (!Place(g, z, at, seed, k, out prefab, out pos, out rot)) { g.Missed++; continue; }
+                g.Placed++;
+                n++;
+                // A loader (an LOD placeholder): its High is what shows, spawned at
+                // the placeholder like any other (the lod line, as Write does).
+                Component lod = g.High != null ? prefab.GetComponent(g.Lod) : null;
+                Transform h = lod != null ? g.High.GetValue(lod) as Transform : null;
+                if (h != null)
+                {
+                    Transform mt = g.Mid.GetValue(lod) as Transform, lt = g.Low.GetValue(lod) as Transform;
+                    Vector3 s = prefab.localScale;
+                    g.Out.Append("lod\t").Append(lod.GetType().Name).Append('\t').Append(Name(h)).Append('\t').Append(Name(mt)).Append('\t').Append(Name(lt))
+                      .Append('\t').Append(F(pos.x)).Append(' ').Append(F(pos.y)).Append(' ').Append(F(pos.z))
+                      .Append('\t').Append(F(rot.x)).Append(' ').Append(F(rot.y)).Append(' ').Append(F(rot.z)).Append(' ').Append(F(rot.w))
+                      .Append('\t').Append(F(s.x)).Append(' ').Append(F(s.y)).Append(' ').Append(F(s.z)).Append("\t1\n");
+                    g.Prefabs[h] = true;
+                    continue;
+                }
                 g.Out.Append("greeble\t").Append(Clean(prefab.name))
                   .Append('\t').Append(F(pos.x)).Append(' ').Append(F(pos.y)).Append(' ').Append(F(pos.z))
                   .Append('\t').Append(F(rot.x)).Append(' ').Append(F(rot.y)).Append(' ').Append(F(rot.z)).Append(' ').Append(F(rot.w))
                   .Append('\n');
                 g.Prefabs[prefab] = true;
-                g.Placed++;
-                n++;
             }
             return n;
         }
@@ -294,6 +321,8 @@ namespace ForestOverlay.Game
         private sealed class G
         {
             public StringBuilder Out;
+            public Type Lod;
+            public FieldInfo High, Mid, Low;
             public Dictionary<Transform, bool> Prefabs;
             public int Placed, Missed;
             public MethodInfo Seed, Type, IntValue, FloatValue, Angle, DirFast, Dir;
