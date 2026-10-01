@@ -37,8 +37,10 @@ namespace ForestOverlay.Game
     // zone's seed, the game's own Procedural* draws, the real raycast -
     // without spawning anything (Random's state is put back). One visit's
     // set (author, 2026-10-01): every instance as if fresh, taken ones
-    // included. Zones on pooled trees (under Pooling) are left out - their
-    // seed follows the pool object. Only loaded scenes have zones: run it
+    // included. Zones on pooled objects (a tree's sticks and rocks) are
+    // worked out once per LOD placeholder instead, with the seed the zone
+    // takes from where it stands on a first visit - in game it follows the
+    // pool object (game-notes *Greebles*). Only loaded scenes have zones: run it
     // once on the surface (MainSceneGreebles) and once in a cave (the cave
     // prop scenes). world/greebles-<name>.txt:
     //   greeble <prefab> <x y z> <qx qy qz qw>
@@ -166,8 +168,12 @@ namespace ForestOverlay.Game
             StringBuilder sb = new StringBuilder(1 << 20);
             Dictionary<Transform, bool> prefabs = new Dictionary<Transform, bool>();
             Dictionary<string, int> byRoot = new Dictionary<string, int>();
-            int zones = 0, placed = 0, missed = 0, skipped = 0;
+            int zones = 0, skipped = 0;
+            g.Out = sb;
+            g.Prefabs = prefabs;
+            FieldInfo randomSeed = zoneType.GetField("RandomSeed", Any);
             UnityEngine.Random.State saved = UnityEngine.Random.state;
+            GameObject temp = new GameObject("ForestOverlay_GreebleProbe");
             try
             {
                 UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(zoneType);
@@ -177,30 +183,68 @@ namespace ForestOverlay.Game
                     if (z == null || !z.gameObject.scene.IsValid()) continue;
                     if (!z.gameObject.activeInHierarchy || z.transform.root.name == "Pooling") { skipped++; continue; }
                     zones++;
-                    int n = 0;
-                    UnityEngine.Random.InitState((int)g.Seed.Invoke(z, null));
-                    int count = (int)g.IntValue.Invoke(null, new object[] { (int)g.Min.GetValue(z, null), (int)g.Max.GetValue(z, null) + 1 });
-                    for (int k = 0; k < count; k++)
+                    Count(byRoot, z.transform.root.name, Zone(g, z, z.transform, (int)g.Seed.Invoke(z, null)));
+                }
+
+                // Zones inside the prefabs the LOD placeholders spawn (a tree's
+                // sticks and rocks, a cave piece's stalactites): one per
+                // placeholder, seeded from where it stands
+                // (GetRandomSeed: (int)x + (int)y + (int)z + RandomSeed).
+                Type lodType = GameBridge.FindGameType("LOD_Base");
+                FieldInfo high = lodType != null ? lodType.GetField("High", Any) : null;
+                FieldInfo lodPos = lodType != null ? lodType.GetField("_position", Any) : null;
+                Dictionary<Transform, Component[]> inPrefab = new Dictionary<Transform, Component[]>();
+                UnityEngine.Object[] lods = high != null ? Resources.FindObjectsOfTypeAll(lodType) : new UnityEngine.Object[0];
+                for (int i = 0; i < lods.Length; i++)
+                {
+                    Component c = lods[i] as Component;
+                    if (c == null || !c.gameObject.scene.IsValid() || c.transform.root.name == "Pooling") continue;
+                    Transform h = high.GetValue(c) as Transform;
+                    if (h == null) continue;
+                    Component[] zs;
+                    if (!inPrefab.TryGetValue(h, out zs))
                     {
-                        Transform prefab;
-                        Vector3 pos;
-                        Quaternion rot;
-                        if (!Place(g, z, k, out prefab, out pos, out rot)) { missed++; continue; }
-                        sb.Append("greeble\t").Append(Clean(prefab.name))
-                          .Append('\t').Append(F(pos.x)).Append(' ').Append(F(pos.y)).Append(' ').Append(F(pos.z))
-                          .Append('\t').Append(F(rot.x)).Append(' ').Append(F(rot.y)).Append(' ').Append(F(rot.z)).Append(' ').Append(F(rot.w))
-                          .Append('\n');
-                        prefabs[prefab] = true;
-                        placed++;
-                        n++;
+                        List<Component> l = new List<Component>();
+                        foreach (Component pz in h.GetComponentsInChildren(zoneType, true))
+                        {
+                            bool on = true;
+                            for (Transform t = pz.transform; t != null && t != h.parent; t = t.parent)
+                                if (!t.gameObject.activeSelf) { on = false; break; }
+                            if (on) l.Add(pz);
+                        }
+                        inPrefab[h] = zs = l.ToArray();
                     }
-                    string root = z.transform.root.name;
-                    int had;
-                    byRoot.TryGetValue(root, out had);
-                    byRoot[root] = had + n;
+                    if (zs.Length == 0) continue;
+                    Vector3 p = c.transform.position;
+                    if (lodPos != null)
+                    {
+                        object v = lodPos.GetValue(c);
+                        if (v is Vector3 && (Vector3)v != Vector3.zero) p = (Vector3)v;
+                    }
+                    // As spawned: at the placeholder, the prefab's own scale -
+                    // a cave piece takes the placeholder's (LOD_Cave.SetLOD, gotcha 69).
+                    Vector3 scale = c.GetType().Name.StartsWith("LOD_Cave") ? c.transform.lossyScale : h.localScale;
+                    Matrix4x4 place = Matrix4x4.TRS(p, c.transform.rotation, scale) *
+                                      Matrix4x4.TRS(h.position, h.rotation, h.localScale).inverse;
+                    foreach (Component pz in zs)
+                    {
+                        Matrix4x4 m = place * pz.transform.localToWorldMatrix;
+                        Vector3 zp = m.GetColumn(3);
+                        temp.transform.position = zp;
+                        temp.transform.rotation = Quaternion.LookRotation(m.GetColumn(2), m.GetColumn(1));
+                        temp.transform.localScale = new Vector3(m.GetColumn(0).magnitude, m.GetColumn(1).magnitude, m.GetColumn(2).magnitude);
+                        int seed = (int)zp.x + (int)zp.y + (int)zp.z + (randomSeed != null ? (int)randomSeed.GetValue(pz) : 0);
+                        zones++;
+                        Count(byRoot, c.GetType().Name, Zone(g, pz, temp.transform, seed));
+                    }
                 }
             }
-            finally { UnityEngine.Random.state = saved; }
+            finally
+            {
+                UnityEngine.Random.state = saved;
+                UnityEngine.Object.Destroy(temp);
+            }
+            int placed = g.Placed, missed = g.Missed;
 
             int parts = 0;
             foreach (Transform root in prefabs.Keys) parts += Prefab(sb, root);
@@ -216,8 +260,42 @@ namespace ForestOverlay.Game
             return result;
         }
 
+        private static void Count(Dictionary<string, int> by, string key, int n)
+        {
+            int had;
+            by.TryGetValue(key, out had);
+            by[key] = had + n;
+        }
+
+        /// One zone's instances, placed at `at` with `seed` (the zone's own
+        /// transform and GetRandomSeed for a scene zone); lines into g.Out.
+        private static int Zone(G g, Component z, Transform at, int seed)
+        {
+            int n = 0;
+            UnityEngine.Random.InitState(seed);
+            int count = (int)g.IntValue.Invoke(null, new object[] { (int)g.Min.GetValue(z, null), (int)g.Max.GetValue(z, null) + 1 });
+            for (int k = 0; k < count; k++)
+            {
+                Transform prefab;
+                Vector3 pos;
+                Quaternion rot;
+                if (!Place(g, z, at, seed, k, out prefab, out pos, out rot)) { g.Missed++; continue; }
+                g.Out.Append("greeble\t").Append(Clean(prefab.name))
+                  .Append('\t').Append(F(pos.x)).Append(' ').Append(F(pos.y)).Append(' ').Append(F(pos.z))
+                  .Append('\t').Append(F(rot.x)).Append(' ').Append(F(rot.y)).Append(' ').Append(F(rot.z)).Append(' ').Append(F(rot.w))
+                  .Append('\n');
+                g.Prefabs[prefab] = true;
+                g.Placed++;
+                n++;
+            }
+            return n;
+        }
+
         private sealed class G
         {
+            public StringBuilder Out;
+            public Dictionary<Transform, bool> Prefabs;
+            public int Placed, Missed;
             public MethodInfo Seed, Type, IntValue, FloatValue, Angle, DirFast, Dir;
             public PropertyInfo Min, Max;
             public FieldInfo Shape, Direction, Radius, Size, Defs, Surface, Kill, Textures, Normal, RandomRot, RotX, RotY, RotZ, Prefab;
@@ -228,10 +306,10 @@ namespace ForestOverlay.Game
 
         /// GreebleZone.SpawnIndex + GreebleUtility.Spawn (IL, 2026-10-01), as a
         /// fresh instance (not destroyed, fully grown), without the spawn.
-        private static bool Place(G g, Component z, int index, out Transform prefabT, out Vector3 pos, out Quaternion rot)
+        private static bool Place(G g, Component z, Transform at, int seed, int index, out Transform prefabT, out Vector3 pos, out Quaternion rot)
         {
             prefabT = null; pos = Vector3.zero; rot = Quaternion.identity;
-            UnityEngine.Random.InitState((int)g.Seed.Invoke(z, null) + index);
+            UnityEngine.Random.InitState(seed + index);
             object def = g.Type.Invoke(null, new object[] { g.Defs.GetValue(z), false, 1000000f });
             if (def == null) return false;
             Vector3 origin = Vector3.zero, dir = Vector3.down;
@@ -281,7 +359,7 @@ namespace ForestOverlay.Game
                 float zz = (bool)g.RotZ.GetValue(def) ? (float)g.Angle.Invoke(null, null) : 0f;
                 r = Quaternion.Euler(x, y, zz);
             }
-            Ray ray = new Ray(z.transform.TransformPoint(origin), z.transform.TransformDirection(dir));
+            Ray ray = new Ray(at.TransformPoint(origin), at.TransformDirection(dir));
 
             // GreebleUtility.Spawn(def, ray, radius, r, 0.5)
             if (!(radius > 0f)) return false;
