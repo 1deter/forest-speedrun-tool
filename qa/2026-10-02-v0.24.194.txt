@@ -20,3 +20,5 @@ seen = Game event: cave-exit
 5) A segment whose start is the event "first-input" (Starts group): F7, wait a second, press any key or move - does the clock start then (and not on the restart itself)?
 6) On a cave rope (cave 4): a checkpoint "rope-grab" / "rope-leave" (Rope group) - does it split when you grab / let go?
 seen = Game event: rope-
+7) (v0.24.195) If you have a zipline, a log sled, a hang glider or a climbing-axe cliff: press F7 (or Go) while riding / climbing. Do you land cleanly at the spot, with the ride or climb ended (no flying off, no stuck animation)?
+seen = Teleport to
