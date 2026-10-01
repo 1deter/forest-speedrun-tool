@@ -1,0 +1,18 @@
+# The one-click LiveSplit import + Quick load book fixes list (sent 2026-10-01 for v0.24.189), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-10-01-lss-import-v0.24.189.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-10-01-lss-import
+title = LiveSplit import + Quick load book fixes (v0.24.189)
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+
+section = One-click LiveSplit import
+1) Put your .lss in BepInEx/config/ForestOverlay/livesplit/, stand where your run starts, then Practice -> Import -> Import on your file. You get a timed spot with your LiveSplit split names. Turn practice mode on (F9) and run it: does it start and split exactly where LiveSplit does (your autosplitter settings - velocity / plane meal start, caves, item pickups, endgame cutscenes)?
+seen = Practice: LiveSplit file
+2) If your autosplitter is in your layout instead (Edit Layout -> Scriptable Auto Splitter), put the .lsl beside the .lss and Import again: does the line under the file say "from the layout" and split as LiveSplit does?
+seen = settings from
+
+section = Quick load and the survival book
+3) Capture a start state, then find a new animal or plant (nature guide tick) and Quick load (F7): is the tick gone? Find it again: does it tick again? Does the book's to-do list still tick off things you do after a Quick load?
+seen = nature guide:

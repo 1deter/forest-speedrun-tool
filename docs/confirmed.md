@@ -239,3 +239,14 @@ and a forced texture rebuild then runs safely.
   Coop Any% `.lss` matched 4/4 by name; a run started on `moving` split on
   Cave 6 enter / exit with deltas against the file's PB. Not seen:
   `hold-interact` from a real hold; the author's eyes on the UI.
+
+Checked over the bridge on 2026-10-01 night (v0.24.186-189, not yet by a
+runner): the one-click LiveSplit import with the author's own `.lss`
+(4 rows named and matched, velocity start, cave 6 enter / exit and a
+rebreather pickup split, F12 finish, its PB picked as the comparison);
+a velocity-start spot stays armed after a restart from a cave; a Quick
+load un-ticks a nature guide entry found since the capture (its mark
+back and hidden) and ticks one the capture had; the book's to-do tasks
+set up again after a Quick load (GOs, status callback); a capture with
+the book open restores with the axe and the lit lighter in the hands.
+

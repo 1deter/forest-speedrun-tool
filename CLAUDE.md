@@ -592,86 +592,61 @@ identity.
 
 ## Current status
 
-**Released: v0.24.185** (2026-10-01). The author runs it via the in-game
-updater (v0.24.185 in the game at handoff, Slot 1). **459 tests** (+ 45 site tests).
+**Released: v0.24.189** (2026-10-01). The author runs it via the in-game
+updater (v0.24.189 in the game at handoff, Slot 1). **472 tests** (+ 45 site tests).
 
-### Pick up here (2026-10-01, v0.24.185 in the game)
+### Pick up here (2026-10-01 night, v0.24.189 in the game)
 
-**NEXT, in this order (author, QA 2026-10-01 19:57-20:22; "3 first, then
-a new session for the rest"):**
-1. **One-click `.lss` import that builds the spot** (author: "make it
-   also import the splitting logic and create a spot for you ... a
-   singular import button"; the current link-a-file-to-a-spot flow is
-   "very difficult to understand in terms of UX"). NOT STARTED. Design
-   (agreed in chat): a `.lss` holds the ASL's settings when the
-   autosplitter was activated from the splits editor -
-   `<AutoSplitterSettings><Start/Split/Reset><CustomSettings><Setting
-   id=".." type="bool">` (ids: `mealStart`, `velocityStart`,
-   `endSplits`, `Cave Splits`, `Cave01`..`UnderwaterCave3` + `..EnterSplit`
-   / `..ExitSplit`, `Item Splits` / `itemSplit_<id>` / `multiItemSplit_<id>`,
-   `Clothing Splits` / `clothingSplit_<id>`, `Passenger Splits` /
-   `passengerSplit_<n>`; a parent off disables its children - see the
-   ASL, scratch clone in any session: `git clone --depth 1
-   https://github.com/1deter/auto-splitters`). The author's
-   `Desktop\Desktop\Applications\LiveSplit_1.8.37\The Forest Splits\The
-   Forest Coop Any%.lss` has velocityStart + Cave06 enter/exit +
-   endSplits. LiveSplit splits are positional, so build: a new segment
-   (fresh `s-` id, name = game + category / file name, spawn = where the
-   player stands), start = `event moving` or `event hold-interact`, one
-   checkpoint per LiveSplit split (last = end) named as in the file,
-   each trigger = "the next event the ASL settings would split on" - a
-   new event kind/name (e.g. `event autosplit`) fired by WorldEvents /
-   GameEvents when ANY enabled setting's event fires (caves per
-   setting, `endgame-cutscene` for endSplits, `clothing-<id>`,
-   `passenger-<n>`, item first pickup / every change via
-   `Game/ItemCounter`); the enabled set stored in the segment as data
-   (e.g. `autosplit = cave-enter-cave06 cave-exit-cave06
-   endgame-cutscene`, parsed in `Data/SegmentFormat`, part of the route
-   fingerprint) so it is shareable and editable. Then link the file
-   (`LssLink`, map null) and pick Compare to -> LiveSplit. UI: one
-   **Import LiveSplit file** button (Practice tab or Runs -> LiveSplit
-   file panel) listing `livesplit/*.lss`; message under the button
-   (UiText). A file without `<AutoSplitterSettings>` (layout-loaded
-   ASL: settings live in the `.lsl` - same `<CustomSettings>` block under
-   the component) -> say so, offer the `.lsl` beside it, else build
-   manual checkpoints. Pure parts (settings parse, event set) in
-   `Data/LssFile.cs` with tests. Pre-made test segment `s-lsstest00001`
-   exists (remove after).
-2. **Quick load does not restore the nature guide's found entries**
-   (author). Reproduce over the bridge: capture, tick a new entry
-   (`Game/SurvivalBookReader` / game-notes *Nature guide -
-   TheForest.Player.TickOffSystem*), Quick load, read the ticks; add a
-   keeper like the others (docs/savestates.md).
-3. **Audit what else Quick load misses** (author: "look into what else
-   the savestates are currently missing (for quick loads)") - an
-   investigation, keep it in one session: capture, change each kind of
-   state (book, passengers, clothing, 100% list, stats, map pieces,
-   crafting, buildings, inventory views, story flags), Quick load, diff
-   against the capture / a Full load; fix or list each gap in
-   docs/savestates.md.
+**The overnight session (author, 2026-10-01 ~21:00: "get everything done
+in our up-next/todo list that you can ... build everything you can that
+doesn't already need my input"; questions wait for the author, QA may be
+asked; shut the computer down at the end).** Done so far, all checked
+over the bridge:
+- **One-click `.lss` import** (v0.24.186-187): Practice -> Import lists
+  `livesplit/*.lss` beside the `.foseg` files; Import makes a timed spot
+  where the player stands - one `event autosplit` checkpoint per LiveSplit
+  split, named as in the file, start `event moving` / `hold-interact` /
+  `hold-interact|moving` (event names may list alternatives), the ASL's
+  enabled settings as the segment's `autosplit = ...` list (route
+  fingerprint), the file linked and its PB picked as the comparison.
+  Settings from `<AutoSplitterSettings>` or a layout `.lsl` beside it,
+  ASL defaults + parent rule (`Data/LssAutoSplit`, 14 tests); per-run
+  memory as the ASL (`AutoSplitWatch`: first pickup, item changes,
+  clothing once, one split per frame). Editor: an **Autosplit** field
+  (editable list + description), event group "Autosplit". Bridge entry:
+  `call ..._modules[9].ImportLiveSplitFile "<file>"`. Checked with the
+  author's `The Forest Coop Any%.lss` (cave 6 enter / exit and a
+  rebreather pickup split, velocity start); **not seen by the author**.
+  A teleport never sets `_currentCave` (game-notes), so a cave split
+  needs the real cave mouth - an imported spot starting inside a cave
+  after a plain Go would miss its cave-exit; a start state restores it.
+- **v0.24.188: a velocity start no longer fires on its own restart** (a
+  >2 m jump in one frame resets `moving`).
+- **Quick load audit** (NEXT 2-3 of the last handoff, docs/savestates.md
+  *Quick load audit*, `scripts/save-diff.py`): the game's
+  `JSONLevelSerializer.SerializeLevelToFile` dumped before / after a
+  Quick load and diffed. Fixed: the nature guide's ticks (v0.24.187,
+  `Game/NatureGuideKeeper`), the book's to-do list never set up again
+  (v0.24.188, `Game/TodoListKeeper`), a capture with the book open
+  restored empty-handed (v0.24.188-189). Stats, inventory, passengers,
+  game stats, the current cave all come back. Gotchas 79-80.
+- QA list posted (message `1555319960941756437`, `qa/2026-10-01-lss-import.txt`,
+  docs/tests); to-do list current. Test spots `s-lsstest00001` and the
+  imported test spot removed; savestate `audit-base` (Slot 1, the plane
+  wreck area, axe + lighter held) kept for audits.
 
-**This session (v0.24.184-185): autosplitter parity + the `.lss` import
-UI** (author: "make sure we have all the splitting features imported
-from my autosplitter ... so that we can match the splitting
-functionality for specific segments"). v0.24.184 `Game/WorldEvents`:
-`cave-enter-<cave>` / `cave-exit-<cave>` (+ any), `clothing-<id>`,
-`passenger-<n>` (+ any), `hold-interact` (the ASL's plane meal start),
-`moving` (velocity start) - the ASL's own fields, game-notes *The
-autosplitter's other splits*; the editor's event picker has a group
-button. v0.24.185: Runs -> **LiveSplit file** (docs: Next up 9 below).
-Checked over the bridge: every event but `hold-interact` (a bridge
-`set` is cleared the same frame - **ask the author to hold E on
-something with the Runs tab's event line, or put it on QA**); the
-author's own `The Forest Coop Any%.lss` (copied into the game's
-`livesplit/`) matched 4/4 by name against a test segment, a run started
-on `moving` split on Cave 6 enter / exit with deltas against the file's
-PB. Not looked at by the author yet. **Test segment to remove**:
-`s-lsstest00001` ("LSS test", *Removing test spots*; backup of
-`my-segments.txt` before it: `%TEMP%/my-segments.before-lss-test.txt`),
-its link line in `livesplit/links.txt`. Not done: the ASL's item
-"split every time the amount changes" (item triggers cover counts; an
-`item-change-<id>` event would be cheap via `Game/ItemCounter` if asked)
-and its menu reset (our run aborts on leaving the level already).
+**Next, in order (this session continues; a new one picks up here):**
+1. Quick load audit, the rest (docs/savestates.md *Not covered yet*):
+   clothing (`PlayerClothing`), a building placed since, the crafting cog,
+   the inventory open at capture (needs the author's hands or a QA ask).
+2. Splits: other runners' `.foseg` attempts as comparisons; LiveSplit's
+   PB chance / total playtime lines.
+3. Website 3D: toggles per kind (trees / rocks / buildings / props),
+   fewer texture requests (458 per spot).
+4. Ride / climb modes in savestates (zipline, sled, climb, glider) -
+   *Open, not blocking* below.
+5. For the author: hold E on something with the Runs tab's event line
+   open (`hold-interact` is the one event the bridge cannot fire).
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back
