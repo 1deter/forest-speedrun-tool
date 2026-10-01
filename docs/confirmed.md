@@ -232,3 +232,10 @@ and a forced texture rebuild then runs safely.
   site: "looks good now" - cave pieces at their placeholder's scale and the
   underground cutaway. Still open: a couple of models missing and the cave
   floor (CLAUDE.md *Pick up here*).
+- **Autosplitter events + `.lss` comparisons (v0.24.184-185, bridge,
+  2026-10-01)** - cave enter / exit (cave-to-cave too), passenger count,
+  clothing ("Bathrobe" named from the game's database), `moving` fired;
+  teleports leave `_currentCave` alone (no fake cave splits). The author's
+  Coop Any% `.lss` matched 4/4 by name; a run started on `moving` split on
+  Cave 6 enter / exit with deltas against the file's PB. Not seen:
+  `hold-interact` from a real hold; the author's eyes on the UI.

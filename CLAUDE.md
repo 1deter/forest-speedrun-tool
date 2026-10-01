@@ -112,8 +112,9 @@ Where things live:
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`; `ItemChange` track), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`), `Game/PlayerStateReader` (5 Hz stats), `Game/ItemCounter` (carried items, event-driven) |
-| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/LssFile` (LiveSplit `.lss` import, tested, no UI yet), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
+| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
+| The autosplitter's other splits (caves, clothing, passengers, starts) | `Game/WorldEvents` (polls the ASL's fields; events via `GameEvents.RecordWorld`), editor picker groups in `Modules/PracticeModule` |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing) |
@@ -589,10 +590,33 @@ identity.
 
 ## Current status
 
-**Released: v0.24.183** (2026-10-01). The author runs it via the in-game
-updater (v0.24.183 in the game at handoff, Slot 1). **457 tests** (+ 45 site tests).
+**Released: v0.24.185** (2026-10-01). The author runs it via the in-game
+updater (v0.24.185 in the game at handoff, Slot 1). **459 tests** (+ 45 site tests).
 
-### Pick up here (2026-10-01, v0.24.183 in the game)
+### Pick up here (2026-10-01, v0.24.185 in the game)
+
+**This session (v0.24.184-185): autosplitter parity + the `.lss` import
+UI** (author: "make sure we have all the splitting features imported
+from my autosplitter ... so that we can match the splitting
+functionality for specific segments"). v0.24.184 `Game/WorldEvents`:
+`cave-enter-<cave>` / `cave-exit-<cave>` (+ any), `clothing-<id>`,
+`passenger-<n>` (+ any), `hold-interact` (the ASL's plane meal start),
+`moving` (velocity start) - the ASL's own fields, game-notes *The
+autosplitter's other splits*; the editor's event picker has a group
+button. v0.24.185: Runs -> **LiveSplit file** (docs: Next up 9 below).
+Checked over the bridge: every event but `hold-interact` (a bridge
+`set` is cleared the same frame - **ask the author to hold E on
+something with the Runs tab's event line, or put it on QA**); the
+author's own `The Forest Coop Any%.lss` (copied into the game's
+`livesplit/`) matched 4/4 by name against a test segment, a run started
+on `moving` split on Cave 6 enter / exit with deltas against the file's
+PB. Not looked at by the author yet. **Test segment to remove**:
+`s-lsstest00001` ("LSS test", *Removing test spots*; backup of
+`my-segments.txt` before it: `%TEMP%/my-segments.before-lss-test.txt`),
+its link line in `livesplit/links.txt`. Not done: the ASL's item
+"split every time the amount changes" (item triggers cover counts; an
+`item-change-<id>` event would be cheap via `Game/ItemCounter` if asked)
+and its menu reset (our run aborts on leaving the level already).
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back
@@ -638,7 +662,8 @@ to us" - one item per session):
    3D view: 604 requests (458 textures, 55 packs, 90 chunks), 38 MB on the
    wire (61 MB decoded). Left: textures are now most requests (atlas /
    pack them), LODs for phones, skinned meshes (Timmy, the dead girl).
-6. LiveSplit `.lss` import UI (Next up 9).
+6. ~~LiveSplit `.lss` import UI~~ done (v0.24.185, with the autosplitter's
+   other splits v0.24.184 - above).
 7. Waiting on others: raw FPS (the FPS session), Quick load physics
    (maks), the testers' open lists; QoL in docs/backlog.md.
 
@@ -1285,6 +1310,11 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
   `timmy-goodbye`, `raft-out-of-world`. Each fires on the rising edge of
   `endGameCutScene`, so split times are **frame-identical to the LiveSplit
   autosplitter**; the Harmony postfix only says which cutscene it was.
+  The rest of the autosplitter (v0.24.184, `Game/WorldEvents`):
+  `cave-enter-<cave>` / `cave-exit-<cave>` (cave01..cave10, hellcave,
+  snowcave, underwatercave, underwatercave2/3) and `cave-enter` /
+  `cave-exit`, `clothing-<id>`, `passenger-<n>` / `passenger`,
+  `hold-interact` (plane meal start), `moving` (velocity start).
 - **Deaths** (Deaths tab), decided in `DeathModule.Decide`:
   1. a current spot **with a start state** → revive and restore it, the
      segment's way, **even with practice mode off** (author: "if the runner
@@ -1488,31 +1518,15 @@ list so we can move onto expanding more features".
    - God mode: done (v0.24.101, Deaths tab).
 8. ~~Freecam keeps the game's lighting~~ done (v0.24.136: flies the
    game's own camera; `FreeCamBehaviour` in `Game/DebugDraw`).
-9. **LiveSplit split file import** (`.lss`) - **the pure part is done**
-   (2026-09-27, no version: nothing wired), `Data/LssFile.cs`, 31 tests
-   in `LssFileTests`. `LssFile.Parse(text, out error)` -> `LssRun`
-   (game / category, offset, attempt history, segments: split times per
-   comparison - "Personal Best", a runner's "WR" -, gold, history per
-   attempt id; real and game time each, NaN = empty; pre-1.6 text times
-   too; a `.lsl` is refused by name - a layout holds display settings
-   only). `LssMatch.Match(rowNames, lssNames, endToLast)` pairs our rows
-   (`Segment.SplitName`) with LiveSplit splits in route order - case,
-   spaces, punctuation and subsplit marks ignored; our endgame event
-   names answer to the autosplitter's labels (1deter/auto-splitters has
-   no split names of its own, only those labels); reports
-   `UnmatchedRows` / `UnmatchedSplits`; our clock starts after the split
-   before row 0's match (`StartAfter`), so a mid-run segment compares
-   against that part. `LssComparison.Build(run, match, timing)` gives
-   `PbSplits` / `GoldSplits` (SplitTable.Fill's `compare`) and `Golds`
-   (a row spanning several LiveSplit splits takes the best whole range
-   in the history, not the golds summed). **The UI step needs:** a file
-   pick (a path field or `config/ForestOverlay/livesplit/*.lss`), the
-   match shown with its unmatched names (and a manual pick per row -
-   `Map` is plain data, any increasing map projects), a real / game time
-   switch (`PreferredTiming` guesses), then "LiveSplit PB" / "LiveSplit
-   golds" (+ `LssComparison.Other` per file comparison) in Runs ->
-   Compare to - comparisons only, never the runner's own PB / golds; the
-   file is read once on pick and kept per segment id.
+9. ~~LiveSplit split file import~~ **done** (v0.24.185): Runs ->
+   *LiveSplit file* - files from `config/ForestOverlay/livesplit/*.lss`,
+   one per segment (`livesplit/links.txt`: file, real / game, hand-set
+   row map - `LssLink`), the match by name with `<` `>` per row, then
+   Compare to -> *LiveSplit* (`<` `>`: PB, best segments, the file's
+   other comparisons; also in the cycle key) - comparisons only; the
+   ghost / lines race the runner's own PB. `Data/LssFile` holds the
+   parser / matcher (33 tests). Not built: other runners' `.foseg`
+   attempts as comparisons.
 10. **forest.deter.cloud - shared runs and a web viewer** *(runner)* -
    **next** (author, 2026-09-27). Brief: [`docs/website.md`](docs/website.md)
    (formats, identity, decisions, open questions for the author).

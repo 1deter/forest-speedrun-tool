@@ -308,6 +308,19 @@ entry point — `openDoorRoutine` was sent by name from a second place.
 Also present: `TheForest.Tools.TfEvent+Endgame` with static `Completed`,
 `FireDetected`, `Shutdown2ndArtifact`.
 
+### The autosplitter's other splits (IL + bridge, v0.24.184)
+
+The LiveSplit ASL (1deter/auto-splitters) reads these; `Game/WorldEvents`
+polls the same fields once a frame:
+
+| Event | Field | Notes |
+|---|---|---|
+| `cave-enter-<cave>` / `cave-exit-<cave>`, `cave-enter` / `cave-exit` | `LocalPlayer.ActiveAreaInfo._currentCave` (`CaveNames`) | Written only by `SetCurrentCave` (from `activateCave` / `CaveTriggers.Update`, `EnterSnowCaveHelper`, `PlayerStats.KillPlayer`) and `SetInCaves`. **A teleport does not change it** (our tp / Go use `GotoCave`: `_currentCave` stays `NotInCaves`), and the endgame lab is `NotInCaves` with `IsInCaves` true - the ASL never splits there. |
+| `clothing-<id>` | `LocalPlayer.Clothing._wornClothingItems` (List<int>) | Names: `ClothingItemDatabase._instance._items[i]._displayName` ("RED BEANIE"), 33 items. |
+| `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
+| `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
+| `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. |
+
 ---
 
 ## Survival book (100%)
