@@ -625,13 +625,16 @@ an exhaustive "endgame" tool, caves included. Recipes and formats:
 [`docs/website.md`](docs/website.md) *The photo map* / *The 3D world*;
 game internals: game-notes *Terrain, and the world from above*.
 
-- **Photo map (live, recaptured 2026-10-01 on v0.24.178):** every tile at
-  one exposure, the sea drawn by the bake from the heights (the Water
-  button = the `-dry` layers, the raw capture) - recipe docs/website.md
-  *The photo map*, why game-notes *The ocean from above* / *Eye
-  adaptation*. Backups of the captures: `%TEMP%/claude/aer/aerial-0928`
-  (v0.24.170's) and `aerial-1001` (the first v0.24.178 run, rows 7-15
-  dark).
+- **Photo map (live, recaptured 2026-10-01 on v0.24.178, uploaded build
+  1790857361, checked live headless):** every tile at one exposure, the
+  sea drawn by the bake from the heights (the Water button = the `-dry`
+  layers, the raw capture) - recipe docs/website.md *The photo map*, why
+  game-notes *The ocean from above* / *Eye adaptation* / *Weather*. The
+  live set is merged from a full run (rows 0-5, 6 west) and clear-weather
+  retakes (rows 7-15, row 6 east); it is the game's `aerial/` folder now.
+  Backups in `%TEMP%/claude/aer/`: `aerial-0928` (v0.24.170's),
+  `aerial-1001` (the first v0.24.178 run, rows 7-15 dark), `final` (the
+  live set).
 - **3D world (site `world3d.js`, `scripts/world-extract.py`, v0.24.171-
   173 `Game/WorldDump`):** meshes are not readable in game, so the scenes
   are read **offline with UnityPy** (level2, 7, 11, 15-30) and the pooled
@@ -973,9 +976,13 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State (2026-10-01 handoff):** the game ran v0.24.177 in Slot 2 (loaded
-from the title, not saved since), last at Tom's Megan test spot, god
-mode off; the PC was shut down after the session. Slot 2 is the only
+**State (2026-10-01 handoff, the map-list session):** the game runs
+v0.24.178 in Slot 2 (loaded from the title, not saved since; v0.24.179
+is released, not installed - its weather hold is untested in a capture),
+the player at the capture's last tile on the east coast (the capture
+returns him only to where the run started), god mode / infinite energy
+off, hunger / thirst refilled, freecam off; the weather was cleared by
+hand (it rolls again on its own). Slot 2 is the only
 Normal slot: Slots 1 and 5 are Creative, 3 Hard, 4 Peaceful; a runner's
 survival start state restores only in a survival game.
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
