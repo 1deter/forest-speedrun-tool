@@ -10,7 +10,9 @@
 // mesh of the whole island with a hole where a full-resolution patch around
 // the runs sits. Textured with the aerial photo tiles when uploaded.
 // The game's models and collision stream in around the camera (world3d.js).
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
+// Served by the site (wwwroot/vendor, the npm package's file, checked
+// against its integrity hash): the CSP allows the site's own scripts only.
+import * as THREE from "/vendor/three-0.170.0.module.min.js?v=0.170.0";
 // world3d.js is imported by its stamped URL (index.html's data-world3d-src,
 // ?v=<hash>) in create(): a plain "./world3d.js" import has no version, and
 // Cloudflare's 4 h browser cache could pair it, old, with a new map3d.js.

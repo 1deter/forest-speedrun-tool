@@ -222,8 +222,8 @@ public sealed class ApiTests : IDisposable
         Assert.Contains("another version", await wrongRoute.Content.ReadAsStringAsync());
         Assert.Equal((HttpStatusCode)422, (await Upload(ta, Bundle(seg, RunText(seg, B, 10f, 4f)))).StatusCode);
 
-        var board = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
-        Assert.Empty(board["routes"][0]["board"].AsArray());
+        // ... and no route either: an upload with no good attempt leaves no empty spot.
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/spots/" + seg.Id)).StatusCode);
     }
 
     [Fact]
@@ -515,4 +515,109 @@ public sealed class ApiTests : IDisposable
         await Upload("", ("world.json", "{\"version\":1}"));
         Assert.Equal("mesh B", await _http.GetStringAsync("/world/m/3.bin?v=123"));
     }
+
+    // --- security review (2026-10-01) ------------------------------------------
+
+    [Fact]
+    public async Task SecurityHeaders_OnPagesApiAndFiles()
+    {
+        foreach (string path in new[] { "/", "/api/spots", "/app.js", "/vendor/three-0.170.0.module.min.js?v=0.170.0" })
+        {
+            var r = await _http.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+            string csp = string.Join(";", r.Headers.GetValues("Content-Security-Policy"));
+            Assert.Contains("script-src 'self';", csp);
+            Assert.Contains("frame-ancestors 'none'", csp);
+            Assert.DoesNotContain("unsafe", csp);
+            Assert.Equal("nosniff", r.Headers.GetValues("X-Content-Type-Options").Single());
+            Assert.Equal("DENY", r.Headers.GetValues("X-Frame-Options").Single());
+        }
+        // No script from anywhere but the site: the CSP would block it.
+        string root = AppContext.BaseDirectory;
+        while (!Directory.Exists(Path.Combine(root, "ForestSite", "wwwroot"))) root = Path.GetDirectoryName(root);
+        root = Path.Combine(root, "ForestSite", "wwwroot");
+        foreach (string js in Directory.GetFiles(root, "*.js"))
+            Assert.DoesNotMatch(@"import[^;]*""https?://", File.ReadAllText(js));
+    }
+
+    [Fact]
+    public async Task OriginLock_RefusesRequestsWithoutCloudflaresHeader()
+    {
+        Environment.SetEnvironmentVariable("FOREST_ORIGIN_SECRET", "edge-secret");
+        try
+        {
+            using var factory = new WebApplicationFactory<Program>();
+            using var http = factory.CreateClient();
+            Assert.Equal(HttpStatusCode.Forbidden, (await http.GetAsync("/api/spots")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await http.GetAsync("/")).StatusCode);
+            var wrong = new HttpRequestMessage(HttpMethod.Get, "/api/spots");
+            wrong.Headers.Add("X-Forest-Origin", "edge-secreT");
+            Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(wrong)).StatusCode);
+            var right = new HttpRequestMessage(HttpMethod.Get, "/api/spots");
+            right.Headers.Add("X-Forest-Origin", "edge-secret");
+            Assert.Equal(HttpStatusCode.OK, (await http.SendAsync(right)).StatusCode);
+        }
+        finally { Environment.SetEnvironmentVariable("FOREST_ORIGIN_SECRET", null); }
+    }
+
+    [Fact]
+    public async Task AnotherRunnersRoute_CannotRenameTheSpot()
+    {
+        Segment seg = TestSegment();
+        seg.Notes = "A's description";
+        string ta = await Register(A), tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)));
+
+        // B takes A's id, moves a zone (a new route) and labels it as theirs.
+        // B's run is the newest, so B's route is the spot's current one.
+        Segment copy = TestSegment();
+        copy.End = new Trigger { Kind = TriggerKind.Zone, Position = new Vector3(0, 0, 50), Radius = 3 };
+        copy.Name = "Defaced"; copy.Category = "Spam"; copy.Notes = "visit my site";
+        Assert.NotEqual(seg.RouteFingerprint(), copy.RouteFingerprint());
+        Assert.Equal(HttpStatusCode.OK, (await Upload(tb, Bundle(copy, RunText(copy, B, 9f, 4f, 2)))).StatusCode);
+
+        var detail = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        Assert.Equal(copy.RouteFingerprint(), detail["routes"][0]["route"].GetValue<string>());   // B's zones, shown
+        Assert.Equal("Test dash", detail["name"].GetValue<string>());
+        Assert.Equal("Test", detail["category"].GetValue<string>());
+        Assert.Equal("A's description", detail["notes"].GetValue<string>());
+        Assert.Equal("Runner 0000", detail["by"].GetValue<string>());
+
+        // A's later rename still reaches the whole spot, B's copy included.
+        seg.Name = "Renamed dash";
+        await Upload(ta, Bundle(seg, RunText(seg, A, 9.5f, 4f, 3)));
+        await Upload(tb, Bundle(copy, RunText(copy, B, 8.5f, 4f, 4)));
+        detail = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        Assert.Equal("Renamed dash", detail["name"].GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Submissions_CappedPerRunner()
+    {
+        string ta = await Register(A);
+        for (int i = 0; i < Runs.MaxOpenSubmissions; i++)
+            Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(TestSegment("s-" + i.ToString("x12"))), "/api/submissions")).StatusCode);
+        var over = await Upload(ta, Bundle(TestSegment("s-ffffffffffff")), "/api/submissions");
+        Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
+        Assert.Contains("already waiting", await over.Content.ReadAsStringAsync());
+        // A waiting one can still be fixed (it replaces itself).
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(TestSegment("s-" + 3.ToString("x12"))), "/api/submissions")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("m/1.bin", true)]
+    [InlineData("c/caves_-3_12_L.bin", true)]
+    [InlineData("m/1.bin\n", false)]
+    [InlineData("../m/1.bin", false)]
+    [InlineData("m/../../x.bin", false)]
+    [InlineData("m/\u0661.bin", false)]
+    [InlineData("/etc/m/1.bin", false)]
+    [InlineData("m\\1.bin", false)]
+    public void WorldUploadPaths(string path, bool allowed) => Assert.Equal(allowed, UploadPath.IsWorld(path));
+
+    [Theory]
+    [InlineData("ground-dry/3/12_7.jpg", true)]
+    [InlineData("ground/3/12_7.jpg\n", false)]
+    [InlineData("ground/3/../../12_7.jpg", false)]
+    public void AerialUploadPaths(string path, bool allowed) => Assert.Equal(allowed, UploadPath.IsTile(path));
 }

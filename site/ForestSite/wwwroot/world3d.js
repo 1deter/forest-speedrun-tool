@@ -18,7 +18,9 @@
 // faces come out counter-clockwise, so solid materials cull back faces as
 // Unity does (a cave shell seen from outside is see-through, not a grey
 // wall). Cut-outs (leaf cards) stay double-sided.
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
+// Served by the site (wwwroot/vendor, the npm package's file, checked
+// against its integrity hash): the CSP allows the site's own scripts only.
+import * as THREE from "/vendor/three-0.170.0.module.min.js?v=0.170.0";
 
 const RADIUS = 700, DROP = 1100;           // metres, horizontally from the camera's target
 const CUT_MARGIN = 4;                      // metres kept in front of the target, underground

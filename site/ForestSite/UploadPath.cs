@@ -5,8 +5,10 @@ namespace ForestSite;
 /// What an owner's map upload may contain - never a path out of its folder.
 public static class UploadPath
 {
-    private static readonly Regex Tile = new(@"^(canopy|ground)(-dry)?/\d{1,2}/\d{1,5}_\d{1,5}\.jpg$");
-    private static readonly Regex World = new(@"^(m/\d{1,6}\.bin|t/\d{1,6}\.(jpg|png)|c/(surface|caves|endgame)_-?\d{1,3}_-?\d{1,3}(_L)?\.bin)$");
+    // \z, not $ ($ also matches before a final "\n"); [0-9], not \d (\d is
+    // every Unicode digit). Each name is a whole relative path, never "..".
+    private static readonly Regex Tile = new(@"^(canopy|ground)(-dry)?/[0-9]{1,2}/[0-9]{1,5}_[0-9]{1,5}\.jpg\z");
+    private static readonly Regex World = new(@"^(m/[0-9]{1,6}\.bin|t/[0-9]{1,6}\.(jpg|png)|c/(surface|caves|endgame)_-?[0-9]{1,3}_-?[0-9]{1,3}(_L)?\.bin)\z");
 
     /// Aerial photo tiles: `<layer>/<level>/<x>_<y>.jpg` and `aerial.json`.
     public static bool IsTile(string path) => path == "aerial.json" || Tile.IsMatch(path);

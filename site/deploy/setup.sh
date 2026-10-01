@@ -19,6 +19,10 @@ mkdir -p /opt/forest-site/app/releases /var/lib/forest-site
 install -m 755 -o root -g root "$HERE/deploy.sh" /opt/forest-site/deploy.sh
 install -m 644 -o root -g root "$HERE/compose.yaml" /opt/forest-site/compose.yaml
 chown -R forestdeploy:forestdeploy /opt/forest-site/app
+# The container runs as the image's `app` user (uid 1654, compose.yaml):
+# the data is its, and nobody else's on the host.
+chown -R 1654:1654 /var/lib/forest-site
+chmod 700 /var/lib/forest-site
 
 if [ ! -f /opt/forest-site/.env ]; then
   umask 077
@@ -45,8 +49,12 @@ fi
 chown -R forestdeploy:forestdeploy "$SSHDIR"
 chmod 700 "$SSHDIR"; chmod 600 "$SSHDIR/authorized_keys"
 
-# The container (created, started by the first deploy).
-cd /opt/forest-site && "$DOCKER" compose up --no-start
+# The container: created, and started by the first deploy. On a re-run
+# with a release already there, recreated with the new compose.yaml and
+# started (`docker restart` in deploy.sh never applies compose changes).
+cd /opt/forest-site
+if [ -e /opt/forest-site/app/current ]; then "$DOCKER" compose up -d --force-recreate && echo "forest-site recreated and started."
+else "$DOCKER" compose up --no-start; fi
 
 # Caddy: one more site, then a reload.
 if [ -n "$CADDYFILE" ]; then

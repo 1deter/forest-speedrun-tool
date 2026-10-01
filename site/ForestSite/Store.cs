@@ -159,12 +159,17 @@ ON CONFLICT(id) DO UPDATE SET token_hash = $hash, name = $name WHERE runners.tok
     /// A runner's upload makes them the owner of a new route; the owner's
     /// later uploads update its description (block) and the spot's name and
     /// category on all their routes (maks, 2026-09-27: a rename in game did
-    /// not reach the site). Anyone else's copy changes nothing.
-    public void SeeRoute(string segmentId, string route, string name, string category, string block, bool community, string owner = "")
+    /// not reach the site). Anyone else's copy changes nothing: with `copy`
+    /// (Runs.Upload: the spot is someone else's) a new route is recorded
+    /// under the spot's owner and labels, and an existing one is left alone.
+    public void SeeRoute(string segmentId, string route, string name, string category, string block, bool community, string owner = "", bool copy = false)
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = community
+        cmd.CommandText = copy && !community
+            ? @"INSERT INTO routes (segment_id, route, name, category, block, community, first_seen, owner)
+                VALUES ($s, $r, $n, $c, $b, 0, $now, $o) ON CONFLICT DO NOTHING"
+            : community
             ? @"INSERT INTO routes (segment_id, route, name, category, block, community, first_seen, owner)
                 VALUES ($s, $r, $n, $c, $b, 1, $now, '')
                 ON CONFLICT DO UPDATE SET name = $n, category = $c, block = $b, community = 1"
@@ -180,6 +185,20 @@ ON CONFLICT(id) DO UPDATE SET token_hash = $hash, name = $name WHERE runners.tok
         cmd.Parameters.AddWithValue("$o", owner ?? "");
         cmd.Parameters.AddWithValue("$now", Now());
         cmd.ExecuteNonQuery();
+    }
+
+    /// Who a spot belongs to: its community route if it has one, else its
+    /// first-seen route (owner, labels, block). Null for a new spot.
+    public (string owner, bool community, string name, string category, string block)? SpotHolder(string segmentId)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT owner, community, name, category, block FROM routes WHERE segment_id = $s
+                            ORDER BY community DESC, first_seen, route LIMIT 1";
+        cmd.Parameters.AddWithValue("$s", segmentId);
+        using var r = cmd.ExecuteReader();
+        if (!r.Read()) return null;
+        return (r.GetString(0), r.GetInt64(1) == 1, r.GetString(2), r.GetString(3), r.GetString(4));
     }
 
     /// Community marks that no longer have a pack (the author removed it).
@@ -343,6 +362,12 @@ ON CONFLICT DO NOTHING RETURNING id";
         WriteGz(Path.Combine(_dir, "submissions", id + ".foseg.gz"), text);
         return (id, open is long);
     }
+
+    /// A runner's submissions still waiting, other than one for `exceptSegment`
+    /// (a re-submit replaces that one).
+    public int OpenSubmissions(string runnerId, string exceptSegment) =>
+        Convert.ToInt32(Scalar("SELECT COUNT(*) FROM submissions WHERE runner_id = $r AND status = 'open' AND segment_id <> $s",
+                               ("$r", runnerId), ("$s", exceptSegment)));
 
     /// Submissions, newest first, with the runner's name and whether the
     /// spot is already a community spot (an update, not a new one).

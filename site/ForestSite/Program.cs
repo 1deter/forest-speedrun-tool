@@ -11,6 +11,11 @@ using Microsoft.AspNetCore.RateLimiting;
 //   FOREST_ADMIN_TOKEN  the owner's admin token (the author's; unset = no
 //                       owner). The owner makes named tokens for other
 //                       admins on /admin; they can do everything but that.
+//   FOREST_ORIGIN_SECRET  when set, every request must carry it in the
+//                       X-Forest-Origin header - a Cloudflare Transform Rule
+//                       adds it, so a request straight to the VPS (past
+//                       Cloudflare, with a made-up CF-Connecting-IP) is
+//                       refused (site/deploy/README.md *Origin lock*).
 // ------------------------------------------------------------------
 const int MaxBody = 4 * 1024 * 1024;
 
@@ -19,12 +24,15 @@ builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxBody);
 
 string dataDir = Environment.GetEnvironmentVariable("FOREST_DATA") ?? Path.Combine(AppContext.BaseDirectory, "data");
 string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? "";
+string originSecret = Environment.GetEnvironmentVariable("FOREST_ORIGIN_SECRET") ?? "";
 var store = new Store(dataDir);
 var runs = new Runs(store);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 
 // Cloudflare names the visitor; everything else sees Caddy's address.
+// The header is only as honest as the origin lock (FOREST_ORIGIN_SECRET):
+// without it a request straight to the VPS can name any address.
 static string ClientIp(HttpContext c) =>
     c.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ?? c.Connection.RemoteIpAddress?.ToString() ?? "?";
 
@@ -36,9 +44,11 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("register", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromHours(1) }));
     // Uploads are automatic, one per finished attempt: a busy practice
-    // session is a few hundred an hour at most.
-    o.AddPolicy("upload", c => RateLimitPartition.GetFixedWindowLimiter(
-        c.Request.Headers.Authorization.FirstOrDefault() ?? ClientIp(c),
+    // session is a few hundred an hour at most. Keyed on the address, not
+    // the Authorization header: a made-up header per request would be a
+    // fresh limiter each (kept an hour - memory), before the token is even
+    // checked.
+    o.AddPolicy("upload", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromHours(1) }));
     // The admin page makes a few calls per view; a long random token is
     // out of reach of guessing at this rate.
@@ -47,6 +57,42 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
+
+// The origin lock (above): nothing else runs for a request that did not
+// come through Cloudflare. Constant-time, like the admin token.
+if (originSecret.Length > 0)
+{
+    byte[] expected = Encoding.UTF8.GetBytes(originSecret);
+    app.Use((c, next) =>
+    {
+        string given = c.Request.Headers["X-Forest-Origin"].FirstOrDefault() ?? "";
+        if (System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(given), expected))
+            return next(c);
+        c.Response.StatusCode = 403;
+        return Task.CompletedTask;
+    });
+}
+
+// Security headers on every answer (docs/website.md *Security*). Scripts
+// are the site's own only - three.js is served from wwwroot/vendor, not a
+// CDN - so a script injected anywhere could not run, and the admin token
+// in localStorage stays out of reach. Fonts are Google's.
+const string Csp = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
+                   "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; " +
+                   "worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+app.Use((c, next) =>
+{
+    var h = c.Response.Headers;
+    h.ContentSecurityPolicy = Csp;
+    h.XContentTypeOptions = "nosniff";
+    h.XFrameOptions = "DENY";
+    h["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    h["Cross-Origin-Opener-Policy"] = "same-origin";
+    h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+    h.StrictTransportSecurity = "max-age=31536000";
+    return next(c);
+});
+
 app.UseRateLimiter();
 // Scripts and styles are linked as `/app.js?v=<hash of the file>`, so each
 // deploy changes their URLs: Cloudflare's Browser Cache TTL (4 h, it

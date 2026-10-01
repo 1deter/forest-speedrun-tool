@@ -14,6 +14,8 @@ function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   for (const k in attrs || {}) {
     if (k === "class") e.className = attrs[k];
+    // Through the CSSOM: a style="" attribute is blocked by the CSP.
+    else if (k === "style") { if (attrs[k]) e.style.cssText = attrs[k]; }
     else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]);
     else if (attrs[k] !== null && attrs[k] !== undefined && attrs[k] !== false) e.setAttribute(k, attrs[k]);
   }

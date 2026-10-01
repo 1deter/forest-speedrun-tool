@@ -531,6 +531,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder.
 70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there.
 71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open.
+72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one.
 
 ---
 
@@ -583,19 +584,28 @@ identity.
 ## Current status
 
 **Released: v0.24.177** (2026-10-01). The author runs it via the in-game
-updater (v0.24.177 in the game at handoff, Slot 2). **457 tests** (+ 18 site tests).
+updater (v0.24.177 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
 
 ### Pick up here (2026-10-01, v0.24.177 in the game)
 
-**Open work by severity** (sorted with the author, 2026-10-01; 1-2 done
-or as far as they go without testers this session):
+**Open work by severity** (sorted with the author, 2026-10-01; the
+author: "do the list in your order, skip Tom's work until he gets back
+to us" - one item per session):
 1. ~~Cave 6 "leaves" in 3D~~ - a stale page, fixed (below).
-2. Tom's native crashes - likely cause fixed in v0.24.177, not
-   reproduced; waiting on Tom (below). Left to try: F7 in the vault door
-   / Megan pickup cutscenes.
-3. **Security review of the website** (docs/backlog.md *Website*) - before
-   more admin features.
-4. The author's map list: photo tiles in brightness bands (check first
+2. Tom's native crashes - **paused until Tom answers** (author). Likely
+   cause fixed in v0.24.177, not reproduced (below). Left to try: F7 in
+   the vault door / Megan pickup cutscenes.
+3. ~~Security review of the website~~ **done** (2026-10-01, site only,
+   deployed by the push): docs/website.md *Security* - spot renaming by a
+   copy's route closed (gotcha 72), CSP + headers, three.js self-hosted,
+   rate-limit key, upload / submission caps. **Left for the author** (no
+   push can do it): `site/deploy/README.md` *Hardening* - re-run
+   `setup.sh` (non-root, read-only container), the origin lock
+   (Cloudflare Transform Rule + `FOREST_ORIGIN_SECRET`), optionally a
+   network without Navidrome; and two decisions in *Security* (Steam ids
+   are recoverable from runner ids; the token-reset race). Remind the
+   author once if not done.
+4. **Next: the author's map list**: photo tiles in brightness bands (check first
    whether it is the same stale-page effect: a tab open across an aerial
    upload), the Water button, 3D terrain textures dropping out, playback
    stutter.

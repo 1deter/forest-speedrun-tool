@@ -18,6 +18,9 @@ public sealed class Runs
     /// the author (docs/website.md: no anti-cheat, a flag is enough).
     public const float FlagRatio = 0.8f;
 
+    /// Spot submissions one runner can have waiting at once.
+    public const int MaxOpenSubmissions = 20;
+
     private readonly Store _store;
 
     public Runs(Store store) { _store = store; }
@@ -44,16 +47,41 @@ public sealed class Runs
         if (b.Attempts.Count == 0) { res.Error = "no [attempt] sections"; return res; }
 
         string route = seg.RouteFingerprint();
-        _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, runnerId);
-        string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
-
+        // Every attempt is checked before anything is written: an upload
+        // with none that passes leaves no route behind (an empty spot).
+        var good = new List<(Attempt a, string text)>();
         for (int i = 0; i < b.Attempts.Count; i++)
         {
             string runText = b.Attempts[i];
             Attempt a = AttemptFormat.Parse(runText.Split('\n'));
             string why = Check(a, seg, route, runnerId);
-            if (why != null) { res.Skipped.Add("attempt " + (i + 1) + ": " + why); continue; }
+            if (why != null) res.Skipped.Add("attempt " + (i + 1) + ": " + why);
+            else good.Add((a, runText));
+        }
+        if (good.Count == 0) return res;
 
+        // A spot already on the site under someone else (another runner's,
+        // or a community one): this runner's route is a copy (an import with
+        // a moved zone). It keeps its zones but takes the spot's name,
+        // category, description and owner - otherwise the newest copy's
+        // labels would become the spot's (the spot page shows the route run
+        // most recently), and anyone could rename anyone's spot.
+        string owner = runnerId;
+        bool copy = false;
+        var holder = _store.SpotHolder(seg.Id);
+        if (holder != null && (holder.Value.community || (holder.Value.owner.Length > 0 && holder.Value.owner != runnerId)))
+        {
+            owner = holder.Value.community ? "" : holder.Value.owner;
+            copy = true;
+            seg.Name = holder.Value.name;
+            seg.Category = holder.Value.category;
+            seg.Notes = ParseBlock(holder.Value.block).Notes;
+        }
+        _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, owner, copy);
+        string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
+
+        foreach (var (a, runText) in good)
+        {
             string name = Clip(AttemptFormat.Clean(a.RunnerName), 40);
             if (name.Length == 0) name = registered;
             float best = Best(seg.Id, route, out int count);
@@ -85,6 +113,10 @@ public sealed class Runs
         if (b == null) return (0, false, error);
         string why = SiteProtocol.SubmitRefusal(b.Segment.Id, b.Attempts.Count > 0);
         if (why != null) return (0, false, why);
+        // Each waiting submission keeps its file: a cap per runner, so one
+        // token cannot fill the disk. A re-submit of a waiting spot replaces.
+        if (_store.OpenSubmissions(runnerId, b.Segment.Id) >= MaxOpenSubmissions)
+            return (0, false, MaxOpenSubmissions + " of your spots are already waiting for the author - wait until they are looked at.");
         var (id, replaced) = _store.AddSubmission(runnerId, b.Segment.Id, Clip(b.Segment.Name, 80), text, b.StartState != null);
         return (id, replaced, null);
     }

@@ -584,3 +584,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     renders do not, ask *when* and *how long the page was open* - the
     author's screenshot is in the previous session's transcript (`type:
     image` in its `.jsonl`) even when the handoff says it was not saved.
+
+72. **A check per row is not a check per thing.** (2026-10-01, the
+    website's security review.) The site let only a route's owner change
+    its name - per row. But a spot is many routes under one segment id,
+    and the spot page shows the labels of the route run most recently: a
+    runner who took someone's id, moved a zone (a new route, their own
+    row) and ran it, renamed the spot and became its "by". The fix put
+    the check at the level of the thing people see: a copy takes the
+    spot's labels and owner. Whenever rows are folded into one shown
+    thing (newest wins, first wins, a join), ask who can create a row
+    that wins - not only who can edit an existing one.

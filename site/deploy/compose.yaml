@@ -2,17 +2,33 @@
 # puts it there). The stock ASP.NET image runs the release that deploy.sh
 # unpacked; Caddy (its own compose project) reaches it by name on the
 # shared network. No port is published on the host.
+#
+# Locked down (security review, 2026-10-01): the image's own non-root user
+# (`app`, uid 1654 - setup.sh gives it /var/lib/forest-site), a read-only
+# filesystem but for the data folder and a small /tmp, no Linux
+# capabilities, no privilege gain, and caps on memory and processes so a
+# runaway request cannot take the VPS's other services down with it.
 services:
   forest-site:
     image: mcr.microsoft.com/dotnet/aspnet:10.0
     container_name: forest-site
     restart: unless-stopped
+    user: "1654:1654"
     working_dir: /srv/current
     entrypoint: ["dotnet", "/srv/current/ForestSite.dll"]
     environment:
       ASPNETCORE_URLS: http://+:8080
       FOREST_DATA: /data
-    env_file: .env            # FOREST_ADMIN_TOKEN
+      DOTNET_EnableDiagnostics: "0"   # no debugger / diagnostics pipes (and nothing written to /tmp for them)
+    env_file: .env            # FOREST_ADMIN_TOKEN (+ FOREST_ORIGIN_SECRET once Cloudflare sends it - README)
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
     volumes:
       - /opt/forest-site/app:/srv:ro
       - /var/lib/forest-site:/data

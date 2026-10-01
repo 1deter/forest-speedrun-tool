@@ -362,8 +362,9 @@ a reload.
    on the map (remembered per browser; hidden with no `aerial.json`, which
    answers 204 then); tested with fake tiles only - no real bake uploaded
    yet. **3D view** (2026-09-27, site only): the map's 2D / 3D switch
-   (2D stays the default) loads `wwwroot/map3d.js` (three.js 0.170 from
-   jsdelivr, versioned via index.html's `data-map3d-src`): the heights as
+   (2D stays the default) loads `wwwroot/map3d.js` (three.js 0.170, since
+   2026-10-01 served from `wwwroot/vendor` - the CSP allows no CDN script;
+   versioned via index.html's `data-map3d-src`): the heights as
    a coarse island mesh + a full-resolution patch around the runs, the
    relief or aerial tiles (level <= 5) on it, run lines bright up to the
    scrub time, ghosts, zones (spheres, turned boxes); orbit, or *Follow*
@@ -387,6 +388,66 @@ a reload.
    `site/ForestSite/wwwroot`, and draw it under the grid in `map.js` at
    world coordinates (x east, z north; the image's row 0 is z min). Caves
    stay a later mesh dump. 3D after (the same heights as a mesh).
+
+## Security (review 2026-10-01)
+
+Checked: every endpoint in `Program.cs`, `Store` / `Runs` SQL, the pages'
+DOM building, the map uploads, the deploy (`site/deploy`, `site.yml`).
+**Fine as it was:** every SQL query is parameterised (the one string-built
+`PRAGMA table_info(<const>)` takes constants); the pages build the DOM
+with `textContent` / `setAttribute` only (no `innerHTML`), links are
+site paths; tokens are 192-bit random, stored as SHA-256, compared in
+constant time (owner); the admin token travels in a header, not a cookie
+(no CSRF); hidden runs are left out of every public read; the run /
+submission downloads are `attachment` text; map uploads are owner-only
+and every zip entry must match `UploadPath`; the deploy key can only run
+`deploy.sh`, which only restarts the container.
+
+**Fixed (site, no plugin change; `ApiTests` *security review*):**
+- Anyone could **rename anyone's spot**: a new route (a moved zone) under
+  another runner's segment id was the uploader's own row, and the spot
+  page shows the newest route's name / category / description / "by".
+  Now a copy takes the spot's labels and owner
+  (`Store.SpotHolder`, `SeeRoute(copy)`; gotcha 72).
+- An upload whose attempts were all refused still recorded its route
+  (and its up-to-4 MB block): attempts are checked first now.
+- The upload rate limit was keyed on the `Authorization` header - a
+  made-up header per request was a new limiter each (memory, an hour):
+  keyed on the address now.
+- Spot submissions: at most 20 waiting per runner (each keeps its file).
+- three.js came from jsdelivr with no integrity check, on the origin
+  that keeps the admin token in localStorage: now `wwwroot/vendor`
+  (npm's file, checked against its sha512; same bytes as the CDN's).
+- Headers on every answer: CSP (`script-src 'self'`, no `unsafe-*`;
+  `el()` sets `style` through the CSSOM), `nosniff`, `X-Frame-Options
+  DENY` + `frame-ancestors 'none'`, Referrer-Policy, COOP,
+  Permissions-Policy, HSTS (no `includeSubDomains`: other deter.cloud
+  hosts are the author's). Checked headless: home, about, a spot in 2D /
+  3D (232 world files), every admin tab - no violation, fonts load.
+- `UploadPath`: `\z` instead of `$` (which also matches before a final
+  newline), `[0-9]` instead of `\d` (every Unicode digit).
+- The origin lock (`FOREST_ORIGIN_SECRET`) and the container's lockdown
+  (`compose.yaml`) are in the code; **both need the author's steps on
+  the VPS / Cloudflare**: `site/deploy/README.md` *Hardening*.
+
+**Open, for the author to decide:**
+- **Runner ids can be reversed to a Steam account.** The id is SHA-256 of
+  a fixed prefix + the Steam id, and individual Steam ids are ~2^31
+  values - a few minutes of hashing maps every id on the site back to its
+  profile. The runner name defaults to the Steam name anyway, so little
+  is hidden today; a real fix (a per-install secret, or a slow hash) would
+  split every runner's identity in two. Decide before the site has many
+  runners.
+- After an admin's *Reset token*, the next registration of that id wins -
+  anyone who knows the id (it is public in `board.txt`) could take it
+  first. Rare; the admin can reset again. A one-time claim code shown to
+  the admin would close it.
+- No disk quota per runner beyond the rate limits (600 uploads / hour /
+  address, 4 MB each, gzip-stored): watch `/var/lib/forest-site`'s size.
+
+Re-check after admin features: new endpoints go under the `admin` group
+(its filter checks the token), owner-only ones check `IsOwner`, and any
+new page text goes through `el()`.
 
 ## Useful from the game later
 
