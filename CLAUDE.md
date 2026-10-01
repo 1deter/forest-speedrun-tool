@@ -581,10 +581,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.173** (2026-09-28). The author runs it via the in-game
-updater (v0.24.173 in the game at handoff, Slot 2). **455 tests** (+ 17 site tests).
+**Released: v0.24.176** (2026-10-01). The author runs it via the in-game
+updater (v0.24.176 in the game at handoff, Slot 2). **457 tests** (+ 17 site tests).
 
-### Pick up here (2026-09-28, v0.24.173 in the game)
+### Pick up here (2026-10-01, v0.24.176 in the game)
 
 **The website's map: photo map with water, and a 3D world of the game's
 own models.** Author (2026-09-28): keep the sea with an option to hide
@@ -615,27 +615,17 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **3D caves (2026-10-01, 14ab4b8, live):** the cave floors were missing
-  because the cave grounds (and mountains, sinkhole) sit at 0,0,0 with
-  world-space vertices and were filed in the centre chunks (gotcha 70);
-  chunks now go by the mesh's bounds (`bb`, `_L` wide chunks), build
-  leftovers and the black `CaveN_Blocking` shells are dropped (docs/website.md
-  *The 3D world*). Checked live headless at maks's *1st logboost* end (Cave
-  6): floor + collision under the End box. **Awaiting the author's eyes**:
-  the spot's end (their first screenshot) and *behind* it - "a panel and a
-  pathway down to a drop with bodies and the keycard / camcorder ... seems
-  blocked off" (their second screenshot, collision on). The panel
-  (`CaveWoodplanks`, (1265, -29, 525.5), 22 m south of the end) was exported
-  as *surface* and faded underground - fixed (anything under the terrain is
-  filed with the caves), live, seen headless. The "blocked off" path not
-  looked into beyond that - if still blocked, `OverlapSphere` / `find` there
-  in game and look for the object in the export. Still missing on purpose:
-  greebles (`Pooling/Pool_Greebles`: Cave 6's body piles, stalactites,
-  sticks) - the next step for "a couple models missing" (dump them in
-  `WorldDump` like the LOD placeholders; they are random per visit, so
-  decide with the author whether one visit's set is fine). Tools: a headless
-  look (Playwright + Edge, docs/website.md *Looking at a spot*), a second
-  local site on 5081 (`forest-site-alt`).
+- **3D caves (2026-10-01, live, v0.24.174-176 for the dump):** the cave
+  floors (gotcha 70: chunks by the mesh's bounds), the wood panels (under
+  the terrain = caves), and the **greebles** - Cave 6's body piles,
+  stalactites, spikes, the sticks round trees, debris, ferns (docs/website.md
+  *The 3D world*; matched the game to 1 cm). Black trees / black trunk rings
+  fixed. Checked headless locally + live. Export is ~104 MB now (two upload
+  parts). Not placeable: the player's own random sticks / small rocks
+  (game-notes *Greebles*). The author's "blocked path" was the wrong spot
+  (user error - dropped). **Awaiting the author's eyes** on caves and a
+  forest spot. Tools: a headless look (Playwright + Edge, docs/website.md
+  *Looking at a spot*), a second local site on 5081 (`forest-site-alt`).
 - **The author's map list (2026-10-01, docs/backlog.md *Website*):** photo
   map tiles in bands of different brightness, the Water button doing
   nothing, 3D photo terrain textures breaking / unloading (Elevator Boost,

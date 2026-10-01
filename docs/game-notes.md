@@ -1107,6 +1107,22 @@ marks a missing or inactive instance `Destroyed` and hands the object to
 returning (regrowth), and a teleport into a cave reset the zones.
 `PickUp.OnSpawned` resets `Used` but not `_disableInsteadOfDestroy`.
 
+**The ground sticks and small rocks are random per spawn (IL + bridge,
+2026-10-01).** Most loose sticks (`Stick_Greeble_0N`) and small rocks
+(`Rock`, `SmallRock`) on open ground do not come from a `GreebleZone` but from
+the player's own `GreebleLayer`s (`player/ControllerObjects/GreeblesRoot/
+Standard`, two: 100 x 100 m in 8 x 8 cells, 30 x 30 m in 3 x 3; `Snow` / `Mud`
+siblings by season). `InstantiateGreeble` calls `ProceduralSeed(worldX, worldY,
+worldZ)` - **an empty method in this build** (`ret`) - then draws the type,
+the offset in the cell and the rotation from whatever `Random` holds, and
+casts down from 5 km. So they land somewhere new on every spawn (two launches
+at the same spot gave different sticks); a map cannot place them. The zone
+greebles are deterministic: `WorldDump.Greebles` (v0.24.174-176) replays
+`SpawnIndex` + `GreebleUtility.Spawn` and matched the live objects to 1 cm
+(plane debris, lavender, Cave 6's body piles, sticks, stalactites, spikes).
+A greeble prefab can itself be an LOD placeholder (`Cave_SpikesSmall` ->
+`Pool_Caves/CaveSpikesCluster1_High`, `Fern2_Loader`, `Bush07_loader`).
+
 **Why sticks move (bridge + IL, 2026-09-25, fix list 3).** Many zones sit
 on **pooled trees** (`Pooling/Pool_Trees/PineTreeMoss_High(Clone)00N/Greeb`),
 not in `GreebleZonesManager`'s arrays. Such a zone has no manager `GZData`:

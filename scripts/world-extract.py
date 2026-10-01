@@ -221,6 +221,7 @@ VOLUME_LAYERS = (4, 25)     # Water, Blocker: switched-off cubes with Base_Orang
 CUT_SHADERS = ("Foliage", "Leaves", "Transparent", "Cutout", "Grass")
 FX_SHADERS = ("Particles/", "Lux/Particles", "Custom/Sheen", "Legacy Shaders/Particles")
 BAKE_MATERIALS = ("Default-Material", "lambert2")   # a switched-off renderer with only these (or none) is never drawn
+SKIP_MESHES = ("VRTreeRing",)   # the VR mode's ring round a tree trunk (black, never shown on a screen)
 PRIMITIVES = ("Cube", "Sphere", "Quad", "Plane", "Cylinder", "Capsule")
 CAVE_LODS = ("LOD_Cave", "LOD_CaveEntrance", "LOD_CaveMedium", "LOD_CaveSmall")   # scaled like their placeholder
 
@@ -448,6 +449,8 @@ class Export:
                 entry["cut"] = True
             if sh.startswith(FX_SHADERS):
                 entry["fx"] = True       # glints, particles: not a solid thing (the site skips them)
+            if sh.startswith("AFS/"):
+                entry["color"] = [1, 1, 1, 1]   # the tree shaders ignore _Color (0,0,0 on pines, fig trees): black trees on the site
         except Exception as e:
             print("   material failed:", label, e)
         return entry
@@ -562,6 +565,8 @@ class Export:
                         cur = None if p[1] in prefabs else prefabs.setdefault(p[1], {"scale": [float(v) for v in p[2].split()], "parts": []})
                     elif p[0] == "part" and cur is not None:
                         cur["parts"].append(p)
+        for pf in prefabs.values():
+            pf["parts"] = [p for p in pf["parts"] if p[3] not in SKIP_MESHES]
         want_mesh = {(p[3], int(p[4])) for pf in prefabs.values() for p in pf["parts"] if p[1] != "box"}
         want_mat = {m for pf in prefabs.values() for p in pf["parts"] for m in p[6].split(";") if m != "-"}
         meshes, mat_objs = {}, {}

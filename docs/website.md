@@ -276,9 +276,20 @@ What the export decides (details: gotchas 64-67):
   whole mesh is 2 m+ under the terrain where it stands (the site's own
   `wwwroot/terrain` heights) is filed with the caves - Cave 6's wood panels
   (root `CaveWoodplanks`, layer treeMid) faded away with the surface before.
-- Missing on purpose so far: greebles under `Pooling/Pool_Greebles` (Cave
-  6's body piles, stalactites, sticks - random per visit or placed by
-  greeble zones) and skinned meshes.
+- **Greebles** (2026-10-01, v0.24.174-176): `call
+  static:ForestOverlay.Game.WorldDump Greebles surface` on the surface and
+  `... Greebles caves` in any cave (all 16 cave prop scenes load together;
+  the surface's `MainSceneGreebles` unloads in caves) -> `world/greebles-
+  <name>.txt`; the export reads every `greebles-*.txt` (duplicates once).
+  ~44k placed (debris, flowers, corals, Cave 6's body piles, stalactites,
+  the sticks round trees) + their LOD loaders (cave spikes, ferns, bushes);
+  each zone as on a first visit (author: "one visit's set is fine"). Not
+  placeable: the player's GreebleLayer sticks / small rocks (random per
+  spawn - game-notes *Greebles*). Needed again after a game update only.
+- Dropped too: `VRTreeRing` (the VR mode's black ring round trunks); the AFS
+  tree shaders' `_Color` is ignored (0,0,0 on pines / fig trees - black
+  trees on the site).
+- Missing so far: skinned meshes.
 
 **Looking at a spot on the local site** (gotcha 68 - do it before calling a
 render fix done): preview `forest-site`, upload the world locally
