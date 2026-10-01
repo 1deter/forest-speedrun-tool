@@ -340,6 +340,9 @@ namespace ForestOverlay.Modules
             string book = _book.Capture(out bookNote);
             List<int> held = _bridge.HeldIds();
             List<string> heldBefore = _bridge.PreviousHeld();
+            string mode = RideModes.Current();
+            if (mode.Length > 0)
+                Ctx.Log.LogInfo("Savestate capture: on a " + mode + " - a restore puts you at this spot without it (modes are not put back).");
             // The book stows the hands: the save then says nothing is held,
             // and what closing the book would take back out is the
             // inventory's "previously equipped" memory. A capture with the
@@ -607,6 +610,10 @@ namespace ForestOverlay.Modules
             // before the restore, a restore keeps the player on it.
             string rope = RopeClimb.Prepare(file != null ? file.Rope : "");
             if (rope.Length > 0) fall += (fall.Length > 0 ? ", " : "") + rope;
+            // A cliff climb, sled, glider or zipline in flight holds the body
+            // too: ended the game's way before the restore moves it.
+            string ride = RideModes.Leave();
+            if (ride.Length > 0) fall += (fall.Length > 0 ? ", " : "") + ride;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             // Outside a cutscene replay (its hands are the replay's).

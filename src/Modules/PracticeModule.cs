@@ -515,6 +515,9 @@ namespace ForestOverlay.Modules
             // start state the restore has put back the captured one.
             string rope = syncCave ? RopeClimb.Leave() : "";
             if (rope.Length > 0) cave += (cave.Length > 0 ? ", " : "") + rope;
+            // Cliff climb, sled, glider, zipline: the same (Game/RideModes).
+            string ride = syncCave ? RideModes.Leave() : "";
+            if (ride.Length > 0) cave += (cave.Length > 0 ? ", " : "") + ride;
 
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 

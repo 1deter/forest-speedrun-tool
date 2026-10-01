@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.195 - 2026-10-01
+
+- A Go, Restart or Quick load during a cliff climb, sled push, glider
+  flight or zipline ride now ends it the game's own way first, as it
+  already did for cave ropes - the mode no longer carries on with your
+  body somewhere else. (A savestate taken on one still restores you at
+  the spot without it.)
+
 ## v0.24.194 - 2026-10-01
 
 - The HUD says which game-changing options are on right now ("ON NOW: no
