@@ -539,6 +539,8 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 76. **A game can have more than one distance switch** - LOD_Manager's ranges and 963 `LOD_GroupToggle`s with their own; a shape cut at a tile edge = a switch on the tile's centre (`ilscan refs PlayerCamLocation::PlayerLoc`).
 77. **A scene object can be moved at run time** - the yacht stands 130 m from its scene position (a positive handle under a spawned root); check an exported object against `find` before chasing its look.
 78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places.
+79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back.
+80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
 
 ---
 

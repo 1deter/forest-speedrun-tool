@@ -621,6 +621,13 @@ namespace ForestOverlay.Modules
                 string after2 = Ctx.Bridge.EndFall();
                 if (fall.Length == 0) fall = after2;
 
+                // A capture with the book open saved the hands as stowed;
+                // 1.5 s after the load the game reads those slots and hides
+                // whatever is held. Its slots get the items the book put
+                // away, so the game equips them itself (v0.24.189).
+                string slotNote = r.Ok && file != null ? UnstowSavedSlots(file) : "";
+                if (slotNote.Length > 0) Ctx.Log.LogInfo("Savestate restore " + what + ": " + slotNote + ".");
+
                 int pickups = 0;
                 if (r.Ok)
                 {
@@ -1421,6 +1428,37 @@ namespace ForestOverlay.Modules
         /// The captured blueprint back in the hands (Game/BuildMode), with
         /// its own log line; nothing when none was out. A moment later, as
         /// the hands are: after a restart's teleport, which cuts actions.
+        /// The restored inventory's saved hand slots, when they hold no item
+        /// but the file says what was held: the "previously equipped" slots
+        /// the book put away. "" when nothing was changed.
+        private string UnstowSavedSlots(SavestateFile file)
+        {
+            if (file.Held == null || file.Held.Count == 0 || file.HeldBefore == null || file.HeldBefore.Count == 0) return "";
+            try
+            {
+                object inv = GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Inventory");
+                if (inv == null) return "";
+                System.Reflection.FieldInfo f = inv.GetType().GetField("_equipmentSlotsIds",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                int[] slots = f != null ? f.GetValue(inv) as int[] : null;
+                if (slots == null) return "";
+                for (int i = 0; i < slots.Length; i++) if (slots[i] > 0) return "";   // the save has the hands
+
+                int set = 0;
+                for (int i = 0; i < file.HeldBefore.Count; i++)
+                {
+                    string e = file.HeldBefore[i];
+                    int colon = e.IndexOf(':'), slot, id;
+                    if (colon <= 0 || !int.TryParse(e.Substring(0, colon), out slot) || !int.TryParse(e.Substring(colon + 1), out id)) continue;
+                    if (slot < 0 || slot >= slots.Length || id <= 0 || !file.Held.Contains(id)) continue;
+                    slots[slot] = id;
+                    set++;
+                }
+                return set == 0 ? "" : "the save had the hands stowed (book open at capture) - " + set + " slot(s) given back their items for the game's re-equip";
+            }
+            catch (Exception ex) { return "giving the stowed hands back failed: " + ex.Message; }
+        }
+
         private void PullOutBlueprint(string type, string prefix)
         {
             if (string.IsNullOrEmpty(type)) return;

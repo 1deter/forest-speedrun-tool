@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.189 - 2026-10-01
+
+- A savestate captured with the survival book open really gives your
+  held items back now (v0.24.188 put them in your hands, and the game put
+  them away again a moment later).
+
 ## v0.24.188 - 2026-10-01
 
 - A spot that starts on moving (a LiveSplit velocity start) no longer

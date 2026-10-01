@@ -1,0 +1,5 @@
+Clock|.ElapsedGameTime
+PlayerStats|.DaySurvived
+TheForestAtmosphere|.TimeOfDay
+UnityEngine.Transform|.localPosition.data.contents[]
+TheForest.Items.World.CaveMapDrawer|._visitedAreas.count

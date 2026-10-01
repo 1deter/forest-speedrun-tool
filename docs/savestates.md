@@ -60,6 +60,51 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   `updateSpawns` top up a random family; weapons are whatever the spawn
   gives (game-notes *Cannibal kinds and families*). Restores are refused
   at the title screen (v0.24.73).
+  The nature guide's ticks are set back as the save lists them
+  (`Game/NatureGuideKeeper`, v0.24.187) and the book's to-do list is set
+  up again (`Game/TodoListKeeper`, v0.24.188) - both only prepare
+  themselves once (game-notes *Survival book*). A capture with the book
+  open takes the held items from what the book put away (v0.24.188).
   With *Logs in the inventory* on, the `logs` header keeps the stored
   count and it is set back when the restore ends (`LogStore.Apply`,
   v0.24.135; the game's own `_logs` round trip was unreliable once).
+
+## Quick load audit (2026-10-01, v0.24.187-188)
+
+What a Quick load leaves different from the capture, found by diffing the
+game's own serialization before and after (game-notes *Saving and
+loading*: `JSONLevelSerializer.SerializeLevelToFile`).
+
+Recipe (bridge, a `-f` script): `capture X`, dump `b0`, change things,
+dump `changed`, `restore X`, wait 4 s, dump `b1`; diff `b0` against `b1`
+with a control pair (two dumps 10 s apart, `--write-noise`) as noise - the clock, days
+survived, time of day, the player's transform
+(`scripts/save-diff-noise.txt`). `scripts/save-diff.py b0.json b1.json
+scripts/save-diff-noise.txt` flattens
+each component's JSON and groups changes by type; 2D arrays carry a
+running counter in their key names (`contents126`), not a change. A
+dump only sees saved fields - a field put back without its effect (the
+nature guide's marks, the to-do list's set-up) shows only when the
+component rebuilds the field from live state on serializing, so read the
+component's DelayedAwake / OnDeserialized as well (gotcha 79).
+
+| Changed after the capture | After a Quick load |
+|---|---|
+| Health, fullness, thirst, energy, stamina | as captured |
+| Items added (rope, cloth, booze, map piece, manifest) | as captured |
+| A passenger found, `GameStats._passengersFound` | as captured |
+| A nature guide entry ticked | **was kept ticked** - fixed v0.24.187 |
+| The book's to-do list | **stopped updating** (tasks never set up again) - fixed v0.24.188 |
+| A capture with the book open | **restored empty-handed** - fixed v0.24.188-189 (the game hides the hands 1.5 s after the load: the restored slots get the items back) |
+| The current cave (`ActiveAreaInfo._currentCave`) | as captured |
+| The held items, the book open at restore | as captured |
+| A long teleport, cave visit, a different item equipped | as captured |
+| The cave map's visited areas | unchanged in the test (all false) |
+
+Not covered yet (no bridge call, or needs hands): clothing changes
+(`AddClothingOutfit` takes a list), buildings placed since (handled by
+the restore's "delete objects not in the save"), the crafting cog, the
+inventory open at capture (`PlayerInventory.Open` needs the input path),
+achievements, the weather (not in the save: `WeatherSystem` keeps only
+`LastRainTime` - backlog *Weather in savestates*), the bestiary (same
+shape as the nature guide, not runner-facing).

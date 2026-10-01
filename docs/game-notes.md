@@ -319,7 +319,15 @@ polls the same fields once a frame:
 | `clothing-<id>` | `LocalPlayer.Clothing._wornClothingItems` (List<int>) | Names: `ClothingItemDatabase._instance._items[i]._displayName` ("RED BEANIE"), 33 items. |
 | `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
 | `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
-| `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. |
+| `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. A placement settles for a frame or two (bridge: -0.87 m/s after a restart from a cave), so since v0.24.188 a move of more than 2 m in one frame resets it - still again first. |
+
+The ASL's settings as a segment (v0.24.186, `Data/LssAutoSplit`): a
+LiveSplit split is "the next thing the autosplitter splits on", so an
+imported spot's checkpoints are all `event autosplit` and its `autosplit
+=` list names what counts. The ASL's per-run memory is kept
+(`AutoSplitWatch`): an item splits on its first appearance in the run
+(`itemTracker`), again on every change only with `multiItemSplit`; a
+clothing id once per run (`equippedClothes`); one split per update.
 
 ---
 
@@ -352,6 +360,23 @@ records the on/off of every page object (children of each distinct
 `Pages`, then each `IndexPage`, in hierarchy order under
 `LocalPlayer.GameObject`) as the savestate's `book` header and restores it
 the way a click does. Not yet confirmed in game.
+
+### The to-do list after an in-place load (IL + bridge, v0.24.188)
+
+`TheForest.Player.SurvivalBookTodo` (`player/ControllerObjects/
+SpecialItems/TodoList`) saves its tasks whole (`_son`, `_camp`, `_food`,
+`_cave1`..`_cave10`, `_megan` ...: `TodoTask : TaskSystem.Task :
+ACondition`), so an in-place LoadNow puts **new task objects** in its
+fields. Only `DelayedAwake` prepares tasks (`Prepare(GOs, OnStatusChange)`:
+the page entry, the status callback, the conditions' subscriptions), and
+only once (`_initialized`). Bridge: after a Full load `_son.GOs` is set and
+`OnStatusChange` a delegate; after one Quick load both are null - the list
+stopped updating until a Full load. `OnDestroy` Clears every task (the
+game's unsubscribe). `Game/TodoListKeeper` keeps the old tasks before the
+restore, Clears the replaced ones and re-runs DelayedAwake (for a loaded
+game it only prepares; the new-game messages wait on `GameSetup.Init`).
+`SurvivalBookBestiary` has the TickOff shape (`_doneConditions` int[],
+`FoundEnemyInfo[]` not saved) - not runner-facing, not handled.
 
 ### Opening and closing the book (IL + bridge, v0.24.44)
 
@@ -420,6 +445,16 @@ Each entry subscribes itself in `Init` to `EventRegistry.Player` —
 / `InspectedPlant` (payload `AnimalType`) — and publishes
 `TfEvent.TickedOffEntry` when ticked. `InspectedPlant` unboxes `AnimalType`
 too, so plants are species in the same enum.
+
+**After an in-place load (v0.24.187).** LoadNow writes `_tickedEntries`
+back (bridge: nulled, restored, read back) and OnDeserialized calls
+Awake -> DelayedAwake, which applies the array only on its first run
+(`_initialized`) - so the entries kept their live ticks. A tick does what
+the handler does: `_ticked`, `_tickGo.SetActive(true)`, then
+`Entry.Clear()`, which unsubscribes and **nulls `_tickGo`**; an entry
+ticked this session keeps its mark only through a prefix on Clear
+(`Game/NatureGuideKeeper`). Entries are the same objects across the load
+(`_entries` is not saved).
 
 **Which page an entry is on is not recorded.** The plugin derives it from
 where `_tickGo` sits in the hierarchy (`Data/PageGrouping.cs`); the
@@ -1383,6 +1418,18 @@ entered before it; Go / `tp` leave a climb).
 The game uses **UnitySerializer** (`LevelSerializer`, `LevelLoader`,
 `UniqueIdentifier` / `PrefabIdentifier` / `EmptyObjectIdentifier`). A
 `JSONLevelSerializer` twin exists; the game uses the binary one. All IL.
+
+**A text dump of any moment (bridge, 2026-10-01).**
+`JSONLevelSerializer.SerializeLevelToFile("<name>")` (static, ~0.2 s)
+writes what a save would hold, as JSON, to
+`%USERPROFILE%\AppData\LocalLow\SKS\TheForest\<name>` (a full path is
+taken as relative to that folder). `StoredItems` lists every saved
+component (`Type`, `Name` = its UniqueIdentifier, `Data` = its fields as
+JSON; `None` for a null). It runs the components' `OnSerializing` hooks,
+which **write live fields**: with the book open, `PlayerInventory`'s
+`_equipmentSlotsIds` becomes `[0, 0]` (the hands stowed) - a dump or a
+capture taken with the book open records nothing held. The Quick load
+audit diffs two of these (docs/savestates.md).
 
 **Where a save lives.** `PlayerPrefsFile.SetString(PlayerName + "__RESUME__",
 base64, useSlots: true)` writes `SaveSlotUtils.GetLocalSlotPath()` +

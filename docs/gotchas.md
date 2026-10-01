@@ -662,3 +662,21 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     Same session: key "the game lists this object" on its path, not its
     place - props physics nudged (whiteboards and their drawings) did not
     match by position.
+
+79. **A component that sets itself up once misses an in-place load.**
+    (2026-10-01, the Quick load audit.) TickOffSystem and SurvivalBookTodo
+    apply their saved state in `DelayedAwake`, guarded by `_initialized`;
+    LoadNow in place calls it again and it returns at once. The nature
+    guide kept ticks found after the capture; the to-do list got new,
+    never-prepared task objects and stopped updating. A save field coming
+    back is not the state coming back: grep the component for
+    `_initialized` / `DelayedAwake` and read what runs only the first time.
+
+80. **Serializing has side effects.** (2026-10-01, the Quick load audit.)
+    `OnSerializing` hooks write live fields: with the survival book open,
+    PlayerInventory writes its stowed hands (`[0, 0]`) into
+    `_equipmentSlotsIds`, so a capture then (or a JSON dump for a
+    diagnostic) records nothing held. Take a diagnostic dump in the state
+    you are not testing, and decide what a capture should record from the
+    live objects, not from what the serializer wrote.
+
