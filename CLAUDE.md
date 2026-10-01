@@ -592,10 +592,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.193** (2026-10-01). The author runs it via the in-game
-updater (v0.24.193 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
+**Released: v0.24.195** (2026-10-02). The author runs it via the in-game
+updater (v0.24.195 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-01 night, v0.24.193 in the game)
+### Pick up here (2026-10-02 early, v0.24.195 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -650,19 +650,26 @@ over the bridge:
   options** (opacity, comparison line only N s ahead).
 - **v0.24.192: Inventory -> Item caps** (any item's carry cap, postfix on
   `InventoryItem.MaxAmount` / `GetMaxAmountOf`; config
-  `Inventory.ItemCaps`). The author's config now has `53:50` (rocks) and
-  ItemCapsOn true from a test - **check rocks cap at 50 after the next
-  launch, then switch it off** (or leave for the author).
+  `Inventory.ItemCaps`) - checked after a launch (rocks cap 50, 20 added);
+  the test cap and practice mode switched back off in the author's config.
 - **v0.24.193: events `first-input`, `rope-grab`, `rope-leave`; a spot's
   `cave`** (recorded with the spawn, editor Cave < >): Go sets the game's
   current cave - only that cave's props stream in (was all 16), cave
   splits work from a Go; a teleport frame fires no cave event. Bridge:
   checked the cave part; first-input and the rope events need hands (QA).
 
+- **v0.24.194: the HUD's "ON NOW" line** (no stagger, no blood, god mode,
+  item caps, logs, experimental perf switches - `PracticeState.SetOn`) and
+  **"Last"** time; **v0.24.195: rides / climbs ended before a teleport or
+  Quick load** (`Game/RideModes`: cliff climb, sled, glider, zipline - the
+  game's own exits; wiring checked with faked flags only, real rides on
+  QA item 7). QA list for v0.24.190-195 posted (`1555327671276273677` +
+  `1555328852698333277`, `qa/2026-10-02-v0.24.194.txt`); to-do current.
+
 **Next, in order (this session continues; a new one picks up here):**
-1. Verify item caps after a launch (above), then QA list for v0.24.190-193.
-2. Ride / climb modes in savestates (zipline, sled, climb, glider) -
-   *Open, not blocking* below.
+1. Watch QA answers (`qa_read new_only`) for the two overnight lists.
+2. Rides put BACK after a restore (only ended so far) - needs a real
+   zipline / glider to study; ask the author or QA for a save with one.
 3. Quick load audit, the rest: a building placed since, the crafting cog,
    the inventory open at capture (needs hands / QA).
 4. Website: fewer texture requests (458 per spot); LiveSplit PB chance /
@@ -1185,7 +1192,8 @@ line says it next time.
   lighting misbehaves after a Go, check the flag first.
 - **Other ride / climb modes in savestates** (author asked to note it,
   2026-09-26): only cave ropes are put back (`Game/RopeClimb`,
-  v0.24.104-105). A capture on a **zipline, sled, wall / cliff climb or
+  v0.24.104-105); since v0.24.195 the others are at least ENDED before a
+  teleport / Quick load (`Game/RideModes`), not put back. A capture on a **zipline, sled, wall / cliff climb or
   hang glider** is probably thrown or dropped the same way (the body is
   held by the mode, the save has no mode). Next step when picked up:
   find each mode's state flag and its enter / exit calls (`ilscan type
