@@ -17,18 +17,10 @@ unless critical.
   timed segments (full-run practice per category), tied to savestates
   captured as each checkpoint fires - needs the capture hitch solved
   (or the capture deferred / async) so a real attempt is not disturbed.
-- **Run lines (QA Discord, 2026-09-26):** an opacity slider 0-100%
-  (sxczurass: full opacity hides the best time), the best run's line in
-  a different colour from the current one (sxczurass), and a window
-  option - show the comparison line only a set time ahead of where you
-  are, slider, default ~5 s (author). Not yet scheduled - ask the
-  author whether they jump the queue (the author asked for the last).
 - **Status overlay** (author, QA Discord 2026-09-26): make active
   practice changes obvious - maks had No stagger on and thought he had
   found a new lineup. For the UI / UX refactor in a late update.
-- **Settings / HUD:** settings do not persist (run lines, practice mode...;
-  maks raised it again on the QA Discord, 2026-09-26)
-  - persist all; more control over the top-left HUD, less clutter.
+- **HUD:** more control over the top-left HUD, less clutter (settings persist since v0.24.191).
 - **Debug views:** more detailed colliders (hitboxes), a better collider
   filter (items share generic names); colliders that change between
   attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
@@ -59,9 +51,6 @@ when the tool is mainly finished and mature.
 Requests (sxczurass, QA #general, 2026-09-27, messages
 `1553776769826295818` / `1553778115413540885`; picture in
 `Downloads\qa-reports\sxczurass\image-1553776769826295818.png`):
-- **Any item's carry cap**, like logs in the inventory: an Inventory-tab
-  filter (type an item, *Add*) adds an "<item> it holds [n]" row, *Delete*
-  removes it (e.g. 50 rocks instead of 5). Gameplay mod, practice.
 - **Creative-speed building in any mode**: hold to keep adding resources
   to a blueprint (Creative does), not one click per item - speed only, no
   free resources. Gameplay mod, practice.
@@ -77,21 +66,9 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   nothing below the spot (raycast) and the endgame not loaded -> the
   game's EndgameLoader first (`EndgameLoader.EnsureLoaded`), then place.
 
-- **The lighter stays lit through a Quick load** (author, QA #general
-  2026-09-27 20:30, `1553851224502182012`): now the hands are put away
-  (`SavestateBridge.StashHands`) and the game's own load re-equips
-  (`PlayerInventory.OnDeserialized`: `HideAllEquiped`, then `Equip` 1.5 s
-  later - game-notes *Held items across an in-place restore*), so the
-  lighter re-ignites and a runner waits for it. Wanted: when the held
-  items already match the capture, keep them (no stash, and the game's
-  hide / re-equip step skipped for those slots). Needs a patch on that
-  coroutine - look at it with `ilscan body` first.
-- **Website links as Discord embeds** (author, `1553852129234518177`):
-  a shared spot link previews in Discord (OpenGraph), maybe with an
-  embedded replay. Site work, `docs/website.md` *Next*.
-- **More event checkpoints** (author, `1553852597138493522`): entering a
-  cave, grabbing a rope, other common interactions as `event` triggers -
-  the author's autosplitter (memory `autosplitter-repo`) lists ideas.
+- **More event checkpoints** (author, `1553852597138493522`): caves, the
+  rope (`rope-grab` / `rope-leave`) and the first input are events since
+  v0.24.184 / v0.24.193; other common interactions still to pick.
 - **Weather in savestates** (maks's fog after a Quick load, 2026-09-27,
   waiting on his screenshot `1553853576554610781`): the save has no
   weather (`TheForest.World.WeatherSystem`: State, CurrentType, cloud
@@ -119,10 +96,8 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   for a category loads the player into the right game mode with no
   difference from vanilla - for route / tech analysis and comparisons.
   Also: replay blueprint placements and other interactions from a run.
-- **Start on first input** as an event trigger (author
-  `1553860590295056475`), for rules compliance; plus the other common
-  interactions as events (entering a cave, a rope - see *More event
-  checkpoints*) and how to display them all (`1553860730900455527`).
+- How to display all the events (author `1553860730900455527`) - the
+  editor's picker groups for now (`first-input` exists since v0.24.193).
 - **Site: spots** (author, 2026-09-27): categories for runners' spots
   (theirs, later admin-set), collapsible groups (community spots will be
   mostly teleports, runners' spots the timed ones - maybe less prominent),
