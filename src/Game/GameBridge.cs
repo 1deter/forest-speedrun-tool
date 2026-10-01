@@ -475,6 +475,72 @@ namespace ForestOverlay.Game
         private PropertyInfo _isInCaves;
         private bool _caveResolved;
 
+        // LocalPlayer.ActiveAreaInfo._currentCave (CaveNames): which cave the
+        // game thinks the player is in. Only the cave mouths' triggers set
+        // it, so a teleport left it alone - and CaveOptimizer then streams
+        // EVERY cave's props in (CurrentCave == NotInCaves while in caves,
+        // IL). v0.24.193: the teleport sets it from the spot's `cave`.
+        private FieldInfo _areaInfoField;
+        private MethodInfo _setCurrentCave;
+        private PropertyInfo _currentCaveProp;
+        private bool _currentCaveResolved;
+
+        private object AreaInfo()
+        {
+            if (!_currentCaveResolved)
+            {
+                _currentCaveResolved = true;
+                Type local = FindGameType("TheForest.Utils.LocalPlayer");
+                Type area = FindGameType("TheForest.Player.ActiveAreaInfo");
+                if (local != null) _areaInfoField = local.GetField("ActiveAreaInfo", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (area != null)
+                {
+                    _setCurrentCave = area.GetMethod("SetCurrentCave", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _currentCaveProp = area.GetProperty("CurrentCave", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
+            }
+            if (_areaInfoField == null || _setCurrentCave == null || _currentCaveProp == null) return null;
+            object a = _areaInfoField.GetValue(null);
+            return (a as UnityEngine.Object) != null ? a : null;
+        }
+
+        /// The game's current cave in lower case ("cave06"), "" for none.
+        public string CurrentCaveId()
+        {
+            try
+            {
+                object a = AreaInfo();
+                if (a == null) return "";
+                object v = _currentCaveProp.GetValue(a, null);
+                return Convert.ToInt32(v) < 0 ? "" : v.ToString().ToLowerInvariant();
+            }
+            catch (Exception) { return ""; }
+        }
+
+        /// Sets the game's current cave ("" = none) as a cave mouth does.
+        /// Says what changed; "" when nothing did.
+        public string SetCurrentCave(string caveId)
+        {
+            try
+            {
+                object a = AreaInfo();
+                if (a == null) return "";
+                string now = CurrentCaveId();
+                string want = caveId ?? "";
+                if (now == want) return "";
+                Type caves = _setCurrentCave.GetParameters()[0].ParameterType;
+                object value = null;
+                if (want.Length == 0) value = Enum.ToObject(caves, -1);
+                else
+                    foreach (string n in Enum.GetNames(caves))
+                        if (string.Equals(n, want, StringComparison.OrdinalIgnoreCase)) { value = Enum.Parse(caves, n); break; }
+                if (value == null) return "unknown cave '" + want + "'";
+                _setCurrentCave.Invoke(a, new[] { value });
+                return "current cave " + (now.Length == 0 ? "none" : now) + " -> " + (want.Length == 0 ? "none" : want);
+            }
+            catch (Exception ex) { return "setting the current cave failed: " + ex.Message; }
+        }
+
         /// Current cave state as the game sees it.
         public bool IsInCaves()
         {

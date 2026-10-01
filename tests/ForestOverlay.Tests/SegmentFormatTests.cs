@@ -291,5 +291,24 @@ namespace ForestOverlay.Tests
             Assert.Contains("startstate = 0badf00d", text);
             Assert.Equal("0badf00d", Parse(text)[0].StartState);
         }
+
+        [Fact]
+        public void TheSpawnsCaveRoundTripsAndStaysOutOfTheRoute()
+        {
+            Segment s = new Segment();
+            s.Id = "s-0123456789ab";
+            s.HasSpawn = true;
+            s.SpawnPosition = new UnityEngine.Vector3(1283.92f, -70.59f, 612.88f);
+            string route = s.RouteFingerprint();
+            s.Cave = "cave06";
+            Assert.Equal(route, s.RouteFingerprint());
+
+            var sb = new System.Text.StringBuilder();
+            SegmentFormat.WriteSegment(sb, s, "\n");
+            Assert.Contains("cave     = cave06", sb.ToString());
+            var back = SegmentFormat.ParseAll(sb.ToString().Split('\n'), null);
+            Assert.Equal("cave06", back[0].Cave);
+            Assert.Equal("", SegmentFormat.ParseAll("[segment]\nid = x\nspawn = 1 2 3".Split('\n'), null)[0].Cave);
+        }
     }
 }

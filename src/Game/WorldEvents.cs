@@ -30,6 +30,12 @@ namespace ForestOverlay.Game
     //                                          (the ASL's plane meal start)
     //   moving                                 speed > 0.15 m/s after standing
     //                                          still (the ASL's velocity start)
+    //   first-input                            any button or movement after 0.25 s
+    //                                          with none (the rules' "takes control";
+    //                                          not while a cursor shows - menus, the
+    //                                          overlay window) (v0.24.193)
+    //   rope-grab / rope-leave                 a cave rope climb begins / ends
+    //                                          (playerAnimatorControl.onRope)
     // <cave> is the game's CaveNames value in lower case (cave01 ...
     // cave10, hellcave, snowcave, underwatercave, underwatercave2/3).
     // NotInCaves is the surface AND the endgame lab: the ASL never splits
@@ -54,6 +60,9 @@ namespace ForestOverlay.Game
         public const string Passenger = "passenger";
         public const string HoldInteract = "hold-interact";
         public const string Moving = "moving";
+        public const string FirstInput = "first-input";
+        public const string RopeGrab = "rope-grab";
+        public const string RopeLeave = "rope-leave";
 
         /// The ASL's velocity start: overall speed above this.
         public const float MovingSpeed = 0.15f;
@@ -62,6 +71,16 @@ namespace ForestOverlay.Game
 
         /// CaveNames order (Cave01 = 0, NotInCaves = -1), with the ASL's
         /// labels. The enum is read by name, so this is display only.
+        /// The cave ids, in the game's order (the editor's cave picker).
+        public static string[] CaveIdList { get { return (string[])CaveIds.Clone(); } }
+
+        /// "Cave 6 - Lawyer Cave" for "cave06"; null when unknown.
+        public static string CaveLabel(string id)
+        {
+            int at = Array.IndexOf(CaveIds, id);
+            return at >= 0 ? CaveLabels[at] : null;
+        }
+
         private static readonly string[] CaveIds =
         {
             "cave01", "cave02", "cave03", "cave04", "cave05", "cave06", "cave07", "cave08", "cave09", "cave10",
@@ -97,6 +116,19 @@ namespace ForestOverlay.Game
         private bool _movingFired = true;
         private Vector3 _lastPos;
         private bool _hasLastPos;
+        private bool _jumped;                             // a placement this frame
+
+        private MethodInfo _getAxis;                      // static Input.GetAxis(string)
+        private FieldInfo _rewiredPlayer;                 // static Input.player (Rewired.Player)
+        private MethodInfo _anyButton;                    // Player.GetAnyButton()
+        // Bound once (the player object again if it changes): Invoke boxed
+        // every frame's answers.
+        private Func<string, float> _axis;
+        private Func<bool> _any;
+        private object _anyFor;
+        private float _idleSince = -1f;
+        private bool _inputFired = true;
+        private int _rope = -1;                           // -1 unknown, 0 off, 1 on
 
         /// A move this far in one frame is a placement (teleport, restore,
         /// restart), not running (v0.24.188).
@@ -142,6 +174,12 @@ namespace ForestOverlay.Game
             if (clothing != null) _worn = clothing.GetField("_wornClothingItems", any);
             if (_manifest != null) _found = _manifest.FieldType.GetField("_foundPassengersIdsCount", any);
             if (input != null) _delayedDown = input.GetField("DelayedActionIsDown", any);
+            if (input != null)
+            {
+                _getAxis = input.GetMethod("GetAxis", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
+                _rewiredPlayer = input.GetField("player", any);
+                if (_rewiredPlayer != null) _anyButton = _rewiredPlayer.FieldType.GetMethod("GetAnyButton", Type.EmptyTypes);
+            }
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", any);
 
             List<string> missing = new List<string>();
@@ -149,6 +187,7 @@ namespace ForestOverlay.Game
             if (_clothing == null || _worn == null) missing.Add("clothing");
             if (_manifest == null || _found == null) missing.Add("passengers");
             if (_delayedDown == null) missing.Add(HoldInteract);
+            if (_getAxis == null || _anyButton == null) missing.Add(FirstInput);
             _status = missing.Count == 0 ? "caves, clothing, passengers, starts"
                                          : "missing: " + string.Join(", ", missing.ToArray());
             _log.LogInfo("WorldEvents: " + _status + ".");
@@ -167,11 +206,14 @@ namespace ForestOverlay.Game
                 if (!loaded) { Forget(); return; }
             }
 
+            CheckJump(player);
             try { PollCave(); } catch (Exception) { }
             try { PollClothing(); } catch (Exception) { }
             try { PollPassengers(); } catch (Exception) { }
             try { PollHold(); } catch (Exception) { }
             PollMoving(player);
+            try { PollInput(); } catch (Exception) { }
+            try { PollRope(); } catch (Exception) { }
         }
 
         // Title screen / loading: the next reading is a baseline.
@@ -184,6 +226,9 @@ namespace ForestOverlay.Game
             _movingFired = true;
             _stillSince = -1f;
             _hasLastPos = false;
+            _inputFired = true;
+            _idleSince = -1f;
+            _rope = -1;
         }
 
         private void PollCave()
@@ -206,6 +251,9 @@ namespace ForestOverlay.Game
 
             string was = _lastCave;
             _lastCave = now;
+            // A teleport / restore changed it (v0.24.193: a Go sets the
+            // spot's cave): not walking through a cave mouth.
+            if (_jumped) return;
             if (was != null)
             {
                 GameEvents.RecordWorld(CaveExit + "-" + was, null, true);
@@ -284,6 +332,17 @@ namespace ForestOverlay.Game
             _lastDelayed = down;
         }
 
+        // A move this far in one frame is a placement; read before the polls.
+        private void CheckJump(PlayerRef player)
+        {
+            _jumped = false;
+            if (player == null || !player.Found) return;
+            Vector3 pos = player.Transform.position;
+            _jumped = _hasLastPos && (pos - _lastPos).sqrMagnitude > JumpDistance * JumpDistance;
+            _lastPos = pos;
+            _hasLastPos = true;
+        }
+
         private void PollMoving(PlayerRef player)
         {
             if (player == null || !player.Found) return;
@@ -293,11 +352,7 @@ namespace ForestOverlay.Game
             // after a restart from a cave) - that is not the runner moving,
             // and it started a velocity-start run on its own restart. After
             // a jump the player must stand still again first.
-            Vector3 pos = player.Transform.position;
-            bool jumped = _hasLastPos && (pos - _lastPos).sqrMagnitude > JumpDistance * JumpDistance;
-            _lastPos = pos;
-            _hasLastPos = true;
-            if (jumped) { _movingFired = true; _stillSince = -1f; return; }
+            if (_jumped) { _movingFired = true; _stillSince = -1f; return; }
 
             if (player.Speed <= MovingSpeed)
             {
@@ -309,6 +364,44 @@ namespace ForestOverlay.Game
             if (_movingFired) return;
             _movingFired = true;
             GameEvents.RecordWorld(Moving, null, false);
+        }
+
+        // The first button or movement after a pause: what the rules call
+        // taking control. A cursor on screen (a menu, the overlay window)
+        // means the input is not the game's - and the overlay's clicks
+        // must not start a run.
+        private void PollInput()
+        {
+            if (_getAxis == null || _anyButton == null) return;
+            float now = Time.unscaledTime;
+            if (_jumped || Cursor.visible) { _inputFired = true; _idleSince = -1f; return; }
+
+            if (_axis == null) _axis = (Func<string, float>)Delegate.CreateDelegate(typeof(Func<string, float>), _getAxis);
+            object p = _rewiredPlayer.GetValue(null);
+            if (p != null && !ReferenceEquals(p, _anyFor))
+            {
+                _anyFor = p;
+                _any = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), p, _anyButton);
+            }
+            bool active = p != null && _any != null && _any();
+            if (!active) active = Mathf.Abs(_axis("Horizontal")) > 0.1f || Mathf.Abs(_axis("Vertical")) > 0.1f;
+            if (!active)
+            {
+                if (_idleSince < 0f) _idleSince = now;
+                if (now - _idleSince >= StillTime) _inputFired = false;
+                return;
+            }
+            _idleSince = -1f;
+            if (_inputFired) return;
+            _inputFired = true;
+            GameEvents.RecordWorld(FirstInput, null, false);
+        }
+
+        private void PollRope()
+        {
+            int on = RopeClimb.IsOnRope() ? 1 : 0;
+            if (_rope >= 0 && on != _rope) GameEvents.RecordWorld(on == 1 ? RopeGrab : RopeLeave, null, true);
+            _rope = on;
         }
 
         // ------------------------------------------------------------------
@@ -388,6 +481,9 @@ namespace ForestOverlay.Game
             if (e == "autosplit") return "The next autosplit: whichever event in the segment's Autosplit list comes next (a LiveSplit import)";
             if (e == HoldInteract) return "Hold-to-interact pressed (the autosplitter's plane meal start)";
             if (e == Moving) return "Started moving (the autosplitter's velocity start)";
+            if (e == FirstInput) return "First input - a button or movement after a moment idle (the rules' \"takes control\")";
+            if (e == RopeGrab) return "Grabbed a cave rope";
+            if (e == RopeLeave) return "Let go of a cave rope";
             return null;
         }
 

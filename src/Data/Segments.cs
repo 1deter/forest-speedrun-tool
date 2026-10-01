@@ -338,6 +338,12 @@ namespace ForestOverlay.Data
         /// without it the segment can still be timed, just not practised
         /// from a teleport.
         public bool HasSpawn;
+        /// Which cave the spawn is in ("cave06", the game's CaveNames in
+        /// lower case; "" = the surface or not known), recorded where the
+        /// spawn is set (v0.24.193). A teleport sets the game's current
+        /// cave from it - only the cave mouths do otherwise. Not part of the
+        /// route fingerprint.
+        public string Cave = "";
         public Vector3 SpawnPosition;
         public float SpawnYaw;
         public float SpawnPitch;

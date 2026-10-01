@@ -5,6 +5,18 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.193 - 2026-10-01
+
+- New events for segments: **first-input** (the first button or movement
+  after a moment idle - the rules' "takes control", not while a menu or
+  the overlay window is open), **rope-grab** and **rope-leave** (a cave
+  rope). Event picker: Starts and Rope.
+- A spot remembers which cave it is in (set where you stand; Practice
+  editor -> Cave, < >). Go tells the game you are in that cave, as walking
+  in does: cave splits (enter / exit) work from it, and the game streams
+  only that cave's props instead of every cave's.
+- A teleport or restart no longer counts as entering or leaving a cave.
+
 ## v0.24.192 - 2026-10-01
 
 - Inventory -> **Item caps** (gameplay mod, practice): carry as many of

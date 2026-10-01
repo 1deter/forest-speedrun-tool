@@ -83,6 +83,13 @@ namespace ForestOverlay.Game
             catch (Exception ex) { return "rope: failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }
 
+        /// On a cave rope now (WorldEvents' rope-grab / rope-leave).
+        public static bool IsOnRope()
+        {
+            try { return OnRope(); }
+            catch (Exception) { return false; }
+        }
+
         private static bool OnRope()
         {
             if (!Resolve()) return false;

@@ -518,6 +518,15 @@ namespace ForestOverlay.Modules
 
             if (!Ctx.Player.MoveTo(s.SpawnPosition, rot)) { _status = "No player ref."; return; }
 
+            // Which cave, as a cave mouth would say (WorldEvents' splits and
+            // the game's cave streaming read it). After a restore the save
+            // has set it.
+            if (syncCave)
+            {
+                string which = Ctx.Bridge.SetCurrentCave(Ctx.Bridge.IsInCaves() ? s.Cave : "");
+                if (which.Length > 0) cave += (cave.Length > 0 ? ", " : "") + which;
+            }
+
             // MoveTo zeroes the speed; the fall's air time and last impact
             // speed live in the game's controller, and a Go in mid-air kept
             // them for the landing.
@@ -605,6 +614,7 @@ namespace ForestOverlay.Modules
             s.SpawnYaw = Ctx.Player.Transform.eulerAngles.y;
             s.SpawnPitch = Ctx.Bridge.GetLookPitch();
             s.HasSpawn = true;
+            s.Cave = Ctx.Bridge.CurrentCaveId();
 
             return s;
         }
@@ -780,6 +790,8 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             y += 30f;
 
+            if (s.HasSpawn) y = DrawCave(y, cw, s);
+
             y = DrawStartState(y, cw, s);
             y = DrawShare(y, cw, s);
 
@@ -906,6 +918,36 @@ namespace ForestOverlay.Modules
             return string.IsNullOrEmpty(name) ? "item " + id : name;
         }
 
+        // --- the spawn's cave (v0.24.193) -------------------------------------
+        private string _caveLabelFor;
+        private readonly GUIContent _caveLabel = new GUIContent("");
+        private static readonly string[] CaveChoices = BuildCaveChoices();
+
+        private static string[] BuildCaveChoices()
+        {
+            string[] ids = WorldEvents.CaveIdList;
+            string[] all = new string[ids.Length + 1];
+            all[0] = "";
+            Array.Copy(ids, 0, all, 1, ids.Length);
+            return all;
+        }
+
+        private float DrawCave(float y, float cw, Segment s)
+        {
+            GUI.Label(new Rect(0, y, 74, 20), "Cave");
+            int at = Array.IndexOf(CaveChoices, s.Cave ?? "");
+            if (GUI.Button(new Rect(80, y - 2, 26, 22), "<")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) - 1 + CaveChoices.Length) % CaveChoices.Length]; Touch(); }
+            if (GUI.Button(new Rect(108, y - 2, 26, 22), ">")) { s.Cave = CaveChoices[((at < 0 ? 0 : at) + 1) % CaveChoices.Length]; Touch(); }
+            if (!ReferenceEquals(_caveLabelFor, s.Cave))
+            {
+                _caveLabelFor = s.Cave;
+                _caveLabel.text = string.IsNullOrEmpty(s.Cave) ? "none (the surface) - Here sets it where you stand"
+                                : (WorldEvents.CaveLabel(s.Cave) ?? s.Cave) + " - Go tells the game you are in it";
+            }
+            y += UiText.DrawDim(140, y, cw - 150, _caveLabel) + 6f;
+            return y;
+        }
+
         private void ToggleTimed(Segment s, bool on)
         {
             if (on)
@@ -1018,8 +1060,8 @@ namespace ForestOverlay.Modules
 
         // The event picker's groups. Built once (clothing reads the game's
         // database; empty until it is loaded, then retried).
-        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers", "Autosplit" };
-        private static readonly string[][] EventGroups = new string[6][];
+        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers", "Autosplit", "Rope" };
+        private static readonly string[][] EventGroups = new string[7][];
 
         private static string[] EventGroup(int g)
         {
@@ -1027,11 +1069,12 @@ namespace ForestOverlay.Modules
             if (list != null && list.Length > 0) return list;
             switch (g)
             {
-                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving }; break;
+                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving, WorldEvents.FirstInput }; break;
                 case 2: list = WorldEvents.CaveEvents(); break;
                 case 3: list = WorldEvents.ClothingEvents(); break;
                 case 4: list = WorldEvents.PassengerEvents(); break;
                 case 5: list = new[] { Segment.AutoSplitEvent }; break;
+                case 6: list = new[] { WorldEvents.RopeGrab, WorldEvents.RopeLeave }; break;
                 default: list = GameEvents.RouteOrder; break;
             }
             if (list.Length == 0) list = new[] { WorldEvents.Clothing + "-1" };
@@ -1289,6 +1332,7 @@ namespace ForestOverlay.Modules
             s.SpawnPosition = src.SpawnPosition;
             s.SpawnYaw = src.SpawnYaw;
             s.SpawnPitch = src.SpawnPitch;
+            s.Cave = src.Cave;
             s.StartRestoreWithLoad = src.StartRestoreWithLoad;
             s.Start = src.Start;
             s.End = src.End;
@@ -2108,6 +2152,7 @@ namespace ForestOverlay.Modules
                 s.SpawnPosition = here.SpawnPosition;
                 s.SpawnYaw = here.SpawnYaw;
                 s.SpawnPitch = here.SpawnPitch;
+                s.Cave = here.Cave;
 
                 _library.Add(s);
                 bool saved = WriteFile(s.SourceFile);
@@ -2146,6 +2191,7 @@ namespace ForestOverlay.Modules
             s.SpawnYaw = Ctx.Player.Transform.eulerAngles.y;
             s.SpawnPitch = Ctx.Bridge.GetLookPitch();
             s.HasSpawn = true;
+            s.Cave = Ctx.Bridge.CurrentCaveId();
             Touch();
         }
 

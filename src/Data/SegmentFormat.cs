@@ -34,6 +34,7 @@ namespace ForestOverlay.Data
                     return "bad restore (in-place or load): " + value;
 
                 case "startstate": s.StartState = value; return null;
+                case "cave": s.Cave = value.ToLowerInvariant(); return null;
 
                 case "autosplit":
                     SetAutoSplit(s, value);
@@ -97,6 +98,7 @@ namespace ForestOverlay.Data
                   .Append(TriggerParser.Num(s.SpawnPosition.z)).Append(' ')
                   .Append(TriggerParser.Num(s.SpawnYaw)).Append(' ')
                   .Append(TriggerParser.Num(s.SpawnPitch)).Append(nl);
+                if (!string.IsNullOrEmpty(s.Cave)) sb.Append("cave     = ").Append(s.Cave).Append(nl);
             }
 
             // Unset triggers are OMITTED, not written.
