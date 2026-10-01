@@ -587,6 +587,24 @@ updater (v0.24.177 in the game at handoff, Slot 2). **457 tests** (+ 18 site tes
 
 ### Pick up here (2026-10-01, v0.24.177 in the game)
 
+**Open work by severity** (sorted with the author, 2026-10-01; 1-2 done
+or as far as they go without testers this session):
+1. ~~Cave 6 "leaves" in 3D~~ - a stale page, fixed (below).
+2. Tom's native crashes - likely cause fixed in v0.24.177, not
+   reproduced; waiting on Tom (below). Left to try: F7 in the vault door
+   / Megan pickup cutscenes.
+3. **Security review of the website** (docs/backlog.md *Website*) - before
+   more admin features.
+4. The author's map list: photo tiles in brightness bands (check first
+   whether it is the same stale-page effect: a tab open across an aerial
+   upload), the Water button, 3D terrain textures dropping out, playback
+   stutter.
+5. 3D world: the sparse endgame lab, load size (thousands of files,
+   uncompressed `.bin`), the spot page's sideways scroll on phones.
+6. LiveSplit `.lss` import UI (Next up 9).
+7. Waiting on others: raw FPS (the FPS session), Quick load physics
+   (maks), the testers' open lists; QoL in docs/backlog.md.
+
 **The website's map: photo map with water, and a 3D world of the game's
 own models.** Author (2026-09-28): keep the sea with an option to hide
 it (like trees), recapture every area (QA 1553910257628086335), and make
@@ -718,7 +736,9 @@ later).
 `site/`, `src/Data/`, `community/` deploys by itself
 (`.github/workflows/site.yml`; setup and day-to-day in
 `site/deploy/README.md`). Watch a deploy by polling the live page, never
-`api.github.com`. **v0.24.153-154: finished runs upload** (on by default,
+`api.github.com` - and with a **new query string each poll**: Cloudflare
+caches a `?v=` URL, so a fixed one answers its first (pre-deploy) reply
+forever (2026-10-01). **v0.24.153-154: finished runs upload** (on by default,
 author) - checked over the bridge against a local site (register, the
 saved-runs button, a finished run, offline -> retried and sent); the
 author's config was set back to the live URL with an empty token, so the
@@ -926,14 +946,16 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State:** the game runs v0.24.144 in Slot 2 at (817, 91, 620), god
-mode off (a death test reloaded the slot; the slot's own spot, loaded from the
-title - Slot 2 is the only Normal slot: Slots 1 and 5 are Creative, 3
-Hard, 4 Peaceful; a runner's survival start state restores only in a
-survival game).
+**State (2026-10-01 handoff):** the game ran v0.24.177 in Slot 2 (loaded
+from the title, not saved since), last at Tom's Megan test spot, god
+mode off; the PC was shut down after the session. Slot 2 is the only
+Normal slot: Slots 1 and 5 are Creative, 3 Hard, 4 Peaceful; a runner's
+survival start state restores only in a survival game.
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
 `elevMid`, `rope104` kept; `axe-held` / `axe-lighter` (Slot 2, Axe
-Plane / + Lighter in hand) for held-item tests. The author's config has Performance
+Plane / + Lighter in hand) for held-item tests; `tom-c6boss`, `tom-c6`,
+`tom-c6exit`, `tom-bigjump`, `tom-megan` (Tom's start states, Normal)
+for his crash. The author's config has Performance
 switches 12 (sun shadows) and 13 (cave grass) on, 14 (physics) off.
 
 **maks's performance report** (message `1553417650607235164`, read):

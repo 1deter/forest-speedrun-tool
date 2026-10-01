@@ -232,7 +232,11 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    cut-outs), `c/<area>_<x>_<z>.bin` instances. `stats [level ...]` prints
    what a scene holds. The format is in the script's docstring.
 3. **Upload**: `python scripts/aerial-upload.py --world` (to
-   `/api/admin/world`, clears first).
+   `/api/admin/world`, clears first; `world.json` last). Files are named
+   by index, so the server refuses another build's `?v=` and every `?v=`
+   mid-upload (404, `no-store`, `MetaBuild`); `world3d.js` re-reads
+   `world.json` per 3D view and starts over when a file is refused
+   (`stale()`, gotcha 71). A tab open across an upload recovers by itself.
 
 What the export decides (details: gotchas 64-67):
 - Areas: `surface` (fades with the terrain when the view is underground),
@@ -309,7 +313,10 @@ own build output and data): `.claude/launch.json` `forest-site-alt`.
 
 Open: the endgame lab looks sparse; a spot loads thousands of files and
 `.bin` is uncompressed (pack / gzip); heavy chunks want LODs for phones;
-greebles and pickups are missing; per-kind toggles.
+pickups and the player's random sticks / rocks are missing; per-kind
+toggles. The photo map's `aerial.json` is still read once per page
+(map.js): a tab open across an aerial upload gets 404 tiles (holes) until
+a reload.
 
 ## Next
 
