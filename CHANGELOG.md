@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.177 - 2026-10-01
+
+- When buildings disappear at the same moment in different parts of the
+  map (a Quick load from a savestate made in another save deletes the ones
+  it does not have), enemy paths are now recalculated around each place
+  instead of over one box covering most of the map. On slower PCs that box
+  kept the game busy in the background for up to a minute, and it was
+  running in both sessions of a reported crash. Part of the "Buildings
+  removed" performance patch (Debug views -> Performance patches, on by default).
+
 ## v0.24.176 - 2026-10-01
 
 - Developer tooling only: the 3D map dump also covers the ferns, bushes,

@@ -237,7 +237,9 @@ namespace ForestOverlay.Game
                 "When a building (or the plane wreck) goes, the game recalculates enemy paths over the area it stood on - but it never " +
                 "forgets earlier removals, so each one covers every place anything was removed since the game started, up to most " +
                 "of the map (16 s of background work measured, during which enemies cannot find new paths and the next load waits). " +
-                "Forget the earlier areas once their own recalculation is queued; each removal then covers its own place.",
+                "Forget the earlier areas once their own recalculation is queued; each removal then covers its own place. " +
+                "Removals at the same moment far apart (a Quick load deleting buildings across the map) are recalculated place by " +
+                "place, not as one box over everything between them.",
                 ApplyNavRemoval, RemoveNavRemoval);
 
             for (int i = 0; i < _fixes.Count; i++)
@@ -569,9 +571,36 @@ namespace ForestOverlay.Game
         // A prefix clears the list when no batch is pending: a batch keeps
         // merging what goes within its 7 s, as the game meant, and areas
         // already recalculated are not recalculated again (same navmesh).
+        //
+        // v0.24.177: the batch itself is one box too (Encapsulate), however
+        // far apart its removals are. A Quick load from another save deletes
+        // buildings across the map within the 7 s: one update of 1536 x
+        // 1406 m (Tom's logs, v0.24.173 - queued shortly before both of his
+        // sessions that ended in a native crash; 16-60 s of background work
+        // on a slower PC). The prefix now runs the batch with the game's own
+        // steps (wait 7 s, the dummyRootNavRemove prefab, doRootNavRemove -
+        // navRemoveRoot.startRemove queues the update) but gathers by place:
+        // a removal joins a waiting batch only while it stays within
+        // NavBatchSpan, else it starts its own. Same areas recalculated,
+        // none of the land between them.
         private MethodInfo _dummyNavRemove;
         private static FieldInfo _dummyNavBounds;     // List<Bounds>
         private static FieldInfo _doingDummyNav;      // bool
+        private static FieldInfo _astarActive;        // static AstarPath.active
+        private const float NavBatchSpan = 150f;      // m, x / z
+        private const float NavBatchWait = 7f;        // s, the game's
+
+        private sealed class NavBatch
+        {
+            public Bounds Area;
+            public Vector3 Pos;
+            public readonly List<int> Roots = new List<int>();
+        }
+
+        private static readonly List<NavBatch> _navBatches = new List<NavBatch>();
+        private static int _navWaveBatches;           // batches since none was waiting
+        private static int _navWaveRemovals;
+        private static Bounds _navWaveArea;           // what the game would have made one box of
 
         private string ApplyNavRemoval()
         {
@@ -582,6 +611,13 @@ namespace ForestOverlay.Game
             _dummyNavBounds = t.GetField("dummyNavBounds", inst);
             _doingDummyNav = t.GetField("doingDummyNavUpdate", inst);
             if (_dummyNavRemove == null || _dummyNavBounds == null || _doingDummyNav == null) return "startDummyNavRemove / its fields not found";
+            Type astar = GameType("AstarPath");
+            _astarActive = astar != null ? astar.GetField("active", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+            if (_astarActive == null) return "AstarPath.active not found";
+            ParameterInfo[] ps = _dummyNavRemove.GetParameters();
+            if (ps.Length != 3 || ps[0].ParameterType != typeof(GameObject) || ps[1].ParameterType != typeof(Vector3) ||
+                ps[2].ParameterType != typeof(Bounds) || _dummyNavRemove.ReturnType != typeof(IEnumerator))
+                return "startDummyNavRemove is not (GameObject, Vector3, Bounds) -> IEnumerator";
             _self = this;
             _harmony.Patch(_dummyNavRemove, prefix: new HarmonyMethod(typeof(PerfPatches).GetMethod("DummyNavRemovePrefix", BindingFlags.Static | BindingFlags.NonPublic)));
             return "";
@@ -592,19 +628,79 @@ namespace ForestOverlay.Game
             if (_dummyNavRemove != null) _harmony.Unpatch(_dummyNavRemove, HarmonyPatchType.Prefix, _harmony.Id);
         }
 
-        private static void DummyNavRemovePrefix(object __instance)
+        private static bool DummyNavRemovePrefix(object __instance, GameObject __0, Vector3 __1, Bounds __2, ref IEnumerator __result)
         {
             try
             {
-                if ((bool)_doingDummyNav.GetValue(__instance)) return;   // a batch is gathering - join it
+                // The game's own batch from before the switch went on: join it.
+                if ((bool)_doingDummyNav.GetValue(__instance)) return true;
                 System.Collections.IList list = _dummyNavBounds.GetValue(__instance) as System.Collections.IList;
-                if (list == null || list.Count == 0) return;
-                int n = list.Count;
-                list.Clear();
-                if (_self != null) _self._log.LogInfo("Performance: building removal - " + n + " earlier removal area(s) dropped from the game's list " +
-                             "(already recalculated); this one covers its own place.");
+                if (list != null && list.Count > 0)
+                {
+                    int n = list.Count;
+                    list.Clear();
+                    if (_self != null) _self._log.LogInfo("Performance: building removal - " + n + " earlier removal area(s) dropped from the game's list " +
+                                 "(already recalculated); this one covers its own place.");
+                }
+                int id = __0 != null ? __0.GetInstanceID() : 0;
+                NavBatch join = null;
+                for (int i = 0; i < _navBatches.Count; i++)
+                {
+                    NavBatch nb = _navBatches[i];
+                    if (id != 0 && nb.Roots.Contains(id)) { __result = Nothing(); return false; }   // the game's "already listed"
+                    if (join == null && WithinSpan(nb.Area, __2)) join = nb;
+                }
+                if (_navBatches.Count == 0) { _navWaveBatches = 0; _navWaveRemovals = 0; _navWaveArea = __2; }
+                else _navWaveArea.Encapsulate(__2);
+                _navWaveRemovals++;
+                if (join != null)
+                {
+                    join.Area.Encapsulate(__2);
+                    if (id != 0) join.Roots.Add(id);
+                    __result = Nothing();
+                    return false;
+                }
+                NavBatch batch = new NavBatch { Area = __2, Pos = __1 };
+                if (id != 0) batch.Roots.Add(id);
+                _navBatches.Add(batch);
+                _navWaveBatches++;
+                __result = RunNavBatch(batch);
+                return false;
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+                return true;   // the game's own batch
+            }
+        }
+
+        private static bool WithinSpan(Bounds area, Bounds add)
+        {
+            area.Encapsulate(add);
+            return area.size.x <= NavBatchSpan && area.size.z <= NavBatchSpan;
+        }
+
+        private static IEnumerator Nothing()
+        {
+            yield break;
+        }
+
+        /// The game's batch for one place: wait, then its own dummy object
+        /// queues the update (navRemoveRoot.startRemove).
+        private static IEnumerator RunNavBatch(NavBatch batch)
+        {
+            yield return new WaitForSeconds(NavBatchWait);
+            _navBatches.Remove(batch);
+            UnityEngine.Object astar = _astarActive.GetValue(null) as UnityEngine.Object;
+            GameObject prefab = astar != null ? Resources.Load("dummyRootNavRemove") as GameObject : null;
+            if (prefab != null)
+            {
+                GameObject nav = (GameObject)UnityEngine.Object.Instantiate(prefab, batch.Pos, Quaternion.identity);
+                nav.SendMessage("doRootNavRemove", batch.Area);
+            }
+            if (_navBatches.Count == 0 && _navWaveBatches > 1 && _self != null)
+                _self._log.LogInfo("Performance: building removals - " + _navWaveRemovals + " at once recalculated in " + _navWaveBatches +
+                                   " places instead of one area of " + _navWaveArea.size.x.ToString("0") + " x " +
+                                   _navWaveArea.size.z.ToString("0") + " m.");
         }
 
         private const string VrType = "VRSwitcher";
