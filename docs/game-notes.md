@@ -315,11 +315,13 @@ polls the same fields once a frame:
 
 | Event | Field | Notes |
 |---|---|---|
-| `cave-enter-<cave>` / `cave-exit-<cave>`, `cave-enter` / `cave-exit` | `LocalPlayer.ActiveAreaInfo._currentCave` (`CaveNames`) | Written only by `SetCurrentCave` (from `activateCave` / `CaveTriggers.Update`, `EnterSnowCaveHelper`, `PlayerStats.KillPlayer`) and `SetInCaves`. **A teleport does not change it** (our tp / Go use `GotoCave`: `_currentCave` stays `NotInCaves`), and the endgame lab is `NotInCaves` with `IsInCaves` true - the ASL never splits there. |
+| `cave-enter-<cave>` / `cave-exit-<cave>`, `cave-enter` / `cave-exit` | `LocalPlayer.ActiveAreaInfo._currentCave` (`CaveNames`) | Written only by `SetCurrentCave` (from `activateCave` / `CaveTriggers.Update`, `EnterSnowCaveHelper`, `PlayerStats.KillPlayer`) and `SetInCaves`. **A teleport does not change it** (our tp / Go use `GotoCave`: `_currentCave` stays `NotInCaves`), and the endgame lab is `NotInCaves` with `IsInCaves` true - the ASL never splits there. Since v0.24.193 a Go sets it from the spot's `cave` (`GameBridge.SetCurrentCave`); a bridge `tp` still does not. **`CaveOptimizer.Update`**: in caves with `CurrentCave == NotInCaves` it streams **every** cave's props in (16 scenes, `Cave_01_Props_Streaming` ...); with a cave set, only that one (bridge: 2 scenes). |
 | `clothing-<id>` | `LocalPlayer.Clothing._wornClothingItems` (List<int>) | Names: `ClothingItemDatabase._instance._items[i]._displayName` ("RED BEANIE"), 33 items. |
 | `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
 | `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
 | `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. A placement settles for a frame or two (bridge: -0.87 m/s after a restart from a cave), so since v0.24.188 a move of more than 2 m in one frame resets it - still again first. |
+| `first-input` | Rewired `Input.player.GetAnyButton()` or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). |
+| `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` (`RopeClimb.IsOnRope`) | v0.24.193. |
 
 The ASL's settings as a segment (v0.24.186, `Data/LssAutoSplit`): a
 LiveSplit split is "the next thing the autosplitter splits on", so an
@@ -589,6 +591,16 @@ unlit, every reset). Since v0.24.1 the restore waits (up to 2 s) until
 `IsBusy` is false and the left slot unlocked, the capture writes the held
 ids to the file (`held = ...`), and 0.3 s after the restore
 `SavestateBridge.ReEquip` calls `Equip(id, false)` for each one not held.
+
+**Keeping the hands (IL + bridge, v0.24.191).** The step below runs
+only when `_equipmentSlotsIds` is non-null (`brfalse` over the whole
+HideAllEquiped / Equip block). When the hands already hold the capture's
+`held` items, the in-place restore skips its StashHands and nulls the
+restored array right after LoadNow: nothing is hidden or re-equipped and
+the lighter stays lit (bridge: lit at 0.35 s and 2 s after the restore).
+A capture with the book open saved `[-1, 0]` (stowed): the slots get the
+"previously equipped" ids back after the load (v0.24.189) so the game's
+step equips them.
 
 **The fallback's message after restores (IL + bridge, v0.24.129).** The
 step runs 1.5 s (scaled) + one frame after the load: `HideAllEquiped`,

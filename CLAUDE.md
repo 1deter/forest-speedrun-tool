@@ -592,10 +592,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.189** (2026-10-01). The author runs it via the in-game
-updater (v0.24.189 in the game at handoff, Slot 1). **472 tests** (+ 45 site tests).
+**Released: v0.24.193** (2026-10-01). The author runs it via the in-game
+updater (v0.24.193 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-01 night, v0.24.189 in the game)
+### Pick up here (2026-10-01 night, v0.24.193 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -634,19 +634,41 @@ over the bridge:
   docs/tests); to-do list current. Test spots `s-lsstest00001` and the
   imported test spot removed; savestate `audit-base` (Slot 1, the plane
   wreck area, axe + lighter held) kept for audits.
+- **v0.24.190: imported runners' attempts compare, never count** (a
+  `.foseg` import had put them in the runner's PB / golds): own = the
+  runner's id or none; each other runner's best is a local "another
+  runner" entry "(file)" merged with the website's (`Data/AttemptOwners`);
+  the saved-runs upload sends own runs only.
+- **Site: 3D switches per kind** (Trees / Rocks / Props / Pickups +
+  Collision, `world3d.js kindOf`; live) and **link previews** (spot pages
+  carry og:/twitter tags with the name, owner, runs and best - live).
+- **v0.24.191: hands kept through a Quick load** when they hold the
+  capture's items (no stash; `_equipmentSlotsIds` nulled after LoadNow so
+  the game's re-equip step skips - the lighter stays lit); **settings
+  persist** (practice mode, run lines, Compare to, show zones, 100% /
+  Inventory toggles; confirmed across a restart); **Runs -> Line
+  options** (opacity, comparison line only N s ahead).
+- **v0.24.192: Inventory -> Item caps** (any item's carry cap, postfix on
+  `InventoryItem.MaxAmount` / `GetMaxAmountOf`; config
+  `Inventory.ItemCaps`). The author's config now has `53:50` (rocks) and
+  ItemCapsOn true from a test - **check rocks cap at 50 after the next
+  launch, then switch it off** (or leave for the author).
+- **v0.24.193: events `first-input`, `rope-grab`, `rope-leave`; a spot's
+  `cave`** (recorded with the spawn, editor Cave < >): Go sets the game's
+  current cave - only that cave's props stream in (was all 16), cave
+  splits work from a Go; a teleport frame fires no cave event. Bridge:
+  checked the cave part; first-input and the rope events need hands (QA).
 
 **Next, in order (this session continues; a new one picks up here):**
-1. Quick load audit, the rest (docs/savestates.md *Not covered yet*):
-   clothing (`PlayerClothing`), a building placed since, the crafting cog,
-   the inventory open at capture (needs the author's hands or a QA ask).
-2. Splits: other runners' `.foseg` attempts as comparisons; LiveSplit's
-   PB chance / total playtime lines.
-3. Website 3D: toggles per kind (trees / rocks / buildings / props),
-   fewer texture requests (458 per spot).
-4. Ride / climb modes in savestates (zipline, sled, climb, glider) -
+1. Verify item caps after a launch (above), then QA list for v0.24.190-193.
+2. Ride / climb modes in savestates (zipline, sled, climb, glider) -
    *Open, not blocking* below.
+3. Quick load audit, the rest: a building placed since, the crafting cog,
+   the inventory open at capture (needs hands / QA).
+4. Website: fewer texture requests (458 per spot); LiveSplit PB chance /
+   total playtime lines (small).
 5. For the author: hold E on something with the Runs tab's event line
-   open (`hold-interact` is the one event the bridge cannot fire).
+   open (`hold-interact`), and press a key after a restart (`first-input`).
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back

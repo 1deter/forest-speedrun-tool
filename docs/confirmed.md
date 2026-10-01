@@ -250,3 +250,13 @@ back and hidden) and ticks one the capture had; the book's to-do tasks
 set up again after a Quick load (GOs, status callback); a capture with
 the book open restores with the axe and the lit lighter in the hands.
 
+Checked over the bridge 2026-10-01 night (v0.24.190-193): an imported
+runner's faster run is offered as "another runner (file)" and races in the
+table while own attempts / sum of best leave it out; the 3D world's four
+kind switches each hide their kind (local + live headless); spot pages'
+link-preview tags live; a Quick load with the capture's items in hand
+keeps the lighter lit (and a different hand still re-equips); practice
+mode and run lines kept across a game restart; a Go to a spot with
+`cave = cave06` sets the game's current cave, streams only Cave 6's
+props (16 scenes before) and fires no cave event.
+
