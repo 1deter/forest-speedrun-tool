@@ -200,8 +200,8 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
      inside the detail patch, or a polygon offset; compare with the game
      at one lake.
   6. **3D: the terrain flickers between its photo and white with the
-     camera at one spot** (author's shot: near the map's edge, the sea
-     square's corner in view). Likely `lookRegion` (map3d.js, added
+     camera at one spot** - **when the camera's centre is outside the map's
+     bounds** (author, confirmed). That fits `lookRegion` (map3d.js, added
      2026-10-01) in a loop: `regionAt` clamps the patch inside the map,
      so near the edge the centre never counts as covered and the patch is
      rebuilt every 0.4 s - and each `setRegion` calls `textures()`, which
