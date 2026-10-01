@@ -340,6 +340,22 @@ namespace ForestOverlay.Modules
             string book = _book.Capture(out bookNote);
             List<int> held = _bridge.HeldIds();
             List<string> heldBefore = _bridge.PreviousHeld();
+            // The book stows the hands: the save then says nothing is held,
+            // and what closing the book would take back out is the
+            // inventory's "previously equipped" memory. A capture with the
+            // book open restored with empty hands (Quick load audit,
+            // 2026-10-01) - so those are the held items.
+            if (held.Count == 0 && heldBefore.Count > 0 && BookClose.IsOpen())
+            {
+                for (int i = 0; i < heldBefore.Count; i++)
+                {
+                    string e = heldBefore[i];
+                    int colon = e.IndexOf(':'), id;
+                    if (colon > 0 && int.TryParse(e.Substring(colon + 1), out id) && id > 0 && !held.Contains(id)) held.Add(id);
+                }
+                if (held.Count > 0)
+                    Ctx.Log.LogInfo("Savestate capture: the book is open - held items taken from what it put away (" + HeldNames(held) + ").");
+            }
 
             // Captured during an endgame cutscene: note which and how far in,
             // so a restore can fast-forward the replay to this moment.
@@ -569,6 +585,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Savestate restore " + what + " in place: starting.");
             FullCapacityWatch.RestoreStarted();
             PathfindingWatch.RestoreStarted();
+            TodoListKeeper.BeforeRestore(Ctx.Log);
             int cannibalsBefore, familiesBefore;
             _bridge.CountEnemies(out cannibalsBefore, out familiesBefore);
 
@@ -691,6 +708,10 @@ namespace ForestOverlay.Modules
                 {
                     try { guideNote = NatureGuideKeeper.Restore(); }
                     catch (Exception ex) { guideNote = "nature guide: failed (" + ex.Message + ")"; }
+                    string todo;
+                    try { todo = TodoListKeeper.AfterRestore(); }
+                    catch (Exception ex) { todo = "to-do list: failed (" + ex.Message + ")"; }
+                    if (todo.Length > 0) guideNote += (guideNote.Length > 0 ? " | " : "") + todo;
                 }
                 // The sticks / rocks around trees come from pool objects
                 // that carry their own seed (GreebleKeeper).

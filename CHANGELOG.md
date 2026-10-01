@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.188 - 2026-10-01
+
+- A spot that starts on moving (a LiveSplit velocity start) no longer
+  starts its clock on its own restart: the little settle after a long
+  teleport is not you moving.
+- A savestate captured with the survival book open now gives back the
+  items you held (they came back empty-handed).
+- After a Quick load the survival book's to-do list keeps updating (it
+  stopped until the next Full load).
+
 ## v0.24.187 - 2026-10-01
 
 - Quick load now puts the nature guide back as it was at the capture:

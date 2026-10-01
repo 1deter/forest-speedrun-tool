@@ -48,6 +48,18 @@ namespace ForestOverlay.Game
         private static FieldInfo _range, _xOffset, _damping, _fixCam, _resetOriginal, _targetAngles, _followAngles, _minRange;
         private static bool _camResolved;
 
+        /// True while the survival book is out (the inventory's Book view).
+        public static bool IsOpen()
+        {
+            try
+            {
+                if (!Resolve()) return false;
+                object inv = _inventory.GetValue(null);
+                return inv != null && Equals(_view.GetValue(inv, null), _bookView);
+            }
+            catch (Exception) { return false; }
+        }
+
         /// Closes the book when it is open. Says what it did; "" when the
         /// book was not open.
         public static string IfOpen()

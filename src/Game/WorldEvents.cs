@@ -95,6 +95,12 @@ namespace ForestOverlay.Game
         private bool _lastDelayed;
         private float _stillSince = -1f;
         private bool _movingFired = true;
+        private Vector3 _lastPos;
+        private bool _hasLastPos;
+
+        /// A move this far in one frame is a placement (teleport, restore,
+        /// restart), not running (v0.24.188).
+        private const float JumpDistance = 2f;
 
         public WorldEvents(ManualLogSource log)
         {
@@ -177,6 +183,7 @@ namespace ForestOverlay.Game
             _lastDelayed = false;
             _movingFired = true;
             _stillSince = -1f;
+            _hasLastPos = false;
         }
 
         private void PollCave()
@@ -281,6 +288,17 @@ namespace ForestOverlay.Game
         {
             if (player == null || !player.Found) return;
             float now = Time.unscaledTime;
+
+            // A placement settles for a frame or two (bridge: -0.87 m/s
+            // after a restart from a cave) - that is not the runner moving,
+            // and it started a velocity-start run on its own restart. After
+            // a jump the player must stand still again first.
+            Vector3 pos = player.Transform.position;
+            bool jumped = _hasLastPos && (pos - _lastPos).sqrMagnitude > JumpDistance * JumpDistance;
+            _lastPos = pos;
+            _hasLastPos = true;
+            if (jumped) { _movingFired = true; _stillSince = -1f; return; }
+
             if (player.Speed <= MovingSpeed)
             {
                 if (_stillSince < 0f) _stillSince = now;
