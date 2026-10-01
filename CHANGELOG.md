@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.192 - 2026-10-01
+
+- Inventory -> **Item caps** (gameplay mod, practice): carry as many of
+  any item as you set - find the item, add it, type its cap (e.g. 50
+  rocks). Off by default; logs keep their own option.
+
 ## v0.24.191 - 2026-10-01
 
 - Quick load keeps what is in your hands when it is what the savestate
