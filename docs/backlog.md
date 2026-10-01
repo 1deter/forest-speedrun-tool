@@ -148,6 +148,12 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 
 ## Website (author, QA #general 2026-09-27)
 
+- **Security review of the website** (author, QA 2026-10-01): penetration tests and a
+  vulnerability analysis before more admin features - the site is public and open source, and
+  the VPS also hosts the author's personal services (the site runs in Docker). Start with the
+  admin endpoints (token checks, upload paths: `UploadPath`, zip extraction), rate limits, the
+  SQLite queries, headers / CSP, the container's rights and network reach.
+
 - **Stuttering playback on the spot page** - open investigation; the author suspects reading all
   state values per frame (the State panel / *Show all*). Profile the scrub loop first. Author
   (2026-10-01): keep the always-shown State panel (better UX than click-a-point) but make it
