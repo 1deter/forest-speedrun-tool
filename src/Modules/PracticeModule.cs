@@ -893,7 +893,18 @@ namespace ForestOverlay.Modules
                 case TriggerKind.Event:
                     {
                         // Typed, or stepped through the known list - the
-                        // names are ids, and a typo would never fire.
+                        // names are ids, and a typo would never fire. The
+                        // group button jumps between the kinds (endgame,
+                        // starts, caves, clothing, passengers); < > step
+                        // within the group shown.
+                        int group = EventGroupOf(t.EventName);
+                        if (GUI.Button(new Rect(x0, y - 2f, 92f, 22f), EventGroupNames[group]))
+                        {
+                            t.EventName = EventGroup((group + 1) % EventGroupNames.Length)[0];
+                            Touch();
+                        }
+                        y += 24f;
+
                         if (GUI.Button(new Rect(x0, y - 2f, 26f, 22f), "<")) { t.EventName = StepEvent(t.EventName, -1); Touch(); }
                         if (GUI.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
 
@@ -901,8 +912,7 @@ namespace ForestOverlay.Modules
                         if (name != t.EventName) { t.EventName = name; Touch(); }
                         y += 24f;
 
-                        GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), EventLabel(t.EventName), _dimStyle);
-                        y += 22f;
+                        y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
                         break;
                     }
 
@@ -920,14 +930,46 @@ namespace ForestOverlay.Modules
             return y + 6f;
         }
 
-        private static string[] KnownEvents()
+        // The event picker's groups. Built once (clothing reads the game's
+        // database; empty until it is loaded, then retried).
+        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers" };
+        private static readonly string[][] EventGroups = new string[5][];
+
+        private static string[] EventGroup(int g)
         {
-            return GameEvents.RouteOrder;
+            string[] list = EventGroups[g];
+            if (list != null && list.Length > 0) return list;
+            switch (g)
+            {
+                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving }; break;
+                case 2: list = WorldEvents.CaveEvents(); break;
+                case 3: list = WorldEvents.ClothingEvents(); break;
+                case 4: list = WorldEvents.PassengerEvents(); break;
+                default: list = GameEvents.RouteOrder; break;
+            }
+            if (list.Length == 0) list = new[] { WorldEvents.Clothing + "-1" };
+            EventGroups[g] = list;
+            return list;
+        }
+
+        private static int EventGroupOf(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return 0;
+            for (int g = 0; g < EventGroupNames.Length; g++)
+            {
+                string[] list = EventGroup(g);
+                for (int i = 0; i < list.Length; i++)
+                    if (string.Equals(list[i], name, StringComparison.OrdinalIgnoreCase)) return g;
+            }
+            if (name.StartsWith(WorldEvents.Clothing + "-", StringComparison.OrdinalIgnoreCase)) return 3;
+            if (name.StartsWith(WorldEvents.Passenger, StringComparison.OrdinalIgnoreCase)) return 4;
+            if (name.StartsWith("cave-", StringComparison.OrdinalIgnoreCase)) return 2;
+            return 0;
         }
 
         private static string StepEvent(string current, int dir)
         {
-            string[] known = KnownEvents();
+            string[] known = EventGroup(EventGroupOf(current));
             int at = -1;
             for (int i = 0; i < known.Length; i++)
                 if (string.Equals(known[i], current, StringComparison.OrdinalIgnoreCase)) { at = i; break; }
@@ -939,16 +981,17 @@ namespace ForestOverlay.Modules
 
         // Labels are cached per name: OnGUI runs several times a frame and
         // LabelFor builds a string for keycard-door-<id>.
-        private readonly Dictionary<string, string> _eventLabels = new Dictionary<string, string>();
+        private readonly Dictionary<string, GUIContent> _eventLabels = new Dictionary<string, GUIContent>();
+        private static readonly GUIContent PickEventLabel = new GUIContent("pick an event with < >");
 
-        private string EventLabel(string name)
+        private GUIContent EventLabel(string name)
         {
-            if (string.IsNullOrEmpty(name)) return "pick an event with < >";
+            if (string.IsNullOrEmpty(name)) return PickEventLabel;
 
-            string label;
+            GUIContent label;
             if (_eventLabels.TryGetValue(name, out label)) return label;
 
-            label = GameEvents.LabelFor(name) ?? "unknown event - this will never fire";
+            label = new GUIContent(GameEvents.LabelFor(name) ?? "unknown event - this will never fire");
             _eventLabels[name] = label;
             return label;
         }

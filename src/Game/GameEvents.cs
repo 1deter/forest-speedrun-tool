@@ -209,7 +209,7 @@ namespace ForestOverlay.Game
                 if (string.Equals(evt, DoorNames[i], StringComparison.OrdinalIgnoreCase)) return DoorLabels[i];
             if (evt != null && evt.StartsWith(KeycardDoor + "-", StringComparison.OrdinalIgnoreCase))
                 return "Keycard door opened with item " + evt.Substring(KeycardDoor.Length + 1);
-            return null;
+            return WorldEvents.LabelFor(evt);
         }
 
         // ------------------------------------------------------------------
@@ -432,6 +432,17 @@ namespace ForestOverlay.Game
                     if (DoorCards[i] == keycard) Record(DoorNames[i], null);
             }
             if (evt == "end-crash" || evt == "end-shutdown") Record(GameEnd, null);
+        }
+
+        /// For WorldEvents: caves, clothing, passengers, starts. `log`
+        /// false for the frequent ones (moving, hold-interact).
+        internal static void RecordWorld(string evt, string detail, bool log)
+        {
+            Names.Add(evt);
+            Stamps.Add(DateTime.Now.ToString("HH:mm:ss"));
+            if (log && _log != null)
+                _log.LogInfo("Game event: " + evt + (detail != null ? " (" + detail + ")" : "") +
+                             " frame " + Time.frameCount);
         }
 
         private static void Record(string evt, string detail)

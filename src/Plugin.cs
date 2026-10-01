@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.183";
+        public const string PluginVersion = "0.24.184";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -44,6 +44,7 @@ namespace ForestOverlay
         private readonly Notice _notice = new Notice();
         private GUIStyle _noticeStyle;
         private GameEvents _events;
+        private WorldEvents _worldEvents;
         private LogKeeper _logs;
 
         private GUIStyle _hudLabelStyle;
@@ -91,6 +92,7 @@ namespace ForestOverlay
                 // Installed before modules so none can miss an event.
                 _events = new GameEvents(Logger);
                 _events.Install(PluginGuid);
+                _worldEvents = new WorldEvents(Logger);
 
                 ModuleContext ctx = new ModuleContext();
                 ctx.Log = Logger;
@@ -173,6 +175,7 @@ namespace ForestOverlay
                 // Before modules, so a split fires in the frame its
                 // cutscene flag rose.
                 if (_events != null) _events.Tick();
+                if (_worldEvents != null) _worldEvents.Tick(_player);
                 if (_player.Found)
                 {
                     _bridge.ResolvePlayerController(_player.Transform);

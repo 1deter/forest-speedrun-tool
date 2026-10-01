@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.184 - 2026-10-01
+
+- Segments can split on everything the LiveSplit autosplitter splits on:
+  entering or leaving each cave (or any cave), putting on a clothing item,
+  the found-passenger count, and the two autosplitter starts - the
+  hold-to-interact press (the plane meal) and starting to move.
+- The event picker in the segment editor has a group button (Endgame,
+  Starts, Caves, Clothing, Passengers); `<` `>` step within the group.
+
 ## v0.24.183 - 2026-10-01
 
 - Developer tooling only: the endgame area list names each object, so the
