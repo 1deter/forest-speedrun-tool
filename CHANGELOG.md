@@ -5,6 +5,22 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.186 - 2026-10-01
+
+- **Import a LiveSplit file as a spot, in one click**: put your `.lss`
+  in `BepInEx/config/ForestOverlay/livesplit/`, stand where the run
+  starts, then Practice -> **Import** -> the file's **Import** button.
+  It makes a timed spot with one split per LiveSplit split (same names),
+  started and split the way your autosplitter settings say - velocity or
+  plane meal start, cave enter / exit, item pickups, clothing,
+  passengers, endgame cutscenes. The file is linked as the comparison, so
+  Compare to shows its PB straight away.
+- If the autosplitter's settings live in your layout (`.lsl`) instead,
+  put the layout beside the `.lss` - it is read from there. No settings
+  at all: the splits are made by hand (F12).
+- A spot's **Autosplit** list (Practice editor) says what the `autosplit`
+  checkpoints split on, and can be edited.
+
 ## v0.24.185 - 2026-10-01
 
 - LiveSplit splits files as comparisons: put a `.lss` in

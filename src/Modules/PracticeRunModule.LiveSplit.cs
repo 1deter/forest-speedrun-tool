@@ -50,6 +50,9 @@ namespace ForestOverlay.Modules
         private readonly List<string> _lssCompareNames = new List<string>();
         private readonly List<float[]> _lssCompareSplits = new List<float[]>();
         private int _lssPick;
+        // A segment just made from a LiveSplit file (Practice -> Import):
+        // its comparison is picked once the file is read.
+        private string _pickLssFor;
 
         private readonly GUIContent _lssPickText = new GUIContent("");
         private readonly GUIContent _lssDirText = new GUIContent("");
@@ -150,6 +153,21 @@ namespace ForestOverlay.Modules
             }
             SaveLinks();
             _lssDirty = true;
+        }
+
+        /// Practice's LiveSplit import: links the file to the new segment (by
+        /// name - the rows were named from it) and picks its PB as the
+        /// comparison when the segment arms.
+        public void LinkImportedLss(string segmentId, string file, LssTiming timing)
+        {
+            LssLink link = LinkFor(segmentId);
+            if (link == null) { link = new LssLink(); link.SegmentId = segmentId; _lssLinks.Add(link); }
+            link.File = file;
+            link.Map = null;
+            link.Timing = timing;
+            SaveLinks();
+            _lssDirty = true;
+            _pickLssFor = segmentId;
         }
 
         private void SetLssTiming(LssTiming t)
@@ -326,6 +344,11 @@ namespace ForestOverlay.Modules
             if (_referenceKind == Reference.LiveSplit && !LssAvailable) { _referenceKind = Reference.Best; SelectReference(); }
             RefreshLssPickText();
             _splitsDirty = true;
+            if (_pickLssFor != null && _segment != null && _segment.Id == _pickLssFor && LssAvailable)
+            {
+                _pickLssFor = null;
+                PickLss(0);
+            }
         }
 
         private string LssStatusText(LssMatch match, int rows)

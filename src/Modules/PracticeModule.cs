@@ -158,7 +158,14 @@ namespace ForestOverlay.Modules
             public string Path;
             public SegmentBundle Bundle;
             public GUIContent Label;
+            // A LiveSplit splits file instead (v0.24.186): the run, and the
+            // autosplitter's settings - from the file or a layout beside it.
+            public LssRun Run;
+            public LssAutoSplit Asl;
+            public string AslFrom;
         }
+
+        private string _lssDir;
 
         private string _sharedDir;
         private bool _importing;
@@ -202,7 +209,10 @@ namespace ForestOverlay.Modules
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
-            _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir);
+            _lssDir = System.IO.Path.Combine(ctx.ConfigDirectory, "livesplit");
+            _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir +
+                                           ", or a LiveSplit splits file (.lss) from " + _lssDir +
+                                           " - that one makes a timed spot where you stand, split like your autosplitter.");
 
             _previewHost = new GameObject("ForestOverlay_ZonePreview");
             _previewHost.hideFlags = HideFlags.HideAndDontSave;
@@ -782,6 +792,7 @@ namespace ForestOverlay.Modules
 
             if (s.IsTimed || s.Start.IsSet || s.End.IsSet)
             {
+                y = DrawAutoSplit(y, cw, s);
                 y = DrawTrigger(y, cw, "Start", ref s.Start, -2);
 
                 for (int i = 0; i < s.Checkpoints.Count; i++)
@@ -818,6 +829,78 @@ namespace ForestOverlay.Modules
 
             _editHeight = y + 40f;   // room for the item search results below a trigger
             GUI.EndScrollView();
+        }
+
+        // --- autosplit list (v0.24.186) ---------------------------------------
+        private Segment _autoFor;
+        private string _autoText = "";
+        private string _autoDescFor;
+        private readonly GUIContent _autoDesc = new GUIContent("");
+
+        /// The segment's autosplit list: what `event autosplit` splits on.
+        /// Shown when the segment has one or a trigger uses it.
+        private float DrawAutoSplit(float y, float cw, Segment s)
+        {
+            if (s.AutoSplit.Count == 0 && !UsesAutoSplit(s)) return y;
+            if (!ReferenceEquals(_autoFor, s)) { _autoFor = s; _autoText = SegmentFormat.AutoSplitText(s); }
+
+            GUI.Label(new Rect(0, y, 74, 20), "Autosplit");
+            string edited = GUI.TextField(new Rect(80, y - 2, cw - 90, 22), _autoText);
+            if (edited != _autoText)
+            {
+                _autoText = edited;
+                SegmentFormat.SetAutoSplit(s, edited);
+                Touch();
+            }
+            y += 26f;
+
+            string key = SegmentFormat.AutoSplitText(s);
+            if (key != _autoDescFor) { _autoDescFor = key; _autoDesc.text = AutoSplitDescription(s); }
+            y += UiText.DrawDim(80, y, cw - 90, _autoDesc) + 6f;
+            return y;
+        }
+
+        private static bool UsesAutoSplit(Segment s)
+        {
+            if (IsAuto(s.End)) return true;
+            for (int i = 0; i < s.Checkpoints.Count; i++) if (IsAuto(s.Checkpoints[i])) return true;
+            return false;
+        }
+
+        private static bool IsAuto(Trigger t)
+        {
+            return t.Kind == TriggerKind.Event && string.Equals(t.EventName, Segment.AutoSplitEvent, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string AutoSplitDescription(Segment s)
+        {
+            if (s.AutoSplit.Count == 0)
+                return "Empty: an 'autosplit' trigger never fires. Event names separated by spaces - item-<id> (first pickup), " +
+                       "item-change-<id>, cave-enter-cave06, clothing-<id>, passenger-<n>, endgame-cutscene ...";
+            System.Text.StringBuilder sb = new System.Text.StringBuilder("Each 'autosplit' trigger fires on the next of: ");
+            for (int i = 0; i < s.AutoSplit.Count; i++)
+            {
+                if (i > 0) sb.Append("; ");
+                sb.Append(AutoSplitLabel(s.AutoSplit[i]));
+            }
+            return sb.Append('.').ToString();
+        }
+
+        private string AutoSplitLabel(string e)
+        {
+            int id;
+            if (e.StartsWith(LssAutoSplit.ItemChange) && int.TryParse(e.Substring(LssAutoSplit.ItemChange.Length), out id))
+                return ItemLabel(id) + " count changes";
+            if (e.StartsWith(LssAutoSplit.ItemFirst) && int.TryParse(e.Substring(LssAutoSplit.ItemFirst.Length), out id))
+                return "first " + ItemLabel(id) + " picked up";
+            return GameEvents.LabelFor(e) ?? ("'" + e + "' (unknown - never fires)");
+        }
+
+        private string ItemLabel(int id)
+        {
+            string name = null;
+            try { name = Ctx.Inventory.NameForId(id); } catch (Exception) { }
+            return string.IsNullOrEmpty(name) ? "item " + id : name;
         }
 
         private void ToggleTimed(Segment s, bool on)
@@ -932,8 +1015,8 @@ namespace ForestOverlay.Modules
 
         // The event picker's groups. Built once (clothing reads the game's
         // database; empty until it is loaded, then retried).
-        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers" };
-        private static readonly string[][] EventGroups = new string[5][];
+        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers", "Autosplit" };
+        private static readonly string[][] EventGroups = new string[6][];
 
         private static string[] EventGroup(int g)
         {
@@ -945,6 +1028,7 @@ namespace ForestOverlay.Modules
                 case 2: list = WorldEvents.CaveEvents(); break;
                 case 3: list = WorldEvents.ClothingEvents(); break;
                 case 4: list = WorldEvents.PassengerEvents(); break;
+                case 5: list = new[] { Segment.AutoSplitEvent }; break;
                 default: list = GameEvents.RouteOrder; break;
             }
             if (list.Length == 0) list = new[] { WorldEvents.Clothing + "-1" };
@@ -991,9 +1075,24 @@ namespace ForestOverlay.Modules
             GUIContent label;
             if (_eventLabels.TryGetValue(name, out label)) return label;
 
-            label = new GUIContent(GameEvents.LabelFor(name) ?? "unknown event - this will never fire");
+            label = new GUIContent(name.IndexOf('|') >= 0 ? EitherLabel(name)
+                                   : GameEvents.LabelFor(name) ?? "unknown event - this will never fire");
             _eventLabels[name] = label;
             return label;
+        }
+
+        // "hold-interact|moving": any of them.
+        private static string EitherLabel(string name)
+        {
+            string[] parts = name.Split('|');
+            System.Text.StringBuilder sb = new System.Text.StringBuilder("Any of: ");
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string p = parts[i].Trim();
+                if (i > 0) sb.Append(" / ");
+                sb.Append(GameEvents.LabelFor(p) ?? ("'" + p + "' (unknown)"));
+            }
+            return sb.ToString();
         }
 
         private float SphereFields(float y, float w, float x0, ref Trigger t, int slot)
@@ -1193,6 +1292,7 @@ namespace ForestOverlay.Modules
             s.Checkpoints.AddRange(src.Checkpoints);
             s.CheckpointNames.AddRange(src.CheckpointNames);
             s.EndName = src.EndName;
+            s.AutoSplit.AddRange(src.AutoSplit);
 
             // Copies land in the user's own file, never back in a shared set.
             s.SourceFile = SegmentLibrary.UserFileName;
@@ -1729,11 +1829,101 @@ namespace ForestOverlay.Modules
                 _importStatus.text = "Could not read the folder: " + ex.Message;
                 return;
             }
+            bad += ScanLiveSplitFiles();
 
             _importStatus.text = _imports.Count == 0
-                ? "No .foseg files there yet - put a shared file in that folder (Open folder), then Refresh."
+                ? "No .foseg or .lss files there yet - put a shared file or a LiveSplit splits file in its folder (Open folder), then Refresh."
                 : _imports.Count + " file" + (_imports.Count == 1 ? "" : "s") + " to import." +
                   (bad > 0 ? " " + bad + " could not be read - see the log." : "");
+        }
+
+        /// LiveSplit splits files in livesplit/; returns how many could not
+        /// be read.
+        private int ScanLiveSplitFiles()
+        {
+            int bad = 0;
+            try
+            {
+                if (!System.IO.Directory.Exists(_lssDir)) System.IO.Directory.CreateDirectory(_lssDir);
+                string[] files = System.IO.Directory.GetFiles(_lssDir, "*.lss");
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string text = System.IO.File.ReadAllText(files[i]);
+                    string error;
+                    LssRun run = LssFile.Parse(text, out error);
+                    if (run == null)
+                    {
+                        bad++;
+                        Ctx.Log.LogWarning("Practice: " + System.IO.Path.GetFileName(files[i]) + " not importable: " + error);
+                        continue;
+                    }
+                    ImportEntry e = new ImportEntry();
+                    e.Path = files[i];
+                    e.Run = run;
+                    e.Asl = LssAutoSplit.Read(text, out error);
+                    if (e.Asl == null) e.Asl = LayoutBeside(files[i], out e.AslFrom);
+                    e.Label = new GUIContent(LssImportLabel(e));
+                    _imports.Add(e);
+                }
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Practice: could not list " + _lssDir + " - " + ex.Message); }
+            return bad;
+        }
+
+        /// The autosplitter's settings from a layout (.lsl) beside the
+        /// splits file - its own name first, then any - when the
+        /// autosplitter is a layout component (settings live there then).
+        private LssAutoSplit LayoutBeside(string lssPath, out string from)
+        {
+            from = null;
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(lssPath);
+                List<string> layouts = new List<string>();
+                string same = System.IO.Path.ChangeExtension(lssPath, ".lsl");
+                if (System.IO.File.Exists(same)) layouts.Add(same);
+                string[] all = System.IO.Directory.GetFiles(dir, "*.lsl");
+                Array.Sort(all, StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < all.Length; i++) if (!layouts.Contains(all[i])) layouts.Add(all[i]);
+                for (int i = 0; i < layouts.Count; i++)
+                {
+                    string error;
+                    LssAutoSplit a = LssAutoSplit.Read(System.IO.File.ReadAllText(layouts[i]), out error);
+                    if (a == null) continue;
+                    from = System.IO.Path.GetFileName(layouts[i]);
+                    return a;
+                }
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Practice: could not read layouts beside " + lssPath + " - " + ex.Message); }
+            return null;
+        }
+
+        private string LssImportLabel(ImportEntry e)
+        {
+            LssRun run = e.Run;
+            string title = (run.GameName + " " + run.CategoryName).Trim();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append(System.IO.Path.GetFileName(e.Path)).Append("  -  LiveSplit");
+            if (title.Length > 0) sb.Append(": ").Append(title);
+            sb.Append(", ").Append(run.Segments.Count).Append(" split").Append(run.Segments.Count == 1 ? "" : "s").Append(". ");
+            sb.Append(LssPlan(e)).Append(" Import makes a timed spot where you stand.");
+            return sb.ToString();
+        }
+
+        // What the built segment will do, in words.
+        private static string LssPlan(ImportEntry e)
+        {
+            if (e.Asl == null)
+                return "No autosplitter settings in it (or in a layout beside it): start and splits by hand (F12).";
+            string[] starts = e.Asl.StartEvents();
+            string[] splits = e.Asl.SplitEvents();
+            string start = starts.Length == 0 ? "starts by hand (F12)"
+                         : starts.Length == 2 ? "starts on a hold-to-interact or on moving"
+                         : starts[0] == LssAutoSplit.Moving ? "starts on moving" : "starts on a hold-to-interact (the plane meal)";
+            string split = splits.Length == 0 ? "splits by hand (F12)"
+                         : "splits on the next of " + splits.Length + " autosplitter setting" + (splits.Length == 1 ? "" : "s");
+            return "Autosplitter" + (e.AslFrom != null ? " (from the layout " + e.AslFrom + ")" : "") + ": " + start + ", " + split + ".";
         }
 
         private string ImportLabel(SegmentBundle b)
@@ -1800,6 +1990,7 @@ namespace ForestOverlay.Modules
         /// (its recorded attempts are kept either way).
         private void Import(ImportEntry e)
         {
+            if (e.Run != null) { ImportLiveSplit(e); return; }
             SegmentBundle b = e.Bundle;
             Segment incoming = b.Segment;
             Segment mine = _library.ById(incoming.Id);
@@ -1867,12 +2058,64 @@ namespace ForestOverlay.Modules
                                      (saved ? "." : " - but writing " + file + " failed, see the log.");
                 Ctx.Log.LogInfo("Practice: " + (mine != null ? "replaced" : "imported") + " '" + incoming.Id + "' from " +
                                 System.IO.Path.GetFileName(e.Path) + " (" + what + ").");
-                for (int i = 0; i < _imports.Count; i++) _imports[i].Label.text = ImportLabel(_imports[i].Bundle);
+                for (int i = 0; i < _imports.Count; i++)
+                    if (_imports[i].Bundle != null) _imports[i].Label.text = ImportLabel(_imports[i].Bundle);
             }
             catch (Exception ex)
             {
                 _importStatus.text = "Import failed: " + ex.Message;
                 Ctx.Log.LogWarning("Practice: import of " + e.Path + " failed: " + ex);
+            }
+        }
+
+        /// A LiveSplit file -> a new timed spot where the player stands, its
+        /// rows named and split as the file's (Data/LssSegmentBuilder), the
+        /// file linked as its comparison, armed at once.
+        private void ImportLiveSplit(ImportEntry e)
+        {
+            if (!Ctx.Player.Found || PlayerRef.AtTitleScreen)
+            {
+                _importStatus.text = "Load a game first - the spot is made where you stand.";
+                return;
+            }
+            try
+            {
+                string file = System.IO.Path.GetFileName(e.Path);
+                Segment s = LssSegmentBuilder.Build(e.Run, e.Asl, System.IO.Path.GetFileNameWithoutExtension(e.Path));
+                Segment here = NewFromHere(s.Name);
+                if (here == null) { _importStatus.text = "No player - load a game first."; return; }
+                s.Id = here.Id;
+                s.SourceFile = here.SourceFile;
+                s.HasSpawn = true;
+                s.SpawnPosition = here.SpawnPosition;
+                s.SpawnYaw = here.SpawnYaw;
+                s.SpawnPitch = here.SpawnPitch;
+
+                _library.Add(s);
+                bool saved = WriteFile(s.SourceFile);
+                _selected = s;
+                _shareFor = null;
+                RebuildVisible();
+
+                PracticeRunModule runs = Host.Find<PracticeRunModule>();
+                if (runs != null) runs.LinkImportedLss(s.Id, file, e.Run.PreferredTiming());
+
+                _current = s;
+                if (OnPlacedAtSpot != null) OnPlacedAtSpot();
+
+                _importStatus.text = "Made '" + s.Name + "' here: " + (s.Checkpoints.Count + 1) + " splits named as in " + file + ". " +
+                                     LssPlan(e) + " Compare to shows the file's PB" + (runs != null ? "" : " once linked in Runs") +
+                                     ". Practice mode (F9) times it; F7 brings you back here." +
+                                     (saved ? "" : " Writing " + s.SourceFile + " failed - see the log.");
+                Ctx.Log.LogInfo("Practice: LiveSplit file " + file + " -> '" + s.Id + "' (" + s.Name + "): start " +
+                                TriggerParser.Write(s.Start) + ", " + (s.Checkpoints.Count + 1) + " splits, autosplit = " +
+                                (s.AutoSplit.Count == 0 ? "(none)" : SegmentFormat.AutoSplitText(s)) +
+                                (e.AslFrom != null ? " (settings from " + e.AslFrom + ")" : "") + ".");
+            }
+            catch (Exception ex)
+            {
+                _importStatus.text = "Import failed: " + ex.Message;
+                Ctx.Log.LogWarning("Practice: LiveSplit import of " + e.Path + " failed: " + ex);
             }
         }
 

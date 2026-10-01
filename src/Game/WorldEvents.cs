@@ -367,6 +367,7 @@ namespace ForestOverlay.Game
                 }
             }
 
+            if (e == "autosplit") return "The next autosplit: whichever event in the segment's Autosplit list comes next (a LiveSplit import)";
             if (e == HoldInteract) return "Hold-to-interact pressed (the autosplitter's plane meal start)";
             if (e == Moving) return "Started moving (the autosplitter's velocity start)";
             return null;

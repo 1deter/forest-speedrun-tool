@@ -89,6 +89,12 @@ namespace ForestOverlay.Modules
         // Game events: how many of Ctx.Events have been evaluated, and a
         // line for the tab saying the hooks are alive and what fired last.
         private int _eventsSeen;
+
+        // `event autosplit` (v0.24.186, a LiveSplit import): what in the
+        // segment's autosplit list splits, with the ASL's per-run memory
+        // (Data/AutoSplitWatch); one split per frame at most, as the ASL.
+        private readonly AutoSplitWatch _auto = new AutoSplitWatch();
+        private int _autoFrame = -1;
         private int _eventLineBuiltFor = -1;
         private string _eventLine = "";
         private float _tabW;
@@ -274,6 +280,11 @@ namespace ForestOverlay.Modules
             AddItemId(s.Start);
             AddItemId(s.End);
             for (int i = 0; i < s.Checkpoints.Count; i++) AddItemId(s.Checkpoints[i]);
+
+            // Autosplit items are read every frame like item triggers.
+            _auto.Configure(s.AutoSplit);
+            for (int i = 0; i < _auto.ItemIds.Count; i++)
+                if (!_referencedItemIds.Contains(_auto.ItemIds[i])) _referencedItemIds.Add(_auto.ItemIds[i]);
         }
 
         private void AddItemId(Trigger t)
@@ -352,7 +363,15 @@ namespace ForestOverlay.Modules
             if (_eventsSeen > events) _eventsSeen = events;
 
             if (_eventsSeen == events) EvaluateTriggers(pos, null);
-            while (_eventsSeen < events) EvaluateTriggers(pos, Ctx.Events.NameAt(_eventsSeen++));
+            while (_eventsSeen < events)
+            {
+                string fired = Ctx.Events.NameAt(_eventsSeen++);
+                EvaluateTriggers(pos, fired);
+                if (_auto.Any && _recorder.State == RunRecorder.RunState.Running && _auto.OnEvent(fired))
+                    AutoSplit(pos, fired);
+            }
+            if (_auto.ItemIds.Count > 0 && _recorder.State == RunRecorder.RunState.Running && _auto.OnItems(_live))
+                AutoSplit(pos, "an item");
 
             _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime, null);
 
@@ -408,8 +427,18 @@ namespace ForestOverlay.Modules
             }
         }
 
+        /// The ASL splits once per update, whatever else also matched.
+        private void AutoSplit(Vector3 pos, string why)
+        {
+            if (Time.frameCount == _autoFrame) return;
+            _autoFrame = Time.frameCount;
+            Ctx.Log.LogInfo("Run '" + _segment.Id + "': autosplit on " + why + " at " + Format(_recorder.Elapsed) + ".");
+            EvaluateTriggers(pos, Segment.AutoSplitEvent);
+        }
+
         private void StartClock(Vector3 pos)
         {
+            _auto.Begin(_live);   // what is held now is the ASL's baseline
             _recorder.ForceStart(pos);
             _sequence.Begin(_segment.Checkpoints, _segment.End);
             ResetSplits();   // the last run's times stay up until now

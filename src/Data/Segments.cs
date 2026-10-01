@@ -163,8 +163,7 @@ namespace ForestOverlay.Data
                     }
 
                 case TriggerKind.Event:
-                    return firedEvent != null &&
-                           string.Equals(firedEvent, t.EventName, StringComparison.OrdinalIgnoreCase);
+                    return EventMatches(t.EventName, firedEvent);
 
                 case TriggerKind.Manual:
                     return false;   // only ever fired explicitly
@@ -225,6 +224,30 @@ namespace ForestOverlay.Data
             bool changed = now != state.InitialValue;
             state.Satisfied = now;
             return changed;
+        }
+
+        /// An event trigger's name is one event or several separated by '|'
+        /// ("hold-interact|moving": either starts it - the autosplitter's two
+        /// start settings at once, v0.24.186). Compared without allocating:
+        /// this runs once per event per trigger.
+        public static bool EventMatches(string name, string fired)
+        {
+            if (fired == null || string.IsNullOrEmpty(name)) return false;
+            int start = 0;
+            while (start <= name.Length)
+            {
+                int bar = name.IndexOf('|', start);
+                int end = bar < 0 ? name.Length : bar;
+                int a = start, b = end;
+                while (a < b && name[a] == ' ') a++;
+                while (b > a && name[b - 1] == ' ') b--;
+                if (b - a == fired.Length && b > a &&
+                    string.Compare(name, a, fired, 0, fired.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    return true;
+                if (bar < 0) break;
+                start = bar + 1;
+            }
+            return false;
         }
 
         /// Convenience overloads for callers with no relative triggers.
@@ -334,6 +357,17 @@ namespace ForestOverlay.Data
         /// there is none - and then the fingerprint is what it always was.
         public string StartState = "";
 
+        /// What `event autosplit` triggers split on (v0.24.186): the LiveSplit
+        /// autosplitter's enabled settings as event names - cave-enter-cave06,
+        /// item-143 (first pickup), item-change-143 (every change),
+        /// clothing-<id>, passenger-<n>, endgame-cutscene. A LiveSplit split
+        /// is "the next thing the autosplitter splits on", whatever it is, so
+        /// each checkpoint is that one trigger and the list says what counts
+        /// (Data/LssAutoSplit, Modules/PracticeRunModule). Written as
+        /// `autosplit = a b c`; part of the route fingerprint when set.
+        public readonly List<string> AutoSplit = new List<string>();
+        public const string AutoSplitEvent = "autosplit";
+
         // No cached GUIContent here on purpose. Segment is pure data and
         // is linked into the test project, which has no Unity - the label
         // cache is a GUI concern and lives with the panel that draws it.
@@ -370,6 +404,7 @@ namespace ForestOverlay.Data
             // Only when set, so segments without a start state keep the
             // fingerprint their recorded attempts carry.
             if (!string.IsNullOrEmpty(StartState)) hash = Fold(hash, "startstate " + StartState);
+            if (AutoSplit.Count > 0) hash = Fold(hash, "autosplit " + string.Join(" ", AutoSplit.ToArray()));
 
             return hash.ToString("x8");
         }

@@ -35,6 +35,10 @@ namespace ForestOverlay.Data
 
                 case "startstate": s.StartState = value; return null;
 
+                case "autosplit":
+                    SetAutoSplit(s, value);
+                    return null;
+
                 case "spawn":
                     {
                         string[] p = TriggerParser.Split(value);
@@ -120,8 +124,28 @@ namespace ForestOverlay.Data
 
             if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
             if (!string.IsNullOrEmpty(s.StartState)) sb.Append("startstate = ").Append(s.StartState).Append(nl);
+            if (s.AutoSplit.Count > 0) sb.Append("autosplit = ").Append(AutoSplitText(s)).Append(nl);
 
             if (!string.IsNullOrEmpty(s.Notes)) sb.Append("notes    = ").Append(s.Notes).Append(nl);
+        }
+
+        /// The autosplit list from text: names separated by spaces or
+        /// commas, lower case, no repeats, in the order given.
+        public static void SetAutoSplit(Segment s, string value)
+        {
+            s.AutoSplit.Clear();
+            if (string.IsNullOrEmpty(value)) return;
+            string[] p = value.Split(new[] { ' ', ',', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < p.Length; i++)
+            {
+                string e = p[i].Trim().ToLowerInvariant();
+                if (e.Length > 0 && !s.AutoSplit.Contains(e)) s.AutoSplit.Add(e);
+            }
+        }
+
+        public static string AutoSplitText(Segment s)
+        {
+            return string.Join(" ", s.AutoSplit.ToArray());
         }
 
         /// Parses whole-file text into segments. Malformed lines are
