@@ -34,6 +34,10 @@ namespace ForestOverlay.Data
         public Vector3[] Points = new Vector3[256];
         public int Count;
 
+        /// Each kept point's sample time (seconds into the run), index-aligned
+        /// with Points - for showing only a window of the line (v0.24.191).
+        public float[] Times = new float[256];
+
         /// How many source samples have been consumed, so Sync only walks
         /// the new ones.
         public int SourceCount;
@@ -53,6 +57,11 @@ namespace ForestOverlay.Data
 
         public void Append(Vector3 p)
         {
+            Append(p, Count > 0 ? Times[Count - 1] : 0f);
+        }
+
+        public void Append(Vector3 p, float t)
+        {
             if (Count > 0 && (p - Points[Count - 1]).sqrMagnitude < _minSpacingSqr) return;
 
             if (Count == Points.Length)
@@ -60,9 +69,29 @@ namespace ForestOverlay.Data
                 Vector3[] bigger = new Vector3[Points.Length * 2];
                 Array.Copy(Points, bigger, Count);
                 Points = bigger;
+                float[] times = new float[Points.Length];
+                Array.Copy(Times, times, Count);
+                Times = times;
             }
 
+            Times[Count] = t;
             Points[Count++] = p;
+        }
+
+        /// The points to draw for times [from, to]: `start` and `end`
+        /// (exclusive), widened by one point each side so the line reaches
+        /// the window's edges. Times only grow, so a binary search.
+        public void Window(float from, float to, out int start, out int end)
+        {
+            start = 0;
+            end = Count;
+            if (Count == 0) return;
+            int lo = 0, hi = Count;            // first index with Times >= from
+            while (lo < hi) { int mid = (lo + hi) / 2; if (Times[mid] < from) lo = mid + 1; else hi = mid; }
+            start = Math.Max(0, lo - 1);
+            lo = start; hi = Count;            // first index with Times > to
+            while (lo < hi) { int mid = (lo + hi) / 2; if (Times[mid] <= to) lo = mid + 1; else hi = mid; }
+            end = Math.Min(Count, lo + 1);
         }
 
         /// Appends any samples added since the last call. If the source
@@ -72,7 +101,7 @@ namespace ForestOverlay.Data
             if (samples == null) { Clear(); return; }
             if (samples.Count < SourceCount) Clear();
 
-            for (int i = SourceCount; i < samples.Count; i++) Append(samples[i].P);
+            for (int i = SourceCount; i < samples.Count; i++) Append(samples[i].P, samples[i].T);
             SourceCount = samples.Count;
         }
     }

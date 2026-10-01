@@ -532,7 +532,12 @@ namespace ForestOverlay.Game
             string foreign = stored != null ? AdoptPlayer(stored, saved, keepRoot, out adoptNote) : null;
             if (foreign != null) { r.Message = foreign; done(r); yield break; }
 
-            StashHands();
+            // The hands already hold what the capture held: keep them (the
+            // lighter stays lit - author, QA 2026-09-27). No stash here, and
+            // after the load the game's re-equip step is skipped (below).
+            bool keepHands = HandsMatch(KeepHandsIfHeld);
+            KeepHandsIfHeld = null;
+            if (!keepHands) StashHands();
 
             // Putting the lighter away is an animated routine
             // (LighterControler.StashLighterRoutine): it locks the left-hand
@@ -615,6 +620,12 @@ namespace ForestOverlay.Game
                 yield return null;
             }
 
+            // PlayerInventory.OnDeserialized, 1.5 s on, hides every held item
+            // and equips the saved slots again (the lighter re-ignites) - only
+            // when `_equipmentSlotsIds` is set (IL). The hands hold the
+            // captured items already, so the step goes.
+            string handsNote = keepHands && _loadDone ? SkipGameReEquip() : "";
+
             if (started)
             {
                 int after = IdentifierCount;
@@ -638,6 +649,7 @@ namespace ForestOverlay.Game
                 if (stashWait > 0.05f || stashStuck)
                     sb.Append(", hands put away in ").Append((int)(stashWait * 1000f)).Append(" ms").Append(stashStuck ? " (STILL BUSY)" : "");
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
+                if (handsNote.Length > 0) sb.Append(", ").Append(handsNote);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -1148,6 +1160,30 @@ namespace ForestOverlay.Game
                 if (f != null) return f.GetValue(ingredient);
             }
             throw new MissingFieldException(ingredient.GetType().Name, name);
+        }
+
+        /// Set before RestoreInPlace: the item ids the capture held. When the
+        /// hands hold exactly those, they are kept through the restore.
+        public List<int> KeepHandsIfHeld;
+
+        private bool HandsMatch(List<int> wanted)
+        {
+            if (wanted == null || wanted.Count == 0 || HandsBusy()) return false;
+            List<int> now = HeldIds();
+            return now.Count == wanted.Count && HoldsAll(now, wanted);
+        }
+
+        private string SkipGameReEquip()
+        {
+            try
+            {
+                object inv = _inventory != null ? _inventory.GetValue(null) : null;
+                FieldInfo ids = inv != null ? inv.GetType().GetField("_equipmentSlotsIds", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                if (ids == null) return "hands kept, but the game's re-equip could not be skipped (no _equipmentSlotsIds)";
+                ids.SetValue(inv, null);
+                return "hands kept as captured (the game's re-equip skipped)";
+            }
+            catch (Exception ex) { return "hands kept, skipping the game's re-equip failed: " + (ex.InnerException ?? ex).Message; }
         }
 
         // The inventory restore rewrites the bag but not the hands: a stick

@@ -17,6 +17,24 @@ namespace ForestOverlay.Tests
         }
 
         // --- LineBuffer ---------------------------------------------------
+        [Fact]
+        public void TheWindowCoversItsTimesWithOnePointEachSide()
+        {
+            LineBuffer b = new LineBuffer(0.1f);
+            for (int i = 0; i < 10; i++) b.Append(new Vector3(i, 0f, 0f), i * 1f);   // t 0..9
+            int s, e;
+            b.Window(3f, 5f, out s, out e);
+            Assert.Equal(2, s);    // the point before 3 s
+            Assert.Equal(7, e);    // through 6 s, exclusive
+            b.Window(0f, 100f, out s, out e);
+            Assert.Equal(0, s);
+            Assert.Equal(10, e);
+            b.Window(20f, 25f, out s, out e);
+            Assert.True(e - s <= 1);   // past the end: nothing to draw
+            new LineBuffer().Window(0f, 5f, out s, out e);
+            Assert.Equal(0, e);
+        }
+
 
         [Fact]
         public void PointsCloserThanTheSpacingAreDropped()

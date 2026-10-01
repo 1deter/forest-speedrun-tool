@@ -84,6 +84,10 @@ namespace ForestOverlay.Modules
         // again".
         private const float AutoRestartDelay = 0.4f;
         private ConfigEntry<bool> _autoRestart;
+        // Kept across launches (runner maks, twice: practice mode and run
+        // lines came back off; v0.24.191).
+        private ConfigEntry<bool> _practiceModeCfg, _showLinesCfg;
+        private ConfigEntry<string> _compareCfg;
         private float _autoRestartAt;
 
         // Game events: how many of Ctx.Events have been evaluated, and a
@@ -156,7 +160,24 @@ namespace ForestOverlay.Modules
                 "Restart the spot (as F7 does, start state included) as soon as a timed run finishes. " +
                 "The time shows on screen for a moment.");
 
+            _practiceModeCfg = ctx.Config.Bind("Runs", "PracticeMode", false,
+                "Practice mode (F9) on: teleporting to a timed segment arms a run. Kept across launches.");
+            _showLinesCfg = ctx.Config.Bind("Runs", "RunLines", true, "Draw the run lines (yours and the comparison's).");
+            _compareCfg = ctx.Config.Bind("Runs", "CompareTo", "Best",
+                "The comparison picked in the Runs tab: Best, Last, Average or BestSegments.");
+            Enabled = _practiceModeCfg.Value;
+            if (Enabled) _status = "on - go to a timed segment in Practice";
+            _showLines = _showLinesCfg.Value;
+            try
+            {
+                Reference saved = (Reference)System.Enum.Parse(typeof(Reference), _compareCfg.Value, true);
+                if (saved == Reference.Best || saved == Reference.Last || saved == Reference.Average || saved == Reference.BestSegments)
+                    _referenceKind = saved;
+            }
+            catch (System.Exception) { }
+
             InitSplits(ctx);
+            InitLineOptions(ctx);
         }
 
         private RunUploadModule _upload;
@@ -208,6 +229,7 @@ namespace ForestOverlay.Modules
         private void ToggleMode()
         {
             Enabled = !Enabled;
+            if (_practiceModeCfg != null && _practiceModeCfg.Value != Enabled) _practiceModeCfg.Value = Enabled;
 
             if (!Enabled)
             {
@@ -312,6 +334,7 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             BuildEventLine();
+            FlushLineOptions();
             RefreshTabText();
             RefreshLss();
             RefreshSplits();
@@ -709,7 +732,19 @@ namespace ForestOverlay.Modules
                 if (_reference != null) _referenceLine.Sync(_reference.Samples);
             }
             _lines.ReferenceLine = _referenceLine.Points;
+            _lines.ReferenceStart = 0;
             _lines.ReferenceCount = _referenceLine.Count;
+            _lines.Opacity = LineOpacity;
+            if (_lineAheadOn.Value)
+            {
+                // Only the next few seconds of the comparison (author, QA
+                // 2026-09-26): from where its ghost is now, or its start.
+                float from = _recorder.State == RunRecorder.RunState.Running ? _recorder.Elapsed : 0f;
+                int s, e;
+                _referenceLine.Window(from, from + LineAhead, out s, out e);
+                _lines.ReferenceStart = s;
+                _lines.ReferenceCount = e;
+            }
 
             Attempt current = _recorder.Current;
             if (current == null) _currentLine.Clear();
@@ -806,14 +841,22 @@ namespace ForestOverlay.Modules
             if (GUI.Toggle(new Rect(148, 58, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
             if (GUI.Toggle(new Rect(212, 58, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
             if (GUI.Toggle(new Rect(296, 58, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
-            if (kind != _referenceKind) { _referenceKind = kind; SelectReference(); _splitsDirty = true; }
+            if (kind != _referenceKind)
+            {
+                _referenceKind = kind;
+                _compareCfg.Value = kind.ToString();   // one write per click
+                SelectReference();
+                _splitsDirty = true;
+            }
 
             bool lines = GUI.Toggle(new Rect(0, 82, 110, 20), _showLines, " run lines");
-            if (lines != _showLines) _showLines = lines;
+            if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
 
-            bool auto = GUI.Toggle(new Rect(114, 82, w - 114, 20), _autoRestart.Value,
+            bool auto = GUI.Toggle(new Rect(114, 82, w - 114 - 130, 20), _autoRestart.Value,
                                    " Auto-restart when a run finishes");
             if (auto != _autoRestart.Value) _autoRestart.Value = auto;
+            if (GUI.Button(new Rect(w - 124, 81, 124, 22), _lineOptionsOpen ? "Line options  ^" : "Line options  v"))
+                _lineOptionsOpen = !_lineOptionsOpen;
 
             // Flowing, each line as tall as its text (UiText) - these
             // messages vary in length and clipped at fixed heights. The rest
@@ -825,7 +868,8 @@ namespace ForestOverlay.Modules
             float cw = scrolls ? w - 20f : w;
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
-            float y = DrawRunnersSection(0f, cw);
+            float y = DrawLineOptions(0f, cw);
+            y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);
             y += UiText.Draw(0, y, cw, _diagnoseText);

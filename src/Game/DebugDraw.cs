@@ -527,6 +527,10 @@ namespace ForestOverlay.Game
 
         public Vector3[] ReferenceLine;
         public int ReferenceCount;
+        /// The first reference point drawn (a window of the line, v0.24.191).
+        public int ReferenceStart;
+        /// Lines and ghost, 0..1 (Runs -> Line options).
+        public float Opacity = 1f;
 
         public Vector3[] CurrentLine;
         public int CurrentCount;
@@ -569,12 +573,12 @@ namespace ForestOverlay.Game
             GL.PushMatrix();
             GL.Begin(GL.LINES);
 
-            DrawStrip(ReferenceLine, ReferenceCount, ReferenceColour);
-            DrawStrip(CurrentLine, CurrentCount, CurrentColour);
+            DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour));
+            DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour));
 
             if (HasGhost)
             {
-                GL.Color(GhostColour);
+                GL.Color(Faded(GhostColour));
                 // A small upright marker reads better than a dot at
                 // distance, and shows height difference at a glance.
                 DrawMarker(GhostPosition, 0.45f, 1.8f);
@@ -582,17 +586,23 @@ namespace ForestOverlay.Game
 
             GL.End();
             GL.PopMatrix();
-            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - 1) + Mathf.Max(0, CurrentCount - 1)));
+            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - ReferenceStart - 1) + Mathf.Max(0, CurrentCount - 1)));
         }
 
-        private static void DrawStrip(Vector3[] points, int count, Color colour)
+        private Color Faded(Color c)
         {
-            if (points == null || count < 2) return;
+            c.a *= Mathf.Clamp01(Opacity);
+            return c;
+        }
+
+        private static void DrawStrip(Vector3[] points, int start, int count, Color colour)
+        {
+            if (points == null || count - start < 2) return;
 
             GL.Color(colour);
             int n = Mathf.Min(count, points.Length);
 
-            for (int i = 1; i < n; i++)
+            for (int i = Mathf.Max(1, start + 1); i < n; i++)
             {
                 GL.Vertex(points[i - 1]);
                 GL.Vertex(points[i]);

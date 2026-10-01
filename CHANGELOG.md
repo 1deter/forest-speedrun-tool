@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.191 - 2026-10-01
+
+- Quick load keeps what is in your hands when it is what the savestate
+  had: the lighter stays lit, no putting away and taking out again.
+- Settings now stay as you left them across launches: practice mode, run
+  lines, the Compare to choice, "show zones", the 100% tab's filters and
+  the Inventory tab's toggles.
+- Runs -> **Line options**: the run lines' opacity, and an option to show
+  only the next few seconds of the comparison line (slider, 5 s to start).
+
 ## v0.24.190 - 2026-10-01
 
 - Other runners' attempts that came in with an imported `.foseg` no longer

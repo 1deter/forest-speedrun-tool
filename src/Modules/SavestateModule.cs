@@ -609,6 +609,8 @@ namespace ForestOverlay.Modules
             if (rope.Length > 0) fall += (fall.Length > 0 ? ", " : "") + rope;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
+            // Outside a cutscene replay (its hands are the replay's).
+            _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 _busy = false;

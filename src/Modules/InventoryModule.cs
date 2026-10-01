@@ -63,6 +63,8 @@ namespace ForestOverlay.Modules
         // Logs in the inventory (Game/LogStore).
         private ConfigEntry<bool> _logsCfg;
         private ConfigEntry<int> _logCapCfg;
+        // Kept across launches (v0.24.191).
+        private ConfigEntry<bool> _hidePhantomsCfg, _showZerosCfg;
         private string _capText;
         private bool _logsMarked;
         private string _logsHud;
@@ -78,6 +80,10 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
             _logsCfg = Ctx.Config.Bind("Inventory", "LogsInInventory", false,
                 "Gameplay mod: picked-up logs are stored with a counter up to LogsInInventoryCap instead of carried in the arms. Marks practice.");
+            _hidePhantomsCfg = Ctx.Config.Bind("Inventory", "HidePhantoms", true, "Inventory tab: hide ids that are not real inventory contents.");
+            _showZerosCfg = Ctx.Config.Bind("Inventory", "ShowZeroAmounts", true, "Inventory tab: list items held 0 times.");
+            Ctx.Inventory.FilterPhantomItems = _hidePhantomsCfg.Value;
+            Ctx.Inventory.ShowZeroAmounts = _showZerosCfg.Value;
             _logCapCfg = Ctx.Config.Bind("Inventory", "LogsInInventoryCap", 5,
                 "How many logs the inventory holds with LogsInInventory on (1-99).");
             _capText = _logCapCfg.Value.ToString();
@@ -260,6 +266,7 @@ namespace ForestOverlay.Modules
             if (filter != Ctx.Inventory.FilterPhantomItems)
             {
                 Ctx.Inventory.FilterPhantomItems = filter;
+                _hidePhantomsCfg.Value = filter;
                 Ctx.Inventory.Refresh();
                 RebuildRowLabels();
             }
@@ -269,6 +276,7 @@ namespace ForestOverlay.Modules
             if (zeros != Ctx.Inventory.ShowZeroAmounts)
             {
                 Ctx.Inventory.ShowZeroAmounts = zeros;
+                _showZerosCfg.Value = zeros;
                 Ctx.Inventory.Refresh();
                 RebuildRowLabels();
             }

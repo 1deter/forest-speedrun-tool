@@ -58,6 +58,8 @@ namespace ForestOverlay.Modules
         private bool _showFound = true;
         private bool _showMissing = true;
         private bool _pinSummary;
+        // Kept across launches (v0.24.191, runner maks: settings that persist).
+        private BepInEx.Configuration.ConfigEntry<bool> _showFoundCfg, _showMissingCfg, _pinSummaryCfg;
 
         private GUIStyle _rowStyle;
         private GUIStyle _headerStyle;
@@ -72,6 +74,12 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
+            _showFoundCfg = ctx.Config.Bind("100%", "ShowCollected", true, "100% tab: list what is collected.");
+            _showMissingCfg = ctx.Config.Bind("100%", "ShowMissing", true, "100% tab: list what is missing.");
+            _pinSummaryCfg = ctx.Config.Bind("100%", "TotalsOnHud", false, "Show the 100% totals on the HUD.");
+            _showFound = _showFoundCfg.Value;
+            _showMissing = _showMissingCfg.Value;
+            _pinSummary = _pinSummaryCfg.Value;
 
             _book = new SurvivalBookReader(ctx.Log);
             _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);
@@ -312,13 +320,13 @@ namespace ForestOverlay.Modules
             float w = _tabW;
 
             bool found = GUI.Toggle(new Rect(0, 2, 110, 20), _showFound, " collected");
-            if (found != _showFound) { _showFound = found; RebuildRows(); }
+            if (found != _showFound) { _showFound = found; _showFoundCfg.Value = found; RebuildRows(); }
 
             bool missing = GUI.Toggle(new Rect(116, 2, 110, 20), _showMissing, " missing");
-            if (missing != _showMissing) { _showMissing = missing; RebuildRows(); }
+            if (missing != _showMissing) { _showMissing = missing; _showMissingCfg.Value = missing; RebuildRows(); }
 
             bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
-            if (pin != _pinSummary) _pinSummary = pin;
+            if (pin != _pinSummary) { _pinSummary = pin; _pinSummaryCfg.Value = pin; }
 
             if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Write dumps"))
                 DumpItems();

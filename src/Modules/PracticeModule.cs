@@ -117,6 +117,7 @@ namespace ForestOverlay.Modules
         private GameObject _previewHost;
         private ZonePreviewBehaviour _preview;
         private bool _showPreview = true;
+        private BepInEx.Configuration.ConfigEntry<bool> _showPreviewCfg;
 
         // While a run is in progress the run module takes over the
         // preview and shows only the NEXT objective - the whole route
@@ -208,6 +209,8 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
+            _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true, "Draw the selected segment's zones (Practice tab's 'show zones').");
+            _showPreview = _showPreviewCfg.Value;
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
             _lssDir = System.IO.Path.Combine(ctx.ConfigDirectory, "livesplit");
             _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir +
@@ -643,7 +646,7 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(ListWidth - 38, 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
 
             bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
-            if (preview != _showPreview) _showPreview = preview;
+            if (preview != _showPreview) { _showPreview = preview; _showPreviewCfg.Value = preview; }
 
             // Over the spot panel it is about, wrapped to that panel and as
             // tall as it needs (UiText); the editor starts below it.
