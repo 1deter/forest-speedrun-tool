@@ -190,9 +190,11 @@ export class World {
   wanted(model) { return model.kind === "collide" ? this.show.collision : this.show.models; }
 
   /// The terrain's heights (terrain.json's meta + heights.u16), for the lakes' clip.
-  setGround(m, heights) {
+  /// holes: the terrain's holes (map3d.js terrainHoles) - no ground there,
+  /// so the sinkhole's water (y -304) is not clipped by the heights' y 0.
+  setGround(m, heights, holes) {
     const n = m.grid, f = new Float32Array(n * n), k = m.sizeY / 65535;
-    for (let i = 0; i < f.length; i++) f[i] = m.y0 + heights[i] * k;
+    for (let i = 0; i < f.length; i++) f[i] = holes && holes[i] ? -1e9 : m.y0 + heights[i] * k;
     const t = new THREE.DataTexture(f, n, n, THREE.RedFormat, THREE.FloatType);
     t.minFilter = t.magFilter = THREE.NearestFilter;
     t.needsUpdate = true;

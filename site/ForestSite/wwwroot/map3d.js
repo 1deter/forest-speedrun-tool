@@ -332,6 +332,8 @@ class Map3D {
   buildTerrain() {
     const m = terrain.meta, h = terrain.heights, n = m.grid, cell = m.sizeX / (n - 1);
     this.cell = cell;
+    const open = openSea(m, h);
+    this.holes = terrainHoles(h, open);
     // The whole island, coarse.
     const cn = (n - 1) / COARSE + 1;
     const pos = new Float32Array(cn * cn * 3), uv = new Float32Array(cn * cn * 2);
@@ -359,24 +361,27 @@ class Map3D {
     const seaMat = new THREE.MeshBasicMaterial({
       color: 0x0c2231, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4,
     });
-    seaMask(seaMat, m, h);
+    seaMask(seaMat, m, open);
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), seaMat);
     sea.rotation.x = -Math.PI / 2;
     sea.position.y = m.sea;
     sea.renderOrder = ORDER.sea;
     this.sea = sea;
     this.scene.add(sea);
-    this.world.setGround(m, h);
+    this.world.setGround(m, h, this.holes);
     this.applyWater();
     this.textures();
   }
 
-  /// The island's triangles, less the cells under the detail patch.
+  /// The island's triangles, less the cells under the detail patch and the
+  /// terrain's holes (terrainHoles).
   coarseIndex(g, r) {
     const cn = this.coarseN, idx = new Uint32Array((cn - 1) * (cn - 1) * 6);
+    const n = terrain.meta.grid, holes = this.holes, hole = (i, j) => holes[j * COARSE * n + i * COARSE];
     let k = 0;
     for (let j = 0; j < cn - 1; j++) for (let i = 0; i < cn - 1; i++) {
       if (r && i * COARSE >= r.i0 && (i + 1) * COARSE <= r.i1 && j * COARSE >= r.j0 && (j + 1) * COARSE <= r.j1) continue;
+      if (hole(i, j) || hole(i + 1, j) || hole(i, j + 1) || hole(i + 1, j + 1)) continue;
       const a = j * cn + i, b = a + 1, c = a + cn, d = c + 1;
       idx[k++] = a; idx[k++] = c; idx[k++] = b; idx[k++] = b; idx[k++] = c; idx[k++] = d;
     }
@@ -475,20 +480,23 @@ class Map3D {
     const base = cols * rows, idx = new Uint32Array((edge.length + (cols - 1) * (rows - 1)) * 6);
     let q = 0;
     const quad = (a, b, c, d) => { idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d; };
+    // A vertex on one of the terrain's holes (terrainHoles): no triangle uses it.
+    const holes = this.holes, hole = v => holes[(r.j0 + Math.floor(v / cols) * r.step) * n + r.i0 + (v % cols) * r.step];
     edge.forEach((v, e) => {
       const k = base + e;
       pos[k * 3] = pos[v * 3]; pos[k * 3 + 1] = pos[v * 3 + 1] - 12; pos[k * 3 + 2] = pos[v * 3 + 2];
       const w = (e + 1) % edge.length;
-      quad(v, edge[w], k, base + w);
+      if (!hole(v) && !hole(edge[w])) quad(v, edge[w], k, base + w);
     });
     for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
       const a = j * cols + i;
+      if (hole(a) || hole(a + 1) || hole(a + cols) || hole(a + cols + 1)) continue;
       quad(a, a + 1, a + cols, a + cols + 1);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.setIndex(new THREE.BufferAttribute(idx.subarray(0, q), 1));
     g.computeVertexNormals();
     this.detail = new THREE.Mesh(g, terrainMaterial());
     this.detail.renderOrder = ORDER.terrain;
@@ -852,11 +860,10 @@ function texture(source) {
   return t;
 }
 
-/// The sea only where the water is open to the map's edge, as the photo
-/// bake draws it (scripts/aerial-bake.py load_heights): a flood fill from the
-/// edge over the samples under sea level, widened by one sample so the sea
-/// runs under the shore. Outside the map: sea everywhere.
-function seaMask(mat, m, h) {
+/// The water open to the map's edge, as the photo bake draws it
+/// (scripts/aerial-bake.py load_heights): a flood fill from the edge over
+/// the samples under sea level. 255 = open sea.
+function openSea(m, h) {
   const n = m.grid, sea = Math.round((m.sea - m.y0) / m.sizeY * 65535);
   const open = new Uint8Array(n * n), stack = [];
   for (let k = 0; k < n; k++) stack.push(k, (n - 1) * n + k, k * n, k * n + n - 1);
@@ -870,6 +877,25 @@ function seaMask(mat, m, h) {
     if (j > 0) stack.push(k - n);
     if (j < n - 1) stack.push(k + n);
   }
+  return open;
+}
+
+/// The terrain's holes: samples at its lowest height (0) away from the open
+/// sea - the sinkhole. The game does not draw its terrain there (its floor,
+/// cliffs and water are models down to y -304), but the heights cross the
+/// pit at y 0, and that flat floor hid the sinkhole in 3D (author,
+/// 2026-10-01). The only other height-0 samples inland of the coast are
+/// under the open sea (the yacht's cove) and stay.
+function terrainHoles(h, open) {
+  const holes = new Uint8Array(h.length);
+  for (let k = 0; k < h.length; k++) if (h[k] === 0 && !open[k]) holes[k] = 1;
+  return holes;
+}
+
+/// The sea only over the open water, widened by one sample so the sea runs
+/// under the shore. Outside the map: sea everywhere.
+function seaMask(mat, m, open) {
+  const n = m.grid;
   const mask = open.slice();
   for (let k = 0; k < n * n; k++) {
     if (open[k]) continue;
