@@ -28,8 +28,8 @@ unless critical.
 - **maks, QA Discord 2026-09-26:** start a practice savestate from the
   title screen without loading a save first (restores there are refused
   since v0.24.73 - it needs a scene loaded first); keep the run lines of
-  **failed** runs for analysis (sxczurass too, 2026-09-26: failed attempts
-  should **count as attempts** - only completed ones do now); shared runs
+  **failed** runs for analysis (they count as attempts since v0.24.196 -
+  their lines are not kept yet); shared runs
   show **the runner's name**
   (`.foseg` attempts carry none yet - matters for the website too).
 
@@ -51,9 +51,7 @@ when the tool is mainly finished and mature.
 Requests (sxczurass, QA #general, 2026-09-27, messages
 `1553776769826295818` / `1553778115413540885`; picture in
 `Downloads\qa-reports\sxczurass\image-1553776769826295818.png`):
-- **Creative-speed building in any mode**: hold to keep adding resources
-  to a blueprint (Creative does), not one click per item - speed only, no
-  free resources. Gameplay mod, practice.
+- ~~Creative-speed building~~ done (v0.24.196, Inventory -> Fast building).
 
 
 - **A teleport into the endgame from a save without it loaded falls

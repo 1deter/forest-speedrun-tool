@@ -592,10 +592,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.195** (2026-10-02). The author runs it via the in-game
-updater (v0.24.195 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
+**Released: v0.24.196** (2026-10-02). The author runs it via the in-game
+updater (v0.24.196 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02 early, v0.24.195 in the game)
+### Pick up here (2026-10-02 early, v0.24.196 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -665,6 +665,12 @@ over the bridge:
   game's own exits; wiring checked with faked flags only, real rides on
   QA item 7). QA list for v0.24.190-195 posted (`1555327671276273677` +
   `1555328852698333277`, `qa/2026-10-02-v0.24.194.txt`); to-do current.
+- **v0.24.196: Inventory -> Fast building** (sxczurass: hold Build to
+  keep adding, Creative's pace, resources still used - `Game/FastBuild`,
+  a transpiler on `Craft_Structure.Update`'s two Creative reads after
+  GetBuildInputDown; log `FastBuild: 2 Creative read(s)` seen; holding the
+  key needs hands - not on a QA list yet) and **started attempts counted**
+  (`runs/<id>/started.txt`; splits table / HUD "10 (9 finished)", checked).
 
 **Next, in order (this session continues; a new one picks up here):**
 1. Watch QA answers (`qa_read new_only`) for the two overnight lists.
