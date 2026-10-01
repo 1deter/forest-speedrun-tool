@@ -302,6 +302,7 @@ class Export:
         self.chunks = collections.defaultdict(list)     # (area, cx, cz, wide) -> [(model, matrix)]
         self.reach = {}      # chunk key -> [x0, z0, x1, z1] of its instances' bounds
         self.under = 0       # "surface" instances moved to the caves (under the terrain)
+        self.members = {}    # (mesh name, vertex count) -> positions an endgame area switches on (area-members.txt)
 
     @staticmethod
     def key(pptr):
@@ -451,11 +452,20 @@ class Export:
             # Cut out by its alpha: foliage / leaves / transparent shaders, a
             # Standard one in cutout mode (_Mode 1). Never by the texture alone:
             # the rock and ground shaders (Lux) keep smoothness in the alpha.
+            # A Standard one in Fade / Transparent mode (_Mode 2 / 3) or a legacy
+            # transparent shader with a texture full of holes (grills, dirt
+            # decals) is cut out too; one without is see-through as a whole -
+            # lab windows, glass walls, cabinet doors: "glass" = how opaque,
+            # the colour's alpha.
             sh = entry["shader"]
             t = entry["tex"]
+            see = (sh.startswith("Standard") and floats.get("_Mode", 0) >= 2) or (
+                sh.startswith("Legacy Shaders/Transparent/") and "Cutout" not in sh)
             if t >= 0 and self.clear.get(t, 0) > 0.05 and (
-                    any(w in sh for w in CUT_SHADERS) or (sh.startswith("Standard") and floats.get("_Mode", 0) == 1)):
+                    see or any(w in sh for w in CUT_SHADERS) or (sh.startswith("Standard") and floats.get("_Mode", 0) == 1)):
                 entry["cut"] = True
+            elif see:
+                entry["glass"] = entry["color"][3]
             if sh.startswith(FX_SHADERS):
                 entry["fx"] = True       # glints, particles: not a solid thing (the site skips them)
             if sh.startswith("AFS/"):
@@ -483,6 +493,25 @@ class Export:
         r = [wc[0] - we[0], wc[2] - we[2], wc[0] + we[0], wc[2] + we[2]]
         o = self.reach.get(k)
         self.reach[k] = r if o is None else [min(o[0], r[0]), min(o[1], r[1]), max(o[2], r[2]), max(o[3], r[3])]
+
+    def read_members(self, path):
+        """world/area-members.txt (WorldDump.AreaMembers): every renderer an
+        endgame area switches on as it is entered."""
+        if not os.path.exists(path):
+            print("no", path, "- the endgame's floor quads, concrete cubes and signs left out"
+                  " (bridge, in the endgame: call static:ForestOverlay.Game.WorldDump AreaMembers)")
+            return
+        for line in open(path, encoding="utf-8"):
+            f = line.rstrip("\n").split("\t")
+            if len(f) == 5 and f[0] == "member":
+                self.members.setdefault((f[2], int(f[3])), []).append(tuple(map(float, f[4].split())))
+
+    def member(self, mesh, m):
+        """Whether an endgame area switches this renderer on: its mesh at its place."""
+        me = self.meshes[mesh]
+        p = m[:3, 3]
+        return any(abs(p[0] - x) + abs(p[1] - y) + abs(p[2] - z) < 0.05
+                   for x, y, z in self.members.get((me["name"], me["nv"]), ()))
 
     def model(self, mesh, mats, kind, layer):
         k = (mesh, tuple(mats), kind, layer)
@@ -520,8 +549,13 @@ class Export:
             mesh = self.mesh(pptr)
             if mesh is None:
                 continue
-            if kind == "render-off" and (g[1] in VOLUME_LAYERS or self.meshes[mesh]["name"] in PRIMITIVES):
-                continue    # a volume (blocker, water, trigger box) with a debug material, never seen
+            # A switched-off primitive or water / blocker renderer is a volume
+            # with a debug material, never seen - unless an endgame area
+            # switches it on (AreaMembers): office floors, ceiling tiles,
+            # concrete cubes, signs, whiteboard drawings (2026-10-01).
+            if kind == "render-off" and (g[1] in VOLUME_LAYERS or self.meshes[mesh]["name"] in PRIMITIVES) \
+                    and not (level == 7 and self.member(mesh, m)):
+                continue
             if kind == "render-off" and all(k < 0 or self.materials[k]["name"] in BAKE_MATERIALS for k in mats):
                 continue    # a build leftover (navmesh_patch, cliff_COMBINED, treesExport ...: whole-map meshes, never drawn)
             if mats and all(k >= 0 and self.materials[k]["name"] == "black" for k in mats):
@@ -731,9 +765,10 @@ class Export:
 
 def export(out):
     e = Export(out)
+    world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
+    e.read_members(os.path.join(world, "area-members.txt"))
     for level in [2, 7, 11] + list(range(15, 31)):
         e.scene(level)
-    world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
     spawned = os.path.join(world, "spawned.txt")
     if os.path.exists(spawned):
         e.spawned([spawned] + sorted(os.path.join(world, n) for n in os.listdir(world) if n.startswith(("greebles-", "placed-"))))

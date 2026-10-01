@@ -356,6 +356,12 @@ export class World {
       clippingPlanes: this.cutPlanes });
     if (d && d.tex >= 0) mat.map = this.texture(d.tex, d.cut, d.scale);   // scale: the material's tiling
     if (d && d.cut) mat.alphaTest = 0.5;   // leaves, grass, fences: cut out by the texture's alpha
+    if (d && d.glass !== undefined) {      // windows, glass walls: see-through, both sides
+      mat.transparent = true;
+      mat.opacity = Math.min(Math.max(d.glass, 0.1), 0.6);
+      mat.depthWrite = false;
+      mat.side = THREE.DoubleSide;
+    }
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
     if (bed) {
       if (surface) groundClip(mat, this.ground);

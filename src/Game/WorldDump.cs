@@ -60,6 +60,15 @@ namespace ForestOverlay.Game
     // lines (LOD groups: LOD 0 only, as the scene files' export) and one
     // `greeble` line placing it; world-extract.py skips the scene's copy
     // (MOVED_ROOTS).
+    //
+    // Area members (`call static:ForestOverlay.Game.WorldDump AreaMembers`,
+    // 2026-10-01): the endgame's renderers are switched off in the scene
+    // file; entering an area runs its AreaMembers.TurnOnMembers, which
+    // switches on the renderers in its _renderers list - and only those (a
+    // rock-textured blocker cube in the same section stays off). The export
+    // keeps a switched-off primitive (floor quads, concrete cubes, signs)
+    // only when an area lists it. world/area-members.txt:
+    //   member <area> <mesh name> <vertex count> <x y z>
     // ------------------------------------------------------------------
     public static class WorldDump
     {
@@ -143,6 +152,41 @@ namespace ForestOverlay.Game
             File.WriteAllText(file, sb.ToString());
             string result = "'" + t.name + "' at " + p + ": " + parts + " part(s), " + rest.Count + " LOD 1+ renderer(s) left out -> " + file;
             if (Log != null) Log.LogInfo("World dump, placed: " + result);
+            return result;
+        }
+
+        public static string AreaMembers()
+        {
+            Type type = GameBridge.FindGameType("TheForest.World.Areas.AreaMembers");
+            if (type == null) return "no AreaMembers type";
+            FieldInfo list = type.GetField("_renderers", Any);
+            if (list == null) return "no AreaMembers._renderers";
+            StringBuilder sb = new StringBuilder(1 << 16);
+            int areas = 0, members = 0;
+            foreach (UnityEngine.Object o in Resources.FindObjectsOfTypeAll(type))
+            {
+                Component c = o as Component;
+                if (c == null || !c.gameObject.scene.IsValid()) continue;   // a prefab asset
+                Renderer[] rs = list.GetValue(c) as Renderer[];
+                if (rs == null) continue;
+                areas++;
+                foreach (Renderer r in rs)
+                {
+                    MeshFilter mf = r != null ? r.GetComponent<MeshFilter>() : null;
+                    if (mf == null || mf.sharedMesh == null) continue;
+                    Vector3 p = r.transform.position;
+                    sb.Append("member\t").Append(Clean(c.name)).Append('\t').Append(Clean(mf.sharedMesh.name)).Append('\t')
+                      .Append(mf.sharedMesh.vertexCount).Append('\t')
+                      .Append(F(p.x)).Append(' ').Append(F(p.y)).Append(' ').Append(F(p.z)).Append('\n');
+                    members++;
+                }
+            }
+            string dir = Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ForestOverlay"), "world");
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, "area-members.txt");
+            File.WriteAllText(file, sb.ToString());
+            string result = areas + " area(s), " + members + " renderer(s) -> " + file;
+            if (Log != null) Log.LogInfo("World dump, area members: " + result);
             return result;
         }
 

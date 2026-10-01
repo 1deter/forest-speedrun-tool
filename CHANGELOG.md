@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.182 - 2026-10-01
+
+- Developer tooling only: the world dump lists what each endgame area
+  switches on, so the website's 3D lab gets its floors, signs and
+  whiteboard drawings.
+
 ## v0.24.181 - 2026-10-01
 
 - Developer tooling only: the world dump keeps every part of the yacht
