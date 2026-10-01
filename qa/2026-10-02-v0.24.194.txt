@@ -1,0 +1,22 @@
+# The overnight v0.24.190-194 list (sent 2026-10-02 for v0.24.194), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-10-02-qa-v0.24.194.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-10-02-v0.24.194
+title = Overnight batch (v0.24.190-194)
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+
+section = Quick load and practice
+1) Hold the lighter (and a weapon), capture a start state, then F7 a few times: does the lighter stay lit, with no putting away and lighting again?
+seen = hands kept as captured
+2) Inventory -> Item caps: find Rock, add it, set 50, pick up rocks in the world. Can you carry 50? The HUD shows "ON NOW: item caps" in orange.
+seen = Item caps:
+3) Runs -> Line options: try the opacity slider and "only the next few seconds" of the comparison line during a run. Easier to follow?
+
+section = Events and caves
+4) Make a spot INSIDE a cave after walking in through the mouth (F6), give it an event checkpoint "cave-exit-<that cave>" (Caves group), Go to it, practice mode on, walk out through the mouth: does it split?
+seen = Game event: cave-exit
+5) A segment whose start is the event "first-input" (Starts group): F7, wait a second, press any key or move - does the clock start then (and not on the restart itself)?
+6) On a cave rope (cave 4): a checkpoint "rope-grab" / "rope-leave" (Rope group) - does it split when you grab / let go?
+seen = Game event: rope-
