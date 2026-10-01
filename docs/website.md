@@ -209,7 +209,10 @@ with a Water switch.
    changed the light mid-run** on v0.24.178 (an overcast sky: rows 1.6x
    darker from the moment it rolled in, twice); v0.24.179 holds it clear
    (the start line says `weather held clear`, the progress lines show it).
-   The bake still prints `WARNING: capture row N ...` for a step. Retake
+   The bake still prints `WARNING: capture row N ...` for a step. **The
+   player's state is in the frame too**: hunger / thirst hurt effects
+   (blood at the screen's edges) were captured on 2026-10-01 - god mode
+   does not stop them; keep the player fed (backlog *Website*). Retake
    rows N+ with `AerialStart -1750 <z0 + N*218.75> 1750 1757.369 ...` -
    its files are numbered from row 0 again and it overwrites `tiles.txt`,
    so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`

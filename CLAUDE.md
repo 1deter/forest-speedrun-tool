@@ -609,9 +609,15 @@ to us" - one item per session):
    and the token-reset race: decided, left as they are (About page says
    the id is not anonymous). **A new deploy needs nothing extra**; a
    changed `compose.yaml` needs `setup.sh` again (README).
-4. ~~The author's map list~~ **done** (2026-10-01, v0.24.178-179 + site,
-   below: *The map list*). Waiting on the author's eyes on the live page.
-5. **Next:** 3D world: the sparse endgame lab, load size (thousands of files,
+4. **The map's polish - next** (the author's review of the new map,
+   2026-10-01, "i'll polish these features in a new session"): five items
+   with their causes / starting points in docs/backlog.md *Website* (blood
+   in tile 13_12, a frozen lake and a black shape cut at tile edges, the
+   sinkhole's black inside, the 3D Water button, lake water showing over
+   land in 3D). The list itself (bands, Water, 3D textures, playback) was
+   done in v0.24.178-179 (below: *The map list*); the author: "looks a lot
+   better overall".
+5. 3D world: the sparse endgame lab, load size (thousands of files,
    uncompressed `.bin`), the spot page's sideways scroll on phones.
 6. LiveSplit `.lss` import UI (Next up 9).
 7. Waiting on others: raw FPS (the FPS session), Quick load physics
@@ -693,9 +699,9 @@ game internals: game-notes *Terrain, and the world from above*.
   memory, for the 2D map (the photo is the game's own renderer; the
   memory route = the 3D item below). Long-term (backlog): **an exact 3D
   world** - the terrain from its splat maps, every prop.
-- **Next, in order:** (1) the author's eyes on the live photo map (bands,
-  Water), the 3D view panned off the runs, playback; and the 3D world at
-  the Elevator Boost end (snow cliffs: the top layer). (2) The endgame lab looked **sparse** (props, few
+- **Next, in order:** (1) the map's polish (item 4 above; the author has
+  looked: better overall, five issues); the 3D world at the Elevator Boost
+  end (snow cliffs: the top layer). (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
   `tp` lands with the sections unloaded) with the site at the same spot,

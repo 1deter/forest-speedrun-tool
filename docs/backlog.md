@@ -151,6 +151,55 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 
 ## Website (author, QA #general 2026-09-27)
 
+- **The map, after the 2026-10-01 recapture (author's review, screenshots in
+  that session's transcript).** Tiles are the capture's `<ix>_<iz>` (x0
+  -1750, z0 -1742.631, 218.75 m; ix = (x + 1750) / 218.75, iz = (z +
+  1742.631) / 218.75). Retake recipe: docs/website.md *The photo map* (back
+  up the game's `aerial/` first; the live set is also in
+  `%TEMP%/claude/aer/final`).
+  1. **Blood on screen in a tile** - x 1100-1300, z 900-1100 = tile 13_12
+     (2D, Photo, Water off), darker seams at its top right. The player was
+     starving / thirsty during the clear-weather retake (rows 7-15): god
+     mode stops the death, not the hurt effects, and they are in the
+     frame. Fix in `Game/AerialCapture`: keep the player full (Fullness 1,
+     Thirst 0, Energy / Stamina 100 every tile) and hide the hurt overlay
+     (`Deaths.NoBlood`'s mechanism), then retake 13_12 and its neighbours;
+     check other tiles of that run for red edges (a red-channel scan of
+     the capture).
+  2. **The frozen lake in the snow is cut off** at x 656.25 (tile 10_2 has
+     it, 11_2 not) and **a black shape** at x ~1400-1460, z ~-1300 (tile
+     14_2), whose straight edge is the row boundary z -1305.13. Both sit
+     on tile edges: an object drawn only while the player (moved to each
+     tile's centre by the capture) is near it, or one only part of a tile
+     shows. The Water button cannot change them (they are in the capture,
+     not the bake's water). Start: `find` the lake / the black object
+     there over the bridge (layer, renderer, a script switching it by
+     distance or trigger), then hold it on for the capture or retake those
+     tiles with the player placed so it shows.
+  3. **The sinkhole's inside is black** (the author wants it visible).
+     Candidates, check in this order: the capture's far plane (`top - lo +
+     60`, lo from a 9 x 9 height sample - may not reach the pit's floor),
+     fog / shadow at that depth, a black blocker material (`LakeFake` /
+     `black` - world-extract drops "black" shells for caves). A `shot`
+     straight down over (0, 400, 0) with the freecam answers it.
+  4. **3D: the Water button does nothing** (flickers the textures - the
+     terrain re-textures with the `-dry` photo, which is the same under
+     the 3D sea plane). `map3d.js` draws its own sea plane (0x0c2231, at
+     `terrain.meta.sea`) and the lakes as water (`world3d.js`): with a
+     `-dry` layer chosen, hide the sea plane (and decide whether the lakes
+     go too).
+  5. **3D: dark "water" over land, coming and going with the camera
+     angle** (Elevator Boost, the lakes round the sinkhole). The lakes'
+     models (shader The Forest/Water, drawn as water since 2026-10-01)
+     are larger than the lakes; the terrain they hide under is the coarse
+     mesh (every 4th height sample, ~14 m) away from the detail patch, and
+     the patch now moves with the camera (`lookRegion`) - so land that
+     dips below the lake level in the coarse mesh shows water, and it
+     changes as the patch moves. Options: clip the water against the real
+     heights (a shader check against the heightmap), or draw lakes only
+     inside the detail patch, or a polygon offset; compare with the game
+     at one lake.
+
 - **An exact 3D world** (author, 2026-10-01, the long-term goal): the terrain as the game draws
   it (splat textures, not photos under the models - "a tree model on top of a photo of the
   tree"), for planning 100% routes; the 2D map can keep photos. Also greebles / pickups /
