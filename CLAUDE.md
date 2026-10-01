@@ -250,8 +250,11 @@ author's User variable `FOREST_QA_BOT_TOKEN` - never print it, never
 ask for it in chat. REST only (no gateway): `qa_read` (oldest first;
 `new_only` = since the last read, remembered in
 `%LOCALAPPDATA%\ForestOverlay\qa-discord-last-read.txt`), `qa_post`
-(split at 2000 chars with ``` blocks reopened, never pings, optional
-file / reply), `qa_download` (a message's attachments to
+(split at 2000 chars with ``` blocks reopened, optional file / reply;
+**pings the people it names** - write `@username` / `@displayname` and it
+becomes a real mention for anyone `qa_read` has seen, kept in
+`%LOCALAPPDATA%\ForestOverlay\qa-discord-users.txt`; @everyone / roles
+never - author, 2026-10-01: "ping the members you are mentioning"), `qa_download` (a message's attachments to
 `Downloads\qa-reports\<user>\`, lists a zip, `extract`). A message
 the author **forwards** (how maks's feedback arrived) has no content of
 its own - its text and files are under `message_snapshots` (read since
@@ -612,24 +615,32 @@ game internals: game-notes *Terrain, and the world from above*.
   the author; this session's full one is uploaded from here after the
   site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
   with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **NEXT SESSION (author, 2026-10-01): the 3D world's caves - missing models
-  and the floor.** The author looked at the live site after 86a9d87: caves
-  "look good now, just a couple models missing and the floor still seems
-  absent". Done (confirmed, docs/confirmed.md): cave pieces take their
-  placeholder's scale (`LOD_Cave.SetLOD`, gotcha 69) and an underground cutaway
-  (`world3d.js setCut`). **Start by asking the author which spot / where** (a
-  screenshot), then compare there: local site (`window.forest3d.lookFrom`,
-  recipe in docs/website.md *Looking at a spot*) against a game `shot`, and
-  `find` the missing object live (its name, components, mesh). Leads, none
-  checked: the floor may be a mesh the export drops - a `render-off` renderer
-  on a primitive / volume layer (the `VOLUME_LAYERS` / `PRIMITIVES` filter), a
-  renderer in a LODGroup's LOD 1+ (`lod_rest`), a Terrain-like cave floor, or a
-  mesh read failing (`mesh failed:` lines in the export's output); missing
-  props may be skinned meshes (not exported - Cave 6's body pile) or objects
-  spawned at runtime (neither in a scene file nor a `LOD_Base` placeholder:
-  `WorldDump` covers only those). The cutaway keeps 4 m in front of the target
-  - a floor right under the camera's target should survive it, but check with
-  the cut off (`forest3d.world.setCut(false, ...)` or `fadeTo`).
+- **3D caves (2026-10-01, 14ab4b8, live):** the cave floors were missing
+  because the cave grounds (and mountains, sinkhole) sit at 0,0,0 with
+  world-space vertices and were filed in the centre chunks (gotcha 70);
+  chunks now go by the mesh's bounds (`bb`, `_L` wide chunks), build
+  leftovers and the black `CaveN_Blocking` shells are dropped (docs/website.md
+  *The 3D world*). Checked live headless at maks's *1st logboost* end (Cave
+  6): floor + collision under the End box. **Awaiting the author's eyes**:
+  the spot's end (their first screenshot) and *behind* it - "a panel and a
+  pathway down to a drop with bodies and the keycard / camcorder ... seems
+  blocked off" (their second screenshot, collision on). Not looked into yet:
+  the panel (a breakable cave panel? find it live near (1270, -40, 560)),
+  and what blocks the path - if still blocked, `OverlapSphere` / `find` there
+  in game and look for the object in the export. Still missing on purpose:
+  greebles (`Pooling/Pool_Greebles`: Cave 6's body piles, stalactites,
+  sticks) - the next step for "a couple models missing" (dump them in
+  `WorldDump` like the LOD placeholders; they are random per visit, so
+  decide with the author whether one visit's set is fine). Tools: a headless
+  look (Playwright + Edge, docs/website.md *Looking at a spot*), a second
+  local site on 5081 (`forest-site-alt`).
+- **The author's map list (2026-10-01, docs/backlog.md *Website*):** photo
+  map tiles in bands of different brightness, the Water button doing
+  nothing, 3D photo terrain textures breaking / unloading (Elevator Boost,
+  right-drag to the map's middle), playback stutter (keep the always-shown
+  State panel, make it cheaper), and the long-term goal: **an exact 3D
+  world for planning 100% routes** - the terrain as the game draws it, not
+  photos under the models, every prop.
 - **Next, in order (after the caves above):** (1) the author's eyes on the live 3D world at
   the Elevator Boost end (snow cliffs: the top layer) and a forest spot; the
   photo map's corners. (2) The endgame lab looked **sparse** (props, few

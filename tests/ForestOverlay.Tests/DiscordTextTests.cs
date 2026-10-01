@@ -75,5 +75,25 @@ namespace ForestOverlay.Tests
             for (int i = s.IndexOf(what); i >= 0; i = s.IndexOf(what, i + what.Length)) n++;
             return n;
         }
+
+        [Fact]
+        public void MentionsBecomePings()
+        {
+            var ids = new Dictionary<string, string> { ["yirequ"] = "111", ["maks"] = "111", ["sxczurass"] = "222" };
+            var unknown = new List<string>();
+            Assert.Equal("<@111> and <@222>: thanks.", DiscordText.LinkMentions("@Maks and @sxczurass: thanks.", ids, unknown));
+            Assert.Equal("ask <@111>.", DiscordText.LinkMentions("ask @yirequ.", ids, unknown));
+            Assert.Empty(unknown);
+        }
+
+        [Fact]
+        public void MentionsLeaveCodeMailAndStrangersAlone()
+        {
+            var ids = new Dictionary<string, string> { ["maks"] = "111" };
+            var unknown = new List<string>();
+            string text = "```\n1) @maks\n```\n`@maks` mail a@maks <@111> @everyone @tom";
+            Assert.Equal(text, DiscordText.LinkMentions(text, ids, unknown));
+            Assert.Equal(new List<string> { "tom" }, unknown);
+        }
     }
 }

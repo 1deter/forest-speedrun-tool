@@ -92,6 +92,44 @@ namespace ForestOverlay.BridgeMcp
             return parts;
         }
 
+        /// Turns "@name" into a real mention ("<@id>") for every name in
+        /// `ids` (username or display name, any case), outside ``` blocks
+        /// and `inline code` - a plain "@name" never pings (author,
+        /// 2026-10-01: "ping the members you are mentioning"). Names it
+        /// does not know are listed in `unknown`, the text left as it was.
+        public static string LinkMentions(string text, IDictionary<string, string> ids, List<string> unknown)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            Dictionary<string, string> byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, string> kv in ids) byName[kv.Key] = kv.Value;
+            StringBuilder sb = new StringBuilder(text.Length);
+            bool fence = false, code = false;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '`')
+                {
+                    if (string.CompareOrdinal(text, i, "```", 0, 3) == 0) { fence = !fence; sb.Append("```"); i += 2; continue; }
+                    if (!fence) code = !code;
+                    sb.Append(c);
+                    continue;
+                }
+                bool start = i == 0 || !(char.IsLetterOrDigit(text[i - 1]) || text[i - 1] == '_' || text[i - 1] == '<');
+                if (c != '@' || fence || code || !start) { sb.Append(c); continue; }
+                int j = i + 1;
+                while (j < text.Length && (char.IsLetterOrDigit(text[j]) || text[j] == '_' || text[j] == '.')) j++;
+                // A sentence's full stop is not part of the name.
+                while (j > i + 1 && text[j - 1] == '.') j--;
+                string name = text.Substring(i + 1, j - i - 1);
+                string id;
+                if (name.Length > 0 && byName.TryGetValue(name, out id)) { sb.Append("<@").Append(id).Append('>'); i = j - 1; continue; }
+                if (name.Length > 0 && unknown != null && !name.Equals("everyone", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Equals("here", StringComparison.OrdinalIgnoreCase) && !unknown.Contains(name)) unknown.Add(name);
+                sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
         private static void Flush(List<string> parts, StringBuilder cur, string fence)
         {
             if (fence != null) cur.Append("\n```");
