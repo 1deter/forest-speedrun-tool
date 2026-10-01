@@ -30,6 +30,35 @@ const RADIUS = 700, DROP = 1100;           // metres, horizontally from the came
 const CUT_MARGIN = 4;                      // metres kept in front of the target, underground
 const S = new THREE.Matrix4().makeScale(1, 1, -1);
 
+// Kinds of model, each with its own switch (the map's "separate toggles per
+// kind"; 2026-10-01). The game's layers do not say it alone - trees are in
+// treeMid / treeSmall but so are cave panels' planks, cliffs sit in Prop /
+// ReflectBig - so a model's layer is read with its mesh's and materials'
+// names (checked against the live world.json: 125 tree, 249 rock, 268
+// pickup models).
+const LAYER_TREE_MID = 11, LAYER_TREE_SMALL = 12, LAYER_PICKUP = 28;
+const TREE_NAME = /afsTREE|tree|bush|sapling|fern|skog|blombuske/i;
+const NOT_TREE = /plank|crucifix|stone/i;
+const ROCK_NAME = /rock|stone|cliff|boulder|poros|wallstone|mountain|cave|sinkhole|dirtrock|climbwall/i;
+export const KINDS = [
+  ["trees", "Trees", "Trees, bushes, saplings, ferns and plants"],
+  ["rocks", "Rocks", "Rocks, cliffs, mountains, cave walls and floors"],
+  ["props", "Props", "Buildings, the plane, the endgame, everything else the game placed"],
+  ["pickups", "Pickups", "Things the player can pick up"],
+];
+
+/// A model's kind: "collision", "pickups", "trees", "rocks" or "props".
+export function kindOf(meta, model) {
+  if (model.kind === "collide") return "collision";
+  if (model.layer === LAYER_PICKUP) return "pickups";
+  const name = (meta.meshes[model.mesh] || {}).name || "";
+  const mats = model.mats.map(i => i >= 0 ? meta.materials[i].name || "" : "").join(" ");
+  if ((model.layer === LAYER_TREE_MID || model.layer === LAYER_TREE_SMALL) && !NOT_TREE.test(name + " " + mats)) return "trees";
+  if (TREE_NAME.test(name)) return "trees";
+  if (ROCK_NAME.test(name) || ROCK_NAME.test(mats)) return "rocks";
+  return "props";
+}
+
 let metaPromise = null;
 /// world.json's content, or null (nothing uploaded). fresh: read it again
 /// (a new 3D view, a file refused as another upload's).
@@ -122,8 +151,17 @@ export class World {
     this.dirtyModels = new Set();
     this.gen = 0;                 // + 1 on each start-over (stale()): late loads of the old world are dropped
     this.staleAt = 0;
-    this.show = { models: true, collision: false };
-    try { const s = JSON.parse(localStorage.getItem("forest.world3d") || "null"); if (s) Object.assign(this.show, s); } catch (e) { /* defaults */ }
+    this.show = { trees: true, rocks: true, props: true, pickups: true, collision: false };
+    try {
+      const s = JSON.parse(localStorage.getItem("forest.world3d") || "null");
+      if (s) {
+        // Before the kinds: one "models" switch for all four.
+        if (typeof s.models === "boolean") for (const [k] of KINDS) if (!(k in s)) s[k] = s.models;
+        delete s.models;
+        Object.assign(this.show, s);
+      }
+    } catch (e) { /* defaults */ }
+    this.kinds = [];              // model index -> kind (kindOf), filled by use()
     this.fade = 1;
     this.target = null;
     this.next = 0;
@@ -147,7 +185,7 @@ export class World {
     this.box = document.createElement("div");
     this.box.className = "maplayers map3dworld";
     this.box.hidden = true;
-    this.box.append(button("models", "Models", "The game's models: rocks, cliffs, buildings, caves, the endgame"),
+    this.box.append(...KINDS.map(([key, label, title]) => button(key, label, title)),
       button("collision", "Collision", "What the player collides with, invisible walls included"));
     if (controls) controls.append(this.box);
     this.status = document.createElement("span");
@@ -159,7 +197,9 @@ export class World {
 
   use(m) {
     if (!m || this.disposed) return;
-    this.meta = m; this.v = "?v=" + (m.build || 0); this.box.hidden = false; this.next = 0; this.changed();
+    this.meta = m; this.v = "?v=" + (m.build || 0); this.box.hidden = false; this.next = 0;
+    this.kinds = m.models.map(model => kindOf(m, model));
+    this.changed();
   }
 
   /// A file refused (404): the world may have been uploaded again while this
@@ -187,12 +227,16 @@ export class World {
     this.show[key] = !this.show[key];
     this.mark(b, this.show[key]);
     try { localStorage.setItem("forest.world3d", JSON.stringify(this.show)); } catch (e) { /* not kept */ }
-    for (const [mi, mesh] of this.drawn) mesh.visible = this.wanted(this.meta.models[mi]);
+    for (const [mi, mesh] of this.drawn) mesh.visible = this.wanted(mi);
     this.next = 0;
     this.changed();
   }
 
-  wanted(model) { return model.kind === "collide" ? this.show.collision : this.show.models; }
+  /// Is model mi switched on? (its kind's switch)
+  wanted(mi) { return !!this.show[this.kinds[mi] || "props"]; }
+
+  /// Any switch on: chunks are worth loading.
+  anyShown() { return KINDS.some(([k]) => this.show[k]) || this.show.collision; }
 
   /// The terrain's heights (terrain.json's meta + heights.u16), for the lakes' clip.
   /// holes: the terrain's holes (map3d.js terrainHoles) - no ground there,
@@ -257,7 +301,7 @@ export class World {
     const x = target.x, z = -target.z, size = this.meta.chunk;
     const want = new Set();
     let loading = 0;
-    if (this.show.models || this.show.collision) for (const c of this.meta.chunks) {
+    if (this.anyShown()) for (const c of this.meta.chunks) {
       // "bb": where the chunk's instances really reach (a cave ground spans
       // hundreds of metres); older exports: the 250 m column.
       const b = c.bb || [c.x, c.z, c.x + size, c.z + size];
@@ -439,7 +483,7 @@ export class World {
         mesh.computeBoundingSphere();
       }
       mesh.userData.surface = surface.has(mi);
-      mesh.visible = this.wanted(model);
+      mesh.visible = this.wanted(mi);
       this.applyFade(mi, mesh);
       this.group.add(mesh);
       this.drawn.set(mi, mesh);

@@ -234,7 +234,8 @@ with a Water switch.
 ## The 3D world (2026-09-28)
 
 The game's own models and collision in the spot page's 3D view
-(`wwwroot/world3d.js`, Models / Collision switches), streamed in 250 m
+(`wwwroot/world3d.js`, switches per kind - Trees / Rocks / Props / Pickups,
+`kindOf`: layer + mesh / material names, 2026-10-01 - and Collision), streamed in 250 m
 chunks within 700 m of the camera's target, one InstancedMesh per model.
 
 1. **Pooled objects** (game, bridge, <1 s): `call
@@ -425,8 +426,7 @@ the wire, 61 MB decoded.
 
 Open: textures are now most of the requests (pack / atlas them); heavy
 chunks want LODs for phones;
-pickups and the player's random sticks / rocks are missing; per-kind
-toggles. The photo map's `aerial.json` is still read once per page
+pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
 

@@ -14,7 +14,7 @@ Scenarios (Unity coordinates; yaw in degrees for lookFrom, radians for orbit):
   frames x y z dist yaw pitch step   six frames, the orbit moved step m east each
   lake x y z yaw pitch dist  lookFrom; shots with the lakes' ground clip on / off, Water off
   orbit x y z dist yaw pitch the orbit itself; JS="expr;;expr" shot after each,
-                            MODELSOFF=1 a shot with Models off, HIDE=model ids
+                            MODELSOFF=1 shots with each kind off (Trees / Rocks / Props / Pickups) and all, HIDE=model ids
   eval x y z yaw pitch dist "<js>"   lookFrom, settle, print the expression (ORBIT=x,y,z,dist,yaw,pitch)
 
 Env: SITE (default http://localhost:5080), SPOT (a spot id; default the Labskip
@@ -129,10 +129,21 @@ def main():
                 page.wait_for_timeout(1500)
                 shot(page, pre + "-js" + str(k))
             if os.environ.get("MODELSOFF"):
-                page.get_by_role("button", name="Models", exact=True).click()
+                # each kind off in turn (world3d.js KINDS), then all four
+                kinds = ["Trees", "Rocks", "Props", "Pickups"]
+                for k in kinds:
+                    page.get_by_role("button", name=k, exact=True).click()
+                    page.wait_for_timeout(1500)
+                    shot(page, pre + "-no" + k.lower())
+                    page.get_by_role("button", name=k, exact=True).click()
+                    page.wait_for_timeout(300)
+                print("kinds", page.evaluate("(() => { const w = forest3d.world, c = {}; for (const [mi] of w.drawn) { const k = w.kinds[mi]; c[k] = (c[k] || 0) + 1; } return c; })()"))
+                for k in kinds:
+                    page.get_by_role("button", name=k, exact=True).click()
                 page.wait_for_timeout(1500)
                 shot(page, pre + "-nomodels")
-                page.get_by_role("button", name="Models", exact=True).click()
+                for k in kinds:
+                    page.get_by_role("button", name=k, exact=True).click()
                 page.wait_for_timeout(500)
             if os.environ.get("HIDE"):
                 page.evaluate("(() => { const w = forest3d.world; for (const id of '" + os.environ["HIDE"] + "'.split(',')) { const m = w.drawn.get(+id); if (m) m.visible = false; } forest3d.dirty = true; })()")
