@@ -137,6 +137,9 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 
 ## For the final exhaustive feature testing
 
+- **A full security audit of forest.deter.cloud** before 1.0, once the site is finished (author,
+  QA 2026-10-01: "ensure there's no vulns left in by accident") - start from docs/website.md
+  *Security* (what the 2026-10-01 review covered) and re-check everything added since.
 - **Megan fight: health bar empty, died only a few hits later** (author,
   2026-09-27, v0.24.143, during the Megan-fight Quick load tests; log
   rotated out). Probably the game's last stand (`hitFromEnemy`, game-notes
