@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.178 - 2026-10-01
+
+- Developer tooling only: the website map's photo capture now uses one
+  fixed exposure for every tile, so the map no longer comes out in bands of
+  different brightness. The capture no longer takes the coast a second time
+  without the sea (the game's ocean never showed in it); the website draws
+  the water itself.
+
 ## v0.24.177 - 2026-10-01
 
 - When buildings disappear at the same moment in different parts of the

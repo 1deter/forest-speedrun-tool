@@ -16,11 +16,12 @@ namespace ForestOverlay.Game
     // the freecam's camera, orthographic and straight down, is placed over
     // one tile after another and the screen's centre square is saved -
     // once as the game looks ("canopy") and once with the trees' layer
-    // culled ("ground": bushes, rocks, paths, trunks' shadows). A tile that
-    // reaches down to sea level is taken twice more with the game's ocean
-    // (Ceto, CetoTF/Ocean) switched off - "canopy-dry" / "ground-dry", the
-    // map's Water toggle (author, 2026-09-28). Sea tiles are captured too:
-    // skipping them left the map's coasts and corners empty.
+    // culled ("ground": bushes, rocks, paths, trunks' shadows). Sea tiles are
+    // captured too: skipping them left the map's coasts and corners empty.
+    // The game's ocean does not come out in these frames (v0.24.170-177
+    // took every coastal tile again with it switched off and got the same
+    // picture; game-notes *Aerial capture*), so the website's water is drawn
+    // by the bake from the terrain's heights (scripts/aerial-bake.py).
     //
     // What makes a tile look like the game (bridge, 2026-09-27; game-notes
     // *Aerial capture*):
@@ -56,10 +57,14 @@ namespace ForestOverlay.Game
     //  - Cloud shadows drift over the ground (Sunshine.OvercastTexture): one
     //    tile of four came out darker, and fine when taken again. The
     //    game's own BlankOvercastTexture stands in while capturing.
-    //  - The camera's post-processing profile: eye adaptation re-exposed
-    //    each tile to its own content (snow tiles greyer or whiter than their
-    //    neighbours) and the vignette darkens every tile's corners - both off
-    //    while capturing; colour grading and bloom stay (the game's look).
+    //  - The camera's post-processing profile: eye adaptation re-exposes
+    //    each tile to its own content - forest lifted, snow and sand held
+    //    down, the website's map in bands (author, 2026-10-01). Switching it
+    //    off does not hold: PostProcessingBehaviour.OnGUI turns it straight
+    //    back on (via Scion's own auto exposure for a frame). So it stays on
+    //    with its luminance range clamped to one value (ExposureEv) and
+    //    Fixed adaptation: one exposure for every tile. The vignette (darker
+    //    corners) is off; colour grading and bloom stay (the game's look).
     //  - The HUD camera (HudGui) keeps running with an empty culling mask -
     //    never switched off (gotcha 58); the overlay's UI is hidden.
     //
@@ -77,6 +82,11 @@ namespace ForestOverlay.Game
 
         /// Skip tiles whose ground is all under the sea (the old behaviour).
         public bool SkipSea;
+
+        /// The capture's one exposure: the eye adaptation's luminance range
+        /// clamped to this (EV). -3.5 matches the game's daytime forest from
+        /// above; snow comes out brighter than the game's adapted view.
+        public float ExposureEv = -3.5f;
         public bool Running { get { return _run != null; } }
 
         /// Set by the module: hides / shows the overlay's own UI.
@@ -119,9 +129,6 @@ namespace ForestOverlay.Game
             string dir = Path.Combine(Path.Combine(BepInEx.Paths.ConfigPath, "ForestOverlay"), "aerial");
             Directory.CreateDirectory(Path.Combine(dir, "canopy"));
             Directory.CreateDirectory(Path.Combine(dir, "ground"));
-            Directory.CreateDirectory(Path.Combine(dir, "canopy-dry"));
-            Directory.CreateDirectory(Path.Combine(dir, "ground-dry"));
-            GameObject ocean = FindOcean();
 
             int nx = Mathf.CeilToInt((x1 - x0) / tile), nz = Mathf.CeilToInt((z1 - z0) / tile);
             int px = Screen.height;
@@ -131,7 +138,7 @@ namespace ForestOverlay.Game
                  .Append("origin = ").Append(F(x0)).Append(',').Append(F(z0)).Append('\n')
                  .Append("grid = ").Append(nx).Append(',').Append(nz).Append('\n')
                  .Append("px = ").Append(px).Append('\n');
-            int done = 0, skipped = 0, dry = 0;
+            int done = 0, skipped = 0;
             float started = Time.realtimeSinceStartup;
 
             Apply(cam, tile, rangeScale, sunTime);
@@ -181,27 +188,6 @@ namespace ForestOverlay.Game
                         Save(read, px, Path.Combine(Path.Combine(dir, "ground"), ix + "_" + iz + ".jpg"));
                         cam.cullingMask = _saved.CullingMask;
 
-                        if (ocean != null && lo < Sea + 1f)
-                        {
-                            // The same two frames with the sea switched off; it is
-                            // back on for the next tile's settle (Ceto rebuilds).
-                            ocean.SetActive(false);
-                            yield return null;
-                            cam.layerCullDistances = new float[32];
-                            freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
-                            yield return new WaitForEndOfFrame();
-                            Save(read, px, Path.Combine(Path.Combine(dir, "canopy-dry"), ix + "_" + iz + ".jpg"));
-                            cam.cullingMask = _saved.CullingMask & ~(1 << TreeLayer);
-                            yield return null;
-                            cam.layerCullDistances = new float[32];
-                            freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
-                            yield return new WaitForEndOfFrame();
-                            Save(read, px, Path.Combine(Path.Combine(dir, "ground-dry"), ix + "_" + iz + ".jpg"));
-                            cam.cullingMask = _saved.CullingMask;
-                            ocean.SetActive(true);
-                            dry++;
-                        }
-
                         index.Append(ix).Append(',').Append(iz).Append('\n');
                         done++;
                         if (done % 10 == 0 && Log != null)
@@ -211,12 +197,11 @@ namespace ForestOverlay.Game
             }
             finally
             {
-                if (ocean != null && !ocean.activeSelf) ocean.SetActive(true);
                 if (MovePlayer != null && home != Vector3.zero) MovePlayer(home);
                 File.WriteAllText(Path.Combine(dir, "tiles.txt"), index.ToString());
                 UnityEngine.Object.Destroy(read);
                 Restore();
-                Status = (_stop ? "stopped: " : "done: ") + done + " tiles saved (" + dry + " also without the sea), " + skipped + " sea skipped, "
+                Status = (_stop ? "stopped: " : "done: ") + done + " tiles saved, " + skipped + " sea skipped, "
                     + (Time.realtimeSinceStartup - started).ToString("0") + " s -> " + dir;
                 if (Log != null) Log.LogInfo("Aerial capture " + Status);
                 _run = null;
@@ -224,16 +209,6 @@ namespace ForestOverlay.Game
         }
 
         // --- the tile -------------------------------------------------------
-
-        /// The game's ocean (Ceto.Ocean on CetoTF/Ocean), or null.
-        private static GameObject FindOcean()
-        {
-            Type t = GameBridge.FindGameType("Ceto.Ocean");
-            UnityEngine.Object o = t != null ? UnityEngine.Object.FindObjectOfType(t) : null;
-            Component c = o as Component;
-            if (c == null && Log != null) Log.LogWarning("Aerial capture: no Ceto.Ocean - no sea-less tiles");
-            return c != null ? c.gameObject : null;
-        }
 
         /// Lowest and highest ground (world y) under a tile, sampled 9 x 9.
         private static void Heights(Terrain t, float cx, float cz, float tile, out float lo, out float hi)
@@ -278,6 +253,7 @@ namespace ForestOverlay.Game
             public float PixelError;
             public readonly List<KeyValuePair<Camera, int>> Hud = new List<KeyValuePair<Camera, int>>();
             public readonly List<KeyValuePair<object, bool>> PostEffects = new List<KeyValuePair<object, bool>>();
+            public object EyeModel, EyeSettings;
             public UnityEngine.Object Sunshine;
             public object Overcast;
             public bool GodModeWasOn;
@@ -326,18 +302,36 @@ namespace ForestOverlay.Game
                 for (int i = 0; i < rs.Length; i++) rs[i] = s.RangesSmall[i] * rangeScale;
             }
 
-            // PostProcessingBehaviour.profile.{eyeAdaptation, vignette}.enabled
+            // PostProcessingBehaviour.profile.vignette.enabled off;
+            // profile.eyeAdaptation.settings clamped to one exposure (a struct:
+            // changed on a boxed copy and written back).
             Component post = cam.GetComponent("PostProcessingBehaviour");
             object profile = post != null ? Get(post, "profile") : null;
+            string exposure = "exposure not held (no eye adaptation)";
             if (profile != null)
-                foreach (string effect in new[] { "eyeAdaptation", "vignette" })
+            {
+                object vignette = Get(profile, "vignette");
+                object on = vignette != null ? Get(vignette, "enabled") : null;
+                if (on is bool)
                 {
-                    object model = Get(profile, effect);
-                    object on = model != null ? Get(model, "enabled") : null;
-                    if (!(on is bool)) continue;
-                    s.PostEffects.Add(new KeyValuePair<object, bool>(model, (bool)on));
-                    Set(model, "enabled", false);
+                    s.PostEffects.Add(new KeyValuePair<object, bool>(vignette, (bool)on));
+                    Set(vignette, "enabled", false);
                 }
+                object eye = Get(profile, "eyeAdaptation");
+                object settings = eye != null ? Get(eye, "settings") : null;
+                if (settings != null)
+                {
+                    s.EyeModel = eye;
+                    s.EyeSettings = settings;            // a boxed copy: the original values
+                    object held = Get(eye, "settings");  // another copy to change
+                    Set(held, "minLuminance", ExposureEv);
+                    Set(held, "maxLuminance", ExposureEv);
+                    object type = Get(held, "adaptationType");
+                    if (type != null) Set(held, "adaptationType", Enum.Parse(type.GetType(), "Fixed"));
+                    Set(eye, "settings", held);
+                    exposure = "exposure held at EV " + F(ExposureEv);
+                }
+            }
 
             Type sunshine = GameBridge.FindGameType("Sunshine");
             s.Sunshine = sunshine != null ? UnityEngine.Object.FindObjectOfType(sunshine) : null;
@@ -369,7 +363,7 @@ namespace ForestOverlay.Game
             HoldSun(sunTime);
             if (Log != null)
                 Log.LogInfo("Aerial capture: tile " + F(tile) + " m at " + Screen.height + " px, LOD ranges x" + F(rangeScale)
-                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
+                    + ", " + s.Hud.Count + " HUD camera(s) emptied, " + s.PostEffects.Count + " post effect(s) off, " + exposure + ", fog off, " + (s.Sunshine != null ? "cloud shadows off, " : "")
                     + "sun at " + F(sunTime));
         }
 
@@ -407,6 +401,7 @@ namespace ForestOverlay.Game
                 if (Terrain.activeTerrain != null) Terrain.activeTerrain.heightmapPixelError = s.PixelError;
                 if (s.Sunshine != null && s.Overcast != null) Set(s.Sunshine, "OvercastTexture", s.Overcast);
                 for (int i = 0; i < s.PostEffects.Count; i++) Set(s.PostEffects[i].Key, "enabled", s.PostEffects[i].Value);
+                if (s.EyeModel != null) Set(s.EyeModel, "settings", s.EyeSettings);
                 for (int i = 0; i < s.Hud.Count; i++)
                     if (s.Hud[i].Key != null) s.Hud[i].Key.cullingMask = s.Hud[i].Value;
                 if (!s.GodModeWasOn) DeathHooks.SetGodMode(false);
