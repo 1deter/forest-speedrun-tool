@@ -614,7 +614,11 @@ to us" - one item per session):
    with their causes / starting points in docs/backlog.md *Website* (blood
    in tile 13_12, a frozen lake and a black shape cut at tile edges, the
    sinkhole's black inside, the 3D Water button, lake water showing over
-   land in 3D). The list itself (bands, Water, 3D textures, playback) was
+   land in 3D; then a second round: the 3D terrain flickering white near
+   the map's edge - probably this session's `lookRegion` rebuilding in a
+   loop - the coast flickering while the camera moves, the untextured
+   yacht, and **turning the map 180 degrees, snow at the top**). Nine
+   items; the author does them in a new session. The list itself (bands, Water, 3D textures, playback) was
    done in v0.24.178-179 (below: *The map list*); the author: "looks a lot
    better overall".
 5. 3D world: the sparse endgame lab, load size (thousands of files,
