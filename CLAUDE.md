@@ -598,14 +598,16 @@ to us" - one item per session):
 3. ~~Security review of the website~~ **done** (2026-10-01, site only,
    deployed by the push): docs/website.md *Security* - spot renaming by a
    copy's route closed (gotcha 72), CSP + headers, three.js self-hosted,
-   rate-limit key, upload / submission caps. **Left for the author** (no
-   push can do it): `site/deploy/README.md` *Hardening* - re-run
-   `setup.sh` (non-root, read-only container), the origin lock
-   (Cloudflare Transform Rule + `FOREST_ORIGIN_SECRET`), optionally a
-   network without Navidrome - the author was doing these 2026-10-01;
-   when they report back, check the live site (200, an upload works) and
-   move this to done. The two open points (Steam ids recoverable from
-   runner ids, the token-reset race) were decided: left as they are.
+   rate-limit key, upload / submission caps. **The VPS is hardened too**
+   (the author, 2026-10-01, `site/deploy/README.md` *Hardening* 1-3):
+   non-root read-only container, the origin lock on (straight to the VPS
+   = 403; Cloudflare's Transform Rule adds `X-Forest-Origin`), the site on
+   its own `forest-site` network with Caddy. Checked live through
+   Cloudflare: pages, API, world, aerial, board 200, an upload with a bad
+   token 401 (POSTs pass the lock). Steam ids recoverable from runner ids
+   and the token-reset race: decided, left as they are (About page says
+   the id is not anonymous). **A new deploy needs nothing extra**; a
+   changed `compose.yaml` needs `setup.sh` again (README).
 4. **Next: the author's map list**: photo tiles in brightness bands (check first
    whether it is the same stale-page effect: a tab open across an aerial
    upload), the Water button, 3D terrain textures dropping out, playback

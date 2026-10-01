@@ -50,8 +50,10 @@ New repository secret, three times:
 
 ## Hardening (security review, 2026-10-01)
 
-Three steps on the VPS / Cloudflare that a push cannot do. Each is safe on
-its own; do them in this order.
+**Done on the live VPS (the author, 2026-10-01).** Kept as the record and
+for a rebuild. Since then the repo's `compose.yaml` uses the `forest-site`
+network and `setup.sh` creates it; a fresh server still needs step 2's
+secret and Caddy joining that network.
 
 **1. The locked-down container** (`compose.yaml`: the image's non-root
 `app` user, read-only filesystem, no capabilities, memory / process caps).

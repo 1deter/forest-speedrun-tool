@@ -426,9 +426,11 @@ and every zip entry must match `UploadPath`; the deploy key can only run
   3D (232 world files), every admin tab - no violation, fonts load.
 - `UploadPath`: `\z` instead of `$` (which also matches before a final
   newline), `[0-9]` instead of `\d` (every Unicode digit).
-- The origin lock (`FOREST_ORIGIN_SECRET`) and the container's lockdown
-  (`compose.yaml`) are in the code; **both need the author's steps on
-  the VPS / Cloudflare**: `site/deploy/README.md` *Hardening*.
+- The origin lock (`FOREST_ORIGIN_SECRET`), the container's lockdown
+  (`compose.yaml`) and a network shared with Caddy only (`forest-site`,
+  not Navidrome's): **on since 2026-10-01** - the author ran
+  `site/deploy/README.md` *Hardening* 1-3; straight to the VPS answers
+  403, through Cloudflare 200.
 
 **Decided (author, 2026-10-01, on Claude's recommendation): both left as
 they are**; the About page says the runner id is not anonymous. Revisit the

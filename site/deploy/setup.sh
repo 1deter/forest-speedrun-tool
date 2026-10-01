@@ -49,6 +49,10 @@ fi
 chown -R forestdeploy:forestdeploy "$SSHDIR"
 chmod 700 "$SSHDIR"; chmod 600 "$SSHDIR/authorized_keys"
 
+# The network only the site and Caddy share (Caddy's compose file lists it
+# as external - README *Hardening* 3).
+"$DOCKER" network inspect forest-site >/dev/null 2>&1 || "$DOCKER" network create forest-site >/dev/null
+
 # The container: created, and started by the first deploy. On a re-run
 # with a release already there, recreated with the new compose.yaml and
 # started (`docker restart` in deploy.sh never applies compose changes).

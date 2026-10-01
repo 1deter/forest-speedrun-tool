@@ -1,7 +1,8 @@
 # forest.deter.cloud on the VPS: /opt/forest-site/compose.yaml (setup.sh
 # puts it there). The stock ASP.NET image runs the release that deploy.sh
 # unpacked; Caddy (its own compose project) reaches it by name on the
-# shared network. No port is published on the host.
+# `forest-site` network (theirs alone - not Navidrome's; setup.sh makes it,
+# Caddy's own compose file joins it). No port is published on the host.
 #
 # Locked down (security review, 2026-10-01): the image's own non-root user
 # (`app`, uid 1654 - setup.sh gives it /var/lib/forest-site), a read-only
@@ -33,8 +34,8 @@ services:
       - /opt/forest-site/app:/srv:ro
       - /var/lib/forest-site:/data
     networks:
-      - caddy-navidrome
+      - forest-site
 
 networks:
-  caddy-navidrome:
+  forest-site:
     external: true
