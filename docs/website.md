@@ -272,6 +272,10 @@ What the export decides (details: gotchas 64-67):
   triangles), and the black `CaveN_Blocking` shells round each cave system
   (they hide the void past a cave's openings in game; on a map they hide
   the cave).
+- **Under the terrain = caves** (2026-10-01): a "surface" instance whose
+  whole mesh is 2 m+ under the terrain where it stands (the site's own
+  `wwwroot/terrain` heights) is filed with the caves - Cave 6's wood panels
+  (root `CaveWoodplanks`, layer treeMid) faded away with the surface before.
 - Missing on purpose so far: greebles under `Pooling/Pool_Greebles` (Cave
   6's body piles, stalactites, sticks - random per visit or placed by
   greeble zones) and skinned meshes.

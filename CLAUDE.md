@@ -624,9 +624,11 @@ game internals: game-notes *Terrain, and the world from above*.
   6): floor + collision under the End box. **Awaiting the author's eyes**:
   the spot's end (their first screenshot) and *behind* it - "a panel and a
   pathway down to a drop with bodies and the keycard / camcorder ... seems
-  blocked off" (their second screenshot, collision on). Not looked into yet:
-  the panel (a breakable cave panel? find it live near (1270, -40, 560)),
-  and what blocks the path - if still blocked, `OverlapSphere` / `find` there
+  blocked off" (their second screenshot, collision on). The panel
+  (`CaveWoodplanks`, (1265, -29, 525.5), 22 m south of the end) was exported
+  as *surface* and faded underground - fixed (anything under the terrain is
+  filed with the caves), live, seen headless. The "blocked off" path not
+  looked into beyond that - if still blocked, `OverlapSphere` / `find` there
   in game and look for the object in the export. Still missing on purpose:
   greebles (`Pooling/Pool_Greebles`: Cave 6's body piles, stalactites,
   sticks) - the next step for "a couple models missing" (dump them in

@@ -35,7 +35,9 @@ entered, the LOD scripts) or "collide" (a mesh collider: walls, floors,
 invisible blockers).
 
 Areas: "surface", "caves" (the main scene's Caves root, the Cave layer, the
-cave prop scenes) and "endgame". LOD groups keep LOD 0 only.
+cave prop scenes, and anything whose whole mesh is under the terrain where
+it stands - Cave 6's wood panels sit under a root of their own) and
+"endgame". LOD groups keep LOD 0 only.
 
 Dev only; the game files are never shipped or committed.
 """
@@ -249,8 +251,36 @@ def root_name(scene, tid):
     return g[0] if g else ""
 
 
+class Ground:
+    """The terrain's height at a point, from the site's own bake
+    (wwwroot/terrain, scripts/terrain-bake.py) - as map.js groundAt."""
+
+    def __init__(self):
+        import json
+        d = os.path.join(ROOT, "site", "ForestSite", "wwwroot", "terrain")
+        self.m = json.load(open(os.path.join(d, "terrain.json")))
+        n = self.m["grid"]
+        self.h = np.fromfile(os.path.join(d, self.m["heights"]), dtype=np.uint16).reshape(n, n).astype(np.float32)
+
+    def at(self, x, z):
+        m, n = self.m, self.m["grid"] - 1
+        u, v = (x - m["x0"]) / m["sizeX"] * n, (z - m["z0"]) / m["sizeZ"] * n
+        if not (0 <= u <= n and 0 <= v <= n):
+            return None
+        i, j = min(n - 1, int(u)), min(n - 1, int(v))
+        fu, fv = u - i, v - j
+        h = self.h
+        top = h[j, i] * (1 - fu) + h[j, i + 1] * fu
+        bottom = h[j + 1, i] * (1 - fu) + h[j + 1, i + 1] * fu
+        return m["y0"] + (top * (1 - fv) + bottom * fv) / 65535 * m["sizeY"]
+
+
+UNDER = 2.0     # metres: a mesh whose top is this far under the terrain is in a cave
+
+
 class Export:
     def __init__(self, out):
+        self.ground = Ground()
         self.out = out
         for d in ("m", "t", "c"):
             os.makedirs(os.path.join(out, d), exist_ok=True)
@@ -261,6 +291,7 @@ class Export:
         self.models, self.model_ix = [], {}
         self.chunks = collections.defaultdict(list)     # (area, cx, cz, wide) -> [(model, matrix)]
         self.reach = {}      # chunk key -> [x0, z0, x1, z1] of its instances' bounds
+        self.under = 0       # "surface" instances moved to the caves (under the terrain)
 
     @staticmethod
     def key(pptr):
@@ -430,6 +461,11 @@ class Export:
         wc = m[:3, :3] @ c + m[:3, 3]
         we = np.abs(m[:3, :3]) @ e
         wide = max(we[0], we[2]) * 2 > CHUNK
+        if area == "surface":
+            g = self.ground.at(wc[0], wc[2])
+            if g is not None and wc[1] + we[1] < g - UNDER:
+                area = "caves"      # under the ground: drawn with the caves, not faded with the surface
+                self.under += 1
         k = (area, int(np.floor(wc[0] / CHUNK)), int(np.floor(wc[2] / CHUNK)), wide)
         self.chunks[k].append((model, m[:3, :4].astype(np.float32)))
         r = [wc[0] - we[0], wc[2] - we[2], wc[0] + we[0], wc[2] + we[2]]
@@ -636,6 +672,7 @@ class Export:
         with open(os.path.join(self.out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump({"version": 1, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
                        "meshes": self.meshes, "models": self.models, "chunks": chunks}, f, separators=(",", ":"))
+        print(self.under, "instances under the terrain filed with the caves")
         print("wrote", len(chunks), "chunks,", len(self.models), "models,", len(self.meshes), "meshes,",
               sum(1 for v in self.textures.values() if v >= 0), "textures ->", self.out)
 
