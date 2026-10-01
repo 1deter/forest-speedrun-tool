@@ -1,0 +1,17 @@
+# The autosplitter events + LiveSplit files list (sent 2026-10-01 for v0.24.185), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-10-01-livesplit-v0.24.185.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-10-01-livesplit
+title = Autosplitter splits + LiveSplit files (v0.24.185)
+
+intro = Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+
+section = Splits from the autosplitter
+1) Practice -> edit a timed segment -> a trigger set to "event": the new group button (Endgame / Starts / Caves / Clothing / Passengers). Try a cave enter / exit as a checkpoint and walk through a real cave mouth - does it split when LiveSplit would?
+seen = Game event: cave-enter
+2) Start = Starts -> "hold-interact" (the autosplitter's plane meal start): hold E on something (a pickup, a fire) - does the clock start?
+
+section = LiveSplit files
+3) Put your .lss (LiveSplit -> Save Splits As) in BepInEx/config/ForestOverlay/livesplit/, then Runs -> "LiveSplit file" -> pick it. Are your split names matched to the right LiveSplit splits? Then tick "LiveSplit" under Compare to and run it - do the times / deltas look right against your LiveSplit PB?
+seen = LiveSplit: read
