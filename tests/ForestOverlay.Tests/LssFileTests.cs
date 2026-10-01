@@ -163,6 +163,36 @@ namespace ForestOverlay.Tests
         // --- the file ---------------------------------------------------------
 
         [Fact]
+        public void FromMapKeepsTheHandMapAndListsWhatIsLeft()
+        {
+            string[] rows = { "Cave 2", "Vault", "End" };
+            string[] splits = { "Cave 1", "Cave 2", "Cave 5", "Vault Door", "Game End" };
+            LssMatch m = LssMatch.FromMap(new[] { 1, 3, 9 }, rows, splits);
+            Assert.Equal(new[] { 1, 3, -1 }, m.Map);
+            Assert.Equal(0, m.StartAfter);
+            Assert.Equal(new[] { "End" }, m.UnmatchedRows.ToArray());
+            Assert.Equal(new[] { "Cave 5", "Game End" }, m.UnmatchedSplits.ToArray());
+            Assert.True(m.InOrder);
+            Assert.False(LssMatch.FromMap(new[] { 3, 1, 4 }, rows, splits).InOrder);
+        }
+
+        [Fact]
+        public void LinksRoundTrip()
+        {
+            List<LssLink> links = new List<LssLink>();
+            links.Add(new LssLink { SegmentId = "s-0123456789ab", File = "any% pb.lss", Timing = LssTiming.GameTime, Map = new[] { 2, -1, 4 } });
+            links.Add(new LssLink { SegmentId = "spot.my.new-spot-3", File = "a.lss" });
+            List<LssLink> back = LssLink.ParseAll(LssLink.FormatAll(links).Replace("\n", "\r\n"));
+            Assert.Equal(2, back.Count);
+            Assert.Equal("any% pb.lss", back[0].File);
+            Assert.Equal(LssTiming.GameTime, back[0].Timing);
+            Assert.Equal(new[] { 2, -1, 4 }, back[0].Map);
+            Assert.Equal(LssTiming.RealTime, back[1].Timing);
+            Assert.Null(back[1].Map);
+            Assert.Empty(LssLink.ParseAll("# only a comment\nbroken line\n"));
+        }
+
+        [Fact]
         public void ReadsTheRunHeaderAttemptsAndSegments()
         {
             LssRun run = Load(Sample);

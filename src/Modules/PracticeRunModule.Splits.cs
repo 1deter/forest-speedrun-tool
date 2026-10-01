@@ -223,6 +223,7 @@ namespace ForestOverlay.Modules
                 case Reference.Average: return _stats.AverageSplits;
                 case Reference.BestSegments: return _stats.BestSegmentSplits;
                 case Reference.Runner: return PickedRunner != null ? PickedRunner.Splits : _stats.PbSplits;
+                case Reference.LiveSplit: return LssSplits() ?? _stats.PbSplits;
                 default: return _stats.PbSplits;
             }
         }
@@ -235,19 +236,28 @@ namespace ForestOverlay.Modules
                 case Reference.Last: return "Last run";
                 case Reference.Average: return "Average";
                 case Reference.BestSegments: return "Best segments";
+                case Reference.LiveSplit: return LssComparisonName();
                 default: return "Personal best";
             }
         }
 
         private void CycleComparison()
         {
-            // Your own four, then each other runner on the website's board.
+            // Your own four, then each other runner on the website's board,
+            // then each comparison in the linked LiveSplit file.
             if (_referenceKind == Reference.Runner)
             {
                 if (_runnerPick + 1 < _others.Count) PickRunner(_runnerPick + 1);
+                else if (LssAvailable) PickLss(0);
+                else { _referenceKind = Reference.Best; SelectReference(); }
+            }
+            else if (_referenceKind == Reference.LiveSplit)
+            {
+                if (_lssPick + 1 < _lssCompareSplits.Count) PickLss(_lssPick + 1);
                 else { _referenceKind = Reference.Best; SelectReference(); }
             }
             else if (_referenceKind == Reference.BestSegments && _others.Count > 0) PickRunner(0);
+            else if (_referenceKind == Reference.BestSegments && LssAvailable) PickLss(0);
             else { _referenceKind = (Reference)(((int)_referenceKind + 1) % 4); SelectReference(); }
             _splitsDirty = true;
             if (!TabShowing) Ctx.Notice.Show("Compare to: " + ComparisonName(), 1.5f);

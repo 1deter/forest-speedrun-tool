@@ -495,6 +495,45 @@ namespace ForestOverlay.Data
             return m;
         }
 
+        /// A match the runner set by hand: `map` is row -> LiveSplit segment
+        /// (-1 = none), any values; the unmatched lists and StartAfter are
+        /// worked out as Match does. Out-of-range entries read as -1.
+        public static LssMatch FromMap(int[] map, string[] rows, string[] splits)
+        {
+            LssMatch m = new LssMatch();
+            m.Map = new int[rows.Length];
+            bool[] used = new bool[splits.Length];
+            for (int i = 0; i < rows.Length; i++)
+            {
+                int j = map != null && i < map.Length ? map[i] : -1;
+                if (j < -1 || j >= splits.Length) j = -1;
+                m.Map[i] = j;
+                if (j >= 0) used[j] = true;
+                else m.UnmatchedRows.Add(rows[i]);
+            }
+            if (rows.Length > 0 && m.Map[0] >= 0) m.StartAfter = m.Map[0] - 1;
+            for (int j = 0; j < splits.Length; j++)
+                if (!used[j] && j > m.StartAfter) m.UnmatchedSplits.Add(splits[j]);
+            return m;
+        }
+
+        /// True when every matched row comes after the one before it - the
+        /// order golds and segment times assume.
+        public bool InOrder
+        {
+            get
+            {
+                int prev = StartAfter;
+                for (int i = 0; i < Map.Length; i++)
+                {
+                    if (Map[i] < 0) continue;
+                    if (Map[i] <= prev) return false;
+                    prev = Map[i];
+                }
+                return true;
+            }
+        }
+
         /// A comparison's cumulative LiveSplit times as our rows' split
         /// times, from our start. NaN for an unmatched row, and for all of
         /// them when the time our start stands on is unknown.
@@ -561,6 +600,68 @@ namespace ForestOverlay.Data
                 if (hasA && hasB) return true;
             }
             return false;
+        }
+    }
+
+    /// A segment's link to a LiveSplit file, one line per segment in
+    /// config/ForestOverlay/livesplit/links.txt (the runner's own, never
+    /// shared - a segment file names no LiveSplit file):
+    ///   <segment id> TAB <file name> TAB real|game TAB <map: 2,3,-1 or empty = by name>
+    public sealed class LssLink
+    {
+        public string SegmentId = "";
+        public string File = "";
+        public LssTiming Timing = LssTiming.RealTime;
+        /// Hand-set row -> split map; null = matched by name.
+        public int[] Map;
+
+        public static List<LssLink> ParseAll(string text)
+        {
+            List<LssLink> all = new List<LssLink>();
+            if (string.IsNullOrEmpty(text)) return all;
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (line.Length == 0 || line[0] == '#') continue;
+                string[] f = line.Split('\t');
+                if (f.Length < 2 || f[0].Trim().Length == 0 || f[1].Trim().Length == 0) continue;
+                LssLink l = new LssLink();
+                l.SegmentId = f[0].Trim();
+                l.File = f[1].Trim();
+                if (f.Length > 2 && f[2].Trim() == "game") l.Timing = LssTiming.GameTime;
+                if (f.Length > 3 && f[3].Trim().Length > 0)
+                {
+                    string[] parts = f[3].Split(',');
+                    int[] map = new int[parts.Length];
+                    bool ok = true;
+                    for (int k = 0; k < parts.Length; k++)
+                        if (!int.TryParse(parts[k].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out map[k])) ok = false;
+                    if (ok) l.Map = map;
+                }
+                all.Add(l);
+            }
+            return all;
+        }
+
+        public static string FormatAll(List<LssLink> links)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("# LiveSplit files linked to segments (ForestOverlay). segment id, file, real|game, row map\n");
+            for (int i = 0; i < links.Count; i++)
+            {
+                LssLink l = links[i];
+                sb.Append(l.SegmentId).Append('\t').Append(l.File).Append('\t')
+                  .Append(l.Timing == LssTiming.GameTime ? "game" : "real").Append('\t');
+                if (l.Map != null)
+                    for (int k = 0; k < l.Map.Length; k++)
+                    {
+                        if (k > 0) sb.Append(',');
+                        sb.Append(l.Map[k].ToString(CultureInfo.InvariantCulture));
+                    }
+                sb.Append('\n');
+            }
+            return sb.ToString();
         }
     }
 

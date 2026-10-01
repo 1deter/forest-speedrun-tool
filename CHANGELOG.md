@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.185 - 2026-10-01
+
+- LiveSplit splits files as comparisons: put a `.lss` in
+  `BepInEx/config/ForestOverlay/livesplit/`, open Runs -> **LiveSplit
+  file** and pick it for the segment. Your split names are matched to
+  LiveSplit's in order (any row can be set by hand), real or game time.
+  Compare to -> **LiveSplit** then offers the file's PB, its best segments
+  and any other comparison it holds. They are comparisons only - your own
+  PB and golds stay your own.
+
 ## v0.24.184 - 2026-10-01
 
 - Segments can split on everything the LiveSplit autosplitter splits on:
