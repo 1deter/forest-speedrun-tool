@@ -210,9 +210,12 @@ with a Water switch.
    darker from the moment it rolled in, twice); v0.24.179 holds it clear
    (the start line says `weather held clear`, the progress lines show it).
    The bake still prints `WARNING: capture row N ...` for a step. **The
-   player's state is in the frame too**: hunger / thirst hurt effects
-   (blood at the screen's edges) were captured on 2026-10-01 - god mode
-   does not stop them; keep the player fed (backlog *Website*). Retake
+   player's state is in the frame too** (the camera is the game's): since
+   v0.24.180 the player is kept fed / watered / rested per tile and the
+   camera's blood / frost / grey overlays are held off; lakes switch to a
+   black stand-in by `LOD_GroupToggle`'s own distances, scaled by
+   rangeScale too; the far plane reaches y -320 (the sinkhole's floor).
+   A full run took 17.5 min on 2026-10-01 (v0.24.180). Retake
    rows N+ with `AerialStart -1750 <z0 + N*218.75> 1750 1757.369 ...` -
    its files are numbered from row 0 again and it overwrites `tiles.txt`,
    so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`
@@ -335,9 +338,17 @@ What the export decides (details: gotchas 64-67):
 - **South at the top** (author, 2026-10-01): 2D draws turned 180 degrees
   (`map.js` `UP`, `toScreen` / `fromScreen` / `blit`), the 3D fit looks
   from the north (`yaw` pi).
-- The sinkhole: the terrain's heights cross it at about y 0 (its photo
-  black), so the 3D terrain hides the sinkhole's models below - backlog
-  *Website* item 3.
+- **The terrain's holes** (`terrainHoles`, a5a0077): height-0 samples away
+  from the open sea - the sinkhole only (the game draws no terrain there;
+  its floor, cliffs and water are models down to y -304). No terrain
+  triangle uses them, and `setGround` gives them no ground (the lake clip
+  keeps the sinkhole's water).
+- **Moved objects**: the yacht is not where the scene file keeps it (the
+  game moves it at run time): `call static:ForestOverlay.Game.WorldDump
+  Placed yacht yachtWobblePrefab(Clone)` (v0.24.181, any time in game) ->
+  `world/placed-yacht.txt`, read by the export; the scene's `Yacht` root
+  is skipped (`MOVED_ROOTS`). Its hull is untextured in the game too
+  (`BoatHull deferred`, a colour only).
 
 **Looking at a spot on the local site** (gotcha 68 - do it before calling a
 render fix done): `python scripts/site-look.py <scenario>` does all of

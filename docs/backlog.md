@@ -152,7 +152,9 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 ## Website (author, QA #general 2026-09-27)
 
 - **The map, after the 2026-10-01 recapture (author's review, screenshots in
-  that session's transcript).** Tiles are the capture's `<ix>_<iz>` (x0
+  that session's transcript).** **All done 2026-10-01** (v0.24.180-181,
+  site a5a0077, recaptured + re-exported, live) - kept until the author
+  has looked; then delete this item. Tiles are the capture's `<ix>_<iz>` (x0
   -1750, z0 -1742.631, 218.75 m; ix = (x + 1750) / 218.75, iz = (z +
   1742.631) / 218.75). Retake recipe: docs/website.md *The photo map* (back
   up the game's `aerial/` first; the live set is also in

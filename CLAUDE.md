@@ -588,10 +588,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.179** (2026-10-01). The author runs it via the in-game
-updater (v0.24.178 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
+**Released: v0.24.181** (2026-10-01). The author runs it via the in-game
+updater (v0.24.181 in the game at handoff, Slot 2). **457 tests** (+ 33 site tests).
 
-### Pick up here (2026-10-01, v0.24.178 in the game)
+### Pick up here (2026-10-01, v0.24.181 in the game)
 
 **Open work by severity** (sorted with the author, 2026-10-01; the
 author: "do the list in your order, skip Tom's work until he gets back
@@ -613,22 +613,19 @@ to us" - one item per session):
    and the token-reset race: decided, left as they are (About page says
    the id is not anonymous). **A new deploy needs nothing extra**; a
    changed `compose.yaml` needs `setup.sh` again (README).
-4. **The map's polish** (the author's review of the new map,
-   2026-10-01; nine items). **The five site-only ones are done** (this
-   session, site only, deployed by the push; checked headless on the local
-   site, **not yet looked at by the author**): south at the top in 2D and
-   3D; the 3D white flicker / moving coast = the detail patch rebuilt every
-   0.4 s with the centre near the map's edge (gotcha 74; 28 rebuilds in 16 s
-   on the old code, 1 now), plus a finer island mesh on desktop; the dark
-   "lakes" over land = the 3D sea plane filling inland pits (gotcha 75 -
-   not the lake models), now masked like the bake's sea, and the lake
-   models clipped to their shore; the 3D Water button hides the sea, the
-   lakes and their black `LakeFake` planes (docs/website.md *Terrain, sea
-   and water in 3D*). **Next: the four that need the game** (docs/backlog.md
-   *Website* 1-4, one game session + a plugin release): blood in tile
-   13_12, the frozen lake / black shape cut at tile edges, the sinkhole's
-   black inside (in 3D too: the terrain's heights cross the pit at y ~0),
-   the untextured yacht. Headless looks: `scripts/site-look.py`.
+4. ~~The map's polish~~ **done, all nine** (2026-10-01, live; checked
+   headless on the local and live site, **not yet looked at by the
+   author** - ask). Site-only five: south at the top, the 3D flicker
+   (gotcha 74), sea over inland pits (gotcha 75), Water button in 3D.
+   Game four (v0.24.180-181 + site a5a0077, a full recapture and a world
+   export, both uploaded): screen blood (the capture keeps the player
+   well and holds the camera's hurt overlays off), the black lake
+   stand-ins at tile edges (`LOD_GroupToggle` distances scaled, gotcha
+   76), the sinkhole (2D: the far plane to y -320; 3D: the terrain's
+   holes cut out), the yacht (moved at run time - `WorldDump.Placed` +
+   `MOVED_ROOTS`, gotcha 77; a LOD 0 renderer also in LOD 1 was dropped,
+   in 9 scene LOD groups too). Detail: game-notes *Terrain, and the world
+   from above*, docs/website.md.
 5. 3D world: the sparse endgame lab, load size (thousands of files,
    uncompressed `.bin`), the spot page's sideways scroll on phones.
 6. LiveSplit `.lss` import UI (Next up 9).
@@ -643,16 +640,16 @@ an exhaustive "endgame" tool, caves included. Recipes and formats:
 [`docs/website.md`](docs/website.md) *The photo map* / *The 3D world*;
 game internals: game-notes *Terrain, and the world from above*.
 
-- **Photo map (live, recaptured 2026-10-01 on v0.24.178, uploaded build
-  1790857361, checked live headless):** every tile at one exposure, the
-  sea drawn by the bake from the heights (the Water button = the `-dry`
-  layers, the raw capture) - recipe docs/website.md *The photo map*, why
-  game-notes *The ocean from above* / *Eye adaptation* / *Weather*. The
-  live set is merged from a full run (rows 0-5, 6 west) and clear-weather
-  retakes (rows 7-15, row 6 east); it is the game's `aerial/` folder now.
-  Backups in `%TEMP%/claude/aer/`: `aerial-0928` (v0.24.170's),
-  `aerial-1001` (the first v0.24.178 run, rows 7-15 dark), `final` (the
-  live set).
+- **Photo map (live, recaptured 2026-10-01 on v0.24.180 in one run,
+  17.5 min, uploaded build 1790870487, checked live headless):** every
+  tile at one exposure, the weather held clear (all 25 progress lines -
+  v0.24.179's hold confirmed), the player kept well, lakes as the game
+  draws them close up, the sinkhole's floor; the sea drawn by the bake
+  from the heights (the Water button = the `-dry` layers, the raw
+  capture) - recipe docs/website.md *The photo map*, why game-notes
+  *Terrain, and the world from above*. It is the game's `aerial/` folder.
+  Backups in `%TEMP%/claude/aer/`: `aerial-0928` (v0.24.170's), `final`
+  (the merged v0.24.178 set), `v180` (the live set).
 - **3D world (site `world3d.js`, `scripts/world-extract.py`, v0.24.171-
   173 `Game/WorldDump`):** meshes are not readable in game, so the scenes
   are read **offline with UnityPy** (level2, 7, 11, 15-30) and the pooled
@@ -711,9 +708,9 @@ game internals: game-notes *Terrain, and the world from above*.
   memory, for the 2D map (the photo is the game's own renderer; the
   memory route = the 3D item below). Long-term (backlog): **an exact 3D
   world** - the terrain from its splat maps, every prop.
-- **Next, in order:** (1) the map's polish's game items (item 4 above);
-  the 3D world at the Elevator Boost end (snow cliffs: the top layer; the
-  run's end is past the map's south edge, z -1969). (2) The endgame lab looked **sparse** (props, few
+- **Next, in order:** (1) the 3D world at the Elevator Boost end (snow
+  cliffs: the top layer; the run's end is past the map's south edge, z
+  -1969). (2) The endgame lab looked **sparse** (props, few
   walls / floors; box colliders show the shape) - not the empty `Walls` /
   `Ceiling` objects in level7. Compare a `shot` in the lab (walk in - a
   `tp` lands with the sections unloaded) with the site at the same spot,
@@ -994,13 +991,10 @@ moves) - `Savestate after the load: player 3 s after in game - ...`
 QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
 `1553503369904132220`). Options -> Graphics with F7 is untested here.
 
-**State (2026-10-01 handoff, the map-list session):** the game runs
-v0.24.178 in Slot 2 (loaded from the title, not saved since; v0.24.179
-is released, not installed - its weather hold is untested in a capture),
-the player at the capture's last tile on the east coast (the capture
-returns him only to where the run started), god mode / infinite energy
-off, hunger / thirst refilled, freecam off; the weather was cleared by
-hand (it rolls again on its own). Slot 2 is the only
+**State (2026-10-01 handoff, the map-polish session):** the game runs
+v0.24.181 in Slot 2 (loaded from the title, not saved since), the player
+at the tree spot (428, 78, -4), god mode / infinite energy off, freecam
+off. Slot 2 is the only
 Normal slot: Slots 1 and 5 are Creative, 3 Hard, 4 Peaceful; a runner's
 survival start state restores only in a survival game.
 Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,

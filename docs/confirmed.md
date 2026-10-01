@@ -219,6 +219,15 @@ and a forced texture rebuild then runs safely.
   live `?v=<other>` -> 404 `no-store`; local end-to-end: a page holding
   build A, `world.json` re-uploaded as B -> 44 refused, re-read, started
   over, Cave 6 drawn from B's files.
+- **Map polish, the game items (bridge + headless, 2026-10-01, v0.24.180-
+  181):** a lake's `LakeFake` switch follows its `LOD_GroupToggle`
+  distance (raised: the real lake within a second, back: the stand-in);
+  test tiles 10_2 / 11_2 without the black patch, 8_8 with the sinkhole's
+  floor; the full recapture's 25 progress lines all `weather Idle / rain
+  None, overcast 0.1` (v0.24.179's hold); the red-edge scan has 13_12 at
+  the top of the old set (+8.6), gone from the new; the yacht dump 198
+  parts, its 3D look against a game `shot` from the same camera; the 3D
+  sinkhole open on the local and live site. Not yet seen by the author.
 - **3D world caves (site, 86a9d87, 2026-10-01)** - the author on the live
   site: "looks good now" - cave pieces at their placeholder's scale and the
   underground cutaway. Still open: a couple of models missing and the cave
