@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.194 - 2026-10-01
+
+- The HUD says which game-changing options are on right now ("ON NOW: no
+  stagger, god mode, item caps ..."), above the practice marker - so a
+  practice setting is never mistaken for real gameplay.
+- The HUD keeps the previous run's time ("Last") while the next one runs.
+
 ## v0.24.193 - 2026-10-01
 
 - New events for segments: **first-input** (the first button or movement

@@ -802,12 +802,16 @@ namespace ForestOverlay.Modules
                 hud.Pair("Next", !_sequence.OnlyEndLeft
                     ? "checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count
                     : "finish");
+                // The previous time stays in view while the next one runs
+                // (runners: the HUD showed only the current one).
+                if (_attempts.Count > 0) hud.Pair("Last", Format(_attempts[_attempts.Count - 1].Duration));
             }
             else
             {
                 Attempt best = RunCompare.Best(_attempts);
                 hud.Pair("Run", _attempts.Count + " attempts" +
                                 (best != null ? "   best " + Format(best.Duration) : ""));
+                if (_attempts.Count > 0) hud.Pair("Last", Format(_attempts[_attempts.Count - 1].Duration));
             }
         }
 

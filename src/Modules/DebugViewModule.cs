@@ -87,6 +87,7 @@ namespace ForestOverlay.Modules
         private ConfigEntry<string> _profilerExtraCfg;
         private ConfigEntry<bool> _allocAtStartupCfg;
         private PerfPatches _perf;
+        private string[] _perfNames;   // the HUD's ON NOW names, built once
         private LoadTiming _loadTiming;
         private const float AllocInterval = 30f;
         private float _allocWindowStart;
@@ -206,6 +207,19 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
+            // The experimental performance switches change the game: say
+            // which are on (the HUD's ON NOW line).
+            if (_perf != null)
+            {
+                if (_perfNames == null)
+                {
+                    _perfNames = new string[_perf.Count];
+                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.Label(i).Trim();
+                }
+                for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
+                    if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i));
+            }
+
             // Freecam ends itself when the game tears its camera down (a
             // level load); stop holding the player when it does.
             if (_freeCamOn && !_freeCam.Active)

@@ -209,6 +209,9 @@ namespace ForestOverlay.Modules
             RefreshText();
 
             DeathHooks.NoStagger = _noStaggerCfg.Value;
+            Ctx.Practice.SetOn("no stagger", _noStaggerCfg.Value);
+            Ctx.Practice.SetOn("no blood", _noBloodCfg.Value);
+            Ctx.Practice.SetOn("god mode", _godModeCfg.Value);
             if (_noBloodCfg.Value) DeathHooks.ClearBlood();
             if ((_noBloodCfg.Value || _noStaggerCfg.Value) && !_extrasMarked)
             {

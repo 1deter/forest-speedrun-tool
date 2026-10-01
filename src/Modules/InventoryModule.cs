@@ -197,6 +197,8 @@ namespace ForestOverlay.Modules
             }
             if (!_capNamesResolved && _caps.Count > 0 && Ctx.Inventory.NameForId(_caps[0].Key) != null) { _capNamesResolved = true; ApplyCaps(); }
             bool active = _capsOnCfg.Value && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
+            Ctx.Practice.SetOn("item caps", _capsOnCfg.Value && _caps.Count > 0);
+            Ctx.Practice.SetOn("logs in the inventory", _logsCfg.Value);
             if (active && !_capsMarked)
             {
                 _capsMarked = true;

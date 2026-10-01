@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.193";
+        public const string PluginVersion = "0.24.194";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -312,6 +312,8 @@ namespace ForestOverlay
             int lines = _host.Hud.Count;
             GUIStyle practiceStyle = _practice.Used ? _warnStyle : _hudLabelStyle;
             float textH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
+            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, textW)) : 0f;
+            textH += onH;
             for (int i = 0; i < lines; i++)
                 textH += Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
 
@@ -324,6 +326,14 @@ namespace ForestOverlay
                 float h = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(line, textW));
                 GUI.Label(new Rect(20, y, textW, h), line, _hudLabelStyle);
                 y += h;
+            }
+
+            // What changes the game now (no stagger, god mode, item caps...),
+            // above the marker.
+            if (_practice.AnyOn)
+            {
+                GUI.Label(new Rect(20, y, textW, onH), _practice.OnLabel, _warnStyle);
+                y += onH;
             }
 
             // Sticky and last, so it is the line the eye lands on. A run

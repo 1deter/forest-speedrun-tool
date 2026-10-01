@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -42,6 +43,24 @@ namespace ForestOverlay.Core
         }
 
         public GUIContent Label { get { return _label; } }
+
+        // What changes the game RIGHT NOW (author, QA 2026-09-26: maks had No
+        // stagger on and took it for a new lineup; v0.24.194). The marker
+        // says a tool was used; this line says which are still on. Modules
+        // call SetOn from Tick - cheap when nothing changes.
+        private readonly List<string> _on = new List<string>();
+        private readonly GUIContent _onLabel = new GUIContent("");
+
+        public bool AnyOn { get { return _on.Count > 0; } }
+        public GUIContent OnLabel { get { return _onLabel; } }
+
+        public void SetOn(string what, bool on)
+        {
+            int at = _on.IndexOf(what);
+            if (on == (at >= 0)) return;
+            if (on) _on.Add(what); else _on.RemoveAt(at);
+            _onLabel.text = _on.Count == 0 ? "" : "ON NOW: " + string.Join(", ", _on.ToArray());
+        }
 
         private void Rebuild()
         {
