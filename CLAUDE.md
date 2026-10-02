@@ -555,6 +555,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
 81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
 82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK".
+83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
 
 ---
 
@@ -641,8 +642,10 @@ preset saves, not new games** - the trigger is wrong for real runs
    receipts on reset, the outbox with links. Needs site endpoints too.
    Then phase 3 (the report page) and phase 4 (categories on /admin,
    seeded from speedrun.com's categories and rules).
-2. **Website: fewer texture requests** - the author's cloud session was on
-   it (2026-10-02); check `git log origin/main` for its work first.
+2. **Website, later** (from the cloud session's version 3 world,
+   docs/website.md *Load size*): a distance LOD switch for phones (full
+   near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
+   copies (~10% off the meshes, measured).
 3. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.

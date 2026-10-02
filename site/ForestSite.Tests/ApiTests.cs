@@ -717,6 +717,8 @@ public sealed class ApiTests : IDisposable
     [InlineData("p/12.bin.gz", false)]
     [InlineData("q/3.bin", true)]
     [InlineData("q/3.png", false)]
+    [InlineData("b/230.bin", true)]
+    [InlineData("b/1.jpg", false)]
     [InlineData("world.json.gz", false)]
     [InlineData("m/1.bin\n", false)]
     [InlineData("../m/1.bin", false)]

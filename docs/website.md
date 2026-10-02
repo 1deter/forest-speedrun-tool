@@ -248,14 +248,17 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `world/area-members.txt`, what each area switches on (below). Every
    `placed-*.txt` / `greebles-*.txt` in that folder goes into the export:
    keep diagnostic `Placed` dumps elsewhere (gotcha 78).
-2. **Export** (offline, ~40 s, `pip install UnityPy`): `python
-   scripts/world-extract.py export` reads the scenes from the game's files
-   (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
+2. **Export** (offline, ~1 min, `pip install UnityPy fast-simplification`):
+   `python scripts/world-extract.py export` reads the scenes from the game's
+   files (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
    `site/world-out/` (not in git): `world.json` (materials, meshes, models,
-   chunks, packs, `build`; `version` 2), `p/<i>.bin` mesh packs, `t/<i>.jpg`
-   (+ `.png` for cut-outs), `c/<area>_<x>_<z>.bin` instances. `stats [level
+   chunks, files, `build`; `version` 3) and `b/<i>.bin` - every mesh,
+   texture and chunk of instances packed (*Load size* below). `stats [level
    ...]` prints what a scene holds. The format is in the script's
-   docstring; the packs in `scripts/world_pack.py`'s.
+   docstring; the packing and the phones' LODs in `scripts/world_pack.py`'s.
+   `python scripts/world_pack.py repack <world> <new folder>` packs an
+   existing world (any version, e.g. the live one downloaded) the same way
+   without the game - a new `build`.
 3. **Upload**: `python scripts/aerial-upload.py --world` (to
    `/api/admin/world`, clears first; `world.json` last). Files are named
    by index, so the server refuses another build's `?v=` and every `?v=`
@@ -263,17 +266,46 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `world.json` per 3D view and starts over when a file is refused
    (`stale()`, gotcha 71). A tab open across an upload recovers by itself.
 
-**Load size** (2026-10-01, a cloud session, merged):
-- **Mesh packs** (`version` 2): the meshes joined into a few `p/<i>.bin`
-  (each mesh's `pack` = [pack, offset, length], 4-byte aligned) - a mesh
-  used by one chunk in that chunk's pack, by 8+ chunks in its area's common
-  packs (trees, rocks, cave walls: fetched once), by a few in a pack per
-  area and 1 km cell; cut at 4 MB. A cold chunk = its file + about 2-4 packs
-  instead of one request per mesh. `world3d.js` still reads `version` 1 (one
-  `m/<i>.bin` per mesh) - the live upload until the next export; a page
-  older than the packs shows no world for a `version` 2 json (no errors).
-  `python scripts/world_pack.py test` checks the packs round-trip against
-  the old files; `... synthetic <out> [1|2]` makes a 9-chunk world near the
+**Load size** (2026-10-01 / 02, cloud sessions):
+- **`version` 3 - one set of files** (2026-10-02, `scripts/world_pack.py`):
+  every blob - a chunk's instances, a mesh, a texture (only the variant the
+  page reads) - in `b/<i>.bin`, 4-byte aligned, its place `[file, offset,
+  length]` (a mesh's / chunk's `at`, `textures[i]` = [jpg, png]). Grouped by
+  the chunks that use it: a chunk's instances and what only it uses in its
+  area's 500 m cell, what 8+ chunks use in the area's common files, what a
+  few use in a 1 km cell of their mean column; cut at 8 MB. Picked by
+  simulating layouts over 25 views of the live world (cells of 500 / 750 /
+  1000 m, packs of 4 / 8 MB): fewer requests always cost bytes - a cell
+  reaches past the view's 700 m (a prefetch: a pan loads it anyway).
+  Measured on a local site with the live world (`scripts/site-measure.py`):
+  the Labskip view **188 -> 60 requests, 38.6 -> 41.9 MB** on a desktop,
+  pixel for pixel the same picture; other views 241-388 -> 79-97. Versions
+  1 (one file per mesh) and 2 (`p/` mesh packs + `q/` texture packs, the
+  live upload until the next one) are still read; a page older than
+  version 3 shows no world for its json (no errors) - deploy the site
+  before uploading one.
+- **Phone LODs** (2026-10-02): a mesh of 1000+ triangles gets a copy with a
+  quarter, else half of them (fast-simplification, per submesh, cut-outs
+  kept whole), only where 99% of its vertices stay within 2 cm and all
+  within 10 cm of the original at the largest scale it is drawn at; the copy
+  is a subset of the original vertices (uvs exact) and carries the full
+  mesh's normals (shading unchanged). Phones (`pointer: coarse`, as
+  map3d.js) draw it; collision keeps the full mesh. 60 meshes qualify -
+  cave spikes, props, bodies, bone piles - 2.7 MB, in files of their own per
+  area that desktops never fetch. Labskip on a phone: 63 requests, 43.9 MB,
+  **70.6M -> 67.9M triangles**, 0.002% of the pixels differ. A modest cut:
+  the heavy meshes cannot lose detail unseen - at a quarter Cave 6's ground
+  pieces sat 20-70 cm off and sank under the floor layers over them, trees
+  lost branches (metres), the cave walls stay 13 cm+ off at a half (the
+  first try, a quarter everywhere: 77M -> 26.6M, 24.9 MB, but holes in the
+  trees, changed shading and Cave 6's floor - not shipped). More would need
+  a distance switch (full near the camera, a LOD far) - not built.
+- **Collision is fetched when switched on** (2026-10-02): every collider's
+  mesh was fetched and built, hidden; now a rebuild that finds a collision
+  mesh missing fetches it ("loading...") and builds the model when it is here.
+- `python scripts/world_pack.py test` checks a synthetic world round-trips
+  (every blob's bytes, alignment, the LOD's vertices / normals / submeshes,
+  a repack); `... synthetic <out> [1|3]` makes a 9-chunk world near the
   tree spot to upload to a local site.
 - **gzip**: the upload writes `x.gz` beside each `.bin` / `.json` when
   smaller (`Precompressed.cs`); a client sending `Accept-Encoding: gzip` gets
@@ -419,17 +451,36 @@ hidden): `pip install playwright`, Edge via `channel="msedge"` - open a spot,
 click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
 `forest3d.canvas`. A second local site beside another session's (port 5081,
 own build output and data): `.claude/launch.json` `forest-site-alt`.
+**In a cloud session** (2026-10-02): `apt-get install dotnet-sdk-10.0`
+(after `apt-get update`), restore with nuget.org only (BepInEx's feed is
+blocked; the site does not need it: a `nuget.config` with `<clear />` +
+nuget.org, `dotnet restore site/ForestSite.Tests --configfile <it>`), run
+`dotnet <build>/ForestSite.dll --urls http://localhost:5080` from
+`site/ForestSite` with `FOREST_ADMIN_TOKEN=local-admin
+FOREST_DATA=<folder>`; Playwright's Chromium is pre-installed
+(`/opt/pw-browsers`, software GL - `site-measure.py` finds it); the live
+world downloads in ~20 s (`world.json`, then every file it lists with its
+`?v=<build>`; Cloudflare refuses Python's default User-Agent).
 
-Measured live (the Labskip spot's 3D view, its own fit): 2026-10-01 604
-world requests - 458 textures, 55 packs, 90 chunks, the json - 38 MB on
-the wire; **2026-10-02 with texture packs: 188 requests** (42 texture
-packs) for 38.6 MB. Texture packs (`scripts/world_pack.py`
-`write_textures`, `q/<i>.bin`, world.json `texpacks` / `textures`) group
-like the mesh packs and hold only the variant the page reads
-(`used_variants`: a cut-out's .png, else the .jpg) - packing both had
-fetched 17.4 MB of textures for the 10.4 MB a view used. Tool:
-count the requests of a view with Playwright (session scratch
-`count_requests.py`: requests and content-length by folder).
+Measured (the Labskip spot's 3D view, its own fit): live 2026-10-01 604
+world requests (458 textures, 55 packs, 90 chunks) for 38 MB; live
+2026-10-02 with texture packs (only the variant the page reads - both had
+fetched 17.4 MB of textures for 10.4 used) 188 for 38.6 MB, reproduced
+exactly on a local site; version 3 (local) 60 for 41.9 MB. Tool:
+`scripts/site-measure.py` - `seed` copies a live spot and its runners' best
+runs to a local site (the same 3D fit), `view` counts a view's requests /
+bytes / triangles and shoots it (desktop, phone, narrow; `NOLOD`, `DELAY`).
+
+**The 3D view's look depends on load order** (2026-10-02, found while
+comparing): on the old (version 2) site, holding back random world files
+flips some maple leaves near the tree spot between two looks, 1.32x
+brighter or not (8.5% of a phone shot), with the same data. Every model's
+InstancedMesh sits at the origin, so three.js's sort falls back to creation
+order - the order chunks happened to arrive. Not the transparent pass
+(only the lakes are transparent there) and no duplicate instances there;
+cause not found. Compare shots taken the same way (single views; a second
+view after a first loads in a different order), and when a diff flips, test
+the old build with `DELAY` first (gotcha 83).
 
 **The Elevator Boost end** (2026-10-02, headless vs a game `shot`): the
 end box (-456, 707, -1969) sits inside the overlook room, an endgame
@@ -439,8 +490,8 @@ models (chunks to z -2931) and are there, but up close they are smooth
 grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
-Open: heavy chunks want LODs for phones;
-pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
+Open: a distance LOD switch for phones (above); the load-order look
+(above); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
 
