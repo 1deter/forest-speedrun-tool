@@ -499,11 +499,18 @@ Open: a distance LOD switch for phones (above); the load-order look
 (above); **the 2D map lags when zoomed in close** and feels responsive
 zoomed out (author, 2026-10-02) - since 2026-10-02 the relief draws only
 its on-screen part (`reliefPart` in map.js; same pixels as before, checked
-by a pixel diff), but **not reproduced here**: on the author's desktop (dpr
-1, Labskip spot, view at (428, -4)) `draw()` + a pixel read took 1-2 ms at
-every scale (0.3-100 px/m), relief or photo layer. Next: ask which device /
-browser / spot and screen density, and time the run lines (drawn whole,
-not culled) and a drag (one draw per pointermove?); the web replay as fast
+by a pixel diff). The author's detail: worst at the **max zoom (200
+px/m)**, every layer, Photo mainly; zoomed out is smooth. At 200 px/m the
+old code drew the whole relief ~700,000 px wide under the tiles on every
+redraw - the likely cause. Also since then: one draw per frame
+(`draw()` asks, `drawNow()` draws; wheel / pointermove each drew), plain
+bilinear smoothing when an image is enlarged, and zoom out stops at the
+world x 1.5. Measured here: `drawNow()` + a pixel read 1.5 ms at 200 px/m;
+the GPU side could not be timed (the browser pane was hidden: rAF throttled
+to 1/s) - **the author confirms on the live site**. Seen in passing: two
+console errors from map3d.js after an in-page navigation (`buildDetail`
+reading `borrowed` of undefined, line 482; `i0` of null, line 585) - not
+looked into; the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button
 (beside Collision, `forest.map3d.detail` in localStorage) draws at the

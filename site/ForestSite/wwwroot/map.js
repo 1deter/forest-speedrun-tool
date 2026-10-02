@@ -179,7 +179,15 @@ window.RunMap = (function () {
     return [t, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k];
   }
 
+  /// Asks for a draw on the next frame: wheel and pointer events come several
+  /// times a frame, and each drew the whole map (author, 2026-10-02: zoomed
+  /// in to the max, zooming was choppy and a drag lagged behind).
   RunMap.prototype.draw = function () {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => { this.frame = 0; this.drawNow(); });
+  };
+
+  RunMap.prototype.drawNow = function () {
     const c = this.canvas, ctx = this.ctx, dpr = window.devicePixelRatio || 1;
     const w = c.clientWidth, h = c.clientHeight;
     if (!w || !h) return;
@@ -231,7 +239,9 @@ window.RunMap = (function () {
       const s = at(run.path, this.time), g = s && groundAt(s[1], s[3]);
       return s && g !== null && s[2] < g - 3;
     });
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingEnabled = true;
+    const iw = terrain.image ? terrain.image.naturalWidth || terrain.image.width : 1;
+    ctx.imageSmoothingQuality = this.view.scale * dpr * m.sizeX / iw > 1 ? "low" : "high";
     if (terrain.image) this.reliefPart(w, h);
     if (photo) this.tiles(photo, w, h, dpr);
     if (this.underground) {
@@ -267,6 +277,7 @@ window.RunMap = (function () {
     const ctx = this.ctx, v = this.view, m = terrain.meta, a = aerial.meta;
     const li = a.layers.indexOf(layer), size = m.sizeX, north = m.z0 + size;
     const L = aerialLevel(size, v.scale, dpr, a.tile, a.levels), n = 1 << L, ts = size / n;
+    ctx.imageSmoothingQuality = ts * v.scale * dpr > a.tile ? "low" : "high";
     // The view is symmetric about its centre: the same world box either way up.
     const wx0 = v.cx - w / 2 / v.scale, wx1 = v.cx + w / 2 / v.scale;
     const wz0 = v.cz - h / 2 / v.scale, wz1 = v.cz + h / 2 / v.scale;
@@ -394,7 +405,8 @@ window.RunMap = (function () {
   RunMap.prototype.zoomAt = function (px, py, k) {
     const v = this.view, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     const [wx, wz] = this.fromScreen(px, py);
-    v.scale = Math.min(200, Math.max(0.01, v.scale * k));
+    const most = terrain.meta ? Math.min(w, h) / (1.5 * Math.max(terrain.meta.sizeX, terrain.meta.sizeZ)) : 0.01;
+    v.scale = Math.min(200, Math.max(Math.min(most, v.scale), v.scale * k));
     v.cx = wx - (px - w / 2) / (UP * v.scale); v.cz = wz + (py - h / 2) / (UP * v.scale);
     this.draw();
   };

@@ -658,7 +658,9 @@ one (a preset save as a start state, `run = <category name>`, in
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured). Also (author, 2026-10-02):
-   the 2D map lags zoomed in close (responsive zoomed out) - find why;
+   the 2D map lags zoomed in close: likely fixed 2026-10-02 (the relief
+   was drawn ~700,000 px wide at max zoom; one draw per frame) - the
+   author checks it live (docs/website.md);
    the web replay as fast as possible: started (3D *Detail* button, off
    by default = pixel ratio 1, no antialiasing; docs/website.md) - more
    switches could join it.
