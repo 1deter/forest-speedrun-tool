@@ -330,7 +330,32 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   without far copies (small meshes, collision) still draw whole. Labskip
   fit, local site: desktop 23.5M -> 5.6M triangles, 761 -> 460 draw
   calls, 7.8 -> 3.5 ms a frame; phone viewport 23.1M -> 3.5M, 695 -> 354,
-  8.1 -> 2.8 ms; the pictures identical (<= 0.001% of pixels). Before (same day): 60
+  8.1 -> 2.8 ms; the pictures identical (<= 0.001% of pixels).
+  **Every model culled per instance, and under the ground** (2026-10-02):
+  a model without far copies goes through `split()` too (one level: culled
+  or drawn), so its draw call goes when none of it is in view. And with
+  the camera above opaque terrain (`fade` 1, `aboveGround`: higher than
+  every height sample within `COARSE_MAX` of it), an instance wholly below
+  the drawn terrain (`underGround`: its sphere's top under the lowest
+  sample within `COARSE_MAX` of its footprint, block minima of 8 x 8
+  samples) is not drawn unless the line from the camera to it passes over
+  a hole, seen from above (`overHole`: 183 boxes round the sinkhole,
+  widened by the cells the coarse terrain leaves out) - a line from above
+  the terrain to below it crosses the drawn terrain, or goes through a
+  hole. Measured (local site, desktop, `NORUNS=1`, one view per run - the
+  script reads its counters at the end): plane wreck (360, 75, 1050) 461
+  -> 305 draw calls, 13.2M -> 9.8M triangles, 5.1 -> 3.9 ms; overview
+  (500, 80, 500, dist 600) 498 -> 293, 18.7M -> 13.5M, 5.4 -> 4.4 ms;
+  saplings at y 100 453 -> 412; Labskip fit 460 -> 424, 5.6M -> 3.9M, 4.0
+  -> 3.3 ms. Pictures identical (0.000% of pixels) with the surface
+  opaque; underground (the surface faded) 0.2% differ - the see-through
+  surface pieces blend in another order (three.js sorts them by their
+  bounding sphere, which culling moves), neither more right. Not culled:
+  a camera at ground height (may be under the coarse terrain), and the
+  tree spot (428, *, -4) at the sinkhole's rim - lines to the lab under it
+  pass over the hole: ~1,400 draw calls there, 70% caves / the lab. Next
+  candidates: a tighter sinkhole test (march the line against the heights),
+  BatchedMesh by material. Before (same day): 60
   phone-only copies within 2 cm (70.6M -> 67.9M; a quarter everywhere had
   holed the trees and sunk Cave 6's floor).
 - **Collision is fetched when switched on** (2026-10-02): every collider's

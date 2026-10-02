@@ -24,6 +24,8 @@
 // error, at its scale and distance from the camera, is under FAR_PIXELS on
 // the screen - each model is then one InstancedMesh per copy, its instances
 // split between them by distance (split()). Collision keeps the full mesh.
+// split() also leaves out instances outside the view cone, and those under
+// the ground seen from above it (not over the sinkhole) - every model.
 // The server sends .bin / .json Brotli'd or gzipped (the upload's copies).
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
@@ -50,6 +52,16 @@ const SPLIT_MOVE = 2;                      // metres the camera moves before the
 const CULL_MARGIN = 30 * Math.PI / 180;
 const CULL_TURN = 10 * Math.PI / 180;
 const CULLED = 254;                        // split(): level of an instance not drawn
+// Under the ground: with the camera above opaque terrain, an instance wholly
+// below it is hidden by it - except through the sinkhole (the terrain's
+// holes), so one whose line from the camera passes over a hole is kept.
+// The terrain is drawn from the heights' samples (every COARSE_MAX-th away
+// from the detail patch, map3d.js COARSE; a cell touching a hole left out):
+// its surface over a footprint is never below the lowest sample within
+// COARSE_MAX samples of it.
+const COARSE_MAX = 4;                      // samples (map3d.js COARSE: 2, phones 4)
+const GROUND_BLOCK = 8;                    // samples per block of the min / max grid
+const UNDER_MARGIN = 0.5;                  // metres
 
 // Kinds of model, each with its own switch (the map's "separate toggles per
 // kind"; 2026-10-01). The game's layers do not say it alone - trees are in
@@ -184,6 +196,8 @@ export class World {
     this.look = new THREE.Vector3();  // the camera's forward direction, three.js space (update())
     this.cone = 0;                    // half angle from forward to the screen's corner + CULL_MARGIN; 0 = no culling
     this.lookAt = new THREE.Vector3();    // the forward direction the copies were last picked for
+    this.grid = null;                 // the terrain's heights by block, for culling under the ground (setGround)
+    this.hideUnder = false;           // the camera above opaque terrain: instances under it not drawn
     this.staleAt = 0;
     this.show = { trees: true, rocks: true, props: true, pickups: true, collision: false };
     try {
@@ -294,7 +308,18 @@ export class World {
     this.ground.groundMap.value = t;
     this.ground.groundRect.value.set(m.x0, m.z0, m.sizeX, m.sizeZ);
     this.ground.groundOn.value = 1;
+    this.grid = groundGrid(m, f, holes);
+    // Instances already drawn learn what is under the ground.
+    for (const [, mesh] of this.drawn) if (mesh.userData.far) this.markUnder(mesh.userData.far);
+    this.splitAt = null; this.next = 0;
     this.changed();
+  }
+
+  /// far.under[i] = 1: instance i is wholly below the terrain (underGround).
+  markUnder(far) {
+    const { spheres, n, under } = far, g = this.grid;
+    for (let i = 0; i < n; i++) under[i] = g && underGround(g, spheres[i * 5], spheres[i * 5 + 1], spheres[i * 5 + 2], spheres[i * 5 + 3]) ? 1 : 0;
+    far.level.fill(255);
   }
 
   /// Water off: every lake's surface hidden (the sea is map3d.js's).
@@ -308,6 +333,7 @@ export class World {
   /// Surface models fade with the terrain when the view is underground.
   setFade(f) {
     if (f === this.fade) return;
+    if ((f > 0.99) !== (this.fade > 0.99)) { this.splitAt = null; this.next = 0; }   // culling under the ground on / off
     this.fade = f;
     for (const [mi, mesh] of this.drawn) this.applyFade(mi, mesh);
   }
@@ -351,7 +377,9 @@ export class World {
     if (eye) { this.eye.copy(eye); this.focal = focal; }
     if (look) { this.look.copy(look); this.cone = Math.min(Math.PI, corner + CULL_MARGIN); }
     const s = this.splitAt;
-    if (!s || turned || this.focal !== s[3] || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
+    const hide = this.fade > 0.99 && !!this.grid && aboveGround(this.grid, this.eye.x, this.eye.y, this.eye.z);
+    if (!s || turned || this.focal !== s[3] || hide !== this.hideUnder || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
+      this.hideUnder = hide;
       this.splitAt = [this.eye.x, this.eye.y, this.eye.z, this.focal];
       this.lookAt.copy(this.look);
       for (const [, mesh] of this.drawn) if (mesh.userData.far) this.split(mesh);
@@ -628,14 +656,10 @@ export class World {
         const sf = surface.has(mi);
         mat = model.mats.length > 1 ? model.mats.map(x => this.material(x, sf)) : this.material(model.mats[0] ?? -1, sf);
       }
+      // Every rendered model goes through split(): one without far copies is
+      // still culled per instance (its draw call gone when none is in view).
       const copies = gs.slice(1).every(x => x) ? gis.slice(1).map((gi, k) => [gs[k + 1], this.meta.meshes[gi].e]) : [];
-      const mesh = model.kind === "collide" ? this.collisionMesh(g, list)
-        : copies.length ? this.farMesh(g, copies, mat, list) : new THREE.InstancedMesh(g, mat, list.length);
-      if (model.kind !== "collide" && !copies.length) {
-        list.forEach((m, i) => mesh.setMatrixAt(i, m));
-        mesh.instanceMatrix.needsUpdate = true;
-        mesh.computeBoundingSphere();
-      }
+      const mesh = model.kind === "collide" ? this.collisionMesh(g, list) : this.farMesh(g, copies, mat, list);
       mesh.userData.surface = surface.has(mi);
       mesh.visible = this.wanted(mi);
       this.applyFade(mi, mesh);
@@ -645,11 +669,11 @@ export class World {
     this.changed();
   }
 
-  /// A model with far copies: one InstancedMesh per mesh (full, then the
-  /// copies), each able to hold every instance; split() deals them out, and
+  /// A rendered model: one InstancedMesh per mesh (full, then the far copies,
+  /// if any), each able to hold every instance; split() deals them out, and
   /// each culls by a sphere round its own instances (the full mesh's are the
   /// near ones: off screen behind the camera, not drawn).
-  /// copies: [[geometry, error], ...] lightest last.
+  /// copies: [[geometry, error], ...] lightest last; none = culling only.
   farMesh(g, copies, mat, list) {
     const holder = new THREE.Group(), n = list.length;
     const mats = new Float32Array(n * 16), spheres = new Float32Array(n * 5);
@@ -668,7 +692,8 @@ export class World {
       return { mesh, err };
     });
     holder.material = mat;
-    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255) };   // 255: never picked
+    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255), under: new Uint8Array(n) };   // 255: never picked
+    this.markUnder(holder.userData.far);
     holder.dispose = () => { for (const ch of holder.children) ch.dispose(); };
     this.split(holder);
     return holder;
@@ -678,22 +703,25 @@ export class World {
   /// instance's scale s and distance d from the camera (to its bounding
   /// sphere), stays under farPixels: err * s * focal / d <= farPixels.
   /// An instance whose bounding sphere is outside the view cone (this.cone
-  /// round this.look) is drawn by none of them.
+  /// round this.look), or wholly under the ground seen from above it
+  /// (hideUnder, under, overHole), is drawn by none of them.
   /// Only a model whose instances changed mesh is written and sent again
   /// (only the used part of each buffer): the camera moving a few metres
   /// moves few instances, and a split of every far instance in view costs
   /// ~1 ms.
   split(holder) {
-    const { levels, mats, spheres, n, level } = holder.userData.far, last = levels.length - 1;
+    const { levels, mats, spheres, n, level, under } = holder.userData.far, last = levels.length - 1;
     const k = this.farPixels > 0 && this.focal > 0 ? this.focal / this.farPixels : Infinity;
     const ex = this.eye.x, ey = this.eye.y, ez = this.eye.z;
     const lx = this.look.x, ly = this.look.y, lz = this.look.z, cone = this.cone, cull = cone > 0 && cone < Math.PI;
+    const hide = this.hideUnder && this.grid;
     let changed = false;
     for (let i = 0; i < n; i++) {
       const o = i * 5, dx = spheres[o] - ex, dy = spheres[o + 1] - ey, dz = spheres[o + 2] - ez;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz), r = spheres[o + 3];
       let L = 0;
       if (cull && d > r && Math.acos(Math.max(-1, Math.min(1, (dx * lx + dy * ly + dz * lz) / d))) > cone + Math.asin(r / d)) L = CULLED;
+      else if (hide && under[i] && !overHole(hide, ex, ez, spheres[o], spheres[o + 2], r)) L = CULLED;
       else {
         const allowed = Math.max(0, d - r) / (spheres[o + 4] * k);
         while (L < last && levels[L + 1].err <= allowed) L++;
@@ -758,3 +786,81 @@ export class World {
     this.scene.remove(this.group);
   }
 }
+
+/// The terrain's heights (Unity y): every sample, the lowest of each
+/// GROUND_BLOCK x GROUND_BLOCK block, and the blocks holding a hole (as
+/// Unity x / z boxes) - what underGround / aboveGround / overHole read.
+/// f: every sample's height, -1e9 on a hole (setGround).
+function groundGrid(m, f, holes) {
+  const n = m.grid, B = GROUND_BLOCK, nb = Math.ceil(n / B);
+  const lo = new Float32Array(nb * nb).fill(Infinity);
+  const cx = m.sizeX / (n - 1), cz = m.sizeZ / (n - 1), holeBoxes = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const b = Math.floor(j / B) * nb + Math.floor(i / B), y = f[j * n + i];
+    if (y < lo[b]) lo[b] = y;
+  }
+  if (holes) for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
+    let any = false;
+    for (let j = bj * B; j < Math.min(n, bj * B + B) && !any; j++)
+      for (let i = bi * B; i < Math.min(n, bi * B + B); i++) if (holes[j * n + i]) { any = true; break; }
+    // The drawn terrain leaves out the cells touching a hole: the box reaches COARSE_MAX + 1 samples further.
+    const e = COARSE_MAX + 1;
+    if (any) holeBoxes.push([m.x0 + (bi * B - e) * cx, m.z0 + (bj * B - e) * cz, m.x0 + (bi * B + B - 1 + e) * cx, m.z0 + (bj * B + B - 1 + e) * cz]);
+  }
+  return { x0: m.x0, z0: m.z0, cx, cz, n, nb, f, lo, holeBoxes };
+}
+
+/// The blocks covering Unity x / z +- r, widened by COARSE_MAX samples:
+/// [bi0, bj0, bi1, bj1], or null when it reaches outside the terrain.
+function blocks(g, x, z, r) {
+  const i0 = Math.floor((x - r - g.x0) / g.cx) - COARSE_MAX, i1 = Math.ceil((x + r - g.x0) / g.cx) + COARSE_MAX;
+  const j0 = Math.floor((z - r - g.z0) / g.cz) - COARSE_MAX, j1 = Math.ceil((z + r - g.z0) / g.cz) + COARSE_MAX;
+  if (i0 < 0 || j0 < 0 || i1 > g.n - 1 || j1 > g.n - 1) return null;
+  return [Math.floor(i0 / GROUND_BLOCK), Math.floor(j0 / GROUND_BLOCK), Math.floor(i1 / GROUND_BLOCK), Math.floor(j1 / GROUND_BLOCK)];
+}
+
+/// A sphere (three.js space) wholly below the drawn terrain over it.
+function underGround(g, x, y, z, r) {
+  const b = blocks(g, x, -z, r);
+  if (!b) return false;
+  let low = Infinity;
+  for (let bj = b[1]; bj <= b[3]; bj++) for (let bi = b[0]; bi <= b[2]; bi++) low = Math.min(low, g.lo[bj * g.nb + bi]);
+  return y + r < low - UNDER_MARGIN;
+}
+
+/// The camera (three.js space) above the drawn terrain under it: higher than
+/// every sample within COARSE_MAX of it (the triangles over it join those).
+function aboveGround(g, x, y, z) {
+  const i = Math.floor((x - g.x0) / g.cx), j = Math.floor((-z - g.z0) / g.cz), e = COARSE_MAX;
+  if (i - e < 0 || j - e < 0 || i + 1 + e > g.n - 1 || j + 1 + e > g.n - 1) return false;
+  for (let b = j - e; b <= j + 1 + e; b++) for (let a = i - e; a <= i + 1 + e; a++) if (g.f[b * g.n + a] + UNDER_MARGIN >= y) return false;
+  return true;
+}
+
+/// Could a line from the camera (ex, ez) to a sphere (x, z, radius r; three.js
+/// space) pass over a hole? The lines to the sphere's points stay within r of
+/// the one to its centre, seen from above.
+function overHole(g, ex, ez, x, z, r) {
+  const ax = ex, az = -ez, dx = x - ex, dz = -z + ez;
+  for (const h of g.holeBoxes) {
+    // The segment against the box widened by r (slabs, x then z).
+    const sx = slab(0, 1, ax, dx, h[0] - r, h[2] + r);
+    if (sx && slab(sx[0], sx[1], az, dz, h[1] - r, h[3] + r)) return true;
+  }
+  return false;
+}
+
+const slabOut = [0, 0];
+/// The part of [t0, t1] where a + t * d is within [lo, hi], or null.
+function slab(t0, t1, a, d, lo, hi) {
+  if (Math.abs(d) < 1e-9) { if (a < lo || a > hi) return null; }
+  else {
+    let u = (lo - a) / d, v = (hi - a) / d;
+    if (u > v) { const t = u; u = v; v = t; }
+    t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+    if (t0 > t1) return null;
+  }
+  slabOut[0] = t0; slabOut[1] = t1;
+  return slabOut;
+}
+

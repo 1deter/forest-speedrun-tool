@@ -620,11 +620,15 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, no release, live):** **view-cone culling** of far instances
-(docs/website.md *Load size*): the Labskip view 23.5M -> 5.6M triangles,
-761 -> 460 draw calls, 7.8 -> 3.5 ms (phone viewport 8.1 -> 2.8 ms), the
-same picture; not yet seen by the author (watch the screen's edges while
-orbiting fast). Before: **far copies** in the 3D world (docs/website.md
+only, no release, live):** **every model culled per instance + under the
+ground** (docs/website.md *Load size*): with the camera above opaque
+terrain, instances wholly under it are not drawn unless seen over the
+sinkhole - plane wreck view 461 -> 305 draw calls (5.1 -> 3.9 ms),
+overview 498 -> 293, Labskip 460 -> 424; pictures pixel-identical. Before:
+**view-cone culling** of far instances: the Labskip view 23.5M -> 5.6M
+triangles, 761 -> 460 draw calls, 7.8 -> 3.5 ms (phone viewport 8.1 -> 2.8
+ms), the same picture; neither yet seen by the author (watch the screen's
+edges while orbiting fast). Before: **far copies** in the 3D world (docs/website.md
 *Load size*): each heavy mesh has lighter copies (meshoptimizer, leaf cards
 thinned and grown; the author: "seems to work well"), and the page draws each instance with the lightest one
 whose error is under a pixel at its distance - live, every device: four
@@ -674,9 +678,10 @@ one (a preset save as a start state, `run = <category name>`, in
    on the view-cone culling (orbit fast, Follow playback: no gaps at the
    screen's edges); the load-order look (gotcha 83, an investigation).
    Also (author, 2026-10-02): the web replay as fast as possible - done
-   so far: the *Detail* button, the far copies, view-cone culling; next
-   candidates: fewer draw calls (~460 a view; models without far copies
-   are not culled per instance).
+   so far: the *Detail* button, the far copies, view-cone culling, every
+   model culled per instance + under the ground; next candidates: the
+   sinkhole rim (tree spot ~1,400 draw calls, 70% the lab / caves - a
+   tighter over-the-hole test), BatchedMesh by material.
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
