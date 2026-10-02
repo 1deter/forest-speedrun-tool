@@ -598,9 +598,17 @@ grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
 Author's notes (2026-10-02, live site): view-cone culling "fine"; in a
-cave, *Follow*'s camera sits inside the rock and a wall covers part of the
-view (no collision between camera and ghost - a fix: pull the camera in
-when the collision mesh is between them); caves are not drawn on the 2D
+cave, *Follow*'s camera sat inside the rock and a wall covered part of the
+view - **fixed 2026-10-02**: `World3D.firstHit` finds the first solid rock /
+prop face (no cut-outs, front faces only) on the line ghost -> camera, and
+Follow pulls the camera 0.4 m in front of it at once (eases back out;
+closer than 4 m it aims lower so the ghost stays on screen). Not the
+collision meshes (fetched only with Collision on) but the drawn ones, by
+instance sphere, then triangles in groups of 32 with a box each (made once
+per mesh): ~0.2 ms a test (all triangles: ~13 ms). The cut plane alone
+left the 4 m in front of the ghost. Checked headless on 1st logboost's runs
+(live API proxied to a local site): a clear passage instead of sliced
+rock; not yet seen by the author. Caves are not drawn on the 2D
 map; in the photo map the overlook's shadow falls on the snow hills but
 the overlook itself is missing (likely: the capture culls the section,
 the sun's shadow pass does not - unchecked); the south mountains' 3D

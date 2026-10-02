@@ -27,6 +27,10 @@ const MOBILE = matchMedia("(pointer: coarse)").matches;
 const COARSE = MOBILE ? 4 : 2;
 const DETAIL = MOBILE ? 320 : 512; // the runs' patch, in samples per side at full resolution
 const UNDER = 3;                  // metres below the ground that count as underground (map.js)
+// Follow: the camera looks at FOLLOW_HEAD metres over the ghost, keeps
+// WALL_GAP in front of a wall, comes no closer than MIN_FOLLOW, and closer
+// than FOLLOW_LOW aims lower.
+const FOLLOW_HEAD = 1.2, WALL_GAP = 0.4, MIN_FOLLOW = 0.8, FOLLOW_LOW = 4;
 const ORDER = { terrain: 0, sea: 1, zone: 2, line: 3, xray: 4, ghost: 5, label: 6 };
 
 const P = (x, y, z) => new THREE.Vector3(x, y, -z);
@@ -167,6 +171,8 @@ class Map3D {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, 1, 30000);
     this.lookDir = new THREE.Vector3();
+    this.followDir = new THREE.Vector3();
+    this.followLook = new THREE.Vector3();
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.6 * Math.PI));
     const sun = new THREE.DirectionalLight(0xffffff, 0.55 * Math.PI);
     sun.position.set(-0.6, 1, -0.5);   // north-west, as the relief's own light
@@ -175,7 +181,9 @@ class Map3D {
     this.runs = []; this.zones = []; this.time = 0; this.focus = null; this.layer = "canopy";
     this.mode = "orbit";
     this.orbit = { target: new THREE.Vector3(0, 50, 0), yaw: 0, pitch: 0.75, dist: 3500 };
-    this.follow = { yawOff: 0, pitch: 0.22, dist: 12, heading: null, target: null };
+    // dist: the wanted distance; cur: the camera's, pulled in front of a wall
+    // (followCamera()); hitKey / hitAt / hit: the last wall test.
+    this.follow = { yawOff: 0, pitch: 0.22, dist: 12, heading: null, target: null, cur: null, hitKey: "", hitAt: 0, hit: Infinity };
     this.fade = 1; this.fadeTo = 1;
     this.lines = []; this.ghosts = []; this.labels = [];
     this.zoneGroup = new THREE.Group(); this.scene.add(this.zoneGroup);
@@ -311,11 +319,11 @@ class Map3D {
   /// "orbit" or "follow" (behind the focused run's ghost).
   setMode(mode) {
     this.mode = mode;
-    if (mode === "follow") { this.follow.yawOff = 0; this.follow.heading = null; this.follow.target = null; }
+    if (mode === "follow") { this.follow.yawOff = 0; this.follow.heading = null; this.follow.target = null; this.follow.cur = null; }
     else if (this.follow.target) {
       // Orbit from where the follow camera was: no jump.
       const f = this.follow, o = this.orbit;
-      o.target.copy(f.target); o.yaw = (f.heading || 0) + f.yawOff; o.pitch = f.pitch; o.dist = Math.max(8, f.dist);
+      o.target.copy(f.target); o.yaw = (f.heading || 0) + f.yawOff; o.pitch = f.pitch; o.dist = Math.max(8, f.cur ?? f.dist);
     }
     this.dirty = true;
   }
@@ -713,12 +721,15 @@ class Map3D {
   }
 
   /// Behind the ghost, facing where it goes (its last 0.4 s), eased; drag to
-  /// look around it, wheel / pinch for distance.
+  /// look around it, wheel / pinch for distance. A solid model between the
+  /// ghost and the camera (a cave wall, a rock, a building) pulls the camera
+  /// in front of it at once; it eases back out once the way is clear
+  /// (author, 2026-10-02: Follow's camera sat in a cave's rock).
   followCamera(run, dt) {
     const f = this.follow, t = this.time;
     const s = RunMap.at(run.path, t), b = RunMap.at(run.path, t - 0.4);
     if (!s) return false;
-    const target = new THREE.Vector3(s[1], s[2] + 1.2, -s[3]);
+    const target = new THREE.Vector3(s[1], s[2] + FOLLOW_HEAD, -s[3]);
     const dx = s[1] - b[1], dz = -(s[3] - b[3]);
     let moving = false;
     if (Math.hypot(dx, dz) > 0.05) {
@@ -733,10 +744,26 @@ class Map3D {
     else f.target.lerp(target, dt ? 1 - Math.exp(-dt * 12) : 1);
     if (f.target.distanceToSquared(target) > 1e-4) moving = true;
     const yaw = f.heading + f.yawOff, c = this.camera;
-    c.position.set(Math.sin(yaw) * Math.cos(f.pitch), Math.sin(f.pitch), Math.cos(yaw) * Math.cos(f.pitch))
-      .multiplyScalar(f.dist).add(f.target);
-    c.lookAt(f.target);
-    this.clip(f.dist);
+    const back = this.followDir.set(Math.sin(yaw) * Math.cos(f.pitch), Math.sin(f.pitch), Math.cos(yaw) * Math.cos(f.pitch));
+    // The wall test: again when the camera's line changed (a centimetre, a
+    // tenth of a degree) or every 0.3 s (chunks arriving).
+    const now = performance.now();
+    const key = [f.target.x, f.target.y, f.target.z].map(v => Math.round(v * 100)).join() + "," + Math.round(yaw * 1000) + "," + Math.round(f.pitch * 1000) + "," + Math.round(f.dist * 100);
+    if (key !== f.hitKey || now - f.hitAt > 300) {
+      f.hitKey = key; f.hitAt = now;
+      f.hit = this.world.firstHit(f.target, c.position.copy(back).multiplyScalar(f.dist).add(f.target));
+    }
+    const limit = f.hit === Infinity ? f.dist : Math.max(MIN_FOLLOW, f.hit - WALL_GAP);
+    if (f.cur === null || limit < f.cur || !dt) f.cur = limit;
+    else if (f.cur < limit) {
+      f.cur += (limit - f.cur) * (1 - Math.exp(-dt * 4));
+      if (limit - f.cur < 0.01) f.cur = limit; else moving = true;
+    }
+    c.position.copy(back).multiplyScalar(f.cur).add(f.target);
+    // Pulled in close, aim lower (towards the ghost from 1.2 m over it), or
+    // the ghost drops off the bottom of the screen.
+    c.lookAt(this.followLook.copy(f.target).setY(f.target.y - FOLLOW_HEAD * Math.max(0, 1 - f.cur / FOLLOW_LOW)));
+    this.clip(f.cur);
     return moving;
   }
 

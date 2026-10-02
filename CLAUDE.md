@@ -621,7 +621,10 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, nothing shipped):** **BatchedMesh by material tried and dropped** -
+only):** **Follow's camera no longer sits in cave rock** - a solid model
+between the ghost and the camera pulls it in front (docs/website.md, the
+author's notes); checked headless on 1st logboost, not yet seen by the
+author. Before (nothing shipped): **BatchedMesh by material tried and dropped** -
 2-4x the submit time (Chrome's multi-draw is a loop: an item costs a draw
 call) and the materials barely repeat (623 distinct textures); numbers in
 docs/website.md *Load size*; the author's notes on the 3D view recorded.
@@ -688,10 +691,10 @@ one (a preset save as a start state, `run = <category name>`, in
    *Detail* button, the far copies, view-cone culling (author: "fine"),
    every model culled per instance + under the ground, ground-level
    culling; BatchedMesh tried and dropped (slower); the remaining lever is
-   texture arrays in the export - only if frame times call for it. The
-   next item: Follow's camera through cave walls. Then the author's
-   2026-10-02 notes: Follow's camera goes through cave walls; caves not
-   drawn on the 2D map; the overlook's shadow on the snow hills in the
+   texture arrays in the export - only if frame times call for it;
+   Follow's camera through cave walls fixed. The next item, from the
+   author's 2026-10-02 notes: caves not
+   drawn on the 2D map; then the overlook's shadow on the snow hills in the
    photo map without the overlook. The load-order look (gotcha 83, an
    investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).

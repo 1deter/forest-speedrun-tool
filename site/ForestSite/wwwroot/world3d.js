@@ -64,6 +64,24 @@ const CULLED = 254;                        // split(): level of an instance not 
 const COARSE_MAX = 4;                      // samples (map3d.js COARSE: 2, phones 4)
 const GROUND_BLOCK = 8;                    // samples per block of the min / max grid
 const UNDER_MARGIN = 0.5;                  // metres
+const HIT_GROUP = 32;                      // triangles per box in firstHit()'s groups
+
+/// Does the segment o + t d, t in [0, tMax], touch the box at boxes[b..b+5]
+/// (min x, y, z, max x, y, z)? Slabs.
+function segmentBox(o, d, tMax, boxes, b) {
+  let t0 = 0, t1 = tMax;
+  for (let j = 0; j < 3; j++) {
+    const oj = j === 0 ? o.x : j === 1 ? o.y : o.z, dj = j === 0 ? d.x : j === 1 ? d.y : d.z;
+    const lo = boxes[b + j], hi = boxes[b + j + 3];
+    if (Math.abs(dj) < 1e-12) { if (oj < lo || oj > hi) return false; continue; }
+    let a = (lo - oj) / dj, c = (hi - oj) / dj;
+    if (a > c) { const x = a; a = c; c = x; }
+    if (a > t0) t0 = a;
+    if (c < t1) t1 = c;
+    if (t0 > t1) return false;
+  }
+  return true;
+}
 
 // Kinds of model, each with its own switch (the map's "separate toggles per
 // kind"; 2026-10-01). The game's layers do not say it alone - trees are in
@@ -201,6 +219,11 @@ export class World {
     this.grid = null;                 // the terrain's heights by block, for culling under the ground (setGround)
     this.hideUnder = false;           // the camera above opaque terrain: instances under it not drawn
     this.staleAt = 0;
+    // firstHit()'s triangle groups per geometry, and its scratch.
+    this.hitCache = new WeakMap();
+    this.hitRay = new THREE.Raycaster();
+    this.hitM = new THREE.Matrix4(); this.hitInv = new THREE.Matrix4();
+    for (const k of ["hitDir", "hitO", "hitE", "hitP", "hitA", "hitB", "hitC", "hitF0", "hitF1", "hitF2"]) this[k] = new THREE.Vector3();
     this.show = { trees: true, rocks: true, props: true, pickups: true, collision: false };
     try {
       const s = JSON.parse(localStorage.getItem("forest.world3d") || "null");
@@ -362,6 +385,112 @@ export class World {
     n.divideScalar(d);
     p.normal.copy(n);
     p.constant = Math.min(CUT_MARGIN, d * 0.5) - n.dot(target);   // kept: beyond target - n * margin
+  }
+
+  /// The first solid thing on the line from `from` towards `to` (three.js
+  /// space): its distance from `from`, or Infinity. Solid = a drawn rock or
+  /// prop with no cut-out material, hit on a face that looks at `from` (the
+  /// side the game draws). Follow's camera is pulled in front of it, so a
+  /// cave wall between the ghost and the camera never covers the view. Tests
+  /// each model's instances by bounding sphere, then the full mesh's
+  /// triangles of the few the line passes through, by groups (hitGroups()):
+  /// a cave piece is ~20k triangles, and testing them all cost ~13 ms.
+  firstHit(from, to) {
+    const dir = this.hitDir.subVectors(to, from), len = dir.length();
+    if (!this.meta || len < 0.01) return Infinity;
+    dir.divideScalar(len);
+    let best = len;
+    for (const [mi, holder] of this.drawn) {
+      const far = holder.userData.far;
+      if (!far || !holder.visible || !this.solid(mi)) continue;
+      const b = far.box;
+      if (Math.max(from.x, to.x) < b[0] || Math.min(from.x, to.x) > b[3] || Math.max(from.y, to.y) < b[1]
+        || Math.min(from.y, to.y) > b[4] || Math.max(from.z, to.z) < b[2] || Math.min(from.z, to.z) > b[5]) continue;
+      const { spheres, mats, n } = far, geo = far.levels[0].mesh.geometry;
+      for (let i = 0; i < n; i++) {
+        const o = i * 5, r = spheres[o + 3];
+        const cx = spheres[o] - from.x, cy = spheres[o + 1] - from.y, cz = spheres[o + 2] - from.z;
+        const t = Math.max(0, Math.min(best, cx * dir.x + cy * dir.y + cz * dir.z));
+        const px = cx - dir.x * t, py = cy - dir.y * t, pz = cz - dir.z * t;
+        if (px * px + py * py + pz * pz > r * r) continue;
+        best = this.hitInstance(geo, this.hitM.fromArray(mats, i * 16), from, dir, best);
+      }
+    }
+    return best < len ? best : Infinity;
+  }
+
+  /// The nearest front face of one instance (matrix m) on the line from
+  /// `from` along dir closer than best: its distance, or best. The affine
+  /// map keeps ratios along the line, so the local segment's fraction is the
+  /// world one.
+  hitInstance(geo, m, from, dir, best) {
+    const grp = this.hitGroups(geo);
+    if (!grp) return best;
+    const inv = this.hitInv.copy(m).invert();
+    const o = this.hitO.copy(from).applyMatrix4(inv);
+    const d = this.hitE.copy(dir).multiplyScalar(best).add(from).applyMatrix4(inv).sub(o);   // local segment, t in [0, 1]
+    const ray = this.hitRay.ray;
+    ray.origin.copy(o); ray.direction.copy(d);
+    const dd = d.lengthSq(), pos = geo.attributes.position, idx = geo.index, boxes = grp.boxes, tris = grp.tris;
+    let tBest = 1, found = -1;
+    for (let g = 0; g < grp.count; g++) {
+      if (!segmentBox(o, d, tBest, boxes, g * 6)) continue;
+      const end = Math.min(tris, (g + 1) * HIT_GROUP);
+      for (let k = g * HIT_GROUP; k < end; k++) {
+        const a = idx ? idx.getX(k * 3) : k * 3, b = idx ? idx.getX(k * 3 + 1) : k * 3 + 1, c = idx ? idx.getX(k * 3 + 2) : k * 3 + 2;
+        const p = ray.intersectTriangle(this.hitA.fromBufferAttribute(pos, a), this.hitB.fromBufferAttribute(pos, b),
+          this.hitC.fromBufferAttribute(pos, c), false, this.hitP);
+        if (!p) continue;
+        const t = p.sub(o).dot(d) / dd;
+        if (t < 0 || t >= tBest || !this.facing(pos, m, a, b, c, dir)) continue;
+        tBest = t; found = k;
+      }
+    }
+    return found < 0 ? best : tBest * best;
+  }
+
+  /// Triangles in groups of HIT_GROUP (index order: neighbours in a mesh),
+  /// each with its local bounding box - a one-level tree, made once per mesh.
+  hitGroups(geo) {
+    let grp = this.hitCache.get(geo);
+    if (grp !== undefined) return grp;
+    const pos = geo.attributes.position, idx = geo.index;
+    if (!pos) { this.hitCache.set(geo, null); return null; }
+    const tris = Math.floor((idx ? idx.count : pos.count) / 3), count = Math.ceil(tris / HIT_GROUP);
+    const boxes = new Float32Array(count * 6);
+    for (let g = 0; g < count; g++) {
+      const b = g * 6;
+      boxes[b] = boxes[b + 1] = boxes[b + 2] = Infinity;
+      boxes[b + 3] = boxes[b + 4] = boxes[b + 5] = -Infinity;
+      const end = Math.min(tris * 3, (g + 1) * HIT_GROUP * 3);
+      for (let j = g * HIT_GROUP * 3; j < end; j++) {
+        const v = idx ? idx.getX(j) : j;
+        const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+        if (x < boxes[b]) boxes[b] = x; if (x > boxes[b + 3]) boxes[b + 3] = x;
+        if (y < boxes[b + 1]) boxes[b + 1] = y; if (y > boxes[b + 4]) boxes[b + 4] = y;
+        if (z < boxes[b + 2]) boxes[b + 2] = z; if (z > boxes[b + 5]) boxes[b + 5] = z;
+      }
+    }
+    grp = { boxes, count, tris };
+    this.hitCache.set(geo, grp);
+    return grp;
+  }
+
+  /// Does the face a, b, c, as drawn (front faces counter-clockwise in world
+  /// space - the instances' matrices mirror, geometry() turned the indices),
+  /// look back along dir?
+  facing(pos, m, a, b, c, dir) {
+    const A = this.hitF0.fromBufferAttribute(pos, a).applyMatrix4(m);
+    const B = this.hitF1.fromBufferAttribute(pos, b).applyMatrix4(m).sub(A);
+    const C = this.hitF2.fromBufferAttribute(pos, c).applyMatrix4(m).sub(A);
+    return B.cross(C).dot(dir) < 0;
+  }
+
+  /// A model the camera cannot see through: a rock or a prop, no cut-outs.
+  solid(mi) {
+    const kind = this.kinds[mi];
+    if (kind !== "rocks" && kind !== "props") return false;
+    return this.meta.models[mi].mats.every(x => !(x >= 0 && this.meta.materials[x].cut));
   }
 
   /// Each frame: which chunks to have, given the camera's target (a Vector3
@@ -682,12 +811,17 @@ export class World {
     const holder = new THREE.Group(), n = list.length;
     const mats = new Float32Array(n * 16), spheres = new Float32Array(n * 5);
     const bs = g.boundingSphere, c = new THREE.Vector3();
+    const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];   // every instance's (firstHit())
     list.forEach((m, i) => {
       mats.set(m.elements, i * 16);
       const e = m.elements, s = Math.sqrt(Math.max(e[0] * e[0] + e[1] * e[1] + e[2] * e[2],
         e[4] * e[4] + e[5] * e[5] + e[6] * e[6], e[8] * e[8] + e[9] * e[9] + e[10] * e[10]));
       c.copy(bs.center).applyMatrix4(m);
       spheres.set([c.x, c.y, c.z, bs.radius * s, s], i * 5);
+      for (let j = 0; j < 3; j++) {
+        box[j] = Math.min(box[j], c.getComponent(j) - bs.radius * s);
+        box[j + 3] = Math.max(box[j + 3], c.getComponent(j) + bs.radius * s);
+      }
     });
     const levels = [[g, 0], ...copies].map(([geo, err]) => {
       const mesh = new THREE.InstancedMesh(geo, mat, n);
@@ -696,7 +830,7 @@ export class World {
       return { mesh, err };
     });
     holder.material = mat;
-    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255), under: new Uint8Array(n) };   // 255: never picked
+    holder.userData.far = { levels, mats, spheres, box, n, level: new Uint8Array(n).fill(255), under: new Uint8Array(n) };   // 255: never picked
     this.markUnder(holder.userData.far);
     holder.dispose = () => { for (const ch of holder.children) ch.dispose(); };
     this.split(holder);
