@@ -321,3 +321,5 @@ Confirmed 2026-10-02 (v0.24.220, bridge + local site): category values and the a
 Confirmed 2026-10-02 (site only, local site): /admin's item caps picker - hints from the game's 231 items (prefix first; listed items and Log left out), Enter / click add at the game's cap, cap edited, Remove, an old unknown name tagged "not a game item", Save wrote `cap Rock = 75` etc. as v5; no sideways scroll at 375 px. Live `items.json` served. Not seen by the author.
 
 Confirmed 2026-10-02 (site, the author on the live site): the 2D map smooth at max zoom - the relief drawn only on screen (`reliefPart`; it was ~700,000 px wide at 200 px/m), one draw per frame (`draw()` asks, `drawNow()` draws), bilinear when enlarging, zoom out capped at the world x 1.5.
+
+Confirmed 2026-10-02 (site, the author on the live site: "seems to work well"): the 3D world's far copies (build 1790961787) - each instance drawn with the lightest copy under a pixel of error at its distance; device not named, so a real phone stays to check.

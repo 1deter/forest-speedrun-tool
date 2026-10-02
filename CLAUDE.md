@@ -622,7 +622,7 @@ is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
 only, no release, live):** **far copies** in the 3D world (docs/website.md
 *Load size*): each heavy mesh has lighter copies (meshoptimizer, leaf cards
-thinned and grown), and the page draws each instance with the lightest one
+thinned and grown; the author: "seems to work well"), and the page draws each instance with the lightest one
 whose error is under a pixel at its distance - live, every device: four
 surface views 101.2M -> 33.0M triangles, 48.3 -> 46.0 MB, the 4080's frame
 11.2 -> 6.8 ms; the pictures the same by eye. World re-uploaded (build
