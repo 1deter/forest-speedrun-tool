@@ -286,7 +286,8 @@ How it works:
   No category known: the defaults (everything locked, Reload save on
   death the runner's).
 
-Next (author, 2026-10-02, after v0.24.219):
+Done in v0.24.220 (author, 2026-10-02, after v0.24.219; confirmed over
+the bridge against a local site):
 - **Values, not only switches.** A manhunt host sets the numbers
   (sxczurass): the category carries the log cap and item caps (item by
   name -> max) under their features. *Forced on* applies the category's
@@ -300,6 +301,15 @@ Next (author, 2026-10-02, after v0.24.219):
   attempt starts, with an ETag (the site answers 304 when unchanged). A
   new version applies at the next attempt, never mid-attempt. The button
   stays as a manual refresh.
+- How: `RunCategory.LogCap` / `ItemCaps` (`logcap = 8`, `cap Rock = 50`;
+  names are the game's item names, matched case- and space-blind by
+  `InventoryReader.IdForName`; a log in the caps is refused - logs have
+  the log cap); `InventoryModule.ResolveRunCaps` (per category version,
+  again once the item list is readable); `RunModeModule.Categories`
+  (`RefreshEvery` 120 s, `CheckCategoriesSoon` on an attempt's end and a
+  run spot's start, `_etag`; a change during a run is a notice + the Runs
+  tab line "from the next attempt"); `WebRequest.Send` with headers and
+  one response header back; the site's `Categories.ETag` / `Unchanged`.
 
 ## Other uses of locked settings
 

@@ -611,16 +611,22 @@ identity.
 
 ## Current status
 
-**Released: v0.24.219** (2026-10-02). The author runs it via the in-game
-updater (Slot 1). **535 tests** (+ 76 site tests).
+**Released: v0.24.220** (2026-10-02). The author runs it via the in-game
+updater (Slot 1). **536 tests** (+ 76 site tests).
 
-### Pick up here (2026-10-02, v0.24.219 released)
+### Pick up here (2026-10-02, v0.24.220 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. This session (v0.24.218-219,
+mode, the report or anything a run uploads. This session (v0.24.220,
 confirmed over the bridge against a local site - docs/confirmed.md):
+**category values + automatic refresh** - a category forcing Logs in the
+inventory / Item caps carries `logcap = n` / `cap <item name> = n`
+(/admin's editor, the attempt page; the Inventory tab greys them in the
+run and names unknown items); the game re-checks `/api/categories.txt`
+every 2 min, when an attempt ends and when a run spot starts one, with
+the ETag (304 unchanged; live site checked). Before (v0.24.218-219):
 **run mode phase 4, categories** (docs/run-mode.md *Categories*): the
 moderators' categories on /admin's *Categories* tab (any admin), seeded
 and kept in step with speedrun.com daily (24 drafts on the first sync,
@@ -645,13 +651,7 @@ one (a preset save as a start state, `run = <category name>`, in
 `community/`) is the author's call.
 
 **Next, in order (one per session):**
-1. **Category values + automatic refresh** (author, 2026-10-02; design in
-   docs/run-mode.md *Categories*, *Next*): the category carries the numbers
-   for item caps and the log cap; forced = the category's numbers, the
-   Inventory tab's fields greyed in the run; the game re-checks categories
-   every 2 min + before each attempt (ETag / 304), applied at the next
-   attempt, never mid-run.
-2. **Website, later** (from the cloud session's version 3 world,
+1. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured). Also (author, 2026-10-02):
@@ -659,10 +659,10 @@ one (a preset save as a start state, `run = <category name>`, in
    the web replay as fast as possible, **fastest mode by default**, the
    higher-quality details a per-browser preference (kept like the
    layer / water switches).
-3. **A session with the author** for what needs their eyes or hands
+2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
-4. **Later, from phase 4** (author, 2026-10-02): research the runners'
+3. **Later, from phase 4** (author, 2026-10-02): research the runners'
    tech for banned moves (verdicts: glitch or not, in between) and detect
    what can be; check *Reload save on death* gives the same game as a
    manual reload (docs/run-mode.md *Decisions*), then circle back.
