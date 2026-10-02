@@ -350,7 +350,10 @@ segment (the zone preview draws a **timed** entry only, with
 `savestates/segments/<id>.fosave`; `set ..._current.StartRestoreWithLoad
 true` (memory only). **A test run that FINISHES uploads to the live site** (uploads on by default):
 delete the test spot there after (`DELETE /api/admin/spots/<id>`, header
-`X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be. `restart` = F7 (`restart <id>`), `go <id>`. The
+`X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be.
+**Every run mode attempt uploads too** (start, checkpoints, log): delete a
+test one with `DELETE /api/admin/attempts/<id>` (`_modules[17]._attemptId`;
+the log line `Run mode: attempt n is a-...`). `restart` = F7 (`restart <id>`), `go <id>`. The
 bridge cannot pass a `Segment` as a `call` argument, so **selecting an
 existing entry, Export and the Import buttons need the author's click**
 (`ToggleImport` opens the list). **Removing test spots**: delete their
@@ -617,8 +620,9 @@ updater (Slot 1). **527 tests** (+ 61 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. This session (v0.24.216):
-**run mode phase 2, codes and receipts** - built and tested (plugin + site),
-design in docs/run-mode.md *Codes and receipts*. Each attempt: an id and
+**run mode phase 2, codes and receipts** - built, tested, and confirmed
+over the bridge against the live site (docs/confirmed.md); design in
+docs/run-mode.md *Codes and receipts*. Each attempt: an id and
 link made in game, a 4-character code on screen changing every second (a
 hash chain over the site's nonce, the timer and positions), a checkpoint
 to the site a minute, the log on every end (resets included), judged

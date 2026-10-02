@@ -301,3 +301,13 @@ on) and back (all off); a capture writes `basedifficulty`; a run spot's
 Restart from the title screen starts attempt 1 (report names the spot),
 another spot's Restart refused, the run spot's Restart = reset to attempt
 2, End run mode unlocks.
+
+Confirmed over the bridge 2026-10-02 (v0.24.216, live site): run mode codes
+and receipts - Start run mode by hand in Slot 1 got the site's start code
+after 142 ms; the code drawn top centre, changing each second, and still
+drawn with the overlay hidden (F5); the checkpoint at step 61 taken; End run
+mode sent the log, judged red for the bridge flag only (nonce + checkpoint
+matched); `GET /api/attempts/<id>`, `/log` and `/code/<code>` (lower case
+typed) answer; the Runs tab lists it with Copy link; the owner's DELETE
+removes it. Not seen: a green attempt (needs the bridge off), a finished
+timed run ending an attempt, an offline attempt sent later.
