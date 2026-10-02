@@ -612,7 +612,7 @@ identity.
 ## Current status
 
 **Released: v0.24.220** (2026-10-02). The author runs it via the in-game
-updater (Slot 1). **536 tests** (+ 76 site tests).
+updater (Slot 1). **536 tests** (+ 83 site tests).
 
 ### Pick up here (2026-10-02, v0.24.220 released)
 
@@ -620,7 +620,9 @@ updater (Slot 1). **536 tests** (+ 76 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, no release, live):** the two map3d.js console errors fixed - the
+only, no release, live):** the 3D world's files served Brotli'd (gzip
+for clients without `br`; the existing world's `.br` copies written by a
+startup pass - docs/website.md *Brotli + gzip*); the two map3d.js console errors fixed - the
 Detail button's flag shared `this.detail` with the terrain patch mesh
 (renamed `sharp`; with Detail on the 3D view had no patch); checked on the
 local site, no console errors, the patch kept across Detail clicks. Before:
@@ -663,8 +665,7 @@ one (a preset save as a start state, `run = <category name>`, in
 **Next, in order (one per session):**
 1. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
-   near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
-   copies (~10% off the meshes, measured). Also (author, 2026-10-02):
+   near, LOD far), the load-order look (gotcha 83). Also (author, 2026-10-02):
    the web replay as fast as possible: started (3D *Detail* button, off
    by default = pixel ratio 1, no antialiasing; docs/website.md) - more
    switches could join it.

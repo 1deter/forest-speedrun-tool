@@ -567,12 +567,27 @@ public sealed class ApiTests : IDisposable
             using var r = new StreamReader(z);
             return r.ReadToEnd();
         }
+        static string Unbrotli(byte[] b)
+        {
+            using var z = new System.IO.Compression.BrotliStream(new MemoryStream(b), System.IO.Compression.CompressionMode.Decompress);
+            using var r = new StreamReader(z);
+            return r.ReadToEnd();
+        }
 
         string pack = string.Concat(Enumerable.Repeat("mesh bytes ", 400));
         string json = "{\"version\":2,\"build\":1790815322,\"packs\":[\"p/0.bin\"],\"pad\":\"" + new string('x', 2000) + "\"}";
         await Upload("?clear=1", ("p/0.bin", pack), ("t/0.jpg", "jpg bytes"), ("world.json", json));
 
-        var gz = await Get("/world/p/0.bin?v=1790815322", "gzip, deflate, br");
+        // Brotli first when the client takes it (every browser over HTTPS).
+        var br = await Get("/world/p/0.bin?v=1790815322", "gzip, deflate, br, zstd");
+        Assert.Equal(HttpStatusCode.OK, br.StatusCode);
+        Assert.Equal("br", string.Join(",", br.Content.Headers.ContentEncoding));
+        Assert.Equal("application/octet-stream", br.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Accept-Encoding", br.Headers.Vary);
+        Assert.Equal(pack, Unbrotli(await br.Content.ReadAsByteArrayAsync()));
+        Assert.Equal("gzip", string.Join(",", (await Get("/world/p/0.bin", "gzip, br;q=0")).Content.Headers.ContentEncoding));
+
+        var gz = await Get("/world/p/0.bin?v=1790815322", "gzip, deflate");
         Assert.Equal(HttpStatusCode.OK, gz.StatusCode);
         Assert.Equal("gzip", string.Join(",", gz.Content.Headers.ContentEncoding));
         Assert.Equal("application/octet-stream", gz.Content.Headers.ContentType?.MediaType);
@@ -598,8 +613,8 @@ public sealed class ApiTests : IDisposable
         again.Headers.IfNoneMatch.Add(meta.Headers.ETag!);
         Assert.Equal(HttpStatusCode.NotModified, (await _http.SendAsync(again)).StatusCode);
 
-        // Textures are never gzipped; another build's ?v= is still refused.
-        Assert.Empty((await Get("/world/t/0.jpg", "gzip")).Content.Headers.ContentEncoding);
+        // Textures are never compressed; another build's ?v= is still refused.
+        Assert.Empty((await Get("/world/t/0.jpg", "gzip, br")).Content.Headers.ContentEncoding);
         var old = await Get("/world/p/0.bin?v=1790000000", "gzip");
         Assert.Equal(HttpStatusCode.NotFound, old.StatusCode);
         Assert.Contains("no-store", old.Headers.CacheControl?.ToString());
@@ -608,9 +623,33 @@ public sealed class ApiTests : IDisposable
         // An upload over a file replaces its .gz; one too small to shrink leaves none.
         await Upload("", ("p/0.bin", "tiny"));
         Assert.Equal("tiny", await (await Get("/world/p/0.bin", null)).Content.ReadAsStringAsync());
-        var tiny = await Get("/world/p/0.bin", "gzip");
+        var tiny = await Get("/world/p/0.bin", "gzip, br");
         Assert.Empty(tiny.Content.Headers.ContentEncoding);
         Assert.Equal("tiny", await tiny.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public void Precompressed_BackfillWritesMissingBrotliOnly()
+    {
+        // A world uploaded before Brotli: .gz copies only; the startup pass
+        // adds the .br ones, leaves textures and tiny files alone, and a
+        // second pass writes nothing.
+        string dir = Path.Combine(Path.GetTempPath(), "fo-br-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "b"));
+            string big = Path.Combine(dir, "b", "0.bin"), small = Path.Combine(dir, "b", "1.bin"), tex = Path.Combine(dir, "t.jpg");
+            File.WriteAllText(big, string.Concat(Enumerable.Repeat("mesh bytes ", 400)));
+            File.WriteAllText(small, "x");
+            File.WriteAllText(tex, string.Concat(Enumerable.Repeat("jpg ", 400)));
+            Assert.Equal(1, Precompressed.Backfill(dir));   // big only
+            Assert.True(File.Exists(big + ".br"));
+            Assert.False(File.Exists(small + ".br"));
+            Assert.False(File.Exists(tex + ".br"));
+            Assert.Empty(Directory.GetFiles(dir, "*.tmp", SearchOption.AllDirectories));
+            Assert.Equal(0, Precompressed.Backfill(dir));
+        }
+        finally { Directory.Delete(dir, true); }
     }
 
     [Theory]
@@ -623,6 +662,14 @@ public sealed class ApiTests : IDisposable
     [InlineData("", false)]
     [InlineData(null, false)]
     public void AcceptsGzip(string header, bool taken) => Assert.Equal(taken, Precompressed.AcceptsGzip(header));
+
+    [Theory]
+    [InlineData("gzip, deflate, br, zstd", true)]
+    [InlineData("BR;q=0.9", true)]
+    [InlineData("gzip, deflate", false)]
+    [InlineData("br;q=0, *", false)]
+    [InlineData("*", true)]
+    public void AcceptsBrotli(string header, bool taken) => Assert.Equal(taken, Precompressed.Accepts(header, "br"));
 
     // --- security review (2026-10-01) ------------------------------------------
 
@@ -717,6 +764,7 @@ public sealed class ApiTests : IDisposable
     [InlineData("c/caves_-3_12_L.bin", true)]
     [InlineData("p/12.bin", true)]
     [InlineData("p/12.bin.gz", false)]
+    [InlineData("p/12.bin.br", false)]
     [InlineData("q/3.bin", true)]
     [InlineData("q/3.png", false)]
     [InlineData("b/230.bin", true)]

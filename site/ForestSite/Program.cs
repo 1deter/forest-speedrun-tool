@@ -127,6 +127,7 @@ string worldDir = Path.Combine(dataDir, "world");
 var binaryTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
 binaryTypes.Mappings[".bin"] = "application/octet-stream";
 binaryTypes.Mappings[".gz"] = "application/gzip";
+binaryTypes.Mappings[".br"] = "application/octet-stream";
 foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial.json"), (worldDir, "/world", "/world/world.json") })
 {
     Directory.CreateDirectory(dir);
@@ -147,20 +148,24 @@ foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial
         c.Response.Headers.CacheControl = "no-store";
         return Task.CompletedTask;
     });
-    // The world's .bin / .json: the upload's gzipped copy (Precompressed)
-    // to a client that takes it - served as that file by the static files
-    // below (ETag, ranges, 304s as before), labelled as the original.
+    // The world's .bin / .json: the upload's Brotli or gzip copy
+    // (Precompressed, Brotli first) to a client that takes it - served as
+    // that file by the static files below (ETag, ranges, 304s as before),
+    // labelled as the original.
     var served = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dir);
     app.Use((c, next) =>
     {
         if (!c.Request.Path.StartsWithSegments(path, out var rest) || !Precompressed.Compressible(rest.Value ?? "")) return next(c);
         c.Response.Headers.Vary = "Accept-Encoding";
-        if (Precompressed.AcceptsGzip(c.Request.Headers.AcceptEncoding) && served.GetFileInfo(rest.Value + ".gz").Exists
-            && binaryTypes.TryGetContentType(rest.Value, out string type))
-        {
-            c.Items["gzip-type"] = type;
-            c.Request.Path += ".gz";
-        }
+        if (!binaryTypes.TryGetContentType(rest.Value!, out string type)) return next(c);
+        string accept = c.Request.Headers.AcceptEncoding;
+        foreach (var (suffix, coding) in Precompressed.Codings)
+            if (Precompressed.Accepts(accept, coding) && served.GetFileInfo(rest.Value + suffix).Exists)
+            {
+                c.Items["encoded"] = (type, coding);
+                c.Request.Path += suffix;
+                break;
+            }
         return next(c);
     });
     app.UseStaticFiles(new StaticFileOptions
@@ -172,10 +177,10 @@ foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial
         {
             var r = f.Context.Response;
             r.Headers.CacheControl = "public, max-age=86400";
-            if (f.Context.Items["gzip-type"] is string type)
+            if (f.Context.Items["encoded"] is (string type, string coding))
             {
                 r.ContentType = type;
-                r.Headers.ContentEncoding = "gzip";
+                r.Headers.ContentEncoding = coding;
             }
         },
     });
@@ -214,6 +219,17 @@ if (Environment.GetEnvironmentVariable("FOREST_SRC_SYNC") != "off")
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
 app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}", dataDir, packs, adminToken.Length > 0 ? "on" : "off");
+// The world uploaded before Brotli has .gz copies only: its .br ones, once.
+_ = Task.Run(() =>
+{
+    try
+    {
+        var t = System.Diagnostics.Stopwatch.StartNew();
+        int n = Precompressed.Backfill(worldDir);
+        if (n > 0) app.Logger.LogInformation("World: {n} Brotli copies written in {s:0} s", n, t.Elapsed.TotalSeconds);
+    }
+    catch (Exception ex) { app.Logger.LogWarning("World Brotli copies failed: {m}", ex.Message); }
+});
 
 static async Task<string> Body(HttpRequest r)
 {
@@ -431,7 +447,7 @@ admin.MapDelete("/admins/{id:long}", (HttpContext c, long id) =>
 // world likewise (UploadPath.IsWorld).
 admin.MapPost("/aerial", (Delegate)((HttpContext c) => Upload(c, aerialDir, UploadPath.IsTile)));   // Delegate: not a RequestDelegate, the IResult counts
 admin.MapPost("/world", (Delegate)((HttpContext c) => Upload(c, worldDir, UploadPath.IsWorld, true)));
-// gzip: each .bin / .json also written gzipped beside it (Precompressed).
+// gzip: each .bin / .json also written Brotli'd and gzipped beside it (Precompressed).
 async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed, bool gzip = false)
 {
     if (!IsOwner(c)) return Problem(403, "only the owner uploads map files");

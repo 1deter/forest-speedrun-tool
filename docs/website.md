@@ -312,11 +312,16 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   (every blob's bytes, alignment, the LOD's vertices / normals / submeshes,
   a repack); `... synthetic <out> [1|3]` makes a 9-chunk world near the
   tree spot to upload to a local site.
-- **gzip**: the upload writes `x.gz` beside each `.bin` / `.json` when
-  smaller (`Precompressed.cs`); a client sending `Accept-Encoding: gzip` gets
-  it (`Content-Encoding: gzip`, `Vary: Accept-Encoding`, the original's
-  type; same `Cache-Control`, `?v=` refusal, ETag / 304). Cloudflare does
-  not compress `application/octet-stream` itself. `.gz` names are never
+- **Brotli + gzip**: the upload writes `x.br` and `x.gz` beside each
+  `.bin` / `.json` when smaller (`Precompressed.cs`, both at the smallest
+  size, via a `.tmp` name so a request never gets half a file); a client
+  taking `br` gets the Brotli copy, else one taking `gzip` the gzip one
+  (`Content-Encoding`, `Vary: Accept-Encoding`, the original's type; same
+  `Cache-Control`, `?v=` refusal, ETag / 304). Brotli since 2026-10-02
+  (~10% off the meshes); the world already on the server got its `.br`
+  copies from a one-time startup pass (`Precompressed.Backfill`, logs
+  `World: n Brotli copies written`). Cloudflare does not compress
+  `application/octet-stream` itself. `.gz` / `.br` names are never
   accepted in an upload. Textures stay single files: JPEG / PNG gain
   nothing from gzip, are shared across chunks (cached once) and load
   through three.js's image loader by URL.
