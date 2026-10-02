@@ -320,8 +320,13 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   `Cache-Control`, `?v=` refusal, ETag / 304). Brotli since 2026-10-02
   (~10% off the meshes); the world already on the server got its `.br`
   copies from a one-time startup pass (`Precompressed.Backfill`, logs
-  `World: n Brotli copies written`). Cloudflare does not compress
-  `application/octet-stream` itself. `.gz` / `.br` names are never
+  `World: n Brotli copies written`). Measured live: b/0.bin 221 KB gzip ->
+  197 KB br. Cloudflare does not compress `application/octet-stream`
+  itself, and it fetches the Brotli copy from the server: a client
+  sending only `gzip` now gets the file **uncompressed** (Cloudflare
+  decodes, never re-encodes) - every browser sends `br` over HTTPS, so
+  accepted; `curl -H 'Accept-Encoding: gzip'` measures that, not what
+  visitors get. `.gz` / `.br` names are never
   accepted in an upload. Textures stay single files: JPEG / PNG gain
   nothing from gzip, are shared across chunks (cached once) and load
   through three.js's image loader by URL.
