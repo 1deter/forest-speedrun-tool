@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.209 - 2026-10-02
+
+- Run mode no longer counts Creative's own god mode, infinite energy and no
+  survival as cheats in a Creative run.
+- A save loaded after a reset no longer adds to the finished attempt's
+  report, and each problem is listed once.
+
 ## v0.24.208 - 2026-10-02
 
 - Run mode's report no longer lists BepInEx's own patches as "another mod".

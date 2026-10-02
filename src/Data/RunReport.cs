@@ -83,7 +83,12 @@ namespace ForestOverlay.Data
             for (int i = 0; i < Cheats.Count; i++) lines.Add("NOT OK  A game cheat is on: " + Cheats[i] + ".");
 
             if (Flags.Count == 0) lines.Add("OK  No practice feature was used during the run.");
-            for (int i = 0; i < Flags.Count; i++) lines.Add("NOT OK  " + Capital(Flags[i]) + ".");
+            // A cheat is also a run flag (the HUD says it): said once.
+            for (int i = 0; i < Flags.Count; i++)
+            {
+                string line = "NOT OK  " + Capital(Flags[i]) + ".";
+                if (!lines.Contains(line)) lines.Add(line);
+            }
 
             if (PracticeBefore.Length > 0)
                 lines.Add("Note  Practice was used before this attempt (" + PracticeBefore + "); the new game started clean.");

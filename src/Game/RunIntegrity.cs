@@ -179,7 +179,9 @@ namespace ForestOverlay.Game
         private static FieldInfo[] _cheats;
 
         /// Adds the names of the cheats that are on now to `into` (once each).
-        public static void ReadCheats(List<string> into)
+        /// Creative sets GodMode, InfiniteEnergy and NoSurvival itself
+        /// (GameMode_Creative; seen live on Slot 1): the mode, not a cheat.
+        public static void ReadCheats(List<string> into, bool creative)
         {
             if (_cheats == null)
             {
@@ -191,7 +193,7 @@ namespace ForestOverlay.Game
             }
             for (int i = 0; i < _cheats.Length; i++)
             {
-                if (_cheats[i] == null) continue;
+                if (_cheats[i] == null || (creative && i < 3)) continue;
                 try
                 {
                     if ((bool)_cheats[i].GetValue(null) && !into.Contains(CheatFields[i])) into.Add(CheatFields[i]);
@@ -202,7 +204,7 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // GameSetup: how the game was started.
-        private static PropertyInfo _isNew, _difficulty, _game, _mp;
+        private static PropertyInfo _isNew, _difficulty, _game, _mp, _creative;
         private static bool _setupResolved;
 
         private static void ResolveSetup()
@@ -216,6 +218,15 @@ namespace ForestOverlay.Game
             _difficulty = t.GetProperty("Difficulty", stat);
             _game = t.GetProperty("Game", stat);
             _mp = t.GetProperty("IsMultiplayer", stat);
+            _creative = t.GetProperty("IsCreativeGame", stat);
+        }
+
+        /// GameSetup.IsCreativeGame.
+        public static bool IsCreative()
+        {
+            ResolveSetup();
+            try { return _creative != null && (bool)_creative.GetValue(null, null); }
+            catch (Exception) { return false; }
         }
 
         /// GameSetup.IsNewGame: the loaded game began as New Game.

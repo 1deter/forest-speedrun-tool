@@ -74,7 +74,9 @@ namespace ForestOverlay.Modules
             if (PlayerRef.AtTitleScreen && _attemptOpen) EndAttempt("back to the title screen (a reset)");
             _loaded = loaded;
 
-            if (Ctx.Run.Active && _report != null && Time.unscaledTime >= _nextCheck)
+            // Only while the attempt plays: a save loading after a reset is
+            // not the attempt (v0.24.208 flagged Slot 1's Creative cheats).
+            if (Ctx.Run.Active && _attemptOpen && _report != null && loaded && Time.unscaledTime >= _nextCheck)
             {
                 _nextCheck = Time.unscaledTime + 1f;
                 Watch();
@@ -136,7 +138,7 @@ namespace ForestOverlay.Modules
             if (_bridge != null && _bridge.Enabled) Ctx.Run.Flag("the test bridge is on");
 
             int cheats = _report.Cheats.Count;
-            RunIntegrity.ReadCheats(_report.Cheats);
+            RunIntegrity.ReadCheats(_report.Cheats, RunIntegrity.IsCreative());
             for (int i = cheats; i < _report.Cheats.Count; i++) Ctx.Run.Flag("a game cheat is on: " + _report.Cheats[i]);
 
             // The game's hash is read on a worker thread at startup.

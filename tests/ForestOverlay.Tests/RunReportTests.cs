@@ -74,6 +74,17 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ACheatThatIsAlsoAFlagIsSaidOnce()
+        {
+            RunReport r = Clean();
+            r.Cheats.Add("GodMode");
+            r.Flags.Add("a game cheat is on: GodMode");
+            int n = 0;
+            foreach (string line in r.Findings()) if (line == "NOT OK  A game cheat is on: GodMode.") n++;
+            Assert.Equal(1, n);
+        }
+
+        [Fact]
         public void PracticeBeforeIsANoteNotAProblem()
         {
             RunReport r = Clean();
