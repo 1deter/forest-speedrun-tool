@@ -162,9 +162,8 @@ namespace ForestOverlay.Modules
         private DeathAction Decide(DeathKind kind)
         {
             if (kind == DeathKind.Multiplayer) return DeathAction.Normal;
-            // Run mode: a death is the game's own (no revive, no reload -
-            // loading a save ends run mode anyway).
-            if (Ctx.Run.Active) return DeathAction.Normal;
+            // Run mode: no revive (ReviveApplies); Reload save on death stays
+            // - the game's own load, a QoL saving menuing (author, 2026-10-02).
 
             if (ReviveApplies()) return DeathAction.Revive;
 
@@ -188,8 +187,15 @@ namespace ForestOverlay.Modules
             return (_runs != null && _runs.Enabled) || _practice.CurrentHasStartState;
         }
 
+        /// A Reload save on death is under way: run mode keeps the attempt
+        /// through its title screen / load (RunModeModule consumes it).
+        public bool ReloadPending { get; private set; }
+
+        public void ConsumeReload() { ReloadPending = false; }
+
         private void OnHandled(DeathKind kind, DeathAction action)
         {
+            if (action == DeathAction.QuickLoad || action == DeathAction.QuickLoadInGame) ReloadPending = true;
             _lastDeath = kind + " -> " + action + " at " + DateTime.Now.ToString("HH:mm:ss");
 
             if (action == DeathAction.Revive) _pendingRevive = true;

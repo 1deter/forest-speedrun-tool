@@ -29,6 +29,15 @@ advantage.
 
 ## Decisions (author, 2026-10-02)
 
+- **Runs start from preset saves, not new games** (author, after phase 1
+  shipped: "we don't do runs from starting a new game. we already have
+  preset saves that we could potentially transfer into spots"). **The
+  phase 1 trigger (a new game) is therefore wrong for real runs and must
+  be redesigned first** - see *Open: what starts a run* below. What a run
+  allows should come mainly from the **community spots** (one per
+  category, made from the preset saves) - "don't worry too much about it"
+  (author) for the per-feature details now.
+
 - **Automatic, fully locked.** Every new game from the title screen is a run
   attempt. Practice features are *locked*, not just marked, so an accident
   cannot spoil a run. Leaving takes a two-click *End run mode* (Runs tab), or
@@ -39,9 +48,18 @@ advantage.
 - **The F2 window** no longer counts as practice. During a run it opens only
   over the game's pause menu, which already holds the player (holding the
   player mid-run could stop a fall).
-- **A death in run mode is the game's own** (no revive, no reload: loading a
-  save ends run mode anyway). Categories may allow *Reload save on death*
-  later.
+- **Reload save on death stays on in a run** (author, 2026-10-02: an
+  optional QoL that saves runners menuing and load waits). The attempt goes
+  on through that reload (v0.24.210). The practice revive (back to a spot)
+  stays locked. Run mode **never switches it on**; it follows the runner's
+  own setting. It stays unlocked **only if it is confirmed to give the same
+  game as a manual reload** (exit to the main menu -> Continue -> the save)
+  - author, 2026-10-02. To verify: both paths (*Skip the title screen* =
+  `LevelSerializer.Resume`, and through the menu) against a manual reload
+  of the same save. Compare player state, inventory, time of day, enemies,
+  the world and the cave state. If one differs, lock that path in a run.
+  (Its default is on for everyone today, from before run mode; ask the
+  author whether that should change.)
 - **Anti-splice codes** beside the timer: big, readable on YouTube, out of the
   runner's way.
 - **Receipts for every attempt**, resets included, uploaded by default. The
@@ -67,6 +85,27 @@ advantage.
   state-changing features are always locked. Seed the drafts from
   speedrun.com's categories **and their rules**, as a head start for the
   moderators.
+
+## Open: what starts a run (decide with the author first)
+
+Runs start from a preset category save. Phase 1 starts an attempt on a
+**new game** and ends run mode when **a save is loaded**, so as built it
+never covers a real run. Options to put to the author:
+
+1. **The community category spot starts it.** Restart (F7) on a category
+   spot restores its start state (the preset save as a savestate), and
+   that restore *is* the run start: run mode on, practice locked, the
+   attempt timed from there. It ties into "the community spots dictate it".
+   But the start is then a savestate restore, so the report must say which
+   spot / start-state hash it began from, and a Quick load must equal the
+   preset save (Full load is the safer default for a run start).
+2. **Loading a save from the title screen starts it** (any slot). It is
+   automatic, but practice from a save gets locked too, so the runner
+   clicks End run mode every time they practise.
+3. **A manual toggle**, remembered, with a clear HUD state. The author's
+   worry was forgetting to turn it on.
+
+Leaning: (1), with (3) as the fallback for runs with no community spot.
 
 ## Known gaps (phase 1)
 

@@ -36,6 +36,10 @@ Checked headless or over the bridge only - ask the author to look:
   Runs tab's section and report at the top), close ESC (the window
   closes), F7 / Go (a notice), End run mode with two clicks.
 
+- **Reload save on death vs a manual reload** (run mode condition,
+  docs/run-mode.md): confirm both paths load the same game as exit to the
+  menu -> Continue. Needs a death, so it is partly hands-on.
+
 Needs hands (no bridge call):
 - `hold-interact`: hold E on something with the Runs tab's event line open.
 - `first-input`: press a key after a restart. `rope-grab` / `rope-leave`
@@ -137,9 +141,9 @@ Every number: game-notes *Frame time: where the main thread goes* and
   the lever is fewer camera renders.
 - On by default: `TerrainGrassCameraOff` (10), `EndgameScreenOnDemand`
   (11). Experimental, off: `SunShadowsEveryOtherFrame` (12; no visible
-  difference - author), `GrassBendingOffInCaves` (13), `Physics30Hz` (14;
-  the author wants it in "for testing purposes"). The author's config has
-  12 and 13 on, 14 off.
+  difference - author), `GrassBendingOffInCaves` (13). `Physics30Hz` (14) was **removed** in
+  v0.24.210 (author: maks found it changes physics noticeably). The
+  author's config has 12 and 13 on.
 - Never skip a screen camera mid-frame (v0.24.119 froze the screen,
   gotcha 51).
 - **sxczurass is rendering-bound** (Frame test `1553515759936999506`):
@@ -150,8 +154,7 @@ Every number: game-notes *Frame time: where the main thread goes* and
 
 **Next:** (1) sxczurass's answer: render-thread bound -> draw-call cuts
 (ActionIconCamera, ParticleCam, then the main camera's draw calls); GPU ->
-resolution is his lever. (2) `Physics30Hz` across a Full load
-(`Performance: physics at 30 Hz again` if the step was reset). (3)
+resolution is his lever. (2) (dropped: 30 Hz physics, removed). (3)
 Cheesecake's Frame test (`1553493823840321557`). (4) ActionIconCamera by
 hand-`Render()` only with the author's eyes on the picture.
 

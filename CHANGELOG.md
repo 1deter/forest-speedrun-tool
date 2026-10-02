@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.210 - 2026-10-02
+
+- Reload save on death works during a run again (it saves menuing and load
+  waits); the run carries on after the reload.
+- Removed the experimental **Physics at 30 Hz** switch: it changes the
+  game's physics noticeably. If you had it on, physics is put back to the
+  normal 60 Hz once.
+
 ## v0.24.209 - 2026-10-02
 
 - Run mode no longer counts Creative's own god mode, infinite energy and no

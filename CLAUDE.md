@@ -606,10 +606,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.209** (2026-10-02). The author runs it via the in-game
+**Released: v0.24.210** (2026-10-02). The author runs it via the in-game
 updater (v0.24.209 in the game, Slot 1). **517 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.209 in the game)
+### Pick up here (2026-10-02, v0.24.210 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Last session: **the anti-cheat design
@@ -619,18 +619,23 @@ touching run mode, the report or anything a run uploads. In short:
 a new game from the title screen is a run attempt; practice features are
 **locked** (not just marked); End run mode (two clicks, Runs tab) or
 loading a save unlocks; the title screen is a reset; F2 opens over the
-pause menu only during a run and no longer marks practice; a death is the
-game's own; each attempt writes a plain-words report (game hash vs the
+pause menu only during a run and no longer marks practice; Reload save on
+death stays on (v0.24.210, the attempt goes on); each attempt writes a plain-words report (game hash vs the
 Steam build, other mods / code, foreign Harmony patches, the game's
 cheats; Creative's own three are the mode). Confirmed live over the
 bridge: Normal and Creative new games, Go / F7 refused, god mode held off
 and back after, window refused in play and closed with the pause menu,
 reset on the title screen, a save load ends run mode. Not yet seen by the
 author's own eyes and hands (a real ESC + F2, the Runs tab section, End
-run mode by clicking).
+run mode by clicking). **After shipping, the author: runs start from
+preset saves, not new games** - the trigger is wrong for real runs
+(docs/run-mode.md *Open: what starts a run*). v0.24.210 also removed the
+30 Hz physics switch (author + maks: it changes physics noticeably).
 
 **Next, in order (one per session):**
-1. **Run mode phase 2: codes and receipts** (docs/run-mode.md *Phases*):
+1. **Run mode: what starts a run** - decide with the author (options in
+   docs/run-mode.md; leaning: a community category spot's restart), then
+   rework the trigger. Then **phase 2: codes and receipts** (docs/run-mode.md *Phases*):
    a server nonce per attempt, the hash chain over nonce + IGT + positions,
    the code beside the timer, a checkpoint POST about once a minute,
    receipts on reset, the outbox with links. Needs site endpoints too.
@@ -765,8 +770,9 @@ total playtime lines.
   (author, 2026-09-27). Spots stay curated in the repo; runs go to the site.
 - **Run mode and anti-cheat (author, 2026-10-02)**: the tool should be
   usable in real runs, with nothing asked of new runners but installing
-  it and no extra work for verifiers. Run mode is automatic (a new game)
-  and **locks** practice; the title screen is a reset; anti-splice codes
+  it and no extra work for verifiers. Runs start from **preset category
+  saves** (community spots), not new games; run mode **locks** practice
+  (Reload save on death stays); the title screen is a reset; anti-splice codes
   beside the timer; a receipt for every attempt (resets too) uploaded by
   default (~200 GB server, fine); reports public, never editable; offline
   runs amber; changed game code named by area in plain words; categories

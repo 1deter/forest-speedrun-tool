@@ -34,6 +34,7 @@ namespace ForestOverlay.Modules
         public override string DisplayName { get { return "Run mode"; } }
 
         private BridgeModule _bridge;
+        private DeathModule _death;
         private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
         private bool _loaded;               // last frame: in a loaded game
         private bool _attemptOpen;          // an attempt is running (not reset yet)
@@ -53,6 +54,7 @@ namespace ForestOverlay.Modules
         {
             base.Initialise(ctx);
             _bridge = Host.Find<BridgeModule>();
+            _death = Host.Find<DeathModule>();
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             RunIntegrity.StartHashing(ctx.Log);
@@ -71,7 +73,8 @@ namespace ForestOverlay.Modules
         {
             bool loaded = InLoadedGame();
             if (loaded && !_loaded) OnGameLoaded();
-            if (PlayerRef.AtTitleScreen && _attemptOpen) EndAttempt("back to the title screen (a reset)");
+            bool reloading = _death != null && _death.ReloadPending;
+            if (PlayerRef.AtTitleScreen && _attemptOpen && !reloading) EndAttempt("back to the title screen (a reset)");
             _loaded = loaded;
 
             // Only while the attempt plays: a save loading after a reset is
@@ -87,6 +90,16 @@ namespace ForestOverlay.Modules
 
         private void OnGameLoaded()
         {
+            // Reload save on death: the same attempt goes on.
+            if (_death != null && _death.ReloadPending)
+            {
+                _death.ConsumeReload();
+                if (Ctx.Run.Active)
+                {
+                    Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " goes on after Reload save on death.");
+                    return;
+                }
+            }
             if (RunIntegrity.IsNewGame())
             {
                 StartAttempt();

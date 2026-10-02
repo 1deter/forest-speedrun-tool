@@ -2282,7 +2282,9 @@ show it (author); the game reads the saved pref at startup
 (`PlayerPreferences.Load`) and has the console command `physics30Fps`.
 `treeHitTrigger` and `RaftPush` read the flag. A save load resets the
 step (`LevelLoader.Load`). Measured 5.26 -> 4.98 ms a frame (steps in
-32% -> 15% of frames). Experimental switch `Physics30Hz` (v0.24.128).
+32% -> 15% of frames). Experimental switch `Physics30Hz` (v0.24.128),
+**removed** in v0.24.210 (it changes physics noticeably - maks, author);
+a config that had it on is put back to 60 Hz once, pref cleared.
 
 **The grass-bending camera in caves** (`AFSGrassDisplacementCameraTest`,
 AfsGrassDisplacementController's own): it draws bend trails for the
