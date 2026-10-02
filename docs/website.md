@@ -580,7 +580,16 @@ models (chunks to z -2931) and are there, but up close they are smooth
 grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
-Open: the far copies on a real phone (author's eyes); the load-order look
+Author's notes (2026-10-02, live site): view-cone culling "fine"; in a
+cave, *Follow*'s camera sits inside the rock and a wall covers part of the
+view (no collision between camera and ghost - a fix: pull the camera in
+when the collision mesh is between them); caves are not drawn on the 2D
+map; in the photo map the overlook's shadow falls on the snow hills but
+the overlook itself is missing (likely: the capture culls the section,
+the sun's shadow pass does not - unchecked); the south mountains' 3D
+textures: nice QoL, not a dealbreaker.
+
+Open: the load-order look
 (above); the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button
@@ -726,7 +735,9 @@ and every zip entry must match `UploadPath`; the deploy key can only run
   403, through Cloudflare 200.
 
 **Decided (author, 2026-10-01, on Claude's recommendation): both left as
-they are**; the About page says the runner id is not anonymous. Revisit the
+they are**; asked again 2026-10-02 (author: runners link their socials
+anyway; "deal with it however you think is best") - still left: the name
+already defaults to the Steam name, and a fix splits every identity; the About page says the runner id is not anonymous. Revisit the
 first if a runner asks (fix: the plugin sends the Steam id once at
 registration, the server derives the public id with a secret HMAC and maps
 old ids over - it knows the old hash), the second if a takeover ever

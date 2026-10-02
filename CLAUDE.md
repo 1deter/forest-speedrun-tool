@@ -678,14 +678,16 @@ one (a preset save as a start state, `run = <category name>`, in
 `community/`) is the author's call.
 
 **Next, in order (one per session):**
-1. **Website, later** (docs/website.md *Load size*): the author's eyes
-   on the view-cone culling (orbit fast, Follow playback: no gaps at the
-   screen's edges); the load-order look (gotcha 83, an investigation).
-   Also (author, 2026-10-02): the web replay as fast as possible - done
-   so far: the *Detail* button, the far copies, view-cone culling, every
-   model culled per instance + under the ground, ground-level culling;
-   next candidate: BatchedMesh by material (the sinkhole test is as tight
-   as the heights allow - the rest needs its floor model).
+1. **Website, later** (docs/website.md *Load size* / *Open*): the web
+   replay as fast as possible (author, 2026-10-02) - done so far: the
+   *Detail* button, the far copies, view-cone culling (author: "fine"),
+   every model culled per instance + under the ground, ground-level
+   culling; next candidate: BatchedMesh by material. Then the author's
+   2026-10-02 notes: Follow's camera goes through cave walls; caves not
+   drawn on the 2D map; the overlook's shadow on the snow hills in the
+   photo map without the overlook. The load-order look (gotcha 83, an
+   investigation). The south mountains' textures in 3D: QoL, not a
+   dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
@@ -696,10 +698,9 @@ one (a preset save as a start state, `run = <category name>`, in
 
 **Decisions waiting for the author** (ask, never build ahead):
 - A teleport into an unloaded endgame (backlog); whether Quick load
-  physics leaves "deferred"; whether the blurry south mountains in 3D
-  are worth fixing.
-- Which categories to publish and which preset saves become their run
-  spots (the moderators, on /admin).
+  physics leaves "deferred".
+- Categories to publish and their run spots are the moderators' (author,
+  2026-10-02: "i've given them the tools") - not waiting on anyone here.
 
 **Waiting on testers** - the QA to-do list (`qa_todo`) is the record:
 the overnight lists (`1555319960941756437`, `1555327671276273677` +
