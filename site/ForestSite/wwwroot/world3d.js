@@ -18,10 +18,13 @@
 // off, len]): a texture is cut out of its pack as a blob URL; exports
 // without them read t/<i>.jpg / .png. Version 3 (2026-10-02): everything -
 // chunks' instances, meshes, textures - in a few b/<i>.bin files ("files"),
-// each blob's place [file, offset, length]; phones draw some meshes as
-// lighter copies (a mesh's "lod", in files of their own; collision keeps the
-// full one) - scripts/world_pack.py. The server sends .bin / .json gzipped
-// (the upload's .gz copies).
+// each blob's place [file, offset, length]. Far copies (2026-10-02,
+// scripts/world_pack.py): a mesh's "far" = lighter copies, each with its
+// error "e" (mesh units); an instance is drawn with the lightest one whose
+// error, at its scale and distance from the camera, is under FAR_PIXELS on
+// the screen - each model is then one InstancedMesh per copy, its instances
+// split between them by distance (split()). Collision keeps the full mesh.
+// The server sends .bin / .json Brotli'd or gzipped (the upload's copies).
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
 // instance's matrix is S * M with S = diag(1, 1, -1) on the mesh's own
@@ -36,7 +39,11 @@ import * as THREE from "/vendor/three-0.170.0.module.min.js?v=0.170.0";
 const RADIUS = 700, DROP = 1100;           // metres, horizontally from the camera's target
 const CUT_MARGIN = 4;                      // metres kept in front of the target, underground
 const S = new THREE.Matrix4().makeScale(1, 1, -1);
-const MOBILE = matchMedia("(pointer: coarse)").matches;   // as map3d.js: phones and tablets draw the LODs
+// A far copy is drawn where its error is under this many pixels on the
+// screen (the drawing buffer's: the Detail button's density moves the
+// switches out). 0 = full meshes only (world.setFar, for comparing).
+export const FAR_PIXELS = 1;
+const SPLIT_MOVE = 2;                      // metres the camera moves before the copies are picked again
 
 // Kinds of model, each with its own switch (the map's "separate toggles per
 // kind"; 2026-10-01). The game's layers do not say it alone - trees are in
@@ -164,6 +171,10 @@ export class World {
     this.drawn = new Map();       // model index -> THREE.InstancedMesh
     this.dirtyModels = new Set();
     this.gen = 0;                 // + 1 on each start-over (stale()): late loads of the old world are dropped
+    this.farPixels = FAR_PIXELS;
+    this.eye = new THREE.Vector3();   // the camera, three.js space (update())
+    this.focal = 0;                   // the camera's focal length in drawing buffer pixels
+    this.splitAt = null;              // [eye x, y, z, focal] the copies were last picked for
     this.staleAt = 0;
     this.show = { trees: true, rocks: true, props: true, pickups: true, collision: false };
     try {
@@ -317,10 +328,19 @@ export class World {
   }
 
   /// Each frame: which chunks to have, given the camera's target (a Vector3
-  /// in three.js space). Rate-limited; cheap when nothing changes.
-  update(target, now) {
+  /// in three.js space), and which copy each instance is drawn with, given
+  /// the camera (eye, three.js space) and its focal length in drawing buffer
+  /// pixels (focal). Rate-limited; cheap when nothing changes.
+  update(target, now, eye, focal) {
     if (!this.meta || this.disposed || now < this.next) return;
     this.next = now + 400;
+    if (eye) { this.eye.copy(eye); this.focal = focal; }
+    const s = this.splitAt;
+    if (!s || this.focal !== s[3] || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
+      this.splitAt = [this.eye.x, this.eye.y, this.eye.z, this.focal];
+      for (const [, mesh] of this.drawn) if (mesh.userData.far) this.split(mesh);
+      this.changed();
+    }
     const x = target.x, z = -target.z, size = this.meta.chunk;
     const want = new Set();
     let loading = 0;
@@ -363,7 +383,7 @@ export class World {
       }
       // The models' meshes first, so the chunk appears whole.
       const models = new Set(entry.items.map(it => it[0]).filter(mi => this.meta.models[mi]));
-      await Promise.all([...models].filter(mi => this.fetched(mi)).map(mi => this.geometry(this.meshOf(this.meta.models[mi]))));
+      await Promise.all([...models].filter(mi => this.fetched(mi)).flatMap(mi => this.meshesOf(this.meta.models[mi]).map(gi => this.geometry(gi))));
       if (this.disposed || this.chunks.get(file) !== entry) return;
       entry.state = "ready";
       for (const mi of models) this.dirtyModels.add(mi);
@@ -399,11 +419,21 @@ export class World {
     return this.file(at[0]).then(b => b && [b, at[1], at[2]]);
   }
 
-  /// The mesh a model draws with: on phones a heavy mesh's lighter copy
-  /// (version 3 "lod"), except for collision.
-  meshOf(model) {
-    const lod = this.meta.meshes[model.mesh].lod;
-    return MOBILE && lod !== undefined && model.kind !== "collide" ? lod : model.mesh;
+  /// The meshes a model draws with: its own, then its far copies (lightest
+  /// last) - none for collision, or with far copies off.
+  meshesOf(model) {
+    const far = this.meta.meshes[model.mesh].far;
+    return far && this.farPixels > 0 && model.kind !== "collide" ? [model.mesh, ...far] : [model.mesh];
+  }
+
+  /// Far copies on (pixels: FAR_PIXELS) or off (0, full meshes only): every
+  /// model drawn again. For comparing the two (site-measure.py NOFAR).
+  setFar(pixels) {
+    this.farPixels = pixels;
+    for (const [, c] of this.chunks) if (c.state === "ready") for (const [mi] of c.items) this.dirtyModels.add(mi);
+    this.splitAt = null;
+    this.next = 0;
+    this.changed();
   }
 
   geometry(index) {
@@ -415,22 +445,28 @@ export class World {
     const src = this.meta.files ? (m.at ? this.place(m.at) : Promise.resolve(null))
       : !this.meta.packs ? this.bytes("m/" + index + ".bin").then(b => b && [b, 0])
       : m.pack ? this.pack(m.pack[0]).then(b => b && [b, m.pack[1]]) : Promise.resolve(null);
-    const p = src.then(found => {
-      if (!found) return null;
+    // A shared far copy is only indices, over its full mesh's vertices (and
+    // their normals): the full mesh's attributes, uploaded once.
+    const full = m.shared ? this.geometry(m.of) : Promise.resolve(null);
+    const p = Promise.all([src, full]).then(([found, shared]) => {
+      if (!found || (m.shared && !shared)) return null;
       const [buf, base] = found;
       const g = new THREE.BufferGeometry();
       let at = base;
-      g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3));
-      at += m.nv * 12;
-      if (m.uv) { g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 2), 2)); at += m.nv * 8; }
-      // A LOD carries its full mesh's normals: it shades as the full one does.
-      if (m.n) { g.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3)); at += m.nv * 12; }
+      if (shared) for (const k of ["position", "uv", "normal"]) { if (shared.attributes[k]) g.setAttribute(k, shared.attributes[k]); }
+      else {
+        g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3));
+        at += m.nv * 12;
+        if (m.uv) { g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 2), 2)); at += m.nv * 8; }
+        // A far copy carries its full mesh's normals: it shades as the full one does.
+        if (m.n) { g.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3)); at += m.nv * 12; }
+      }
       const idx = m.i32 ? new Uint32Array(buf.slice(at, at + m.ni * 4)) : new Uint16Array(buf.slice(at, at + m.ni * 2));
       // Unity winds front faces clockwise: turned, so the normals face out.
       for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
       g.setIndex(new THREE.BufferAttribute(idx, 1));
       m.sub.forEach(([start, count], i) => g.addGroup(start, count, i));
-      if (!m.n) g.computeVertexNormals();
+      if (!m.n && !shared) g.computeVertexNormals();
       g.computeBoundingSphere();
       return g;
     }).catch(() => null);
@@ -554,20 +590,21 @@ export class World {
       // Glints and particles (the pickups' sheen): not a solid thing.
       if (model.mats.length && model.mats.every(x => x >= 0 && this.meta.materials[x].fx)) continue;
       if (!this.fetched(mi)) continue;     // collision, switched off: built when switched on
-      const gi = this.meshOf(model);
-      if (!this.geomsDone.has(gi)) {
-        // Not here yet (collision just switched on): fetched, then built by a
-        // later rebuild - never awaited here, where a second rebuild of the
-        // same model could finish first and be dropped.
+      const gis = this.meshesOf(model), missing = gis.filter(gi => !this.geomsDone.has(gi));
+      if (missing.length) {
+        // Not here yet (collision just switched on, far copies switched on):
+        // fetched, then built by a later rebuild - never awaited here, where
+        // a second rebuild of the same model could finish first and be dropped.
         this.fetching++;
-        this.geometry(gi).then(() => {
+        Promise.all(missing.map(gi => this.geometry(gi))).then(() => {
           this.fetching--;
           if (gen === this.gen && !this.disposed) { this.dirtyModels.add(mi); this.next = 0; this.changed(); }
         });
         continue;
       }
-      const g = await this.geometry(gi);
+      const gs = await Promise.all(gis.map(gi => this.geometry(gi)));
       if (gen !== this.gen) return;      // started over meanwhile (stale())
+      const g = gs[0];
       if (!g || this.disposed || this.drawn.has(mi)) continue;
       let mat;
       if (model.kind === "collide") mat = [this.collideMat, this.collideWire];
@@ -575,8 +612,10 @@ export class World {
         const sf = surface.has(mi);
         mat = model.mats.length > 1 ? model.mats.map(x => this.material(x, sf)) : this.material(model.mats[0] ?? -1, sf);
       }
-      const mesh = model.kind === "collide" ? this.collisionMesh(g, list) : new THREE.InstancedMesh(g, mat, list.length);
-      if (model.kind !== "collide") {
+      const copies = gs.slice(1).every(x => x) ? gis.slice(1).map((gi, k) => [gs[k + 1], this.meta.meshes[gi].e]) : [];
+      const mesh = model.kind === "collide" ? this.collisionMesh(g, list)
+        : copies.length ? this.farMesh(g, copies, mat, list) : new THREE.InstancedMesh(g, mat, list.length);
+      if (model.kind !== "collide" && !copies.length) {
         list.forEach((m, i) => mesh.setMatrixAt(i, m));
         mesh.instanceMatrix.needsUpdate = true;
         mesh.computeBoundingSphere();
@@ -588,6 +627,79 @@ export class World {
       this.drawn.set(mi, mesh);
     }
     this.changed();
+  }
+
+  /// A model with far copies: one InstancedMesh per mesh (full, then the
+  /// copies), each able to hold every instance; split() deals them out, and
+  /// each culls by a sphere round its own instances (the full mesh's are the
+  /// near ones: off screen behind the camera, not drawn).
+  /// copies: [[geometry, error], ...] lightest last.
+  farMesh(g, copies, mat, list) {
+    const holder = new THREE.Group(), n = list.length;
+    const mats = new Float32Array(n * 16), spheres = new Float32Array(n * 5);
+    const bs = g.boundingSphere, c = new THREE.Vector3();
+    list.forEach((m, i) => {
+      mats.set(m.elements, i * 16);
+      const e = m.elements, s = Math.sqrt(Math.max(e[0] * e[0] + e[1] * e[1] + e[2] * e[2],
+        e[4] * e[4] + e[5] * e[5] + e[6] * e[6], e[8] * e[8] + e[9] * e[9] + e[10] * e[10]));
+      c.copy(bs.center).applyMatrix4(m);
+      spheres.set([c.x, c.y, c.z, bs.radius * s, s], i * 5);
+    });
+    const levels = [[g, 0], ...copies].map(([geo, err]) => {
+      const mesh = new THREE.InstancedMesh(geo, mat, n);
+      mesh.boundingSphere = new THREE.Sphere();
+      holder.add(mesh);
+      return { mesh, err };
+    });
+    holder.material = mat;
+    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255) };
+    holder.dispose = () => { for (const ch of holder.children) ch.dispose(); };
+    this.split(holder);
+    return holder;
+  }
+
+  /// Each instance of a far model to the lightest mesh whose error, at the
+  /// instance's scale s and distance d from the camera (to its bounding
+  /// sphere), stays under farPixels: err * s * focal / d <= farPixels.
+  /// Only a model whose instances changed mesh is written and sent again
+  /// (only the used part of each buffer): the camera moving a few metres
+  /// moves few instances, and a split of every far instance in view costs
+  /// ~1 ms.
+  split(holder) {
+    const { levels, mats, spheres, n, level } = holder.userData.far, last = levels.length - 1;
+    const k = this.farPixels > 0 && this.focal > 0 ? this.focal / this.farPixels : Infinity;
+    const ex = this.eye.x, ey = this.eye.y, ez = this.eye.z;
+    let changed = false;
+    for (let i = 0; i < n; i++) {
+      const o = i * 5, dx = spheres[o] - ex, dy = spheres[o + 1] - ey, dz = spheres[o + 2] - ez;
+      const allowed = Math.max(0, Math.sqrt(dx * dx + dy * dy + dz * dz) - spheres[o + 3]) / (spheres[o + 4] * k);
+      let L = 0;
+      while (L < last && levels[L + 1].err <= allowed) L++;
+      if (level[i] !== L) { level[i] = L; changed = true; }
+    }
+    if (!changed) return;
+    const counts = new Array(levels.length).fill(0), arrays = levels.map(l => l.mesh.instanceMatrix.array);
+    const box = levels.map(() => [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
+    for (let i = 0; i < n; i++) {
+      const L = level[i], a = arrays[L], to = counts[L]++ * 16, from = i * 16;
+      for (let j = 0; j < 16; j++) a[to + j] = mats[from + j];
+      const b = box[L], o = i * 5, r = spheres[o + 3];
+      for (let j = 0; j < 3; j++) {
+        b[j] = Math.min(b[j], spheres[o + j] - r);
+        b[j + 3] = Math.max(b[j + 3], spheres[o + j] + r);
+      }
+    }
+    levels.forEach(({ mesh }, L) => {
+      const b = box[L];
+      mesh.boundingSphere.center.set((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
+      mesh.boundingSphere.radius = Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2;
+      mesh.count = counts[L];
+      mesh.visible = counts[L] > 0;
+      const im = mesh.instanceMatrix;
+      im.clearUpdateRanges();
+      im.addUpdateRange(0, counts[L] * 16);
+      im.needsUpdate = true;
+    });
   }
 
   /// Collision: see-through orange with its wireframe over it.

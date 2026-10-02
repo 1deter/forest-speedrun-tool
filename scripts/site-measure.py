@@ -9,12 +9,15 @@ pre-installed Chromium with software GL in a cloud session (slow: a view takes
 
 views: "fit" (the spot's own fit, the default) and / or "x,y,z,yaw,pitch,dist"
 lookFroms (Unity coordinates, degrees), ";"-separated. phone = 375 x 812 with
-touch (the page's LODs), narrow = the same without touch (no LODs).
+touch, narrow = the same without touch.
 Env: SITE (default http://localhost:5080), SPOT (default the Labskip spot),
 NORUNS=1 (the runs cleared: an underground spot fades the surface), EXTRA (ms
-waited after the chunks settle, default 2500), NOLOD=all | <mesh ids> (those
-LODs taken out of world.json), DELAY=<seed> (30% of the world files held back
-0.2-2 s: shows what depends on load order - gotcha 82).
+waited after the chunks settle, default 2500), NOFAR=1 (full meshes only: the
+far copies switched off in the page, the same files fetched), DELAY=<seed>
+(30% of the world files held back 0.2-2 s: shows what depends on load order -
+gotcha 83). "frame" = one frame of the view, drawn and waited for (20, each
+followed by a pixel read back), "submitting" = the page's own time per frame,
+"triangles" = what the view sends to draw.
 
 seed: registers each runner on the board of the spot's current route and
 uploads their best run with the spot's [segment] rebuilt from the live page
@@ -111,23 +114,14 @@ def view(tag, mode, views):
                     time.sleep(rnd.uniform(0.2, 2.0))
                 route.continue_()
             page.route("**/world/[pqcb]/*", slow)
-        if os.environ.get("NOLOD"):
-            which = os.environ["NOLOD"]
-
-            def strip(route):
-                r = route.fetch()
-                m = json.loads(r.text())
-                for i, e in enumerate(m["meshes"]):
-                    if "lod" in e and (which == "all" or str(i) in which.split(",")):
-                        del e["lod"]
-                route.fulfill(response=r, body=json.dumps(m))
-            page.route("**/world/world.json", strip)
         page.goto(SITE + "/spot/" + SPOT)
         page.wait_for_selector("canvas")
         page.get_by_role("button", name="3D", exact=True).click()
         page.wait_for_function("window.forest3d && window.forest3d.coarse && window.forest3d.world && window.forest3d.world.meta")
         if os.environ.get("NORUNS"):
             page.evaluate("forest3d.setRuns([], true)")
+        if os.environ.get("NOFAR"):
+            page.evaluate("forest3d.world.setFar(0)")
         t0 = time.time()
         for k, v in enumerate(views.split(";")):
             if v != "fit":
@@ -148,11 +142,26 @@ def view(tag, mode, views):
             except Exception:
                 pass
         info = page.evaluate("""(() => { const w = forest3d.world; let tris = 0;
-          for (const [, m] of w.drawn) if (m.visible && m.geometry && m.geometry.index) tris += m.geometry.index.count / 3 * m.count;
-          return { chunks: [...w.chunks.values()].filter(c => c.state === 'ready').length, models: w.drawn.size, tris }; })()""")
+          // A far model is a group of InstancedMeshes (one per copy), collision a group of two.
+          for (const [, m] of w.drawn) m.traverseVisible(o => { if (o.isInstancedMesh && o.geometry.index) tris += o.geometry.index.count / 3 * o.count; });
+          // A pixel read back waits for every frame before it (gl.finish does
+          // not, in Chrome: 101M triangles "took" 2 ms).
+          const gl = forest3d.renderer.getContext(), px = new Uint8Array(4);
+          const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          forest3d.render(); sync();
+          const t0 = performance.now();
+          for (let i = 0; i < 20; i++) { forest3d.render(); sync(); }
+          const frame = (performance.now() - t0) / 20, calls = forest3d.renderer.info.render.calls;
+          const c0 = performance.now();
+          for (let i = 0; i < 20; i++) forest3d.render();
+          const cpu = (performance.now() - c0) / 20;
+          sync();
+          return { chunks: [...w.chunks.values()].filter(c => c.state === 'ready').length, models: w.drawn.size, tris,
+                   frame, calls, cpu }; })()""")
         print("%s %s: %d world requests, %.1f MB on the wire, %.0f s; %s" % (tag, mode, sum(by.values()), sum(size.values()) / 1e6,
               time.time() - t0, dict(sorted(by.items()))))
-        print("  drawn: %d chunks, %d models, %.1fM triangles" % (info["chunks"], info["models"], info["tris"] / 1e6))
+        print("  drawn: %d chunks, %d models, %.1fM triangles, %d draw calls, frame %.1f ms (%.1f ms submitting)" % (
+            info["chunks"], info["models"], info["tris"] / 1e6, info["calls"], info["frame"], info["cpu"]))
         if errs:
             print("  page errors:", errs[:5])
         b.close()

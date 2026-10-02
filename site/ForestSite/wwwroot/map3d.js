@@ -685,7 +685,10 @@ class Map3D {
     this.world.setFade(this.fade);
     const target = this.mode === "follow" && this.follow.target ? this.follow.target : this.orbit.target;
     this.world.setCut(this.fadeTo < 1, this.camera.position, target);
-    this.world.update(target, performance.now());
+    // The camera's focal length in drawing buffer pixels: where a far copy's
+    // error stays under a pixel (world3d.js split()).
+    const focal = this.canvas.height / (2 * Math.tan(this.camera.fov * Math.PI / 360));
+    this.world.update(target, performance.now(), this.camera.position, focal);
     if (this.mode === "orbit") this.lookRegion(this.orbit.target, this.orbit.dist, performance.now());
     if (this.looking) moving = true;     // keep frames coming until the patch is placed
     return moving;
