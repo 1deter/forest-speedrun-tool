@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.202 - 2026-10-02
+
+- Hang glider savestates: a restore now really puts you back in the air
+  gliding (v0.24.201 looked for the glider too close to the captured spot
+  and left you falling).
+
 ## v0.24.201 - 2026-10-02
 
 - Savestates on a zipline, sled, hang glider or cliff climb: a Quick or

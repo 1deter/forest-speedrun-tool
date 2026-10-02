@@ -369,7 +369,10 @@ namespace ForestOverlay.Game
             if (g == null || _pickupGlider == null) return "glider: game types not found";
             if (!Flag(_holding, anim))
             {
-                Transform pickup = Nearest(_gliderPickup, at, 10f, false);
+                // The capture reads `at` first and drops the glider on the
+                // frame it serializes, a second of flight later (~10-15 m
+                // on): the nearest within 40 m.
+                Transform pickup = Nearest(_gliderPickup, at, 40f, false);
                 if (pickup == null) return "glider: no dropped glider near " + Vec(at);
                 _pickupGlider.Invoke(pickup.GetComponent(_gliderPickup), null);
             }
