@@ -343,7 +343,7 @@ function categoryEditor(x, features, spots, rerender) {
   const banned = el("textarea", { rows: 4 }, c.banned.join("\n"));
   // The numbers a forced feature applies (a manhunt host sets them).
   const logcap = el("input", { class: "search", type: "number", min: 1, max: 99, value: c.logcap > 0 ? c.logcap : "", placeholder: "5" });
-  const caps = el("textarea", { rows: 4, placeholder: "Rock = 50\nStick = 30" }, (c.caps || []).map(k => k.name + " = " + k.cap).join("\n"));
+  const caps = itemCapsPicker(c.caps || []);
   const rules = el("textarea", { rows: 8 }, c.rules.join("\n"));
   const policies = {};
   const featureRows = features.map(f => {
@@ -364,12 +364,9 @@ function categoryEditor(x, features, spots, rerender) {
     const lc = logcap.value.trim() ? parseInt(logcap.value, 10) : 0;
     if (logcap.value.trim() && !(lc >= 1 && lc <= 99)) { save.say("The log cap is 1-99 (empty: 5)."); return; }
     out.logcap = lc;
-    out.caps = [];
-    for (const line of caps.value.split("\n").map(s => s.trim()).filter(Boolean)) {
-      const m = /^(.+?)\s*[=:]\s*(\d+)$/.exec(line);
-      if (!m || +m[2] < 1 || +m[2] > 9999) { save.say("Item caps: one per line as \"Item name = cap\" (1-9999) - not: " + line); return; }
-      out.caps.push({ name: m[1].trim(), cap: +m[2] });
-    }
+    const bad = caps.list.find(k => !(k.cap >= 1 && k.cap <= 9999));
+    if (bad) { save.say("Item caps are 1-9999 - " + bad.name + " is not."); return; }
+    out.caps = caps.list.map(k => ({ name: k.name, cap: k.cap }));
     save.say("…");
     try { const r = await adminCall("PUT", "/categories/" + x.id, categoryText(out)); save.say("Saved as version " + r.version + "."); setTimeout(() => adminPage("categories"), 700); }
     catch (e) { save.say("Failed: " + e.message); }
@@ -407,12 +404,86 @@ function categoryEditor(x, features, spots, rerender) {
     el("p", { class: "sub" }, "Locked: unusable during a run. Runner's choice: usable, named on the attempt's page. Forced on: on for everyone, unchangeable (e.g. a manhunt)."),
     el("div", { class: "tablewrap" }, el("table", { class: "admin" }, el("tbody", null, featureRows))),
     field("Log cap (when Logs in the inventory is forced on)", logcap, "How many logs everyone's inventory holds; empty = 5."),
-    field("Item caps (when Item caps is forced on)", caps,
-      "One per line, \"Item name = cap\", with the game's item names (Rock, Stick, Rope, DuctTape...). The game says on the runner's screen if a name is not one of its items."),
+    field("Item caps (when Item caps is forced on)", caps.box,
+      "Type part of an item's name and pick it from the game's items (as the game's Inventory tab does); it starts at the game's own cap. Logs have the log cap above."),
     field("Banned moves (one per line)", banned, "Shown on every attempt's page. Detecting them automatically comes later."),
     field("Rules (one per line)", rules),
     c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),
     save.box);
+}
+
+// The game's item list (wwwroot/items.json, read from the game's database):
+// loaded once, when an editor first needs it.
+let itemsPromise = null;
+function gameItems() {
+  itemsPromise ??= fetch("/items.json").then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText))).then(j => j.items);
+  return itemsPromise;
+}
+
+/// Item caps as rows (name, cap, remove) plus a search that only adds the
+/// game's own item names - no free text, so a name cannot be mistyped.
+/// `list` is what Save reads.
+function itemCapsPicker(initial) {
+  const list = initial.map(k => ({ name: k.name, cap: k.cap }));
+  let items = null;
+  const rows = el("div", { class: "caprows" });
+  const query = el("input", { class: "search", placeholder: "Find an item to cap (e.g. rock)", "aria-label": "Find an item to cap",
+    autocomplete: "off", role: "combobox", "aria-expanded": "false" });
+  const hints = el("div", { class: "caphints", role: "listbox" });
+  const msg = el("div", { class: "sub" });
+  let shown = [], active = 0;
+
+  const known = name => !items || items.some(i => i.name === name);
+  function renderRows() {
+    rows.replaceChildren(...(list.length ? list.map((k, n) => {
+      const cap = el("input", { class: "search capnum", type: "number", min: 1, max: 9999, value: k.cap, "aria-label": "Cap for " + k.name,
+        oninput: () => { k.cap = parseInt(cap.value, 10); } });
+      return el("div", { class: "caprow" },
+        el("span", { class: "name" }, k.name, known(k.name) ? null : el("span", { class: "tag bad" }, "not a game item")),
+        cap,
+        el("button", { class: "chip", type: "button", "aria-label": "Remove " + k.name, onclick: () => { list.splice(n, 1); renderRows(); } }, "Remove"));
+    }) : [el("div", { class: "sub" }, "No item caps - the game's own apply.")]));
+  }
+  function add(item) {
+    if (item.id === 78) { msg.textContent = "Logs have their own cap (Log cap, above)."; return; }
+    if (list.some(k => k.name === item.name)) { msg.textContent = item.name + " is in the list already."; return; }
+    list.push({ name: item.name, cap: item.cap > 0 && item.cap < 9999 ? item.cap : 10 });
+    msg.textContent = "Added " + item.name + " at " + (item.cap > 0 ? "the game's cap (" + item.cap + ")" : "10") + " - set the cap you want.";
+    query.value = "";
+    renderHints();
+    renderRows();
+    rows.lastChild?.querySelector("input")?.focus();
+  }
+  // Names starting with the query first, then containing it (the game's search).
+  function renderHints() {
+    const q = query.value.trim().toLowerCase();
+    const free = items ? items.filter(i => i.id !== 78 && !list.some(k => k.name === i.name)) : [];   // not logs, not listed yet
+    shown = !q ? [] : [...free.filter(i => i.name.toLowerCase().startsWith(q)),
+      ...free.filter(i => !i.name.toLowerCase().startsWith(q) && i.name.toLowerCase().includes(q))].slice(0, 8);
+    active = 0;
+    hints.replaceChildren(...shown.map((i, n) => el("button", { type: "button", class: "caphint" + (n === active ? " on" : ""), role: "option",
+      onmousedown: e => e.preventDefault(), onclick: () => add(i) }, i.name, i.cap > 0 ? el("span", { class: "sub" }, " game cap " + i.cap) : null)));
+    if (q && items && !shown.length) hints.replaceChildren(el("div", { class: "sub" }, "No game item matches \"" + query.value.trim() + "\" (or it is listed already)."));
+    query.setAttribute("aria-expanded", shown.length ? "true" : "false");
+  }
+  function move(step) {
+    if (!shown.length) return;
+    active = (active + step + shown.length) % shown.length;
+    [...hints.children].forEach((b, n) => b.classList.toggle("on", n === active));
+  }
+  query.addEventListener("input", renderHints);
+  query.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if ((e.key === "Enter" || e.key === "Tab") && shown.length && query.value.trim()) { e.preventDefault(); add(shown[active]); }
+    else if (e.key === "Escape") { query.value = ""; renderHints(); }
+  });
+  query.disabled = true;
+  query.placeholder = "Loading the game's items…";
+  gameItems().then(all => { items = all; query.disabled = false; query.placeholder = "Find an item to cap (e.g. rock)"; renderRows(); },
+    e => { query.placeholder = "The item list did not load"; msg.textContent = "The game's item list did not load (" + e.message + ") - reload the page."; });
+  renderRows();
+  return { box: el("div", { class: "cappicker" }, rows, el("div", { class: "capsearch" }, query, hints), msg), list };
 }
 
 // --- the activity log ------------------------------------------------------------------

@@ -269,6 +269,17 @@ td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 .catform textarea { font-size: 13px; resize: vertical; }
 .catform .check { display: flex; gap: 8px; align-items: flex-start; }
 .catform td select { width: auto; }
+.cappicker { display: grid; gap: 6px; }
+.caprows { display: grid; gap: 4px; }
+.caprow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.caprow .name { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.caprow .tag { margin-left: 6px; }
+.search.capnum { width: 90px; flex: 0 0 auto; }
+.capsearch { position: relative; max-width: 360px; }
+.capsearch .search { width: 100%; box-sizing: border-box; }
+.caphints { display: grid; }
+.caphint { text-align: left; background: #000; color: inherit; font: inherit; border: 1px solid var(--line); border-top: none; padding: 5px 8px; cursor: pointer; }
+.caphint.on, .caphint:hover { border-color: var(--yellow); color: var(--yellow); }
 .srcdiff { border: 1px solid var(--behind-lose); padding: 8px 10px; }
 .srcdiff .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .srcdiff pre { white-space: pre-wrap; font-size: 12px; margin: 4px 0 0; }

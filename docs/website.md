@@ -504,6 +504,23 @@ remembered per browser (author, 2026-10-02); pickups spawned at run time and the
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
 
+## Item list (2026-10-02)
+
+`wwwroot/items.json`: the game's 231 items (`ItemDatabase` id + name) and
+each one's carry cap from `Inventory.GetMaxAmountOf` in Slot 1 (-1 = not
+an inventory item). /admin's category editor picks item caps from it
+(`itemCapsPicker` in admin.js: type part of a name, arrows / Enter or a
+click add it at the game's cap, Remove per row; no free text, Log left
+out - it has the log cap; a saved name not in the list shows "not a game
+item"). The author asked for it in place of a text box (2026-10-02:
+"autofills the names so they can't be mistakenly typed"). To refresh it
+after a game update: over the bridge read
+`BepInEx_Manager OverlayPlugin._host._modules[4].Ctx.Inventory._catalog[i].Id`
+/ `.Name` for i < `_catalog.Count`, and `call
+static:TheForest.Utils.LocalPlayer Inventory.GetMaxAmountOf <id>` per id
+(a `-f` script, ~2 s). The local site stamps `?v=` once at startup:
+restart it after editing a wwwroot file, or the page keeps the old one.
+
 ## Next
 
 1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:
