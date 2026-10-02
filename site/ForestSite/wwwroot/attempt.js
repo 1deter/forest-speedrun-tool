@@ -13,7 +13,7 @@ const VERDICTS = {
   red: ["Problems found", "Something below contradicts the run, or something ran that a run does not allow."],
   running: ["In progress", "The attempt is still running, or its log has not reached the site yet."],
 };
-const MARKS = { ok: "✓", bad: "✗", pending: "…", allowed: "✓", note: "i", green: "✓", amber: "…", red: "✗" };
+const MARKS = { ok: "✓", bad: "✗", pending: "…", warn: "!", allowed: "✓", note: "i", green: "✓", amber: "…", red: "✗" };
 
 /// ms -> "1:23" (the attempt's real time, as the log's lines say it).
 function clock(ms) {
@@ -22,9 +22,12 @@ function clock(ms) {
                    : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 
+/// [level, text, details?]: details (internal names) behind a fold.
 function lineList(items) {
-  return el("ul", { class: "findings" }, items.map(([level, text]) =>
-    el("li", { class: "f-" + level }, el("span", { class: "mark", "aria-hidden": "true" }, MARKS[level] || "·"), el("span", null, text))));
+  return el("ul", { class: "findings" }, items.map(([level, text, details]) =>
+    el("li", { class: "f-" + level }, el("span", { class: "mark", "aria-hidden": "true" }, MARKS[level] || "·"),
+      el("div", null, text, details && details.length ? el("details", { class: "raw" }, el("summary", null, "Which parts (the game's own names)"),
+        el("ul", { class: "partlist" }, details.map(d => el("li", null, d)))) : null))));
 }
 
 async function attemptPage(id) {
@@ -73,7 +76,7 @@ async function attemptPage(id) {
 
   const recording = a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
     : el("p", { class: "sub" }, a.online ? a.checkpoints + " checkpoint(s) so far. The verdict comes when the log arrives." : "Nothing yet.");
-  const findings = a.findings ? lineList(a.findings.map(f => [f.level, f.text]))
+  const findings = a.findings ? lineList(a.findings.map(f => [f.level, f.text, f.details]))
     : el("p", { class: "sub" }, "The game's report comes with the log, at the attempt's end.");
 
   show(

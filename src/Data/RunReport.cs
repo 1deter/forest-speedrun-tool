@@ -39,6 +39,10 @@ namespace ForestOverlay.Data
         public int OwnPatchedMethods;
         public readonly List<string> Cheats = new List<string>();         // the game's cheat switches seen on
         public readonly List<string> Flags = new List<string>();          // run mode's flags
+        /// Only when the game's file hash is not a known build: "<top-level
+        /// type> <16 hex>" per type of the loaded game code (Game/RunIntegrity.HashTypes),
+        /// so the site can name what changed (phase 3). Not a finding here.
+        public readonly List<string> TypeHashes = new List<string>();
         public string PracticeBefore = "";                                // a practice action earlier this session
 
         public static bool IsKnownGame(string hash)
@@ -116,6 +120,7 @@ namespace ForestOverlay.Data
             List(sb, "cheat", Cheats);
             List(sb, "flag", Flags);
             if (PracticeBefore.Length > 0) sb.Append("practicebefore = ").Append(PracticeBefore).Append('\n');
+            List(sb, "typehash", TypeHashes);
             sb.Append('\n');
             List<string> f = Findings();
             for (int i = 0; i < f.Count; i++) sb.Append("# ").Append(f[i]).Append('\n');
@@ -154,6 +159,7 @@ namespace ForestOverlay.Data
                     case "cheat": r.Cheats.Add(value); break;
                     case "flag": r.Flags.Add(value); break;
                     case "practicebefore": r.PracticeBefore = value; break;
+                    case "typehash": r.TypeHashes.Add(value); break;
                 }
             }
             return r;

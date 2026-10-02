@@ -217,6 +217,8 @@ namespace ForestOverlay.Modules
             if (_report.GameHash.Length == 0 && RunIntegrity.GameHash.Length > 0)
             {
                 _report.GameHash = RunIntegrity.GameHash;
+                _report.TypeHashes.Clear();
+                if (RunIntegrity.TypeHashes != null) _report.TypeHashes.AddRange(RunIntegrity.TypeHashes);
                 _reportDirty = true;
             }
 

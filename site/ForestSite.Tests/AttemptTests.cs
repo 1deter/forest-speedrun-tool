@@ -216,6 +216,64 @@ public sealed class AttemptTests : IDisposable
         Assert.Null(Attempts.PatchOwner("A.B"));
     }
 
+    // --- a changed game, part by part -----------------------------------------
+
+    private static readonly GameCode Table = new(
+        new[] { "# Assembly-CSharp test", "girlMutantAiManager 1111111111111111", "PlayerStats 2222222222222222", "TheForest.Utils.LocalPlayer 3333333333333333" },
+        new[] { "# areas", "^(girl|.*Megan) = the Megan boss fight", "^(PlayerStats|.*Health) = player health" });
+
+    private static string Changed(params string[] hashes) => Report(r =>
+    {
+        r.GameHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        r.TypeHashes.AddRange(hashes);
+    });
+
+    [Fact]
+    public void GameCode_ComparesPartByPart()
+    {
+        var d = Table.Compare(new[] { "girlMutantAiManager 1111111111111111", "PlayerStats 9999999999999999", "Cheat 4444444444444444" });
+        Assert.Equal(new[] { "PlayerStats" }, d.Changed);
+        Assert.Equal(new[] { "Cheat" }, d.Added);
+        Assert.Equal(new[] { "TheForest.Utils.LocalPlayer" }, d.Missing);
+        Assert.Equal("the Megan boss fight", Table.Area("girlMutantAiManager"));
+        Assert.Equal(GameCode.Other, Table.Area("Cheat"));
+    }
+
+    [Fact]
+    public void AChangedGame_IsNamedByArea_TheNamesBehindAFold()
+    {
+        var (v, f) = Attempts.JudgeReport(Changed("girlMutantAiManager 1111111111111112", "PlayerStats 2222222222222222",
+                                                  "TheForest.Utils.LocalPlayer 3333333333333333"), None, Table);
+        Assert.Equal("red", v);
+        var game = f[0];
+        Assert.Equal("bad", game.Level);
+        Assert.Equal("The game's code was changed: the Megan boss fight (1). 1 of 3 parts differ from the Steam game.", game.Text);
+        Assert.Equal(new[] { "Changed in the Megan boss fight: girlMutantAiManager." }, game.Details);
+
+        // The same code in another file: amber, said plainly.
+        var same = Attempts.JudgeReport(Changed("girlMutantAiManager 1111111111111111", "PlayerStats 2222222222222222",
+                                                "TheForest.Utils.LocalPlayer 3333333333333333"), None, Table);
+        Assert.Equal("amber", same.verdict);
+        Assert.Equal("warn", same.findings[0].Level);
+        // No per-type hashes (an older plugin), or no table: red, unnamed.
+        Assert.Equal("The game's code is not the Steam game's - it was changed or is another version.",
+                     Attempts.JudgeReport(Changed(), None, Table).findings[0].Text);
+        Assert.Contains("no table", Attempts.JudgeReport(Changed("PlayerStats 1"), None, new GameCode(new string[0], new string[0])).findings[0].Text);
+    }
+
+    [Fact]
+    public void TheShippedAreas_NameTheGamesParts()
+    {
+        var steam = GameCode.Steam;
+        Assert.Equal("the Megan boss fight", steam.Area("girlMutantAiManager"));
+        Assert.Equal("cannibals and mutants", steam.Area("mutantAI"));
+        Assert.Equal("player movement", steam.Area("FirstPersonCharacter"));
+        Assert.Equal("the game's scripted actions (PlayMaker)", steam.Area("HutongGames.PlayMaker.Actions.FloatCompare"));
+        Assert.Equal("cheats and the debug console", steam.Area("Cheats"));
+        Assert.Equal(GameCode.Other, steam.Area("zzzz"));
+        Assert.Equal("game = x\nflag = y", Attempts.ShownReport("game = x\ntypehash = A 1\nflag = y"));
+    }
+
     // --- the API ------------------------------------------------------------
 
     private readonly string _data;

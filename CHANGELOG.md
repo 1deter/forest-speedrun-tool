@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.217 - 2026-10-02
+
+- Each run attempt now has its own page on the website - the link from
+  the Runs tab's Copy link. It says in plain words whether the attempt
+  checks out (green, amber or red), what the site saw during the run,
+  what ran in the game, and has a box where anyone can type a code from
+  the video to see where it shows in the run.
+- When the game's own files are not the Steam game's, the run report
+  now lets the website say which parts of the game were changed (for
+  example "the Megan boss fight" or "player movement").
+
 ## v0.24.216 - 2026-10-02
 
 - Run mode shows a **run code**: four characters at the top of the screen

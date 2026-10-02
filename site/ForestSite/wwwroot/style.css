@@ -227,9 +227,11 @@ table.facts td { color: var(--white); overflow-wrap: anywhere; }
 .findings .mark { flex: none; width: 1.2em; text-align: center; font-weight: 600; }
 .f-ok .mark, .f-green .mark, .f-allowed .mark, p.f-ok { color: var(--ahead-gain); }
 .f-bad .mark, .f-red .mark, p.f-bad { color: var(--behind-lose); }
-.f-pending .mark, .f-amber .mark { color: var(--yellow); }
+.f-pending .mark, .f-warn .mark, .f-amber .mark { color: var(--yellow); }
+.partlist { margin: 6px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+.partlist li { padding: 2px 0; border: 0; display: list-item; }
 .f-note .mark { color: var(--muted); }
-.f-allowed span:last-child, .f-note span:last-child { color: var(--dim); }
+.f-allowed > div, .f-note > div { color: var(--dim); }
 .search.code { max-width: 120px; text-transform: uppercase; letter-spacing: .3em; font-family: ui-monospace, Consolas, monospace; font-size: 18px; }
 .coderesult { margin-top: 10px; max-width: 70ch; overflow-wrap: anywhere; }
 details.raw { margin-top: 14px; }

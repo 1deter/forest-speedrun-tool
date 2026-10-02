@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             var (v, all) = Overall(row.Verdict, why, report, allowed);
             var (_, list) = JudgeReport(report, allowed);
             verdict = v;
-            findings = list.Select(f => new { level = f.Level, text = f.Text }).ToList();
+            findings = list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList();
             recording = new { verdict = row.Verdict, why };
             why = all.ToArray();
         }
@@ -194,13 +194,15 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
             steps = row.Steps, flags, verdict, why, recording, findings,
-            report,
+            report = ShownReport(report),
         };
     }
 
     // --- what ran: the report's findings (pure, tested) ----------------------------
 
-    public sealed record Finding(string Level, string Text);   // ok, bad, pending, allowed, note
+    /// ok, bad (red), pending / warn (amber), allowed, note; Details = lines
+    /// behind a fold (internal names - author: plain words first).
+    public sealed record Finding(string Level, string Text, List<string> Details = null);
 
     /// The mods and code a report names, as (kind, text) - what the
     /// admins can allow. "could not list" lines are never allowable.
@@ -227,7 +229,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     /// says is wrong is red, unless the admins allowed that exact mod /
     /// version; a report still checking (or none) is amber. Run mode's flags
     /// are judged by the receipt (they are in the chain), not again here.
-    public static (string verdict, List<Finding> findings) JudgeReport(string text, ISet<(string, string)> allowed)
+    public static (string verdict, List<Finding> findings) JudgeReport(string text, ISet<(string, string)> allowed, GameCode code = null)
     {
         var f = new List<Finding>();
         if (string.IsNullOrWhiteSpace(text))
@@ -241,7 +243,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (r.GameHash.Length == 0) f.Add(new("pending", "The game's files were still being checked when the attempt ended."));
         else if (r.GameHash.StartsWith("error")) f.Add(new("bad", "The game's code could not be checked (" + r.GameHash + ")."));
         else if (RunReport.IsKnownGame(r.GameHash)) f.Add(new("ok", "The game's code is the unmodified Steam game."));
-        else f.Add(new("bad", "The game's code is not the Steam game's - it was changed or is another version."));
+        else f.Add(ChangedGame(r, code ?? GameCode.Steam));
 
         if (r.OtherPlugins.Count + r.OtherPatchers.Count + r.OtherCode.Count == 0) f.Add(new("ok", "No other mods were loaded."));
         foreach (string s in r.OtherPlugins)
@@ -277,9 +279,43 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (r.PracticeBefore.Length > 0)
             f.Add(new("note", "Practice was used before this attempt (" + r.PracticeBefore + "); the attempt itself started clean."));
 
-        string verdict = f.Any(x => x.Level == "bad") ? "red" : f.Any(x => x.Level == "pending") ? "amber" : "green";
+        string verdict = f.Any(x => x.Level == "bad") ? "red" : f.Any(x => x.Level == "pending" || x.Level == "warn") ? "amber" : "green";
         return (verdict, f);
     }
+
+    /// A game file that is not the Steam build's: what changed, by area
+    /// (the report's per-type hashes against GameCode's table).
+    private static Finding ChangedGame(RunReport r, GameCode code)
+    {
+        const string NotSteam = "The game's code is not the Steam game's - it was changed or is another version";
+        if (r.TypeHashes.Count == 0) return new("bad", NotSteam + ".");
+        if (code.Count == 0) return new("bad", NotSteam + " (the site has no table of the Steam game's code to say where).");
+        var d = code.Compare(r.TypeHashes);
+        if (d.Changed.Count + d.Added.Count + d.Missing.Count == 0)
+            return new("warn", "The game's file is not the Steam game's, but its code is the same, part by part (" + code.Count +
+                               " parts compared) - only other parts of the file differ.");
+
+        var details = new List<string>();
+        void List(string what, List<string> types)
+        {
+            foreach (var (area, list) in code.ByArea(types))
+                details.Add(what + " in " + area + ": " + string.Join(", ", list.Take(40)) + (list.Count > 40 ? " and " + (list.Count - 40) + " more" : "") + ".");
+        }
+        List("Changed", d.Changed);
+        List("Added", d.Added);
+        List("Missing", d.Missing);
+        var touched = d.Changed.Concat(d.Added).Concat(d.Missing).ToList();
+        var areas = code.ByArea(touched);
+        string where = string.Join(", ", areas.Take(6).Select(a => a.area + " (" + a.types.Count + ")")) +
+                       (areas.Count > 6 ? " and " + (areas.Count - 6) + " more areas" : "");
+        return new("bad", "The game's code was changed: " + where + ". " + touched.Count + " of " + code.Count +
+                          " parts differ from the Steam game.", details);
+    }
+
+    /// The report as shown: the per-type hashes left out (thousands of lines;
+    /// the findings say what they showed).
+    public static string ShownReport(string report) =>
+        report == null ? null : string.Join("\n", report.Split('\n').Where(l => !l.StartsWith("typehash = ", StringComparison.Ordinal)));
 
     // --- the allow-list (admins) ---------------------------------------------------
 

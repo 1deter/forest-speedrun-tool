@@ -1,0 +1,49 @@
+# The game's code by area, in words a runner understands (run mode phase 3,
+# docs/run-mode.md). An attempt's page names the areas a changed game's
+# code was changed in; the type names stay behind a fold.
+#
+# <regex on the top-level type's full name> = <area>
+# The first match wins; case counts (write [Xx] for either). A type no line
+# matches is "other game code". Namespaces and prefixes first, then words
+# in names. Written from the Steam build's type names (Assembly-CSharp,
+# 2026-10-02) - add lines, never rename an area without reason.
+
+# --- namespaces and prefixes ---
+^HutongGames\.PlayMaker = the game's scripted actions (PlayMaker)
+^(Valve\.|SteamVR|OVR|.*VR[A-Z_]|.*VR$) = VR
+^(Pathfinding|AstarPath) = enemy pathfinding
+^(Ceto|CetoTF) = water and the ocean
+^(UnityEngine\.PostProcessing|ScionEngine|TheForest\.Graphics|DigitalOpus|RTP|ReliefTerrain|Amplify|MB[0-9_]) = graphics
+^AdvancedTerrainGrass = trees and nature
+^(TheForest\.Networking|Coop|Bolt|BoltInternal|Mp[A-Z]|TheForest\.UI\.Mp|TheForest\.UI\.Multiplayer|.*[Ss]team[A-Z]|.*Dedicated) = multiplayer
+^(Serialization|TheForest\.Save|LitJson|ICSharpCode|UniLinq|RadicalLibrary|Radical) = saving and loading
+^(TheForest\.TaskSystem|TheForest\.SerializableTaskSystem) = achievements and the to-do list
+^(Rewired|TheForest\.UI|AnimationOrTween|Inspector) = menus, HUD, the book and input
+^(Cheats|TheForest\.DebugConsole|.*DebugConsole|TheForest\.DebugMacro|.*DevConsole) = cheats and the debug console
+
+# --- words in names ---
+^(girl|enemyGirl|.*Girl|.*Megan|.*[Bb]oss[A-Z_]|.*[Bb]oss$) = the Megan boss fight
+^(.*[Mm]utant|.*[Cc]annibal|enemy|.*Enemy|.*[Cc]reepy|.*[Aa]rmsy|.*[Vv]irginia|.*[Cc]owman|.*[Ww]orm[A-Z_]|.*[Ff]amily|.*AiEvents|.*Ai[A-Z_]|.*AI[A-Z_]|.*AI$|.*_ai|.*[Ss]earchFunctions|.*[Tt]argetFinder|.*[Dd]ayCycle) = cannibals and mutants
+^(.*[Ss]eeker|.*[Rr]ichAI|.*[Nn]avMesh|.*[Nn]avCut|.*GraphUpdate|.*RVO) = enemy pathfinding
+^(.*[Aa]nimal|.*[Rr]abbit|.*[Dd]eer|.*[Ll]izard|.*[Tt]urtle|.*[Ss]hark|.*[Ss]eagull|.*[Rr]accoon|.*[Ss]quirrel|.*[Bb]oar|.*[Cc]roc[a-z]*[A-Z_]|.*[Bb]ird|.*[Ff]ish|.*[Ff]rog|.*[Ss]nake|.*[Gg]oose|.*[Gg]eese|.*[Ss]pider|.*[Ff]eather) = animals
+^(FirstPersonCharacter|.*[Pp]layerMove|.*[Ss]wim|.*[Cc]limb|.*[Jj]ump|.*[Ff]all[A-Z]|.*[Rr]agdoll|.*[Ss]tealth|.*[Cc]rouch|.*[Ss]print|.*MouseLook|.*[Hh]eadLook) = player movement
+^(PlayerStats|.*[Hh]itReaction|.*[Hh]ealth|.*[Ss]tamina|.*[Hh]unger|.*[Tt]hirst|.*[Ff]ullness|.*[Tt]akeDamage|.*[Dd]amage[A-Z_]|.*[Dd]eath|.*[Rr]evive|.*[Bb]lood|.*[Ii]nfection|.*[Ss]anity) = player health, damage and death
+^(TheForest\.Player|.*[Pp]layer|LocalPlayer|.*[Pp]mControl) = the player
+^(.*[Ww]eapon|.*[Aa]xe[A-Z_]|.*[Aa]xe$|.*[Ss]pear|.*[Bb]ow[A-Z_]|.*[Aa]rrow|.*[Bb]omb|.*[Ee]xplo|.*[Mm]olotov|.*[Ff]lare|.*[Gg]un[A-Z_]|.*[Mm]elee|.*[Ss]mash|.*[Ss]wing|.*[Aa]ttack|.*[Hh]itbox|.*[Pp]rojectile|.*[Ss]lingShot|.*[Cc]hainSaw|.*[Cc]annon|.*[Ff]lintLock) = weapons and combat
+^(TheForest\.Items|.*[Ii]nventory|.*[Ii]tem|.*[Pp]ickUp|.*[Pp]ickup|.*[Cc]raft|.*[Ee]quip|.*[Bb]ackpack|.*[Ss]tash|.*InvDatabase) = items, inventory and crafting
+^(TheForest\.Buildings|.*[Bb]uild|.*[Bb]lueprint|.*[Cc]onstruct|.*[Ss]tructure|.*[Ww]all[A-Z]|.*[Ff]oundation|.*[Rr]oof|.*[Ss]helter|.*[Tt]rap[A-Z_]|.*[Tt]rap$|.*[Zz]ipline|.*[Rr]aft|.*[Bb]oat|.*[Ss]led|.*[Bb]ench|.*[Rr]epair) = building, traps, ziplines and rafts
+^(.*[Ff]ire[A-Z_]|.*[Ff]ire$|.*[Bb]urn|.*[Ff]lame|.*[Tt]orch|.*[Ll]ighter) = fire
+^(.*[Tt]ree|.*LOD_|.*[Bb]ush|.*[Ss]apling|.*[Pp]lant|.*[Gg]reeble|.*[Rr]ock[A-Z_]|.*[Rr]ock$|.*[Ss]tick|.*[Ff]ern|.*[Nn]ature|.*[Gg]rass|.*[Ff]oliage|.*[Ll]eaves|.*[Mm]ushroom|.*[Ww]ood) = trees and nature
+^(.*[Cc]ave|.*[Ss]inkhole|.*[Rr]ope) = caves
+^(.*[Ee]nd[Gg]ame|.*[Tt]immy|.*[Ee]levator|.*[Kk]eycard|.*[Kk]eypad|.*[Aa]rtifact|.*[Ll]ab[A-Z_]|.*[Bb]unker|.*[Vv]ault|.*[Oo]belisk|.*[Cc]ut[Ss]cene|.*[Ss]equence|.*[Mm]achine|.*[Nn]itrogen) = the endgame and cutscenes
+^(.*[Pp]lane[A-Z_]|.*[Pp]lane$|.*[Cc]rash|.*[Pp]assenger|.*[Ss]uitcase|.*[Ll]andingGear|.*[Aa]eroplane) = the plane crash and passengers
+^(TheForestAtmosphere|.*[Ss]un[A-Z_]|.*[Ss]un$|.*[Ww]eather|.*[Rr]ain|.*[Ss]now|.*[Ff]og|.*[Cc]loud|.*[Ss]ky|uSky|.*[Tt]imeOfDay|.*[Dd]ayNight|.*[Mm]oon|.*[Ww]ind|.*[Ff]rost|.*[Aa]mbient) = time of day and weather
+^(.*[Oo]cean|.*[Ww]ater|.*[Ll]ake|.*[Bb]uoyancy|.*[Dd]rink) = water and the ocean
+^(.*[Tt]errain|.*[Ww]orldPos|TheForest\.World|.*[Aa]rea[A-Z_]|.*[Ss]treamer|.*[Ss]treaming|.*[Cc]hunk|.*[Hh]eightmap|.*[Oo]verworld) = the world and its loading
+^(.*[Ss]erializ|.*[Ss]ave[A-Z_]|.*[Ss]ave$|.*[Ll]oad[A-Z_]|.*[Ll]oading|.*[Ss]cene|.*[Ss]tore[A-Z_]|.*[Pp]refab|.*[Pp]ool) = saving and loading
+^(.*[Mm]ultiplayer|.*[Nn]et[A-Z_]|.*[Ll]obby|.*[Ee]ntity|.*RPC|.*[Ss]erver|.*[Cc]lient) = multiplayer
+^(.*UI[A-Z_]|.*UI$|UI.*|.*[Mm]enu|.*[Hh]ud|.*HUD|.*[Bb]ook|.*[Ii]nput|.*[Cc]ursor|.*[Tt]itle|.*[Oo]ptions|.*[Ss]ettings|.*[Ll]abel|.*[Bb]utton|.*[Tt]ween|.*NGUI|.*[Ll]ocaliz|.*[Ll]anguage|.*[Ss]croll|.*[Gg]lyph|.*[Ss]ymbol|BM[A-Z]|.*[Gg]aze|.*[Pp]ointer|.*[Mm]ouse) = menus, HUD, the book and input
+^(.*[Rr]ender|.*[Ss]hader|.*[Cc]am[A-Z_]|.*[Cc]amera|.*[Ll]ight|.*[Ff]x[A-Z_]|.*FX|.*[Pp]article|.*[Dd]ecal|.*[Mm]aterial|.*[Ii]mageEffect|.*[Mm]esh|.*[Oo]cclusion|.*[Ss]hadow|.*[Tt]exture|.*[Qq]uality|.*[Tt]rail|.*[Cc]olor) = graphics
+^(.*[Aa]udio|.*[Ss]ound|.*[Mm]usic|.*FMOD|.*[Ss]fx) = sound
+^(.*[Aa]chievement|.*[Ss]tat[A-Z_]|.*[Ss]tats|.*[Tt]ask|.*[Qq]uest) = achievements and the to-do list
+^(.*[Aa]nim|.*[Mm]ecanim|.*IK[A-Z_]|.*[Ii]k[A-Z]) = animation

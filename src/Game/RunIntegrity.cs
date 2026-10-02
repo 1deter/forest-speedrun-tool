@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -47,7 +48,22 @@ namespace ForestOverlay.Game
             {
                 try
                 {
-                    _gameHash = Sha256(path);
+                    string hash = Sha256(path);
+                    // A changed game: every type hashed, so the site can name
+                    // what changed (run mode phase 3). Before GameHash is
+                    // set - the report copies both once it is.
+                    if (!Data.RunReport.IsKnownGame(hash))
+                    {
+                        try
+                        {
+                            Stopwatch sw = Stopwatch.StartNew();
+                            _typeHashes = HashTypes(GameAssembly());
+                            log.LogInfo("Run mode: hashed " + _typeHashes.Count + " types of the game's code for the site to compare (" +
+                                        sw.ElapsedMilliseconds + " ms).");
+                        }
+                        catch (Exception ex) { log.LogWarning("Run mode: could not hash the game's types: " + ex.Message); }
+                    }
+                    _gameHash = hash;
                     log.LogInfo("Run mode: game code " + (Data.RunReport.IsKnownGame(_gameHash) ? "is the known Steam build" : "is NOT a known build") +
                                 " (Assembly-CSharp " + _gameHash.Substring(0, 12) + ").");
                 }
@@ -57,6 +73,97 @@ namespace ForestOverlay.Game
                     log.LogWarning("Run mode: could not hash the game's code: " + ex.Message);
                 }
             });
+        }
+
+        private static volatile List<string> _typeHashes;
+
+        /// Per-type hashes of the game's code when its file is not a known
+        /// build (null otherwise, or until read).
+        public static List<string> TypeHashes { get { return _typeHashes; } }
+
+        public static Assembly GameAssembly()
+        {
+            foreach (Assembly a in AppDomain.CurrentDomain.GetAssemblies())
+                if (a.GetName().Name == "Assembly-CSharp") return a;
+            throw new InvalidOperationException("Assembly-CSharp is not loaded");
+        }
+
+        /// "<top-level type> <16 hex>" for every top-level type, nested
+        /// types folded in: SHA-256 over the sorted lines "<type>::<method>
+        /// <IL hash>" of every declared method and constructor (and one
+        /// "<type> type" line per type, so an added empty type shows).
+        /// The site's table of the Steam build is made by this same code
+        /// (WriteTypeHashes over the bridge), so both sides hash alike.
+        public static List<string> HashTypes(Assembly asm)
+        {
+            Type[] types;
+            try { types = asm.GetTypes(); }
+            catch (ReflectionTypeLoadException ex) { types = ex.Types; }
+            Dictionary<string, List<string>> byTop = new Dictionary<string, List<string>>();
+            const BindingFlags all = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance |
+                                     BindingFlags.Static | BindingFlags.DeclaredOnly;
+            List<string> result = new List<string>();
+            using (System.Security.Cryptography.SHA256 sha = new System.Security.Cryptography.SHA256Managed())
+            {
+                foreach (Type t in types)
+                {
+                    if (t == null) continue;
+                    Type top = t;
+                    while (top.DeclaringType != null) top = top.DeclaringType;
+                    string key = top.FullName ?? top.Name;
+                    string name = t.FullName ?? t.Name;
+                    List<string> lines;
+                    if (!byTop.TryGetValue(key, out lines)) byTop[key] = lines = new List<string>();
+                    lines.Add(name + " type");
+                    List<MethodBase> methods = new List<MethodBase>();
+                    try
+                    {
+                        methods.AddRange(t.GetMethods(all));
+                        methods.AddRange(t.GetConstructors(all));
+                    }
+                    catch (Exception) { lines.Add(name + " unreadable"); continue; }
+                    foreach (MethodBase m in methods)
+                    {
+                        byte[] il = null;
+                        try
+                        {
+                            MethodBody body = m.GetMethodBody();
+                            if (body != null) il = body.GetILAsByteArray();
+                        }
+                        catch (Exception) { }
+                        lines.Add(name + "::" + m.Name + " " + (il == null ? "-" : Hex(sha.ComputeHash(il), 8)));
+                    }
+                }
+                List<string> keys = new List<string>(byTop.Keys);
+                keys.Sort(StringComparer.Ordinal);
+                foreach (string key in keys)
+                {
+                    List<string> lines = byTop[key];
+                    lines.Sort(StringComparer.Ordinal);
+                    byte[] h = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", lines.ToArray())));
+                    result.Add(key + " " + Hex(h, 8));
+                }
+            }
+            return result;
+        }
+
+        /// The Steam build's table for the site (site/ForestSite/GameCode):
+        /// `call static:ForestOverlay.Game.RunIntegrity WriteTypeHashes "<path>"`
+        /// on a clean install. Main thread, a second or two.
+        public static string WriteTypeHashes(string path)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            List<string> list = HashTypes(GameAssembly());
+            File.WriteAllText(path, "# Assembly-CSharp " + Sha256(Path.Combine(Paths.ManagedPath, "Assembly-CSharp.dll")) + "\n" +
+                                    string.Join("\n", list.ToArray()) + "\n", new System.Text.UTF8Encoding(false));
+            return list.Count + " types in " + sw.ElapsedMilliseconds + " ms -> " + path;
+        }
+
+        private static string Hex(byte[] b, int bytes)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(bytes * 2);
+            for (int i = 0; i < bytes; i++) sb.Append(b[i].ToString("x2"));
+            return sb.ToString();
         }
 
         public static string Sha256(string path)
@@ -75,6 +182,9 @@ namespace ForestOverlay.Game
         public static void Gather(Data.RunReport r, string ownGuid, string ownPath)
         {
             r.GameHash = _gameHash;
+            r.TypeHashes.Clear();
+            List<string> types = _typeHashes;   // set before _gameHash
+            if (r.GameHash.Length > 0 && types != null) r.TypeHashes.AddRange(types);
             r.OtherPlugins.Clear();
             r.OtherPatchers.Clear();
             r.OtherCode.Clear();

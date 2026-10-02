@@ -37,6 +37,7 @@
 
   <!-- The community packs ship with the site, as they do in the repo. -->
   <ItemGroup>
+    <Content Include="GameCode/*.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../community/*.foseg" Link="community/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

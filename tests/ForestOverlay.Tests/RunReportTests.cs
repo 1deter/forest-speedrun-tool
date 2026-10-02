@@ -117,9 +117,13 @@ namespace ForestOverlay.Tests
             r.Flags.Add("the test bridge is on");
             r.PracticeBefore = "Go";
             r.OwnPatchedMethods = 12;
+            r.GameHash = "0123456789abcdef";
+            r.TypeHashes.Add("PlayerStats 0123456789abcdef");
+            r.TypeHashes.Add("TheForest.Utils.LocalPlayer fedcba9876543210");
             RunReport back = RunReport.Parse(r.Format());
             Assert.Equal(r.Format(), back.Format());
             Assert.Equal(r.Findings(), back.Findings());
+            Assert.Equal(r.TypeHashes, back.TypeHashes);
         }
 
         [Fact]
