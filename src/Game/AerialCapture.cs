@@ -88,6 +88,13 @@ namespace ForestOverlay.Game
     //    sinkhole's floor and water (y -300 / -304) are models under a hole
     //    in the terrain, which bottoms out at y 0 - "60 m below the tile's
     //    lowest ground" drew the pit black.
+    //  - The camera clears the tallest model too, not only the terrain: the
+    //    south mountains past the terrain's edge are models reaching y ~1100,
+    //    and a camera 400 m over the terrain (y ~650) sat inside them - the
+    //    near plane cut away what was above it while that part still cast
+    //    its shadow on the snow below (the "overlook's shadow", author
+    //    2026-10-02). Renderers reaching above the lowest camera are listed
+    //    once per run; a tile they overlap puts its camera 400 m over them.
     //
     // Everything changed is put back by Stop / the end of the run. The
     // player is left where he stands, in god mode while it runs.
@@ -169,6 +176,8 @@ namespace ForestOverlay.Game
             float started = Time.realtimeSinceStartup;
 
             Apply(cam, tile, rangeScale, sunTime);
+            List<Renderer> tall = TallRenderers(terrain);
+            if (Log != null) Log.LogInfo("Aerial capture: " + tall.Count + " renderer(s) reach above the terrain's camera height");
             Vector3 home = PlayerPosition != null ? PlayerPosition() : Vector3.zero;
             try
             {
@@ -187,7 +196,11 @@ namespace ForestOverlay.Game
                         float ground = terrain.SampleHeight(new Vector3(cx, 0f, cz)) + terrain.transform.position.y;
                         if (MovePlayer != null) MovePlayer(new Vector3(cx, Mathf.Max(ground, Sea) + 1f, cz));
                         SetPlayerLoc(new Vector3(cx, ground + 1.8f, cz));
-                        float top = hi + 400f;
+                        string over;
+                        float model = ModelTop(tall, cx, cz, tile, out over);
+                        float top = Mathf.Max(hi, model) + 400f;
+                        if (model > hi && Log != null)
+                            Log.LogInfo("Aerial capture: tile " + ix + "_" + iz + " camera raised to y " + top.ToString("0") + " over '" + over + "'");
                         freeCam.Place(new Vector3(cx, top, cz), 90f, 0f);
                         cam.nearClipPlane = 1f;
                         cam.farClipPlane = top - Mathf.Min(lo, Deepest) + 60f;
@@ -253,6 +266,42 @@ namespace ForestOverlay.Game
                     if (h < lo) lo = h;
                     if (h > hi) hi = h;
                 }
+        }
+
+        /// Enabled renderers whose top is above the lowest camera (the sea
+        /// plus 400 m), skipping anything wider than the island (sky, ocean).
+        private static List<Renderer> TallRenderers(Terrain t)
+        {
+            List<Renderer> list = new List<Renderer>();
+            float floor = Sea + 400f;
+            float wide = t.terrainData.size.x * 1.5f;
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType<Renderer>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled) continue;
+                Bounds b = r.bounds;
+                if (b.max.y <= floor || b.size.x > wide || b.size.z > wide) continue;
+                list.Add(r);
+            }
+            return list;
+        }
+
+        /// The highest top of the listed renderers over a tile (-infinity if
+        /// none overlaps it), and the name of the one that sets it.
+        private static float ModelTop(List<Renderer> tall, float cx, float cz, float tile, out string name)
+        {
+            float top = float.MinValue, half = tile * 0.5f;
+            name = null;
+            for (int i = 0; i < tall.Count; i++)
+            {
+                Renderer r = tall[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                Bounds b = r.bounds;
+                if (b.max.x < cx - half || b.min.x > cx + half || b.max.z < cz - half || b.min.z > cz + half) continue;
+                if (b.max.y > top) { top = b.max.y; name = r.name; }
+            }
+            return top;
         }
 
         /// The screen's centre square, as a JPEG. Called after

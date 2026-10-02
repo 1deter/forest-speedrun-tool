@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.221 - 2026-10-02
+
+- Website tooling only (no change in play): the photo map capture now
+  puts its camera above the south mountains, so their tops are drawn
+  instead of only their shadows.
+
 ## v0.24.220 - 2026-10-02
 
 - A run category can set the numbers for the features it turns on for
