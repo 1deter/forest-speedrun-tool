@@ -608,8 +608,8 @@ instance sphere, then triangles in groups of 32 with a box each (made once
 per mesh): ~0.2 ms a test (all triangles: ~13 ms). The cut plane alone
 left the 4 m in front of the ghost. Checked headless on 1st logboost's runs
 (live API proxied to a local site): a clear passage instead of sliced
-rock; not yet seen by the author. Caves are not drawn on the 2D
-map; in the photo map the overlook's shadow falls on the snow hills but
+rock; not yet seen by the author. Caves not drawn on the 2D map:
+**fixed 2026-10-02** (*Caves on the 2D map* below); in the photo map the overlook's shadow falls on the snow hills but
 the overlook itself is missing (likely: the capture culls the section,
 the sun's shadow pass does not - unchecked); the south mountains' 3D
 textures: nice QoL, not a dealbreaker.
@@ -627,6 +627,30 @@ attribute) - more fast-by-default switches can join it (texture size, draw
 distance); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
+
+## Caves on the 2D map (2026-10-02)
+
+While the map is underground (every ghost 3 m+ under the terrain), map.js
+draws `wwwroot/terrain/caves.webp` over the faded ground: the caves' and
+the endgame's floors from above, coloured by height (pale = higher), slope
+shaded, walls a dark edge. `python scripts/cave-bake.py` bakes it (~45 s)
+from the 3D world's **collision** meshes (`site/world-v3`, areas caves +
+endgame; 14.2M triangles) at 1 px a metre: lossy WebP, 0.44 MB (PNG 3.8
+MB); `caves.json` holds the bounds and `build` (its `?v=`). Re-bake after a
+new world export. What makes a floor (all in the script's docstring):
+an up-facing face whose next face above is a down-facing one 2 m+ up -
+the collision pieces are open surfaces stacked over each other; then
+**walkable regions**: each pixel's 4 highest floors, neighbours within
+1 m of height joined, regions under 300 m2 dropped. Without that step the
+plan was 1.6 km2 of wide blobs: the pieces overlap and leave air slivers
+(a 2.4 m gap just under the surface) that pass the floor test and, being
+highest, hid the real floor - 1.06 km2 of passages after. Checked: the
+Cave 6 test spot (1283.9, -70.6, 612.9) is on a drawn floor; the Labskip
+route runs over the lab's floors; a few sampled floors visited over the
+bridge were in caves (a `tp` into an unloaded cave shows sky - judge by
+the walls, not the background). Headless shots only (Edge via
+Playwright); not yet seen by the author. Some pieces sit kilometres off the
+map (x -17840): the bake keeps |x|, |z| <= 2500.
 
 ## Item list (2026-10-02)
 

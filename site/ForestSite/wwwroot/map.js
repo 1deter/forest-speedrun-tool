@@ -6,6 +6,7 @@
 // the game's terrain (scripts/terrain-bake.py -> /terrain/): a shaded relief
 // image and a height grid, shared by every map on the page; over the relief,
 // when uploaded, the aerial photo tiles (scripts/aerial-bake.py -> /aerial/).
+// Underground, the caves' floor plan (scripts/cave-bake.py -> /terrain/caves.*).
 "use strict";
 
 window.RunMap = (function () {
@@ -35,6 +36,17 @@ window.RunMap = (function () {
       if (buf) { terrain.heights = new Uint16Array(buf); terrain.maps.forEach(m => m.draw()); }
     });
   }).catch(() => { /* no terrain: the plain grid, as before */ });
+
+  // --- the caves' floor plan, loaded once per page --------------------------
+  // One picture over the caves' and the endgame's bounds (north row first, as
+  // map.jpg): the floors coloured by height, the rest transparent.
+  const caves = { meta: null, image: null };
+  fetch("/terrain/caves.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(meta => {
+    if (!meta) return;
+    const img = new Image();
+    img.onload = () => { caves.meta = meta; caves.image = img; terrain.maps.forEach(m => m.draw()); };
+    img.src = "/terrain/" + meta.image + (meta.build ? "?v=" + meta.build : "");   // a new bake is never an old cached picture
+  }).catch(() => { /* no caves: underground stays a faded surface */ });
 
   // --- aerial photo tiles, loaded as seen ---------------------------------------
   // scripts/aerial-bake.py -> /aerial/: <layer>/<L>/<tx>_<ty>.jpg, 256 px. Level
@@ -230,8 +242,8 @@ window.RunMap = (function () {
 
   /// The ground: sea, the relief image at world coordinates, then the aerial
   /// photo tiles of `photo` (a layer name, or null). Faded while every ghost
-  /// on the map is underground (a cave or the endgame, which neither shows),
-  /// so a cave line does not read as a surface one.
+  /// on the map is underground (a cave or the endgame), so a cave line does
+  /// not read as a surface one, and the caves' floors drawn over it.
   RunMap.prototype.relief = function (w, h, photo, dpr) {
     const ctx = this.ctx, m = terrain.meta;
     ctx.fillStyle = SEA; ctx.fillRect(0, 0, w, h);
@@ -242,22 +254,28 @@ window.RunMap = (function () {
     ctx.imageSmoothingEnabled = true;
     const iw = terrain.image ? terrain.image.naturalWidth || terrain.image.width : 1;
     ctx.imageSmoothingQuality = this.view.scale * dpr * m.sizeX / iw > 1 ? "low" : "high";
-    if (terrain.image) this.reliefPart(w, h);
+    if (terrain.image) this.imagePart(w, h, terrain.image, m);
     if (photo) this.tiles(photo, w, h, dpr);
     if (this.underground) {
       // The same as drawing the ground at 25% over the sea, for every layer.
       ctx.globalAlpha = 0.75; ctx.fillStyle = SEA; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+      if (caves.image) {
+        const cw = caves.image.naturalWidth || caves.image.width;
+        ctx.imageSmoothingQuality = this.view.scale * dpr * caves.meta.sizeX / cw > 1 ? "low" : "high";
+        this.imagePart(w, h, caves.image, caves.meta);
+      }
       ctx.fillStyle = "#bbb"; ctx.font = "600 11px Montserrat, sans-serif";
       ctx.textAlign = "center"; ctx.fillText("UNDERGROUND", w / 2, 16); ctx.textAlign = "start";
     }
   };
 
-  /// Only the relief image's part on screen (whole image pixels, a pixel of
-  /// margin): zoomed in close, drawing all of it scaled to many times the
+  /// Only the part on screen of an image over the world rectangle m (x0, z0,
+  /// sizeX, sizeZ; the relief, the caves) - whole image pixels, a pixel of
+  /// margin: zoomed in close, drawing all of it scaled to many times the
   /// screen made every redraw slow (author, 2026-10-02: the 2D map lags
   /// zoomed in close, responsive zoomed out).
-  RunMap.prototype.reliefPart = function (w, h) {
-    const v = this.view, m = terrain.meta, img = terrain.image;
+  RunMap.prototype.imagePart = function (w, h, img, m) {
+    const v = this.view;
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     const kx = iw / m.sizeX, kz = ih / m.sizeZ, north = m.z0 + m.sizeZ;
     const wx0 = v.cx - w / 2 / v.scale, wx1 = v.cx + w / 2 / v.scale;
@@ -470,6 +488,7 @@ window.RunMap = (function () {
   RunMap.groundAt = groundAt;
   RunMap.terrain = terrain;
   RunMap.terrainReady = terrainReady;
+  RunMap.caves = caves;
   RunMap.aerial = aerial;
   RunMap.aerialReady = aerialReady;   // resolves to aerial.json's content, or null
   RunMap.aerialLevel = aerialLevel;

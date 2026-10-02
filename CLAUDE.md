@@ -110,6 +110,7 @@ Where things live:
 | Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/BlueprintKeeper` + `Data/BlueprintState` (placed blueprints filled since rebuilt from the save, build HUD recounted, `blueprints` header, v0.24.203), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
+| 2D map caves (site) | `scripts/cave-bake.py` -> `site/ForestSite/wwwroot/terrain/caves.webp` + `caves.json`, drawn by `wwwroot/map.js` underground |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`; `ItemChange` track), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`), `Game/PlayerStateReader` (5 Hz stats), `Game/ItemCounter` (carried items, event-driven) |
 | Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/RunHistory` (PB chance, total playtime, `runs/<id>/unfinished.txt`; tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
@@ -621,7 +622,12 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only):** **Follow's camera no longer sits in cave rock** - a solid model
+only):** **caves drawn on the 2D map** - underground, the map draws the
+caves' and endgame's floor plan (`scripts/cave-bake.py` ->
+`wwwroot/terrain/caves.webp`, from the world's collision meshes, slivers
+between pieces filtered by walkable region; docs/website.md *Caves on the
+2D map*); checked headless, not yet seen by the author. Before: **Follow's
+camera no longer sits in cave rock** - a solid model
 between the ghost and the camera pulls it in front (docs/website.md, the
 author's notes); checked headless on 1st logboost, not yet seen by the
 author. Before (nothing shipped): **BatchedMesh by material tried and dropped** -
@@ -692,10 +698,9 @@ one (a preset save as a start state, `run = <category name>`, in
    every model culled per instance + under the ground, ground-level
    culling; BatchedMesh tried and dropped (slower); the remaining lever is
    texture arrays in the export - only if frame times call for it;
-   Follow's camera through cave walls fixed. The next item, from the
-   author's 2026-10-02 notes: caves not
-   drawn on the 2D map; then the overlook's shadow on the snow hills in the
-   photo map without the overlook. The load-order look (gotcha 83, an
+   Follow's camera through cave walls fixed; caves on the 2D map done.
+   The next item, from the author's 2026-10-02 notes: the overlook's
+   shadow on the snow hills in the photo map without the overlook. The load-order look (gotcha 83, an
    investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
