@@ -36,6 +36,8 @@ namespace ForestOverlay.Core
             _notice = notice;
             _practice = practice;
             _practice.MarkedDuringRun = OnPracticeMark;
+            Started = "";
+            EndedWhy = "";
         }
 
         /// True while an attempt from a new game runs, until End.

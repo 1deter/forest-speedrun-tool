@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.207 - 2026-10-02
+
+- Run mode now actually starts: in v0.24.206 it switched itself off at
+  startup (an error), so nothing was locked.
+
 ## v0.24.206 - 2026-10-02
 
 - **Run mode**: starting a new game now starts a run. While it is on, every
