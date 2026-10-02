@@ -124,6 +124,7 @@ Where things live:
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
+| **Run mode** (a new game = a run, practice locked, integrity report) | `Core/RunMode` (`Ctx.Run`: `Refuse(what)` at every practice entry point, `Active` for gameplay switches, flags), `Modules/RunModeModule` (attempt on the load edge when `GameSetup.IsNewGame`; section at the top of the Runs tab; `EndRunMode`), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
 | Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
@@ -324,7 +325,16 @@ Instance.TimeOfDay`; `set ... TimeOfDay <deg>` moves the clock.
 window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type explorer, 8
 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths, 13 QA, 14
 bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
-`EnqueueSaved`, `_state`). `call ..._modules[i].OpenMyTab` shows a tab;
+`EnqueueSaved`, `_state`), 17 run mode (`EndRunMode`, `_report`).
+**Run mode starts with every new game**: a bridge-started new game is a
+run - Go / `restart` / savestates are refused (the bridge still answers
+`ok`; check the player moved) and the attempt is flagged "the test bridge
+is on". `call ..._modules[17].EndRunMode` unlocks. New game:
+`call TitleSceneMain/TitleScreen TitleScreen.OnSinglePlayer`, `wait 1`,
+`... TitleScreen.OnNewNormalGame` (or `OnNewCreativeGame`, ...), ~40 s;
+back to the title: `call static:UnityEngine.SceneManagement.SceneManager
+LoadScene TitleScene` (a reset). The title screen's handle changes per
+visit - target it by path. `call ..._modules[i].OpenMyTab` shows a tab;
 `_modules[0].TogglePanel` **toggles** - read `_modules[0].PanelOpen`
 and leave the window as found. Every `shot` / `set` / `call` marks
 practice (expected). QA answers reload from `qa/answers/<id>.txt` on
@@ -544,6 +554,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back.
 80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
 81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
+82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK".
 
 ---
 
@@ -595,44 +606,48 @@ identity.
 
 ## Current status
 
-**Released: v0.24.205** (2026-10-02). The author runs it via the in-game
-updater (v0.24.205 in the game, Slot 1). **509 tests** (+ 46 site tests).
+**Released: v0.24.209** (2026-10-02). The author runs it via the in-game
+updater (v0.24.209 in the game, Slot 1). **517 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.205 in the game)
+### Pick up here (2026-10-02, v0.24.209 in the game)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
-session with `qa_read new_only`. Last session: **LiveSplit's PB chance and
-total playtime** summary lines (v0.24.204-205, `Data/RunHistory`, off by
-default - neither is in LiveSplit's default layout). PB chance follows
-SethBling's PBChance component rule for rule (newest half of attempts,
-resets, 10,000 simulations at start / split / finish / reset; two noted
-differences in the file header); playtime follows LiveSplit.TotalPlaytime
-(own attempts, every route, + the running one). Unfinished runs now append
-to `runs/<id>/unfinished.txt` from every path that drops a running attempt
-(`RecordUnfinished`, one `unfinished after ...` log line); older unfinished
-runs left only a count, so they are in neither line. Confirmed live over
-the bridge (test segment with manual triggers, uploads off during the test,
-spot and runs removed after): 100% / Congrats / < 0.01% / 49.69% / 25.05% /
-16.37% all as computed by hand; v0.24.205 fixed a long value cut at the
-left ("100% (Congrats!)").
+session with `qa_read new_only`. Last session: **the anti-cheat design
+with the author** and **run mode, phase 1** (v0.24.206-209). Every
+decision is in [`docs/run-mode.md`](docs/run-mode.md) - read it before
+touching run mode, the report or anything a run uploads. In short:
+a new game from the title screen is a run attempt; practice features are
+**locked** (not just marked); End run mode (two clicks, Runs tab) or
+loading a save unlocks; the title screen is a reset; F2 opens over the
+pause menu only during a run and no longer marks practice; a death is the
+game's own; each attempt writes a plain-words report (game hash vs the
+Steam build, other mods / code, foreign Harmony patches, the game's
+cheats; Creative's own three are the mode). Confirmed live over the
+bridge: Normal and Creative new games, Go / F7 refused, god mode held off
+and back after, window refused in play and closed with the pause menu,
+reset on the title screen, a save load ends run mode. Not yet seen by the
+author's own eyes and hands (a real ESC + F2, the Runs tab section, End
+run mode by clicking).
 
 **Next, in order (one per session):**
-1. **Website: fewer texture requests** (188 per Labskip 3D view after the
-   packs) and LODs for heavy chunks on phones (docs/website.md).
-2. **A session with the author** for what needs their eyes, hands or a
-   decision: investigations *Not seen by the author / needs hands*, and
-   the decisions below.
+1. **Run mode phase 2: codes and receipts** (docs/run-mode.md *Phases*):
+   a server nonce per attempt, the hash chain over nonce + IGT + positions,
+   the code beside the timer, a checkpoint POST about once a minute,
+   receipts on reset, the outbox with links. Needs site endpoints too.
+   Then phase 3 (the report page) and phase 4 (categories on /admin,
+   seeded from speedrun.com's categories and rules).
+2. **Website: fewer texture requests** - the author's cloud session was on
+   it (2026-10-02); check `git log origin/main` for its work first.
+3. **A session with the author** for what needs their eyes or hands
+   (investigations *Not seen by the author / needs hands*, plus the run
+   mode check above) and the decisions below.
 
 **Decisions waiting for the author** (ask, never build ahead):
-- **Run mode / session settings lock / anti-splice** - sxczurass asked
-  2026-10-02 for "lock settings for this session" (manhunts, events,
-  official runs); the author wants to discuss anti-cheat with Claude
-  (backlog *Run mode and anti-splicing*). The HUD's "ON NOW" line
-  (v0.24.194) shows game-changing settings; nothing locks them yet.
-  Touches the moderators question (*Project intent*).
 - A teleport into an unloaded endgame (backlog); whether Quick load
   physics leaves "deferred"; whether the blurry south mountains in 3D
   are worth fixing.
+- What the moderators allow in a run (overlay features, *Reload save on
+  death*, Creative) - phase 4 lets them set it per category.
 
 **Waiting on testers** - the QA to-do list (`qa_todo`) is the record:
 the overnight lists (`1555319960941756437`, `1555327671276273677` +
@@ -748,6 +763,16 @@ total playtime lines.
   spots: **approved by the author for now**, runner-managed and hands-off
   later. Run uploads: off until the website is live, **automatic** after
   (author, 2026-09-27). Spots stay curated in the repo; runs go to the site.
+- **Run mode and anti-cheat (author, 2026-10-02)**: the tool should be
+  usable in real runs, with nothing asked of new runners but installing
+  it and no extra work for verifiers. Run mode is automatic (a new game)
+  and **locks** practice; the title screen is a reset; anti-splice codes
+  beside the timer; a receipt for every attempt (resets too) uploaded by
+  default (~200 GB server, fine); reports public, never editable; offline
+  runs amber; changed game code named by area in plain words; categories
+  defined by the moderators on /admin, seeded from speedrun.com's rules.
+  Nothing relies on secrecy (open source). Full list and phases:
+  [`docs/run-mode.md`](docs/run-mode.md).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
@@ -1014,7 +1039,8 @@ game), [`docs/savestates.md`](docs/savestates.md) (what each restore
 does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
 [`docs/game-notes.md`](docs/game-notes.md) (game internals),
 [`docs/investigations.md`](docs/investigations.md) (open threads across
-sessions, unverified items, test assets). Before
+sessions, unverified items, test assets), [`docs/run-mode.md`](docs/run-mode.md)
+(run mode and anti-cheat: decisions, phases). Before
 adding a long block here, ask whether a session needs it on every turn
 or only when working on that area - the latter goes to `docs/`.
 

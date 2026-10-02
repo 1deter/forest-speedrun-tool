@@ -2572,6 +2572,19 @@ the plugin (`Game/DebugDraw.cs`, `Game/ZonePreview.cs`) with `GL` lines and
 
 ---
 
+## Cheats and Creative (IL + bridge, 2026-10-02)
+
+`Cheats` (MonoBehaviour) keeps the switches as statics: `GodMode`,
+`InfiniteEnergy`, `NoSurvival`, `UnlimitedHairspray`, `DebugConsole`,
+`Creative`, `PermaDeath`, `NoEnemiesInternal`, ... A **Creative** game sets
+`GodMode`, `InfiniteEnergy` and `NoSurvival` itself
+(`TheForest.Player.GameMode_Creative`; `RestoreSettings` / `OnDestroy` put
+them back). Read on Slot 1: `GameSetup.Game = Creative`, `Difficulty =
+Peaceful`. `GameSetup` (static) also says `IsNewGame` (Init = New; a menu or
+our Full load sets Continue) - run mode starts an attempt on it.
+
+---
+
 ## How to extend this file
 
 1. **In-game dump (`F11`)** — reflection metadata: type names, field names and

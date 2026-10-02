@@ -284,3 +284,12 @@ Confirmed over the bridge 2026-10-02 (v0.24.204-205): the splits table's
 PB chance (no PB, Congrats, "< 0.01%", ~50 / 25 / 16.7% as computed by hand
 from the pool) and total playtime (live while running) lines, panel and
 Runs tab; unfinished runs written to unfinished.txt on abort / re-arm.
+
+Confirmed over the bridge 2026-10-02 (v0.24.206-209): run mode - a Normal
+and a Creative new game each start an attempt (log + HUD "RUN MODE -
+attempt 1"); Go and F7 refused (the player did not move); god mode switched
+on in Deaths stays off (Cheats.GodMode False) and comes back after End run
+mode; F2 refused in play, opens over the pause menu and closes with it;
+experimental perf patches suspended; the title screen ends the attempt as a
+reset; loading Slot 1 ends run mode; the report file and Runs tab findings
+(Steam build recognised, no other mods, BepInEx's patches not counted).

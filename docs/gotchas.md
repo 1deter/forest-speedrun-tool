@@ -692,3 +692,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     (`ilscan body` of its connect / exit), capture during it, and look at
     the object after the restore, not only at the player.
 
+82. **An integrity check must know what the platform and the game do
+    themselves.** (2026-10-02, v0.24.207-209.) Run mode's first report
+    called BepInEx's own patches (Console.SetOut, Assembly.LoadFile /
+    LoadFrom / get_Location / get_CodeBase, Trace.DoTrace - preloader and
+    interop fixes, some under `harmony-auto-<guid>` ids) "another mod",
+    and a Creative save's GodMode / InfiniteEnergy / NoSurvival (set by
+    `GameMode_Creative`) "a game cheat". The checks also kept running
+    after the attempt ended, so the save loaded after a reset was charged
+    to it. Before trusting a "NOT OK", run the check on a clean install
+    and in every game mode, and stop watching when the thing watched ends.

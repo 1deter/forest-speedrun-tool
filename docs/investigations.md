@@ -31,6 +31,11 @@ Checked headless or over the bridge only - ask the author to look:
   imported spot starting inside a cave misses its cave-exit after a plain
   Go; a start state (or the spot's `cave`, v0.24.193) fixes it.
 
+- **Run mode by hand** (v0.24.206-209, docs/run-mode.md): start a new
+  game, press F2 in play (a notice, no window), ESC then F2 (opens; the
+  Runs tab's section and report at the top), close ESC (the window
+  closes), F7 / Go (a notice), End run mode with two clicks.
+
 Needs hands (no bridge call):
 - `hold-interact`: hold E on something with the Runs tab's event line open.
 - `first-input`: press a key after a restart. `rope-grab` / `rope-leave`
