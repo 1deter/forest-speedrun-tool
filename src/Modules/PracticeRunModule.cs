@@ -239,6 +239,7 @@ namespace ForestOverlay.Modules
 
             if (!Enabled)
             {
+                RecordUnfinished("practice mode off");
                 _recorder.Abort();
                 _hasDelta = false;
                 ClearLines();
@@ -256,6 +257,8 @@ namespace ForestOverlay.Modules
         {
             if (!Enabled || _practice == null) return;
 
+            // Before _segment / _splits move on to the new entry.
+            RecordUnfinished("placed at a spot");
             Segment s = _practice.CurrentSegment;
 
             if (s == null || !s.IsTimed)
@@ -282,6 +285,7 @@ namespace ForestOverlay.Modules
             // in the start zone after teleporting in.
             TriggerEvaluator.Reset(ref _startState);
 
+            RecordUnfinished("re-armed");   // before its splits are cleared
             _splits.Clear();
             _deltaHint = 0;
             _eventsSeen = Ctx.Events.Count;
@@ -557,6 +561,7 @@ namespace ForestOverlay.Modules
 
             StampAttempt(done);
             _attempts.Add(done);
+            _playedFinished += done.Duration;
             _store.Save(done);
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
@@ -592,6 +597,7 @@ namespace ForestOverlay.Modules
         {
             _autoRestartAt = 0f;
             KeepFailed();
+            RecordUnfinished("aborted");
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
@@ -611,6 +617,7 @@ namespace ForestOverlay.Modules
             if (_recorder.State == RunRecorder.RunState.Running && _segment != null)
                 Ctx.Log.LogInfo("Run '" + _segment.Id + "': aborted - restarting the spot.");
             KeepFailed();
+            RecordUnfinished("restart");
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
@@ -623,6 +630,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Run '" + _segment.Id + "': " + (running ? "aborted" : "disarmed") +
                             " - left the level (not saved).");
             _autoRestartAt = 0f;
+            RecordUnfinished("left the level");
             _recorder.Abort();
             _hasDelta = false;
             _segment = null;
@@ -674,6 +682,7 @@ namespace ForestOverlay.Modules
             }
             SetLocalOthers(others, s.Checkpoints.Count);
             _started = Mathf.Max(_store.Started(s.Id), _attempts.Count);
+            LoadPlaytime(s.Id, all, own);
 
             Ctx.Log.LogInfo("Loaded " + _attempts.Count + " attempt(s) for " + s.Id +
                             (others.Count > 0 ? ", " + others.Count + " by other runners (" + _localOthers.Count + " runner(s), comparisons only)" : "") +

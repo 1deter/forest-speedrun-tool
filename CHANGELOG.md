@@ -5,6 +5,18 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.204 - 2026-10-02
+
+- Two more LiveSplit lines for the splits table, off until ticked in Runs ->
+  Splits options -> Lines: **PB chance** (LiveSplit's PB Chance: from your
+  more recent half of attempts, how often the rest of this run would still
+  beat your PB; worked out at the start, each split and the finish) and
+  **Total playtime** (every attempt's time on the segment, finished or not,
+  plus the one running).
+- Runs that do not finish (abort, F7, a death, Go, the title screen) now keep
+  their time and the splits they reached, so both lines count them. Runs that
+  did not finish before this version left no time, so they are not in either.
+
 ## v0.24.203 - 2026-10-02
 
 - Quick load with a placed blueprint you added logs or sticks to after the

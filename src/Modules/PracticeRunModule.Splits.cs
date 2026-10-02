@@ -32,11 +32,12 @@ namespace ForestOverlay.Modules
             "Delta", "Split time", "Segment time", "Segment delta", "Best segment", "Possible time save"
         };
 
-        private enum Line { Previous, SumOfBest, BestPossible, Pace, Save, Pb, Attempts }
-        private const int LineCount = 7;
+        private enum Line { Previous, SumOfBest, BestPossible, Pace, Save, Pb, Attempts, PbChance, Playtime }
+        private const int LineCount = 9;
         private static readonly string[] LineOptions =
         {
-            "Previous segment", "Sum of best", "Best possible time", "Current pace", "Possible time save", "Personal best", "Attempts"
+            "Previous segment", "Sum of best", "Best possible time", "Current pace", "Possible time save", "Personal best", "Attempts",
+            "PB chance", "Total playtime"
         };
 
         private ConfigEntry<bool> _splitsPanel;
@@ -52,6 +53,19 @@ namespace ForestOverlay.Modules
         private SplitSummary _summary;
         private bool _splitsDirty = true;
         private float _nextSplitText;
+
+        // PB chance and total playtime (v0.24.204, Data/RunHistory). The
+        // unfinished runs of the loaded segment (every route), the finished
+        // ones' time on every route, and PB chance's pool, rebuilt on start,
+        // split, finish and reset as LiveSplit's component is.
+        private List<UnfinishedAttempt> _unfinished = new List<UnfinishedAttempt>();
+        private float _playedFinished;
+        private Attempt _recordedUnfinished;
+        private bool _pbChanceDirty = true;
+        private readonly List<HistoryRun> _history = new List<HistoryRun>();
+        private readonly System.Random _pbRandom = new System.Random();
+        private float[] _notStarted = new float[0];
+        private long _playtimeShown = -1;
 
         // Cached text: row r, column c -> _cells[r * ColCount + c].
         private readonly List<GUIContent> _rowNames = new List<GUIContent>();
@@ -129,7 +143,9 @@ namespace ForestOverlay.Modules
                 _colTitles[i] = new GUIContent(ColTitles[i]);
                 _colOptionText[i] = new GUIContent(" " + ColOptions[i]);
             }
-            bool[] lineDefaults = { true, true, true, false, false, false, true };
+            // PB chance and total playtime are LiveSplit add-ons, not in its
+            // default layout: off until ticked.
+            bool[] lineDefaults = { true, true, true, false, false, false, true, false, false };
             for (int i = 0; i < LineCount; i++)
             {
                 _lines2[i] = c.Bind("Splits", "Show" + (Line)i, lineDefaults[i], "Splits summary line: " + LineOptions[i] + ".");
@@ -200,18 +216,117 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < rows; i++) _times[i] = float.NaN;
             if (_rowsData.Length != rows) _rowsData = new SplitRow[rows];
             _splitsDirty = true;
+            _pbChanceDirty = true;
         }
 
         private void RecordSplit(int row, float t)
         {
             if (row >= 0 && row < _times.Length) _times[row] = t;
             _splitsDirty = true;
+            _pbChanceDirty = true;
         }
 
         private void FinishSplits(float duration)
         {
             if (_times.Length > 0) _times[_times.Length - 1] = duration;
             _splitsDirty = true;
+            _pbChanceDirty = true;
+        }
+
+        // --- unfinished runs, PB chance, playtime ------------------------------
+
+        /// A running attempt about to be dropped (abort, restart, death,
+        /// another spot, practice off, the title screen): kept as an
+        /// unfinished one - LiveSplit's reset - for PB chance and playtime.
+        /// Once per attempt, whichever path gets there first.
+        private void RecordUnfinished(string why)
+        {
+            Attempt cur = _recorder.Current;
+            if (_recorder.State != RunRecorder.RunState.Running || cur == null || ReferenceEquals(cur, _recordedUnfinished)) return;
+            _recordedUnfinished = cur;
+
+            UnfinishedAttempt u = new UnfinishedAttempt();
+            u.StartedUtc = cur.RecordedUtc;
+            u.Route = cur.Route ?? "";
+            u.Duration = _recorder.Elapsed;
+            u.Splits = _splits.ToArray();
+            _store.AddUnfinished(cur.AnchorLabel, u);
+            if (cur.AnchorLabel == _loadedSegmentId) _unfinished.Add(u);
+            _pbChanceDirty = true;
+            _splitsDirty = true;
+            Ctx.Log.LogInfo("Run '" + cur.AnchorLabel + "': unfinished after " + Format(u.Duration) + " (" + why + ", " +
+                            u.Splits.Length + " split(s) reached) - kept for PB chance and playtime.");
+        }
+
+        /// On loading a segment's attempts: its unfinished runs and the
+        /// time of this runner's finished ones, every route (time played is
+        /// time played, whatever the zones were then).
+        private void LoadPlaytime(string id, List<Attempt> all, string own)
+        {
+            _unfinished = _store.LoadUnfinished(id);
+            _playedFinished = 0f;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i].Completed && AttemptOwners.IsOwn(all[i].RunnerId, own)) _playedFinished += all[i].Duration;
+            _pbChanceDirty = true;
+            _playtimeShown = -1;
+        }
+
+        /// PB chance's attempts on the current route, oldest first.
+        private void BuildHistory(int rows)
+        {
+            _history.Clear();
+            for (int i = 0; i < _attempts.Count; i++)
+            {
+                if (!_attempts[i].Completed) continue;
+                HistoryRun h;
+                h.StartedUtc = _attempts[i].RecordedUtc;
+                h.Times = SplitStats.SplitsOf(_attempts[i], rows);
+                h.Finished = true;
+                _history.Add(h);
+            }
+            for (int i = 0; i < _unfinished.Count; i++)
+            {
+                UnfinishedAttempt u = _unfinished[i];
+                if (u.Route.Length > 0 && u.Route != _armedRoute) continue;
+                HistoryRun h;
+                h.StartedUtc = u.StartedUtc;
+                h.Times = SplitStats.Filled(rows);
+                for (int k = 0; k < u.Splits.Length && k < rows - 1; k++) h.Times[k] = u.Splits[k];
+                h.Finished = false;
+                _history.Add(h);
+            }
+            _history.Sort(ByStart);
+        }
+
+        private static int ByStart(HistoryRun a, HistoryRun b) { return a.StartedUtc.CompareTo(b.StartedUtc); }
+
+        private void RefreshHistoryLines(int rows, bool running)
+        {
+            if (_lines2[(int)Line.PbChance].Value && _pbChanceDirty)
+            {
+                _pbChanceDirty = false;
+                BuildHistory(rows);
+                // Between runs a run that did not finish shows from the
+                // start, as LiveSplit's does after a reset.
+                bool finished = rows > 0 && !float.IsNaN(_times[rows - 1]);
+                float[] times = _times;
+                if (!running && !finished)
+                {
+                    if (_notStarted.Length != rows) _notStarted = SplitStats.Filled(rows);
+                    times = _notStarted;
+                }
+                _lineValues[(int)Line.PbChance].text = PbChance.Compute(_history, times, _stats.Pb, _pbRandom);
+            }
+            if (_lines2[(int)Line.Playtime].Value)
+            {
+                float total = Playtime.Total(null, _unfinished, (running ? _recorder.Elapsed : 0f) + _playedFinished);
+                long whole = (long)total;
+                if (whole != _playtimeShown)
+                {
+                    _playtimeShown = whole;
+                    _lineValues[(int)Line.Playtime].text = Playtime.Format(total);
+                }
+            }
         }
 
         private float[] ComparisonSplits()
@@ -339,6 +454,7 @@ namespace ForestOverlay.Modules
             int started = Mathf.Max(_started, _attempts.Count);
             _lineValues[(int)Line.Attempts].text = started > _attempts.Count
                 ? started + " (" + _attempts.Count + " finished)" : _attempts.Count.ToString();
+            RefreshHistoryLines(rows, running);
         }
 
         // --- drawing ---------------------------------------------------------------
@@ -622,7 +738,7 @@ namespace ForestOverlay.Modules
                 const float tw = 150f;
                 if (x + tw > w && x > 74f) { x = 74f; y += 22f; }
                 bool v = GUI.Toggle(new Rect(x, y, tw, 20), entries[i].Value, labels[i]);
-                if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; }
+                if (v != entries[i].Value) { entries[i].Value = v; _splitsDirty = true; _playtimeShown = -1; }
                 x += tw;
             }
             return y + 24f;

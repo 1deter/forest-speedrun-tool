@@ -86,6 +86,30 @@ namespace ForestOverlay.Data
             catch (Exception ex) { _log.LogWarning("Could not count the attempt: " + ex.Message); }
         }
 
+        /// Runs that started and never finished (v0.24.204): one line each
+        /// in unfinished.txt (Data/RunHistory). Empty when there are none.
+        public List<UnfinishedAttempt> LoadUnfinished(string anchorLabel)
+        {
+            try
+            {
+                string path = Path.Combine(FolderFor(anchorLabel), "unfinished.txt");
+                if (File.Exists(path)) return UnfinishedAttempt.ParseAll(File.ReadAllText(path));
+            }
+            catch (Exception ex) { _log.LogWarning("Could not read unfinished attempts: " + ex.Message); }
+            return new List<UnfinishedAttempt>();
+        }
+
+        public void AddUnfinished(string anchorLabel, UnfinishedAttempt attempt)
+        {
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "unfinished.txt"), attempt.Write() + "\n");
+            }
+            catch (Exception ex) { _log.LogWarning("Could not keep the unfinished attempt: " + ex.Message); }
+        }
+
         public List<Attempt> LoadAll(string anchorLabel)
         {
             List<Attempt> result = new List<Attempt>();
