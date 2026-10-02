@@ -715,3 +715,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     looks impossible, rerun the before build with delayed files
     (`site-measure.py` `DELAY`) - two stable looks = an existing ordering
     effect, not the change.
+
+84. **The same game call can need setup only one entry path does.**
+    (2026-10-02, v0.24.211-212.) `LoadSavedLevel` is a whole save load in
+    game, so a restore from the title screen called it too - and hung on
+    LOADING with no player: the menu's loader instantiates
+    `PreloadingPrefabs` and calls `InitPrefabList` before it, and in game
+    they were simply already there. When a call works from one place,
+    read what the other path's caller does first (`ilscan body` of the
+    menu's loader), and drive that path - its own buttons, with the one
+    step that differs replaced - rather than the call alone.

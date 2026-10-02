@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.213 - 2026-10-02
+
+- **Run spots.** A spot with a run category (the editor's new *Run* field,
+  e.g. "Any%") and a start state starts a run: Restart (F7) on it loads the
+  start state with a Full load, turns run mode on and locks practice.
+  Restart on it again during the run is a reset - the next attempt.
+- Starting a new game no longer starts run mode. For a category with no run
+  spot yet, **Start run mode** in the Runs tab turns it on by hand.
+- A run's report names the category, the spot and its start state.
+
 ## v0.24.212 - 2026-10-02
 
 - Restart from the title screen now goes through the game's own menu load

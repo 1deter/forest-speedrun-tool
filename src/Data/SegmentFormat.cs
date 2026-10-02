@@ -34,6 +34,7 @@ namespace ForestOverlay.Data
                     return "bad restore (in-place or load): " + value;
 
                 case "startstate": s.StartState = value; return null;
+                case "run": s.RunCategory = value; return null;
                 case "cave": s.Cave = value.ToLowerInvariant(); return null;
 
                 case "autosplit":
@@ -126,6 +127,7 @@ namespace ForestOverlay.Data
 
             if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
             if (!string.IsNullOrEmpty(s.StartState)) sb.Append("startstate = ").Append(s.StartState).Append(nl);
+            if (!string.IsNullOrEmpty(s.RunCategory)) sb.Append("run      = ").Append(s.RunCategory).Append(nl);
             if (s.AutoSplit.Count > 0) sb.Append("autosplit = ").Append(AutoSplitText(s)).Append(nl);
 
             if (!string.IsNullOrEmpty(s.Notes)) sb.Append("notes    = ").Append(s.Notes).Append(nl);

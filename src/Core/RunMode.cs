@@ -8,14 +8,15 @@ namespace ForestOverlay.Core
     // Run mode (author, 2026-10-02: "practice-only getting used anyway on
     // accident could ruin a run").
     //
-    // Every new game started from the title screen is a run attempt
-    // (Modules/RunModeModule sees it). While run mode is on, nothing that
+    // A Restart on a run spot (a spot with a run category), or Start run
+    // mode by hand, begins a run attempt (Modules/RunModeModule; author,
+    // 2026-10-02: runs start from preset category saves). While run mode is on, nothing that
     // writes the game can be used: every practice entry point asks
     // Refuse() first and does nothing when it answers true, and the
     // gameplay switches (god mode, item caps, ...) read Active and stay
     // off without their saved settings changing. Leaving is deliberate:
     // End run mode (two clicks, the Runs tab) or quitting the game; a
-    // reset (title screen, new game) is the next attempt.
+    // reset (title screen, Restart on the run's spot) is the next attempt.
     //
     // Flags are what makes an attempt not valid even so - the test bridge
     // on, a game cheat, a practice action that slipped past a lock. They
@@ -37,17 +38,21 @@ namespace ForestOverlay.Core
             _practice = practice;
             _practice.MarkedDuringRun = OnPracticeMark;
             Started = "";
+            Label = "";
             EndedWhy = "";
         }
 
-        /// True while an attempt from a new game runs, until End.
+        /// True from a run start until End.
         public bool Active { get; private set; }
 
         /// Attempts started this session (the HUD's number).
         public int Attempt { get; private set; }
 
-        /// "Normal", "Hard", "Creative", ... - what the attempt was started as.
+        /// What the attempt was started as, in full (the report's line).
         public string Started { get; private set; }
+
+        /// Short, for the HUD: the category, or "Normal" for a run by hand.
+        public string Label { get; private set; }
 
         /// Why the current attempt is not valid; empty when it is.
         public IList<string> Flags { get { return _flags; } }
@@ -55,19 +60,20 @@ namespace ForestOverlay.Core
         /// Why run mode is off, for the Runs tab ("" before the first run).
         public string EndedWhy { get; private set; }
 
-        /// Called by RunModeModule when a new game has loaded.
-        public void Begin(string started)
+        /// Called by RunModeModule when an attempt starts.
+        public void Begin(string started, string label)
         {
             Attempt++;
             Active = true;
             Started = started ?? "";
+            Label = label ?? "";
             EndedWhy = "";
             _flags.Clear();
             _refusedAt.Clear();
             Rebuild();
         }
 
-        /// Run mode off until the next new game. `why` is said in the Runs tab.
+        /// Run mode off until the next run start. `why` is said in the Runs tab.
         public void End(string why)
         {
             if (!Active) return;
@@ -121,7 +127,7 @@ namespace ForestOverlay.Core
         private void Rebuild()
         {
             if (!Active) { _practice.SetRunText(null, false); return; }
-            string text = "RUN MODE - attempt " + Attempt + (Started.Length > 0 ? " (" + Started + ")" : "");
+            string text = "RUN MODE - attempt " + Attempt + (Label.Length > 0 ? " (" + Label + ")" : "");
             // The first reason on the HUD; the Runs tab lists them all.
             if (_flags.Count > 0)
                 text += " - NOT VALID: " + _flags[0] + (_flags.Count > 1 ? " (+" + (_flags.Count - 1) + " more, Runs tab)" : "");

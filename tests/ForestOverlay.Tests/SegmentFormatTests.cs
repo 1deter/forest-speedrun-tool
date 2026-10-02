@@ -292,6 +292,21 @@ namespace ForestOverlay.Tests
             Assert.Equal("0badf00d", Parse(text)[0].StartState);
         }
 
+        // A run spot's category: omitted when empty, never in the route.
+        [Fact]
+        public void RunCategoryRoundTripsAndStaysOutOfTheRoute()
+        {
+            Segment s = Sample();
+            Assert.DoesNotContain("run ", Write(s));
+            string route = s.RouteFingerprint();
+
+            s.RunCategory = "Any% glitchless";
+            string text = Write(s);
+            Assert.Contains("run      = Any% glitchless", text);
+            Assert.Equal("Any% glitchless", Parse(text)[0].RunCategory);
+            Assert.Equal(route, s.RouteFingerprint());
+        }
+
         [Fact]
         public void TheSpawnsCaveRoundTripsAndStaysOutOfTheRoute()
         {

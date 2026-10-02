@@ -1648,8 +1648,28 @@ the save rebuilt its own set: a second inventory with the saved items
 (author, v0.22.2). So once the player is foreign, the plugin adopts ids for
 every live identifier the save lacks, not just the player's (v0.22.3).
 
-Creative is chosen before the game loads and is not in the save data, so
-restores are refused across Creative and survival (author's suggestion).
+Creative is chosen before the game loads and is not in the save data:
+`LoadSave.Activation` instantiates `Prefabs.GameModePrefabs[GameSetup.Game]`
+(`GameMode_Creative` for Creative), and the menu sets `Game` from the
+slot's `difficulty` pref (`Resume`; `SaveSlotUtils.SaveGameDifficulty`
+writes "Creative" or the difficulty on every save). So a Full load after
+`GameSetup.SetGameType` comes up in that mode; leaving Creative, its
+`OnDestroy` / `RestoreSettings` puts the three cheats back (v0.24.211,
+bridge: both ways clean).
+
+**Loading from the title screen needs the menu's loader** (v0.24.211-212).
+`LoadSavedLevel` called at the title screen loads the game scene and hangs
+on LOADING: `Activation` waits for `LocalPlayer.Rigidbody` and the player
+is never built. The menu's loader (`TitleSceneMain/Loading`, `LoadAsync`;
+`TitleScreen.OnSlotSelection` activates it) first instantiates Resources
+`PreloadingPrefabs` and calls `LevelSerializer.InitPrefabList` - the
+prefabs a save's objects are made from - then `Resume()` when `CanResume`
+(the slot has a `__RESUME__` key) and `IsSavedGame` (Init Continue). In
+game they already exist. `Game/TitleLoad` presses the title screen's own
+`OnSinglePlayer` + `OnSlotSelection(slot)` and prefixes `Resume` /
+`CanResume` while a load is pending (11 s to in game). The slot stays
+`GameSetup.Slot` (0 on a fresh launch -> Slot 1): an in-game save
+afterwards writes there.
 
 **Weapon-upgrade receivers are never deleted.** A cross-save restore in
 the author's v0.22.5 log adopted 107 ids and deleted the 51 it could not
@@ -2583,7 +2603,8 @@ the plugin (`Game/DebugDraw.cs`, `Game/ZonePreview.cs`) with `GL` lines and
 (`TheForest.Player.GameMode_Creative`; `RestoreSettings` / `OnDestroy` put
 them back). Read on Slot 1: `GameSetup.Game = Creative`, `Difficulty =
 Peaceful`. `GameSetup` (static) also says `IsNewGame` (Init = New; a menu or
-our Full load sets Continue) - run mode starts an attempt on it.
+our Full load sets Continue) - run mode started an attempt on it until
+v0.24.213 (now a run spot's Restart).
 
 ---
 

@@ -356,6 +356,13 @@ namespace ForestOverlay.Data
         /// validated method as the alternative).
         public bool StartRestoreWithLoad;
 
+        /// A run category ("Any%"): a Restart here with a start state starts
+        /// a run attempt - always a Full load, run mode on, practice locked;
+        /// a Restart during it is a reset (author, 2026-10-02: runs start
+        /// from preset category saves, only marked spots). Written as
+        /// `run = <category>` when set; not part of the route.
+        public string RunCategory = "";
+
         /// Which start state the segment expects: a hash of the savestate's
         /// data, written on capture as `startstate = <hash>`. Part of the
         /// route fingerprint, so a new start state retires old times just

@@ -148,6 +148,9 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _startStatusLabel = new GUIContent("");
         private static readonly GUIContent QuickLoadHint =
             new GUIContent("Quick load: in place, fastest. Full load is the game's full reset (a scene load) for states Quick load misses.");
+        private static readonly GUIContent RunHint =
+            new GUIContent("Run: a category name (Any%, ...) makes this a run spot (it needs a start state) - Restart here starts a run (a Full load, practice locked); Restart during it is a reset. Empty = a practice spot.");
+        private RunModeModule _runMode;
         private static readonly GUIContent FullLoadHint =
             new GUIContent("Full load: the game's full reset with a scene load, slower. Quick load is in place and fastest.");
         private float _deleteStartArmedUntil;
@@ -207,6 +210,7 @@ namespace ForestOverlay.Modules
             _savestates = Host.Find<SavestateModule>();
             _community = Host.Find<CommunityModule>();
             _upload = Host.Find<RunUploadModule>();
+            _runMode = Host.Find<RunModeModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true, "Draw the selected segment's zones (Practice tab's 'show zones').");
@@ -450,8 +454,11 @@ namespace ForestOverlay.Modules
         /// OnPlacedAtSpot for the run module once the world is final.
         private void Restart(Segment s)
         {
-            if (Ctx.Run.Refuse("restart (F7)")) { _status = Ctx.Run.RefusedText("Restart"); return; }
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
+            // A run spot's Restart starts (or resets) a run - the one Restart
+            // run mode allows.
+            bool runStart = _runMode != null && s.RunCategory.Length > 0 && _savestates != null && _savestates.HasStartState(s);
+            if (!runStart && Ctx.Run.Refuse("restart (F7)")) { _status = Ctx.Run.RefusedText("Restart"); return; }
 
             // The pause menu and the inventory stop game time, and a restore
             // runs over game time: F7 in the ESC menu sat half-loaded until
@@ -466,14 +473,16 @@ namespace ForestOverlay.Modules
 
                 _current = s;
                 if (OnRestartStarting != null) OnRestartStarting();
-                StartStatus(s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
+                if (runStart) _runMode.SpotRunStarting(s);
+                StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
-                                (s.StartRestoreWithLoad ? "with a load." : "in place."));
-                _savestates.RestoreStartState(s, delegate(string error)
+                                (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
+                _savestates.RestoreStartState(s, runStart, delegate(string error)
                 {
                     // A restored state has set the cave state from its file;
                     // the terrain guess below can be wrong at a cave mouth.
                     PlaceAt(s, error != null);
+                    if (runStart) _runMode.SpotRunReady(s, error);
                     if (error == null) return;
 
                     // After the teleport, which writes its own status. Shown
@@ -776,6 +785,8 @@ namespace ForestOverlay.Modules
             // id is a hidden key (NewId); the name is what they see.
 
             y = Field(y, cw, "Notes", ref s.Notes);
+            y = Field(y, cw, "Run", ref s.RunCategory);
+            y += UiText.DrawDim(80, y, cw - 90, RunHint);
             y += 6f;
 
             // --- spawn -----------------------------------------------------
@@ -1333,6 +1344,7 @@ namespace ForestOverlay.Modules
             s.Name = src.Name + " (copy)";
             s.Category = SegmentLibrary.IsCommunity(src) ? "My spots" : src.Category;
             s.Notes = src.Notes;
+            s.RunCategory = src.RunCategory;
             s.HasSpawn = src.HasSpawn;
             s.SpawnPosition = src.SpawnPosition;
             s.SpawnYaw = src.SpawnYaw;

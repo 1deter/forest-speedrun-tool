@@ -556,6 +556,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
 82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK".
 83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
+84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`).
 
 ---
 
@@ -872,7 +873,7 @@ item caps, logs in the inventory, fast building) under the HUD's "ON NOW".
   the game's own level serialization to `config/ForestOverlay/savestates/*.fosave`,
   never a save slot. **Quick load** = in place (`LoadNow` + the keepers put back
   what the save misses), **Full load** = `LoadSavedLevel` + fix-ups after the load;
-  works across saves (`AdoptPlayer`), refused across Creative / survival and at the
+  works across saves (`AdoptPlayer`), across Creative / survival and from the title screen as a Full load (v0.24.211-212); Quick load refused at the
   title screen. What each keeper restores, by version:
   [`docs/savestates.md`](docs/savestates.md) - read it before touching a restore.
 - **Segment start states** (Practice editor, *Start state* row: Capture /

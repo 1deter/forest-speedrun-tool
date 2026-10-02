@@ -45,9 +45,14 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   object with the same name, prefab class and parent id, shallowest first,
   unique matches only; identical siblings pair in order
   (`SavestateBridge.AdoptPlayer`; unmatched ones are named as `other
-  misses:`). **Refused across Creative and survival** (the mode is not in
-  the save) unless *Allow restoring across Creative and survival (testing)*
-  is on (`AllowCrossModeRestore`, off; Debug views).
+  misses:`). **Across Creative and survival** (the mode is not in the
+  save) the restore is a Full load that switches the game to the
+  capture's mode first (v0.24.211, author 2026-10-02; refused before, and
+  the `AllowCrossModeRestore` testing switch is gone). Captures since
+  v0.24.211 also write `basedifficulty` (Peaceful under Creative); older
+  Creative files keep the game's difficulty. Confirmed over the bridge:
+  Normal -> Creative (GodMode / InfiniteEnergy / NoSurvival on) and back
+  (all off).
   The file header lists the world pickups at capture and whether streaming
   was unloaded; `Data/SavestateFile` is pure and tested. Sticks / rocks
   around pooled trees are given back as captured (`greebles` header,
@@ -58,8 +63,10 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   member by kind with its health (sleepers back asleep); a cave capture's
   cave families are kept and moved back (`RestoreCave`). Open: does
   `updateSpawns` top up a random family; weapons are whatever the spawn
-  gives (game-notes *Cannibal kinds and families*). Restores are refused
-  at the title screen (v0.24.73).
+  gives (game-notes *Cannibal kinds and families*). **From the title
+  screen** a restore is a Full load through the menu's own load
+  (`Game/TitleLoad`, v0.24.212; game-notes *Saving and loading*); a Quick
+  load there is still refused (v0.24.73).
   The nature guide's ticks are set back as the save lists them
   (`Game/NatureGuideKeeper`, v0.24.187) and the book's to-do list is set
   up again (`Game/TodoListKeeper`, v0.24.188) - both only prepare

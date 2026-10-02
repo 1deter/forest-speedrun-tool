@@ -1695,8 +1695,15 @@ namespace ForestOverlay.Modules
         /// or the reason it could not.
         public void RestoreStartState(Segment s, Action<string> done)
         {
+            RestoreStartState(s, false, done);
+        }
+
+        /// `runStart`: a run spot's restart (Modules/RunModeModule) - allowed
+        /// in run mode, and always a Full load (author, 2026-10-02).
+        public void RestoreStartState(Segment s, bool runStart, Action<string> done)
+        {
             if (Busy) { done("a savestate action is still running"); return; }
-            if (RefusedInRun("restore", done)) return;
+            if (!runStart && RefusedInRun("restore", done)) return;
 
             SavestateFile f;
             try
@@ -1715,7 +1722,8 @@ namespace ForestOverlay.Modules
                                    s.StartState + ") - recapture it to make it so.");
 
             string what = "start state of '" + s.Name + "'";
-            if (s.StartRestoreWithLoad || MustLoad(f, what))
+            if (runStart) Ctx.Log.LogInfo("Savestate: " + what + " starts a run - a Full load.");
+            if (runStart || s.StartRestoreWithLoad || MustLoad(f, what))
             {
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
