@@ -608,15 +608,15 @@ identity.
 
 ## Current status
 
-**Released: v0.24.214** (2026-10-02). The author runs it via the in-game
-updater (v0.24.214 in the game, Slot 1). **520 tests** (+ 46 site tests).
+**Released: v0.24.215** (2026-10-02). The author runs it via the in-game
+updater (v0.24.215 in the game, Slot 1). **520 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.214 released)
+### Pick up here (2026-10-02, v0.24.215 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. Last session (v0.24.211-214):
+mode, the report or anything a run uploads. Last session (v0.24.211-215):
 - **What starts a run** (decided, built, confirmed over the bridge): a
   **run spot** - a spot with `run = <category>` (editor *Run* field) and a
   start state. Restart on it = always a Full load, the attempt starts at
@@ -628,7 +628,10 @@ mode, the report or anything a run uploads. Last session (v0.24.211-214):
   write `basedifficulty`; the testing switch is gone. In-game saving
   afterwards writes that mode into the slot (author: fine, never blocked).
 - **Restores from the title screen** go through the menu's own load
-  (`Game/TitleLoad`, gotcha 84) - Restart works from the title screen.
+  (`Game/TitleLoad`, gotcha 84) - Restart works from the title screen;
+  afterwards no slot is selected (v0.24.215, author: saves go to the slot
+  picked in the game's save picker, and every slot with a save asks
+  before it is overwritten).
 Not yet seen by the author's own eyes and hands: run mode by hand (a real
 ESC + F2, the Runs tab section, End run mode / Start run mode by
 clicking, a run spot's F7). No community run spot exists yet - making

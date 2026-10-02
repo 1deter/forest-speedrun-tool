@@ -1667,9 +1667,15 @@ prefabs a save's objects are made from - then `Resume()` when `CanResume`
 (the slot has a `__RESUME__` key) and `IsSavedGame` (Init Continue). In
 game they already exist. `Game/TitleLoad` presses the title screen's own
 `OnSinglePlayer` + `OnSlotSelection(slot)` and prefixes `Resume` /
-`CanResume` while a load is pending (11 s to in game). The slot stays
-`GameSetup.Slot` (0 on a fresh launch -> Slot 1): an in-game save
-afterwards writes there.
+`CanResume` while a load is pending (11 s to in game). The load uses
+`GameSetup.Slot` (0 on a fresh launch -> Slot 1); once in game it is set
+back to 0 ("none", v0.24.215). **The in-game save always opens the slot
+picker** (`PlayerStats.JustSave` -> `HudGui.SaveSlotSelectionScreen`,
+single player) and saves to the slot picked (`OnSlotConfirmed` ->
+`SetSlot`); `OnSlotSelection` skips its "overwrite?" panel for the
+current slot (same slot + `SaveUserId`, Init not New). `SetSlot` clamps
+to 1-5 - 0 only through the property's setter (bridge: with 0, Slot 1
+asks).
 
 **Weapon-upgrade receivers are never deleted.** A cross-save restore in
 the author's v0.22.5 log adopted 107 ids and deleted the 51 it could not

@@ -23,9 +23,14 @@ namespace ForestOverlay.Game
     // OnSlotSelection), with Resume replaced while a load is pending: a
     // prefix calls LoadSavedLevel(the capture) instead of reading the
     // slot, and CanResume answers true (it checks the slot has a save).
-    // Everything else is the menu's load. The slot stays the game's
-    // current one (Slot 1 when none was chosen yet): an in-game save
-    // afterwards writes there, as after loading that slot.
+    // Everything else is the menu's load. The load needs a slot (the
+    // game's current one, Slot 1 when none was chosen yet); once in game
+    // the slot is set back to none (0, as on a fresh launch; v0.24.215,
+    // author): no slot was really loaded, and the game's save picker
+    // (SaveSlotSelectionScreen.OnSlotSelection) skips its "overwrite?"
+    // question for the loaded slot - with Slot 1 kept, a save there
+    // overwrote it unasked. The save goes to the slot picked (bridge:
+    // with 0, Slot 1 asks).
     // ------------------------------------------------------------------
     public static class TitleLoad
     {
@@ -37,6 +42,8 @@ namespace ForestOverlay.Game
         private static string _pending;
         private static float _since;
         private static int _resumes;
+        private static PropertyInfo _slotProp;
+        private static MethodInfo _setSlot;
 
         public static void Install(ManualLogSource log, string harmonyId)
         {
@@ -98,9 +105,12 @@ namespace ForestOverlay.Game
             if (title == null || single == null || slotSel == null) return "the title screen's load buttons were not found";
 
             Type setup = GameBridge.FindGameType("TheForest.Utils.GameSetup");
-            PropertyInfo slotProp = setup != null ? setup.GetProperty("Slot", stat) : null;
+            _slotProp = setup != null ? setup.GetProperty("Slot", stat) : null;
+            // The property's own setter: SetSlot clamps to 1-5, and "none"
+            // is 0 - what a fresh launch has (bridge, 2026-10-02).
+            _setSlot = _slotProp != null ? _slotProp.GetSetMethod(true) : null;
             int slot = 0;
-            try { if (slotProp != null) slot = Convert.ToInt32(slotProp.GetValue(null, null)); }
+            try { if (_slotProp != null) slot = Convert.ToInt32(_slotProp.GetValue(null, null)); }
             catch (Exception) { }
             if (slot <= 0) slot = 1;
 
@@ -128,7 +138,17 @@ namespace ForestOverlay.Game
         {
             if (_pending == null) return;
             _pending = null;
-            _log.LogInfo("TitleLoad: done (" + _resumes + " Resume call(s) replaced).");
+            string slot = "slot left as it was (GameSetup.Slot's setter not found)";
+            try
+            {
+                if (_setSlot != null)
+                {
+                    _setSlot.Invoke(null, new[] { Enum.ToObject(_slotProp.PropertyType, 0) });
+                    slot = "slot set to none - saving asks before overwriting any slot";
+                }
+            }
+            catch (Exception ex) { slot = "slot not reset: " + (ex.InnerException ?? ex).Message; }
+            _log.LogInfo("TitleLoad: done (" + _resumes + " Resume call(s) replaced; " + slot + ").");
         }
 
         private static bool ResumePrefix()
