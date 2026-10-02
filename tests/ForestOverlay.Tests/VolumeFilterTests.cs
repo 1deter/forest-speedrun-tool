@@ -80,5 +80,25 @@ namespace ForestOverlay.Tests
             Assert.Equal(0, l.Count);
             Assert.True(l.WouldRank(0.1f));
         }
+
+        [Fact]
+        public void PathsLayersAndOnlyFilters()
+        {
+            string[] f = VolumeFilter.ParseExclude("Collision, Caves/Cave6, layer:Prop");
+            Assert.True(VolumeFilter.NeedsPath(f));
+            Assert.True(VolumeFilter.NeedsLayer(f));
+            Assert.True(VolumeFilter.IsHidden("RockCollision", "a/RockCollision", "Default", f));
+            Assert.True(VolumeFilter.IsHidden("default", "Caves/Cave6/x/default", "Default", f));
+            Assert.True(VolumeFilter.IsHidden("Tent", "Tent", "prop", f));
+            Assert.False(VolumeFilter.IsHidden("Tent", "Camp/Tent", "Default", f));
+
+            string[] only = VolumeFilter.ParseExclude("+layer:PickUp, +Keycard, Sheen");
+            Assert.False(VolumeFilter.NeedsPath(only));
+            Assert.False(VolumeFilter.IsHidden("Stick", null, "PickUp", only));
+            Assert.False(VolumeFilter.IsHidden("KeycardTrigger", null, "Default", only));
+            Assert.True(VolumeFilter.IsHidden("Wall", null, "Default", only));
+            Assert.True(VolumeFilter.IsHidden("Sheen", null, "PickUp", only));   // an exclude still wins
+            Assert.False(VolumeFilter.IsHidden("Anything", null, null, new string[0]));
+        }
     }
 }

@@ -67,6 +67,9 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _limitSizeCfg;
         private ConfigEntry<float> _maxSizeCfg;
         private ConfigEntry<string> _excludeCfg;
+        private static readonly GUIContent FilterHelp = new GUIContent(
+            "Hide names containing (comma-separated). Also: a path part with / (Caves/Cave6), layer:Prop for a layer, " +
+            "+name to show ONLY what matches (e.g. +layer:PickUp).");
         private bool _limitSize;
         private float _maxSize;
         private string _excludeText;
@@ -463,8 +466,7 @@ namespace ForestOverlay.Modules
                 y += Row;
             }
 
-            GUI.Label(new Rect(12, y, w - 24, 20), "Hide names containing (comma-separated):");
-            y += 20f;
+            y += UiText.Draw(12, y, w - 24, FilterHelp);
             string text = GUI.TextField(new Rect(12, y, w - 24, 22), _excludeText);
             if (text != _excludeText) { _excludeText = text; FiltersChanged(); }
             y += Row + 2f;

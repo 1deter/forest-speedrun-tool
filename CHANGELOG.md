@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.198 - 2026-10-02
+
+- Debug views: the collider / trigger filter takes a path part
+  (`Caves/Cave6`), a layer (`layer:Prop`) and "show only" fragments
+  (`+layer:PickUp`, `+Keycard`) as well as names - many hitboxes share
+  generic names like "Collision".
+
 ## v0.24.197 - 2026-10-02
 
 - 100% tab: under Timmy drawings, the drawing pieces you have found

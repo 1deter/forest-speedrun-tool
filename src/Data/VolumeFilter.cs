@@ -44,6 +44,66 @@ namespace ForestOverlay.Data
             return false;
         }
 
+        // --- v0.24.198: paths, layers, "only" (runners: items share generic
+        // names - "Collision", "default" - so a name alone hid too much or
+        // too little) ----------------------------------------------------
+        //   frag          the object's name contains it
+        //   a/b           its path (parents/name) contains it
+        //   layer:Prop    its Unity layer is that one
+        //   +frag         show ONLY volumes matching one of the + fragments
+        //                 (any of the three forms after the +)
+
+        /// Whether a fragment needs the object's path / layer read.
+        public static bool NeedsPath(string[] frags) { return Any(frags, '/'); }
+        public static bool NeedsLayer(string[] frags)
+        {
+            if (frags == null) return false;
+            for (int i = 0; i < frags.Length; i++)
+                if (Strip(frags[i]).StartsWith("layer:", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// Hidden by the field: an exclude matches, or there are + fragments
+        /// and none matches. path / layer may be null when not needed.
+        public static bool IsHidden(string name, string path, string layer, string[] frags)
+        {
+            if (frags == null || frags.Length == 0) return false;
+            bool anyInclude = false, included = false;
+            for (int i = 0; i < frags.Length; i++)
+            {
+                string f = frags[i];
+                if (f.Length == 0) continue;
+                bool include = f[0] == '+';
+                string body = Strip(f);
+                if (body.Length == 0) continue;
+                bool hit = Matches(body, name, path, layer);
+                if (include) { anyInclude = true; if (hit) included = true; }
+                else if (hit) return true;
+            }
+            return anyInclude && !included;
+        }
+
+        private static bool Matches(string frag, string name, string path, string layer)
+        {
+            if (frag.StartsWith("layer:", StringComparison.OrdinalIgnoreCase))
+                return layer != null && string.Equals(layer, frag.Substring(6).Trim(), StringComparison.OrdinalIgnoreCase);
+            if (frag.IndexOf('/') >= 0)
+                return path != null && path.IndexOf(frag, StringComparison.OrdinalIgnoreCase) >= 0;
+            return name != null && name.IndexOf(frag, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string Strip(string f)
+        {
+            return f.Length > 0 && f[0] == '+' ? f.Substring(1).Trim() : f;
+        }
+
+        private static bool Any(string[] frags, char c)
+        {
+            if (frags == null) return false;
+            for (int i = 0; i < frags.Length; i++) if (frags[i].IndexOf(c) >= 0) return true;
+            return false;
+        }
+
         /// Adds a fragment to the comma-separated field, unless an existing
         /// fragment already covers it.
         public static string AddToExclude(string text, string name)

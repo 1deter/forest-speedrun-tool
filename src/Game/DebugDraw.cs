@@ -136,6 +136,8 @@ namespace ForestOverlay.Game
             catch (Exception) { return; }
 
             bool byName = Exclude != null && Exclude.Length > 0;
+            bool byPath = byName && VolumeFilter.NeedsPath(Exclude);
+            bool byLayer = byName && VolumeFilter.NeedsLayer(Exclude);
 
             for (int i = 0; i < hits.Length; i++)
             {
@@ -154,11 +156,25 @@ namespace ForestOverlay.Game
                 if (!byName && !ranks) { _found.Add(c); continue; }
 
                 string name = c.name;
-                if (byName && VolumeFilter.IsExcluded(name, Exclude)) { HiddenByName++; continue; }
+                if (byName)
+                {
+                    string path = byPath ? PathOf(c.transform) : null;
+                    string layer = byLayer ? LayerMask.LayerToName(c.gameObject.layer) : null;
+                    if (VolumeFilter.IsHidden(name, path, layer, Exclude)) { HiddenByName++; continue; }
+                }
 
                 _found.Add(c);
                 if (ranks) Largest.Add(name, largest);
             }
+        }
+
+        // parents/name, up to 6 levels (the filter's path fragments).
+        private static string PathOf(Transform t)
+        {
+            string path = t.name;
+            Transform p = t.parent;
+            for (int i = 0; i < 5 && p != null; i++, p = p.parent) path = p.name + "/" + path;
+            return path;
         }
 
         private void Update()
