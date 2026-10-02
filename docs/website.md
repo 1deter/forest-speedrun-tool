@@ -420,12 +420,18 @@ click 3D, `lookFrom`, wait for no chunk `loading`, page screenshot clipped to
 `forest3d.canvas`. A second local site beside another session's (port 5081,
 own build output and data): `.claude/launch.json` `forest-site-alt`.
 
-Measured live (2026-10-01, the Labskip spot's 3D view, its own fit): 604
+Measured live (the Labskip spot's 3D view, its own fit): 2026-10-01 604
 world requests - 458 textures, 55 packs, 90 chunks, the json - 38 MB on
-the wire, 61 MB decoded.
+the wire; **2026-10-02 with texture packs: 188 requests** (42 texture
+packs) for 38.6 MB. Texture packs (`scripts/world_pack.py`
+`write_textures`, `q/<i>.bin`, world.json `texpacks` / `textures`) group
+like the mesh packs and hold only the variant the page reads
+(`used_variants`: a cut-out's .png, else the .jpg) - packing both had
+fetched 17.4 MB of textures for the 10.4 MB a view used. Tool:
+count the requests of a view with Playwright (session scratch
+`count_requests.py`: requests and content-length by folder).
 
-Open: textures are now most of the requests (pack / atlas them); heavy
-chunks want LODs for phones;
+Open: heavy chunks want LODs for phones;
 pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.

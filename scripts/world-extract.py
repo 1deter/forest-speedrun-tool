@@ -781,7 +781,7 @@ class Export:
                     for t in (self.materials[m].get("tex", -1), self.materials[m].get("top", -1)):
                         if t is not None and t >= 0:
                             tusers[t].add(key)
-        texpacks, textures = world_pack.write_textures(self.out, tusers, CHUNK)
+        texpacks, textures = world_pack.write_textures(self.out, tusers, CHUNK, world_pack.used_variants(self.materials))
         layers = {}
         env = UnityPy.load(os.path.join(GAME, "globalgamemanagers"))
         for o in env.objects:

@@ -88,10 +88,29 @@ def write(out, meshes, users, chunk):
     return packs
 
 
-def write_textures(out, users, chunk):
+def used_variants(materials):
+    """The (texture, "jpg" / "png") files the site reads, as world3d.js
+    picks them: a cut-out's main texture as .png (the .jpg when it has no
+    .png), every other one - and the top layers - as .jpg. Packing both
+    sent each cut-out twice (a view fetched 17.4 MB of textures for 10.4
+    it used, 2026-10-02)."""
+    used = set()
+    for d in materials:
+        t = d.get("tex", -1)
+        if t is not None and t >= 0:
+            used.add((t, "png" if d.get("cut") else "jpg"))
+        top = d.get("top", -1)
+        if top is not None and top >= 0:
+            used.add((top, "jpg"))
+    return used
+
+
+def write_textures(out, users, chunk, used=None):
     """Packs t/<i>.jpg / .png into q/<i>.bin by users (texture index ->
-    set of chunk keys, as for meshes). Returns (pack names, entries) for
-    world.json's "texpacks" / "textures"; removes t/."""
+    set of chunk keys, as for meshes). used: the (index, ext) files to
+    keep (used_variants; None = all) - a cut-out wanting a .png it does not
+    have reads the .jpg. Returns (pack names, entries) for world.json's
+    "texpacks" / "textures"; removes t/."""
     tdir = os.path.join(out, "t")
     names = os.listdir(tdir) if os.path.isdir(tdir) else []
     count = 1 + max([int(n.split(".")[0]) for n in names if n.split(".")[0].isdigit()] or [-1])
@@ -103,9 +122,13 @@ def write_textures(out, users, chunk):
     for key, ixs in sorted(groups(users, chunk).items(), key=lambda kv: tuple(str(k) for k in kv[0])):
         new = True
         for ix in ixs:
+            has_png = os.path.exists(os.path.join(tdir, "%d.png" % ix))
             for slot, ext in ((0, "jpg"), (3, "png")):
                 path = os.path.join(tdir, "%d.%s" % (ix, ext))
                 if not os.path.exists(path):
+                    continue
+                wanted = used is None or (ix, ext) in used or (ext == "jpg" and (ix, "png") in used and not has_png)
+                if not wanted:
                     continue
                 with open(path, "rb") as t:
                     data = t.read()
@@ -185,6 +208,8 @@ def synthetic(out, version, x0=400.0, z0=-100.0, chunk=250, seed=1):
         meshes.append(e)
     with open(os.path.join(out, "t", "0.png"), "wb") as f:
         f.write(png())     # a cut-out's texture (.png): the site never asks for t/0.jpg then
+    with open(os.path.join(out, "t", "0.jpg"), "wb") as f:
+        f.write(png(6, 6))  # beside the cut-out's .png, as the exporter writes: never read
     with open(os.path.join(out, "t", "1.jpg"), "wb") as f:
         f.write(png(4, 4))  # the red material's (any bytes: the test compares them)
     mats = [{"name": "box", "color": [1, 1, 1, 1], "tex": 0, "cut": True}, {"name": "red", "color": [0.8, 0.2, 0.1, 1], "tex": 1}]
@@ -218,7 +243,7 @@ def synthetic(out, version, x0=400.0, z0=-100.0, chunk=250, seed=1):
                 for t in (mats[m].get("tex", -1), mats[m].get("top", -1)):
                     if t >= 0:
                         tusers.setdefault(t, set()).update(users.get(model["mesh"], set()))
-        meta["texpacks"], meta["textures"] = write_textures(out, tusers, chunk)
+        meta["texpacks"], meta["textures"] = write_textures(out, tusers, chunk, used_variants(mats))
     with open(os.path.join(out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(meta, f, separators=(",", ":"))
     return meta, users
@@ -252,9 +277,11 @@ def test(tmp):
         assert os.path.getsize(os.path.join(b, p)) % 4 == 0
     # Textures: the same bytes out of the packs, t/ gone, a missing file -1.
     assert not os.path.exists(os.path.join(b, "t")), "t/ left beside the texture packs"
-    for ix, ext in ((0, "png"), (1, "jpg"), (0, "jpg"), (1, "png")):
+    for ix, ext in ((0, "png"), (1, "jpg"), (1, "png")):
         assert read_texture(a, m1, ix, ext) == read_texture(b, m2, ix, ext), (ix, ext)
-    assert read_texture(b, m2, 0, "png") is not None and read_texture(b, m2, 0, "jpg") is None
+    # The cut-out's .jpg is never read (world3d.js takes its .png): not packed.
+    assert read_texture(a, m1, 0, "jpg") is not None and read_texture(b, m2, 0, "jpg") is None
+    assert read_texture(b, m2, 0, "png") is not None
     assert len(m2["texpacks"]) >= 1 and len(m2["textures"]) == 2
     # Grouping: the box in every chunk shares a pack with the collider; each
     # chunk's own mesh sits alone; the two-chunk mesh in a "near" pack.
