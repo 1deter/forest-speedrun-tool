@@ -496,12 +496,13 @@ grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
 Open: a distance LOD switch for phones (above); the load-order look
-(above); two console errors from map3d.js after an in-page navigation (`buildDetail`
-reading `borrowed` of undefined, line 482; `i0` of null, line 585) - not
-looked into; the web replay as fast
+(above); the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button
-(beside Collision, `forest.map3d.detail` in localStorage) draws at the
+(beside Collision, `forest.map3d.detail` in localStorage, `Map3D.sharp`;
+it was `this.detail` at first - the terrain patch's own name, so with Detail
+on the patch was a boolean: the two console errors in `buildDetail` /
+`detailTexture`, and no patch; renamed 2026-10-02) draws at the
 screen's density (max 2) and antialiases after a reload (a WebGL context
 attribute) - more fast-by-default switches can join it (texture size, draw
 distance); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page

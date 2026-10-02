@@ -159,8 +159,8 @@ class Map3D {
     // Fastest by default (author, 2026-10-02): one pixel per CSS pixel, no
     // antialiasing. The Detail button (kept per browser) draws at the
     // screen's density; its antialiasing needs a new context, so a reload.
-    try { this.detail = localStorage.getItem(DETAIL_KEY) === "on"; } catch (e) { this.detail = false; }
-    const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.detail, powerPreference: "high-performance" });
+    try { this.sharp = localStorage.getItem(DETAIL_KEY) === "on"; } catch (e) { this.sharp = false; }
+    const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.sharp, powerPreference: "high-performance" });
     r.setPixelRatio(this.pixelRatio());
     r.setClearColor(0x050505);
     r.localClippingEnabled = true;     // the world's cutaway underground (world3d.js setCut)
@@ -196,12 +196,12 @@ class Map3D {
     const detail = document.createElement("button");
     detail.type = "button"; detail.textContent = "Detail";
     detail.title = "Sharper picture at your screen's density, smoothed edges after a reload (slower). Off = fastest";
-    const markDetail = () => { detail.classList.toggle("on", this.detail); detail.setAttribute("aria-pressed", this.detail); };
+    const markDetail = () => { detail.classList.toggle("on", this.sharp); detail.setAttribute("aria-pressed", this.sharp); };
     markDetail();
     detail.onclick = () => {
-      this.detail = !this.detail;
+      this.sharp = !this.sharp;
       markDetail();
-      try { localStorage.setItem(DETAIL_KEY, this.detail ? "on" : "off"); } catch (e) { /* not kept: fine */ }
+      try { localStorage.setItem(DETAIL_KEY, this.sharp ? "on" : "off"); } catch (e) { /* not kept: fine */ }
       this.renderer.setPixelRatio(this.pixelRatio());
       this.dirty = true;
     };
@@ -219,7 +219,7 @@ class Map3D {
     RunMap.aerialReady.then(() => { if (!this.disposed && this.coarse) this.textures(); });
   }
 
-  pixelRatio() { return this.detail ? Math.min(window.devicePixelRatio || 1, 2) : 1; }
+  pixelRatio() { return this.sharp ? Math.min(window.devicePixelRatio || 1, 2) : 1; }
 
   // --- data from the page ---
 
