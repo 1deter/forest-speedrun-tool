@@ -626,7 +626,10 @@ inventory / Item caps carries `logcap = n` / `cap <item name> = n`
 (/admin's editor, the attempt page; the Inventory tab greys them in the
 run and names unknown items); the game re-checks `/api/categories.txt`
 every 2 min, when an attempt ends and when a run spot starts one, with
-the ETag (304 unchanged; live site checked). Before (v0.24.218-219):
+the ETag (304 unchanged; live site checked). Then (site only, author's
+request): /admin's item caps are picked from the game's item list
+(`wwwroot/items.json`, search with hints, no free text - docs/website.md
+*Item list*). Before (v0.24.218-219):
 **run mode phase 4, categories** (docs/run-mode.md *Categories*): the
 moderators' categories on /admin's *Categories* tab (any admin), seeded
 and kept in step with speedrun.com daily (24 drafts on the first sync,
