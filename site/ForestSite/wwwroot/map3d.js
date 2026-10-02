@@ -150,12 +150,18 @@ function label(text, color) {
 
 // --- the view ------------------------------------------------------------------------
 
+const DETAIL_KEY = "forest.map3d.detail";
+
 class Map3D {
   constructor(canvas, hooks) {
     this.canvas = canvas;
     this.hooks = hooks || {};
-    const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Fastest by default (author, 2026-10-02): one pixel per CSS pixel, no
+    // antialiasing. The Detail button (kept per browser) draws at the
+    // screen's density; its antialiasing needs a new context, so a reload.
+    try { this.detail = localStorage.getItem(DETAIL_KEY) === "on"; } catch (e) { this.detail = false; }
+    const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.detail, powerPreference: "high-performance" });
+    r.setPixelRatio(this.pixelRatio());
     r.setClearColor(0x050505);
     r.localClippingEnabled = true;     // the world's cutaway underground (world3d.js setCut)
     this.scene = new THREE.Scene();
@@ -187,6 +193,19 @@ class Map3D {
     this.note.textContent = "Underground";
     canvas.insertAdjacentElement("afterend", this.note);
     this.world = new World(this.scene, () => { this.dirty = true; }, canvas.parentElement);
+    const detail = document.createElement("button");
+    detail.type = "button"; detail.textContent = "Detail";
+    detail.title = "Sharper picture at your screen's density, smoothed edges after a reload (slower). Off = fastest";
+    const markDetail = () => { detail.classList.toggle("on", this.detail); detail.setAttribute("aria-pressed", this.detail); };
+    markDetail();
+    detail.onclick = () => {
+      this.detail = !this.detail;
+      markDetail();
+      try { localStorage.setItem(DETAIL_KEY, this.detail ? "on" : "off"); } catch (e) { /* not kept: fine */ }
+      this.renderer.setPixelRatio(this.pixelRatio());
+      this.dirty = true;
+    };
+    this.world.box.insertBefore(detail, this.world.status);
 
     this.bind();
     this.ro = new ResizeObserver(() => { this.dirty = true; });
@@ -199,6 +218,8 @@ class Map3D {
     });
     RunMap.aerialReady.then(() => { if (!this.disposed && this.coarse) this.textures(); });
   }
+
+  pixelRatio() { return this.detail ? Math.min(window.devicePixelRatio || 1, 2) : 1; }
 
   // --- data from the page ---
 

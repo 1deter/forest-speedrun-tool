@@ -498,9 +498,13 @@ detailed rock with snow - not looked into further.
 Open: a distance LOD switch for phones (above); the load-order look
 (above); **the 2D map lags when zoomed in close** and feels responsive
 zoomed out (author, 2026-10-02) - profile the draw at high zoom (tiles /
-relief drawn at full size, lines not culled?); **the web replay as fast
-as possible**: fastest mode by default, higher-quality details opt-in and
-remembered per browser (author, 2026-10-02); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
+relief drawn at full size, lines not culled?); the web replay as fast
+as possible (author, 2026-10-02) - **started**: the 3D view draws at one
+pixel per CSS pixel with no antialiasing by default; its **Detail** button
+(beside Collision, `forest.map3d.detail` in localStorage) draws at the
+screen's density (max 2) and antialiases after a reload (a WebGL context
+attribute) - more fast-by-default switches can join it (texture size, draw
+distance); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
 

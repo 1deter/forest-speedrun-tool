@@ -659,9 +659,9 @@ one (a preset save as a start state, `run = <category name>`, in
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured). Also (author, 2026-10-02):
    the 2D map lags zoomed in close (responsive zoomed out) - find why;
-   the web replay as fast as possible, **fastest mode by default**, the
-   higher-quality details a per-browser preference (kept like the
-   layer / water switches).
+   the web replay as fast as possible: started (3D *Detail* button, off
+   by default = pixel ratio 1, no antialiasing; docs/website.md) - more
+   switches could join it.
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
