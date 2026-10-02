@@ -311,3 +311,5 @@ matched); `GET /api/attempts/<id>`, `/log` and `/code/<code>` (lower case
 typed) answer; the Runs tab lists it with Copy link; the owner's DELETE
 removes it. Not seen: a green attempt (needs the bridge off), a finished
 timed run ending an attempt, an offline attempt sent later.
+
+Confirmed 2026-10-02 (v0.24.217, local site + bridge): the attempt page (`/attempt/<id>`) for green / amber / red attempts, the check-a-code box (a real code found, a wrong one explained), the report's findings judged (another mod red, allowed on /admin/allowed -> allowed, taken off -> red), phone width without sideways scroll; `RunIntegrity.WriteTypeHashes` gives the same 3,682 type hashes twice and after a restart (289 ms, main thread); a clean install hashes no types at startup; a synthetic changed-game report is named by area with the parts behind the fold. Not seen by the author yet.

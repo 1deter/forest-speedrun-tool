@@ -271,6 +271,11 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("the game's scripted actions (PlayMaker)", steam.Area("HutongGames.PlayMaker.Actions.FloatCompare"));
         Assert.Equal("cheats and the debug console", steam.Area("Cheats"));
         Assert.Equal(GameCode.Other, steam.Area("zzzz"));
+        // The Steam build's table, written in game (RunIntegrity.WriteTypeHashes).
+        Assert.True(steam.Count > 3000, "steam-types.txt has " + steam.Count + " types");
+        var none = steam.Compare(new[] { "PlayerStats a6ed9e529f0ef306" });
+        Assert.Empty(none.Changed);
+        Assert.Equal(new[] { "PlayerStats" }, steam.Compare(new[] { "PlayerStats 0000000000000000" }).Changed);
         Assert.Equal("game = x\nflag = y", Attempts.ShownReport("game = x\ntypehash = A 1\nflag = y"));
     }
 

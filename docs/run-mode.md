@@ -205,6 +205,24 @@ entry is exact - a new version is a new entry; a mod and its Harmony
 patches are two entries (a plugin's patches are listed by its Harmony
 id). Logged in the activity log with the entry.
 
+**A changed game, part by part (v0.24.217).** When Assembly-CSharp's file
+hash is not a known build, `Game/RunIntegrity.HashTypes` hashes every
+top-level type of the *loaded* game code on the hashing worker thread
+(SHA-256 over the sorted lines `<type>::<method> <IL hash>` of every
+declared method and constructor, nested types folded in, plus one
+`<type> type` line per type; 16 hex). The report carries them as
+`typehash = <type> <hash>` (~3,700 lines, only for a changed game; the
+page leaves them out of the shown report). The site (`GameCode.cs`)
+compares them with `GameCode/steam-types.txt` - the Steam build's table,
+**written in game by the same code**: `call
+static:ForestOverlay.Game.RunIntegrity WriteTypeHashes "<path>"` on a
+clean install - and names the changed / added / missing parts by area
+(`GameCode/areas.txt`, regexes on the type name, first match wins, case
+counts), the type names behind a fold. The same code in a different file
+(only resources differ) is amber. Fields are not hashed (a constant's
+change shows in the IL that reads it). An older plugin's report without
+type hashes stays "not the Steam game's", unnamed.
+
 ## Other uses of locked settings
 
 - **Manhunt** (sxczurass, QA 2026-10-02: two players finish the game while
@@ -252,8 +270,8 @@ id). Logged in the activity log with the entry.
    - A checkpoint POST about once a minute; a receipt on every reset; the full
      log on a finish.
    - An outbox queue with links (offline).
-3. **The report page** on the site (built 2026-10-02 except the per-type hashes;
-   see *The report page* above).
+3. **The report page** on the site, built in v0.24.217 (see *The report
+   page* above).
    - Green / amber / red, in plain words, plus a "check a code" box.
    - On a hash mismatch, per-type hashes, compared on the server against a
      table built from the real game files and mapped to areas a runner

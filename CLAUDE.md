@@ -611,52 +611,45 @@ identity.
 
 ## Current status
 
-**Released: v0.24.216** (2026-10-02). The author runs it via the in-game
-updater (Slot 1). **529 tests** (+ 65 site tests).
+**Released: v0.24.217** (2026-10-02). The author runs it via the in-game
+updater (Slot 1). **529 tests** (+ 68 site tests).
 
-### Pick up here (2026-10-02, v0.24.216 released)
+### Pick up here (2026-10-02, v0.24.217 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. This session (v0.24.216):
-**run mode phase 2, codes and receipts** - built, tested, and confirmed
-over the bridge against the live site (docs/confirmed.md); design in
-docs/run-mode.md *Codes and receipts*. Each attempt: an id and
-link made in game, a 4-character code on screen changing every second (a
-hash chain over the site's nonce, the timer and positions), a checkpoint
-to the site a minute, the log on every end (resets included), judged
-green / amber / red on arrival. Earlier (v0.24.211-215):
-- **What starts a run** (decided, built, confirmed over the bridge): a
-  **run spot** - a spot with `run = <category>` (editor *Run* field) and a
-  start state. Restart on it = always a Full load, the attempt starts at
-  the spot; Restart on it during the run = a reset; every other Restart
-  stays locked; any other load ends run mode; **Start run mode** (Runs
-  tab) is the fallback. A new game no longer starts a run.
-- **Savestates switch Creative / survival** with a Full load (the mode is
-  not in the save; `GameSetup.SetGameType` before the load), captures
-  write `basedifficulty`; the testing switch is gone. In-game saving
-  afterwards writes that mode into the slot (author: fine, never blocked).
-- **Restores from the title screen** go through the menu's own load
-  (`Game/TitleLoad`, gotcha 84) - Restart works from the title screen;
-  afterwards no slot is selected (v0.24.215, author: saves go to the slot
-  picked in the game's save picker, and every slot with a save asks
-  before it is overwritten).
+mode, the report or anything a run uploads. This session (v0.24.217):
+**run mode phase 3, the report page** - built, tested, live
+(docs/run-mode.md *The report page*): `/attempt/<id>` says green / amber /
+red in plain words, what the site saw (the receipt) and what ran (the
+report's findings, now part of the verdict), a check-a-code box, the log;
+**Allowed mods** on /admin (exact entries from what reports named); a
+changed game's report carries per-type hashes and the site names the
+changed parts by area (`site/ForestSite/GameCode/`: the Steam table,
+written in game with `RunIntegrity.WriteTypeHashes`, and `areas.txt`).
+Author's new rule (QA 2026-10-02): **anti-splicing is optional per
+category / run spot** - a phase 4 setting. Earlier (v0.24.211-216): run
+spots start runs (Restart = Full load + run mode), codes and receipts
+(phase 2), Creative / survival switching start states, restores from the
+title screen.
 Not yet seen by the author's own eyes and hands: run mode by hand (a real
 ESC + F2, the Runs tab section, End run mode / Start run mode by
-clicking, a run spot's F7) and the run code (its size and place on a
-real recording - `CodeSize` 40 px default, top centre). No community run spot exists yet - making
-one (a preset save as a start state, `run = ...`, in `community/`) is
-the author's call (which categories, which saves).
+clicking, a run spot's F7), the run code on a real recording (`CodeSize`
+40 px default, top centre), and the attempt page on the live site with a
+real attempt (Copy link in the Runs tab). No community run spot exists
+yet - making one (a preset save as a start state, `run = ...`, in
+`community/`) is the author's call (which categories, which saves).
 
 **Next, in order (one per session):**
-1. **Run mode phase 3: the report page** (docs/run-mode.md *Phases*,
-   *Codes and receipts - Not yet*): `/attempt/<id>` (the link the game
-   already copies) - green / amber / red in plain words, the report's
-   findings judged too, the "check a code" box (`GET
-   /api/attempts/<id>/code/<code>` exists), per-type hashes. Then phase 4
-   (categories on /admin, seeded from speedrun.com's categories and rules;
-   it also covers sxczurass's manhunt - *Other uses of locked settings*).
+1. **Run mode phase 4: categories on /admin** (docs/run-mode.md *Phases*,
+   *Decisions*): the moderators' categories (difficulty / mode, overlay
+   features allowed, banned moves, *Reload save on death*, the linked
+   community run spot, **anti-splicing on / off**), seeded from
+   speedrun.com's categories and rules; the plugin fetches them, the
+   runner picks one in the Runs tab, each report records the category
+   version; the attempt page judges against it. Covers sxczurass's
+   manhunt (*Other uses of locked settings*).
 2. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
