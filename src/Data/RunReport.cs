@@ -29,6 +29,17 @@ namespace ForestOverlay.Data
         public string PluginVersion = "";
         public string AttemptId = "";     // run mode's log and link (phase 2)
 
+        /// The category the attempt ran under (phase 4): its id and version
+        /// ("" / 0 when none was known - an old plugin, a category the site
+        /// does not have), and the game as GameSetup said at the start.
+        public string Category = "";
+        public int CategoryVersion;
+        public string Difficulty = "";    // Peaceful / Normal / Hard
+        public bool Creative;
+        public bool Multiplayer;
+        /// Features the category allowed and the runner used ("godmode").
+        public readonly List<string> Used = new List<string>();
+
         /// SHA-256 of Assembly-CSharp.dll; "" while not read, "error: ..." when unreadable.
         public string GameHash = "";
 
@@ -95,6 +106,12 @@ namespace ForestOverlay.Data
                 if (!lines.Contains(line)) lines.Add(line);
             }
 
+            for (int i = 0; i < Used.Count; i++)
+            {
+                RunCategory.Feature f = RunCategory.FindFeature(Used[i]);
+                lines.Add("Note  Used, allowed by the category: " + (f != null ? f.Label : Used[i]) + ".");
+            }
+
             if (PracticeBefore.Length > 0)
                 lines.Add("Note  Practice was used before this attempt (" + PracticeBefore + "); the attempt started clean.");
             return lines;
@@ -110,6 +127,13 @@ namespace ForestOverlay.Data
             sb.Append("at = ").Append(StartedAt).Append('\n');
             sb.Append("plugin = ").Append(PluginVersion).Append('\n');
             if (AttemptId.Length > 0) sb.Append("id = ").Append(AttemptId).Append('\n');
+            if (Category.Length > 0) sb.Append("category = ").Append(Category).Append(" v").Append(CategoryVersion).Append('\n');
+            if (Difficulty.Length > 0)
+            {
+                sb.Append("difficulty = ").Append(Difficulty).Append('\n');
+                sb.Append("creative = ").Append(Creative ? "yes" : "no").Append('\n');
+                sb.Append("multiplayer = ").Append(Multiplayer ? "yes" : "no").Append('\n');
+            }
             sb.Append("game = ").Append(GameHash).Append('\n');
             sb.Append("verdict = ").Append(Clean ? "clean" : "not valid").Append('\n');
             sb.Append("ownpatches = ").Append(OwnPatchedMethods).Append('\n');
@@ -119,6 +143,7 @@ namespace ForestOverlay.Data
             List(sb, "foreignpatch", ForeignPatches);
             List(sb, "cheat", Cheats);
             List(sb, "flag", Flags);
+            List(sb, "used", Used);
             if (PracticeBefore.Length > 0) sb.Append("practicebefore = ").Append(PracticeBefore).Append('\n');
             List(sb, "typehash", TypeHashes);
             sb.Append('\n');
@@ -150,6 +175,17 @@ namespace ForestOverlay.Data
                     case "at": r.StartedAt = value; break;
                     case "plugin": r.PluginVersion = value; break;
                     case "id": r.AttemptId = value; break;
+                    case "category":
+                    {
+                        int v = value.LastIndexOf(" v");
+                        if (v > 0 && int.TryParse(value.Substring(v + 2), out r.CategoryVersion)) r.Category = value.Substring(0, v);
+                        else r.Category = value;
+                        break;
+                    }
+                    case "difficulty": r.Difficulty = value; break;
+                    case "creative": r.Creative = value == "yes"; break;
+                    case "multiplayer": r.Multiplayer = value == "yes"; break;
+                    case "used": r.Used.Add(value); break;
                     case "game": r.GameHash = value; break;
                     case "ownpatches": int.TryParse(value, out r.OwnPatchedMethods); break;
                     case "otherplugin": r.OtherPlugins.Add(value); break;

@@ -453,6 +453,8 @@ ON CONFLICT DO NOTHING RETURNING id";
         return cmd.ExecuteNonQuery();
     }
 
+    public bool Exists(string sql, params (string, object)[] args) => Scalar(sql, args) != null;
+
     public object Scalar(string sql, params (string, object)[] args)
     {
         using var c = Open();

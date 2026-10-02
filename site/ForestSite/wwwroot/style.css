@@ -259,3 +259,16 @@ td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
   color: #444; font-size: 11px; letter-spacing: .04em;
 }
 .about code { color: var(--white); font-size: 13px; }
+
+/* Admin: a run category's editor (run mode phase 4). */
+.catform { display: grid; gap: 10px; max-width: 720px; padding: 6px 0; }
+.catform h3 { margin: 10px 0 0; font-size: 14px; }
+.catform .field { display: grid; gap: 4px; }
+.catform .field > span:first-child { color: var(--muted); font-size: 12px; }
+.catform select, .catform textarea { background: #000; border: 1px solid var(--line); padding: 4px 6px; color: inherit; font: inherit; width: 100%; max-width: 100%; box-sizing: border-box; }
+.catform textarea { font-size: 13px; resize: vertical; }
+.catform .check { display: flex; gap: 8px; align-items: flex-start; }
+.catform td select { width: auto; }
+.srcdiff { border: 1px solid var(--behind-lose); padding: 8px 10px; }
+.srcdiff .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.srcdiff pre { white-space: pre-wrap; font-size: 12px; margin: 4px 0 0; }

@@ -21,6 +21,7 @@ public sealed class ApiTests : IDisposable
     {
         _data = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
         Environment.SetEnvironmentVariable("FOREST_DATA", _data);
+        Environment.SetEnvironmentVariable("FOREST_SRC_SYNC", "off");
         Environment.SetEnvironmentVariable("FOREST_ADMIN_TOKEN", "admin-secret");
         _factory = new WebApplicationFactory<Program>();
         _http = _factory.CreateClient();

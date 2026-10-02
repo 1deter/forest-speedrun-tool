@@ -10,8 +10,8 @@ const ADMIN_KEY = "forest-admin-token";
 function adminToken() { try { return localStorage.getItem(ADMIN_KEY) || ""; } catch { return ""; } }
 function setAdminToken(t) { try { if (t) localStorage.setItem(ADMIN_KEY, t); else localStorage.removeItem(ADMIN_KEY); } catch { } }
 
-async function adminCall(method, path) {
-  const r = await fetch("/api/admin" + path, { method, headers: { "X-Admin-Token": adminToken() } });
+async function adminCall(method, path, body) {
+  const r = await fetch("/api/admin" + path, { method, headers: { "X-Admin-Token": adminToken() }, body });
   if (r.status === 403) { const e = new Error("the admin token was refused"); e.denied = true; throw e; }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
   const type = r.headers.get("content-type") || "";
@@ -59,6 +59,7 @@ async function adminPage(tab) {
     ["flagged", "Under review", flagged.filter(f => !f.hidden).length],
     ["spots", "Spots", spots.length],
     ["runners", "Runners", runners.length],
+    ["categories", "Categories", 0],
     ["allowed", "Allowed mods", 0],
     ["activity", "Activity", 0],
   ];
@@ -69,7 +70,8 @@ async function adminPage(tab) {
     body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners)
       : tab === "spots" ? spotsView(spots) : tab === "activity" ? activityView(await adminCall("GET", "/log"))
       : tab === "admins" ? adminsView(await adminCall("GET", "/admins"))
-      : tab === "allowed" ? allowedView(await adminCall("GET", "/allowed")) : submissionsView(subs);
+      : tab === "allowed" ? allowedView(await adminCall("GET", "/allowed"))
+      : tab === "categories" ? categoriesView(await adminCall("GET", "/categories"), spots) : submissionsView(subs);
   } catch (e) { return failed(e); }
 
   show(
@@ -245,6 +247,155 @@ function allowedView(list) {
     el("div", { class: "tablewrap" }, el("table", { class: "admin" },
       el("thead", null, el("tr", null, el("th", null, "Named in reports"), el("th", { class: "r" }, "Attempts"))),
       rows)));
+}
+
+// --- run categories (run mode phase 4) ---------------------------------------------------
+
+const POLICY_LABEL = { locked: "Locked", allowed: "Runner's choice", forced: "Forced on" };
+
+/// A category as src/Data/RunCategory's text (the server parses it back;
+/// the version is the server's).
+function categoryText(c) {
+  const one = s => String(s ?? "").replace(/[\u0000-\u001f\u007f]/g, " ");
+  const lines = ["[category]", "id = " + c.id, "name = " + one(c.name), "version = 0", "status = " + c.status,
+    "difficulty = " + c.difficulty, "creative = " + c.creative, "multiplayer = " + c.multiplayer];
+  if (c.spot) lines.push("spot = " + one(c.spot));
+  lines.push("antisplice = " + (c.antisplice ? "on" : "off"), "amber = " + (c.amber ? "accepted" : "not accepted"));
+  for (const f of c.features) lines.push("feature " + f.key + " = " + f.policy);
+  for (const b of c.banned) if (b.trim()) lines.push("banned = " + one(b.trim()));
+  for (const r of c.rules) lines.push("rule = " + one(r));
+  if (c.src) lines.push("src = " + c.src);
+  return lines.join("\n") + "\n";
+}
+
+/// Every category: speedrun.com's (drafts until published), the presets
+/// and the moderators' own. Each opens into an editor; Save makes a new
+/// version (attempts keep the version they ran under).
+function categoriesView(data, spots) {
+  const list = data.list.slice().sort((a, b) =>
+    (a.status === "published" ? 0 : a.status === "draft" ? 1 : 2) - (b.status === "published" ? 0 : b.status === "draft" ? 1 : 2) ||
+    a.name.localeCompare(b.name));
+  const open = new Set();
+  const rows = el("tbody");
+  function render() {
+    rows.replaceChildren(...list.flatMap(x => {
+      const row = el("tr", { class: open.has(x.id) ? "focus" : "", onclick: () => { open.has(x.id) ? open.delete(x.id) : open.add(x.id); render(); } },
+        el("td", { class: "name" }, x.name, x.changed ? el("span", { class: "tag bad" }, "speedrun.com changed this") : null),
+        el("td", { class: "r status-" + (x.status === "published" ? "approved" : x.status === "draft" ? "open" : "rejected") }, x.status),
+        el("td", { class: "r" }, "v" + x.version));
+      return open.has(x.id) ? [row, el("tr", { class: "detail" }, el("td", { colspan: 3 }, categoryEditor(x, data.features, spots, render)))] : [row];
+    }));
+  }
+  render();
+
+  const sync = actions(el("button", { class: "chip", onclick: async () => {
+    sync.say("Reading speedrun.com…");
+    try {
+      const r = await adminCall("POST", "/categories/sync");
+      sync.say(r.done.length ? r.done.length + " change(s) - reloading" : "No changes on speedrun.com.");
+      if (r.done.length) setTimeout(() => adminPage("categories"), 800);
+    } catch (e) { sync.say("Failed: " + e.message); }
+  } }, "Check speedrun.com now"), el("button", { class: "chip", onclick: () => newCategory() }, "New category"));
+
+  function newCategory() {
+    const name = prompt("The new category's name (e.g. Manhunt - Hard):");
+    if (!name || !name.trim()) return;
+    const id = slug(name.trim());
+    if (list.some(x => x.id === id)) { sync.say("A category with that id exists: " + id); return; }
+    const c = { id, name: name.trim(), status: "draft", difficulty: "any", creative: "any", multiplayer: "any", spot: "", antisplice: true,
+      amber: true, banned: [], rules: [], src: "", features: data.features.map(f => ({ key: f.key, label: f.label, policy: f.def })) };
+    adminCall("PUT", "/categories/" + id, categoryText(c)).then(() => adminPage("categories"), e => sync.say("Failed: " + e.message));
+  }
+
+  return el("section", null,
+    el("p", { class: "note" }, "What a run allows. Categories come from speedrun.com (checked daily; new ones arrive as drafts) - " +
+      "publish one and the game offers it in the Runs tab. Speedrun.com's changes apply by themselves until a category is edited here; " +
+      "after that they wait for Accept. Every save is a new version: an attempt is judged by the version it ran under. " +
+      "Last check: " + (data.lastSync || "not yet") + "."),
+    sync.box,
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" },
+      el("thead", null, el("tr", null, el("th", null, "Category"), el("th", { class: "r" }, "Status"), el("th", { class: "r" }, "Version"))),
+      rows)));
+}
+
+function categoryEditor(x, features, spots, rerender) {
+  const c = x.category;
+  const stop = e => e.stopPropagation();
+  const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
+  const select = (value, options) => {
+    const s = el("select", null, options.map(([v, l]) => el("option", { value: v, selected: v === value ? "" : null }, l)));
+    s.value = value;
+    return s;
+  };
+  const name = el("input", { class: "search", value: c.name, maxlength: 80 });
+  const status = select(c.status, [["draft", "Draft (not offered in game)"], ["published", "Published"], ["hidden", "Hidden"]]);
+  const difficulty = select(c.difficulty, [["any", "Any"], ["peaceful", "Peaceful"], ["normal", "Normal"], ["hard", "Hard"]]);
+  const creative = select(c.creative, [["any", "Either"], ["no", "Survival only"], ["yes", "Creative only"]]);
+  const multiplayer = select(c.multiplayer, [["any", "Either"], ["no", "Single player"], ["yes", "Multiplayer"]]);
+  const runSpots = spots.filter(s => s.community);
+  const spot = select(c.spot || "", [["", "None"], ...runSpots.map(s => [s.id, s.name])]);
+  if (c.spot && !runSpots.some(s => s.id === c.spot)) spot.append(el("option", { value: c.spot, selected: "" }, c.spot + " (not a community spot now)"));
+  spot.value = c.spot || "";
+  const anti = el("input", { type: "checkbox", checked: c.antisplice ? "" : null });
+  const amber = el("input", { type: "checkbox", checked: c.amber ? "" : null });
+  const banned = el("textarea", { rows: 4 }, c.banned.join("\n"));
+  const rules = el("textarea", { rows: 8 }, c.rules.join("\n"));
+  const policies = {};
+  const featureRows = features.map(f => {
+    const now = (c.features.find(y => y.key === f.key) || {}).policy || f.def;
+    const s = select(now, [["locked", POLICY_LABEL.locked], ["allowed", POLICY_LABEL.allowed], ...(f.toggle ? [["forced", POLICY_LABEL.forced]] : [])]);
+    policies[f.key] = s;
+    return el("tr", null, el("td", null, f.label, f.def !== "locked" ? el("span", { class: "sub" }, " (default: " + POLICY_LABEL[f.def].toLowerCase() + ")") : null), el("td", null, s));
+  });
+
+  const save = actions(el("button", { class: "chip", onclick: async () => {
+    const out = {
+      id: x.id, name: name.value.trim(), status: status.value, difficulty: difficulty.value, creative: creative.value, multiplayer: multiplayer.value,
+      spot: spot.value, antisplice: anti.checked, amber: amber.checked, src: c.src,
+      banned: banned.value.split("\n").map(s => s.trim()).filter(Boolean), rules: rules.value.split("\n").map(s => s.trimEnd()).filter(s => s.trim()),
+      features: features.map(f => ({ key: f.key, policy: policies[f.key].value })),
+    };
+    if (!out.name) { save.say("A name, please."); return; }
+    save.say("…");
+    try { const r = await adminCall("PUT", "/categories/" + x.id, categoryText(out)); save.say("Saved as version " + r.version + "."); setTimeout(() => adminPage("categories"), 700); }
+    catch (e) { save.say("Failed: " + e.message); }
+  } }, "Save (new version)"));
+
+  let changed = null;
+  if (x.changed) {
+    const a = actions(
+      el("button", { class: "chip", onclick: () => act(a.say, "POST", "/categories/" + x.id + "/accept", () => adminPage("categories")) },
+        x.changed.name === "(removed from speedrun.com)" ? "Hide this category" : "Accept speedrun.com's version"),
+      el("button", { class: "chip", onclick: () => act(a.say, "POST", "/categories/" + x.id + "/dismiss", () => adminPage("categories")) }, "Keep ours"));
+    changed = el("div", { class: "srcdiff" },
+      el("h3", null, "Speedrun.com changed this category"),
+      x.changed.name === "(removed from speedrun.com)" ? el("p", null, "It is no longer on speedrun.com.")
+        : el("div", { class: "cols" },
+          el("div", null, el("div", { class: "sub" }, "Before"), el("strong", null, x.srcName), el("pre", null, x.srcRules)),
+          el("div", null, el("div", { class: "sub" }, "Now"), el("strong", null, x.changed.name), el("pre", null, x.changed.rules))),
+      el("p", { class: "sub" }, "Accept takes the name and rules; the settings here stay as they are."),
+      a.box);
+  }
+
+  return el("div", { class: "catform", onclick: stop },
+    changed,
+    field("Name", name),
+    field("Status", status, "Published categories are offered in the game's Runs tab."),
+    el("h3", null, "The game"),
+    field("Difficulty", difficulty),
+    field("Creative", creative),
+    field("Players", multiplayer),
+    field("Run spot", spot, "The community spot whose Restart starts this category's runs (its start state is the preset save)."),
+    el("h3", null, "Checks"),
+    el("label", { class: "check" }, anti, " Anti-splice codes on screen, and the recording's timing checked"),
+    el("label", { class: "check" }, amber, " Accept attempts checked by the video's codes only (offline, gaps)"),
+    el("h3", null, "Overlay features in a run"),
+    el("p", { class: "sub" }, "Locked: unusable during a run. Runner's choice: usable, named on the attempt's page. Forced on: on for everyone, unchangeable (e.g. a manhunt)."),
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" }, el("tbody", null, featureRows))),
+    field("Banned moves (one per line)", banned, "Shown on every attempt's page. Detecting them automatically comes later."),
+    field("Rules (one per line)", rules),
+    c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),
+    save.box);
 }
 
 // --- the activity log ------------------------------------------------------------------

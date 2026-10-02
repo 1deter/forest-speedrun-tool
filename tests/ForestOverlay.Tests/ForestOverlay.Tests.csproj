@@ -36,6 +36,7 @@
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
     <Compile Include="../../src/Data/RunHistory.cs" Link="Linked/RunHistory.cs" />
     <Compile Include="../../src/Data/RunReport.cs" Link="Linked/RunReport.cs" />
+    <Compile Include="../../src/Data/RunCategory.cs" Link="Linked/RunCategory.cs" />
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
     <Compile Include="../../src/Data/SplitSequence.cs" Link="Linked/SplitSequence.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />

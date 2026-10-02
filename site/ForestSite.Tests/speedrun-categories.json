@@ -1,0 +1,122 @@
+{
+ "data": [
+  {
+   "id": "xk9jypgd",
+   "name": "Any% (No Explosive Glitch)",
+   "type": "per-game",
+   "rules": "-Time starts when player movement occurs\n\n-Time ends when the \"E\" interact disappears from the screen, starting the cutscene.\n\n-No developer mode\n\n-No third party software (cheat engine ect.)\n\n-No Coop\n\n-No explosives glitch",
+   "miscellaneous": false,
+   "variables": {
+    "data": [
+     {
+      "id": "onv0kr8m",
+      "name": "Any% (No Explosive Glitch)",
+      "is-subcategory": true,
+      "scope": {
+       "type": "full-game"
+      },
+      "values": {
+       "values": {
+        "gq72r5p1": {
+         "label": "Peaceful"
+        },
+        "21g92n6q": {
+         "label": "Normal"
+        },
+        "jqzgxn2l": {
+         "label": "Hardmode"
+        },
+        "klrxy3ol": {
+         "label": "Creative"
+        },
+        "qke8j34q": {
+         "label": "Any% Bombs"
+        }
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "z273pmod",
+   "name": "Co-op Any%",
+   "type": "per-game",
+   "rules": "-Limit 5 players\n\n-Time starts first player starts moving, However you may wait for the final player to load to start the run\n\n-Time ends when the \"E\" interact disappears from the screen, starting the cutscene.\n\n-No developer mode\n\n-No third party software (cheat engine ect.)",
+   "miscellaneous": false,
+   "variables": {
+    "data": [
+     {
+      "id": "ylp0pvng",
+      "name": "Coop Any%",
+      "is-subcategory": true,
+      "scope": {
+       "type": "full-game"
+      },
+      "values": {
+       "values": {
+        "gq72r5y1": {
+         "label": "Peaceful"
+        },
+        "21g92nmq": {
+         "label": "Normal"
+        },
+        "jqzgxnml": {
+         "label": "Hardmode"
+        },
+        "klrxy32l": {
+         "label": "Creative"
+        }
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "02q88072",
+   "name": "Any% Glitchless",
+   "type": "per-game",
+   "rules": "-No OOB\n\n-No clipping through walls (including if you stay in bounds i.e.: entering Sahara)\n\n-No Coop\n\n-No third party software (cheat engine ect.)\n\n-Time starts when player movement occurs\n\n-Time ends when the \"E\" interact disappears from the screen, starting the cutscene.\n\n-No developer mode",
+   "miscellaneous": false,
+   "variables": {
+    "data": [
+     {
+      "id": "p85617ng",
+      "name": "Glitchless",
+      "is-subcategory": true,
+      "scope": {
+       "type": "full-game"
+      },
+      "values": {
+       "values": {
+        "21d632jq": {
+         "label": "Peaceful"
+        },
+        "5q84dgkl": {
+         "label": "Normal"
+        },
+        "4qy7jn7q": {
+         "label": "Hardmode"
+        },
+        "mlnez5dl": {
+         "label": "Creative"
+        }
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "q25xy8gk",
+   "name": "Bathrobe%",
+   "type": "per-game",
+   "rules": "Time starts at player control\r\nTime ends when Bathrobe is equipped\r\nRunner can choose any difficulty",
+   "miscellaneous": true,
+   "variables": {
+    "data": []
+   }
+  }
+ ]
+}

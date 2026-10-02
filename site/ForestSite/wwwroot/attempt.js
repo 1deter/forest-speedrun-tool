@@ -39,8 +39,9 @@ async function attemptPage(id) {
   document.title = (a.category || "Run") + " attempt" + (a.runnerName ? " by " + a.runnerName : "") + " · Forest Practice Runs";
 
   const when = a.issued || a.received;
+  const cat = a.rules;   // the category version the report names (phase 4)
   const facts = [
-    ["Category", a.category || "-"],
+    ["Category", cat ? cat.name + " (version " + cat.version + ")" : a.category || "-"],
     ["Runner", a.runnerName || a.runner],
     ["Spot", a.spot ? el("a", { href: "/spot/" + encodeURIComponent(a.spot) }, a.spot) : "none (started by hand)"],
     ["Game", a.mode || "-"],
@@ -74,7 +75,24 @@ async function attemptPage(id) {
   }
   input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
 
-  const recording = a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
+  // The category's rules as they were for this attempt: what the overlay
+  // allowed, the banned moves (checked by eye for now) and the rules.
+  let rules = null;
+  if (cat) {
+    const special = cat.features.filter(f => f.policy !== "locked");
+    rules = el("section", null,
+      el("h2", null, "The category's rules"),
+      el("p", { class: "note" }, cat.name + ", version " + cat.version + " - as the moderators had it when this attempt ran." +
+        (cat.antisplice ? "" : " This category does not use the anti-splice codes.")),
+      special.length ? el("p", null, "Overlay features: " + special.map(f => f.label + " (" + (f.policy === "forced" ? "on for everyone" : "runner's choice") + ")").join(", ") +
+        ". Everything else is locked.") : el("p", null, "Every overlay feature that changes the game is locked."),
+      cat.banned.length ? el("div", null, el("h3", null, "Banned moves (check the video)"), el("ul", null, cat.banned.map(b => el("li", null, b)))) : null,
+      cat.rules.length ? el("details", { class: "raw" }, el("summary", null, "Rules"), el("ul", null, cat.rules.map(r => el("li", null, r)))) : null);
+  }
+
+  const recording = a.recording && a.recording.judged === false && a.recording.verdict !== "red"
+    ? el("p", { class: "sub" }, "Not judged: " + (cat ? cat.name : "this category") + " does not use the anti-splice codes. A log that contradicts the site would still show here.")
+    : a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
     : el("p", { class: "sub" }, a.online ? a.checkpoints + " checkpoint(s) so far. The verdict comes when the log arrives." : "Nothing yet.");
   const findings = a.findings ? lineList(a.findings.map(f => [f.level, f.text, f.details]))
     : el("p", { class: "sub" }, "The game's report comes with the log, at the attempt's end.");
@@ -87,6 +105,7 @@ async function attemptPage(id) {
       el("p", null, says)),
     el("div", { class: "tablewrap" }, el("table", { class: "facts" }, el("tbody", null,
       facts.map(([k, v]) => el("tr", null, el("th", null, k), el("td", null, v)))))),
+    rules,
     el("section", null,
       el("h2", null, "Check a code"),
       el("p", { class: "note" }, "In run mode the game shows a four-letter code at the top of the screen that changes every second. " +

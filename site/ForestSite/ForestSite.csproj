@@ -33,6 +33,7 @@
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
     <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />
     <Compile Include="../../src/Data/RunReport.cs" Link="Linked/RunReport.cs" />
+    <Compile Include="../../src/Data/RunCategory.cs" Link="Linked/RunCategory.cs" />
   </ItemGroup>
 
   <!-- The community packs ship with the site, as they do in the repo. -->

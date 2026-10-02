@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../ForestSite/ForestSite.csproj" />
+    <None Include="speedrun-categories.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.RateLimiting;
+using ForestOverlay.Data;
 using ForestSite;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -28,7 +29,8 @@ string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? 
 string originSecret = Environment.GetEnvironmentVariable("FOREST_ORIGIN_SECRET") ?? "";
 var store = new Store(dataDir);
 var runs = new Runs(store);
-var attempts = new Attempts(store, dataDir);
+var categories = new Categories(store);
+var attempts = new Attempts(store, dataDir, null, categories);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 
@@ -188,6 +190,28 @@ foreach (var (dir, path, meta) in new[] { (aerialDir, "/aerial", "/aerial/aerial
 }
 string indexHtml = Pages.Index(app.Environment.WebRootPath);
 
+// Run categories (phase 4): the presets once, speedrun.com a minute after
+// start and then daily (FOREST_SRC_SYNC=off: never - the tests).
+categories.SeedPresets();
+if (Environment.GetEnvironmentVariable("FOREST_SRC_SYNC") != "off")
+{
+    var srcHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(TimeSpan.FromMinutes(1));
+        while (true)
+        {
+            try
+            {
+                var done = await categories.Sync(srcHttp);
+                if (done.Count > 0) store.LogAdmin(Categories.SyncUser, "sync: " + string.Join("; ", done), 200);
+            }
+            catch (Exception ex) { app.Logger.LogWarning("speedrun.com sync failed: {m}", ex.Message); }
+            await Task.Delay(TimeSpan.FromDays(1));
+        }
+    });
+}
+
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
 app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}", dataDir, packs, adminToken.Length > 0 ? "on" : "off");
 
@@ -315,6 +339,13 @@ api.MapGet("/attempts/{id}/log", (string id) =>
 api.MapGet("/attempts/{id}/code/{code}", (string id, string code) =>
     attempts.FindCode(id, code) is { } f ? Results.Json(f) : Problem(400, "a code is four characters")).RequireRateLimiting("read");
 
+// --- run categories (Categories; docs/run-mode.md phase 4) ----------------------
+
+// The plugin's list: the published categories as text (src/Data/RunCategory).
+api.MapGet("/categories.txt", () => Results.Text(categories.PublishedText(), "text/plain; charset=utf-8")).RequireRateLimiting("read");
+api.MapGet("/categories/{id}/{version:int}", (string id, int version) =>
+    Categories.View(categories.Version(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
+
 static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue(out string s) ? s : "";
 
 // --- the author ----------------------------------------------------------------
@@ -440,6 +471,27 @@ admin.MapPost("/allowed", (HttpContext c, string kind, string text) =>
     attempts.Allow(kind, text, c.Items["admin"] as string) ? Results.Ok() : Problem(400, "kind is mod, patcher, code or patches; text the exact entry"));
 admin.MapDelete("/allowed", (string kind, string text) =>
     attempts.Disallow(kind, text) ? Results.Ok() : Problem(404, "not on the list"));
+// Categories: any admin (author, 2026-10-02: one role at this size).
+admin.MapGet("/categories", () => Results.Json(new { list = categories.AdminList(), lastSync = categories.LastSync(),
+    features = RunCategory.Features.Select(f => new { key = f.Key, label = f.Label, toggle = f.Toggle, def = f.Default }) }));
+admin.MapPut("/categories/{id}", async (HttpContext c, string id) =>
+{
+    var (saved, error) = categories.Save(id, await Body(c.Request), c.Items["admin"] as string ?? "?");
+    return error != null ? Problem(400, error) : Results.Json(new { id = saved.Id, version = saved.Version });
+});
+admin.MapPost("/categories/{id}/accept", (HttpContext c, string id) =>
+    categories.AcceptSource(id, c.Items["admin"] as string ?? "?") is { } s ? Results.Json(new { id = s.Id, version = s.Version }) : Problem(404, "no change from speedrun.com waiting"));
+admin.MapPost("/categories/{id}/dismiss", (string id) =>
+    categories.DismissSource(id) ? Results.Ok() : Problem(404, "no change from speedrun.com waiting"));
+admin.MapPost("/categories/sync", async () =>
+{
+    try
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        return Results.Json(new { done = await categories.Sync(http) });
+    }
+    catch (Exception ex) { return Problem(502, "speedrun.com did not answer: " + ex.Message); }
+});
 admin.MapPost("/runners/{id}/reset-token", (string id) => store.ResetToken(id) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/ban", (string id) => store.Ban(id, true) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/unban", (string id) => store.Ban(id, false) ? Results.Ok() : Problem(404, "no such runner"));

@@ -37,10 +37,12 @@ public sealed class Attempts
     private readonly Store _store;
     private readonly string _dir;
     private readonly Func<long> _now;
+    private readonly Categories _categories;
 
-    public Attempts(Store store, string dataDir, Func<long> nowMs = null)
+    public Attempts(Store store, string dataDir, Func<long> nowMs = null, Categories categories = null)
     {
         _store = store;
+        _categories = categories;
         _dir = Path.Combine(dataDir, "attempts");
         _now = nowMs ?? (() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         using var c = store.Open();
@@ -139,19 +141,41 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         foreach (var (kind, item) in Items(report))
             _store.Update("INSERT INTO attempt_items (attempt_id, kind, text) VALUES ($id, $k, $t) ON CONFLICT DO NOTHING",
                 ("$id", id), ("$k", kind), ("$t", Short(item, 200)));
-        var (overall, all) = Overall(verdict, why, r.Report, Allowed());
+        var (overall, all) = Overall(verdict, why, r.Report, Allowed(), CategoryOf(report));
         return new(200, new { verdict = overall, why = all });
     }
 
-    /// The verdict over both halves: the receipt (Judge) and what ran (JudgeReport),
-    /// with the report's problems after the receipt's lines.
-    private static (string verdict, List<string> why) Overall(string receipt, IEnumerable<string> receiptWhy, string reportText,
-                                                             ISet<(string, string)> allowed)
+    /// The category version an attempt's report names (null: none, or the
+    /// site does not have it).
+    private RunCategory CategoryOf(RunReport r) =>
+        _categories == null || r.Category.Length == 0 ? null : _categories.Version(r.Category, r.CategoryVersion);
+
+    /// The verdict over both halves: the receipt (Judge) and what ran
+    /// (JudgeReport + the category), with the report's problems after the
+    /// receipt's lines. A category without the anti-splice codes (author,
+    /// 2026-10-02: optional per category) does not judge the recording's
+    /// timing - only a log that contradicts the site, or run mode's flags;
+    /// one that does not accept amber turns amber red.
+    public static (string verdict, List<string> why) Overall(string receipt, IEnumerable<string> receiptWhy, string reportText,
+                                                            ISet<(string, string)> allowed, RunCategory category)
     {
-        var (level, findings) = JudgeReport(reportText, allowed);
-        var why = receiptWhy.ToList();
-        why.AddRange(findings.Where(f => f.Level == "bad" || f.Level == "pending").Select(f => f.Text));
-        return (Worst(receipt, level), why);
+        var (level, findings) = JudgeReport(reportText, allowed, null, category);
+        var why = new List<string>();
+        if (category != null && !category.AntiSplice)
+        {
+            if (receipt == "red") why.AddRange(receiptWhy);
+            else receipt = "green";
+            why.Add(category.Name + " does not use the anti-splice codes: the recording's timing is not checked.");
+        }
+        else why.AddRange(receiptWhy);
+        why.AddRange(findings.Where(f => f.Level == "bad" || f.Level == "pending" || f.Level == "warn").Select(f => f.Text));
+        string verdict = Worst(receipt, level);
+        if (verdict == "amber" && category != null && !category.AmberAccepted)
+        {
+            verdict = "red";
+            why.Add(category.Name + " does not accept attempts checked by the video's codes only.");
+        }
+        return (verdict, why);
     }
 
     public static string Worst(string a, string b) =>
@@ -177,15 +201,18 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         }
         string verdict = "running";
         string[] why = Lines(row.Why);
-        object findings = null, recording = null;
+        object findings = null, recording = null, category = null;
         if (row.LogMs != null)
         {
             var allowed = Allowed();
-            var (v, all) = Overall(row.Verdict, why, report, allowed);
-            var (_, list) = JudgeReport(report, allowed);
+            var parsedReport = RunReport.Parse(report);
+            var cat = CategoryOf(parsedReport);
+            category = Categories.View(cat);
+            var (v, all) = Overall(row.Verdict, why, report, allowed, cat);
+            var (_, list) = JudgeReport(report, allowed, null, cat);
             verdict = v;
             findings = list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList();
-            recording = new { verdict = row.Verdict, why };
+            recording = new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice };
             why = all.ToArray();
         }
         return new
@@ -193,7 +220,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started, startedAt, mode,
             online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
-            steps = row.Steps, flags, verdict, why, recording, findings,
+            steps = row.Steps, flags, verdict, why, recording, findings, rules = category,
             report = ShownReport(report),
         };
     }
@@ -229,7 +256,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     /// says is wrong is red, unless the admins allowed that exact mod /
     /// version; a report still checking (or none) is amber. Run mode's flags
     /// are judged by the receipt (they are in the chain), not again here.
-    public static (string verdict, List<Finding> findings) JudgeReport(string text, ISet<(string, string)> allowed, GameCode code = null)
+    public static (string verdict, List<Finding> findings) JudgeReport(string text, ISet<(string, string)> allowed, GameCode code = null,
+                                                                       RunCategory category = null)
     {
         var f = new List<Finding>();
         if (string.IsNullOrWhiteSpace(text))
@@ -275,6 +303,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
 
         if (r.Cheats.Count == 0) f.Add(new("ok", "The game's own cheats were off."));
         foreach (string s in r.Cheats) f.Add(new("bad", "A game cheat was on: " + s + "."));
+
+        f.AddRange(Categories.Judge(r, category));
 
         if (r.PracticeBefore.Length > 0)
             f.Add(new("note", "Practice was used before this attempt (" + r.PracticeBefore + "); the attempt itself started clean."));
