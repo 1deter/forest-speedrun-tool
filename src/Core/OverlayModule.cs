@@ -119,6 +119,10 @@ namespace ForestOverlay.Core
         /// Plain GUI calls only (no GUILayout), and never allocate here.
         public virtual void DrawScreen() { }
 
+        /// Like DrawScreen, but also while F5 hides the overlay: only for
+        /// what a recording must show (run mode's code).
+        public virtual void DrawScreenAlways() { }
+
         public virtual void OnPanelToggled(bool open) { }
 
         public virtual void Shutdown() { }

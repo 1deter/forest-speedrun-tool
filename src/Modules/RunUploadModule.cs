@@ -27,7 +27,7 @@ namespace ForestOverlay.Modules
     // No tab of its own: the Runs tab draws its section (DrawSection).
     // Writes no game state - not practice-only.
     // ------------------------------------------------------------------
-    public sealed class RunUploadModule : OverlayModule
+    public sealed partial class RunUploadModule : OverlayModule
     {
         public override string Id { get { return "upload"; } }
         public override string DisplayName { get { return "Run uploads"; } }
@@ -74,6 +74,7 @@ namespace ForestOverlay.Modules
             _refusedDir = Path.Combine(root, "refused");
             _state = _enabled.Value ? "on" : "off";
             _nextTry = Time.unscaledTime + 8f;   // not in the startup rush
+            InitAttempts(ctx.Config, root);
         }
 
         // --- queueing ---------------------------------------------------------
@@ -133,6 +134,7 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
+            TickAttempts();
             if (_busy || !_enabled.Value || _tokenBad || Time.unscaledTime < _nextTry) return;
             _nextTry = Time.unscaledTime + 5f;
             string next = Oldest();

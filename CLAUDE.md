@@ -124,7 +124,7 @@ Where things live:
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
-| **Run mode** (a new game = a run, practice locked, integrity report) | `Core/RunMode` (`Ctx.Run`: `Refuse(what)` at every practice entry point, `Active` for gameplay switches, flags), `Modules/RunModeModule` (attempt on the load edge when `GameSetup.IsNewGame`; section at the top of the Runs tab; `EndRunMode`), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
+| **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts) | `Core/RunMode` (`Ctx.Run`: `Refuse(what)` at every practice entry point, `Active` for gameplay switches, flags), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site), `site/ForestSite/Attempts` (endpoints' logic + `Judge`, tested), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
 | Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
@@ -608,15 +608,21 @@ identity.
 
 ## Current status
 
-**Released: v0.24.215** (2026-10-02). The author runs it via the in-game
-updater (v0.24.215 in the game, Slot 1). **520 tests** (+ 46 site tests).
+**Released: v0.24.216** (2026-10-02). The author runs it via the in-game
+updater (Slot 1). **527 tests** (+ 61 site tests).
 
-### Pick up here (2026-10-02, v0.24.215 released)
+### Pick up here (2026-10-02, v0.24.216 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. Last session (v0.24.211-215):
+mode, the report or anything a run uploads. This session (v0.24.216):
+**run mode phase 2, codes and receipts** - built and tested (plugin + site),
+design in docs/run-mode.md *Codes and receipts*. Each attempt: an id and
+link made in game, a 4-character code on screen changing every second (a
+hash chain over the site's nonce, the timer and positions), a checkpoint
+to the site a minute, the log on every end (resets included), judged
+green / amber / red on arrival. Earlier (v0.24.211-215):
 - **What starts a run** (decided, built, confirmed over the bridge): a
   **run spot** - a spot with `run = <category>` (editor *Run* field) and a
   start state. Restart on it = always a Full load, the attempt starts at
@@ -634,17 +640,19 @@ mode, the report or anything a run uploads. Last session (v0.24.211-215):
   before it is overwritten).
 Not yet seen by the author's own eyes and hands: run mode by hand (a real
 ESC + F2, the Runs tab section, End run mode / Start run mode by
-clicking, a run spot's F7). No community run spot exists yet - making
+clicking, a run spot's F7) and the run code (its size and place on a
+real recording - `CodeSize` 40 px default, top centre). No community run spot exists yet - making
 one (a preset save as a start state, `run = ...`, in `community/`) is
 the author's call (which categories, which saves).
 
 **Next, in order (one per session):**
-1. **Run mode phase 2: codes and receipts** (docs/run-mode.md *Phases*):
-   a server nonce per attempt, the hash chain over nonce + IGT + positions,
-   the code beside the timer, a checkpoint POST about once a minute,
-   receipts on reset, the outbox with links. Needs site endpoints too.
-   Probably high effort. Then phase 3 (the report page) and phase 4
-   (categories on /admin, seeded from speedrun.com's categories and rules).
+1. **Run mode phase 3: the report page** (docs/run-mode.md *Phases*,
+   *Codes and receipts - Not yet*): `/attempt/<id>` (the link the game
+   already copies) - green / amber / red in plain words, the report's
+   findings judged too, the "check a code" box (`GET
+   /api/attempts/<id>/code/<code>` exists), per-type hashes. Then phase 4
+   (categories on /admin, seeded from speedrun.com's categories and rules;
+   it also covers sxczurass's manhunt - *Other uses of locked settings*).
 2. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip

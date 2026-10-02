@@ -34,7 +34,7 @@ namespace ForestOverlay.Modules
     //
     // No tab of its own: the Runs tab draws its section (DrawSection).
     // ------------------------------------------------------------------
-    public sealed class RunModeModule : OverlayModule
+    public sealed partial class RunModeModule : OverlayModule
     {
         public override string Id { get { return "runmode"; } }
         public override string DisplayName { get { return "Run mode"; } }
@@ -63,6 +63,8 @@ namespace ForestOverlay.Modules
             base.Initialise(ctx);
             _bridge = Host.Find<BridgeModule>();
             _death = Host.Find<DeathModule>();
+            _upload = Host.Find<RunUploadModule>();
+            InitCodes(ctx);
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             RunIntegrity.StartHashing(ctx.Log);
@@ -82,7 +84,7 @@ namespace ForestOverlay.Modules
             bool loaded = InLoadedGame();
             if (loaded && !_loaded) OnGameLoaded();
             bool reloading = _death != null && _death.ReloadPending;
-            if (PlayerRef.AtTitleScreen && _attemptOpen && !reloading) EndAttempt("back to the title screen (a reset)");
+            if (PlayerRef.AtTitleScreen && _attemptOpen && !reloading) EndAttempt("back to the title screen (a reset)", "title screen");
             _loaded = loaded;
 
             // Only while the attempt plays: a save loading after a reset is
@@ -93,6 +95,7 @@ namespace ForestOverlay.Modules
                 Watch();
             }
             if (_reportDirty) { _reportDirty = false; WriteReport(); }
+            TickChain();
             RebuildText();
         }
 
@@ -125,7 +128,7 @@ namespace ForestOverlay.Modules
         /// state. A running attempt ends here - a reset.
         public void SpotRunStarting(Segment s)
         {
-            if (_attemptOpen) EndAttempt("reset - Restart on the run's spot");
+            if (_attemptOpen) EndAttempt("reset - Restart on the run's spot", "reset");
             _spotStarting = true;
             Ctx.Log.LogInfo("Run mode: '" + s.Name + "' (" + s.RunCategory + ") - starting a run.");
         }
@@ -142,6 +145,7 @@ namespace ForestOverlay.Modules
                 return;
             }
             _byHand = false;
+            _runSpot = s;
             string from = s.RunCategory + " from '" + s.Name + "' (" +
                           (SegmentLibrary.IsCommunity(s) ? "community" : "own") + " spot " + s.Id +
                           ", start state " + (s.StartState.Length > 0 ? s.StartState : "not hashed") + ")";
@@ -155,6 +159,7 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Active) return;
             if (!InLoadedGame()) { Ctx.Notice.Show("Run mode: load a game first.", 6f); return; }
             _byHand = true;
+            _runSpot = null;
             StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", RunIntegrity.Describe());
         }
 
@@ -177,6 +182,7 @@ namespace ForestOverlay.Modules
                                        "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
             Watch();
             WriteReport();
+            BeginChain(label);
 
             Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " started (" + _report.Started + ") - practice locked; " +
                             _report.Summary() + ".");
@@ -184,13 +190,16 @@ namespace ForestOverlay.Modules
                 Ctx.Notice.Show("Run mode: attempt " + _report.Attempt + " (" + label + ") - practice features are locked. End run mode in the Runs tab to practise.", 7f);
         }
 
-        private void EndAttempt(string why)
+        /// `reason`: the log's short word (reset, finished, title screen, ...).
+        private void EndAttempt(string why, string reason)
         {
             _attemptOpen = false;
             Ctx.Run.Reset();
             if (_report != null)
             {
+                Watch();   // the last flags into the report and the chain
                 WriteReport();
+                EndChain(reason);
                 Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " ended - " + why + "; " + _report.Summary() + ".");
             }
         }
@@ -247,7 +256,7 @@ namespace ForestOverlay.Modules
         public void EndRunMode()
         {
             if (!Ctx.Run.Active) return;
-            if (_attemptOpen) EndAttempt("run mode ended by the runner");
+            if (_attemptOpen) EndAttempt("run mode ended by the runner", "run mode ended");
             _byHand = false;
             Ctx.Run.End("ended by you");
         }
@@ -300,6 +309,7 @@ namespace ForestOverlay.Modules
                 y += 28f;
             }
             if (_findingsText.text.Length > 0) y += UiText.Draw(0, y, w, _findingsText) + 4f;
+            if (_upload != null) y = _upload.DrawAttempts(y, w);
             return y;
         }
     }

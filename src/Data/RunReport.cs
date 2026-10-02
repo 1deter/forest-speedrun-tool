@@ -27,6 +27,7 @@ namespace ForestOverlay.Data
         public string Started = "";       // "Normal", "Hard, multiplayer", ...
         public string StartedAt = "";     // local time, "2026-10-02 14:03:11"
         public string PluginVersion = "";
+        public string AttemptId = "";     // run mode's log and link (phase 2)
 
         /// SHA-256 of Assembly-CSharp.dll; "" while not read, "error: ..." when unreadable.
         public string GameHash = "";
@@ -104,6 +105,7 @@ namespace ForestOverlay.Data
             sb.Append("started = ").Append(Started).Append('\n');
             sb.Append("at = ").Append(StartedAt).Append('\n');
             sb.Append("plugin = ").Append(PluginVersion).Append('\n');
+            if (AttemptId.Length > 0) sb.Append("id = ").Append(AttemptId).Append('\n');
             sb.Append("game = ").Append(GameHash).Append('\n');
             sb.Append("verdict = ").Append(Clean ? "clean" : "not valid").Append('\n');
             sb.Append("ownpatches = ").Append(OwnPatchedMethods).Append('\n');

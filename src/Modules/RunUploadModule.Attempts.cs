@@ -1,0 +1,368 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using BepInEx.Configuration;
+using ForestOverlay.Core;
+using ForestOverlay.Data;
+using UnityEngine;
+
+namespace ForestOverlay.Modules
+{
+    // ------------------------------------------------------------------
+    // Run mode attempts to the website (docs/run-mode.md, phase 2: codes and
+    // receipts). Modules/RunModeModule makes the chain; this sends it:
+    //
+    //   - the start: asks the site for a nonce (tried for ~25 s - a later
+    //     nonce leaves the start to the video's codes);
+    //   - a checkpoint about once a minute: the head after a step, which
+    //     the site times by its own clock (dropped when the site is not
+    //     reachable - the log carries every step anyway);
+    //   - the log when the attempt ends (finished, reset, closed), through
+    //     an outbox (uploads/attempts/) so an offline attempt goes up later,
+    //     in order. The link exists at once - the id is made here.
+    //
+    // Sent attempts are listed in uploads/attempts/sent.txt (id, verdict,
+    // when) for the Runs tab's links.
+    // ------------------------------------------------------------------
+    public sealed partial class RunUploadModule
+    {
+        private const string AttemptExt = ".attempt";
+        private const int RecentShown = 5;
+
+        private ConfigEntry<bool> _attemptsOn;
+        private string _attemptDir, _attemptRefusedDir, _sentList;
+        private bool _attemptBusy, _checkpointBusy;
+        private float _nextAttemptTry;
+        private int _attemptFailures;
+        private int _attemptSeq;
+
+        /// The last few attempts, newest first: id + what became of it.
+        private readonly List<string> _recentIds = new List<string>();
+        private readonly List<GUIContent> _recentText = new List<GUIContent>();
+        private bool _recentDirty = true;
+        private string _attemptState = "";
+
+        /// Run mode's attempts reach the site (nonce, checkpoints, logs).
+        public bool AttemptsOn { get { return _attemptsOn != null && _attemptsOn.Value && !_tokenBad; } }
+
+        private void InitAttempts(ConfigFile config, string root)
+        {
+            _attemptsOn = config.Bind("Site", "SendAttempts", true,
+                "Run mode: send each attempt's codes and log to the website (a start code, a checkpoint a minute, the log " +
+                "when it ends), so anyone can check a run's video against it. Off = attempts are checked by the video only.");
+            _attemptDir = Path.Combine(root, "attempts");
+            _attemptRefusedDir = Path.Combine(_attemptDir, "refused");
+            _sentList = Path.Combine(_attemptDir, "sent.txt");
+            _openDir = Path.Combine(_attemptDir, "open");
+            _nextAttemptTry = Time.unscaledTime + 10f;
+            RecoverOpenAttempts();
+        }
+
+        // --- an attempt in progress, on disk (the game can die mid-run) ----------------
+
+        private string _openDir;
+
+        /// The log so far, rewritten every few seconds while the attempt runs.
+        public void WriteOpenAttempt(string attemptId, string text)
+        {
+            try
+            {
+                Directory.CreateDirectory(_openDir);
+                File.WriteAllText(Path.Combine(_openDir, attemptId + AttemptExt), text, new UTF8Encoding(false));
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Attempts: could not write the open log of " + attemptId + ": " + ex.Message); }
+        }
+
+        public void ClearOpenAttempt(string attemptId)
+        {
+            TryDelete(Path.Combine(_openDir, attemptId + AttemptExt));
+        }
+
+        // An attempt the game never ended (a crash, a killed process): its
+        // log goes out as it is - the site reads "no end".
+        private void RecoverOpenAttempts()
+        {
+            try
+            {
+                if (!Directory.Exists(_openDir)) return;
+                string[] files = Directory.GetFiles(_openDir, "*" + AttemptExt);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string id = Path.GetFileNameWithoutExtension(files[i]);
+                    if (AttemptsOn) QueueAttemptLog(id, File.ReadAllText(files[i]));
+                    TryDelete(files[i]);
+                    Ctx.Log.LogInfo("Attempts: " + id + " never ended (the game closed during it) - its log is " +
+                                    (AttemptsOn ? "queued as it is." : "not sent (sending attempts is off; run-reports keeps it)."));
+                }
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Attempts: open logs not recovered: " + ex.Message); }
+        }
+
+        // --- the start and the checkpoints ---------------------------------------
+
+        /// Asks for the attempt's nonce; `done` gets it, or null when the site
+        /// could not be reached in time (the attempt goes on offline).
+        public void AttemptStart(string attemptId, string category, string spot, Action<string> done)
+        {
+            if (!AttemptsOn) { done(null); return; }
+            Ctx.Runner.StartCoroutine(StartAttempt(attemptId, category, spot, done));
+        }
+
+        private IEnumerator StartAttempt(string attemptId, string category, string spot, Action<string> done)
+        {
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+            float giveUp = Time.unscaledTime + 25f;
+            byte[] body = Encoding.UTF8.GetBytes(SiteProtocol.AttemptStartBody(attemptId, category, spot));
+            while (true)
+            {
+                if (string.IsNullOrEmpty(_token.Value))
+                {
+                    bool ok = false;
+                    yield return Ctx.Runner.StartCoroutine(Register(baseUrl, "", delegate(bool r) { ok = r; }));
+                    if (!ok) { done(null); yield break; }
+                }
+
+                long code = 0; string answer = null, error = null;
+                yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/attempts", body, "application/json",
+                    _token.Value, 10f, delegate(long c, string b, string e) { code = c; answer = b; error = e; }));
+
+                string nonce = code == 200 ? SiteProtocol.Field(answer, "nonce") : null;
+                if (!string.IsNullOrEmpty(nonce)) { done(nonce); yield break; }
+                if (code == 401) _tokenBad = true;
+                string why = error ?? "HTTP " + code + " " + (SiteProtocol.Field(answer, "error") ?? "");
+                if (SiteProtocol.Classify(code) != UploadOutcome.RetryLater || Time.unscaledTime + 5f > giveUp)
+                {
+                    _attemptState = "attempt " + attemptId + " started offline (" + why.Trim() + ")";
+                    Ctx.Log.LogWarning("Attempts: no start code for " + attemptId + " - " + why.Trim() + "; the attempt is offline.");
+                    done(null);
+                    yield break;
+                }
+                float until = Time.unscaledTime + 5f;
+                while (Time.unscaledTime < until) yield return null;
+            }
+        }
+
+        /// The head after a step, during the attempt. One at a time; a
+        /// failed one is not retried (the next minute's covers it).
+        public void AttemptCheckpoint(string attemptId, int step, string head)
+        {
+            if (!AttemptsOn || _checkpointBusy) return;
+            _checkpointBusy = true;
+            Ctx.Runner.StartCoroutine(SendCheckpoint(attemptId, step, head));
+        }
+
+        private IEnumerator SendCheckpoint(string attemptId, int step, string head)
+        {
+            long code = 0; string answer = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST",
+                SiteProtocol.TrimUrl(_url.Value) + "/api/attempts/" + attemptId + "/checkpoints",
+                Encoding.UTF8.GetBytes(SiteProtocol.CheckpointBody(step, head)), "application/json", _token.Value, 20f,
+                delegate(long c, string b, string e) { code = c; answer = b; error = e; }));
+            _checkpointBusy = false;
+            if (code == 200) Ctx.Log.LogInfo("Attempts: checkpoint " + attemptId + " step " + step + " sent.");
+            else Ctx.Log.LogWarning("Attempts: checkpoint " + attemptId + " step " + step + " not taken: " +
+                                    (error ?? "HTTP " + code + " " + (SiteProtocol.Field(answer, "error") ?? "")) + ".");
+        }
+
+        // --- the outbox -------------------------------------------------------------
+
+        /// The attempt's finished log, to send now or later.
+        public void QueueAttemptLog(string attemptId, string text)
+        {
+            try
+            {
+                Directory.CreateDirectory(_attemptDir);
+                string name = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + "_" + (_attemptSeq++).ToString("000") + "_" + attemptId + AttemptExt;
+                File.WriteAllText(Path.Combine(_attemptDir, name), text, new UTF8Encoding(false));
+                _nextAttemptTry = 0f;
+                _recentDirty = true;
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Attempts: could not queue " + attemptId + ": " + ex.Message); }
+        }
+
+        private void TickAttempts()
+        {
+            if (_recentDirty) RebuildRecent();
+            if (_attemptBusy || !AttemptsOn || Time.unscaledTime < _nextAttemptTry) return;
+            _nextAttemptTry = Time.unscaledTime + 5f;
+            string next = OldestAttempt();
+            if (next == null) return;
+            _attemptBusy = true;
+            Ctx.Runner.StartCoroutine(PumpAttempt(next));
+        }
+
+        private string OldestAttempt()
+        {
+            if (!Directory.Exists(_attemptDir)) return null;
+            string[] files = Directory.GetFiles(_attemptDir, "*" + AttemptExt);
+            if (files.Length == 0) return null;
+            Array.Sort(files, StringComparer.Ordinal);
+            return files[0];
+        }
+
+        private static string IdOfFile(string path)
+        {
+            string n = Path.GetFileNameWithoutExtension(path);
+            int k = n.LastIndexOf("_a-", StringComparison.Ordinal);
+            return k >= 0 ? n.Substring(k + 1) : n;
+        }
+
+        private IEnumerator PumpAttempt(string path)
+        {
+            string text;
+            try { text = File.ReadAllText(path); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Attempts: cannot read " + Path.GetFileName(path) + ": " + ex.Message); _attemptBusy = false; yield break; }
+            string id = IdOfFile(path);
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+
+            if (string.IsNullOrEmpty(_token.Value))
+            {
+                bool ok = false;
+                yield return Ctx.Runner.StartCoroutine(Register(baseUrl, "", delegate(bool r) { ok = r; }));
+                if (!ok) { _attemptBusy = false; yield break; }
+            }
+
+            long code = 0; string answer = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("POST", baseUrl + "/api/attempts/" + id + "/log",
+                Encoding.UTF8.GetBytes(text), "text/plain; charset=utf-8", _token.Value, RequestTimeout,
+                delegate(long c, string b, string e) { code = c; answer = b; error = e; }));
+
+            switch (SiteProtocol.Classify(code))
+            {
+                case UploadOutcome.Done:
+                    string verdict = SiteProtocol.Field(answer, "verdict") ?? "?";
+                    TryDelete(path);
+                    AppendSent(id, verdict);
+                    _attemptFailures = 0;
+                    _nextAttemptTry = 0f;
+                    _attemptState = "attempt " + id + " sent (" + verdict + ")";
+                    Ctx.Log.LogInfo("Attempts: " + id + " log sent - " + verdict + Why(answer) + ".");
+                    break;
+                case UploadOutcome.TokenBad:
+                    _tokenBad = true;
+                    _attemptState = "the site does not know this install's token - clear Token in the config to register again";
+                    Ctx.Log.LogWarning("Attempts: token refused (401); attempt logs wait.");
+                    break;
+                case UploadOutcome.RetryLater:
+                    _attemptFailures++;
+                    float wait = SiteProtocol.RetryDelay(_attemptFailures);
+                    _nextAttemptTry = Time.unscaledTime + wait;
+                    _attemptState = "site not reachable (" + (error ?? "HTTP " + code) + ") - attempt logs wait, retrying in " + Mathf.RoundToInt(wait) + " s";
+                    Ctx.Log.LogWarning("Attempts: " + id + " log not sent: " + (error ?? "HTTP " + code) + "; retry in " + Mathf.RoundToInt(wait) + " s.");
+                    break;
+                default:
+                    // 409 = another log is in for this id; 400 = it does not read.
+                    string msg = "HTTP " + code + ": " + (SiteProtocol.Field(answer, "error") ?? answer);
+                    try
+                    {
+                        Directory.CreateDirectory(_attemptRefusedDir);
+                        string to = Path.Combine(_attemptRefusedDir, Path.GetFileName(path));
+                        if (File.Exists(to)) File.Delete(to);
+                        File.Move(path, to);
+                        File.WriteAllText(to + ".txt", msg + "\n");
+                    }
+                    catch (Exception) { TryDelete(path); }
+                    AppendSent(id, "refused");
+                    _nextAttemptTry = 0f;
+                    _attemptState = "the site refused attempt " + id + ": " + msg;
+                    Ctx.Log.LogWarning("Attempts: " + id + " log refused - " + msg + " (moved to uploads/attempts/refused).");
+                    break;
+            }
+            _recentDirty = true;
+            _attemptBusy = false;
+        }
+
+        private static string Why(string answer)
+        {
+            int k = answer != null ? answer.IndexOf("\"why\":[", StringComparison.Ordinal) : -1;
+            if (k < 0) return "";
+            int end = answer.IndexOf(']', k);
+            return end < 0 ? "" : " " + answer.Substring(k + 6, end - k - 5);
+        }
+
+        private void AppendSent(string id, string verdict)
+        {
+            try { File.AppendAllText(_sentList, id + "|" + verdict + "|" + DateTime.Now.ToString("yyyy-MM-dd HH:mm") + "\n"); }
+            catch (Exception) { }
+        }
+
+        // --- the Runs tab: recent attempts with their links ----------------------------
+
+        private void RebuildRecent()
+        {
+            _recentDirty = false;
+            _recentIds.Clear();
+            List<string> rows = new List<string>();
+
+            // Waiting first (newest first), then sent.
+            if (Directory.Exists(_attemptDir))
+            {
+                string[] files = Directory.GetFiles(_attemptDir, "*" + AttemptExt);
+                Array.Sort(files, StringComparer.Ordinal);
+                for (int i = files.Length - 1; i >= 0 && _recentIds.Count < RecentShown; i--)
+                {
+                    _recentIds.Add(IdOfFile(files[i]));
+                    rows.Add(IdOfFile(files[i]) + " - waiting to be sent");
+                }
+            }
+            try
+            {
+                if (File.Exists(_sentList))
+                {
+                    string[] lines = File.ReadAllLines(_sentList);
+                    for (int i = lines.Length - 1; i >= 0 && _recentIds.Count < RecentShown; i--)
+                    {
+                        string[] p = lines[i].Split('|');
+                        if (p.Length < 3 || _recentIds.Contains(p[0])) continue;
+                        _recentIds.Add(p[0]);
+                        rows.Add(p[0] + " - " + VerdictWords(p[1]) + " (" + p[2] + ")");
+                    }
+                }
+            }
+            catch (Exception) { }
+
+            while (_recentText.Count < rows.Count) _recentText.Add(new GUIContent(""));
+            for (int i = 0; i < rows.Count; i++) _recentText[i].text = rows[i];
+        }
+
+        private static string VerdictWords(string v)
+        {
+            switch (v)
+            {
+                case "green": return "green: checked online";
+                case "amber": return "amber: parts checked by the video's codes only";
+                case "red": return "red: see its page";
+                case "refused": return "refused by the site (uploads/attempts/refused)";
+                default: return v;
+            }
+        }
+
+        /// Run mode's section: the switch, the state and the recent attempts'
+        /// links. Returns the new y.
+        public float DrawAttempts(float y, float w)
+        {
+            bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website (codes + log, for checking runs)");
+            if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
+            y += 22f;
+            if (_attemptState.Length > 0)
+            {
+                if (_attemptStateText.text != _attemptState) _attemptStateText.text = _attemptState;
+                y += UiText.Draw(0, y, w, _attemptStateText);
+            }
+            for (int i = 0; i < _recentIds.Count && i < _recentText.Count; i++)
+            {
+                if (GUI.Button(new Rect(0, y + 1, 80, 20), "Copy link"))
+                {
+                    GUIUtility.systemCopyBuffer = SiteProtocol.AttemptUrl(_url.Value, _recentIds[i]);
+                    _attemptState = "copied the link to attempt " + _recentIds[i];
+                }
+                y += Mathf.Max(22f, UiText.Draw(86, y + 2, w - 86, _recentText[i]) + 4f);
+            }
+            return y + 4f;
+        }
+
+        private readonly GUIContent _attemptStateText = new GUIContent("");
+    }
+}

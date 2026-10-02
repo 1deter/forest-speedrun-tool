@@ -155,6 +155,7 @@ namespace ForestOverlay.Modules
             // Finished runs to the website (Modules/RunUploadModule).
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
+            if (_runMode != null) _runMode.TimerMs = TimerMsNow;
             if (_upload != null)
             {
                 _upload.CurrentSegment = SegmentForUpload;
@@ -189,6 +190,12 @@ namespace ForestOverlay.Modules
 
         private RunUploadModule _upload;
         private RunModeModule _runMode;
+
+        /// The running timer in ms, -1 when none (run mode's chain).
+        private long TimerMsNow()
+        {
+            return _recorder.State == RunRecorder.RunState.Running ? (long)System.Math.Round(_recorder.Elapsed * 1000.0) : -1;
+        }
 
         /// The spot the runner is on: the armed segment, else the Practice
         /// tab's current spot (practice mode off arms nothing).
@@ -568,6 +575,7 @@ namespace ForestOverlay.Modules
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done.Duration);
+            if (_runMode != null) _runMode.TimerFinished(_segment, done.Duration);
 
             Attempt best = RunCompare.Best(_attempts);
             bool isPb = ReferenceEquals(best, done);

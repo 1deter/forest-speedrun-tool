@@ -221,6 +221,7 @@ namespace ForestOverlay.Modules
 
         private void RecordSplit(int row, float t)
         {
+            if (_runMode != null) _runMode.TimerSplit(row, t);
             if (row >= 0 && row < _times.Length) _times[row] = t;
             _splitsDirty = true;
             _pbChanceDirty = true;

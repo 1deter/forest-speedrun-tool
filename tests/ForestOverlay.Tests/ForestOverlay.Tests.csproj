@@ -62,6 +62,7 @@
     <Compile Include="../../src/Data/FrameTimeline.cs" Link="Linked/FrameTimeline.cs" />
     <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
+    <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />
     <Compile Include="../../src/Data/LssFile.cs" Link="Linked/LssFile.cs" />
     <Compile Include="../../src/Data/LssAutoSplit.cs" Link="Linked/LssAutoSplit.cs" />
     <Compile Include="../../src/Data/AttemptOwners.cs" Link="Linked/AttemptOwners.cs" />

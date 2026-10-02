@@ -415,7 +415,7 @@ ON CONFLICT DO NOTHING RETURNING id";
         return s.Length == 0 ? "_" : s;
     }
 
-    private static void WriteGz(string path, string text)
+    internal static void WriteGz(string path, string text)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         using var f = File.Create(path);
@@ -424,7 +424,7 @@ ON CONFLICT DO NOTHING RETURNING id";
         gz.Write(bytes, 0, bytes.Length);
     }
 
-    private static string ReadGz(string path)
+    internal static string ReadGz(string path)
     {
         using var f = File.OpenRead(path);
         using var gz = new GZipStream(f, CompressionMode.Decompress);

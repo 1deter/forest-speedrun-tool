@@ -28,6 +28,7 @@ string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? 
 string originSecret = Environment.GetEnvironmentVariable("FOREST_ORIGIN_SECRET") ?? "";
 var store = new Store(dataDir);
 var runs = new Runs(store);
+var attempts = new Attempts(store, dataDir);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 
@@ -51,6 +52,11 @@ builder.Services.AddRateLimiter(o =>
     // checked.
     o.AddPolicy("upload", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromHours(1) }));
+    // Run mode attempts (docs/run-mode.md phase 2): a start, a checkpoint a
+    // minute and a log per attempt - a runner resetting every few seconds
+    // makes a few hundred an hour.
+    o.AddPolicy("attempt", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 3000, Window = TimeSpan.FromHours(1) }));
     // The admin page makes a few calls per view; a long random token is
     // out of reach of guessing at this rate.
     o.AddPolicy("admin", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
@@ -262,6 +268,55 @@ api.MapPost("/submissions", async (HttpRequest req) =>
     return error != null ? Problem(400, error) : Results.Json(new { id, replaced });
 }).RequireRateLimiting("upload");
 
+// --- run mode attempts (Attempts; docs/run-mode.md phase 2) ----------------------
+
+static IResult Answer(Attempts.Answer a) => Results.Json(a.Body, statusCode: a.Status);
+
+// { attempt, category, spot } -> { nonce }: the attempt starts.
+api.MapPost("/attempts", async (HttpRequest req) =>
+{
+    string runner = store.RunnerOf(Bearer(req));
+    if (runner == null) return Problem(401, "unknown token");
+    JsonObject body;
+    try { body = await req.ReadFromJsonAsync<JsonObject>(); }
+    catch { return Problem(400, "expected JSON { attempt, category, spot }"); }
+    if (body == null) return Problem(400, "expected JSON { attempt, category, spot }");
+    return Answer(attempts.Start(runner, Str(body, "attempt"), Str(body, "category"), Str(body, "spot")));
+}).RequireRateLimiting("attempt");
+
+// { step, head }: the chain's head after a step, about once a minute.
+api.MapPost("/attempts/{id}/checkpoints", async (HttpRequest req, string id) =>
+{
+    string runner = store.RunnerOf(Bearer(req));
+    if (runner == null) return Problem(401, "unknown token");
+    JsonObject body;
+    try { body = await req.ReadFromJsonAsync<JsonObject>(); }
+    catch { return Problem(400, "expected JSON { step, head }"); }
+    int step = body?["step"] is JsonValue v && v.TryGetValue(out int s) ? s : 0;
+    return Answer(attempts.Checkpoint(runner, id, step, body == null ? null : Str(body, "head")));
+}).RequireRateLimiting("attempt");
+
+// The attempt's log (src/Data/AttemptChain) when it ends -> { verdict, why }.
+api.MapPost("/attempts/{id}/log", async (HttpRequest req, string id) =>
+{
+    string runner = store.RunnerOf(Bearer(req));
+    if (runner == null) return Problem(401, "unknown token");
+    return Answer(attempts.Log(runner, id, await Body(req)));
+}).RequireRateLimiting("attempt");
+
+api.MapGet("/attempts/{id}", (string id) =>
+    attempts.View(id) is { } a ? Results.Json(a) : Problem(404, "no such attempt")).RequireRateLimiting("read");
+
+api.MapGet("/attempts/{id}/log", (string id) =>
+    ForestOverlay.Data.AttemptChain.IsAttemptId(id) && attempts.LogText(id) is { } t
+        ? Results.Text(t, "text/plain; charset=utf-8") : Problem(404, "no log for this attempt")).RequireRateLimiting("read");
+
+// Where a code from the video shows in the log.
+api.MapGet("/attempts/{id}/code/{code}", (string id, string code) =>
+    attempts.FindCode(id, code) is { } f ? Results.Json(f) : Problem(400, "a code is four characters")).RequireRateLimiting("read");
+
+static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue(out string s) ? s : "";
+
 // --- the author ----------------------------------------------------------------
 
 // Who is asking: "owner" (the env token) or a named admin. Every change
@@ -372,6 +427,11 @@ admin.MapPost("/runs/{id:long}/unflag", (long id) =>
 admin.MapPost("/runs/{id:long}/hide", (long id) => store.HideRun(id, true) ? Results.Ok() : Problem(404, "no such run"));
 admin.MapPost("/runs/{id:long}/show", (long id) => store.HideRun(id, false) ? Results.Ok() : Problem(404, "no such run"));
 admin.MapDelete("/runs/{id:long}", (long id) => store.DeleteRun(id) ? Results.Ok() : Problem(404, "no such run"));
+// Attempts and their logs are never edited; deleting one is the owner's
+// alone (docs/run-mode.md: reports public, never editable).
+admin.MapDelete("/attempts/{id}", (HttpContext c, string id) =>
+    !IsOwner(c) ? Problem(403, "only the owner deletes attempts")
+    : attempts.Delete(id) ? Results.Ok() : Problem(404, "no such attempt"));
 admin.MapPost("/runners/{id}/reset-token", (string id) => store.ResetToken(id) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/ban", (string id) => store.Ban(id, true) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/unban", (string id) => store.Ban(id, false) ? Results.Ok() : Problem(404, "no such runner"));

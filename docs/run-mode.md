@@ -110,6 +110,80 @@ advantage.
   back. Saving in game afterwards writes that mode into the slot (author:
   fine - "they could do the same in reverse"; never blocked).
 
+## Codes and receipts (phase 2, v0.24.216)
+
+**The log** (`src/Data/AttemptChain`, shared by the plugin and the site):
+text, one record a line - a header (attempt id `a-<16 hex>`, runner,
+plugin, category, spot + start-state hash, a local random seed, the PC's
+start time), then a `step` a second (real ms since the start, the timer's
+ms, the player's position in whole cm), `nonce`, `split`, `flag` (run
+mode's flags as they happen) and `end` (reason, final timer). Every line
+before `[report]` is folded into a SHA-256 chain (head = SHA256(head +
+line)); the run report follows unfolded (it is the plugin's own claim).
+The **code** is the first 20 bits of the head after each step, as four
+Crockford base32 characters (no I, L, O, U; a typed I / L reads as 1, O as
+0).
+
+**What the site knows that a cheater cannot make up**: the nonce (random,
+given when the attempt starts, so no code can be computed before then)
+and its own clock for every checkpoint (the head after a step, about once
+a minute). `site/ForestSite/Attempts.Judge` (tested):
+- **red**: the log contradicts the site - a checkpoint's head differs
+  (a splice: the uploaded log is not the one the game was hashing), a
+  nonce that is not the site's, a log whose clock runs ahead of real time
+  (a checkpoint or the log itself arrived before it could have), or run
+  mode flagged the attempt.
+- **amber**: parts only the video's codes can check - started offline
+  (no nonce: the attempt still goes up later, in order), the nonce
+  arriving more than 30 s in, a stretch over 150 s without a checkpoint,
+  a late checkpoint (> 45 s), no end (the game closed: the open log is
+  kept and sent on the next launch).
+- **green**: online from the start, every checkpoint matches, and they
+  cover the attempt in real time.
+
+**Why a splice fails**: the video's codes come from the chain the game was
+hashing. A piece from another attempt shows codes from that attempt's
+chain (another nonce, other positions) - checking a few codes from that
+part against the log fails. A fork that keeps "continuing" the first
+attempt's chain during the second still has to send the site checkpoints
+in real time: the gap between the two attempts shows as a missing or late
+checkpoint (amber) or a mismatch (red).
+
+**Plugin**: `Modules/RunModeModule.Codes` (the chain: a step a second from
+a `Stopwatch`, a checkpoint a minute once online, the log rewritten every
+30 s to `run-reports/attempt-<time>.log` and `uploads/attempts/open/`,
+ended on every attempt end incl. a finished timed run and the game
+closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
+`DrawScreenAlways` - shown with F5's overlay hidden too),
+`Modules/RunUploadModule.Attempts` (the nonce request, tried ~25 s; the
+checkpoint POST; the outbox `uploads/attempts/*.attempt`, sent oldest
+first, refused ones to `refused/`; `sent.txt` + the Runs tab's last 5
+with **Copy link**; `[Site] SendAttempts`, on).
+
+**Site**: `POST /api/attempts` (nonce; a retry gets the same one),
+`POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),
+`POST /api/attempts/<id>/log` (judged on arrival; never replaced - the
+same text again is fine, another is 409), `GET /api/attempts/<id>` (the
+public view: verdict, why, report), `GET .../log`,
+`GET .../code/<code>` (where a code from the video shows: phase 3's
+"check a code" box), `DELETE /api/admin/attempts/<id>` (owner only). Rate
+limit `attempt`: 3000 an hour per address. Logs in
+`<data>/attempts/<id>.log.gz`.
+
+**Not yet**: the page behind the link (`/attempt/<id>`, phase 3 - the
+link already points there); the report's own findings (game hash, other
+mods) are not part of the verdict yet - phase 3 judges them; the full 30
+Hz `.run` of a finished attempt still goes up as an ordinary run, not
+linked to the attempt.
+
+## Other uses of locked settings
+
+- **Manhunt** (sxczurass, QA 2026-10-02: two players finish the game while
+  four hunt them, with logs in the inventory and other inventory mods,
+  locked so nobody changes them mid-game). Author, 2026-10-02: a community
+  spot configured with the settings - the category settings of phase 4
+  cover it once they exist; no separate mode.
+
 ## Known gaps (phase 1)
 
 - The game's debug console has `_timescale`, `_speedyrun` and more
@@ -141,7 +215,8 @@ advantage.
      Harmony patches with a foreign owner, and the game's `Cheats` statics
      (GodMode, InfiniteEnergy, NoSurvival, UnlimitedHairspray, DebugConsole).
      Re-read every second.
-2. **Codes and receipts.**
+2. **Codes and receipts, built in v0.24.216** (see *Codes and receipts*
+   below).
    - A server nonce when the attempt starts, and a hash chain over the nonce,
      the IGT and positions.
    - A code changing about once a second, shown beside the timer.

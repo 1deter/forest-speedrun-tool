@@ -22,6 +22,14 @@ namespace ForestOverlay.Data
     //                       a spot for the author to approve as a community
     //                       spot; a runner's second submit of the same spot
     //                       replaces the one still waiting
+    //   POST /api/attempts  {"attempt":"a-...","category":"...","spot":"..."},
+    //                       Bearer -> {"nonce":"..."}: a run mode attempt
+    //                       starts (docs/run-mode.md phase 2)
+    //   POST /api/attempts/<id>/checkpoints  {"step":n,"head":"<64 hex>"},
+    //                       about once a minute; 429 = too soon
+    //   POST /api/attempts/<id>/log  the attempt's log (Data/AttemptChain)
+    //                       -> {"verdict":"green|amber|red","why":[...]};
+    //                       409 = a different log is in already
     // ------------------------------------------------------------------
     public enum UploadOutcome
     {
@@ -171,6 +179,23 @@ namespace ForestOverlay.Data
                 return true;
             }
             return false;
+        }
+
+        public static string AttemptStartBody(string attemptId, string category, string spot)
+        {
+            return "{\"attempt\":" + JsonString(attemptId) + ",\"category\":" + JsonString(category) +
+                   ",\"spot\":" + JsonString(spot) + "}";
+        }
+
+        public static string CheckpointBody(int step, string head)
+        {
+            return "{\"step\":" + step.ToString(CultureInfo.InvariantCulture) + ",\"head\":" + JsonString(head) + "}";
+        }
+
+        /// The site's page for a run mode attempt (the link a runner shares).
+        public static string AttemptUrl(string baseUrl, string attemptId)
+        {
+            return TrimUrl(baseUrl) + "/attempt/" + Uri.EscapeDataString(attemptId ?? "");
         }
 
         /// The site's page for a spot.

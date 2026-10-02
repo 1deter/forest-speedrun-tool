@@ -10,6 +10,7 @@ using Xunit;
 
 namespace ForestSite.Tests;
 
+[Collection("site")]   // one site at a time: FOREST_DATA is process-wide
 public sealed class ApiTests : IDisposable
 {
     private readonly string _data;

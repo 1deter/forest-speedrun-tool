@@ -31,6 +31,7 @@
     <Compile Include="../../src/Data/SegmentBundle.cs" Link="Linked/SegmentBundle.cs" />
     <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
+    <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />
   </ItemGroup>
 
   <!-- The community packs ship with the site, as they do in the repo. -->

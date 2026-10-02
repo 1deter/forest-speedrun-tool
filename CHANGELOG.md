@@ -5,6 +5,21 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.216 - 2026-10-02
+
+- Run mode shows a **run code**: four characters at the top of the screen
+  that change every second, so a video can be checked against the run's
+  log and a spliced-in piece of another attempt shows. It stays on screen
+  when F5 hides the overlay. Drag it while the F2 window is open; its size
+  is `CodeSize` in the config.
+- Each run mode attempt gets a link, made at once, offline too. The game
+  sends the website a start code, a checkpoint about once a minute and the
+  attempt's log when it ends (finished, reset or ended). Resets are
+  included. The Runs tab lists the last attempts with **Copy link**; a
+  switch there turns sending off. The page behind the link comes next.
+- An attempt played offline is sent later, in order, and is marked as
+  checked by the video's codes only.
+
 ## v0.24.215 - 2026-10-02
 
 - After loading a spot from the title screen, saving in game asks before

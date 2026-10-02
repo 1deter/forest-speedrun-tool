@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.215";
+        public const string PluginVersion = "0.24.216";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -231,7 +231,9 @@ namespace ForestOverlay
 
             try
             {
-                if (!_host.UiVisible) return;
+                // Run mode's code stays on screen with the overlay hidden:
+                // a recording needs it (docs/run-mode.md phase 2).
+                if (!_host.UiVisible) { _host.DrawScreensAlways(); return; }
 
                 long allocStart = _host.Perf.BeginAlloc();
                 bool exact = AllocationTracker.Counting;
@@ -239,6 +241,7 @@ namespace ForestOverlay
                 EnsureStyles();
                 if (_host.HudVisible) DrawHud();
                 _host.DrawScreens();
+                _host.DrawScreensAlways();
                 _host.DrawPanels();
                 if (_notice.Active) DrawNotice();
                 _host.Perf.EndAlloc(allocStart);
