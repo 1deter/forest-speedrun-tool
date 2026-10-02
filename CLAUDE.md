@@ -665,7 +665,10 @@ one (a preset save as a start state, `run = <category name>`, in
 **Next, in order (one per session):**
 1. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
-   near, LOD far), the load-order look (gotcha 83). Also (author, 2026-10-02):
+   near, LOD far - a session of its own at **high effort**: far LODs from
+   `world_pack.py`, a near / far split per model in world3d.js's
+   `rebuild`, a world re-upload, the author's eyes on a phone), the
+   load-order look (gotcha 83, an investigation). Also (author, 2026-10-02):
    the web replay as fast as possible: started (3D *Detail* button, off
    by default = pixel ratio 1, no antialiasing; docs/website.md) - more
    switches could join it.
