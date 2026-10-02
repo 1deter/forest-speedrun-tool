@@ -338,7 +338,9 @@ the player stands, selects it, makes it current and writes it (id
 segment (the zone preview draws a **timed** entry only, with
 `_showPreview`). A start state: copy a `capture`d file to
 `savestates/segments/<id>.fosave`; `set ..._current.StartRestoreWithLoad
-true` (memory only). `restart` = F7 (`restart <id>`), `go <id>`. The
+true` (memory only). **A test run that FINISHES uploads to the live site** (uploads on by default):
+delete the test spot there after (`DELETE /api/admin/spots/<id>`, header
+`X-Admin-Token` = the User variable) - the 2026-10-01 import test had to be. `restart` = F7 (`restart <id>`), `go <id>`. The
 bridge cannot pass a `Segment` as a `call` argument, so **selecting an
 existing entry, Export and the Import buttons need the author's click**
 (`ToggleImport` opens the list). **Removing test spots**: delete their
