@@ -632,6 +632,10 @@ run mode by clicking). **After shipping, the author: runs start from
 preset saves, not new games** - the trigger is wrong for real runs
 (docs/run-mode.md *Open: what starts a run*). v0.24.210 also removed the
 30 Hz physics switch (author + maks: it changes physics noticeably).
+Also this session: **the website's version 3 world is live** (the cloud
+session's branch merged, repacked, uploaded): the Labskip 3D view 188 ->
+60 requests, phones draw 60 LODs, colliders only on Collision
+(docs/website.md *Load size*).
 
 **Next, in order (one per session):**
 1. **Run mode: what starts a run** - decide with the author (options in

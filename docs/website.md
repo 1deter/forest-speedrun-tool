@@ -279,9 +279,14 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   reaches past the view's 700 m (a prefetch: a pan loads it anyway).
   Measured on a local site with the live world (`scripts/site-measure.py`):
   the Labskip view **188 -> 60 requests, 38.6 -> 41.9 MB** on a desktop,
-  pixel for pixel the same picture; other views 241-388 -> 79-97. Versions
-  1 (one file per mesh) and 2 (`p/` mesh packs + `q/` texture packs, the
-  live upload until the next one) are still read; a page older than
+  pixel for pixel the same picture; other views 241-388 -> 79-97.
+  **Live since 2026-10-02** (repacked from `site/world-out` with
+  `world_pack.py repack`: 167 files, 60 LODs, 286,233 -> 104,760 triangles
+  in 22 s; uploaded as 168 files, 60.4 MB): the live Labskip view measured
+  **60 world requests (59 `b/` + world.json), 42.0 MB, 4 s** on a desktop
+  (`SITE=https://forest.deter.cloud site-measure.py view live desktop`), the
+  same picture; Collision loads on its click. Versions 1 (one file per
+  mesh) and 2 (`p/` mesh packs + `q/` texture packs) are still read; a page older than
   version 3 shows no world for its json (no errors) - deploy the site
   before uploading one.
 - **Phone LODs** (2026-10-02): a mesh of 1000+ triangles gets a copy with a
