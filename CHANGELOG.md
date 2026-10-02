@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.212 - 2026-10-02
+
+- Restart from the title screen now goes through the game's own menu load
+  (in v0.24.211 it could hang on the loading screen).
+
 ## v0.24.211 - 2026-10-02
 
 - A spot's start state captured in Creative now loads into a survival game,

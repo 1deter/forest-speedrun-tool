@@ -715,6 +715,15 @@ namespace ForestOverlay.Game
             if (IsDeserializing) return "the game is already loading";
 
             string prep = PrepareContinue(difficulty, baseDifficulty);
+
+            // From the title screen the menu's own load runs, with the
+            // capture in place of the slot's save (Game/TitleLoad).
+            if (PlayerRef.AtTitleScreen)
+            {
+                string title = TitleLoad.Start(data);
+                return title == null ? null : title + (prep != null ? " (" + prep + ")" : "");
+            }
+
             try
             {
                 _loadSavedLevel.Invoke(null, new object[] { data });

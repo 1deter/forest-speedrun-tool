@@ -123,6 +123,7 @@ namespace ForestOverlay.Modules
             _greebles.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            TitleLoad.Install(ctx.Log, OverlayPlugin.PluginGuid);
             NatureGuideKeeper.Install(ctx.Log, OverlayPlugin.PluginGuid);
             PathfindingWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
@@ -170,6 +171,7 @@ namespace ForestOverlay.Modules
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
             FullCapacityWatch.Uninstall();
+            TitleLoad.Uninstall();
             NatureGuideKeeper.Uninstall();
             PathfindingWatch.Uninstall();
             if (_threads != null) _threads.Uninstall();
@@ -288,6 +290,7 @@ namespace ForestOverlay.Modules
 
         private void Continue(string error)
         {
+            TitleLoad.Clear();
             Action<string> after = _loadAfter;
             _loadAfter = null;
             if (after == null) return;
