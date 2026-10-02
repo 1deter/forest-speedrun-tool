@@ -431,6 +431,14 @@ fetched 17.4 MB of textures for the 10.4 MB a view used. Tool:
 count the requests of a view with Playwright (session scratch
 `count_requests.py`: requests and content-length by folder).
 
+**The Elevator Boost end** (2026-10-02, headless vs a game `shot`): the
+end box (-456, 707, -1969) sits inside the overlook room, an endgame
+section only drawn in game once you arrive (a `tp` there shows a cliff);
+the site draws the room. Past the terrain's south edge the mountains are
+models (chunks to z -2931) and are there, but up close they are smooth
+grey (TEX_MAX 256) with no snow on their tops, where the game shows
+detailed rock with snow - not looked into further.
+
 Open: heavy chunks want LODs for phones;
 pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until

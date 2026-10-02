@@ -594,10 +594,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.196** (2026-10-02). The author runs it via the in-game
-updater (v0.24.196 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
+**Released: v0.24.197** (2026-10-02). The author runs it via the in-game
+updater (v0.24.197 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02 early, v0.24.196 in the game)
+### Pick up here (2026-10-02, v0.24.197 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -673,6 +673,23 @@ over the bridge:
   GetBuildInputDown; log `FastBuild: 2 Creative read(s)` seen; holding the
   key needs hands - not on a QA list yet) and **started attempts counted**
   (`runs/<id>/started.txt`; splits table / HUD "10 (9 finished)", checked).
+- **Site: texture packs, live** (`q/<i>.bin`, only the variant the page
+  reads): the Labskip 3D view 188 requests (was 604), 38.6 MB (was 37.9);
+  pictures checked headless local + live. World re-exported and uploaded
+  (backup of the previous export: `%TEMP%/claude/world-out-backup-1002`).
+- **Elevator Boost end, looked at** (map Next 1): the end box (-456, 707,
+  -1969) is inside the overlook room - an endgame section the game draws
+  only once you are there (a bridge `tp` shows a bare cliff); the site
+  draws the room, the mountains past the terrain edge exist (chunks to z
+  -2931). Left for the author's eye: those mountains are blurry grey up
+  close (256 px textures, no snow top layer showing) where the game shows
+  rock with snow - docs/website.md.
+- **v0.24.197: Timmy drawing pieces** on the 100% tab (`Game/
+  DrawingsReader`: `_ids` + `_usedIds`; ids 0-10 index the game's 11
+  drawing materials, 0 blank; no total - the game keeps none). Checked.
+- The import test's spot (2 runs) had been uploaded to the live site by
+  the automatic upload - deleted there (admin API); habit noted under
+  *Test spots*.
 
 **Next, in order (this session continues; a new one picks up here):**
 1. Watch QA answers (`qa_read new_only`) for the two overnight lists.
