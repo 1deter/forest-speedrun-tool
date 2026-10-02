@@ -232,7 +232,7 @@ window.RunMap = (function () {
       return s && g !== null && s[2] < g - 3;
     });
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-    if (terrain.image) this.blit(terrain.image, null, m.x0, m.z0, m.x0 + m.sizeX, m.z0 + m.sizeZ);
+    if (terrain.image) this.reliefPart(w, h);
     if (photo) this.tiles(photo, w, h, dpr);
     if (this.underground) {
       // The same as drawing the ground at 25% over the sea, for every layer.
@@ -240,6 +240,23 @@ window.RunMap = (function () {
       ctx.fillStyle = "#bbb"; ctx.font = "600 11px Montserrat, sans-serif";
       ctx.textAlign = "center"; ctx.fillText("UNDERGROUND", w / 2, 16); ctx.textAlign = "start";
     }
+  };
+
+  /// Only the relief image's part on screen (whole image pixels, a pixel of
+  /// margin): zoomed in close, drawing all of it scaled to many times the
+  /// screen made every redraw slow (author, 2026-10-02: the 2D map lags
+  /// zoomed in close, responsive zoomed out).
+  RunMap.prototype.reliefPart = function (w, h) {
+    const v = this.view, m = terrain.meta, img = terrain.image;
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const kx = iw / m.sizeX, kz = ih / m.sizeZ, north = m.z0 + m.sizeZ;
+    const wx0 = v.cx - w / 2 / v.scale, wx1 = v.cx + w / 2 / v.scale;
+    const wz0 = v.cz - h / 2 / v.scale, wz1 = v.cz + h / 2 / v.scale;
+    const sx0 = Math.max(0, Math.floor((wx0 - m.x0) * kx) - 1), sx1 = Math.min(iw, Math.ceil((wx1 - m.x0) * kx) + 1);
+    const sy0 = Math.max(0, Math.floor((north - wz1) * kz) - 1), sy1 = Math.min(ih, Math.ceil((north - wz0) * kz) + 1);
+    if (sx1 <= sx0 || sy1 <= sy0) return;
+    this.blit(img, [sx0, sy0, sx1 - sx0, sy1 - sy0],
+      m.x0 + sx0 / kx, north - sy1 / kz, m.x0 + sx1 / kx, north - sy0 / kz);
   };
 
   /// The visible aerial tiles at the level whose pixels are at least the

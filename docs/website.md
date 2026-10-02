@@ -497,8 +497,13 @@ detailed rock with snow - not looked into further.
 
 Open: a distance LOD switch for phones (above); the load-order look
 (above); **the 2D map lags when zoomed in close** and feels responsive
-zoomed out (author, 2026-10-02) - profile the draw at high zoom (tiles /
-relief drawn at full size, lines not culled?); the web replay as fast
+zoomed out (author, 2026-10-02) - since 2026-10-02 the relief draws only
+its on-screen part (`reliefPart` in map.js; same pixels as before, checked
+by a pixel diff), but **not reproduced here**: on the author's desktop (dpr
+1, Labskip spot, view at (428, -4)) `draw()` + a pixel read took 1-2 ms at
+every scale (0.3-100 px/m), relief or photo layer. Next: ask which device /
+browser / spot and screen density, and time the run lines (drawn whole,
+not culled) and a drag (one draw per pointermove?); the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button
 (beside Collision, `forest.map3d.detail` in localStorage) draws at the
