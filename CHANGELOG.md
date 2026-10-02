@@ -5,6 +5,19 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.211 - 2026-10-02
+
+- A spot's start state captured in Creative now loads into a survival game,
+  and the other way round: the game switches to the capture's mode with a
+  Full load (Quick load cannot change the mode). Saving in game afterwards
+  saves in that mode.
+- Restart works from the title screen: a spot with a start state loads
+  straight into it (always a Full load).
+- New captures remember the difficulty under Creative (Peaceful, Normal...),
+  so a Creative start state loads with its own enemy setting.
+- Removed the "allow restoring across Creative and survival (testing)"
+  switch - no longer needed.
+
 ## v0.24.210 - 2026-10-02
 
 - Reload save on death works during a run again (it saves menuing and load

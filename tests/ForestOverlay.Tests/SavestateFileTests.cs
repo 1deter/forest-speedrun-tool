@@ -17,6 +17,7 @@ namespace ForestOverlay.Tests
             s.Name = "Plane crash start";
             s.Level = "ForestMain_v07";
             s.Difficulty = "Normal";
+            s.BaseDifficulty = "Normal";
             s.Created = "2026-09-23 21:04:11";
             s.PluginVersion = "0.20.0";
             s.X = -1000.5f; s.Y = 90.25f; s.Z = 550.125f;
@@ -247,6 +248,35 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void CreativeKeepsTheDifficultyUnderneath()
+        {
+            SavestateFile s = Sample();
+            s.Difficulty = "Creative";
+            s.BaseDifficulty = "Peaceful";
+
+            string error;
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+
+            Assert.True(back.IsCreative);
+            Assert.Equal("Peaceful", back.BaseDifficulty);
+        }
+
+        [Fact]
+        public void OlderFilesHaveNoDifficultyUnderneath()
+        {
+            SavestateFile s = Sample();
+            s.BaseDifficulty = "";
+            string text = s.Write();
+
+            string error;
+            SavestateFile back = SavestateFile.Parse(text, out error);
+
+            Assert.DoesNotContain("basedifficulty", text);
+            Assert.Equal("", back.BaseDifficulty);
+            Assert.False(back.IsCreative);
+        }
+
+        [Fact]
         public void RoundTripKeepsEveryField()
         {
             string error;
@@ -258,6 +288,7 @@ namespace ForestOverlay.Tests
             Assert.Equal(s.Name, back.Name);
             Assert.Equal(s.Level, back.Level);
             Assert.Equal(s.Difficulty, back.Difficulty);
+            Assert.Equal(s.BaseDifficulty, back.BaseDifficulty);
             Assert.Equal(s.Created, back.Created);
             Assert.Equal(s.PluginVersion, back.PluginVersion);
             Assert.Equal(-1000.5f, back.X);

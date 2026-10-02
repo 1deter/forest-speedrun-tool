@@ -55,6 +55,7 @@ namespace ForestOverlay.Game
             public string Data;
             public string Level = "";
             public string Difficulty = "";
+            public string BaseDifficulty = "";
             public bool StreamingUnloaded;
         }
 
@@ -145,6 +146,8 @@ namespace ForestOverlay.Game
         private PropertyInfo _isCreative;
         private MethodInfo _setDifficulty;
         private Type _difficultyType;
+        private MethodInfo _setGameType;
+        private Type _gameTypeType;
 
         // Save-routine steps
         private FieldInfo _greebleManager;
@@ -246,6 +249,12 @@ namespace ForestOverlay.Game
             {
                 _difficulty = setup.GetProperty("Difficulty", stat);
                 _isCreative = setup.GetProperty("IsCreativeGame", stat);
+                PropertyInfo game = setup.GetProperty("Game", stat);
+                if (game != null)
+                {
+                    _gameTypeType = game.PropertyType;
+                    _setGameType = setup.GetMethod("SetGameType", stat, null, new[] { _gameTypeType }, null);
+                }
                 if (_difficulty != null)
                 {
                     _difficultyType = _difficulty.PropertyType;
@@ -491,6 +500,7 @@ namespace ForestOverlay.Game
 
             r.Level = SceneManager.GetActiveScene().name;
             r.Difficulty = DifficultyName();
+            r.BaseDifficulty = BaseDifficultyName();
             r.StreamingUnloaded = unloaded;
 
             // Undo, in the game's order.
@@ -696,12 +706,15 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // RESTORE WITH A LOAD - the second half of the game's own load.
-        public string RestoreWithLoad(string data, string difficulty)
+        /// `difficulty` is the file's mode name ("Creative" or a
+        /// difficulty), `baseDifficulty` the difficulty under it ("" for
+        /// files before v0.24.211). The game is switched to the file's mode.
+        public string RestoreWithLoad(string data, string difficulty, string baseDifficulty)
         {
             if (!Resolve() || _loadSavedLevel == null) return "LevelSerializer.LoadSavedLevel not found";
             if (IsDeserializing) return "the game is already loading";
 
-            string prep = PrepareContinue(difficulty);
+            string prep = PrepareContinue(difficulty, baseDifficulty);
             try
             {
                 _loadSavedLevel.Invoke(null, new object[] { data });
@@ -723,7 +736,7 @@ namespace ForestOverlay.Game
             if (!Resolve() || _resume == null) return "LevelSerializer.Resume not found";
             if (IsDeserializing) return "the game is already loading";
 
-            PrepareContinue(null);
+            PrepareContinue(null, null);
             try
             {
                 _resume.Invoke(null, null);
@@ -739,7 +752,7 @@ namespace ForestOverlay.Game
 
         // A menu load sets InitType Continue on the title screen; a game
         // that began as New would otherwise treat the reload as a new game.
-        private string PrepareContinue(string difficulty)
+        private string PrepareContinue(string difficulty, string baseDifficulty)
         {
             string note = null;
             try
@@ -750,15 +763,43 @@ namespace ForestOverlay.Game
             }
             catch (Exception ex) { note = "InitType: " + ex.Message; }
 
-            // Resume() sets the difficulty from the save's name; LoadSavedLevel
-            // does not. Creative is a game type, not a difficulty - left alone.
-            if (!string.IsNullOrEmpty(difficulty) && difficulty != "Creative" &&
-                _setDifficulty != null && _difficultyType != null)
+            // The mode is not in the save: the load builds the game-mode
+            // object of GameSetup.Game (LoadSave.Activation), which a menu
+            // load sets from the slot. So the capture's mode is set here -
+            // Creative <-> survival switches with the load (author,
+            // 2026-10-02); a Mod game is left alone for a survival file.
+            if (!string.IsNullOrEmpty(difficulty))
             {
-                try { _setDifficulty.Invoke(null, new[] { Enum.Parse(_difficultyType, difficulty) }); }
-                catch (Exception) { note = "difficulty '" + difficulty + "' not applied"; }
+                string mode = SwitchGameType(difficulty == "Creative");
+                if (mode != null) note = mode;
+            }
+
+            // Resume() sets the difficulty from the save's name; LoadSavedLevel
+            // does not. A Creative file names the mode, so the difficulty
+            // under it comes from its own line (none before v0.24.211: kept).
+            string diff = !string.IsNullOrEmpty(baseDifficulty) ? baseDifficulty
+                        : difficulty != "Creative" ? difficulty : null;
+            if (!string.IsNullOrEmpty(diff) && _setDifficulty != null && _difficultyType != null)
+            {
+                try { _setDifficulty.Invoke(null, new[] { Enum.Parse(_difficultyType, diff) }); }
+                catch (Exception) { note = "difficulty '" + diff + "' not applied"; }
             }
             return note;
+        }
+
+        /// Null when done or nothing to do, else why not.
+        private string SwitchGameType(bool creative)
+        {
+            if (CurrentIsCreative == creative) return null;
+            if (_setGameType == null || _gameTypeType == null) return "GameSetup.SetGameType not found - the mode stays";
+            try
+            {
+                _setGameType.Invoke(null, new[] { Enum.Parse(_gameTypeType, creative ? "Creative" : "Standard") });
+                _log.LogInfo("Savestate restore (load): game mode " + (creative ? "survival -> Creative" : "Creative -> survival") +
+                             " for the load (the capture's mode).");
+                return null;
+            }
+            catch (Exception ex) { return "game mode not switched: " + (ex.InnerException ?? ex).Message; }
         }
 
         // ------------------------------------------------------------------
@@ -1795,6 +1836,22 @@ namespace ForestOverlay.Game
             {
                 _log.LogWarning("Savestate: " + (reParent ? "ReParent" : "UnParent") + " failed: " + (ex.InnerException ?? ex).Message);
             }
+        }
+
+        public bool CurrentIsCreative
+        {
+            get
+            {
+                try { return _isCreative != null && (bool)_isCreative.GetValue(null, null); }
+                catch (Exception) { return false; }
+            }
+        }
+
+        private string BaseDifficultyName()
+        {
+            try { if (_difficulty != null) return _difficulty.GetValue(null, null).ToString(); }
+            catch (Exception) { }
+            return "";
         }
 
         private string DifficultyName()

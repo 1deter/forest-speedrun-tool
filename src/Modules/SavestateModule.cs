@@ -60,7 +60,6 @@ namespace ForestOverlay.Modules
         private bool _busy;
         // EndgameFirst ran for the next RestoreInPlace: never twice.
         private bool _endgameTried;
-        private ConfigEntry<bool> _allowCrossMode;
         private ConfigEntry<bool> _respawnEnemies;
         // AfterInPlace's wreck clears so far; LogNewPickups lists after one.
         private int _planeClears;
@@ -153,10 +152,6 @@ namespace ForestOverlay.Modules
             _censusOnLoad = ctx.Config.Bind("Diagnostics", "MemoryCensusAfterEveryLoad", false,
                 "After every load, log the Mono heap and which static references hold destroyed objects " +
                 "(the load memory leak investigation). Costs a hitch of up to a second or so, just after a load.");
-
-            _allowCrossMode = ctx.Config.Bind("Savestates", "AllowCrossModeRestore", false,
-                "Restore a savestate captured in a Creative game into a survival game, or the other way round. " +
-                "For testing: the game mode is not in the save, so the world comes back in this game's mode.");
 
             _respawnEnemies = ctx.Config.Bind("Savestates", "RespawnEnemiesInPlace", true,
                 "After an in-place restore, enemies as after a load: the game's own family setup respawns enemies " +
@@ -441,6 +436,7 @@ namespace ForestOverlay.Modules
                 f.Name = name;
                 f.Level = r.Level;
                 f.Difficulty = r.Difficulty;
+                f.BaseDifficulty = r.BaseDifficulty;
                 f.Created = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 f.PluginVersion = OverlayPlugin.PluginVersion;
                 f.X = pos.x; f.Y = pos.y; f.Z = pos.z;
@@ -511,15 +507,7 @@ namespace ForestOverlay.Modules
             if (f == null) { if (done != null) done("could not read the file - " + _status); return; }
             if (_busy) { if (done != null) done("a savestate action is still running"); return; }
             if (RefusedInRun("restore", done)) return;
-            if (RefusedAtTitle("restore", done)) return;
-
-            string mode = ModeMismatch(f);
-            if (mode != null)
-            {
-                SetStatus("restore '" + f.Name + "' refused: " + mode);
-                if (done != null) done("refused: " + mode);
-                return;
-            }
+            if (!load && MustLoad(f, "'" + f.Name + "'")) load = true;
 
             if (!load)
             {
@@ -532,7 +520,7 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = true;
             CloseMenuBeforeLoad();
             _greebles.Restore(f.Greebles, false);
-            string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
+            string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty);
             StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, done));
         }
 
@@ -1706,7 +1694,6 @@ namespace ForestOverlay.Modules
         {
             if (Busy) { done("a savestate action is still running"); return; }
             if (RefusedInRun("restore", done)) return;
-            if (RefusedAtTitle("restore", done)) return;
 
             SavestateFile f;
             try
@@ -1724,17 +1711,14 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
                                    s.StartState + ") - recapture it to make it so.");
 
-            string mode = ModeMismatch(f);
-            if (mode != null) { done(mode); return; }
-
             string what = "start state of '" + s.Name + "'";
-            if (s.StartRestoreWithLoad)
+            if (s.StartRestoreWithLoad || MustLoad(f, what))
             {
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
                 CloseMenuBeforeLoad();
                 _greebles.Restore(f.Greebles, false);
-                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), AfterLoad(f, done));
+                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty), AfterLoad(f, done));
             }
             else
             {
@@ -1743,28 +1727,24 @@ namespace ForestOverlay.Modules
             }
         }
 
-        // A savestate from another save restores - in place the bridge
-        // adopts the saved player, a load rebuilds everything - but not
-        // across game modes: Creative is set up before the game loads and
-        // is not in the save, so a Hard world would come back in Creative
-        // (the author's suggestion, v0.22.1: "perhaps the same game mode").
-        private string ModeMismatch(SavestateFile f)
+        // A Quick load needs a game to restore into, and the game's mode:
+        // Creative is set up as the game loads and is not in the save. So
+        // from the title screen, or into the other mode (Creative <->
+        // survival), the restore is a Full load, whatever the setting -
+        // the load switches the mode (author, 2026-10-02; refused before).
+        private bool MustLoad(SavestateFile f, string what)
         {
-            if (!_bridge.Resolve()) return null;
-            string here = _bridge.CurrentDifficulty;
-            if (here.Length == 0 || f.Difficulty.Length == 0) return null;
-            if ((here == "Creative") == (f.Difficulty == "Creative")) return null;
-
-            if (_allowCrossMode.Value)
+            string why = null;
+            if (PlayerRef.AtTitleScreen) why = "from the title screen";
+            else if (_bridge.Resolve())
             {
-                Ctx.Log.LogWarning("Savestate: '" + f.Name + "' was captured in a " + f.Difficulty +
-                                   " game, this one is " + here + " - restoring anyway (AllowCrossModeRestore).");
-                return null;
+                string here = _bridge.CurrentDifficulty;
+                if (here.Length > 0 && f.Difficulty.Length > 0 && (here == "Creative") != f.IsCreative)
+                    why = "captured in a " + f.Difficulty + " game, this one is " + here + " - the load switches the mode";
             }
-
-            Ctx.Log.LogWarning("Savestate: refused '" + f.Name + "' - captured in a " + f.Difficulty +
-                               " game, this one is " + here + ".");
-            return "captured in a " + f.Difficulty + " game - this one is " + here + " (Creative and survival do not mix)";
+            if (why == null) return false;
+            Ctx.Log.LogInfo("Savestate: " + what + " restores with a Full load - " + why + ".");
+            return true;
         }
 
         // ------------------------------------------------------------------
@@ -1829,11 +1809,6 @@ namespace ForestOverlay.Modules
         // Drawn by Debug views (the Savestates tab is gone since v0.24.106).
         public float DrawOptions(float x, float y, float w)
         {
-            bool cross = GUI.Toggle(new Rect(x, y, w, 22), _allowCrossMode.Value,
-                                    " Savestates: allow restoring across Creative and survival (testing)");
-            if (cross != _allowCrossMode.Value) _allowCrossMode.Value = cross;
-            y += 26f;
-
             bool respawn = GUI.Toggle(new Rect(x, y, w, 22), _respawnEnemies.Value,
                                       " Savestates: put the captured enemies back after a restore (respawn, clear bodies)");
             if (respawn != _respawnEnemies.Value) _respawnEnemies.Value = respawn;

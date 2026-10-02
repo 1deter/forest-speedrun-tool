@@ -88,6 +88,13 @@ namespace ForestOverlay.Data
         public string Name = "";
         public string Level = "";
         public string Difficulty = "";
+
+        /// The game's difficulty underneath (Peaceful, Normal, Hard...);
+        /// "" before v0.24.211. `Difficulty` names the mode the way the
+        /// game's own save does - "Creative" for any Creative game - so a
+        /// Creative capture needs this to load with its own enemies.
+        public string BaseDifficulty = "";
+
         public string Created = "";
         public string PluginVersion = "";
         public float X, Y, Z;
@@ -178,6 +185,9 @@ namespace ForestOverlay.Data
 
         public string Data = "";
 
+        /// Captured in a Creative game.
+        public bool IsCreative { get { return Difficulty == "Creative"; } }
+
         public string Write()
         {
             StringBuilder sb = new StringBuilder(Data.Length + 256);
@@ -185,6 +195,7 @@ namespace ForestOverlay.Data
             Line(sb, "name", Name);
             Line(sb, "level", Level);
             Line(sb, "difficulty", Difficulty);
+            if (BaseDifficulty.Length > 0) Line(sb, "basedifficulty", BaseDifficulty);
             Line(sb, "created", Created);
             Line(sb, "plugin", PluginVersion);
             Line(sb, "position", F(X) + " " + F(Y) + " " + F(Z));
@@ -253,6 +264,7 @@ namespace ForestOverlay.Data
                     case "name": s.Name = value; break;
                     case "level": s.Level = value; break;
                     case "difficulty": s.Difficulty = value; break;
+                    case "basedifficulty": s.BaseDifficulty = value; break;
                     case "created": s.Created = value; break;
                     case "plugin": s.PluginVersion = value; break;
                     case "cave": s.InCave = value == "1"; break;
