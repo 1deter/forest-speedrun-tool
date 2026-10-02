@@ -649,7 +649,9 @@ namespace ForestOverlay.Modules
                 if (!any) { y += 4f; any = true; }
                 GUI.Label(new Rect(x, y, w - 90f, rowH), _lineLabels[i], _nameStyle);
                 GUIStyle st = i == (int)Line.Previous ? _colourStyles[(int)SplitTable.ColourOf(_summary.PreviousSegment, _summary.PreviousSegment, float.NaN, float.NaN)] : _cellStyle;
-                GUI.Label(new Rect(x + w - 90f, y, 90f, rowH), _lineValues[i], st);
+                // The whole row, right-aligned: a long value ("100% (Congrats!)")
+                // is cut only when it meets its label, not at a fixed column.
+                GUI.Label(new Rect(x, y, w, rowH), _lineValues[i], st);
                 y += rowH;
             }
             return y - y0;

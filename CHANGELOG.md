@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.205 - 2026-10-02
+
+- The splits panel's summary lines no longer cut a long value at the left:
+  "100% (Congrats!)" showed as "0% (Congrats!)".
+
 ## v0.24.204 - 2026-10-02
 
 - Two more LiveSplit lines for the splits table, off until ticked in Runs ->
