@@ -500,7 +500,8 @@ nuget.org, `dotnet restore site/ForestSite.Tests --configfile <it>`), run
 FOREST_DATA=<folder>`; Playwright's Chromium is pre-installed
 (`/opt/pw-browsers`, software GL - `site-measure.py` finds it); the live
 world downloads in ~20 s (`world.json`, then every file it lists with its
-`?v=<build>`; Cloudflare refuses Python's default User-Agent).
+`?v=<build>`; Cloudflare refuses Python's default User-Agent) - put it
+in a `site/world-*/` folder (git-ignored; never commit a world export).
 
 Measured (the Labskip spot's 3D view, its own fit): live 2026-10-01 604
 world requests (458 textures, 55 packs, 90 chunks) for 38 MB; live

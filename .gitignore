@@ -25,6 +25,6 @@ decompiled/
 Thumbs.db
 .DS_Store
 site/aerial-out/
-site/world-out/
+site/world-*/
 scripts/site-look-shots/
 __pycache__/
