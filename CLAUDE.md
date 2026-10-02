@@ -621,9 +621,9 @@ session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
 only, no release, live):** the 3D view fastest by default + a *Detail*
-button; the 2D map's max-zoom lag likely fixed (relief drawn only on
-screen, one draw per frame, zoom-out cap) - **the author checks the lag
-live**; two map3d.js console errors noted, not looked into
+button; the 2D map's max-zoom lag fixed (relief drawn only on screen,
+one draw per frame, zoom-out cap; smooth per the author); two map3d.js
+console errors noted, not looked into
 (docs/website.md *Open*). Before that (v0.24.220,
 confirmed over the bridge against a local site - docs/confirmed.md):
 **category values + automatic refresh** - a category forcing Logs in the
@@ -663,9 +663,8 @@ one (a preset save as a start state, `run = <category name>`, in
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured). Also (author, 2026-10-02):
-   the 2D map lags zoomed in close: likely fixed 2026-10-02 (the relief
-   was drawn ~700,000 px wide at max zoom; one draw per frame) - the
-   author checks it live (docs/website.md);
+   two map3d.js console errors after an in-page navigation
+   (docs/website.md *Open*);
    the web replay as fast as possible: started (3D *Detail* button, off
    by default = pixel ratio 1, no antialiasing; docs/website.md) - more
    switches could join it.
