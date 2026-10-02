@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.197 - 2026-10-02
+
+- 100% tab: under Timmy drawings, the drawing pieces you have found
+  (held or put up on the wall), by number.
+
 ## v0.24.196 - 2026-10-01
 
 - Inventory -> **Fast building** (gameplay mod, practice): hold the build

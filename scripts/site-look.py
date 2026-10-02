@@ -15,7 +15,8 @@ Scenarios (Unity coordinates; yaw in degrees for lookFrom, radians for orbit):
   lake x y z yaw pitch dist  lookFrom; shots with the lakes' ground clip on / off, Water off
   orbit x y z dist yaw pitch the orbit itself; JS="expr;;expr" shot after each,
                             MODELSOFF=1 shots with each kind off (Trees / Rocks / Props / Pickups) and all, HIDE=model ids
-  eval x y z yaw pitch dist "<js>"   lookFrom, settle, print the expression (ORBIT=x,y,z,dist,yaw,pitch)
+  eval x y z yaw pitch dist "<js>"   lookFrom, settle, print the expression (ORBIT=x,y,z,dist,yaw,pitch;
+                            SHOT=1 a shot after it)
 
 Env: SITE (default http://localhost:5080), SPOT (a spot id; default the Labskip
 test spot), KEEPRUNS=1 (the spot's runs stay - an underground spot fades the
@@ -223,6 +224,11 @@ def main():
                 page.evaluate("(() => { const a = '" + os.environ["ORBIT"] + "'.split(',').map(Number); const o = forest3d.orbit; o.target.set(a[0], a[1], -a[2]); o.dist = a[3]; o.yaw = a[4]; o.pitch = a[5]; forest3d.dirty = true; })()")
                 settle(page, 4000)
             print(json.dumps(page.evaluate(sys.argv[9]), indent=1)[:4000])
+            if os.environ.get("SHOT"):
+                # SHOT=1: a shot after the expression (e.g. the game's FOV, 95)
+                page.evaluate("forest3d.dirty = true")
+                page.wait_for_timeout(1500)
+                shot(page, pre)
         print("errors:", errors[:10])
         b.close()
 

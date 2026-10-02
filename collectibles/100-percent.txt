@@ -106,10 +106,9 @@ Toy Leg = 135 x2
 Assembled Toy = 179
 
 [Timmy drawings]
-# The game stores all eight as pieces INSIDE one item (id 208), the same
-# way map pieces work, so only the item itself can be tracked here.
-# Per-drawing progress needs DrawingsInventoryItemView._ids and is not
-# wired up yet.
+# The game stores the drawings as pieces INSIDE one item (id 208), the
+# same way map pieces work, so only the item itself is a row here; the
+# 100% tab lists the pieces found under it (DrawingsReader, v0.24.197).
 Timmy Drawings = 208
 
 [Camcorder tapes]

@@ -144,8 +144,23 @@ namespace ForestOverlay.Modules
             return found;
         }
 
+        private string _drawingsText = "pieces: none found yet";
+        private int _drawingsFound;
+
+        private void UpdateDrawings()
+        {
+            int[] found = DrawingsReader.Found();
+            _drawingsFound = found.Length;
+            if (found.Length == 0) { _drawingsText = "pieces: none found yet"; return; }
+            var sb = new System.Text.StringBuilder("pieces found (held or on the wall): ");
+            for (int i = 0; i < found.Length; i++) sb.Append(i == 0 ? "" : ", ").Append('#').Append(found[i]);
+            sb.Append("  (").Append(found.Length).Append(')');
+            _drawingsText = sb.ToString();
+        }
+
         private void UpdateSeen()
         {
+            UpdateDrawings();
             Ctx.Inventory.Resolve();
             Ctx.Inventory.Refresh();
 
@@ -227,6 +242,10 @@ namespace ForestOverlay.Modules
 
                     n = Add(n, "      " + e.Name + "   -   " + state, e.Seen ? 1 : 2);
                 }
+
+                // The pieces inside the drawings item (DrawingsReader).
+                if (category == "Timmy drawings")
+                    n = Add(n, "      " + _drawingsText, _drawingsFound > 0 ? 1 : 2);
             }
 
             // --- nature guide ----------------------------------------------
