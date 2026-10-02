@@ -619,7 +619,12 @@ updater (Slot 1). **536 tests** (+ 76 site tests).
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. This session (v0.24.220,
+mode, the report or anything a run uploads. **Latest session (site
+only, no release, live):** the 3D view fastest by default + a *Detail*
+button; the 2D map's max-zoom lag likely fixed (relief drawn only on
+screen, one draw per frame, zoom-out cap) - **the author checks the lag
+live**; two map3d.js console errors noted, not looked into
+(docs/website.md *Open*). Before that (v0.24.220,
 confirmed over the bridge against a local site - docs/confirmed.md):
 **category values + automatic refresh** - a category forcing Logs in the
 inventory / Item caps carries `logcap = n` / `cap <item name> = n`
