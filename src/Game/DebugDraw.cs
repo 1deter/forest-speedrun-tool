@@ -624,6 +624,10 @@ namespace ForestOverlay.Game
         public Vector3[] CurrentLine;
         public int CurrentCount;
 
+        /// The last run that did not finish (v0.24.200), red.
+        public Vector3[] FailedLine;
+        public int FailedCount;
+
         public bool HasGhost;
         public Vector3 GhostPosition;
 
@@ -632,6 +636,7 @@ namespace ForestOverlay.Game
         private static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
         private static readonly Color CurrentColour = new Color(1f, 0.95f, 0.35f, 0.9f);
         private static readonly Color GhostColour = new Color(1f, 0.35f, 0.75f, 1f);
+        private static readonly Color FailedColour = new Color(1f, 0.3f, 0.25f, 0.75f);
 
         private void EnsureMaterial()
         {
@@ -651,7 +656,7 @@ namespace ForestOverlay.Game
         private void OnRenderObject()
         {
             if (!Show) return;
-            if (ReferenceCount < 2 && CurrentCount < 2 && !HasGhost) return;
+            if (ReferenceCount < 2 && CurrentCount < 2 && FailedCount < 2 && !HasGhost) return;
             if (!DrawTarget.ShouldDraw()) return;
 
             EnsureMaterial();
@@ -664,6 +669,7 @@ namespace ForestOverlay.Game
 
             DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour));
             DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour));
+            DrawStrip(FailedLine, 0, FailedCount, Faded(FailedColour));
 
             if (HasGhost)
             {

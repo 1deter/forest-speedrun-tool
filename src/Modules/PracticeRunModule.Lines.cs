@@ -17,7 +17,7 @@ namespace ForestOverlay.Modules
     public sealed partial class PracticeRunModule
     {
         private ConfigEntry<float> _lineOpacity, _lineAhead;
-        private ConfigEntry<bool> _lineAheadOn;
+        private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg;
         private bool _lineOptionsOpen;
 
         private float _lineOpacityNow = -1f, _lineAheadNow = -1f;   // < 0 = the config's value
@@ -35,6 +35,8 @@ namespace ForestOverlay.Modules
             _lineAheadOn = ctx.Config.Bind("Runs", "RunLineAheadOnly", false,
                 "Draw only the next RunLineAheadSeconds of the comparison line, from where its ghost is.");
             _lineAhead = ctx.Config.Bind("Runs", "RunLineAheadSeconds", 5f, "How far ahead the comparison line reaches with RunLineAheadOnly (1-60 s).");
+            _keepFailedCfg = ctx.Config.Bind("Runs", "KeepFailedRunLine", true,
+                "Keep the line of the last run that did not finish (a restart, abort or death), in red, until the next one fails.");
         }
 
         private void FlushLineOptions()
@@ -64,6 +66,10 @@ namespace ForestOverlay.Modules
             }
             GUI.Label(new Rect(130f + sliderW, y, 60, 20), _lineOpacityText);
             y += 24f;
+
+            bool failed = GUI.Toggle(new Rect(0, y, w, 20), _keepFailedCfg.Value, " Keep the last unfinished run's line (red)");
+            if (failed != _keepFailedCfg.Value) _keepFailedCfg.Value = failed;
+            y += 22f;
 
             bool ahead = GUI.Toggle(new Rect(0, y, w, 20), _lineAheadOn.Value, " Comparison line: only the next few seconds of it");
             if (ahead != _lineAheadOn.Value) _lineAheadOn.Value = ahead;

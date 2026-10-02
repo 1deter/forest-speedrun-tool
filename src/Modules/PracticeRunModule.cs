@@ -119,6 +119,9 @@ namespace ForestOverlay.Modules
         // Appended to, not rebuilt - see Data/LineBuffer.
         private readonly LineBuffer _referenceLine = new LineBuffer();
         private readonly LineBuffer _currentLine = new LineBuffer();
+        // The last run cut short (a restart, an abort, a death) - kept to
+        // see where it went wrong (maks, sxczurass; v0.24.200).
+        private readonly LineBuffer _failedLine = new LineBuffer();
         private int _ghostHint;
 
         // ------------------------------------------------------------------
@@ -298,6 +301,7 @@ namespace ForestOverlay.Modules
 
             _recorder.StateChannels = Ctx.PlayerState.Channels;
             _recorder.Route = _armedRoute;
+            KeepFailed();   // a Go / restart without a start state re-arms mid-run
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             MaybeFetchBoard();
@@ -574,9 +578,20 @@ namespace ForestOverlay.Modules
             }
         }
 
+        /// A running attempt about to be dropped: its line stays as the
+        /// failed one (Runs -> Line options).
+        private void KeepFailed()
+        {
+            if (_recorder.State != RunRecorder.RunState.Running || _recorder.Current == null) return;
+            if (_recorder.Current.Samples.Count < 2) return;
+            _failedLine.Clear();
+            _failedLine.Sync(_recorder.Current.Samples);
+        }
+
         private void AbortRun()
         {
             _autoRestartAt = 0f;
+            KeepFailed();
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
@@ -595,6 +610,7 @@ namespace ForestOverlay.Modules
             _autoRestartAt = 0f;
             if (_recorder.State == RunRecorder.RunState.Running && _segment != null)
                 Ctx.Log.LogInfo("Run '" + _segment.Id + "': aborted - restarting the spot.");
+            KeepFailed();
             _recorder.Abort();
             _hasDelta = false;
             ClearRunPreview();
@@ -622,6 +638,7 @@ namespace ForestOverlay.Modules
 
             _loadedSegmentId = s.Id;
             _attempts.Clear();
+            _failedLine.Clear();   // another segment's failure is not this one's
             _rowsDirty = true;
             // Cleared here, not left to UpdateLines: a segment with no
             // attempts has no reference either, and null == null never
@@ -767,6 +784,8 @@ namespace ForestOverlay.Modules
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
             _lines.CurrentCount = _currentLine.Count;
+            _lines.FailedLine = _failedLine.Points;
+            _lines.FailedCount = _keepFailedCfg.Value ? _failedLine.Count : 0;
 
             _lines.HasGhost = false;
             if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
@@ -788,6 +807,7 @@ namespace ForestOverlay.Modules
             _lines.Show = false;
             _lines.ReferenceCount = 0;
             _lines.CurrentCount = 0;
+            _lines.FailedCount = 0;
             _lines.HasGhost = false;
             _lineSource = null;
             _referenceLine.Clear();
