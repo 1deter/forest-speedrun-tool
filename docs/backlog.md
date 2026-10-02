@@ -170,3 +170,12 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   every prop, so the map is complete.
 - Community spots on the site: keep them - they can carry **official category saves** (start
   states), not just teleport spots; shared runner times stay the main feature.
+
+- **Discord webhooks and a game-knowledge bot** (author, QA #general
+  2026-10-02, `1555519719468048445` + `1555519837353279564`): a webhook
+  post when a runner sets a new PB with the tool on a community category
+  spot; what else webhooks could do; how feasible a game-knowledge bot is
+  in operating cost.
+- **A maintainability review of the codebase** (author, QA #general
+  2026-10-02, `1555520127967952967`): once the features are mostly done,
+  review it so it can be picked up and updated easily in the future.
