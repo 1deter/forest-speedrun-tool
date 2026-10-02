@@ -162,6 +162,9 @@ public sealed class CategoryTests : IDisposable
         Assert.Equal("green", v);
         Assert.Contains(f, x => x.Level == "allowed" && x.Text.StartsWith("God mode was used"));
         Assert.Equal("red", Attempts.JudgeReport(Report(used: "godmode"), allowed, null, Normal()).verdict);
+        cat.SetPolicy("logs", RunCategory.Forced);
+        (v, f) = Attempts.JudgeReport(Report(used: "logs"), allowed, null, cat);
+        Assert.Contains(f, x => x.Level == "allowed" && x.Text == "Logs in the inventory was on, as Any% - Normal asks of everyone.");
 
         // A category the site does not have: amber, said.
         (v, f) = Attempts.JudgeReport(Report("gone v4"), allowed, null, null);

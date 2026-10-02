@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.219 - 2026-10-02
+
+- A run started with Start run mode shows its category's name on the
+  HUD. On the website, an attempt's page is titled with the category's
+  name, features a category turns on for everyone read "on, as the
+  category asks", and a category without anti-splice codes no longer
+  shows the check-a-code box.
+
 ## v0.24.218 - 2026-10-02
 
 - Run categories: the moderators now set up categories on the website,

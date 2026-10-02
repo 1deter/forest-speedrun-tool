@@ -577,7 +577,7 @@ public static class Pages
     /// An attempt's title and verdict for link previews.
     public static (string title, string description) AttemptSummary(JsonObject a)
     {
-        string category = (string)a["category"] ?? "";
+        string category = (string)a["rules"]?["name"] ?? (string)a["category"] ?? "";
         string name = (string)a["runnerName"] ?? "";
         string verdict = (string)a["verdict"] ?? "";
         string title = (category.Length > 0 ? category + " attempt" : "Run attempt") + (name.Length > 0 ? " by " + name : "");

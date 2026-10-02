@@ -121,7 +121,7 @@ namespace ForestOverlay.Modules
             // Started by hand: the next game after a reset is the next attempt.
             if (_byHand)
             {
-                StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", RunIntegrity.Describe());
+                StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", ByHandLabel());
                 return;
             }
             Ctx.Run.End("a game was loaded outside the run's spot - Restart on a run spot starts the next run");
@@ -166,7 +166,14 @@ namespace ForestOverlay.Modules
             if (!InLoadedGame()) { Ctx.Notice.Show("Run mode: load a game first.", 6f); return; }
             _byHand = true;
             _runSpot = null;
-            StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", RunIntegrity.Describe());
+            StartAttempt(RunIntegrity.Describe() + ", run mode started by hand", ByHandLabel());
+        }
+
+        // The HUD's label for a run started by hand: the category, else the game.
+        private string ByHandLabel()
+        {
+            RunCategory cat = CategoryFor(null);
+            return cat != null ? cat.Name : RunIntegrity.Describe();
         }
 
         private void StartAttempt(string started, string label)

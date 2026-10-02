@@ -611,15 +611,16 @@ identity.
 
 ## Current status
 
-**Released: v0.24.218** (2026-10-02). The author runs it via the in-game
+**Released: v0.24.219** (2026-10-02). The author runs it via the in-game
 updater (Slot 1). **535 tests** (+ 76 site tests).
 
-### Pick up here (2026-10-02, v0.24.218 released)
+### Pick up here (2026-10-02, v0.24.219 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. This session (v0.24.218):
+mode, the report or anything a run uploads. This session (v0.24.218-219,
+confirmed over the bridge against a local site - docs/confirmed.md):
 **run mode phase 4, categories** (docs/run-mode.md *Categories*): the
 moderators' categories on /admin's *Categories* tab (any admin), seeded
 and kept in step with speedrun.com daily (24 drafts on the first sync,

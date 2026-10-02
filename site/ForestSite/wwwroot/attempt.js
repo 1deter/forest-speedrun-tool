@@ -36,7 +36,8 @@ async function attemptPage(id) {
   let a;
   try { a = await api("/attempts/" + encodeURIComponent(id)); } catch (e) { return failed(e); }
   const [head, says] = VERDICTS[a.verdict] || VERDICTS.running;
-  document.title = (a.category || "Run") + " attempt" + (a.runnerName ? " by " + a.runnerName : "") + " · Forest Practice Runs";
+  const catName = a.rules ? a.rules.name : a.category;
+  document.title = (catName || "Run") + " attempt" + (a.runnerName ? " by " + a.runnerName : "") + " · Forest Practice Runs";
 
   const when = a.issued || a.received;
   const cat = a.rules;   // the category version the report names (phase 4)
@@ -99,14 +100,14 @@ async function attemptPage(id) {
 
   show(
     el("h1", null, "Run attempt"),
-    el("p", { class: "sub" }, [a.category, a.runnerName || a.runner, when ? date(when) : null].filter(Boolean).join(" · ")),
+    el("p", { class: "sub" }, [catName, a.runnerName || a.runner, when ? date(when) : null].filter(Boolean).join(" · ")),
     el("section", { class: "verdict v-" + (VERDICTS[a.verdict] ? a.verdict : "running") },
       el("div", { class: "vhead" }, el("span", { class: "mark", "aria-hidden": "true" }, MARKS[a.verdict] || "…"), head),
       el("p", null, says)),
     el("div", { class: "tablewrap" }, el("table", { class: "facts" }, el("tbody", null,
       facts.map(([k, v]) => el("tr", null, el("th", null, k), el("td", null, v)))))),
     rules,
-    el("section", null,
+    cat && !cat.antisplice ? null : el("section", null,
       el("h2", null, "Check a code"),
       el("p", { class: "note" }, "In run mode the game shows a four-letter code at the top of the screen that changes every second. " +
         "Pause the video at a few moments, type the code you see, and compare where it shows: the moments should be as far apart here " +

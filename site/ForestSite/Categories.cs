@@ -372,7 +372,8 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
             var feature = RunCategory.FindFeature(used);
             string label = feature?.Label ?? used;
             f.Add(category.IsLocked(used) ? new Attempts.Finding("bad", label + " was used, which " + category.Name + " does not allow.")
-                                          : new Attempts.Finding("allowed", label + " was used, allowed by " + category.Name + "."));
+                  : category.IsForced(used) ? new Attempts.Finding("allowed", label + " was on, as " + category.Name + " asks of everyone.")
+                                            : new Attempts.Finding("allowed", label + " was used, allowed by " + category.Name + "."));
         }
         return f;
     }
