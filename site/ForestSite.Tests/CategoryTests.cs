@@ -210,8 +210,15 @@ public sealed class CategoryTests : IDisposable
         var res = await http.SendAsync(put);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
 
-        var list = RunCategory.Parse(await http.GetStringAsync("/api/categories.txt"));
+        var first = await http.GetAsync("/api/categories.txt");
+        var list = RunCategory.Parse(await first.Content.ReadAsStringAsync());
         Assert.Equal(new[] { "any-normal" }, list.Select(x => x.Id));
+        // The game's 2-minute check: the same list answers 304 with no body.
+        var etag = first.Headers.ETag;
+        Assert.NotNull(etag);
+        var again = new HttpRequestMessage(HttpMethod.Get, "/api/categories.txt");
+        again.Headers.TryAddWithoutValidation("If-None-Match", etag.Tag);
+        Assert.Equal(HttpStatusCode.NotModified, (await http.SendAsync(again)).StatusCode);
         Assert.Equal(1, list[0].Version);
         var v1 = await http.GetFromJsonAsync<JsonObject>("/api/categories/any-normal/1");
         Assert.Equal("normal", (string)v1["difficulty"]);
@@ -220,6 +227,23 @@ public sealed class CategoryTests : IDisposable
         get.Headers.Add("X-Admin-Token", "admin-secret");
         var admin = await (await http.SendAsync(get)).Content.ReadFromJsonAsync<JsonObject>();
         Assert.Contains(admin["list"].AsArray(), x => (string)x["id"] == "manhunt");   // the preset, a draft
+
+        // A new version (a manhunt's numbers) changes the ETag: the game gets the new list.
+        c.SetPolicy("logs", RunCategory.Forced);
+        c.LogCap = 10;
+        c.SetItemCap("Rock", 50);
+        put = new HttpRequestMessage(HttpMethod.Put, "/api/admin/categories/any-normal") { Content = new StringContent(c.Format(), Encoding.UTF8) };
+        put.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await http.SendAsync(put)).StatusCode);
+        var changed = new HttpRequestMessage(HttpMethod.Get, "/api/categories.txt");
+        changed.Headers.TryAddWithoutValidation("If-None-Match", etag.Tag);
+        var got = await http.SendAsync(changed);
+        Assert.Equal(HttpStatusCode.OK, got.StatusCode);
+        var v2 = RunCategory.Parse(await got.Content.ReadAsStringAsync())[0];
+        Assert.Equal((2, 10, "Rock", 50), (v2.Version, v2.LogCap, v2.ItemCaps[0].Key, v2.ItemCaps[0].Value));
+        var view = await http.GetFromJsonAsync<JsonObject>("/api/categories/any-normal/2");
+        Assert.Equal(10, (int)view["logcap"]);
+        Assert.Equal("Rock", (string)view["caps"][0]["name"]);
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
     }
 }

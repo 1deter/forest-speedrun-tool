@@ -133,6 +133,7 @@ namespace ForestOverlay.Modules
         {
             if (_attemptOpen) EndAttempt("reset - Restart on the run's spot", "reset");
             _spotStarting = true;
+            CheckCategoriesSoon();   // usually back before the restore ends
             Ctx.Log.LogInfo("Run mode: '" + s.Name + "' (" + s.RunCategory + ") - starting a run.");
         }
 
@@ -216,6 +217,7 @@ namespace ForestOverlay.Modules
         {
             _attemptOpen = false;
             Ctx.Run.Reset();
+            CheckCategoriesSoon();   // a new version is ready for the next attempt
             if (_report != null)
             {
                 Watch();   // the last flags into the report and the chain

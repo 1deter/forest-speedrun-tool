@@ -5,6 +5,18 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.220 - 2026-10-02
+
+- A run category can set the numbers for the features it turns on for
+  everyone: how many logs the inventory holds and the item caps (e.g. a
+  manhunt with 50 rocks). During such a run the Inventory tab shows the
+  category's numbers greyed out; your own settings come back after the
+  run. A name the game does not know is shown there.
+- The game now checks the site's categories by itself every 2 minutes
+  and when an attempt ends, so *Check categories* is no longer needed.
+  A changed category applies from the next attempt, never in the middle
+  of one.
+
 ## v0.24.219 - 2026-10-02
 
 - A run started with Start run mode shows its category's name on the

@@ -87,6 +87,17 @@ namespace ForestOverlay.Modules
         private float _capsWriteAt;
         private bool _capsMarked;
         private bool _capNamesResolved;   // names re-read once the game's item database answers
+        // Run mode: a category that forces item caps / logs brings its own
+        // numbers (author, 2026-10-02: a manhunt host sets them); the
+        // runner's own stay saved and come back after the run.
+        private List<KeyValuePair<int, int>> _runCaps = new List<KeyValuePair<int, int>>();
+        private string _runCapsKey = "";          // category id + version the list was resolved for
+        private bool _runCapsComplete;            // resolved against the game's item list
+        private readonly List<GUIContent> _runCapLabels = new List<GUIContent>();
+        private readonly GUIContent _runCapsStatus = new GUIContent("");
+        private readonly GUIContent _runLogCapText = new GUIContent("");
+        private static readonly GUIContent RunCapsText = new GUIContent(
+            "The run's category sets these caps for everyone; your own list is kept and comes back after the run.");
         private static readonly GUIContent CapsText = new GUIContent(
             "Carry as many of an item as you set (the game's own cap otherwise, pouches included). Find an item, add it, " +
             "type its cap. A cap below what you carry keeps the extra until the game next trims it. Logs: use the option above. " +
@@ -169,7 +180,9 @@ namespace ForestOverlay.Modules
 
         private void TickLogs()
         {
-            LogStore.Cap = Mathf.Clamp(_logCapCfg.Value, 1, 99);
+            int logCap = Ctx.Run.Forces("logs") && Ctx.Run.Category != null ? Ctx.Run.Category.EffectiveLogCap : Mathf.Clamp(_logCapCfg.Value, 1, 99);
+            if (logCap != LogStore.Cap || _runLogCapText.text.Length == 0) _runLogCapText.text = logCap + "   (the run's category)";
+            LogStore.Cap = logCap;
             LogStore.Maintain(LogsOn && !PlayerRef.AtTitleScreen);
             if (LogStore.Active && !_logsMarked)
             {
@@ -186,10 +199,13 @@ namespace ForestOverlay.Modules
             if (status != _logsStatus.text) _logsStatus.text = status;
         }
 
+        /// The caps in force: the run category's when it forces them.
+        private List<KeyValuePair<int, int>> CapsInForce { get { return Ctx.Run.Forces("itemcaps") ? _runCaps : _caps; } }
+
         private void ApplyCaps()
         {
             _capsApplied = CapsOn;
-            ItemCapPatch.Set(_capsApplied ? _caps : null);
+            ItemCapPatch.Set(_capsApplied ? CapsInForce : null);
             _capTexts.Clear();
             for (int i = 0; i < _caps.Count; i++)
             {
@@ -230,11 +246,13 @@ namespace ForestOverlay.Modules
                 _capsCfg.Value = ItemCaps.Format(_caps);
             }
             if (!_capNamesResolved && _caps.Count > 0 && Ctx.Inventory.NameForId(_caps[0].Key) != null) { _capNamesResolved = true; ApplyCaps(); }
+            ResolveRunCaps();
             // Run mode: caps off (the saved setting kept), back on after.
             bool capsOn = CapsOn;
             if (capsOn != _capsApplied) ApplyCaps();
-            bool active = capsOn && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
-            Ctx.Practice.SetOn("item caps", capsOn && _caps.Count > 0);
+            int inForce = CapsInForce.Count;
+            bool active = capsOn && inForce > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
+            Ctx.Practice.SetOn("item caps", capsOn && inForce > 0);
             Ctx.Practice.SetOn("logs in the inventory", LogsOn);
             FastBuild.On = FastBuildOn && !PlayerRef.AtTitleScreen;
             Ctx.Practice.SetOn("fast building", FastBuildOn);
@@ -244,9 +262,48 @@ namespace ForestOverlay.Modules
             {
                 _capsMarked = true;
                 Ctx.Practice.Mark("item caps");
-                Ctx.Log.LogInfo("Item caps: " + ItemCaps.Format(_caps) + " (" + ItemCapPatch.Status + ").");
+                Ctx.Log.LogInfo("Item caps: " + ItemCaps.Format(CapsInForce) + (Ctx.Run.Forces("itemcaps") ? " (the run's category)" : "") +
+                                " (" + ItemCapPatch.Status + ").");
             }
             if (!capsOn) _capsMarked = false;
+        }
+
+        // The forced category's caps by item id: resolved when the run's
+        // category (or its version) changes, and again each tick until every
+        // name is found (the item database can answer late after a load).
+        private void ResolveRunCaps()
+        {
+            RunCategory cat = Ctx.Run.Forces("itemcaps") ? Ctx.Run.Category : null;
+            string key = cat == null ? "" : cat.Id + " v" + cat.Version;
+            // Again for the same version only once the item list is readable.
+            if (key == _runCapsKey && (_runCapsComplete || cat == null || !Ctx.Inventory.CatalogReady)) return;
+            _runCapsKey = key;
+            _runCaps = new List<KeyValuePair<int, int>>();
+            List<string> missing = new List<string>();
+            if (cat != null)
+                for (int i = 0; i < cat.ItemCaps.Count; i++)
+                {
+                    string name = cat.ItemCaps[i].Key;
+                    int id = Ctx.Inventory.IdForName(name);
+                    if (id == ItemCapPatch.LogItemId && id != 0) { missing.Add(name + " (logs use the log cap)"); continue; }
+                    if (id <= 0) { missing.Add(name); continue; }
+                    if (ItemCaps.IndexOf(_runCaps, id) < 0) _runCaps.Add(new KeyValuePair<int, int>(id, cat.ItemCaps[i].Value));
+                }
+            for (int i = 0; i < _runCaps.Count; i++)
+            {
+                if (i >= _runCapLabels.Count) _runCapLabels.Add(new GUIContent(""));
+                _runCapLabels[i].text = (Ctx.Inventory.NameForId(_runCaps[i].Key) ?? "item " + _runCaps[i].Key) + "   " + _runCaps[i].Value;
+            }
+            _runCapsComplete = Ctx.Inventory.CatalogReady;   // a name missing then stays missing
+            _runCapsStatus.text = cat == null ? "" :
+                cat.ItemCaps.Count == 0 ? "The category sets no item caps: the game's own apply." :
+                missing.Count == 0 ? "" :
+                !Ctx.Inventory.CatalogReady ? "Waiting for the game's item list to apply the category's caps..." :
+                "Not in the game's item list, so not capped: " + string.Join(", ", missing.ToArray()) + ".";
+            if (cat != null && missing.Count > 0 && Ctx.Inventory.CatalogReady)
+                Ctx.Log.LogWarning("Item caps: the run's category " + key + " names items the game does not have: " + string.Join(", ", missing.ToArray()) + ".");
+            if (cat != null) Ctx.Log.LogInfo("Item caps: the run's category " + key + " - " + ItemCaps.Format(_runCaps) + ".");
+            ApplyCaps();
         }
 
         /// The game's cap for an item now (before ours applies to it).
@@ -309,6 +366,20 @@ namespace ForestOverlay.Modules
             GUI.enabled = guiWas;
             if (on != _capsOnCfg.Value) { _capsOnCfg.Value = on; ApplyCaps(); }
             y += 24f;
+            if (Ctx.Run.Forces("itemcaps"))
+            {
+                // The category's numbers, greyed: not the runner's to change.
+                GUI.enabled = false;
+                for (int i = 0; i < _runCaps.Count && i < _runCapLabels.Count; i++)
+                {
+                    GUI.Label(new Rect(30, y, w - 20f, 22), _runCapLabels[i]);
+                    y += 22f;
+                }
+                GUI.enabled = guiWas;
+                if (_runCapsStatus.text.Length > 0) y += UiText.Draw(30, y, w - 20f, _runCapsStatus) + 2f;
+                y += UiText.DrawDim(30, y, w - 20f, RunCapsText) + 8f;
+                return y;
+            }
             if (!_capsOnCfg.Value) return y + 4f;
 
             for (int i = 0; i < _caps.Count && i < _capLabels.Count && i < _capTexts.Count; i++)
@@ -501,15 +572,26 @@ namespace ForestOverlay.Modules
             GUI.enabled = guiWas;
             if (on != _logsCfg.Value) _logsCfg.Value = on;
             y += 24f;
-            if (!_logsCfg.Value) return y + 4f;
+            bool forced = Ctx.Run.Forces("logs");
+            if (!_logsCfg.Value && !forced) return y + 4f;
 
             GUI.Label(new Rect(30, y, 110, 22), "Logs it holds");
-            string t = GUI.TextField(new Rect(140, y, 50, 22), _capText);
-            if (t != _capText)
+            if (forced)
             {
-                _capText = t;
-                int cap;
-                if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99) _logCapCfg.Value = cap;
+                // The category's number, greyed (the runner's own is kept).
+                GUI.enabled = false;
+                GUI.Label(new Rect(140, y, w - 130f, 22), _runLogCapText);
+                GUI.enabled = guiWas;
+            }
+            else
+            {
+                string t = GUI.TextField(new Rect(140, y, 50, 22), _capText);
+                if (t != _capText)
+                {
+                    _capText = t;
+                    int cap;
+                    if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99) _logCapCfg.Value = cap;
+                }
             }
             y += 26f;
             y += UiText.Draw(30, y, w - 20f, _logsStatus) + 2f;

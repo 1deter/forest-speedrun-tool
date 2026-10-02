@@ -342,7 +342,16 @@ api.MapGet("/attempts/{id}/code/{code}", (string id, string code) =>
 // --- run categories (Categories; docs/run-mode.md phase 4) ----------------------
 
 // The plugin's list: the published categories as text (src/Data/RunCategory).
-api.MapGet("/categories.txt", () => Results.Text(categories.PublishedText(), "text/plain; charset=utf-8")).RequireRateLimiting("read");
+// The game asks every 2 minutes with the last ETag: unchanged = 304, no body.
+api.MapGet("/categories.txt", (HttpContext c) =>
+{
+    string text = categories.PublishedText();
+    string etag = Categories.ETag(text);
+    c.Response.Headers.ETag = etag;
+    c.Response.Headers.CacheControl = "no-cache";
+    if (Categories.Unchanged(c.Request.Headers.IfNoneMatch.ToString(), etag)) return Results.StatusCode(304);
+    return Results.Text(text, "text/plain; charset=utf-8");
+}).RequireRateLimiting("read");
 api.MapGet("/categories/{id}/{version:int}", (string id, int version) =>
     Categories.View(categories.Version(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
 

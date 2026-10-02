@@ -20,15 +20,27 @@ namespace ForestOverlay.Core
     {
         public delegate void Done(long code, string body, string error);
 
+        /// Done with one response header's value (null: not sent).
+        public delegate void DoneHeader(long code, string body, string error, string header);
+
         public static IEnumerator Send(string method, string url, byte[] body, string contentType,
                                        string bearer, float timeoutSeconds, Done done)
+        {
+            return Send(method, url, body, contentType, bearer, timeoutSeconds, null, null,
+                        delegate(long c, string b, string e, string h) { done(c, b, e); });
+        }
+
+        /// With extra request headers (name, value, name, value...) and one
+        /// response header read back (`readHeader`, e.g. "ETag").
+        public static IEnumerator Send(string method, string url, byte[] body, string contentType, string bearer,
+                                       float timeoutSeconds, string[] headers, string readHeader, DoneHeader done)
         {
             Type requestType = Type.GetType("UnityEngine.Networking.UnityWebRequest, UnityEngine");
             Type uploadType = Type.GetType("UnityEngine.Networking.UploadHandlerRaw, UnityEngine");
             Type downloadType = Type.GetType("UnityEngine.Networking.DownloadHandlerBuffer, UnityEngine");
             if (requestType == null || uploadType == null || downloadType == null)
             {
-                done(0, null, "UnityWebRequest unavailable in this build");
+                done(0, null, "UnityWebRequest unavailable in this build", null);
                 yield break;
             }
 
@@ -49,13 +61,16 @@ namespace ForestOverlay.Core
                 setHeader.Invoke(request, new object[] { "User-Agent", "ForestOverlay/" + OverlayPlugin.PluginVersion });
                 if (body != null) setHeader.Invoke(request, new object[] { "Content-Type", contentType });
                 if (!string.IsNullOrEmpty(bearer)) setHeader.Invoke(request, new object[] { "Authorization", "Bearer " + bearer });
+                if (headers != null)
+                    for (int i = 0; i + 1 < headers.Length; i += 2)
+                        if (!string.IsNullOrEmpty(headers[i + 1])) setHeader.Invoke(request, new object[] { headers[i], headers[i + 1] });
 
                 MethodInfo send = requestType.GetMethod("Send") ?? requestType.GetMethod("SendWebRequest");
                 send.Invoke(request, null);
             }
             catch (Exception ex)
             {
-                done(0, null, "request failed: " + (ex.InnerException ?? ex).Message);
+                done(0, null, "request failed: " + (ex.InnerException ?? ex).Message, null);
                 yield break;
             }
 
@@ -67,14 +82,14 @@ namespace ForestOverlay.Core
                 {
                     try { requestType.GetMethod("Abort").Invoke(request, null); } catch (Exception) { }
                     Dispose(requestType, request);
-                    done(0, null, "timed out");
+                    done(0, null, "timed out", null);
                     yield break;
                 }
                 yield return null;
             }
 
             long code = 0;
-            string text = null, error = null;
+            string text = null, error = null, header = null;
             try
             {
                 PropertyInfo errorProp = requestType.GetProperty("error");
@@ -84,13 +99,18 @@ namespace ForestOverlay.Core
                 object handler = requestType.GetProperty("downloadHandler").GetValue(request, null);
                 byte[] data = handler != null ? handler.GetType().GetProperty("data").GetValue(handler, null) as byte[] : null;
                 if (data != null) text = Encoding.UTF8.GetString(data);
+                if (readHeader != null)
+                {
+                    MethodInfo get = requestType.GetMethod("GetResponseHeader", new[] { typeof(string) });
+                    if (get != null) header = get.Invoke(request, new object[] { readHeader }) as string;
+                }
             }
             catch (Exception ex) { error = ex.Message; }
             Dispose(requestType, request);
 
             // An answer with a status is not a network error, whatever
             // Unity's error string says about it.
-            done(code, text, code != 0 ? null : (string.IsNullOrEmpty(error) ? "no answer" : error));
+            done(code, text, code != 0 ? null : (string.IsNullOrEmpty(error) ? "no answer" : error), header);
         }
 
         private static void Dispose(Type requestType, object request)

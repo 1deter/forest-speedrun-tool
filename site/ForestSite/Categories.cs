@@ -75,6 +75,23 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
     public string PublishedText() =>
         RunCategory.Format(All().Where(c => c.Status == "published").OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList());
 
+    /// The published list's ETag: a hash of its text (quoted, as HTTP has it).
+    public static string ETag(string text) =>
+        "\"" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text ?? ""))).Substring(0, 32).ToLowerInvariant() + "\"";
+
+    /// True when the request's If-None-Match names `etag` (or is `*`).
+    public static bool Unchanged(string ifNoneMatch, string etag)
+    {
+        if (string.IsNullOrWhiteSpace(ifNoneMatch)) return false;
+        foreach (string part in ifNoneMatch.Split(','))
+        {
+            string p = part.Trim();
+            if (p.StartsWith("W/")) p = p.Substring(2);
+            if (p == "*" || p == etag) return true;
+        }
+        return false;
+    }
+
     /// A category as it was at `version` (an attempt's report names it).
     public RunCategory Version(string id, int version)
     {
@@ -102,7 +119,8 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
     {
         id = c.Id, name = c.Name, version = c.Version, status = c.Status, difficulty = c.Difficulty, creative = c.Creative,
         multiplayer = c.Multiplayer, spot = c.Spot, antisplice = c.AntiSplice, amber = c.AmberAccepted,
-        banned = c.Banned, rules = c.Rules, src = c.Source,
+        banned = c.Banned, rules = c.Rules, src = c.Source, logcap = c.LogCap,
+        caps = c.ItemCaps.Select(k => new { name = k.Key, cap = k.Value }).ToList(),
         features = RunCategory.Features.Select(f => new { key = f.Key, label = f.Label, policy = c.Policy(f.Key) }).ToList(),
     };
 

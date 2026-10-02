@@ -496,7 +496,11 @@ grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
 Open: a distance LOD switch for phones (above); the load-order look
-(above); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
+(above); **the 2D map lags when zoomed in close** and feels responsive
+zoomed out (author, 2026-10-02) - profile the draw at high zoom (tiles /
+relief drawn at full size, lines not culled?); **the web replay as fast
+as possible**: fastest mode by default, higher-quality details opt-in and
+remembered per browser (author, 2026-10-02); pickups spawned at run time and the player's random sticks / rocks are missing. The photo map's `aerial.json` is still read once per page
 (map.js): a tab open across an aerial upload gets 404 tiles (holes) until
 a reload.
 

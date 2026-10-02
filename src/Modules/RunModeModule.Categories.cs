@@ -14,9 +14,13 @@ namespace ForestOverlay.Modules
     // Run categories (run mode phase 4; Data/RunCategory).
     //
     // The moderators publish them on the site (/admin, seeded from
-    // speedrun.com). Fetched a few seconds after startup and on "Check
-    // categories", kept in config/ForestOverlay/categories.txt for offline
-    // starts. A run spot's `run = ...` names its category (by id or name);
+    // speedrun.com). Fetched a few seconds after startup, every 2 minutes,
+    // when an attempt ends or a run spot starts one (author, 2026-10-02:
+    // "Check categories" may never be pressed) and on the button - with
+    // the last answer's ETag, so an unchanged list is a 304 and no body.
+    // A new version reaches the next attempt, never the running one (the
+    // attempt holds its category). Kept in
+    // config/ForestOverlay/categories.txt for offline starts. A run spot's `run = ...` names its category (by id or name);
     // Start run mode uses the one picked in the Runs tab. The category goes
     // to Core/RunMode (what is locked, allowed, forced), the report (id +
     // version, the game) and the attempt's start on the site.
@@ -25,6 +29,10 @@ namespace ForestOverlay.Modules
     {
         private const string CategoriesFile = "categories.txt";
         private const float FetchDelay = 6f;
+        private const float RefreshEvery = 120f;
+        private float _refreshAt = -1f;
+        private string _etag;
+        private bool _fetchFailed;   // logged once until the next success
 
         private List<RunCategory> _categories = new List<RunCategory>();
         private ConfigEntry<string> _pickedCfg;
@@ -59,37 +67,80 @@ namespace ForestOverlay.Modules
                 _fetchAt = -1f;
                 FetchCategories();
             }
+            else if (_refreshAt >= 0f && Time.unscaledTime >= _refreshAt && !_fetching)
+            {
+                _refreshAt = -1f;
+                FetchCategories();
+            }
+        }
+
+        /// A check now, without the button (an attempt ended, a run spot is
+        /// starting one): a 304 when nothing changed.
+        private void CheckCategoriesSoon()
+        {
+            if (!_fetching) _fetchAt = Time.unscaledTime;
         }
 
         private void FetchCategories()
         {
             string site = _upload != null ? _upload.SiteUrl : null;
+            _refreshAt = Time.unscaledTime + RefreshEvery;
             if (string.IsNullOrEmpty(site)) { _catStatus = "No site address set (Settings) - categories not checked."; return; }
             _fetching = true;
-            _catStatus = "Checking the site's categories...";
             Ctx.Runner.StartCoroutine(Fetch(SiteProtocol.TrimUrl(site) + "/api/categories.txt"));
         }
 
         private IEnumerator Fetch(string url)
         {
             long code = 0;
-            string body = null, error = null;
+            string body = null, error = null, etag = null;
             yield return Ctx.Runner.StartCoroutine(WebRequest.Send("GET", url, null, null, null, 20f,
-                delegate(long c, string b, string e) { code = c; body = b; error = e; }));
+                _etag != null ? new[] { "If-None-Match", _etag } : null, "ETag",
+                delegate(long c, string b, string e, string h) { code = c; body = b; error = e; etag = h; }));
             _fetching = false;
-            if (error != null || code != 200 || body == null)
+            string when = DateTime.Now.ToString("HH:mm");
+            if (code == 304)
             {
-                _catStatus = "The site's categories could not be read (" + (error ?? "HTTP " + code) + ")" +
-                             (_categories.Count > 0 ? " - using the " + _categories.Count + " from the last check." : ".");
-                Ctx.Log.LogWarning("Run mode: categories not fetched from " + url + ": " + (error ?? "HTTP " + code) + ".");
+                _fetchFailed = false;
+                _catStatus = _categories.Count + " categories from the site (checked " + when + ", no change).";
                 yield break;
             }
+            if (error != null || code != 200 || body == null)
+            {
+                _catStatus = "The site's categories could not be read at " + when + " (" + (error ?? "HTTP " + code) + ")" +
+                             (_categories.Count > 0 ? " - using the " + _categories.Count + " from the last check." : ".");
+                if (!_fetchFailed) Ctx.Log.LogWarning("Run mode: categories not fetched from " + url + ": " + (error ?? "HTTP " + code) + ".");
+                _fetchFailed = true;
+                yield break;
+            }
+            _fetchFailed = false;
+            _etag = string.IsNullOrEmpty(etag) ? null : etag;
             List<RunCategory> list = RunCategory.Parse(body);
+            string changed = Changes(_categories, list);
             _categories = list;
-            _catStatus = list.Count == 0 ? "The site has no published categories yet." : list.Count + " categories from the site.";
-            Ctx.Log.LogInfo("Run mode: " + list.Count + " categories from the site.");
+            _catStatus = (list.Count == 0 ? "The site has no published categories yet" : list.Count + " categories from the site") +
+                         " (checked " + when + ")." + (changed.Length > 0 && Ctx.Run.Active ? " Changed: " + changed + " - from the next attempt." : "");
+            Ctx.Log.LogInfo("Run mode: " + list.Count + " categories from the site" + (changed.Length > 0 ? " (changed: " + changed + ")" : "") + ".");
+            if (changed.Length > 0 && Ctx.Run.Active)
+                Ctx.Notice.Show("Run categories updated (" + changed + ") - they apply from the next attempt.", 6f);
             try { File.WriteAllText(Path.Combine(Ctx.ConfigDirectory, CategoriesFile), body, new UTF8Encoding(false)); }
             catch (Exception ex) { Ctx.Log.LogWarning("Run mode: categories not saved: " + ex.Message); }
+        }
+
+        /// "Any% - Normal v4, Manhunt (new)": what differs between two lists
+        /// (empty: the same).
+        private static string Changes(List<RunCategory> before, List<RunCategory> now)
+        {
+            List<string> parts = new List<string>();
+            for (int i = 0; i < now.Count; i++)
+            {
+                RunCategory old = RunCategory.Find(before, now[i].Id);
+                if (old == null) parts.Add(now[i].Name + " (new)");
+                else if (old.Version != now[i].Version) parts.Add(now[i].Name + " v" + now[i].Version);
+            }
+            for (int i = 0; i < before.Count; i++)
+                if (RunCategory.Find(now, before[i].Id) == null) parts.Add(before[i].Name + " (removed)");
+            return string.Join(", ", parts.ToArray());
         }
 
         /// The category a run starts under: the run spot's, else the picked one.
@@ -131,6 +182,18 @@ namespace ForestOverlay.Modules
                 else if (p == RunCategory.Forced) forced.Add(f.Label);
             }
             if (forced.Count > 0) sb.Append("On for everyone: ").Append(string.Join(", ", forced.ToArray())).Append(". ");
+            if (c.IsForced("logs")) sb.Append("Logs held: ").Append(c.EffectiveLogCap).Append(". ");
+            if (c.IsForced("itemcaps"))
+            {
+                if (c.ItemCaps.Count == 0) sb.Append("Item caps: none set (the game's). ");
+                else
+                {
+                    sb.Append("Item caps: ");
+                    for (int i = 0; i < c.ItemCaps.Count; i++)
+                        sb.Append(i > 0 ? ", " : "").Append(c.ItemCaps[i].Key).Append(' ').Append(c.ItemCaps[i].Value);
+                    sb.Append(". ");
+                }
+            }
             if (allowed.Count > 0) sb.Append("Your choice: ").Append(string.Join(", ", allowed.ToArray())).Append(". ");
             sb.Append("Everything else is locked.");
             if (!c.AntiSplice) sb.Append(" No anti-splice code on screen.");

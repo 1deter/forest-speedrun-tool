@@ -262,6 +262,8 @@ function categoryText(c) {
   if (c.spot) lines.push("spot = " + one(c.spot));
   lines.push("antisplice = " + (c.antisplice ? "on" : "off"), "amber = " + (c.amber ? "accepted" : "not accepted"));
   for (const f of c.features) lines.push("feature " + f.key + " = " + f.policy);
+  if (c.logcap > 0) lines.push("logcap = " + c.logcap);
+  for (const k of c.caps || []) lines.push("cap " + one(k.name).replace(/=/g, "").trim() + " = " + k.cap);
   for (const b of c.banned) if (b.trim()) lines.push("banned = " + one(b.trim()));
   for (const r of c.rules) lines.push("rule = " + one(r));
   if (c.src) lines.push("src = " + c.src);
@@ -303,7 +305,7 @@ function categoriesView(data, spots) {
     const id = slug(name.trim());
     if (list.some(x => x.id === id)) { sync.say("A category with that id exists: " + id); return; }
     const c = { id, name: name.trim(), status: "draft", difficulty: "any", creative: "any", multiplayer: "any", spot: "", antisplice: true,
-      amber: true, banned: [], rules: [], src: "", features: data.features.map(f => ({ key: f.key, label: f.label, policy: f.def })) };
+      amber: true, banned: [], rules: [], src: "", logcap: 0, caps: [], features: data.features.map(f => ({ key: f.key, label: f.label, policy: f.def })) };
     adminCall("PUT", "/categories/" + id, categoryText(c)).then(() => adminPage("categories"), e => sync.say("Failed: " + e.message));
   }
 
@@ -339,6 +341,9 @@ function categoryEditor(x, features, spots, rerender) {
   const anti = el("input", { type: "checkbox", checked: c.antisplice ? "" : null });
   const amber = el("input", { type: "checkbox", checked: c.amber ? "" : null });
   const banned = el("textarea", { rows: 4 }, c.banned.join("\n"));
+  // The numbers a forced feature applies (a manhunt host sets them).
+  const logcap = el("input", { class: "search", type: "number", min: 1, max: 99, value: c.logcap > 0 ? c.logcap : "", placeholder: "5" });
+  const caps = el("textarea", { rows: 4, placeholder: "Rock = 50\nStick = 30" }, (c.caps || []).map(k => k.name + " = " + k.cap).join("\n"));
   const rules = el("textarea", { rows: 8 }, c.rules.join("\n"));
   const policies = {};
   const featureRows = features.map(f => {
@@ -356,6 +361,15 @@ function categoryEditor(x, features, spots, rerender) {
       features: features.map(f => ({ key: f.key, policy: policies[f.key].value })),
     };
     if (!out.name) { save.say("A name, please."); return; }
+    const lc = logcap.value.trim() ? parseInt(logcap.value, 10) : 0;
+    if (logcap.value.trim() && !(lc >= 1 && lc <= 99)) { save.say("The log cap is 1-99 (empty: 5)."); return; }
+    out.logcap = lc;
+    out.caps = [];
+    for (const line of caps.value.split("\n").map(s => s.trim()).filter(Boolean)) {
+      const m = /^(.+?)\s*[=:]\s*(\d+)$/.exec(line);
+      if (!m || +m[2] < 1 || +m[2] > 9999) { save.say("Item caps: one per line as \"Item name = cap\" (1-9999) - not: " + line); return; }
+      out.caps.push({ name: m[1].trim(), cap: +m[2] });
+    }
     save.say("…");
     try { const r = await adminCall("PUT", "/categories/" + x.id, categoryText(out)); save.say("Saved as version " + r.version + "."); setTimeout(() => adminPage("categories"), 700); }
     catch (e) { save.say("Failed: " + e.message); }
@@ -392,6 +406,9 @@ function categoryEditor(x, features, spots, rerender) {
     el("h3", null, "Overlay features in a run"),
     el("p", { class: "sub" }, "Locked: unusable during a run. Runner's choice: usable, named on the attempt's page. Forced on: on for everyone, unchangeable (e.g. a manhunt)."),
     el("div", { class: "tablewrap" }, el("table", { class: "admin" }, el("tbody", null, featureRows))),
+    field("Log cap (when Logs in the inventory is forced on)", logcap, "How many logs everyone's inventory holds; empty = 5."),
+    field("Item caps (when Item caps is forced on)", caps,
+      "One per line, \"Item name = cap\", with the game's item names (Rock, Stick, Rope, DuctTape...). The game says on the runner's screen if a name is not one of its items."),
     field("Banned moves (one per line)", banned, "Shown on every attempt's page. Detecting them automatically comes later."),
     field("Rules (one per line)", rules),
     c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),

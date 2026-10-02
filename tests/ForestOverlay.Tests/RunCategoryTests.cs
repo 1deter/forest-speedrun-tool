@@ -78,6 +78,31 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void Caps_RoundTrip_Clamped_NamesKeptOneLine()
+        {
+            RunCategory c = new RunCategory { Id = "manhunt", Name = "Manhunt" };
+            Assert.Equal(RunCategory.DefaultLogCap, c.EffectiveLogCap);   // not set: the mod's default
+            c.LogCap = 12;
+            Assert.True(c.SetItemCap("Rock", 50));
+            Assert.True(c.SetItemCap(" Duct Tape ", 20000));             // clamped to 9999, trimmed
+            Assert.True(c.SetItemCap("rock", 60));                       // the same item, case ignored: replaced
+            Assert.True(c.SetItemCap("Bad=Name\n", 3));                  // '=' and newlines cannot break the line
+            Assert.False(c.SetItemCap("  ", 3));
+
+            string text = c.Format();
+            Assert.Contains("logcap = 12\n", text);
+            Assert.Contains("cap Duct Tape = 9999\n", text);
+            RunCategory b = RunCategory.Parse(text)[0];
+            Assert.Equal(12, b.EffectiveLogCap);
+            Assert.Equal(new[] { "rock:60", "Duct Tape:9999", "BadName:3" }, b.ItemCaps.ConvertAll(k => k.Key + ":" + k.Value));
+            Assert.Equal(text, b.Format());
+
+            RunCategory bad = RunCategory.Parse("[category]\nid = x\nlogcap = 500\ncap Rock = nope\ncap Stick = 0\n")[0];
+            Assert.Equal(RunCategory.LogCapMax, bad.LogCap);
+            Assert.Empty(bad.ItemCaps);
+        }
+
+        [Fact]
         public void Report_CarriesTheCategoryAndTheGame()
         {
             RunReport r = new RunReport { Category = "any-normal", CategoryVersion = 4, Difficulty = "Normal", Creative = false, Multiplayer = true };

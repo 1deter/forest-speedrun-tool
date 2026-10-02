@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace ForestOverlay.Data
@@ -34,6 +35,9 @@ namespace ForestOverlay.Data
     //   antisplice = on
     //   amber = accepted              accepted / not accepted
     //   feature godmode = locked      one line per feature not at its default
+    //   logcap = 10                   the log cap when "logs" is forced on (1-99)
+    //   cap Rock = 50                 an item cap (the game's item name) when
+    //                                 "itemcaps" is forced on (1-9999)
     //   banned = The explosives glitch
     //   rule = -Time starts when player movement occurs
     //   src = xk9jypgd/abc123         speedrun.com category / subcategory value
@@ -107,6 +111,14 @@ namespace ForestOverlay.Data
         public bool AntiSplice = true;
         public bool AmberAccepted = true;
         public string Source = "";
+        /// The log cap a forced "logs" uses (0: not set - the game's mod default).
+        public int LogCap;
+        /// The item caps a forced "itemcaps" uses: item name (the game's
+        /// database name) -> cap, in the moderators' order (author,
+        /// 2026-10-02: a manhunt host sets the numbers).
+        public readonly List<KeyValuePair<string, int>> ItemCaps = new List<KeyValuePair<string, int>>();
+        public const int LogCapMax = 99, ItemCapMax = 9999;
+        public const int DefaultLogCap = 5;
         public readonly List<string> Banned = new List<string>();
         public readonly List<string> Rules = new List<string>();
         private readonly Dictionary<string, string> _features = new Dictionary<string, string>();
@@ -129,6 +141,33 @@ namespace ForestOverlay.Data
             if (value == Forced && !f.Toggle) return false;
             if (value == f.Default) _features.Remove(key); else _features[key] = value;
             return true;
+        }
+
+        /// Sets an item's cap (a name already listed is replaced, case
+        /// ignored). False for an empty name; the cap is clamped.
+        public bool SetItemCap(string name, int cap)
+        {
+            name = ItemName(name);
+            if (name.Length == 0) return false;
+            cap = Math.Max(1, Math.Min(ItemCapMax, cap));
+            for (int i = 0; i < ItemCaps.Count; i++)
+                if (string.Equals(ItemCaps[i].Key, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    ItemCaps[i] = new KeyValuePair<string, int>(name, cap);
+                    return true;
+                }
+            ItemCaps.Add(new KeyValuePair<string, int>(name, cap));
+            return true;
+        }
+
+        /// The log cap a forced "logs" applies.
+        public int EffectiveLogCap { get { return LogCap > 0 ? LogCap : DefaultLogCap; } }
+
+        /// An item name as the format keeps it: one line, no '=' (the
+        /// key / value separator), trimmed.
+        public static string ItemName(string s)
+        {
+            return OneLine(s).Replace("=", "").Trim();
         }
 
         public bool IsLocked(string key) { return Policy(key) == Locked; }
@@ -188,6 +227,13 @@ namespace ForestOverlay.Data
                     c.SetPolicy(key.Substring(8).Trim(), value.Trim());
                     continue;
                 }
+                if (key.StartsWith("cap "))
+                {
+                    int cap;
+                    if (int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out cap) && cap > 0)
+                        c.SetItemCap(key.Substring(4), cap);
+                    continue;
+                }
                 switch (key)
                 {
                     case "id": c.Id = value.Trim(); break;
@@ -201,6 +247,11 @@ namespace ForestOverlay.Data
                     case "antisplice": c.AntiSplice = value.Trim() != "off"; break;
                     case "amber": c.AmberAccepted = value.Trim() != "not accepted"; break;
                     case "src": c.Source = value.Trim(); break;
+                    case "logcap":
+                        int logs;
+                        if (int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out logs) && logs > 0)
+                            c.LogCap = Math.Min(LogCapMax, logs);
+                        break;
                     case "banned": if (value.Trim().Length > 0) c.Banned.Add(value.Trim()); break;
                     case "rule": c.Rules.Add(value.TrimEnd()); break;
                 }
@@ -245,6 +296,9 @@ namespace ForestOverlay.Data
                 string v;
                 if (_features.TryGetValue(Features[i].Key, out v)) Line(sb, "feature " + Features[i].Key, v);
             }
+            if (LogCap > 0) Line(sb, "logcap", LogCap.ToString(CultureInfo.InvariantCulture));
+            for (int i = 0; i < ItemCaps.Count; i++)
+                Line(sb, "cap " + ItemName(ItemCaps[i].Key), ItemCaps[i].Value.ToString(CultureInfo.InvariantCulture));
             for (int i = 0; i < Banned.Count; i++) Line(sb, "banned", Banned[i]);
             for (int i = 0; i < Rules.Count; i++) Line(sb, "rule", Rules[i]);
             if (Source.Length > 0) Line(sb, "src", Source);

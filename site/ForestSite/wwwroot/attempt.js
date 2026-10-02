@@ -78,6 +78,14 @@ async function attemptPage(id) {
 
   // The category's rules as they were for this attempt: what the overlay
   // allowed, the banned moves (checked by eye for now) and the rules.
+  // The numbers a forced feature ran with (a manhunt's log / item caps).
+  function forcedNumbers(c) {
+    const parts = [];
+    if (c.features.some(f => f.key === "logs" && f.policy === "forced")) parts.push("logs held " + (c.logcap > 0 ? c.logcap : 5));
+    if (c.features.some(f => f.key === "itemcaps" && f.policy === "forced"))
+      parts.push((c.caps || []).length ? "item caps " + c.caps.map(k => k.name + " " + k.cap).join(", ") : "no item caps set");
+    return parts.length ? el("p", null, "Set for everyone: " + parts.join("; ") + ".") : null;
+  }
   let rules = null;
   if (cat) {
     const special = cat.features.filter(f => f.policy !== "locked");
@@ -87,6 +95,7 @@ async function attemptPage(id) {
         (cat.antisplice ? "" : " This category does not use the anti-splice codes.")),
       special.length ? el("p", null, "Overlay features: " + special.map(f => f.label + " (" + (f.policy === "forced" ? "on for everyone" : "runner's choice") + ")").join(", ") +
         ". Everything else is locked.") : el("p", null, "Every overlay feature that changes the game is locked."),
+      forcedNumbers(cat),
       cat.banned.length ? el("div", null, el("h3", null, "Banned moves (check the video)"), el("ul", null, cat.banned.map(b => el("li", null, b)))) : null,
       cat.rules.length ? el("details", { class: "raw" }, el("summary", null, "Rules"), el("ul", null, cat.rules.map(r => el("li", null, r)))) : null);
   }

@@ -273,6 +273,24 @@ namespace ForestOverlay.Game
             return null;
         }
 
+        /// The id of the item called `name` (case and spaces ignored: a
+        /// category's "Duct Tape" finds DuctTape); 0 when the database is
+        /// not readable yet or has no such item.
+        public int IdForName(string name)
+        {
+            BuildCatalog();
+            if (string.IsNullOrEmpty(name)) return 0;
+            string want = name.Replace(" ", "");
+            for (int i = 0; i < _catalog.Count; i++)
+                if (string.Equals(_catalog[i].Name, name, StringComparison.OrdinalIgnoreCase)) return _catalog[i].Id;
+            for (int i = 0; i < _catalog.Count; i++)
+                if (string.Equals(_catalog[i].Name.Replace(" ", ""), want, StringComparison.OrdinalIgnoreCase)) return _catalog[i].Id;
+            return 0;
+        }
+
+        /// True once the item database has been read.
+        public bool CatalogReady { get { BuildCatalog(); return _catalogBuilt; } }
+
         /// Substring match, ranked so that a name STARTING with the query
         /// beats one merely containing it - typing "rope" should offer
         /// Rope before Rope Bridge Kit.
