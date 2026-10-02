@@ -107,7 +107,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
@@ -543,6 +543,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places.
 79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back.
 80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
+81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
 
 ---
 
@@ -594,28 +595,29 @@ identity.
 
 ## Current status
 
-**Released: v0.24.200** (2026-10-02). The author runs it via the in-game
-updater (v0.24.200 in the game, Slot 1). **480 tests** (+ 46 site tests).
+**Released: v0.24.202** (2026-10-02). The author runs it via the in-game
+updater (v0.24.202 in the game, Slot 1). **491 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.200 in the game)
+### Pick up here (2026-10-02, v0.24.202 in the game)
 
 **Session plan (author, 2026-10-02):** one item per session (the
-overnight session ran v0.24.184-200 in one context - costly). This
-session only slimmed this file (detail moved to
-[`docs/investigations.md`](docs/investigations.md)) and queued the items
-below as task chips. Start each session with `qa_read new_only`.
+overnight session ran v0.24.184-200 in one context - costly). Start each
+session with `qa_read new_only`. Last session: **rides put back**
+(v0.24.201-202, `Game/RideModes`): zipline, sled, glider and cliff climb
+built in Slot 1 (Creative) over the bridge and confirmed live for Quick
+load (and Full load, zipline); found and fixed on the way: a pushed sled
+restored near the world origin, a capture in flight dropping the glider
+(gotcha 81, game-notes *Rides*). QA item 9 asks for the feel with real
+input.
 
 **Next, in order (one per session):**
-1. **Rides put back after a Quick load** (zipline, sled, glider, cliff /
-   wall climb; only ended since v0.24.195) - investigations *Savestates -
-   open*. Build a ride in Creative over the bridge, or ask QA for a save.
-2. **Quick load audit, the rest** - a building placed since the capture,
+1. **Quick load audit, the rest** - a building placed since the capture,
    the crafting cog, the inventory open at capture (docs/savestates.md
-   *Not covered yet*).
-3. **Website: fewer texture requests** (188 per Labskip 3D view after the
+   *Not covered yet*). Building over the bridge: game-notes *Rides*.
+2. **Website: fewer texture requests** (188 per Labskip 3D view after the
    packs) and LODs for heavy chunks on phones (docs/website.md).
-4. **LiveSplit's PB chance / total playtime** summary lines (splits table).
-5. **A session with the author** for what needs their eyes, hands or a
+3. **LiveSplit's PB chance / total playtime** summary lines (splits table).
+4. **A session with the author** for what needs their eyes, hands or a
    decision: investigations *Not seen by the author / needs hands*, and
    the decisions below.
 
@@ -662,7 +664,9 @@ lighter kept lit, settings persist, line options; v0.24.192 item caps;
 v0.24.193 first-input / rope events, a spot's cave on Go; v0.24.194 HUD
 "ON NOW" + last time; v0.24.195 rides ended on F7; v0.24.196 fast
 building, started attempts; v0.24.197 Timmy drawings; v0.24.198-199
-collider filter + real shapes; v0.24.200 the unfinished run's red line.
+collider filter + real shapes; v0.24.200 the unfinished run's red line;
+v0.24.201-202 rides put back after a restore (+ the sled / glider capture
+fixes).
 
 ### Standing decisions and people
 

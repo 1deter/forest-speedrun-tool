@@ -1425,6 +1425,67 @@ header; before a Quick load, leave the current climb and enter the captured
 rope; after a Full load, after the hold - its per-frame pin undid a climb
 entered before it; Go / `tp` leave a climb).
 
+### Rides: zipline, sled, hang glider, cliff climb (IL + bridge, v0.24.201-202)
+
+All four built in Slot 1 (Creative) over the bridge and ridden by calls
+(no input). None is in the save; the plugin: `Game/RideModes` (`ride`
+header, `Data/RideState`).
+
+- **Building over the bridge** (Creative): `call
+  static:TheForest.Utils.LocalPlayer Create.CreateBuilding <BuildingTypes>`
+  (`Zipline`, `LogSled`, `HangGlider`, ...), `Create.PlaceGhost false`, then
+  `call <ghost> <Architect>._craftStructure.Build` (or `type
+  Craft_Structure` -> `Craft_Structure.Build`) builds it at once. A zipline
+  ghost (`ZiplineArchitect`) places its gates by Fire1 - instead `set
+  <ghost> ZiplineArchitect._gate1.transform.parent null` where gate 1
+  goes (the far end), walk / `tp` to the start, the same for `_gate2`,
+  then PlaceGhost + Build. The rider grabs at gate 2's `EnterTrigger`
+  (`activateZipLine`) and slides toward gate 1; up to 470 m.
+- **Zipline** (`playerZipLineAction` on SpecialActions): `activateZipLine.
+  GrabZiplineUpdate` sends `EnterZipLine(<trigger transform>)` on Take.
+  It sets `_onZipLine`, stows the weapon, puts the body at the trigger's
+  box centre and starts `StickToZipLine`: velocity held at zero until the
+  animator's layer-0 state is `_zipIdleHash` (`idleToZip` past 0.39), then
+  once `_fixPlayerPosition`: body to `_onRopeAttachPos`; every
+  FixedUpdate the body is projected onto the trigger's local z (x 0, y
+  -2.5), pushed along its forward (10, Acceleration), capped at 50 m/s.
+  It lets go after 1.3 s at low speed, near the ground, or on Take /
+  Jump. `ExitZipLine` over 10 m/s starts `PreserveExitVelocity` (a push
+  for 1 s, `FpCharacter._doingExitVelocity`). Line paths repeat
+  (`Ex_ZiplineBuilt(Clone)/EnterTrigger` for every line): find a line by
+  its trigger's position.
+- **Sled** (`PlayerPushSledAction`): `activateSledPush.enableSled`
+  (needs a Rigidbody on the sled's root) sends `enterPushSled(trigger)`;
+  1 s later `connectRigidBody` **destroys the sled's Rigidbody and
+  parents its root under the player** (`lookAtTerrain`, local (-1.32,
+  -1.3, 3.155)). `exitPushSled` unparents it and adds a Rigidbody (mass
+  110, layer 28). A save while pushing therefore holds the local offset:
+  a restore put the sled at about (-1.3, -1.3, 3.2) in the world with no
+  Rigidbody (bridge, v0.24.200; fixed v0.24.201).
+- **Hang glider** (`PlayerHangGliderAction`, disabled until held): a
+  built glider's `activateHangGlider.SendPickupGlider` -> `pickupGlider`
+  (`holdingGlider`, weapon stowed, the world copy destroyed). Flying
+  starts by itself after 0.9 s in the air (`FlyWithGlider`,
+  `flyingGlider`, `wasFlying`) and stops on landing. `DropGlider`
+  (Drop / AltFire, a rope, raft, sled, sitting, outside +-2200, ...)
+  spawns a world glider at the hands. **The game's save drops it first**
+  (held gliders are not saved); the capture did the same and so ended a
+  flight - since v0.24.201 it drops on the serialization frame only and
+  takes it back (the dropped copy is in the save: a same-frame
+  instantiate registers in time).
+- **Cliff climb** (`PlayerClimbCliffAction`; the climbing axe, item 138,
+  carries `activateCliffClimb`): any layer-13 rock (`Collision` meshes,
+  2264 of them) within 5 m of the camera, Take with the axe held ->
+  `setEnterClimbPos(hit)` + `enterClimbCliff(axe)`, and
+  `AnimControl.cliffEnterNormal` / `cliffEnterPos`. It also sets
+  `onRope` (enterClimbMode), so `RopeClimb.Leave` ends it too.
+  `playerAnimatorControl.updateCliffClimb` moves the body by root motion
+  along five rays; **after 2 s it ends the climb itself** when the
+  averaged normal is under 30 degrees from up or the forward ray misses
+  (12 m) - the sloped rock at (465, 62.5, -60) near the Slot 1 spot ends
+  every climb that way; a steep wall is needed for a long one (Cave 10's
+  climb entrance is near, ~(480, 48, -80), not tried).
+
 ## Saving and loading
 
 The game uses **UnitySerializer** (`LevelSerializer`, `LevelLoader`,

@@ -260,3 +260,11 @@ mode and run lines kept across a game restart; a Go to a spot with
 `cave = cave06` sets the game's current cave, streams only Cave 6's
 props (16 scenes before) and fires no cave event.
 
+**2026-10-02, bridge (v0.24.201-202, Slot 1 Creative, rides built over
+the bridge and entered by calls):** a capture on a zipline restores on
+the line at the captured spot at its speed (21 m/s), Quick and Full
+load; pushing a sled - back pushing it at its place, also from a
+v0.24.200 capture whose sled had gone to the world origin; a capture in
+flight keeps gliding, and its restore is back in the air gliding at the
+captured velocity; a cliff climb with the climbing axe is back on the
+cliff. The restore deletes a glider dropped since (not in the save).

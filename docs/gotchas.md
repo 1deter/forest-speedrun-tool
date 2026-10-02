@@ -680,3 +680,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     you are not testing, and decide what a capture should record from the
     live objects, not from what the serializer wrote.
 
+81. **A world object the player carries is saved where its parent puts
+    it.** (2026-10-02, v0.24.201.) Pushing a log sled parents its root
+    under the player (local (-1.32, -1.3, 3.155)) and destroys its
+    Rigidbody; the save writes the local position, so a restore of a
+    capture taken while pushing put the sled near the world origin,
+    without a Rigidbody (seen only once a real sled was built). The same
+    session: the capture copied the game's save order and dropped a held
+    glider at its start - a capture in flight ended the flight. When an
+    action holds something, read what it parents and destroys
+    (`ilscan body` of its connect / exit), capture during it, and look at
+    the object after the restore, not only at the player.
+

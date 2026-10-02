@@ -68,6 +68,18 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   With *Logs in the inventory* on, the `logs` header keeps the stored
   count and it is set back when the restore ends (`LogStore.Apply`,
   v0.24.135; the game's own `_logs` round trip was unreliable once).
+  **Rides** (v0.24.201-202, `Game/RideModes`, `ride` header =
+  `Data/RideState`): a capture on a zipline, log sled, hang glider (held
+  or flying) or cliff climb notes it (read before the capture's frames);
+  a Quick load (after the hands are back - the climbing axe) and a Full
+  load (after the hold) put the player back with the game's own entry
+  calls: on the line at the captured spot and speed, pushing the sled at
+  its captured place, gliding at the captured velocity (the save's
+  dropped glider picked up), on the cliff. Before a Quick load a ride in
+  flight is ended and a held glider dropped (one not in the save is then
+  deleted by the restore). Cave ropes: `Game/RopeClimb` (`rope`). Not
+  covered: a climbing rope on a wall (`PlayerClimbWallAction`, ended
+  only), the raft.
 
 ## Quick load audit (2026-10-01, v0.24.187-188)
 
@@ -101,6 +113,9 @@ component's DelayedAwake / OnDeserialized as well (gotcha 79).
 | A long teleport, cave visit, a different item equipped | as captured |
 | The cave map's visited areas | unchanged in the test (all false) |
 | Worn clothing (`_wornClothingItems`, the visible outfit) | as captured |
+| On a zipline / sled / glider / cliff at capture | **fell / stood there** - put back v0.24.201-202 |
+| Pushing a sled at capture | **the sled went to the world origin** - fixed v0.24.201 |
+| Gliding during the capture itself | **the capture dropped the glider** - fixed v0.24.201 |
 
 Not covered yet (no bridge call, or needs hands): buildings placed since (handled by
 the restore's "delete objects not in the save"), the crafting cog, the

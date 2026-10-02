@@ -40,8 +40,11 @@ Needs hands (no bridge call):
 - **The red line of an unfinished run** (v0.24.200): the line is kept (16
   points); the drawing shows only for the editor's selected entry, which a
   bridge `go` does not set (QA item 8).
-- **Rides ended on F7** (v0.24.195, `Game/RideModes`): wiring checked with
-  faked flags only (QA item 7).
+- **Rides ended on F7 and put back** (v0.24.195, 201-202,
+  `Game/RideModes`): bridge-confirmed with real rides built in Creative
+  (zipline, sled, glider, cliff), entered by calls, not input; a runner's
+  feel (camera on the line, the sled push, the glide) is QA items 7 and
+  9. A long cliff climb needs a steep wall (game-notes *Rides*).
 
 ## Tom's native crashes - paused until Tom answers (author)
 
@@ -170,14 +173,10 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
 
 ## Savestates - open, not blocking
 
-- **Rides put back** (only ended since v0.24.195): cave ropes are put
-  back (`Game/RopeClimb`); zipline, sled, wall / cliff climb, hang glider
-  are not. Find each mode's flag and enter / exit calls (`ilscan type
-  activateZipLine` / `activateSledPush` / `activateHangGlider`,
-  `playerAnimatorControl.cliffClimb`, `resetClimbWall` /
-  `resetClimbCliff`), capture on one, restore after leaving - as for the
-  rope (game-notes *Rope climb entrances*). Needs a real ride: build one
-  in Creative, or ask for a save.
+- **A climbing rope on a wall** (`PlayerClimbWallAction`, shares the
+  rope's `onRope`): ended on a restore, not put back (`RopeClimb` keys on
+  `PlayerClimbRopeAction._currentRopeRoot`). Same recipe as the rides
+  (game-notes *Rides*) if a runner needs it.
 - **Quick load audit, the rest** (docs/savestates.md *Not covered yet*):
   a building placed since, the crafting cog, the inventory open at
   capture.
@@ -211,7 +210,10 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
 
 - **Slots**: Slot 2 is the only Normal slot; 1 and 5 Creative, 3 Hard, 4
   Peaceful. A survival start state restores only in a survival game.
-- **Savestates kept**: `audit-base` (Slot 1, plane wreck, axe + lighter
+- **Savestates kept**: `zipB` / `sledC` / `gliderB` / `cliffB` (Slot 1,
+  on each ride, v0.24.201; their world has two ziplines, a sled and a
+  glider built near (395-435, 75, -40..234) - restore any of them to get
+  the rides back), `audit-base` (Slot 1, plane wreck, axe + lighter
   held - Quick load audits), `phantom-a`, `keycard-pickup-testing`,
   `physA`, `elevPre`, `elevMid`, `rope104`, `axe-held` / `axe-lighter`
   (Slot 2), `maks-boost`, Tom's `tom-c6boss`, `tom-c6`, `tom-c6exit`,
