@@ -206,16 +206,89 @@ namespace ForestOverlay.Game
 
                 GL.Color(c.isTrigger ? TriggerColour : SolidColour);
 
-                // An axis-aligned world-space box is not the true shape for
-                // a rotated mesh collider, but it is what Unity itself can
-                // give cheaply and it is enough to see where a volume is.
-                Bounds b = c.bounds;
-                DrawWireBox(b.center, b.extents);
+                // The real shape for boxes, spheres and capsules (runners:
+                // "more detailed hitboxes", v0.24.199); a mesh collider keeps
+                // its world bounds - the true shape is the mesh itself.
+                BoxCollider box = c as BoxCollider;
+                SphereCollider sphere = box == null ? c as SphereCollider : null;
+                CapsuleCollider capsule = box == null && sphere == null ? c as CapsuleCollider : null;
+                if (box != null) DrawBox(box);
+                else if (sphere != null) DrawSphere(sphere);
+                else if (capsule != null) DrawCapsule(capsule);
+                else
+                {
+                    Bounds b = c.bounds;
+                    DrawWireBox(b.center, b.extents);
+                }
             }
 
             GL.End();
             GL.PopMatrix();
             DrawTarget.Record(start, _found.Count * 24);
+        }
+
+        private const int Segments = 16;
+
+        private static void DrawBox(BoxCollider b)
+        {
+            Matrix4x4 m = b.transform.localToWorldMatrix;
+            Vector3 c = b.center, e = b.size * 0.5f;
+            Vector3 p000 = m.MultiplyPoint3x4(c + new Vector3(-e.x, -e.y, -e.z));
+            Vector3 p001 = m.MultiplyPoint3x4(c + new Vector3(-e.x, -e.y, e.z));
+            Vector3 p010 = m.MultiplyPoint3x4(c + new Vector3(-e.x, e.y, -e.z));
+            Vector3 p011 = m.MultiplyPoint3x4(c + new Vector3(-e.x, e.y, e.z));
+            Vector3 p100 = m.MultiplyPoint3x4(c + new Vector3(e.x, -e.y, -e.z));
+            Vector3 p101 = m.MultiplyPoint3x4(c + new Vector3(e.x, -e.y, e.z));
+            Vector3 p110 = m.MultiplyPoint3x4(c + new Vector3(e.x, e.y, -e.z));
+            Vector3 p111 = m.MultiplyPoint3x4(c + new Vector3(e.x, e.y, e.z));
+            Line(p000, p001); Line(p001, p011); Line(p011, p010); Line(p010, p000);
+            Line(p100, p101); Line(p101, p111); Line(p111, p110); Line(p110, p100);
+            Line(p000, p100); Line(p001, p101); Line(p011, p111); Line(p010, p110);
+        }
+
+        private static float MaxAbs(Vector3 v) { return Mathf.Max(Mathf.Abs(v.x), Mathf.Max(Mathf.Abs(v.y), Mathf.Abs(v.z))); }
+
+        private static void DrawSphere(SphereCollider s)
+        {
+            Transform t = s.transform;
+            Vector3 c = t.TransformPoint(s.center);
+            float r = s.radius * MaxAbs(t.lossyScale);
+            Ring(c, t.right, t.up, r);
+            Ring(c, t.up, t.forward, r);
+            Ring(c, t.forward, t.right, r);
+        }
+
+        private static void DrawCapsule(CapsuleCollider k)
+        {
+            Transform t = k.transform;
+            Vector3 s = t.lossyScale;
+            Vector3 axis, u, v;
+            float along, across;
+            if (k.direction == 0) { axis = t.right; u = t.up; v = t.forward; along = Mathf.Abs(s.x); across = Mathf.Max(Mathf.Abs(s.y), Mathf.Abs(s.z)); }
+            else if (k.direction == 2) { axis = t.forward; u = t.right; v = t.up; along = Mathf.Abs(s.z); across = Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y)); }
+            else { axis = t.up; u = t.right; v = t.forward; along = Mathf.Abs(s.y); across = Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.z)); }
+            Vector3 c = t.TransformPoint(k.center);
+            float r = k.radius * across;
+            float half = Mathf.Max(0f, k.height * along * 0.5f - r);
+            Vector3 a = c + axis * half, b = c - axis * half;
+            Ring(a, u, v, r); Ring(b, u, v, r);
+            Line(a + u * r, b + u * r); Line(a - u * r, b - u * r);
+            Line(a + v * r, b + v * r); Line(a - v * r, b - v * r);
+            Ring(a, u, axis, r); Ring(a, v, axis, r);   // the ends' domes, as rings
+            Ring(b, u, axis, r); Ring(b, v, axis, r);
+        }
+
+        // A circle of radius r around c in the plane of x and y (unit vectors).
+        private static void Ring(Vector3 c, Vector3 x, Vector3 y, float r)
+        {
+            Vector3 prev = c + x * r;
+            for (int i = 1; i <= Segments; i++)
+            {
+                float a = i * (Mathf.PI * 2f / Segments);
+                Vector3 p = c + (x * Mathf.Cos(a) + y * Mathf.Sin(a)) * r;
+                Line(prev, p);
+                prev = p;
+            }
         }
 
         private static void DrawWireBox(Vector3 c, Vector3 e)
