@@ -827,9 +827,8 @@ game internals: game-notes *Terrain, and the world from above*.
   memory, for the 2D map (the photo is the game's own renderer; the
   memory route = the 3D item below). Long-term (backlog): **an exact 3D
   world** - the terrain from its splat maps, every prop.
-- **Next, in order:** (1) the 3D world at the Elevator Boost end (snow
-  cliffs: the top layer; the run's end is past the map's south edge, z
-  -1969). (2) ~~The sparse lab, load size~~ done (item 5 above);
+- **Next, in order:** (1) the mountains past the south edge are blurry
+  grey up close (the Elevator Boost end, *Pick up here*). (2) ~~The sparse lab, load size~~ done (item 5 above);
   left: texture requests (458 per spot), decimation / LODs for heavy
   chunks on phones. Lab tip: a `tp` lands with the sections off - `call
   Sections/<area> Area.OnEnter null` switches one on (entering one leaves
@@ -1626,8 +1625,8 @@ list so we can move onto expanding more features".
     `1553447134911664168`) are in `Downloads\qa-reports\sxczurass\image.png`;
     panel / axe clipping and the boost behind it; anything
     new found on the way.
-13. Timmy-drawing sub-pieces (`DrawingsInventoryItemView._ids`), freeform
-    zone shapes.
+13. Freeform zone shapes (the drawing pieces are on the 100% tab since
+    v0.24.197).
 
 ### Deferred runner feedback
 
