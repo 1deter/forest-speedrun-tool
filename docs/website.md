@@ -248,14 +248,14 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `world/area-members.txt`, what each area switches on (below). Every
    `placed-*.txt` / `greebles-*.txt` in that folder goes into the export:
    keep diagnostic `Placed` dumps elsewhere (gotcha 78).
-2. **Export** (offline, ~1 min, `pip install UnityPy fast-simplification`):
+2. **Export** (offline, ~1 min, `pip install UnityPy meshoptimizer`):
    `python scripts/world-extract.py export` reads the scenes from the game's
    files (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
    `site/world-out/` (not in git): `world.json` (materials, meshes, models,
    chunks, files, `build`; `version` 3) and `b/<i>.bin` - every mesh,
    texture and chunk of instances packed (*Load size* below). `stats [level
    ...]` prints what a scene holds. The format is in the script's
-   docstring; the packing and the phones' LODs in `scripts/world_pack.py`'s.
+   docstring; the packing and the far copies in `scripts/world_pack.py`'s.
    `python scripts/world_pack.py repack <world> <new folder>` packs an
    existing world (any version, e.g. the live one downloaded) the same way
    without the game - a new `build`.
@@ -289,29 +289,50 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   mesh) and 2 (`p/` mesh packs + `q/` texture packs) are still read; a page older than
   version 3 shows no world for its json (no errors) - deploy the site
   before uploading one.
-- **Phone LODs** (2026-10-02): a mesh of 1000+ triangles gets a copy with a
-  quarter, else half of them (fast-simplification, per submesh, cut-outs
-  kept whole), only where 99% of its vertices stay within 2 cm and all
-  within 10 cm of the original at the largest scale it is drawn at; the copy
-  is a subset of the original vertices (uvs exact) and carries the full
-  mesh's normals (shading unchanged). Phones (`pointer: coarse`, as
-  map3d.js) draw it; collision keeps the full mesh. 60 meshes qualify -
-  cave spikes, props, bodies, bone piles - 2.7 MB, in files of their own per
-  area that desktops never fetch. Labskip on a phone: 63 requests, 43.9 MB,
-  **70.6M -> 67.9M triangles**, 0.002% of the pixels differ. A modest cut:
-  the heavy meshes cannot lose detail unseen - at a quarter Cave 6's ground
-  pieces sat 20-70 cm off and sank under the floor layers over them, trees
-  lost branches (metres), the cave walls stay 13 cm+ off at a half (the
-  first try, a quarter everywhere: 77M -> 26.6M, 24.9 MB, but holes in the
-  trees, changed shading and Cave 6's floor - not shipped). More would need
-  a distance switch (full near the camera, a LOD far) - not built.
+- **Far copies** (2026-10-02, live; every device): 90% of a view's
+  triangles are 400 m+ from the target, so each mesh of 200+ triangles a
+  rendered model draws gets a chain of lighter copies, each with its error
+  `e` in mesh units (`meshes[i].far` = their indices, lightest last; a
+  copy's `of` = i). world3d.js draws an instance with the lightest copy
+  whose error, at its scale and distance from the camera (to its bounding
+  sphere), is under `FAR_PIXELS` (1) of the drawing buffer - the Detail
+  button's density moves the switches out by itself. Each such model is one
+  InstancedMesh per copy, its instances dealt out by `split()` (when the
+  camera moved 2 m+ or the focal length changed, at most every 400 ms; only
+  a model whose instances changed copy is rewritten; ~4 ms for 46k instances
+  from scratch on a desktop, 0.6 ms when nothing changed), each culled by a
+  sphere round its own instances. Collision keeps the full mesh.
+  `forest3d.world.setFar(0)` = full meshes only (site-measure `NOFAR=1`).
+  The copies (`world_pack.py far_copies`, 16 s for the world): solid parts
+  simplified by **meshoptimizer** as far as an error allows (border edges
+  stay on their borders; fast-simplification slid branches' open ends up
+  the branch - whole branches went, and every tree's error was metres);
+  leaf cards (cut-out pieces of <= 64 triangles) thinned - 60 / 35 / 20 /
+  10% kept, each grown by 1 / sqrt(keep) about its centre so the canopy
+  keeps its cover (error: how far a grown card reaches past its old edge);
+  each copy the lightest pairing for its error, kept only under 70% of the
+  triangles before it (50% was tried: 26% more triangles, no faster). A copy
+  that moves no vertex is **shared**: indices only, over the full mesh's
+  vertices and normals. 3,185 copies of 931 meshes, 18.6 MB raw (11.6
+  shared), beside their mesh in its file. Measured live, same views (four
+  surface lookFroms, `site-measure.py`): **101.2M -> 33.0M triangles**,
+  48.3 -> 46.0 MB, 91 -> 92 requests; the 4080's frame 11.2 -> 6.8 ms
+  (a pixel read back after each; the draw calls 528 -> 663 cost ~1 ms of
+  submitting - a desktop GPU is not triangle-bound, a phone's is); Labskip
+  on a phone viewport 67.9M -> 23.1M, 61 requests, 40.1 MB. Pictures: 1-3%
+  of pixels differ by more than 8 levels (far canopies, cliff edges), the
+  same by eye at 2x. Not yet seen on a real phone. Before (same day): 60
+  phone-only copies within 2 cm (70.6M -> 67.9M; a quarter everywhere had
+  holed the trees and sunk Cave 6's floor).
 - **Collision is fetched when switched on** (2026-10-02): every collider's
   mesh was fetched and built, hidden; now a rebuild that finds a collision
   mesh missing fetches it ("loading...") and builds the model when it is here.
 - `python scripts/world_pack.py test` checks a synthetic world round-trips
-  (every blob's bytes, alignment, the LOD's vertices / normals / submeshes,
-  a repack); `... synthetic <out> [1|3]` makes a 9-chunk world near the
-  tree spot to upload to a local site.
+  (every blob's bytes, alignment, a repack) and its far copies (a hill's
+  shared and facing up, a bush's thinned cards covering 80-125% of the
+  leaves, lighter and erring more each, beside their mesh);
+  `... synthetic <out> [1|3]` makes a 9-chunk world near the tree spot to
+  upload to a local site.
 - **Brotli + gzip**: the upload writes `x.br` and `x.gz` beside each
   `.bin` / `.json` when smaller (`Precompressed.cs`, both at the smallest
   size, via a `.tmp` name so a request never gets half a file); a client
@@ -327,7 +348,11 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   decodes, never re-encodes) - every browser sends `br` over HTTPS, so
   accepted; `curl -H 'Accept-Encoding: gzip'` measures that, not what
   visitors get. `.gz` / `.br` names are never
-  accepted in an upload. Textures stay single files: JPEG / PNG gain
+  accepted in an upload. The server compresses before it answers, so
+  `aerial-upload.py --world` sends 16 MB chunks (a 61 MB one ran past
+  Cloudflare's 100 s: HTTP 524 with the world already cleared - rerun the
+  upload). Locally, an upload right after a start can race the startup pass
+  over a world without `.br` copies (a 500, file in use): upload again. Textures stay single files: JPEG / PNG gain
   nothing from gzip, are shared across chunks (cached once) and load
   through three.js's image loader by URL.
 
@@ -484,7 +509,8 @@ fetched 17.4 MB of textures for 10.4 used) 188 for 38.6 MB, reproduced
 exactly on a local site; version 3 (local) 60 for 41.9 MB. Tool:
 `scripts/site-measure.py` - `seed` copies a live spot and its runners' best
 runs to a local site (the same 3D fit), `view` counts a view's requests /
-bytes / triangles and shoots it (desktop, phone, narrow; `NOLOD`, `DELAY`).
+bytes / triangles / draw calls / frame time and shoots it (desktop, phone,
+narrow; `NOFAR`, `DELAY`).
 
 **The 3D view's look depends on load order** (2026-10-02, found while
 comparing): on the old (version 2) site, holding back random world files
@@ -505,7 +531,7 @@ models (chunks to z -2931) and are there, but up close they are smooth
 grey (TEX_MAX 256) with no snow on their tops, where the game shows
 detailed rock with snow - not looked into further.
 
-Open: a distance LOD switch for phones (above); the load-order look
+Open: the far copies on a real phone (author's eyes); the load-order look
 (above); the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button

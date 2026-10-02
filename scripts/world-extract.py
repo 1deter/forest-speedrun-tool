@@ -19,7 +19,7 @@ site/world-out, not in git; uploaded to the site like the aerial tiles):
                files; "version" 3 (1 = one file per blob, 2 = mesh and
                texture packs - both still read by the site)
   b/<i>.bin    everything below packed (scripts/world_pack.py: which file,
-               why, the phones' LODs); a mesh's / chunk's "at" = [file, byte
+               why, the far copies); a mesh's / chunk's "at" = [file, byte
                offset, byte length], "textures"[i] = [jpg place, png place].
                Written as these while the scenes are read, packed at the end:
   m/<i>.bin    a mesh: float32 positions (n x 3), float32 uv (n x 2) when
@@ -777,7 +777,7 @@ class Export:
         meta = {"version": 1, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
                 "meshes": self.meshes, "models": self.models, "chunks": chunks}
         meshes = len(self.meshes)
-        packed = world_pack.pack(self.out, meta)    # -> version 3: b/<i>.bin, LODs appended to meshes
+        packed = world_pack.pack(self.out, meta)    # -> version 3: b/<i>.bin, far copies appended to meshes
         with open(os.path.join(self.out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(meta, f, separators=(",", ":"))
         print(self.under, "instances under the terrain filed with the caves")

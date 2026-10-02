@@ -5,8 +5,11 @@
 
 --world uploads the 3D map's world instead (scripts/world-extract.py export
 -> site/world-out, to /api/admin/world, world.json last). Its .bin / .json
-are deflated in the zip; the server keeps a gzipped copy of each and serves
-that (Precompressed.cs) - nothing to send for it.
+are deflated in the zip; the server keeps a Brotli'd and a gzipped copy of
+each and serves those (Precompressed.cs) - nothing to send for it. Compressing
+at the smallest size takes the server a while, so the world goes in chunks of
+WORLD_CHUNK_MAX: a 61 MB one ran past Cloudflare's 100 s (HTTP 524) on
+2026-10-02.
 
 Zips the bake's output (scripts/aerial-bake.py -> site/aerial-out, not in
 git) into chunks under 90 MB (whole files per chunk; Cloudflare caps a
@@ -31,6 +34,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SITE = "https://forest.deter.cloud"
 DEFAULT_TILES = os.path.join(ROOT, "site", "aerial-out")
 CHUNK_MAX = 90 * 1024 * 1024
+WORLD_CHUNK_MAX = 16 * 1024 * 1024    # the server Brotli's + gzips each world file before it answers
 ZIP_OVERHEAD = 200          # local + central directory headers per entry, roughly, plus the name
 USER_AGENT = "ForestOverlay-aerial-upload/1.0 (+https://github.com/1deter/forest-speedrun-tool)"
 
@@ -50,14 +54,14 @@ def tile_files(folder, meta_name):
     return tiles, (meta_name, meta, os.path.getsize(meta))
 
 
-def chunks(tiles, meta):
-    """Lists of files, each under CHUNK_MAX zipped (stored, so the size is known); aerial.json last."""
+def chunks(tiles, meta, most=CHUNK_MAX):
+    """Lists of files, each under most zipped (stored, so the size is known); aerial.json last."""
     out, cur, size = [], [], 0
     for f in tiles + [meta]:
         need = f[2] + len(f[0]) * 2 + ZIP_OVERHEAD
-        if need > CHUNK_MAX:
+        if need > most:
             sys.exit("%s alone is over the chunk size" % f[0])
-        if cur and size + need > CHUNK_MAX:
+        if cur and size + need > most:
             out.append(cur)
             cur, size = [], 0
         cur.append(f)
@@ -106,7 +110,7 @@ def main():
     if not os.path.isdir(folder):
         sys.exit("no tile folder %s - run scripts/aerial-bake.py first" % folder)
     tiles, meta = tile_files(folder, kind + ".json")
-    parts = chunks(tiles, meta)
+    parts = chunks(tiles, meta, WORLD_CHUNK_MAX if world else CHUNK_MAX)
     total = sum(f[2] for f in tiles) + meta[2]
     print("%d tiles, %.1f MB, %d chunk(s) to %s" % (len(tiles), total / 1e6, len(parts), site))
     sent = 0
