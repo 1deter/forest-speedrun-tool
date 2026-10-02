@@ -5,6 +5,19 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.218 - 2026-10-02
+
+- Run categories: the moderators now set up categories on the website,
+  starting from speedrun.com's (and kept in step with them). A category
+  says which game setup it is played in, and for each overlay feature
+  whether it is locked, your choice, or on for everyone (for events like
+  a manhunt), plus whether the anti-splice code is shown.
+- The Runs tab shows the category for Start run mode (pick one with
+  < >); a run spot uses its own. During a run the category's settings
+  apply, and the report and the attempt's page name the category.
+- An attempt's page now checks the game against the category (difficulty,
+  Creative, multiplayer) and lists the category's rules and banned moves.
+
 ## v0.24.217 - 2026-10-02
 
 - Each run attempt now has its own page on the website - the link from

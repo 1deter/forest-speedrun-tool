@@ -124,7 +124,7 @@ Where things live:
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
-| **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts) | `Core/RunMode` (`Ctx.Run`: `Refuse(what)` at every practice entry point, `Active` for gameplay switches, flags), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site), `site/ForestSite/Attempts` (endpoints' logic + `Judge`, tested), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
+| **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts, categories) | `Core/RunMode` (`Ctx.Run`: `Refuse(feature, what)` at every practice entry point, `Locks` / `Forces` for gameplay switches, flags, `Use`), `Data/RunCategory` (the categories' text + features, tested, linked by the site), `Modules/RunModeModule.Categories` (fetch, cache, Runs tab pick), `site/ForestSite/Categories` (versions, speedrun.com sync, judging, tested), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site), `site/ForestSite/Attempts` (endpoints' logic + `Judge`, tested), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
 | Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
@@ -611,59 +611,57 @@ identity.
 
 ## Current status
 
-**Released: v0.24.217** (2026-10-02). The author runs it via the in-game
-updater (Slot 1). **529 tests** (+ 68 site tests).
+**Released: v0.24.218** (2026-10-02). The author runs it via the in-game
+updater (Slot 1). **535 tests** (+ 76 site tests).
 
-### Pick up here (2026-10-02, v0.24.217 released)
+### Pick up here (2026-10-02, v0.24.218 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. This session (v0.24.217):
-**run mode phase 3, the report page** - built, tested, live
-(docs/run-mode.md *The report page*): `/attempt/<id>` says green / amber /
-red in plain words, what the site saw (the receipt) and what ran (the
-report's findings, now part of the verdict), a check-a-code box, the log;
-**Allowed mods** on /admin (exact entries from what reports named); a
-changed game's report carries per-type hashes and the site names the
-changed parts by area (`site/ForestSite/GameCode/`: the Steam table,
-written in game with `RunIntegrity.WriteTypeHashes`, and `areas.txt`).
-Author's new rule (QA 2026-10-02): **anti-splicing is optional per
-category / run spot** - a phase 4 setting. Earlier (v0.24.211-216): run
-spots start runs (Restart = Full load + run mode), codes and receipts
-(phase 2), Creative / survival switching start states, restores from the
-title screen.
+mode, the report or anything a run uploads. This session (v0.24.218):
+**run mode phase 4, categories** (docs/run-mode.md *Categories*): the
+moderators' categories on /admin's *Categories* tab (any admin), seeded
+and kept in step with speedrun.com daily (24 drafts on the first sync,
+one per category x difficulty; a Manhunt preset draft); every feature
+locked / runner's choice / forced on, anti-splice on / off, amber
+accepted or not, banned moves (text; seeded from the "No ..." rules),
+rules, the run spot; every save a version, attempts judged by theirs.
+The plugin fetches the published ones (Runs tab: `<` `>` for Start run
+mode, *Check categories*; a run spot's `run =` wins), applies them in
+`Core/RunMode` (`Refuse(feature, what)`, `Locks`, `Forces`, `Use`) and
+the report names category + version + the game. **Nothing is published
+yet**: all live categories are drafts - publishing (and checking the
+speedrun.com drafts) is the moderators' / author's job.
+Earlier: phase 3 (v0.24.217, the attempt page, allowed mods, a changed
+game named by area), phases 1-2 and run spots (v0.24.206-216).
 Not yet seen by the author's own eyes and hands: run mode by hand (a real
 ESC + F2, the Runs tab section, End run mode / Start run mode by
 clicking, a run spot's F7), the run code on a real recording (`CodeSize`
-40 px default, top centre), and the attempt page on the live site with a
-real attempt (Copy link in the Runs tab). No community run spot exists
-yet - making one (a preset save as a start state, `run = ...`, in
-`community/`) is the author's call (which categories, which saves).
+40 px default, top centre), the attempt page with a real attempt, and
+the /admin *Categories* tab. No community run spot exists yet - making
+one (a preset save as a start state, `run = <category name>`, in
+`community/`) is the author's call.
 
 **Next, in order (one per session):**
-1. **Run mode phase 4: categories on /admin** (docs/run-mode.md *Phases*,
-   *Decisions*): the moderators' categories (difficulty / mode, overlay
-   features allowed, banned moves, *Reload save on death*, the linked
-   community run spot, **anti-splicing on / off**), seeded from
-   speedrun.com's categories and rules; the plugin fetches them, the
-   runner picks one in the Runs tab, each report records the category
-   version; the attempt page judges against it. Covers sxczurass's
-   manhunt (*Other uses of locked settings*).
-2. **Website, later** (from the cloud session's version 3 world,
+1. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured).
-3. **A session with the author** for what needs their eyes or hands
+2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
+3. **Later, from phase 4** (author, 2026-10-02): research the runners'
+   tech for banned moves (verdicts: glitch or not, in between) and detect
+   what can be; check *Reload save on death* gives the same game as a
+   manual reload (docs/run-mode.md *Decisions*), then circle back.
 
 **Decisions waiting for the author** (ask, never build ahead):
 - A teleport into an unloaded endgame (backlog); whether Quick load
   physics leaves "deferred"; whether the blurry south mountains in 3D
   are worth fixing.
-- What the moderators allow in a run (overlay features, *Reload save on
-  death*, Creative) - phase 4 lets them set it per category.
+- Which categories to publish and which preset saves become their run
+  spots (the moderators, on /admin).
 
 **Waiting on testers** - the QA to-do list (`qa_todo`) is the record:
 the overnight lists (`1555319960941756437`, `1555327671276273677` +

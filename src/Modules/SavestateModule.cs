@@ -560,7 +560,7 @@ namespace ForestOverlay.Modules
         // Run mode: no capture or restore during a run.
         private bool RefusedInRun(string what, Action<string> done)
         {
-            if (!Ctx.Run.Refuse("savestate " + what)) return false;
+            if (!Ctx.Run.Refuse("savestates", "savestate " + what)) return false;
             string why = Ctx.Run.RefusedText("Savestate " + what);
             SetStatus(why);
             if (done != null) done(why);

@@ -223,6 +223,69 @@ counts), the type names behind a fold. The same code in a different file
 change shows in the IL that reads it). An older plugin's report without
 type hashes stays "not the Steam game's", unnamed.
 
+## Categories (phase 4, v0.24.218)
+
+Decided with the author (2026-10-02):
+- **Every option is customisable** by the moderators ("in case they want
+  to host some experimental events"), the obvious ones locked by default.
+  Each feature is *locked*, *runner's choice* or *forced on* (switches
+  only - an action like Go can be allowed, never forced). The floor in
+  *Decisions* ("state-changing features are always locked") is replaced
+  by these defaults.
+- **Categories follow speedrun.com's** ("as long as it follows the
+  speedrun.com categories i don't care"): one per category x subcategory
+  value (Any% - Normal, ...). A run spot's `run = ...` names its category
+  (id or name) and wins; the Runs tab's pick is for Start run mode only.
+- **speedrun.com sync**: daily + "Check speedrun.com now". New ones are
+  drafts; a category nobody edited follows speedrun.com by itself; an
+  edited one shows "speedrun.com changed this" (before / now) with Accept
+  (name + rules taken, settings kept) or Keep ours; one removed there is
+  marked (Accept hides it).
+- **One role**: any admin edits categories, every save in the activity
+  log (author: "i'll leave it up to you"; 5-10 active runners - admin /
+  moderator / verifier roles are not worth it yet).
+- **Banned moves are text** for now, shown on the attempt page; seeded
+  from speedrun.com's "No ..." rule lines. **Later** (author): research
+  the runners' tech (what the community calls a glitch, what is in
+  between) and detect what can be detected.
+- **Reload save on death** is a feature like the others (default:
+  runner's choice). **Later** (author): the check that both reload paths
+  give the same game as a manual reload, then circle back.
+- A **Manhunt** preset draft (logs in the inventory, item caps, fast
+  building forced on; multiplayer; no anti-splice) - "just do your best",
+  the admins review configurations before real use.
+
+How it works:
+- `src/Data/RunCategory` (pure, tested, linked by the site): the text
+  format, `Features` (key, label, switch or action, default, the practice
+  mark reasons it covers), `GameMismatch`, `Find`, `Slug`.
+- **Site** (`site/ForestSite/Categories.cs`): tables `categories` (current
+  text + speedrun.com's last text + a pending change) and
+  `category_versions` (every save); `GET /api/categories.txt` (published,
+  the plugin's), `GET /api/categories/<id>/<version>`; admin `GET
+  /api/admin/categories`, `PUT .../<id>` (one block; the site sets the
+  version), `POST .../<id>/accept|dismiss`, `POST .../sync`. The sync
+  runs a minute after start, then daily (`FOREST_SRC_SYNC=off` in tests).
+  /admin's *Categories* tab edits them.
+- **Judging** (`Attempts.Overall`, `Categories.Judge`): the report's
+  `category = <id> v<n>` picks the version; the game must match
+  (difficulty / Creative / multiplayer: red); features used are listed
+  (allowed, or red if that version locks them); a category the site does
+  not have is amber; **anti-splice off** = the receipt's amber (offline,
+  gaps) is not judged, its red still is; **amber not accepted** turns
+  amber red. The attempt page shows the version's rules, banned moves and
+  unlocked features.
+- **Plugin** (`Modules/RunModeModule.Categories`): fetched 6 s after
+  startup and on *Check categories*, kept in
+  `config/ForestOverlay/categories.txt`; picked with `<` `>` (config
+  `RunMode.Category`). `Core/RunMode`: `Begin(..., category)`,
+  `Refuse(feature, what)`, `Locks` / `Forces`, `Use` (an allowed
+  feature's practice mark is recorded as used, not flagged). The report
+  gains `category`, `difficulty`, `creative`, `multiplayer`, `used`.
+  Anti-splice off: no code on screen (the chain and receipts still run).
+  No category known: the defaults (everything locked, Reload save on
+  death the runner's).
+
 ## Other uses of locked settings
 
 - **Manhunt** (sxczurass, QA 2026-10-02: two players finish the game while
@@ -277,5 +340,4 @@ type hashes stays "not the Steam game's", unnamed.
      table built from the real game files and mapped to areas a runner
      understands.
    - Moderators can allow known-harmless mods.
-4. **Categories on /admin**: the plugin fetches them; the runner picks one in
-   the Runs tab; each report records the category version.
+4. **Categories on /admin, built in v0.24.218** (see *Categories* above).

@@ -65,6 +65,7 @@ namespace ForestOverlay.Modules
             _death = Host.Find<DeathModule>();
             _upload = Host.Find<RunUploadModule>();
             InitCodes(ctx);
+            InitCategories(ctx);
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             RunIntegrity.StartHashing(ctx.Log);
@@ -96,7 +97,9 @@ namespace ForestOverlay.Modules
             }
             if (_reportDirty) { _reportDirty = false; WriteReport(); }
             TickChain();
+            TickCategories();
             RebuildText();
+            RebuildCategoryText();
         }
 
         private void OnGameLoaded()
@@ -149,7 +152,10 @@ namespace ForestOverlay.Modules
             string from = s.RunCategory + " from '" + s.Name + "' (" +
                           (SegmentLibrary.IsCommunity(s) ? "community" : "own") + " spot " + s.Id +
                           ", start state " + (s.StartState.Length > 0 ? s.StartState : "not hashed") + ")";
-            StartAttempt(from + ", " + RunIntegrity.Describe(), s.RunCategory);
+            RunCategory cat = CategoryFor(s);
+            if (cat == null) Ctx.Log.LogWarning("Run mode: the run spot's category '" + s.RunCategory + "' is not one of the site's " +
+                                                _categories.Count + " - the defaults apply (everything locked).");
+            StartAttempt(from + ", " + RunIntegrity.Describe(), cat != null ? cat.Name : s.RunCategory);
         }
 
         /// The fallback for a category with no run spot: run mode on now,
@@ -167,7 +173,8 @@ namespace ForestOverlay.Modules
         {
             string before = Ctx.Practice.Used ? Ctx.Practice.Reason : "";
             Ctx.Practice.Reset();   // an attempt starts clean; the report keeps what came before
-            Ctx.Run.Begin(started, label);
+            RunCategory cat = CategoryFor(_runSpot);
+            Ctx.Run.Begin(started, label, cat);
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -176,6 +183,13 @@ namespace ForestOverlay.Modules
             _report.StartedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             _report.PluginVersion = OverlayPlugin.PluginVersion;
             _report.PracticeBefore = before;
+            // The category it runs under (the site judges against this
+            // version), or the run spot's name for one the site lacks.
+            _report.Category = cat != null ? cat.Id : _runSpot != null ? RunCategory.Slug(_runSpot.RunCategory) : "";
+            _report.CategoryVersion = cat != null ? cat.Version : 0;
+            _report.Difficulty = RunIntegrity.Difficulty();
+            _report.Creative = RunIntegrity.IsCreative();
+            _report.Multiplayer = RunIntegrity.IsMultiplayer();
             RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
             _patchCount = RunIntegrity.PatchedCount();
             _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
@@ -207,7 +221,17 @@ namespace ForestOverlay.Modules
         // Once a second during an attempt: what can change while it runs.
         private void Watch()
         {
-            if (_bridge != null && _bridge.Enabled) Ctx.Run.Flag("the test bridge is on");
+            if (_bridge != null && _bridge.Enabled)
+            {
+                if (Ctx.Run.Locks("bridge")) Ctx.Run.Flag("the test bridge is on");
+                else Ctx.Run.Use("bridge");
+            }
+            if (_report.Used.Count != Ctx.Run.Used.Count)
+            {
+                _report.Used.Clear();
+                _report.Used.AddRange(Ctx.Run.Used);
+                _reportDirty = true;
+            }
 
             int cheats = _report.Cheats.Count;
             RunIntegrity.ReadCheats(_report.Cheats, RunIntegrity.IsCreative());
@@ -295,6 +319,7 @@ namespace ForestOverlay.Modules
         public float DrawSection(float y, float w)
         {
             y += UiText.Draw(0, y, w, _stateText);
+            y = DrawCategories(y + 2f, w);
             if (Ctx.Run.Active)
             {
                 bool confirming = Time.unscaledTime < _confirmUntil;

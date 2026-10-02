@@ -73,7 +73,7 @@ namespace ForestOverlay.Data
             new Feature("itemcaps", "Item caps", true, Locked, "item caps"),
             new Feature("logs", "Logs in the inventory", true, Locked, "logs in the inventory"),
             new Feature("fastbuild", "Fast building", true, Locked, "fast building"),
-            new Feature("perf", "Experimental performance patches", true, Locked, "experimental"),
+            new Feature("perf", "Experimental performance patches", false, Locked, "experimental"),
             new Feature("freecam", "Freecam", false, Locked, "freecam"),
             new Feature("aerial", "Aerial capture", false, Locked, "aerial capture"),
             new Feature("bridge", "Test bridge (dev tool)", false, Locked, "test bridge"),

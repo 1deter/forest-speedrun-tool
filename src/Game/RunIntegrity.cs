@@ -339,6 +339,22 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
+        /// GameSetup.Difficulty ("Peaceful", "Normal", "Hard"; "" unread).
+        public static string Difficulty()
+        {
+            ResolveSetup();
+            try { return _difficulty != null ? _difficulty.GetValue(null, null).ToString() : ""; }
+            catch (Exception) { return ""; }
+        }
+
+        /// GameSetup.IsMultiplayer.
+        public static bool IsMultiplayer()
+        {
+            ResolveSetup();
+            try { return _mp != null && (bool)_mp.GetValue(null, null); }
+            catch (Exception) { return false; }
+        }
+
         /// GameSetup.IsNewGame: the loaded game began as New Game.
         public static bool IsNewGame()
         {

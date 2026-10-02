@@ -170,13 +170,13 @@ namespace ForestOverlay.Modules
         private void TickLogs()
         {
             LogStore.Cap = Mathf.Clamp(_logCapCfg.Value, 1, 99);
-            LogStore.Maintain(_logsCfg.Value && !Ctx.Run.Active && !PlayerRef.AtTitleScreen);
+            LogStore.Maintain(LogsOn && !PlayerRef.AtTitleScreen);
             if (LogStore.Active && !_logsMarked)
             {
                 _logsMarked = true;
                 Ctx.Practice.Mark("logs in the inventory");
             }
-            if (!_logsCfg.Value) _logsMarked = false;
+            if (!LogsOn) _logsMarked = false;
 
             int stored = LogStore.Stored();
             string hud = stored >= 0 ? stored + " / " + LogStore.Cap : null;
@@ -201,7 +201,26 @@ namespace ForestOverlay.Modules
         }
 
         private bool _capsApplied;
-        private bool CapsOn { get { return _capsOnCfg.Value && !Ctx.Run.Active; } }
+        // Run mode: each mod follows the run's category - locked (off, the
+        // saved setting kept), the runner's choice, or forced on.
+        private bool CapsOn { get { return RunSetting("itemcaps", _capsOnCfg.Value); } }
+        private bool LogsOn { get { return RunSetting("logs", _logsCfg.Value); } }
+        private bool FastBuildOn { get { return RunSetting("fastbuild", _fastBuildCfg.Value); } }
+
+        private bool RunSetting(string feature, bool setting)
+        {
+            return Ctx.Run.Forces(feature) || (setting && !Ctx.Run.Locks(feature));
+        }
+
+        /// The toggle's label and whether it can be clicked, in a run.
+        private bool RunLocked(string feature) { return Ctx.Run.Locks(feature) || Ctx.Run.Forces(feature); }
+
+        private string RunToggleText(string feature, string name, string normal)
+        {
+            if (Ctx.Run.Forces(feature)) return " " + name + " - on for this run (the category)";
+            if (Ctx.Run.Locks(feature)) return " " + name + " - locked during a run";
+            return normal;
+        }
 
         private void TickCaps()
         {
@@ -216,18 +235,18 @@ namespace ForestOverlay.Modules
             if (capsOn != _capsApplied) ApplyCaps();
             bool active = capsOn && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
             Ctx.Practice.SetOn("item caps", capsOn && _caps.Count > 0);
-            Ctx.Practice.SetOn("logs in the inventory", _logsCfg.Value && !Ctx.Run.Active);
-            FastBuild.On = _fastBuildCfg.Value && !Ctx.Run.Active && !PlayerRef.AtTitleScreen;
-            Ctx.Practice.SetOn("fast building", _fastBuildCfg.Value && !Ctx.Run.Active);
+            Ctx.Practice.SetOn("logs in the inventory", LogsOn);
+            FastBuild.On = FastBuildOn && !PlayerRef.AtTitleScreen;
+            Ctx.Practice.SetOn("fast building", FastBuildOn);
             if (FastBuild.On && !_fastBuildMarked) { _fastBuildMarked = true; Ctx.Practice.Mark("fast building"); }
-            if (!_fastBuildCfg.Value) _fastBuildMarked = false;
+            if (!FastBuildOn) _fastBuildMarked = false;
             if (active && !_capsMarked)
             {
                 _capsMarked = true;
                 Ctx.Practice.Mark("item caps");
                 Ctx.Log.LogInfo("Item caps: " + ItemCaps.Format(_caps) + " (" + ItemCapPatch.Status + ").");
             }
-            if (!_capsOnCfg.Value) _capsMarked = false;
+            if (!capsOn) _capsMarked = false;
         }
 
         /// The game's cap for an item now (before ours applies to it).
@@ -270,8 +289,8 @@ namespace ForestOverlay.Modules
         {
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
-            GUI.enabled = guiWas && !Ctx.Run.Active;
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, Ctx.Run.Active ? " Fast building - locked during a run" : " Fast building - hold to add, like Creative (gameplay mod, practice)");
+            GUI.enabled = guiWas && !RunLocked("fastbuild");
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, RunToggleText("fastbuild", "Fast building", " Fast building - hold to add, like Creative (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
             y += 24f;
@@ -285,8 +304,8 @@ namespace ForestOverlay.Modules
         {
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
-            GUI.enabled = guiWas && !Ctx.Run.Active;
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, Ctx.Run.Active ? " Item caps - locked during a run" : " Item caps (gameplay mod, practice)");
+            GUI.enabled = guiWas && !RunLocked("itemcaps");
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, RunToggleText("itemcaps", "Item caps", " Item caps (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _capsOnCfg.Value) { _capsOnCfg.Value = on; ApplyCaps(); }
             y += 24f;
@@ -476,9 +495,9 @@ namespace ForestOverlay.Modules
         {
             float w = _tabW - 20f;
             bool guiWas = GUI.enabled;
-            GUI.enabled = guiWas && !Ctx.Run.Active;
+            GUI.enabled = guiWas && !RunLocked("logs");
             bool on = GUI.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
-                                 Ctx.Run.Active ? " Logs in the inventory - locked during a run" : " Logs in the inventory (gameplay mod, practice)");
+                                 RunToggleText("logs", "Logs in the inventory", " Logs in the inventory (gameplay mod, practice)"));
             GUI.enabled = guiWas;
             if (on != _logsCfg.Value) _logsCfg.Value = on;
             y += 24f;

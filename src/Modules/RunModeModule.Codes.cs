@@ -87,7 +87,8 @@ namespace ForestOverlay.Modules
 
             string runnerId = _upload != null && _upload.RunnerIdNow != null ? _upload.RunnerIdNow() : "";
             string runnerName = _upload != null && _upload.RunnerNameNow != null ? _upload.RunnerNameNow() : "";
-            string category = _runSpot != null ? _runSpot.RunCategory : label;
+            // The site's category id when known (its page shows the version's rules).
+            string category = Ctx.Run.Category != null ? Ctx.Run.Category.Id : _runSpot != null ? _runSpot.RunCategory : label;
             string spot = _runSpot != null ? _runSpot.Id : "";
             _chain.Header(_attemptId, runnerId, runnerName, OverlayPlugin.PluginVersion, category, spot,
                           _runSpot != null ? _runSpot.StartState : "", AttemptChain.RandomHex(16), DateTime.UtcNow);
@@ -252,6 +253,9 @@ namespace ForestOverlay.Modules
         public override void DrawScreenAlways()
         {
             if (!Ctx.Run.Active) return;
+            // A category without the anti-splice codes: none on screen
+            // (author, 2026-10-02: optional per category). The chain still runs.
+            if (Ctx.Run.Category != null && !Ctx.Run.Category.AntiSplice) return;
             EnsureCodeStyles();
             float size = _styleSize;
             float w = Mathf.Max(size * 3.4f + 24f, _subStyle.CalcSize(_codeSub).x + 16f);

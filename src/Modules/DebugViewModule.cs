@@ -214,7 +214,7 @@ namespace ForestOverlay.Modules
             // which are on (the HUD's ON NOW line).
             if (_perf != null)
             {
-                _perf.SuspendExperimental(Ctx.Run.Active);
+                _perf.SuspendExperimental(Ctx.Run.Locks("perf"));
                 if (_perfNames == null)
                 {
                     _perfNames = new string[_perf.Count];
@@ -277,7 +277,7 @@ namespace ForestOverlay.Modules
             }
             else
             {
-                if (Ctx.Run.Refuse("freecam")) { _status = Ctx.Run.RefusedText("Freecam"); return; }
+                if (Ctx.Run.Refuse("freecam", "freecam")) { _status = Ctx.Run.RefusedText("Freecam"); return; }
                 Camera cam = Camera.main;
                 if (cam == null) { _status = "no main camera"; return; }
 
@@ -298,7 +298,7 @@ namespace ForestOverlay.Modules
         /// `sunTime`. Turns the freecam on; read `_aerial.Status`.
         public string AerialStart(float x0, float z0, float x1, float z1, float tile, float settle, float rangeScale, float sunTime)
         {
-            if (Ctx.Run.Refuse("aerial capture")) return "run mode is on";
+            if (Ctx.Run.Refuse("aerial", "aerial capture")) return "run mode is on";
             if (!_freeCamOn) ToggleFreeCam();
             if (!_freeCamOn) return "freecam could not start: " + _status;
             _freeCam.InputEnabled = false;

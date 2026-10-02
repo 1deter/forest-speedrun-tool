@@ -162,12 +162,15 @@ namespace ForestOverlay.Modules
         private DeathAction Decide(DeathKind kind)
         {
             if (kind == DeathKind.Multiplayer) return DeathAction.Normal;
-            // Run mode: no revive (ReviveApplies); Reload save on death stays
-            // - the game's own load, a QoL saving menuing (author, 2026-10-02).
+            // Run mode: no revive unless the category allows it
+            // (ReviveApplies); Reload save on death follows the category -
+            // by default the runner's setting, the game's own load, a QoL
+            // saving menuing (author, 2026-10-02).
 
             if (ReviveApplies()) return DeathAction.Revive;
 
-            if (_quickLoadCfg.Value && kind != DeathKind.PermaDeath &&
+            bool reload = Ctx.Run.Forces("reload") || (_quickLoadCfg.Value && !Ctx.Run.Locks("reload"));
+            if (reload && kind != DeathKind.PermaDeath &&
                 (kind != DeathKind.Capture || _quickLoadCaptureCfg.Value) &&
                 (kind != DeathKind.BossWake || _quickLoadBossCfg.Value))
             {
@@ -183,7 +186,7 @@ namespace ForestOverlay.Modules
         private bool ReviveApplies()
         {
             if (_practice == null || !_practice.HasSpot) return false;
-            if (Ctx.Run.Active) return false;   // run mode: a death is the game's
+            if (Ctx.Run.Locks("revive")) return false;   // run mode: a death is the game's
             return (_runs != null && _runs.Enabled) || _practice.CurrentHasStartState;
         }
 
@@ -218,11 +221,11 @@ namespace ForestOverlay.Modules
         {
             RefreshText();
 
-            // Run mode: the toggles keep their saved value but do nothing.
-            bool run = Ctx.Run.Active;
-            bool noStagger = _noStaggerCfg.Value && !run;
-            bool noBlood = _noBloodCfg.Value && !run;
-            bool godMode = _godModeCfg.Value && !run;
+            // Run mode: the toggles follow the category (locked: they keep
+            // their saved value but do nothing; forced: on for the run).
+            bool noStagger = Ctx.Run.Forces("nostagger") || (_noStaggerCfg.Value && !Ctx.Run.Locks("nostagger"));
+            bool noBlood = Ctx.Run.Forces("nostagger") || (_noBloodCfg.Value && !Ctx.Run.Locks("nostagger"));
+            bool godMode = Ctx.Run.Forces("godmode") || (_godModeCfg.Value && !Ctx.Run.Locks("godmode"));
 
             DeathHooks.NoStagger = noStagger;
             Ctx.Practice.SetOn("no stagger", noStagger);
@@ -418,7 +421,7 @@ namespace ForestOverlay.Modules
             bool guiWas = GUI.enabled;
             if (Ctx.Run.Active)
             {
-                y += UiText.Draw(0, y, w, "Run mode: these three are off and locked during a run.") + 2f;
+                y += UiText.Draw(0, y, w, "Run mode: these three follow the run's category (Runs tab) and cannot be changed during a run.") + 2f;
                 GUI.enabled = false;
             }
             bool noBlood = GUI.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,
