@@ -177,9 +177,6 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   rope's `onRope`): ended on a restore, not put back (`RopeClimb` keys on
   `PlayerClimbRopeAction._currentRopeRoot`). Same recipe as the rides
   (game-notes *Rides*) if a runner needs it.
-- **Quick load audit, the rest** (docs/savestates.md *Not covered yet*):
-  a building placed since, the crafting cog, the inventory open at
-  capture.
 - **The endgame flag on a Go**: fixed for the vault entrance only
   (v0.24.112, `AreaKeeper.InVaultEntrance`); a Go straight into the lab
   leaves `IsInEndgame` false. Not seen to break anything - check it first

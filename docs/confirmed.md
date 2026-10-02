@@ -268,3 +268,14 @@ v0.24.200 capture whose sled had gone to the world origin; a capture in
 flight keeps gliding, and its restore is back in the air gliding at the
 captured velocity; a cliff climb with the climbing axe is back on the
 cliff. The restore deletes a glider dropped since (not in the save).
+
+**2026-10-02, bridge (v0.24.203, Slot 1 Creative, the Quick load audit's
+last three cases):** blueprints placed, part-filled and built since the
+capture are deleted and a blueprint finished since comes back (dump diff
+clean); a blueprint given logs / sticks since is rebuilt from the save -
+drawn as captured, build HUD 6 / 6 / 6 as a Full load gives, dump diff
+clean; a drifted HUD tally is recounted (`item 57 0 -> 6`). A capture
+with the inventory open and items on the crafting cog closes it first
+(1.2 s, was 121 s), the items back in the inventory; a Quick load and a
+Full load started with the inventory open (items on the cog) close it
+and give back the captured counts, timeScale 1.

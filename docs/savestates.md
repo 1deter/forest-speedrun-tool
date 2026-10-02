@@ -80,6 +80,14 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   deleted by the restore). Cave ropes: `Game/RopeClimb` (`rope`). Not
   covered: a climbing rope on a wall (`PlayerClimbWallAction`, ended
   only), the raft.
+  **Blueprints and menus** (v0.24.203, `Game/BlueprintKeeper`,
+  `blueprints` header = `Data/BlueprintState`): the capture lists every
+  placed blueprint's ingredient counts; a Quick load deletes a blueprint
+  whose counts changed since (its HUD share cancelled) so LoadNow builds
+  it from the save, then recounts the build HUD tally from the live
+  blueprints. Capture and every restore close the game's inventory /
+  pause menu first (`MenuClose`): the crafting cog is not in the save,
+  and both run over game time.
 
 ## Quick load audit (2026-10-01, v0.24.187-188)
 
@@ -116,10 +124,25 @@ component's DelayedAwake / OnDeserialized as well (gotcha 79).
 | On a zipline / sled / glider / cliff at capture | **fell / stood there** - put back v0.24.201-202 |
 | Pushing a sled at capture | **the sled went to the world origin** - fixed v0.24.201 |
 | Gliding during the capture itself | **the capture dropped the glider** - fixed v0.24.201 |
+| Blueprints placed, part-filled or built since (shelter, log holder, fire, workbench) | deleted, as captured (the diff is clean) |
+| A blueprint finished since the capture | the blueprint back as captured |
+| A blueprint at capture given more logs / sticks since | **counts back but the later logs still drawn, the build HUD's "GATHER" lines kept the later numbers** - fixed v0.24.203 (rebuilt from the save; HUD recounted) |
+| Items on the crafting cog at capture (inventory open) | **the cog is not in the save - they would be lost; and the capture stalled until the inventory closed** - fixed v0.24.203 (the capture closes it first, as the game's save does) |
+| The inventory open at restore, items on the cog | F7 closed it first; **a bridge / other restore stalled** - fixed v0.24.203 (every restore closes it) |
 
-Not covered yet (no bridge call, or needs hands): buildings placed since (handled by
-the restore's "delete objects not in the save"), the crafting cog, the
-inventory open at capture (`PlayerInventory.Open` needs the input path),
-achievements, the weather (not in the save: `WeatherSystem` keeps only
-`LastRainTime` - backlog *Weather in savestates*), the bestiary (same
-shape as the nature guide, not runner-facing).
+The audit's calls (bridge, Creative): a blueprint is placed with
+`Create.CreateBuilding <type>` + `Create.PlaceGhost false`, filled with
+`<ghost>/Trigger Craft_Structure.AddIngrendient_Actual <i> true null`
+(the game's add, `i` = recipe index), finished with `Craft_Structure.Build`.
+The inventory opens and closes by `LocalPlayer.Inventory.ToggleInventory`
+(what the Inventory key and the options view call); the click on an item
+moves it with `Inventory._craftingCog.Add <id> <n> null` + `Inventory.
+RemoveItem <id> <n> true true` (`InventoryItemView.Update`). The build HUD
+tally: `static:TheForest.Buildings.Creation.BuildMission ActiveMissions`
+(per item, `_amountNeeded`).
+
+Not covered yet (no bridge call, or needs hands): achievements, the
+weather (not in the save: `WeatherSystem` keeps only `LastRainTime` -
+backlog *Weather in savestates*), the bestiary (same shape as the nature
+guide, not runner-facing), a built structure damaged or destroyed since
+(`BuildingHealth` is saved; untested).

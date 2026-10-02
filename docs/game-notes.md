@@ -1601,7 +1601,25 @@ runs `SpawnBackIngredients`, which for each ingredient calls
 `AddNeededToBuildMission(required._itemID, -(required._amount -
 present._amount), true)` and then spawns the committed items back as
 pickups. Destroying a ghost directly skips it, so the plugin makes the same
-call (without the spawn) before deleting one.
+call (without the spawn) before deleting one. The tally is floored at 0
+(`Mathf.Max`), so it can drift below the real sum and never recover;
+`BuildMission.ActiveMissions` is static and a Full load gives exactly the
+sum over the blueprints' `Initialize` (bridge, v0.24.203).
+
+**A blueprint across a Quick load** (IL + bridge, v0.24.203):
+`Craft_Structure.OnDeserialized` sets `enabled = false` (normal - it is
+enabled while grabbed) and calls `Initialize`, which returns at once when
+`_initialized` - so a blueprint kept through LoadNow gets its saved
+`_presentIngredients` but neither its pieces redrawn nor its HUD share
+changed. `BuildIngredients.SetBuilt(n)` only switches pieces ON (layer
+21, the built material); there is no reverse. A blueprint LoadNow creates
+from its prefab is set up properly - hence `Game/BlueprintKeeper` deletes a
+changed one first. A blueprint lives on `Ghost_<X>(Clone)` (a
+`PrefabIdentifier`) with the `Craft_Structure` on its `Trigger` child (a
+`StoreInformation` of its own). The crafting cog (`CraftingCog`,
+`_ingredients`) is not in the save; closing the inventory returns its
+items (`IngredientCleanUp`), and the game's save routine never runs with
+the inventory open (it saves from the pause menu and closes that first).
 
 **A savestate from another save duplicates the player.** Restoring in
 place a Hard save's state inside a Creative game produced a second player
