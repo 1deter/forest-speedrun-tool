@@ -594,10 +594,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.197** (2026-10-02). The author runs it via the in-game
-updater (v0.24.197 in the game at handoff, Slot 1). **479 tests** (+ 46 site tests).
+**Released: v0.24.198** (2026-10-02). The author runs it via the in-game
+updater (v0.24.198 in the game at handoff, Slot 1). **480 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.197 in the game)
+### Pick up here (2026-10-02, v0.24.198 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -687,6 +687,9 @@ over the bridge:
 - **v0.24.197: Timmy drawing pieces** on the 100% tab (`Game/
   DrawingsReader`: `_ids` + `_usedIds`; ids 0-10 index the game's 11
   drawing materials, 0 blank; no total - the game keeps none). Checked.
+- **v0.24.198: Debug views filter** takes a path part (`Caves/Cave6`),
+  `layer:Prop` and `+fragment` = show only (`VolumeFilter.IsHidden`,
+  tested; checked live).
 - The import test's spot (2 runs) had been uploaded to the live site by
   the automatic upload - deleted there (admin API); habit noted under
   *Test spots*.
