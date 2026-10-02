@@ -112,14 +112,19 @@ namespace ForestOverlay.Core
         // is not valid, and the log says which.
         private void OnPracticeMark(string reason)
         {
-            if (Active) Flag("practice action during the run: " + reason);
+            if (!Active) return;
+            // Every bridge command marks; one flag says it.
+            if (reason.StartsWith("test bridge")) Flag("the test bridge is on");
+            else Flag("practice action during the run: " + reason);
         }
 
         private void Rebuild()
         {
             if (!Active) { _practice.SetRunText(null, false); return; }
             string text = "RUN MODE - attempt " + Attempt + (Started.Length > 0 ? " (" + Started + ")" : "");
-            if (_flags.Count > 0) text += " - NOT VALID: " + string.Join("; ", _flags.ToArray());
+            // The first reason on the HUD; the Runs tab lists them all.
+            if (_flags.Count > 0)
+                text += " - NOT VALID: " + _flags[0] + (_flags.Count > 1 ? " (+" + (_flags.Count - 1) + " more, Runs tab)" : "");
             _practice.SetRunText(text, _flags.Count > 0);
         }
     }

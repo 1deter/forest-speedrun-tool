@@ -133,6 +133,10 @@ namespace ForestOverlay.Game
             {
                 foreach (MethodBase m in Harmony.GetAllPatchedMethods())
                 {
+                    // BepInEx patches .NET itself (Console, Assembly, Trace -
+                    // seen live, v0.24.207): only the game's and Unity's code
+                    // count.
+                    if (IsRuntimeCode(m)) continue;
                     Patches info = Harmony.GetPatchInfo(m);
                     if (info == null) continue;
                     bool ours = false;
@@ -146,6 +150,14 @@ namespace ForestOverlay.Game
                 }
             }
             catch (Exception ex) { r.ForeignPatches.Add("could not list the patches: " + ex.Message); }
+        }
+
+        private static bool IsRuntimeCode(MethodBase m)
+        {
+            Type t = m.DeclaringType;
+            if (t == null) return false;
+            string asm = t.Assembly.GetName().Name;
+            return asm == "mscorlib" || asm == "System" || asm.StartsWith("System.") || asm.StartsWith("Mono.");
         }
 
         /// How many methods are patched now - a cheap "did anything change".

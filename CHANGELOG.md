@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.208 - 2026-10-02
+
+- Run mode's report no longer lists BepInEx's own patches as "another mod".
+- The info box shows the first reason a run is not valid and a count; the
+  Runs tab lists them all.
+
 ## v0.24.207 - 2026-10-02
 
 - Run mode now actually starts: in v0.24.206 it switched itself off at
