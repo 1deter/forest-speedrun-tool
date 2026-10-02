@@ -293,3 +293,11 @@ mode; F2 refused in play, opens over the pause menu and closes with it;
 experimental perf patches suspended; the title screen ends the attempt as a
 reset; loading Slot 1 ends run mode; the report file and Runs tab findings
 (Steam build recognised, no other mods, BepInEx's patches not counted).
+
+Confirmed over the bridge 2026-10-02 (v0.24.211-213): a start state from
+the title screen (the menu's load, in game after 11 s, slot 1); Normal ->
+Creative (GameSetup.Game Creative, GodMode / InfiniteEnergy / NoSurvival
+on) and back (all off); a capture writes `basedifficulty`; a run spot's
+Restart from the title screen starts attempt 1 (report names the spot),
+another spot's Restart refused, the run spot's Restart = reset to attempt
+2, End run mode unlocks.

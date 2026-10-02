@@ -187,6 +187,7 @@ namespace ForestOverlay.Modules
         private void EndAttempt(string why)
         {
             _attemptOpen = false;
+            Ctx.Run.Reset();
             if (_report != null)
             {
                 WriteReport();
@@ -248,7 +249,7 @@ namespace ForestOverlay.Modules
             if (!Ctx.Run.Active) return;
             if (_attemptOpen) EndAttempt("run mode ended by the runner");
             _byHand = false;
-            Ctx.Run.End("ended by you - Restart on a run spot, or Start run mode, starts it again");
+            Ctx.Run.End("ended by you");
         }
 
         // ------------------------------------------------------------------

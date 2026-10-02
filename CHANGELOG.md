@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.214 - 2026-10-02
+
+- Run mode: a reset on the run spot no longer marks the attempt that just
+  ended as "not valid" in the log.
+- Shorter text for the editor's Run field and the Runs tab.
+
 ## v0.24.213 - 2026-10-02
 
 - **Run spots.** A spot with a run category (the editor's new *Run* field,

@@ -45,6 +45,10 @@ namespace ForestOverlay.Core
         /// True from a run start until End.
         public bool Active { get; private set; }
 
+        /// An attempt is under way: false between a reset and the next
+        /// attempt (a run spot's own restore and teleport are not flags).
+        public bool AttemptOpen { get; private set; }
+
         /// Attempts started this session (the HUD's number).
         public int Attempt { get; private set; }
 
@@ -65,6 +69,7 @@ namespace ForestOverlay.Core
         {
             Attempt++;
             Active = true;
+            AttemptOpen = true;
             Started = started ?? "";
             Label = label ?? "";
             EndedWhy = "";
@@ -78,15 +83,22 @@ namespace ForestOverlay.Core
         {
             if (!Active) return;
             Active = false;
+            AttemptOpen = false;
             EndedWhy = why ?? "";
             _log.LogInfo("Run mode: off (" + EndedWhy + ") - practice features unlocked.");
             Rebuild();
         }
 
+        /// The attempt has ended (a reset); run mode stays on.
+        public void Reset()
+        {
+            AttemptOpen = false;
+        }
+
         /// Adds a reason the attempt is not valid (once each).
         public void Flag(string why)
         {
-            if (!Active || _flags.Contains(why)) return;
+            if (!Active || !AttemptOpen || _flags.Contains(why)) return;
             _flags.Add(why);
             _log.LogWarning("Run mode: attempt " + Attempt + " flagged - " + why + ".");
             Rebuild();
@@ -118,7 +130,7 @@ namespace ForestOverlay.Core
         // is not valid, and the log says which.
         private void OnPracticeMark(string reason)
         {
-            if (!Active) return;
+            if (!Active || !AttemptOpen) return;
             // Every bridge command marks; one flag says it.
             if (reason.StartsWith("test bridge")) Flag("the test bridge is on");
             else Flag("practice action during the run: " + reason);

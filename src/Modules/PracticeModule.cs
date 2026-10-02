@@ -149,7 +149,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent QuickLoadHint =
             new GUIContent("Quick load: in place, fastest. Full load is the game's full reset (a scene load) for states Quick load misses.");
         private static readonly GUIContent RunHint =
-            new GUIContent("Run: a category name (Any%, ...) makes this a run spot (it needs a start state) - Restart here starts a run (a Full load, practice locked); Restart during it is a reset. Empty = a practice spot.");
+            new GUIContent("A category (Any%, ...) makes this a run spot: Restart here starts a run (Full load, practice locked) and resets it. Needs a start state. Empty = practice.");
         private RunModeModule _runMode;
         private static readonly GUIContent FullLoadHint =
             new GUIContent("Full load: the game's full reset with a scene load, slower. Quick load is in place and fastest.");

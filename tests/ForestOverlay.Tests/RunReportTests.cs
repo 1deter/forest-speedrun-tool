@@ -90,7 +90,7 @@ namespace ForestOverlay.Tests
             RunReport r = Clean();
             r.PracticeBefore = "savestate restore (in place)";
             Assert.True(r.Clean);
-            Assert.Contains("Note  Practice was used before this attempt (savestate restore (in place)); the new game started clean.", r.Findings());
+            Assert.Contains("Note  Practice was used before this attempt (savestate restore (in place)); the attempt started clean.", r.Findings());
         }
 
         [Fact]

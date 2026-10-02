@@ -91,7 +91,7 @@ namespace ForestOverlay.Data
             }
 
             if (PracticeBefore.Length > 0)
-                lines.Add("Note  Practice was used before this attempt (" + PracticeBefore + "); the new game started clean.");
+                lines.Add("Note  Practice was used before this attempt (" + PracticeBefore + "); the attempt started clean.");
             return lines;
         }
 
