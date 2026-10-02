@@ -321,7 +321,16 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   submitting - a desktop GPU is not triangle-bound, a phone's is); Labskip
   on a phone viewport 67.9M -> 23.1M, 61 requests, 40.1 MB. Pictures: 1-3%
   of pixels differ by more than 8 levels (far canopies, cliff edges), the
-  same by eye at 2x. Not yet seen on a real phone. Before (same day): 60
+  same by eye at 2x. Seen by the author on a MacBook and an iPhone 13 mini.
+  **View-cone culling** (2026-10-02): `split()` also leaves out a far
+  model's instances whose sphere is outside the view cone (forward + the
+  screen corner's half angle) widened by `CULL_MARGIN` 30 deg; turning
+  `CULL_TURN` 10 deg re-picks at once (past the 400 ms limit), so only a
+  turn of 20 deg+ between two frames can show a gap at the edge. Models
+  without far copies (small meshes, collision) still draw whole. Labskip
+  fit, local site: desktop 23.5M -> 5.6M triangles, 761 -> 460 draw
+  calls, 7.8 -> 3.5 ms a frame; phone viewport 23.1M -> 3.5M, 695 -> 354,
+  8.1 -> 2.8 ms; the pictures identical (<= 0.001% of pixels). Before (same day): 60
   phone-only copies within 2 cm (70.6M -> 67.9M; a quarter everywhere had
   holed the trees and sunk Cave 6's floor).
 - **Collision is fetched when switched on** (2026-10-02): every collider's

@@ -44,6 +44,12 @@ const S = new THREE.Matrix4().makeScale(1, 1, -1);
 // switches out). 0 = full meshes only (world.setFar, for comparing).
 export const FAR_PIXELS = 1;
 const SPLIT_MOVE = 2;                      // metres the camera moves before the copies are picked again
+// A far model's instances outside the view cone (the screen's corners) widened
+// by CULL_MARGIN are not drawn; the camera turning CULL_TURN picks again at
+// once, so turning under CULL_MARGIN - CULL_TURN between picks never shows a gap.
+const CULL_MARGIN = 30 * Math.PI / 180;
+const CULL_TURN = 10 * Math.PI / 180;
+const CULLED = 254;                        // split(): level of an instance not drawn
 
 // Kinds of model, each with its own switch (the map's "separate toggles per
 // kind"; 2026-10-01). The game's layers do not say it alone - trees are in
@@ -175,6 +181,9 @@ export class World {
     this.eye = new THREE.Vector3();   // the camera, three.js space (update())
     this.focal = 0;                   // the camera's focal length in drawing buffer pixels
     this.splitAt = null;              // [eye x, y, z, focal] the copies were last picked for
+    this.look = new THREE.Vector3();  // the camera's forward direction, three.js space (update())
+    this.cone = 0;                    // half angle from forward to the screen's corner + CULL_MARGIN; 0 = no culling
+    this.lookAt = new THREE.Vector3();    // the forward direction the copies were last picked for
     this.staleAt = 0;
     this.show = { trees: true, rocks: true, props: true, pickups: true, collision: false };
     try {
@@ -330,14 +339,21 @@ export class World {
   /// Each frame: which chunks to have, given the camera's target (a Vector3
   /// in three.js space), and which copy each instance is drawn with, given
   /// the camera (eye, three.js space) and its focal length in drawing buffer
-  /// pixels (focal). Rate-limited; cheap when nothing changes.
-  update(target, now, eye, focal) {
-    if (!this.meta || this.disposed || now < this.next) return;
+  /// pixels (focal), and which are drawn at all, given its forward direction
+  /// (look, unit) and the half angle to the screen's corner (corner, radians).
+  /// Rate-limited, except that turning CULL_TURN picks again at once; cheap
+  /// when nothing changes.
+  update(target, now, eye, focal, look, corner) {
+    if (!this.meta || this.disposed) return;
+    const turned = look && this.splitAt && look.dot(this.lookAt) < Math.cos(CULL_TURN);
+    if (now < this.next && !turned) return;
     this.next = now + 400;
     if (eye) { this.eye.copy(eye); this.focal = focal; }
+    if (look) { this.look.copy(look); this.cone = Math.min(Math.PI, corner + CULL_MARGIN); }
     const s = this.splitAt;
-    if (!s || this.focal !== s[3] || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
+    if (!s || turned || this.focal !== s[3] || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
       this.splitAt = [this.eye.x, this.eye.y, this.eye.z, this.focal];
+      this.lookAt.copy(this.look);
       for (const [, mesh] of this.drawn) if (mesh.userData.far) this.split(mesh);
       this.changed();
     }
@@ -652,7 +668,7 @@ export class World {
       return { mesh, err };
     });
     holder.material = mat;
-    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255) };
+    holder.userData.far = { levels, mats, spheres, n, level: new Uint8Array(n).fill(255) };   // 255: never picked
     holder.dispose = () => { for (const ch of holder.children) ch.dispose(); };
     this.split(holder);
     return holder;
@@ -661,6 +677,8 @@ export class World {
   /// Each instance of a far model to the lightest mesh whose error, at the
   /// instance's scale s and distance d from the camera (to its bounding
   /// sphere), stays under farPixels: err * s * focal / d <= farPixels.
+  /// An instance whose bounding sphere is outside the view cone (this.cone
+  /// round this.look) is drawn by none of them.
   /// Only a model whose instances changed mesh is written and sent again
   /// (only the used part of each buffer): the camera moving a few metres
   /// moves few instances, and a split of every far instance in view costs
@@ -669,19 +687,26 @@ export class World {
     const { levels, mats, spheres, n, level } = holder.userData.far, last = levels.length - 1;
     const k = this.farPixels > 0 && this.focal > 0 ? this.focal / this.farPixels : Infinity;
     const ex = this.eye.x, ey = this.eye.y, ez = this.eye.z;
+    const lx = this.look.x, ly = this.look.y, lz = this.look.z, cone = this.cone, cull = cone > 0 && cone < Math.PI;
     let changed = false;
     for (let i = 0; i < n; i++) {
       const o = i * 5, dx = spheres[o] - ex, dy = spheres[o + 1] - ey, dz = spheres[o + 2] - ez;
-      const allowed = Math.max(0, Math.sqrt(dx * dx + dy * dy + dz * dz) - spheres[o + 3]) / (spheres[o + 4] * k);
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz), r = spheres[o + 3];
       let L = 0;
-      while (L < last && levels[L + 1].err <= allowed) L++;
+      if (cull && d > r && Math.acos(Math.max(-1, Math.min(1, (dx * lx + dy * ly + dz * lz) / d))) > cone + Math.asin(r / d)) L = CULLED;
+      else {
+        const allowed = Math.max(0, d - r) / (spheres[o + 4] * k);
+        while (L < last && levels[L + 1].err <= allowed) L++;
+      }
       if (level[i] !== L) { level[i] = L; changed = true; }
     }
     if (!changed) return;
     const counts = new Array(levels.length).fill(0), arrays = levels.map(l => l.mesh.instanceMatrix.array);
     const box = levels.map(() => [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
     for (let i = 0; i < n; i++) {
-      const L = level[i], a = arrays[L], to = counts[L]++ * 16, from = i * 16;
+      const L = level[i];
+      if (L === CULLED) continue;
+      const a = arrays[L], to = counts[L]++ * 16, from = i * 16;
       for (let j = 0; j < 16; j++) a[to + j] = mats[from + j];
       const b = box[L], o = i * 5, r = spheres[o + 3];
       for (let j = 0; j < 3; j++) {

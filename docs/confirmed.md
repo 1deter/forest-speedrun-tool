@@ -322,4 +322,4 @@ Confirmed 2026-10-02 (site only, local site): /admin's item caps picker - hints 
 
 Confirmed 2026-10-02 (site, the author on the live site): the 2D map smooth at max zoom - the relief drawn only on screen (`reliefPart`; it was ~700,000 px wide at 200 px/m), one draw per frame (`draw()` asks, `drawNow()` draws), bilinear when enlarging, zoom out capped at the world x 1.5.
 
-Confirmed 2026-10-02 (site, the author on the live site: "seems to work well"): the 3D world's far copies (build 1790961787) - each instance drawn with the lightest copy under a pixel of error at its distance; device not named, so a real phone stays to check.
+Confirmed 2026-10-02 (site, the author on the live site: "seems to work well"): the 3D world's far copies (build 1790961787) - each instance drawn with the lightest copy under a pixel of error at its distance; seen on a MacBook and an iPhone 13 mini (author, 2026-10-02).

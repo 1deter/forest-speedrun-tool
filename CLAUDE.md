@@ -620,14 +620,18 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, no release, live):** **far copies** in the 3D world (docs/website.md
+only, no release, live):** **view-cone culling** of far instances
+(docs/website.md *Load size*): the Labskip view 23.5M -> 5.6M triangles,
+761 -> 460 draw calls, 7.8 -> 3.5 ms (phone viewport 8.1 -> 2.8 ms), the
+same picture; not yet seen by the author (watch the screen's edges while
+orbiting fast). Before: **far copies** in the 3D world (docs/website.md
 *Load size*): each heavy mesh has lighter copies (meshoptimizer, leaf cards
 thinned and grown; the author: "seems to work well"), and the page draws each instance with the lightest one
 whose error is under a pixel at its distance - live, every device: four
 surface views 101.2M -> 33.0M triangles, 48.3 -> 46.0 MB, the 4080's frame
 11.2 -> 6.8 ms; the pictures the same by eye. World re-uploaded (build
 1790961787); the upload now goes in 16 MB chunks (a 61 MB one hit
-Cloudflare's 100 s). Not yet seen on a real phone. Before: the 3D world's
+Cloudflare's 100 s); seen by the author on a MacBook and an iPhone 13 mini. Before: the 3D world's
 files served Brotli'd; the Detail button's two console errors fixed; the 3D
 view fastest by default + a *Detail* button; the 2D map's max-zoom
 lag fixed (relief drawn only on screen, one draw per frame, zoom-out cap;
@@ -667,13 +671,12 @@ one (a preset save as a start state, `run = <category name>`, in
 
 **Next, in order (one per session):**
 1. **Website, later** (docs/website.md *Load size*): the author's eyes
-   on the far copies on a real phone (orbit, Follow playback - a split
-   every 400 ms while the camera moves); the load-order look (gotcha 83,
-   an investigation). Also (author, 2026-10-02): the web replay as fast as
-   possible - done so far: the *Detail* button (off = pixel ratio 1, no
-   antialiasing) and the far copies; next candidates: per-instance frustum
-   culling in `split()` (the view's instances behind the camera still
-   draw), fewer draw calls (~660 a view).
+   on the view-cone culling (orbit fast, Follow playback: no gaps at the
+   screen's edges); the load-order look (gotcha 83, an investigation).
+   Also (author, 2026-10-02): the web replay as fast as possible - done
+   so far: the *Detail* button, the far copies, view-cone culling; next
+   candidates: fewer draw calls (~460 a view; models without far copies
+   are not culled per instance).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.

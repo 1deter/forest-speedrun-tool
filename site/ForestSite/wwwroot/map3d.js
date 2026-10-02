@@ -166,6 +166,7 @@ class Map3D {
     r.localClippingEnabled = true;     // the world's cutaway underground (world3d.js setCut)
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, 1, 30000);
+    this.lookDir = new THREE.Vector3();
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.6 * Math.PI));
     const sun = new THREE.DirectionalLight(0xffffff, 0.55 * Math.PI);
     sun.position.set(-0.6, 1, -0.5);   // north-west, as the relief's own light
@@ -687,8 +688,13 @@ class Map3D {
     this.world.setCut(this.fadeTo < 1, this.camera.position, target);
     // The camera's focal length in drawing buffer pixels: where a far copy's
     // error stays under a pixel (world3d.js split()).
-    const focal = this.canvas.height / (2 * Math.tan(this.camera.fov * Math.PI / 360));
-    this.world.update(target, performance.now(), this.camera.position, focal);
+    // The view cone: forward, and the half angle to the screen's corner
+    // (instances outside it, widened, are not drawn).
+    const half = Math.tan(this.camera.fov * Math.PI / 360);
+    const focal = this.canvas.height / (2 * half);
+    const corner = Math.atan(half * Math.sqrt(1 + this.camera.aspect * this.camera.aspect));
+    this.world.update(target, performance.now(), this.camera.position, focal,
+      this.camera.getWorldDirection(this.lookDir), corner);
     if (this.mode === "orbit") this.lookRegion(this.orbit.target, this.orbit.dist, performance.now());
     if (this.looking) moving = true;     // keep frames coming until the patch is placed
     return moving;
