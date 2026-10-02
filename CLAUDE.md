@@ -645,14 +645,20 @@ one (a preset save as a start state, `run = <category name>`, in
 `community/`) is the author's call.
 
 **Next, in order (one per session):**
-1. **Website, later** (from the cloud session's version 3 world,
+1. **Category values + automatic refresh** (author, 2026-10-02; design in
+   docs/run-mode.md *Categories*, *Next*): the category carries the numbers
+   for item caps and the log cap; forced = the category's numbers, the
+   Inventory tab's fields greyed in the run; the game re-checks categories
+   every 2 min + before each attempt (ETag / 304), applied at the next
+   attempt, never mid-run.
+2. **Website, later** (from the cloud session's version 3 world,
    docs/website.md *Load size*): a distance LOD switch for phones (full
    near, LOD far), the load-order look (gotcha 83), Brotli beside the gzip
    copies (~10% off the meshes, measured).
-2. **A session with the author** for what needs their eyes or hands
+3. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
-3. **Later, from phase 4** (author, 2026-10-02): research the runners'
+4. **Later, from phase 4** (author, 2026-10-02): research the runners'
    tech for banned moves (verdicts: glitch or not, in between) and detect
    what can be; check *Reload save on death* gives the same game as a
    manual reload (docs/run-mode.md *Decisions*), then circle back.

@@ -286,6 +286,21 @@ How it works:
   No category known: the defaults (everything locked, Reload save on
   death the runner's).
 
+Next (author, 2026-10-02, after v0.24.219):
+- **Values, not only switches.** A manhunt host sets the numbers
+  (sxczurass): the category carries the log cap and item caps (item by
+  name -> max) under their features. *Forced on* applies the category's
+  numbers and greys the Inventory tab's fields during the run; *runner's
+  choice* keeps each runner's own. The host changes them by editing the
+  category (a new version).
+- **Refresh without a click** (author: "Check categories" may never be
+  pressed; decided here - no push: Unity 5.6 has no cheap long-lived
+  connection, and polling is negligible at 5-10 runners): the plugin
+  re-checks `/api/categories.txt` every 2 minutes and right before each
+  attempt starts, with an ETag (the site answers 304 when unchanged). A
+  new version applies at the next attempt, never mid-attempt. The button
+  stays as a manual refresh.
+
 ## Other uses of locked settings
 
 - **Manhunt** (sxczurass, QA 2026-10-02: two players finish the game while
