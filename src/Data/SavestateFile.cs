@@ -169,6 +169,10 @@ namespace ForestOverlay.Data
         /// (Data/RideState); "" when on none or before v0.24.201.
         public string Ride = "";
 
+        /// Game/BlueprintKeeper's placed blueprints at capture
+        /// (Data/BlueprintState); "" for none, null before v0.24.203.
+        public string Blueprints;
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -210,6 +214,7 @@ namespace ForestOverlay.Data
             if (Logs >= 0) Line(sb, "logs", Logs.ToString(CultureInfo.InvariantCulture));
             if (Rope.Length > 0) Line(sb, "rope", Rope);
             if (Ride.Length > 0) Line(sb, "ride", Ride);
+            if (Blueprints != null) Line(sb, "blueprints", Blueprints);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -275,6 +280,7 @@ namespace ForestOverlay.Data
                         }
                     case "rope": s.Rope = value; break;
                     case "ride": s.Ride = value; break;
+                    case "blueprints": s.Blueprints = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":
                         {

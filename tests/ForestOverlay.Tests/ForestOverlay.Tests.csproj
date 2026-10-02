@@ -46,6 +46,7 @@
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
     <Compile Include="../../src/Data/SavestateFile.cs" Link="Linked/SavestateFile.cs" />
     <Compile Include="../../src/Data/RideState.cs" Link="Linked/RideState.cs" />
+    <Compile Include="../../src/Data/BlueprintState.cs" Link="Linked/BlueprintState.cs" />
     <Compile Include="../../src/Data/GreebleRecord.cs" Link="Linked/GreebleRecord.cs" />
     <Compile Include="../../src/Data/SegmentBundle.cs" Link="Linked/SegmentBundle.cs" />
     <Compile Include="../../src/Data/CommunityIndex.cs" Link="Linked/CommunityIndex.cs" />

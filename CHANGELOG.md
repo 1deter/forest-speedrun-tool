@@ -5,6 +5,19 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.203 - 2026-10-02
+
+- Quick load with a placed blueprint you added logs or sticks to after the
+  capture: it now comes back as captured (the extra logs no longer stay
+  drawn), and the "GATHER ..." build list on screen is counted again from
+  the blueprints standing.
+- Capturing a savestate with the inventory or the pause menu open closes it
+  first, as the game's own save does: items on the crafting mat go back to
+  the inventory instead of being lost, and the capture no longer waits
+  until you close the inventory.
+- Every restore closes an open inventory or pause menu first (F7 already
+  did).
+
 ## v0.24.202 - 2026-10-02
 
 - Hang glider savestates: a restore now really puts you back in the air

@@ -321,6 +321,14 @@ namespace ForestOverlay.Modules
                 return;
             }
 
+            // The game saves with its inventory and pause menu closed (its
+            // save routine closes them): the crafting cog is not in the save,
+            // so items on it would be lost, and an open one stops game time,
+            // which the capture's frames need (it sat until the inventory
+            // closed - audit, v0.24.203).
+            string menu = MenuClose.IfOpen();
+            if (menu.Length > 0) Ctx.Log.LogInfo("Savestate capture: " + menu + " first, as the game's save does.");
+
             _busy = true;
             _busySince = Time.realtimeSinceStartup;
             Ctx.Practice.Mark("savestate capture");
@@ -343,6 +351,7 @@ namespace ForestOverlay.Modules
             // A ride / climb is outside the save: noted here, before the
             // capture's frames move the player on (RideModes).
             string ride = RideModes.Capture(pos);
+            string blueprints = BlueprintKeeper.Capture(Ctx.Player.Found ? Ctx.Player.Transform.root : null);
             if (ride.Length > 0)
                 Ctx.Log.LogInfo("Savestate capture: on a " + RideModes.Current() + " (" + ride + ") - a restore puts you back on it.");
             // The book stows the hands: the save then says nothing is held,
@@ -401,7 +410,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints);
                 if (error == null && areaWarning.Length > 0)
                 {
                     Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
@@ -415,7 +424,7 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance, string rope, string ride, int logs)
+                                  List<string> greebles, string stance, string rope, string ride, int logs, string blueprints)
         {
             _busy = false;
             if (!r.Ok)
@@ -451,6 +460,7 @@ namespace ForestOverlay.Modules
                 f.Logs = logs;
                 f.Rope = rope;
                 f.Ride = ride;
+                f.Blueprints = blueprints;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
                 f.Greebles = greebles;
@@ -518,6 +528,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
+            CloseMenuBeforeLoad();
             _greebles.Restore(f.Greebles, false);
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty);
             StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, done));
@@ -563,6 +574,14 @@ namespace ForestOverlay.Modules
             return true;
         }
 
+        // The inventory / pause menu stop game time; a Full load is the
+        // game's own load, which starts from the game running.
+        private void CloseMenuBeforeLoad()
+        {
+            string menu = MenuClose.IfOpen();
+            if (menu.Length > 0) Ctx.Log.LogInfo("Savestate restore with load: " + menu + " first.");
+        }
+
         private void RestoreInPlace(string data, bool unloadStreaming, HashSet<string> presentPickups, string what,
                                     int savedInCave, SavestateFile file, Action<string> after)
         {
@@ -598,8 +617,11 @@ namespace ForestOverlay.Modules
             // Before as well as after: a physics step during the restore
             // could land the old fall at the restored spot.
             string fall = Ctx.Bridge.EndFall();
-            // The book first (runner sxczurass), then a swing / action in
-            // progress is cut (runner maks).
+            // A game menu (F7 closed it already; the bridge's restore and
+            // the rest come here open), the book (runner sxczurass), then a
+            // swing / action in progress is cut (runner maks).
+            string menu = MenuClose.IfOpen();
+            if (menu.Length > 0) fall += (fall.Length > 0 ? ", " : "") + menu;
             string book = BookClose.IfOpen();
             if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
             string anim = AnimReset.Cancel();
@@ -623,6 +645,7 @@ namespace ForestOverlay.Modules
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
             // Outside a cutscene replay (its hands are the replay's).
             _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
+            _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 _busy = false;
@@ -1696,6 +1719,7 @@ namespace ForestOverlay.Modules
             {
                 Ctx.Practice.Mark("savestate restore (load)");
                 PickupKeeper.Armed = true;
+                CloseMenuBeforeLoad();
                 _greebles.Restore(f.Greebles, false);
                 StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty), AfterLoad(f, done));
             }

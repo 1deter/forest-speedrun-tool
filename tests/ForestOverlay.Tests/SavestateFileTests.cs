@@ -214,6 +214,24 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void BlueprintsRoundTripAndAreNullInOldFiles()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Blueprints);
+            Assert.DoesNotContain("blueprints", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Blueprints = "";
+            Assert.Equal("", SavestateFile.Parse(s.Write(), out error).Blueprints);
+
+            s.Blueprints = "a3aabd9b-1c2d:1,1,0;77e0-ff:2";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Blueprints, back.Blueprints);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RopeRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

@@ -569,7 +569,22 @@ namespace ForestOverlay.Game
             int keptReceivers = 0, keptHeld = 0;
             _keptInventoryViews = 0;
             int deleted = stored != null ? DeleteUnsaved(stored, keepRoot, deletedNames, ref keptReceivers, ref keptHeld) : 0;
-            if (deleted > 0) yield return null;   // let Destroy land before the loader looks
+            // A blueprint given logs / sticks since the capture: deleted too,
+            // so LoadNow builds it from the save (Game/BlueprintKeeper).
+            string blueprints = BlueprintsAtCapture;
+            BlueprintsAtCapture = null;
+            int rebuilt = 0;
+            if (stored != null)
+            {
+                List<GameObject> changed = BlueprintKeeper.Changed(blueprints, keepRoot);
+                for (int i = 0; i < changed.Count; i++)
+                {
+                    CancelBuildMissions(changed[i]);
+                    UnityEngine.Object.Destroy(changed[i]);
+                    rebuilt++;
+                }
+            }
+            if (deleted + rebuilt > 0) yield return null;   // let Destroy land before the loader looks
 
             _loadDone = false;
             _logNotFound = 0;
@@ -626,6 +641,8 @@ namespace ForestOverlay.Game
             // when `_equipmentSlotsIds` is set (IL). The hands hold the
             // captured items already, so the step goes.
             string handsNote = keepHands && _loadDone ? SkipGameReEquip() : "";
+            // The build HUD's tally from the blueprints now standing.
+            string missions = _loadDone ? BlueprintKeeper.RecountMissions() : "";
 
             if (started)
             {
@@ -643,6 +660,7 @@ namespace ForestOverlay.Game
                     if (keptReceivers > 0) sb.Append(", kept ").Append(keptReceivers).Append(" weapon-upgrade receiver(s) the save lacks");
                     if (keptHeld > 0) sb.Append(", kept ").Append(keptHeld).Append(" held-item object(s) of the player the save lacks");
                     if (_keptInventoryViews > 0) sb.Append(", kept ").Append(_keptInventoryViews).Append(" inventory view object(s) the save lacks");
+                    if (rebuilt > 0) sb.Append(", ").Append(rebuilt).Append(" blueprint(s) filled since rebuilt from the save");
                 }
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
@@ -651,6 +669,7 @@ namespace ForestOverlay.Game
                     sb.Append(", hands put away in ").Append((int)(stashWait * 1000f)).Append(" ms").Append(stashStuck ? " (STILL BUSY)" : "");
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
                 if (handsNote.Length > 0) sb.Append(", ").Append(handsNote);
+                if (missions.Length > 0) sb.Append(", ").Append(missions);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -1166,6 +1185,10 @@ namespace ForestOverlay.Game
         /// Set before RestoreInPlace: the item ids the capture held. When the
         /// hands hold exactly those, they are kept through the restore.
         public List<int> KeepHandsIfHeld;
+
+        /// Set before RestoreInPlace: the file's `blueprints` header (null
+        /// for an older file - nothing is rebuilt then).
+        public string BlueprintsAtCapture;
 
         private bool HandsMatch(List<int> wanted)
         {
