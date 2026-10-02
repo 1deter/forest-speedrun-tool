@@ -544,6 +544,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back.
 80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
 81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
+82. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
 
 ---
 
@@ -596,29 +597,42 @@ identity.
 ## Current status
 
 **Released: v0.24.203** (2026-10-02). The author runs it via the in-game
-updater (v0.24.203 in the game, Slot 1). **497 tests** (+ 46 site tests).
+updater (v0.24.203 in the game, Slot 1). **497 tests** (+ 50 site tests).
 
 ### Pick up here (2026-10-02, v0.24.203 in the game)
 
 **Session plan (author, 2026-10-02):** one item per session (the
 overnight session ran v0.24.184-200 in one context - costly). Start each
-session with `qa_read new_only`. Last session: **the Quick load audit's
-last cases** (v0.24.203, docs/savestates.md table): buildings placed /
-built since were already handled; a blueprint given logs since stayed
-drawn with the later logs and the build HUD kept the later tally - now
-rebuilt from the save (`Game/BlueprintKeeper`, `blueprints` header) and
-the HUD recounted; a capture with the inventory open stalled until it
-closed and would have lost the crafting cog's items (not in the save) -
-capture and every restore now close the inventory / pause menu first.
-All confirmed live over the bridge; nothing needed hands, no QA list.
+session with `qa_read new_only`. Last session (a cloud session, site only,
+no release; branch `claude/gallant-hopper-y8qu9r`): **the website's 3D
+world in fewer requests + phone LODs** (docs/website.md *Load size*):
+world.json `version` 3 - chunks, meshes and textures in `b/<i>.bin` by
+area cells (`scripts/world_pack.py`, `repack` packs any world without the
+game); the Labskip view 188 -> 60 requests (38.6 -> 41.9 MB), the picture
+pixel-identical; phones draw 60 error-bounded LODs (70.6M -> 67.9M
+triangles there - the heavy meshes cannot lose detail unseen); colliders
+fetched only when Collision is switched on. Measured on a local site with
+the live world (`scripts/site-measure.py`). Found: the 3D look of some
+leaves depends on load order (gotcha 82, not fixed).
+
+**To finish it (the author, in order):** merge the branch to `main` (the
+site deploys and reads versions 1-3); once live, `pip install
+fast-simplification`, then either re-export (`world-extract.py export`,
+now version 3) or `python scripts/world_pack.py repack site/world-out
+site/world-v3`, and `python scripts/aerial-upload.py --world
+https://forest.deter.cloud site/world-v3` (or `site/world-out`); check
+live with a new query string. A cloud session can do the upload if
+`FOREST_SITE_ADMIN_TOKEN` is added to its environment's secrets (it was
+not this time; `forest.deter.cloud` needs the network allowed).
 
 **Next, in order (one per session):**
-1. **Website: fewer texture requests** (188 per Labskip 3D view after the
-   packs) and LODs for heavy chunks on phones (docs/website.md).
-2. **LiveSplit's PB chance / total playtime** summary lines (splits table).
-3. **A session with the author** for what needs their eyes, hands or a
+1. **LiveSplit's PB chance / total playtime** summary lines (splits table).
+2. **A session with the author** for what needs their eyes, hands or a
    decision: investigations *Not seen by the author / needs hands*, and
    the decisions below.
+3. Website, later: a distance LOD switch for phones (full near, LOD far),
+   the load-order look (gotcha 82), Brotli beside the gzip copies (~10%
+   off the meshes, measured).
 
 **Decisions waiting for the author** (ask, never build ahead):
 - **Run mode / session settings lock / anti-splice** - sxczurass asked

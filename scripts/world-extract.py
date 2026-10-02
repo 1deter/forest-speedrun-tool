@@ -16,13 +16,15 @@ site/world-out, not in git; uploaded to the site like the aerial tiles):
 
   world.json   layers, materials (colour, texture), meshes, models
                (mesh + its materials + render / collide + layer), chunks,
-               packs; "version" 2 (1 = no packs, one m/<i>.bin per mesh)
-  p/<i>.bin    meshes packed (scripts/world_pack.py: which pack, why); a
-               mesh's "pack" = [pack, byte offset, byte length] of: float32
-               positions (n x 3), float32 uv (n x 2) when "uv", then uint16
-               or uint32 ("i32") triangle indices; "sub" = [first index,
-               count] per submesh (= per material). Written as m/<i>.bin
-               while the scenes are read, packed at the end.
+               files; "version" 3 (1 = one file per blob, 2 = mesh and
+               texture packs - both still read by the site)
+  b/<i>.bin    everything below packed (scripts/world_pack.py: which file,
+               why, the phones' LODs); a mesh's / chunk's "at" = [file, byte
+               offset, byte length], "textures"[i] = [jpg place, png place].
+               Written as these while the scenes are read, packed at the end:
+  m/<i>.bin    a mesh: float32 positions (n x 3), float32 uv (n x 2) when
+               "uv", then uint16 or uint32 ("i32") triangle indices; "sub" =
+               [first index, count] per submesh (= per material)
   t/<i>.jpg    a material's main texture, at most 256 px
   c/<area>_<cx>_<cz>.bin  the instances in one 250 m column of an area:
                uint32 model, then the world matrix's top 3 rows (12 float32,
@@ -767,33 +769,20 @@ class Export:
             chunks.append({"file": name, "area": area, "x": cx * CHUNK, "z": cz * CHUNK,
                            "y0": round(min(ys), 1), "y1": round(max(ys), 1), "n": len(items), "tris": tris,
                            "bb": [round(float(v), 1) for v in self.reach[key]]})
-        users = collections.defaultdict(set)     # mesh -> the chunks whose instances use it
-        for key, items in self.chunks.items():
-            for model, _ in items:
-                users[self.models[model]["mesh"]].add(key)
-        packs = world_pack.write(self.out, self.meshes, users, CHUNK)
-        tusers = collections.defaultdict(set)    # texture -> the chunks whose models' materials use it
-        for key, items in self.chunks.items():
-            for model, _ in items:
-                for m in self.models[model]["mats"]:
-                    if m < 0:
-                        continue
-                    for t in (self.materials[m].get("tex", -1), self.materials[m].get("top", -1)):
-                        if t is not None and t >= 0:
-                            tusers[t].add(key)
-        texpacks, textures = world_pack.write_textures(self.out, tusers, CHUNK, world_pack.used_variants(self.materials))
         layers = {}
         env = UnityPy.load(os.path.join(GAME, "globalgamemanagers"))
         for o in env.objects:
             if o.type.name == "TagManager":
                 layers = {i: n for i, n in enumerate(o.read_typetree()["layers"]) if n}
+        meta = {"version": 1, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
+                "meshes": self.meshes, "models": self.models, "chunks": chunks}
+        meshes = len(self.meshes)
+        packed = world_pack.pack(self.out, meta)    # -> version 3: b/<i>.bin, LODs appended to meshes
         with open(os.path.join(self.out, "world.json"), "w", encoding="utf-8", newline="\n") as f:
-            json.dump({"version": 2, "build": int(time.time()), "chunk": CHUNK, "layers": layers, "materials": self.materials,
-                       "meshes": self.meshes, "models": self.models, "chunks": chunks, "packs": packs,
-                       "texpacks": texpacks, "textures": textures}, f, separators=(",", ":"))
+            json.dump(meta, f, separators=(",", ":"))
         print(self.under, "instances under the terrain filed with the caves")
-        print("wrote", len(chunks), "chunks,", len(self.models), "models,", len(self.meshes), "meshes in", len(packs), "packs,",
-              sum(1 for v in self.textures.values() if v >= 0), "textures in", len(texpacks), "packs ->", self.out)
+        print("wrote", len(chunks), "chunks,", len(self.models), "models,", meshes, "meshes,",
+              sum(1 for v in self.textures.values() if v >= 0), "textures:", packed, "->", self.out)
 
 
 def export(out):

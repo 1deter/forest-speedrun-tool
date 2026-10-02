@@ -692,3 +692,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     (`ilscan body` of its connect / exit), capture during it, and look at
     the object after the restore, not only at the player.
 
+82. **A picture can depend on load order - test the old build the same
+    way before blaming the new one.** (2026-10-02, the website's version 3
+    world.) A phone shot of the tree spot differed in 8.5% of its pixels
+    after the repack, and bisecting pointed at one dead body's LOD - which
+    cannot touch maple leaves. Its file only changed when that model was
+    built. Holding back random files on the *old* site flipped the same
+    leaves between the same two looks: every InstancedMesh sits at the
+    origin, so three.js's draw order is creation order, which is arrival
+    order. Compare shots taken the same way (single views), and when a diff
+    looks impossible, rerun the before build with delayed files
+    (`site-measure.py` `DELAY`) - two stable looks = an existing ordering
+    effect, not the change.

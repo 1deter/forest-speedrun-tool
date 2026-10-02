@@ -11,13 +11,17 @@
 // draw a new upload's files in the old places (leaves on cave walls): the
 // server refuses another build's ?v= (404) and the page then re-reads
 // world.json and starts over (stale()); each 3D view reads it afresh.
-// Meshes come in packs (version 2: "packs", each mesh's "pack" = [pack,
-// offset, length] - scripts/world_pack.py), a few per chunk; version 1
+// Meshes came in packs (version 2: "packs", each mesh's "pack" = [pack,
+// offset, length]), a few per chunk; version 1
 // exports (one m/<i>.bin per mesh) are still read. Textures too since
 // 2026-10-02 ("texpacks", "textures"[i] = [jpg pack, off, len, png pack,
 // off, len]): a texture is cut out of its pack as a blob URL; exports
-// without them read t/<i>.jpg / .png. The server sends .bin /
-// .json gzipped (the upload's .gz copies).
+// without them read t/<i>.jpg / .png. Version 3 (2026-10-02): everything -
+// chunks' instances, meshes, textures - in a few b/<i>.bin files ("files"),
+// each blob's place [file, offset, length]; phones draw some meshes as
+// lighter copies (a mesh's "lod", in files of their own; collision keeps the
+// full one) - scripts/world_pack.py. The server sends .bin / .json gzipped
+// (the upload's .gz copies).
 //
 // World (Unity): x east, y up, z north; drawn at (x, y, -z) as map3d.js. An
 // instance's matrix is S * M with S = diag(1, 1, -1) on the mesh's own
@@ -32,6 +36,7 @@ import * as THREE from "/vendor/three-0.170.0.module.min.js?v=0.170.0";
 const RADIUS = 700, DROP = 1100;           // metres, horizontally from the camera's target
 const CUT_MARGIN = 4;                      // metres kept in front of the target, underground
 const S = new THREE.Matrix4().makeScale(1, 1, -1);
+const MOBILE = matchMedia("(pointer: coarse)").matches;   // as map3d.js: phones and tablets draw the LODs
 
 // Kinds of model, each with its own switch (the map's "separate toggles per
 // kind"; 2026-10-01). The game's layers do not say it alone - trees are in
@@ -68,7 +73,8 @@ let metaPromise = null;
 export function worldMeta(fresh) {
   if (!metaPromise || fresh) metaPromise = fetch("/world/world.json", { cache: "no-cache" })
     .then(r => r.status === 200 ? r.json() : null)
-    .then(m => m && (m.version === 1 || m.version === 2 && Array.isArray(m.packs)) && Array.isArray(m.chunks) ? m : null)
+    .then(m => m && (m.version === 1 || m.version === 2 && Array.isArray(m.packs) || m.version === 3 && Array.isArray(m.files))
+      && Array.isArray(m.chunks) ? m : null)
     .catch(() => null);
   return metaPromise;
 }
@@ -147,8 +153,12 @@ export class World {
     this.meta = null;
     this.chunks = new Map();      // file -> { state: "loading" | "ready", items: [[model, Matrix4]] }
     this.geoms = new Map();       // mesh index -> Promise<BufferGeometry | null>
+    this.geomsDone = new Set();   // mesh indices whose geometry() has settled
+    this.fetching = 0;            // meshes rebuild() is waiting for (collision just switched on)
     this.packs = new Map();       // pack index -> Promise<ArrayBuffer | null> (version 2)
     this.texPacks = new Map();    // texture pack index -> Promise<ArrayBuffer | null>
+    this.files = new Map();       // file index -> Promise<ArrayBuffer | null> (version 3)
+    this.chunkOf = new Map();     // chunk file name -> its world.json entry
     this.textures = new Map();    // texture index -> THREE.Texture
     this.mats = new Map();        // material index -> THREE.Material (render)
     this.drawn = new Map();       // model index -> THREE.InstancedMesh
@@ -203,6 +213,7 @@ export class World {
     if (!m || this.disposed) return;
     this.meta = m; this.v = "?v=" + (m.build || 0); this.box.hidden = false; this.next = 0;
     this.kinds = m.models.map(model => kindOf(m, model));
+    this.chunkOf = new Map(m.chunks.map(c => [c.file, c]));
     this.changed();
   }
 
@@ -220,7 +231,7 @@ export class World {
       for (const p of this.geoms.values()) p.then(g => g && g.dispose());
       for (const t of this.textures.values()) t.dispose();
       for (const x of this.mats.values()) x.dispose();
-      for (const x of [this.drawn, this.geoms, this.packs, this.texPacks, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
+      for (const x of [this.drawn, this.geoms, this.geomsDone, this.packs, this.texPacks, this.files, this.textures, this.mats, this.waterMats, this.chunks, this.dirtyModels]) x.clear();
       this.use(m);
     });
   }
@@ -232,9 +243,17 @@ export class World {
     this.mark(b, this.show[key]);
     try { localStorage.setItem("forest.world3d", JSON.stringify(this.show)); } catch (e) { /* not kept */ }
     for (const [mi, mesh] of this.drawn) mesh.visible = this.wanted(mi);
+    // Collision meshes are fetched when first shown (fetched(), rebuild()).
+    if (key === "collision" && this.show.collision)
+      for (const [, c] of this.chunks) if (c.state === "ready")
+        for (const [mi] of c.items) if (this.meta.models[mi].kind === "collide" && !this.drawn.has(mi)) this.dirtyModels.add(mi);
     this.next = 0;
     this.changed();
   }
+
+  /// Is model mi's mesh worth fetching now? Collision only while its switch is
+  /// on (2026-10-02: every collider was fetched and built, hidden).
+  fetched(mi) { return this.meta.models[mi].kind !== "collide" || this.show.collision; }
 
   /// Is model mi switched on? (its kind's switch)
   wanted(mi) { return !!this.show[this.kinds[mi] || "props"]; }
@@ -320,19 +339,20 @@ export class World {
       if (!want.has(file) && c.state === "ready") { this.chunks.delete(file); for (const [mi] of c.items) this.dirtyModels.add(mi); }
     }
     if (this.dirtyModels.size) this.rebuild();
-    this.status.textContent = loading ? "loading " + loading + "…" : "";
+    this.status.textContent = loading ? "loading " + loading + "…" : this.fetching ? "loading…" : "";
   }
 
   async load(file) {
     const entry = { state: "loading", items: [] };
     this.chunks.set(file, entry);
     try {
-      const r = await fetch("/world/" + file + this.v);
-      if (r.status === 404) this.stale();
-      if (!r.ok) throw new Error(r.status);
-      const buf = await r.arrayBuffer();
+      // Its own file, or (version 3) its place in a shared one.
+      const at = this.meta.files && this.chunkOf.get(file).at;
+      const found = at ? await this.place(at) : await this.bytes(file).then(b => b && [b, 0, b.byteLength]);
+      if (!found) throw new Error("missing");
       if (this.disposed || this.chunks.get(file) !== entry) return;
-      const n = buf.byteLength / 52, u = new Uint32Array(buf), f = new Float32Array(buf);
+      const [buf, off, len] = found;
+      const n = len / 52, u = new Uint32Array(buf, off, n * 13), f = new Float32Array(buf, off, n * 13);
       for (let i = 0; i < n; i++) {
         const o = i * 13, m = new THREE.Matrix4();
         m.set(f[o + 1], f[o + 2], f[o + 3], f[o + 4],
@@ -343,7 +363,7 @@ export class World {
       }
       // The models' meshes first, so the chunk appears whole.
       const models = new Set(entry.items.map(it => it[0]).filter(mi => this.meta.models[mi]));
-      await Promise.all([...models].map(mi => this.geometry(this.meta.models[mi].mesh)));
+      await Promise.all([...models].filter(mi => this.fetched(mi)).map(mi => this.geometry(this.meshOf(this.meta.models[mi]))));
       if (this.disposed || this.chunks.get(file) !== entry) return;
       entry.state = "ready";
       for (const mi of models) this.dirtyModels.add(mi);
@@ -368,12 +388,32 @@ export class World {
     return this.packs.get(i);
   }
 
+  /// A version 3 file's bytes, fetched once for all its blobs.
+  file(i) {
+    if (!this.files.has(i)) this.files.set(i, this.bytes(this.meta.files[i]).catch(() => null));
+    return this.files.get(i);
+  }
+
+  /// A blob's [buffer, offset, length] (version 3).
+  place(at) {
+    return this.file(at[0]).then(b => b && [b, at[1], at[2]]);
+  }
+
+  /// The mesh a model draws with: on phones a heavy mesh's lighter copy
+  /// (version 3 "lod"), except for collision.
+  meshOf(model) {
+    const lod = this.meta.meshes[model.mesh].lod;
+    return MOBILE && lod !== undefined && model.kind !== "collide" ? lod : model.mesh;
+  }
+
   geometry(index) {
     if (this.geoms.has(index)) return this.geoms.get(index);
     const m = this.meta.meshes[index];
-    // [buffer, where the mesh starts in it]: its pack's (version 2; offsets
-    // 4-byte aligned, the arrays are views) or its own file.
-    const src = !this.meta.packs ? this.bytes("m/" + index + ".bin").then(b => b && [b, 0])
+    // [buffer, where the mesh starts in it]: its place (version 3), its
+    // pack's (version 2; offsets 4-byte aligned, the arrays are views) or
+    // its own file.
+    const src = this.meta.files ? (m.at ? this.place(m.at) : Promise.resolve(null))
+      : !this.meta.packs ? this.bytes("m/" + index + ".bin").then(b => b && [b, 0])
       : m.pack ? this.pack(m.pack[0]).then(b => b && [b, m.pack[1]]) : Promise.resolve(null);
     const p = src.then(found => {
       if (!found) return null;
@@ -383,16 +423,20 @@ export class World {
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3));
       at += m.nv * 12;
       if (m.uv) { g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 2), 2)); at += m.nv * 8; }
+      // A LOD carries its full mesh's normals: it shades as the full one does.
+      if (m.n) { g.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(buf, at, m.nv * 3), 3)); at += m.nv * 12; }
       const idx = m.i32 ? new Uint32Array(buf.slice(at, at + m.ni * 4)) : new Uint16Array(buf.slice(at, at + m.ni * 2));
       // Unity winds front faces clockwise: turned, so the normals face out.
       for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
       g.setIndex(new THREE.BufferAttribute(idx, 1));
       m.sub.forEach(([start, count], i) => g.addGroup(start, count, i));
-      g.computeVertexNormals();
+      if (!m.n) g.computeVertexNormals();
       g.computeBoundingSphere();
       return g;
     }).catch(() => null);
     this.geoms.set(index, p);
+    const gen = this.gen;
+    p.then(() => { if (gen === this.gen) this.geomsDone.add(index); });
     return p;
   }
 
@@ -452,7 +496,23 @@ export class World {
     let t = this.textures.get(key);
     if (!t) {
       const e = this.meta.textures && this.meta.textures[i];
-      if (e) {
+      if (e && this.meta.files) {
+        // Version 3: [jpg place, png place] - the png (alpha) when there is one.
+        const png = !!(alpha && e[1]), at = png ? e[1] : e[0] || e[1];
+        t = new THREE.Texture();
+        if (at) {
+          const gen = this.gen;
+          this.place(at).then(found => {
+            if (!found || gen !== this.gen || this.disposed) return;
+            const [buf, off, len] = found;
+            const url = URL.createObjectURL(new Blob([new Uint8Array(buf, off, len)], { type: at === e[1] ? "image/png" : "image/jpeg" }));
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); t.image = img; t.needsUpdate = true; this.changed(); };
+            img.onerror = () => URL.revokeObjectURL(url);
+            img.src = url;
+          });
+        }
+      } else if (e) {
         // From its pack: the png (alpha) when there is one, else the jpg.
         const png = alpha && e[3] >= 0, s = png ? 3 : 0;
         t = new THREE.Texture();
@@ -493,7 +553,20 @@ export class World {
       if (!list.length || !model) continue;
       // Glints and particles (the pickups' sheen): not a solid thing.
       if (model.mats.length && model.mats.every(x => x >= 0 && this.meta.materials[x].fx)) continue;
-      const g = await this.geometry(model.mesh);
+      if (!this.fetched(mi)) continue;     // collision, switched off: built when switched on
+      const gi = this.meshOf(model);
+      if (!this.geomsDone.has(gi)) {
+        // Not here yet (collision just switched on): fetched, then built by a
+        // later rebuild - never awaited here, where a second rebuild of the
+        // same model could finish first and be dropped.
+        this.fetching++;
+        this.geometry(gi).then(() => {
+          this.fetching--;
+          if (gen === this.gen && !this.disposed) { this.dirtyModels.add(mi); this.next = 0; this.changed(); }
+        });
+        continue;
+      }
+      const g = await this.geometry(gi);
       if (gen !== this.gen) return;      // started over meanwhile (stale())
       if (!g || this.disposed || this.drawn.has(mi)) continue;
       let mat;
@@ -542,6 +615,7 @@ export class World {
     for (const m of this.mats.values()) m.dispose();
     this.packs.clear();
     this.texPacks.clear();
+    this.files.clear();
     this.collideMat.dispose(); this.collideWire.dispose();
     if (this.ground.groundMap.value) this.ground.groundMap.value.dispose();
     this.scene.remove(this.group);
