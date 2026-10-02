@@ -279,3 +279,8 @@ with the inventory open and items on the crafting cog closes it first
 (1.2 s, was 121 s), the items back in the inventory; a Quick load and a
 Full load started with the inventory open (items on the cog) close it
 and give back the captured counts, timeScale 1.
+
+Confirmed over the bridge 2026-10-02 (v0.24.204-205): the splits table's
+PB chance (no PB, Congrats, "< 0.01%", ~50 / 25 / 16.7% as computed by hand
+from the pool) and total playtime (live while running) lines, panel and
+Runs tab; unfinished runs written to unfinished.txt on abort / re-arm.

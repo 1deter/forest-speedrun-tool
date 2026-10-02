@@ -112,7 +112,7 @@ Where things live:
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | Run uploads to the website | `Modules/RunUploadModule` (queue in `config/ForestOverlay/uploads/pending`, refused files + reason in `uploads/refused`; `[Site]` config; section drawn in the Runs tab), `Core/WebRequest` (POST by reflection), `Data/SiteProtocol` (answers, tested) |
 | Timed runs, ghosts, lines | `Modules/PracticeRunModule`, `Data/RunRecorder` (`RunCompare`; `ItemChange` track), `Data/AttemptFormat` (`.run` text, tested), `Data/LineBuffer`, `Game/DebugDraw` (`RunLineBehaviour`), `Game/PlayerStateReader` (5 Hz stats), `Game/ItemCounter` (carried items, event-driven) |
-| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
+| Splits table (panel + Runs tab), runner identity | `Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` (tested), `Data/RunHistory` (PB chance, total playtime, `runs/<id>/unfinished.txt`; tested), `Data/LssFile` (LiveSplit `.lss` parse / match / links, tested), `Modules/PracticeRunModule.LiveSplit.cs` (Runs tab: file per segment, match, Compare to -> LiveSplit), `Game/RunnerIdentity` (Steam name, hashed id), `OverlayModule.DrawScreen` |
 | Endgame split events | `Game/GameEvents` (Harmony postfixes + `endGameCutScene` poll) |
 | The autosplitter's other splits (caves, clothing, passengers, starts) | `Game/WorldEvents` (polls the ASL's fields; events via `GameEvents.RecordWorld`), editor picker groups in `Modules/PracticeModule` |
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
@@ -595,28 +595,31 @@ identity.
 
 ## Current status
 
-**Released: v0.24.203** (2026-10-02). The author runs it via the in-game
-updater (v0.24.203 in the game, Slot 1). **497 tests** (+ 46 site tests).
+**Released: v0.24.205** (2026-10-02). The author runs it via the in-game
+updater (v0.24.205 in the game, Slot 1). **509 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.203 in the game)
+### Pick up here (2026-10-02, v0.24.205 in the game)
 
-**Session plan (author, 2026-10-02):** one item per session (the
-overnight session ran v0.24.184-200 in one context - costly). Start each
-session with `qa_read new_only`. Last session: **the Quick load audit's
-last cases** (v0.24.203, docs/savestates.md table): buildings placed /
-built since were already handled; a blueprint given logs since stayed
-drawn with the later logs and the build HUD kept the later tally - now
-rebuilt from the save (`Game/BlueprintKeeper`, `blueprints` header) and
-the HUD recounted; a capture with the inventory open stalled until it
-closed and would have lost the crafting cog's items (not in the save) -
-capture and every restore now close the inventory / pause menu first.
-All confirmed live over the bridge; nothing needed hands, no QA list.
+**Session plan (author, 2026-10-02):** one item per session. Start each
+session with `qa_read new_only`. Last session: **LiveSplit's PB chance and
+total playtime** summary lines (v0.24.204-205, `Data/RunHistory`, off by
+default - neither is in LiveSplit's default layout). PB chance follows
+SethBling's PBChance component rule for rule (newest half of attempts,
+resets, 10,000 simulations at start / split / finish / reset; two noted
+differences in the file header); playtime follows LiveSplit.TotalPlaytime
+(own attempts, every route, + the running one). Unfinished runs now append
+to `runs/<id>/unfinished.txt` from every path that drops a running attempt
+(`RecordUnfinished`, one `unfinished after ...` log line); older unfinished
+runs left only a count, so they are in neither line. Confirmed live over
+the bridge (test segment with manual triggers, uploads off during the test,
+spot and runs removed after): 100% / Congrats / < 0.01% / 49.69% / 25.05% /
+16.37% all as computed by hand; v0.24.205 fixed a long value cut at the
+left ("100% (Congrats!)").
 
 **Next, in order (one per session):**
 1. **Website: fewer texture requests** (188 per Labskip 3D view after the
    packs) and LODs for heavy chunks on phones (docs/website.md).
-2. **LiveSplit's PB chance / total playtime** summary lines (splits table).
-3. **A session with the author** for what needs their eyes, hands or a
+2. **A session with the author** for what needs their eyes, hands or a
    decision: investigations *Not seen by the author / needs hands*, and
    the decisions below.
 
@@ -666,7 +669,8 @@ building, started attempts; v0.24.197 Timmy drawings; v0.24.198-199
 collider filter + real shapes; v0.24.200 the unfinished run's red line;
 v0.24.201-202 rides put back after a restore (+ the sled / glider capture
 fixes); v0.24.203 Quick load audit: blueprints filled since, the crafting
-cog, an open inventory at capture / restore.
+cog, an open inventory at capture / restore; v0.24.204-205 PB chance +
+total playtime lines.
 
 ### Standing decisions and people
 
