@@ -620,8 +620,12 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, no release, live):** **every model culled per instance + under the
-ground** (docs/website.md *Load size*): with the camera above opaque
+only, no release, live):** **under-the-ground culling at ground level** -
+a camera 1-2 m over a slope now culls (only the cells under its near plane
+are asked) and a hole counts only when the line goes down it: tree spot
+634 -> 560 / 362 -> 300 draw calls, pictures identical (docs/website.md
+*Load size*). Before: **every model culled per instance + under the
+ground**: with the camera above opaque
 terrain, instances wholly under it are not drawn unless seen over the
 sinkhole - plane wreck view 461 -> 305 draw calls (5.1 -> 3.9 ms),
 overview 498 -> 293, Labskip 460 -> 424; pictures pixel-identical. Before:
@@ -679,9 +683,9 @@ one (a preset save as a start state, `run = <category name>`, in
    screen's edges); the load-order look (gotcha 83, an investigation).
    Also (author, 2026-10-02): the web replay as fast as possible - done
    so far: the *Detail* button, the far copies, view-cone culling, every
-   model culled per instance + under the ground; next candidates: the
-   sinkhole rim (tree spot ~1,400 draw calls, 70% the lab / caves - a
-   tighter over-the-hole test), BatchedMesh by material.
+   model culled per instance + under the ground, ground-level culling;
+   next candidate: BatchedMesh by material (the sinkhole test is as tight
+   as the heights allow - the rest needs its floor model).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.

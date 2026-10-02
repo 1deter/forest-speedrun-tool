@@ -350,12 +350,22 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   -> 3.3 ms. Pictures identical (0.000% of pixels) with the surface
   opaque; underground (the surface faded) 0.2% differ - the see-through
   surface pieces blend in another order (three.js sorts them by their
-  bounding sphere, which culling moves), neither more right. Not culled:
-  a camera at ground height (may be under the coarse terrain), and the
-  tree spot (428, *, -4) at the sinkhole's rim - lines to the lab under it
-  pass over the hole: ~1,400 draw calls there, 70% caves / the lab. Next
-  candidates: a tighter sinkhole test (march the line against the heights),
-  BatchedMesh by material. Before (same day): 60
+  bounding sphere, which culling moves), neither more right.
+  **Tighter, the same day**: `aboveGround` asks only the aligned 4 x 4
+  cells under the camera's near plane (every drawn cell, step 1 / 2 / 4,
+  lies in one; reach = near / cos(corner), `update`'s new `near`) - the
+  10 x 10 window round the camera failed for a camera 1-2 m over a slope,
+  so ground-level views never culled. `throughHole` (was `overHole`) counts
+  a hole only when the line is lower than its box's highest sample while
+  over it, and only when the line was not already under the terrain before
+  (marched in blocks). Local site, `NORUNS=1`: tree spot (428, 78, -4) yaw 0
+  634 -> 560 draw calls, 20.5M -> 18.9M triangles; yaw 180 362 -> 300;
+  into the sinkhole (yaw 270) 484 -> 468; above it (300, 150, 60) 360 ->
+  332; plane wreck / saplings at ground height unchanged. Pictures
+  identical (0.000%; ~5 pixels differ between two runs of the old code
+  too). Lines that really go down the sinkhole stay drawn - the next cut
+  there would need the sinkhole's floor (a world model, not the heights).
+  Next candidate: BatchedMesh by material. Before (same day): 60
   phone-only copies within 2 cm (70.6M -> 67.9M; a quarter everywhere had
   holed the trees and sunk Cave 6's floor).
 - **Collision is fetched when switched on** (2026-10-02): every collider's
@@ -508,6 +518,10 @@ What the export decides (details: gotchas 64-67):
 render fix done): `python scripts/site-look.py <scenario>` does all of
 the below (its docstring lists the scenarios: edge / pan rebuild counts,
 lake clip on / off, Models off, layer-hiding JS, raycast-ready eval).
+With `forest-site` taken by another session (port 5080 serves *its*
+copy): preview `forest-site-alt` (5081, this checkout's wwwroot, data in
+the temp folder - copy `site/ForestSite/bin/Debug/net10.0/data/world`
+into it, server stopped, for the current world) and `SITE=http://localhost:5081`.
 By hand: preview `forest-site`, upload the world locally
 (`FOREST_SITE_ADMIN_TOKEN=local-admin python scripts/aerial-upload.py
 --world http://localhost:5080`; the photo tiles the same way without

@@ -58,7 +58,9 @@ const CULLED = 254;                        // split(): level of an instance not 
 // The terrain is drawn from the heights' samples (every COARSE_MAX-th away
 // from the detail patch, map3d.js COARSE; a cell touching a hole left out):
 // its surface over a footprint is never below the lowest sample within
-// COARSE_MAX samples of it.
+// COARSE_MAX samples of it, and every drawn cell (a step of 1, 2 or 4
+// samples, aligned to it) lies inside one aligned COARSE_MAX x COARSE_MAX
+// cell, so its surface is never above the highest corner of those.
 const COARSE_MAX = 4;                      // samples (map3d.js COARSE: 2, phones 4)
 const GROUND_BLOCK = 8;                    // samples per block of the min / max grid
 const UNDER_MARGIN = 0.5;                  // metres
@@ -369,7 +371,7 @@ export class World {
   /// (look, unit) and the half angle to the screen's corner (corner, radians).
   /// Rate-limited, except that turning CULL_TURN picks again at once; cheap
   /// when nothing changes.
-  update(target, now, eye, focal, look, corner) {
+  update(target, now, eye, focal, look, corner, near) {
     if (!this.meta || this.disposed) return;
     const turned = look && this.splitAt && look.dot(this.lookAt) < Math.cos(CULL_TURN);
     if (now < this.next && !turned) return;
@@ -377,7 +379,9 @@ export class World {
     if (eye) { this.eye.copy(eye); this.focal = focal; }
     if (look) { this.look.copy(look); this.cone = Math.min(Math.PI, corner + CULL_MARGIN); }
     const s = this.splitAt;
-    const hide = this.fade > 0.99 && !!this.grid && aboveGround(this.grid, this.eye.x, this.eye.y, this.eye.z);
+    // The near plane's corners reach near / cos(corner) from the camera: all of them above the terrain.
+    const reach = (near || 5) / Math.cos(corner || 0.9);
+    const hide = this.fade > 0.99 && !!this.grid && aboveGround(this.grid, this.eye.x, this.eye.y, this.eye.z, reach);
     if (!s || turned || this.focal !== s[3] || hide !== this.hideUnder || Math.hypot(this.eye.x - s[0], this.eye.y - s[1], this.eye.z - s[2]) > SPLIT_MOVE) {
       this.hideUnder = hide;
       this.splitAt = [this.eye.x, this.eye.y, this.eye.z, this.focal];
@@ -704,7 +708,7 @@ export class World {
   /// sphere), stays under farPixels: err * s * focal / d <= farPixels.
   /// An instance whose bounding sphere is outside the view cone (this.cone
   /// round this.look), or wholly under the ground seen from above it
-  /// (hideUnder, under, overHole), is drawn by none of them.
+  /// (hideUnder, under, throughHole), is drawn by none of them.
   /// Only a model whose instances changed mesh is written and sent again
   /// (only the used part of each buffer): the camera moving a few metres
   /// moves few instances, and a split of every far instance in view costs
@@ -721,7 +725,7 @@ export class World {
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz), r = spheres[o + 3];
       let L = 0;
       if (cull && d > r && Math.acos(Math.max(-1, Math.min(1, (dx * lx + dy * ly + dz * lz) / d))) > cone + Math.asin(r / d)) L = CULLED;
-      else if (hide && under[i] && !overHole(hide, ex, ez, spheres[o], spheres[o + 2], r)) L = CULLED;
+      else if (hide && under[i] && !throughHole(hide, ex, ey, ez, spheres[o], spheres[o + 1], spheres[o + 2], r)) L = CULLED;
       else {
         const allowed = Math.max(0, d - r) / (spheres[o + 4] * k);
         while (L < last && levels[L + 1].err <= allowed) L++;
@@ -789,7 +793,8 @@ export class World {
 
 /// The terrain's heights (Unity y): every sample, the lowest of each
 /// GROUND_BLOCK x GROUND_BLOCK block, and the blocks holding a hole (as
-/// Unity x / z boxes) - what underGround / aboveGround / overHole read.
+/// Unity x / z boxes + the highest sample in each) - what underGround /
+/// aboveGround / throughHole read.
 /// f: every sample's height, -1e9 on a hole (setGround).
 function groundGrid(m, f, holes) {
   const n = m.grid, B = GROUND_BLOCK, nb = Math.ceil(n / B);
@@ -805,7 +810,11 @@ function groundGrid(m, f, holes) {
       for (let i = bi * B; i < Math.min(n, bi * B + B); i++) if (holes[j * n + i]) { any = true; break; }
     // The drawn terrain leaves out the cells touching a hole: the box reaches COARSE_MAX + 1 samples further.
     const e = COARSE_MAX + 1;
-    if (any) holeBoxes.push([m.x0 + (bi * B - e) * cx, m.z0 + (bj * B - e) * cz, m.x0 + (bi * B + B - 1 + e) * cx, m.z0 + (bj * B + B - 1 + e) * cz]);
+    if (!any) continue;
+    let hi = -Infinity;
+    for (let j = Math.max(0, bj * B - e); j <= Math.min(n - 1, bj * B + B - 1 + e); j++)
+      for (let i = Math.max(0, bi * B - e); i <= Math.min(n - 1, bi * B + B - 1 + e); i++) hi = Math.max(hi, f[j * n + i]);
+    holeBoxes.push([m.x0 + (bi * B - e) * cx, m.z0 + (bj * B - e) * cz, m.x0 + (bi * B + B - 1 + e) * cx, m.z0 + (bj * B + B - 1 + e) * cz, hi]);
   }
   return { x0: m.x0, z0: m.z0, cx, cz, n, nb, f, lo, holeBoxes };
 }
@@ -828,26 +837,47 @@ function underGround(g, x, y, z, r) {
   return y + r < low - UNDER_MARGIN;
 }
 
-/// The camera (three.js space) above the drawn terrain under it: higher than
-/// every sample within COARSE_MAX of it (the triangles over it join those).
-function aboveGround(g, x, y, z) {
-  const i = Math.floor((x - g.x0) / g.cx), j = Math.floor((-z - g.z0) / g.cz), e = COARSE_MAX;
-  if (i - e < 0 || j - e < 0 || i + 1 + e > g.n - 1 || j + 1 + e > g.n - 1) return false;
-  for (let b = j - e; b <= j + 1 + e; b++) for (let a = i - e; a <= i + 1 + e; a++) if (g.f[b * g.n + a] + UNDER_MARGIN >= y) return false;
+/// The camera (three.js space) and its near plane (within reach of it)
+/// above the drawn terrain: lower by reach, still higher than every corner of
+/// the aligned COARSE_MAX cells under x / z +- reach (the drawn cells under
+/// it lie in those, whatever their step).
+function aboveGround(g, x, y, z, reach) {
+  const e = COARSE_MAX, ux = x, uz = -z;
+  const i0 = Math.floor(Math.floor((ux - reach - g.x0) / g.cx) / e) * e, i1 = Math.ceil(Math.ceil((ux + reach - g.x0) / g.cx) / e) * e;
+  const j0 = Math.floor(Math.floor((uz - reach - g.z0) / g.cz) / e) * e, j1 = Math.ceil(Math.ceil((uz + reach - g.z0) / g.cz) / e) * e;
+  if (i0 < 0 || j0 < 0 || i1 > g.n - 1 || j1 > g.n - 1) return false;
+  const low = y - reach - UNDER_MARGIN;
+  for (let b = j0; b <= j1; b++) for (let a = i0; a <= i1; a++) if (g.f[b * g.n + a] >= low) return false;
   return true;
 }
 
-/// Could a line from the camera (ex, ez) to a sphere (x, z, radius r; three.js
-/// space) pass over a hole? The lines to the sphere's points stay within r of
-/// the one to its centre, seen from above.
-function overHole(g, ex, ez, x, z, r) {
-  const ax = ex, az = -ez, dx = x - ex, dz = -z + ez;
+/// Could a line from the camera (ex, ey, ez; above the terrain) to a sphere
+/// under it (x, y, z, radius r; three.js space) reach it through a hole? The
+/// lines to the sphere's points stay within r of the one to its centre (x, y
+/// and z alike). Such a line goes under the drawn terrain somewhere, so it
+/// either crosses the terrain or goes down a hole: down a hole only when it
+/// is lower than the highest sample round the hole while over it, and only
+/// when it was not already under the terrain before (marched in blocks).
+function throughHole(g, ex, ey, ez, x, y, z, r) {
+  const ax = ex, az = -ez, dx = x - ex, dy = y - ey, dz = -z + ez;
+  let first = Infinity;
   for (const h of g.holeBoxes) {
     // The segment against the box widened by r (slabs, x then z).
     const sx = slab(0, 1, ax, dx, h[0] - r, h[2] + r);
-    if (sx && slab(sx[0], sx[1], az, dz, h[1] - r, h[3] + r)) return true;
+    const s = sx && slab(sx[0], sx[1], az, dz, h[1] - r, h[3] + r);
+    if (!s || s[0] >= first) continue;
+    if (Math.min(ey + s[0] * dy, ey + s[1] * dy) - r < h[4] + UNDER_MARGIN) first = s[0];
   }
-  return false;
+  if (first === Infinity) return false;
+  const len = Math.hypot(dx, dz), step = GROUND_BLOCK * Math.min(g.cx, g.cz);
+  for (let d = step; d < first * len; d += step) {
+    const t = d / len, b = blocks(g, ax + t * dx, az + t * dz, r);
+    if (!b) return true;   // off the terrain: no telling
+    let low = Infinity;
+    for (let bj = b[1]; bj <= b[3]; bj++) for (let bi = b[0]; bi <= b[2]; bi++) low = Math.min(low, g.lo[bj * g.nb + bi]);
+    if (ey + t * dy + r < low - UNDER_MARGIN) return false;   // under the terrain before the hole: it crossed it
+  }
+  return true;
 }
 
 const slabOut = [0, 0];

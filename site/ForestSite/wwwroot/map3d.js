@@ -694,7 +694,7 @@ class Map3D {
     const focal = this.canvas.height / (2 * half);
     const corner = Math.atan(half * Math.sqrt(1 + this.camera.aspect * this.camera.aspect));
     this.world.update(target, performance.now(), this.camera.position, focal,
-      this.camera.getWorldDirection(this.lookDir), corner);
+      this.camera.getWorldDirection(this.lookDir), corner, this.camera.near);
     if (this.mode === "orbit") this.lookRegion(this.orbit.target, this.orbit.dist, performance.now());
     if (this.looking) moving = true;     // keep frames coming until the patch is placed
     return moving;
