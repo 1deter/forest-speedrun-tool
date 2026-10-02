@@ -87,11 +87,22 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   beside it, and a splice shows a jump. Or (author) a verifier tool that
   checks uploaded files. Not before the rules talk with the moderators
   (*Project intent*); ask before building.
+  **Session settings lock** (sxczurass + author, QA #general 2026-10-02):
+  "lock settings for this session" so nobody changes them in game - for
+  manhunts / events and official runs; the HUD's "ON NOW" line
+  (v0.24.194) shows the game-changing ones, nothing locks them. The
+  author wants to discuss anti-cheat (open source limits it; must not
+  burden new runners or verifiers).
 - **Category start states true to the game** (author, QA
   `1553867722964607110`, if runs are allowed with the tool): a savestate
   for a category loads the player into the right game mode with no
   difference from vanilla - for route / tech analysis and comparisons.
   Also: replay blueprint placements and other interactions from a run.
+- **Confirm before a capture overwrites a start state** (maks, QA
+  #general 2026-09-26; a second click is asked today only when attempts
+  would be retired).
+- **A full replay system** (sxczurass + author, 2026-09-26: "lets go all
+  the way").
 - How to display all the events (author `1553860730900455527`) - the
   editor's picker groups for now (`first-input` exists since v0.24.193).
 - **Site: spots** (author, 2026-09-27): categories for runners' spots

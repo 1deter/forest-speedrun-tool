@@ -595,684 +595,74 @@ identity.
 ## Current status
 
 **Released: v0.24.200** (2026-10-02). The author runs it via the in-game
-updater (v0.24.200 in the game at handoff, Slot 1). **480 tests** (+ 46 site tests).
+updater (v0.24.200 in the game, Slot 1). **480 tests** (+ 46 site tests).
 
 ### Pick up here (2026-10-02, v0.24.200 in the game)
 
-**The overnight session (author, 2026-10-01 ~21:00: "get everything done
-in our up-next/todo list that you can ... build everything you can that
-doesn't already need my input"; questions wait for the author, QA may be
-asked; shut the computer down at the end).** Done so far, all checked
-over the bridge:
-- **One-click `.lss` import** (v0.24.186-187): Practice -> Import lists
-  `livesplit/*.lss` beside the `.foseg` files; Import makes a timed spot
-  where the player stands - one `event autosplit` checkpoint per LiveSplit
-  split, named as in the file, start `event moving` / `hold-interact` /
-  `hold-interact|moving` (event names may list alternatives), the ASL's
-  enabled settings as the segment's `autosplit = ...` list (route
-  fingerprint), the file linked and its PB picked as the comparison.
-  Settings from `<AutoSplitterSettings>` or a layout `.lsl` beside it,
-  ASL defaults + parent rule (`Data/LssAutoSplit`, 14 tests); per-run
-  memory as the ASL (`AutoSplitWatch`: first pickup, item changes,
-  clothing once, one split per frame). Editor: an **Autosplit** field
-  (editable list + description), event group "Autosplit". Bridge entry:
-  `call ..._modules[9].ImportLiveSplitFile "<file>"`. Checked with the
-  author's `The Forest Coop Any%.lss` (cave 6 enter / exit and a
-  rebreather pickup split, velocity start); **not seen by the author**.
-  A teleport never sets `_currentCave` (game-notes), so a cave split
-  needs the real cave mouth - an imported spot starting inside a cave
-  after a plain Go would miss its cave-exit; a start state restores it.
-- **v0.24.188: a velocity start no longer fires on its own restart** (a
-  >2 m jump in one frame resets `moving`).
-- **Quick load audit** (NEXT 2-3 of the last handoff, docs/savestates.md
-  *Quick load audit*, `scripts/save-diff.py`): the game's
-  `JSONLevelSerializer.SerializeLevelToFile` dumped before / after a
-  Quick load and diffed. Fixed: the nature guide's ticks (v0.24.187,
-  `Game/NatureGuideKeeper`), the book's to-do list never set up again
-  (v0.24.188, `Game/TodoListKeeper`), a capture with the book open
-  restored empty-handed (v0.24.188-189). Stats, inventory, passengers,
-  game stats, the current cave all come back. Gotchas 79-80.
-- QA list posted (message `1555319960941756437`, `qa/2026-10-01-lss-import.txt`,
-  docs/tests); to-do list current. Test spots `s-lsstest00001` and the
-  imported test spot removed; savestate `audit-base` (Slot 1, the plane
-  wreck area, axe + lighter held) kept for audits.
-- **v0.24.190: imported runners' attempts compare, never count** (a
-  `.foseg` import had put them in the runner's PB / golds): own = the
-  runner's id or none; each other runner's best is a local "another
-  runner" entry "(file)" merged with the website's (`Data/AttemptOwners`);
-  the saved-runs upload sends own runs only.
-- **Site: 3D switches per kind** (Trees / Rocks / Props / Pickups +
-  Collision, `world3d.js kindOf`; live) and **link previews** (spot pages
-  carry og:/twitter tags with the name, owner, runs and best - live).
-- **v0.24.191: hands kept through a Quick load** when they hold the
-  capture's items (no stash; `_equipmentSlotsIds` nulled after LoadNow so
-  the game's re-equip step skips - the lighter stays lit); **settings
-  persist** (practice mode, run lines, Compare to, show zones, 100% /
-  Inventory toggles; confirmed across a restart); **Runs -> Line
-  options** (opacity, comparison line only N s ahead).
-- **v0.24.192: Inventory -> Item caps** (any item's carry cap, postfix on
-  `InventoryItem.MaxAmount` / `GetMaxAmountOf`; config
-  `Inventory.ItemCaps`) - checked after a launch (rocks cap 50, 20 added);
-  the test cap and practice mode switched back off in the author's config.
-- **v0.24.193: events `first-input`, `rope-grab`, `rope-leave`; a spot's
-  `cave`** (recorded with the spawn, editor Cave < >): Go sets the game's
-  current cave - only that cave's props stream in (was all 16), cave
-  splits work from a Go; a teleport frame fires no cave event. Bridge:
-  checked the cave part; first-input and the rope events need hands (QA).
+**Session plan (author, 2026-10-02):** one item per session (the
+overnight session ran v0.24.184-200 in one context - costly). This
+session only slimmed this file (detail moved to
+[`docs/investigations.md`](docs/investigations.md)) and queued the items
+below as task chips. Start each session with `qa_read new_only`.
 
-- **v0.24.194: the HUD's "ON NOW" line** (no stagger, no blood, god mode,
-  item caps, logs, experimental perf switches - `PracticeState.SetOn`) and
-  **"Last"** time; **v0.24.195: rides / climbs ended before a teleport or
-  Quick load** (`Game/RideModes`: cliff climb, sled, glider, zipline - the
-  game's own exits; wiring checked with faked flags only, real rides on
-  QA item 7). QA list for v0.24.190-195 posted (`1555327671276273677` +
-  `1555328852698333277`, `qa/2026-10-02-v0.24.194.txt`); to-do current.
-- **v0.24.196: Inventory -> Fast building** (sxczurass: hold Build to
-  keep adding, Creative's pace, resources still used - `Game/FastBuild`,
-  a transpiler on `Craft_Structure.Update`'s two Creative reads after
-  GetBuildInputDown; log `FastBuild: 2 Creative read(s)` seen; holding the
-  key needs hands - not on a QA list yet) and **started attempts counted**
-  (`runs/<id>/started.txt`; splits table / HUD "10 (9 finished)", checked).
-- **Site: texture packs, live** (`q/<i>.bin`, only the variant the page
-  reads): the Labskip 3D view 188 requests (was 604), 38.6 MB (was 37.9);
-  pictures checked headless local + live. World re-exported and uploaded
-  (backup of the previous export: `%TEMP%/claude/world-out-backup-1002`).
-- **Elevator Boost end, looked at** (map Next 1): the end box (-456, 707,
-  -1969) is inside the overlook room - an endgame section the game draws
-  only once you are there (a bridge `tp` shows a bare cliff); the site
-  draws the room, the mountains past the terrain edge exist (chunks to z
-  -2931). Left for the author's eye: those mountains are blurry grey up
-  close (256 px textures, no snow top layer showing) where the game shows
-  rock with snow - docs/website.md.
-- **v0.24.197: Timmy drawing pieces** on the 100% tab (`Game/
-  DrawingsReader`: `_ids` + `_usedIds`; ids 0-10 index the game's 11
-  drawing materials, 0 blank; no total - the game keeps none). Checked.
-- **v0.24.198: Debug views filter** takes a path part (`Caves/Cave6`),
-  `layer:Prop` and `+fragment` = show only (`VolumeFilter.IsHidden`,
-  tested; checked live). **v0.24.199**: colliders drawn in their real
-  shape (turned boxes, sphere rings, capsules; mesh colliders = bounds) -
-  screenshot checked at the plane wreck.
-- **v0.24.200: the last unfinished run's line stays, red** (KeepFailed on
-  abort / restart / re-arm; Line options switch, on). Checked: the line
-  is kept (16 points); the red drawing itself not seen (lines show only
-  for the editor's selected entry - a bridge `go` selects none) - QA.
-- The import test's spot (2 runs) had been uploaded to the live site by
-  the automatic upload - deleted there (admin API); habit noted under
-  *Test spots*.
+**Next, in order (one per session):**
+1. **Rides put back after a Quick load** (zipline, sled, glider, cliff /
+   wall climb; only ended since v0.24.195) - investigations *Savestates -
+   open*. Build a ride in Creative over the bridge, or ask QA for a save.
+2. **Quick load audit, the rest** - a building placed since the capture,
+   the crafting cog, the inventory open at capture (docs/savestates.md
+   *Not covered yet*).
+3. **Website: fewer texture requests** (188 per Labskip 3D view after the
+   packs) and LODs for heavy chunks on phones (docs/website.md).
+4. **LiveSplit's PB chance / total playtime** summary lines (splits table).
+5. **A session with the author** for what needs their eyes, hands or a
+   decision: investigations *Not seen by the author / needs hands*, and
+   the decisions below.
 
-**Next, in order (this session continues; a new one picks up here):**
-1. Watch QA answers (`qa_read new_only`) for the two overnight lists.
-2. Rides put BACK after a restore (only ended so far) - needs a real
-   zipline / glider to study; ask the author or QA for a save with one.
-3. Quick load audit, the rest: a building placed since, the crafting cog,
-   the inventory open at capture (needs hands / QA).
-4. Website: fewer texture requests (458 per spot); LiveSplit PB chance /
-   total playtime lines (small).
-5. For the author: hold E on something with the Runs tab's event line
-   open (`hold-interact`), and press a key after a restart (`first-input`).
+**Decisions waiting for the author** (ask, never build ahead):
+- **Run mode / session settings lock / anti-splice** - sxczurass asked
+  2026-10-02 for "lock settings for this session" (manhunts, events,
+  official runs); the author wants to discuss anti-cheat with Claude
+  (backlog *Run mode and anti-splicing*). The HUD's "ON NOW" line
+  (v0.24.194) shows game-changing settings; nothing locks them yet.
+  Touches the moderators question (*Project intent*).
+- A teleport into an unloaded endgame (backlog); whether Quick load
+  physics leaves "deferred"; whether the blurry south mountains in 3D
+  are worth fixing.
 
-**Open work by severity** (sorted with the author, 2026-10-01; the
-author: "do the list in your order, skip Tom's work until he gets back
-to us" - one item per session):
-1. ~~Cave 6 "leaves" in 3D~~ - a stale page, fixed (below).
-2. Tom's native crashes - **paused until Tom answers** (author). Likely
-   cause fixed in v0.24.177, not reproduced (below). Left to try: F7 in
-   the vault door / Megan pickup cutscenes.
-3. ~~Security review of the website~~ **done** (2026-10-01, site only,
-   deployed by the push): docs/website.md *Security* - spot renaming by a
-   copy's route closed (gotcha 72), CSP + headers, three.js self-hosted,
-   rate-limit key, upload / submission caps. **The VPS is hardened too**
-   (the author, 2026-10-01, `site/deploy/README.md` *Hardening* 1-3):
-   non-root read-only container, the origin lock on (straight to the VPS
-   = 403; Cloudflare's Transform Rule adds `X-Forest-Origin`), the site on
-   its own `forest-site` network with Caddy. Checked live through
-   Cloudflare: pages, API, world, aerial, board 200, an upload with a bad
-   token 401 (POSTs pass the lock). Steam ids recoverable from runner ids
-   and the token-reset race: decided, left as they are (About page says
-   the id is not anonymous). **A new deploy needs nothing extra**; a
-   changed `compose.yaml` needs `setup.sh` again (README).
-4. ~~The map's polish~~ **done, all nine** (2026-10-01, live; checked
-   headless on the local and live site, **not yet looked at by the
-   author** - ask). Site-only five: south at the top, the 3D flicker
-   (gotcha 74), sea over inland pits (gotcha 75), Water button in 3D.
-   Game four (v0.24.180-181 + site a5a0077, a full recapture and a world
-   export, both uploaded): screen blood (the capture keeps the player
-   well and holds the camera's hurt overlays off), the black lake
-   stand-ins at tile edges (`LOD_GroupToggle` distances scaled, gotcha
-   76), the sinkhole (2D: the far plane to y -320; 3D: the terrain's
-   holes cut out), the yacht (moved at run time - `WorldDump.Placed` +
-   `MOVED_ROOTS`, gotcha 77; a LOD 0 renderer also in LOD 1 was dropped,
-   in 9 scene LOD groups too). Detail: game-notes *Terrain, and the world
-   from above*, docs/website.md.
-5. ~~3D world: the sparse lab, load size, the phone scroll~~ **done**
-   (2026-10-01, live, not yet looked at by the author): the lab's floors,
-   ceilings, signs and whiteboard drawings were dropped as "debug
-   primitives" - the export now keeps what the endgame's areas switch on
-   (v0.24.182-183 `WorldDump.AreaMembers`, keyed by object path; measured
-   by diffing every area's live renderers - docs/website.md *The 3D
-   world*); glass drawn see-through; mesh packs + gzip and the phone fix
-   came from a cloud session (merged). Measured live, the Labskip spot's
-   3D view: 604 requests (458 textures, 55 packs, 90 chunks), 38 MB on the
-   wire (61 MB decoded). Left: textures are now most requests (atlas /
-   pack them), LODs for phones, skinned meshes (Timmy, the dead girl).
-6. ~~LiveSplit `.lss` import UI~~ done (v0.24.185, with the autosplitter's
-   other splits v0.24.184 - above).
-7. Waiting on others: raw FPS (the FPS session), Quick load physics
-   (maks), the testers' open lists; QoL in docs/backlog.md.
+**Waiting on testers** - the QA to-do list (`qa_todo`) is the record:
+the overnight lists (`1555319960941756437`, `1555327671276273677` +
+`1555328852698333277`), the per-tester lists (maks `1553807713593597984`,
+sxczurass `1553811127278764167`), Tom's crashes (paused - author),
+maks's fog / elevator / rope list, sxczurass's FPS answers + specs + the
+crouch fix (v0.24.102), Cheesecake's Frame test, Ruben's inventory.
+Detail: investigations.
 
-**The website's map: photo map with water, and a 3D world of the game's
-own models.** Author (2026-09-28): keep the sea with an option to hide
-it (like trees), recapture every area (QA 1553910257628086335), and make
-the map "the most detailed 3D map possible" - models popping out in 3D,
-an exhaustive "endgame" tool, caves included. Recipes and formats:
-[`docs/website.md`](docs/website.md) *The photo map* / *The 3D world*;
-game internals: game-notes *Terrain, and the world from above*.
+**Investigations** (each stays in one session when picked up; detail in
+investigations): raw FPS, performance / loads (garbage in play), Quick
+load physics parity (deferred), Tom's crashes (paused).
 
-- **Photo map (live, recaptured 2026-10-01 on v0.24.180 in one run,
-  17.5 min, uploaded build 1790870487, checked live headless):** every
-  tile at one exposure, the weather held clear (all 25 progress lines -
-  v0.24.179's hold confirmed), the player kept well, lakes as the game
-  draws them close up, the sinkhole's floor; the sea drawn by the bake
-  from the heights (the Water button = the `-dry` layers, the raw
-  capture) - recipe docs/website.md *The photo map*, why game-notes
-  *Terrain, and the world from above*. It is the game's `aerial/` folder.
-  Backups in `%TEMP%/claude/aer/`: `aerial-0928` (v0.24.170's), `final`
-  (the merged v0.24.178 set), `v180` (the live set).
-- **3D world (site `world3d.js`, `scripts/world-extract.py`, v0.24.171-
-  173 `Game/WorldDump`):** meshes are not readable in game, so the scenes
-  are read **offline with UnityPy** (level2, 7, 11, 15-30) and the pooled
-  objects (trees, bushes, saplings, rocks, cave walls - 30.6k LOD
-  placeholders) come from the in-game dump `call
-  static:ForestOverlay.Game.WorldDump Write` (spawned.txt), meshes found
-  by name + vertex count. Render + collision (mesh / box / sphere /
-  capsule, non-trigger); Lux's snow / grass top layer; foliage cut-outs;
-  particles skipped. Export ~81 MB, 37 s. Checked on the local site
-  (forest, Labskip). **Live**: the first world (no trees) was uploaded by
-  the author; this session's full one is uploaded from here after the
-  site deploy (`FOREST_SITE_ADMIN_TOKEN` is now a User variable - read it
-  with `[Environment]::GetEnvironmentVariable(..., 'User')`).
-- **3D caves (2026-10-01, live, v0.24.174-176 for the dump):** the cave
-  floors (gotcha 70: chunks by the mesh's bounds), the wood panels (under
-  the terrain = caves), and the **greebles** - Cave 6's body piles,
-  stalactites, spikes, the sticks round trees, debris, ferns (docs/website.md
-  *The 3D world*; matched the game to 1 cm). Black trees / black trunk rings
-  fixed. Checked headless locally + live. Export is ~104 MB now (two upload
-  parts). Not placeable: the player's own random sticks / small rocks
-  (game-notes *Greebles*). The author's "blocked path" was the wrong spot
-  (user error - dropped). Tools: a headless look (Playwright + Edge,
-  docs/website.md *Looking at a spot*), a second local site on 5081
-  (`forest-site-alt`).
-- **Cave 6 "leaves and shards" in 3D (2026-10-01): not the greebles** -
-  a stale page: the author's tab held the previous upload's `world.json`
-  and got the new upload's index-named files (gotcha 71). Fixed on the
-  site: another build's `?v=` (or any during an upload) is a 404, the page
-  re-reads `world.json` per 3D view and starts over on a refused file
-  (`site/ForestSite/MetaBuild.cs`, `world3d.js` `stale()`; tested + checked
-  headless against a local site). The export itself was checked: every
-  mesh / material near the spot has one candidate, live renders match the
-  game. The same once-per-page read holds for the photo map's
-  `aerial.json` (map.js): its tiles of an older build now 404 (holes, not
-  mixed tiles) until a reload.
-- **The map list (author, 2026-10-01) - done, all checked here, not yet
-  by the author:** (1) **brightness bands**: the capture's "eye adaptation
-  off" never held (the game turns it back on from OnGUI) - v0.24.178 clamps
-  it to one EV; an overcast sky rolling in mid-run darkened the rest 1.6x
-  (twice, confirmed by retaking a tile clear) - those rows were retaken
-  with the weather cleared by hand, v0.24.179 holds it clear, and the bake
-  warns of a row step (gotcha 73). v0.24.179's hold is not yet run in a
-  capture (the next capture's start line says `weather held clear`). (2) **Water button**: the game's
-  ocean never draws in the capture, so the "-dry" tiles were the wet ones;
-  the bake now draws the sea (open water joined to the map's edge, by
-  depth). (3) **3D textures "breaking"**: two things - the lakes are models
-  with the game's water shader (no texture, 0.7 grey: flat grey sheets),
-  now drawn as water (`world3d.js`); and off the runs the island was the
-  coarse mesh at level 3 - the detail patch now follows the orbit's centre
-  when the camera is close (`map3d.js` `lookRegion`) and the island is
-  level 4 on desktop. (4) **Playback stutter**: the State panel was rebuilt
-  every frame (its key held the clock) - now on a sample change only, the
-  clock / speed written in place (`app.js`). Checked headless locally
-  (Playwright + Edge): one rebuild in 180 frames, the patch moves, lakes
-  water, no page errors. Answered the author: why photos, not the game's
-  memory, for the 2D map (the photo is the game's own renderer; the
-  memory route = the 3D item below). Long-term (backlog): **an exact 3D
-  world** - the terrain from its splat maps, every prop.
-- **Next, in order:** (1) the mountains past the south edge are blurry
-  grey up close (the Elevator Boost end, *Pick up here*). (2) ~~The sparse lab, load size~~ done (item 5 above);
-  left: texture requests (458 per spot), decimation / LODs for heavy
-  chunks on phones. Lab tip: a `tp` lands with the sections off - `call
-  Sections/<area> Area.OnEnter null` switches one on (entering one leaves
-  the last). (4) Greebles
-  (random per visit) and pickups are not in the world. (5) 2D floor plans
-  of caves from the collision at the ghost's height (author's earlier
-  ask). (6) Separate toggles per kind (trees / rocks / buildings /
-  props) - the models carry their layer.
-- **Tom's crashes (QA 1554188909246681119, v0.24.173; reports in
-  `Downloads\qa-reports\tomyoshi_i\`):** "reload while in a cutscene" /
-  "reload as you die" - native crashes, no dumps sent yet (asked: the
-  `crash-<date>` folder beside TheForest.exe -> `scripts/symbolize-crash.py`).
-  **Not reproduced here (2026-10-01, overnight session):** his exact
-  sequence (fresh launch, title load of Slot 2, Go to 'Cave 6 boss thing',
-  F7 with his start state - copied as savestates `tom-c6boss`, `tom-c6`,
-  `tom-c6exit`, `tom-bigjump`, `tom-megan`), also with the restore on the
-  frame after the tp (cave scenes streaming) - no crash. **Common to both
-  of his crashed sessions: a map-sized pathfinding update in flight**
-  (`navRemoveRoot.startRemove`, 1536 x 1406 m - the game boxes every
-  building removed within 7 s into one). v0.24.177 recalculates removals
-  place by place (switch 15; game-notes *Pathfinding*; confirmed over the
-  bridge) - a likely cause gone, not a proven one. Also tried, no crash:
-  F7 0.3 / 1 / 3 s after the Cave 6 keycard pickup (`StoryPickUp.Collect`,
-  no cutscene), a fall death (`Stats.Fell`) then F7 next frame, deaths
-  0-0.45 s into an F7 restore (all revived, `Busy` refuses the second
-  restore), F7 during / after the Megan-transformation replay of
-  `tom-megan`. Left: the vault door / Megan pickup cutscenes. **Test spots
-  to remove** (*Removing test spots*): `s-191b90c5ab6f` (Cave 6, Tom's
-  state) and `s-afcb5c720847` (Megan, Tom's state), plus their
-  `savestates/segments/*.fosave`.
-- maks asked (QA 1554074251831672943) for a site YouTube side-by-side run
-  comparison (start / end frame per run, segment times) - backlog,
-  site-only.
-- The spot page no longer scrolls sideways at phone width (live: long
-  runner names wrap, tables scroll in their own box; checked headless at
-  375 px, desktop pixel-identical).
-  **Cloud sessions**: `Agent` with `isolation: "remote"` runs in a local
-  worktree, not the cloud. What does run in the cloud: a one-time routine
-  (`/schedule` skill -> `RemoteTrigger` create with `run_once_at` a minute
-  ahead, repo 1deter/forest-speedrun-tool, a self-contained prompt; it
-  pushes a branch - never main, a push to `site/` deploys) - read it with
-  `list_runs` / `get_run_log`, then merge here (2026-10-01, worked).
+**The website** (https://forest.deter.cloud, `site/`, brief and recipes
+in [`docs/website.md`](docs/website.md)): spots, runs uploaded from the
+game (on by default; a test run that finishes uploads - delete it,
+*Test spots*), other runners' PBs as comparisons, the admin page, spot
+submissions, the photo map (recaptured 2026-10-01 on v0.24.180) and the
+3D world of the game's own models (surface, caves, the endgame lab; per
+kind switches, texture packs). Every push to `site/`, `src/Data/`,
+`community/` deploys; watch a deploy by polling the live page with a
+**new query string each poll** (Cloudflare caches a `?v=` URL), never
+`api.github.com`. Its own *Next* list and the security review are in
+docs/website.md.
 
-**Done this session (site + v0.24.160-161):** the spot page's **State**
-panel - the selected run at the scrub time (health, stamina ... a preset
-for runners, *Show all* fetches every channel; author: "a smaller preset
-useful for the runners"), a click on a map line jumps to that run and
-moment; and **every carried item** recorded in runs (v0.24.161,
-`Game/ItemCounter`: `i|` change lines, read only after the game's
-inventory methods ran - author: "only really updates when an item is
-changed"), shown under *Carrying*. v0.24.160's fixed 16 item channels
-were replaced a release later (the site still reads them). Checked:
-tests, the local site with the author's real runs, the item reads over
-the bridge (docs/confirmed.md). Not seen yet: a real uploaded run with an
-item track - the next finished run on v0.24.161 shows it.
-
-**Site, earlier the same day (v0.24.158-159 + site pushes):** clean paths
-instead of `#/` (author asked; old links rewritten); the admin page
-`/admin` - submissions, under review, spots (delete a runner's spot),
-runners, activity log, and per-admin tokens the owner makes / revokes
-(author: "not the same key with everyone"); Practice -> Share ->
-**Submit to community**. The author signed in live, got a real
-submission from the game and rejected it as a test. Not built: approving
-straight into `community/` (still a commit by hand; maybe the GitHub API
-later).
-
-**The website is live: https://forest.deter.cloud** (2026-09-27):
-`site/` - server, pages, 16 tests. Every push to
-`site/`, `src/Data/`, `community/` deploys by itself
-(`.github/workflows/site.yml`; setup and day-to-day in
-`site/deploy/README.md`). Watch a deploy by polling the live page, never
-`api.github.com` - and with a **new query string each poll**: Cloudflare
-caches a `?v=` URL, so a fixed one answers its first (pre-deploy) reply
-forever (2026-10-01). **v0.24.153-154: finished runs upload** (on by default,
-author) - checked over the bridge against a local site (register, the
-saved-runs button, a finished run, offline -> retried and sent); the
-author's config was set back to the live URL with an empty token, so the
-live registration happens on their next finished run (it has since:
-the config holds a live token). **Testing against a local site**: the
-recipe is in docs/website.md. **v0.24.155: other runners' PBs as
-comparisons** - the site's `board.txt` (`Data/SiteBoard`, tested both
-sides) is read on arming (again after 2 min); Runs tab -> "another
-runner" `<` `>` under Compare to (and the cycle key); a pick fetches
-their `.run` as the reference (table, delta, ghost, lines); never in the
-runner's own PB / golds (`Modules/PracticeRunModule.Site.cs`). Checked
-over the bridge against a local site with a fake second runner
-(docs/confirmed.md). Not seen yet: two real runners on the live site.
-Next for the site: *Next* in docs/website.md (spot submissions + admin
-page, terrain).
-
-**Site, 2026-09-27 (later):** a spot's owner (`routes.owner`, the first
-uploader; migrated live, maks's spots show "by maks") - only the owner's
-uploads rename it / change its description (maks's report). The author's
-"grey block at the bottom" of the site is **not reproduced** (live CSS =
-repo, fit fix intact, nothing grey on the home / spot pages) - asked for
-the page and a screenshot. `qa_todo` now splits a long list into several
-messages (worked live: 2 messages). New backlog from QA: run mode /
-anti-splicing (maks), first-input start, site spot ideas, the author's
-ideas dump (`Desktop\ideas.txt`).
-
-**v0.24.146-151: the LiveSplit-style splits table** - on screen
-(`DrawScreen`, a new `OverlayModule` hook; dragged with the mouse while
-F2 is open, position written on release; background opacity slider;
-column titles) and in the Runs tab, which scrolls below its buttons
-(`Modules/PracticeRunModule.Splits.cs`, `Data/SplitTable` tested). Every
-LiveSplit column / summary line toggleable (Runs -> Splits options),
-precision 0-3 decimals for times and deltas (files keep ms), Compare to
-+ best segments drives table / delta / ghost / lines, an unbound key
-cycles it. The finished run stays on the splits through a restart and
-clears when the next clock starts (stats rebuilt then, as LiveSplit
-commits on reset - author). Attempts save `splits|` and
-`runner|<id>|<name>` (`Data/AttemptFormat`, pure; id =
-`Game/RunnerIdentity`, SHA-256 of the Steam id); one runner-name field,
-pre-filled with the Steam name (stored as "" so a Steam rename follows).
-Segments `split = <name>` after a check / end line (Practice editor
-*split* fields). All checked over the bridge; the **drag** confirmed by
-the author (v0.24.152, windowed, both edges; docs/confirmed.md). A test segment
-`s-splitstest01` ("Splits test", category Test) is in the author's
-`my-segments.txt` (backup before it:
-`%TEMP%/my-segments.before-splits-test.txt`) - remove it per *Removing
-test spots* when the author is done with it. **Left for splits:** imported
-`.foseg` attempts as comparisons (the website's are done, v0.24.155);
-the `.lss` import's UI (Next up 9: the parser and matcher are
-done, `Data/LssFile`). Not built: LiveSplit's PB chance / total playtime lines.
-
-**QA (2026-09-27):** one consolidated list per tester, on the author's
-request - maks (`1553807713593597984`, `docs/tests/2026-09-27-maks-open-items.md`,
-pinned by maks) and sxczurass (`1553811127278764167`,
-`docs/tests/2026-09-27-sxczurass-open-items.md`); the to-do list links
-both. Answer them per number; the FPS parts stay with the FPS session.
-Since v0.24.156 both are in the QA tab (`qa/2026-09-27-<tester>.txt`,
-`tester = <name>`: the tab opens on the list for the name typed in it -
-`QaList.DefaultIndex`); maks's report of 20:58 was the stale 09-25 list,
-unanswered. **maks's lit red elevator after a Quick load: explained, v0.24.157**
-(bridge): his start state was captured right after a title-screen load
-in the car, so no endgame Area was active (`activearea = none`) - the
-car's renderers / lamps off, sky through it; `call Sections/HellCorridor
-Area.OnEnter null` brings it back. maks: in a real run the car is
-visible. Not forced on restore (the labskip invisible section is a real
-no-area state); instead a capture inside a section with no area active
-warns (`AreaKeeper.UnenteredSection`, log + notice; checked over the
-bridge both ways) and maks was told to re-capture after walking in.
-His "foggy" is not reproduced with his own state here (the top looks
-like his run video): probably live weather, which no savestate restores
-- asked for a screenshot (QA `1553853576554610781`; backlog *Weather in
-savestates*). His state is kept as savestate `maks-boost`.
-
-**v0.24.138-140 (this session): the native crash is fixed.** The author's
-death reload out of the Megan fight (`Death (BossWake)`, Reload save on
-death) crashed in Unity's `Camera::SetTargetTextureBuffers` (dump
-symbolised with Unity's player PDB - `scripts/symbolize-crash.py`,
-gotcha 58): `TerrainGrassCameraOff` (PerfPatches 10, on by default since
-v0.24.116) left the grass controller's camera the last one drawn in load
-frames, and the controller's texture rebuild then crashed. Reproduced 4
-of 4 (v0.24.137-138) and once on v0.24.139; gone with switch 10 off.
-v0.24.140's prefix skips the controller's `Update` whenever its camera
-is `Camera.current` (log `grass controller's Update skipped while its
-camera is Unity's current one`) - seen acting in the exact state that
-crashed v0.24.139, and the reload carried on. v0.24.138 (guard in our
-tick only) and v0.24.139 (prefix that checked "still off") were not
-enough. **maks's crash** (v0.24.129, log ends at the player bind right
-after `terrain grass camera off`) has the same signature - asked to
-update (QA).
-
-**v0.24.141-143: the 26-51 s freeze on a death reload out of the Megan
-fight is fixed** (checked over the bridge: `AstarPath ... destroyed in
-116 ms`, was 28584 ms; a repeat Quick load 0.65 s, was 31.5 s). Cause:
-after a Quick load the game's pathfinding rebuilt one area covering
-every building on the map (16-60 s in the background: enemies could not
-path, and any load waited for it) - two game merges, game-notes
-*Pathfinding (A\*) and the reload freeze*. Fixes: a restore's
-structures take the load's grouped nav cut (`Game/PathfindingWatch`,
-restore-only), and `NavRemovalOwnArea` (PerfPatches 15, on) - the
-game's removal list is never cleared. `Pathfinding:` log lines name
-every graph update (bounds, caller, duration) and each AstarPath
-teardown's wait. Not checked: a natural arrival / death in the endgame
-with many buildings (should be the game's own grouped route).
-
-**v0.24.145: the endgame load trigger crossed outside the vault door's
-cutscene** (maks walked back through it after a Go + door) is the game's
-own load again, no hold - checked over the bridge (docs/confirmed.md).
-
-**v0.24.144: the old Megan left by a mid-fight Quick load is fixed**
-(checked over the bridge, docs/confirmed.md): `MeganKeeper` removed the
-fight's leftovers within 80 m of her seat only, and the boss roams the
-boss room (72 m seen); Megan's own objects now go at any distance.
-
-**Ruben stuck in the inventory** (v0.24.137, gotcha 57) is fixed and
-checked over the bridge; Ruben asked to confirm (QA). The ride /
-climb modes in savestates are the author's, in another session
-(2026-09-27).
-
-**Two sessions run side by side (author, 2026-09-27):** one on FPS
-performance and patches (everything under *Raw FPS* below), one on the
-rest. Logs in the inventory (v0.24.134-135) and freecam lighting
-(v0.24.136, Next up 8) are done; a non-FPS session picks up *Next, in
-this order* 3 (Quick load physics - maks reminded 2026-09-27, QA message
-`1553725259579002942`, of it, his crash folder and the rope list) or
-Next up 9 (LiveSplit import), and watches maks's answers and the logs QA
-answers. Both release: **`git fetch` and check `HEAD..origin/main`
-before bumping the version**, and read `qa_read new_only` as shared -
-a message one session reads is gone from the other's new list (tell the
-author what belongs to the other session). The author prefers **direct
-patches** over tuning settings (a settings sweep only "if it's light on
-usage").
-
-**Raw FPS (item 3 below), an investigation on high effort.** Game-notes
-*Frame time: where the main thread goes* has every number; in short:
-- Tools: `Frame (30 s):` line (`Game/FrameTimer`, `FrameTimer.Snapshot`
-  for short windows), `System:` line (hardware + every game option),
-  Debug views **Frame test** (+1 ms main-thread work: main-thread vs
-  render-thread bound), `Game/RenderProbe` (bridge: `CameraContents`,
-  `TextureUsers`, `LayerContents`, v0.24.124 `TimeRender <mask> <n>` /
-  `TimeCamera` / `ToggleLights` / `ToggleRenderers` / `RenderersByRoot`,
-  v0.24.126 `ShadersNear <radius> <name part>`).
-- **A camera render costs ~0.2 ms of Unity's own overhead whatever it
-  draws** - the same on the title screen (92 renderers) as in the world;
-  renderers, lights, terrain barely matter (v0.24.124). The only lever
-  is fewer camera renders. (The old "culls ~20k renderers" note was
-  wrong.)
-- Behaviour-preserving, on (v0.24.116): `TerrainGrassCameraOff` (10),
-  `EndgameScreenOnDemand` (11): ~12% on the surface with the endgame in.
-- **Experimental, off by default (this session)**:
-  `SunShadowsEveryOtherFrame` (12, v0.24.125): Sunshine's own
-  `UpdateInterval = AfterXFrames` 2, 0.66 -> 0.32 ms/frame, moving
-  shadows update at half rate - **no visible difference (author,
-  2026-09-26)**. `GrassBendingOffInCaves`
-  (13, v0.24.127-128): the grass-bending camera off while
-  `IsInCaves` (nothing in a cave reads it; grass beyond a cave mouth
-  stops bending around enemies), ~0.25 ms in caves; tested on / cave /
-  out. `Physics30Hz` (14, v0.24.128): the game's hidden Low Quality
-  Physics option (not in the menu any more - author), 5.26 -> 4.98 ms;
-  a gameplay change, the author wants it in "for testing purposes";
-  kept across a title-screen save load (checked); re-applied if a load
-  puts the step back at 1/60 - a Full load not checked yet.
-- **Settings sweep** (game-notes *Graphics options, measured live*): on
-  a main-thread-bound machine only Far shadows Off (-0.33 ms) and Ocean
-  Flat (-0.2 ms with the ocean in view) matter; SSAO / SSR / AA / bloom
-  / clouds / grass / terrain etc. are GPU work - nothing measurable.
-- Not pursued (why in game-notes): ParticleCam skip (a new flame could
-  miss a frame), far shadow every 2nd frame (no runner has it on),
-  cannibals' cost (Unity's animation of ~14 animators, not scripts).
-- v0.24.119 froze the author's screen by skipping ActionIconCamera
-  mid-frame (gotcha 51) - never skip a screen camera mid-frame.
-
-**sxczurass's Frame test is in** (message `1553515759936999506`, log in
-`Downloads\qa-reports\sxczurass\`): +1 ms of main-thread work did not
-lengthen his frame (9.8-10.1 -> 9.6-9.8 ms) - **he is rendering-bound**
-(render thread or GPU), the wait sits in his first camera (grass camera
-2.5-3.3 ms). For him only fewer camera renders / draw calls help (the
-sun-shadow and cave-grass switches), not script or physics savings.
-Asked him (QA message `1553517261149442159`, list in
-`docs/tests/2026-09-26-sxczurass-fps-v0.24.128.md`, on the to-do list)
-for 1 min at a lower resolution (fps up = GPU, same = render thread) and
-1-2 min with the two camera switches on vs off.
-Cheesecake's Frame test still awaited.
-
-**Next for raw FPS:** (1) sxczurass's resolution + switches answer: if
-render-thread bound, look for draw-call cuts (fewer cameras first:
-ActionIconCamera, ParticleCam; then the main camera's draw calls); if
-GPU, his settings are already minimal - resolution is his lever. (2)
-Check `Physics30Hz` across a Full load (`Performance: physics at 30 Hz
-again` if the step was reset). (3) Cheesecake's Frame test. (4)
-ActionIconCamera by hand-`Render()` only with the author's eyes on the
-picture.
-
-**Tom's reports (v0.24.123, another session; reports in
-`Downloads\qa-reports\d.eter\ForestOverlay-report-Tom-*`), all
-reproduced and fixed over the bridge except the last:** panels that
-would not break after a Quick load (`PanelKeeper`, gotcha 52); F7 with
-the ESC menu / inventory open stalled (`Game/MenuClose`); the cave
-mouth's black wall after a teleport in (`GameBridge.CaveBlack`, also
-Cheesecake's MARK #6); the "empty health bar, not dead" was the game's
-own last stand (game-notes *Deaths*, `hitFromEnemy`) and Tom's start
-state was captured at 26 health. **Could not move after a Full load: not
-reproduced** (window open or closed, every lock free, the controller
-moves) - `Savestate after the load: player 3 s after in game - ...`
-(`Game/PlayerHold`) says what held him next time; ask for that line.
-QA list: `docs/tests/2026-09-26-tom-v0.24.123.md` (message
-`1553503369904132220`). Options -> Graphics with F7 is untested here.
-
-**State (2026-10-01 handoff, the 3D-lab session):** the game runs
-v0.24.183 in Slot 1 (the endgame lab, Creative; loaded from the title, not
-saved since), god mode / infinite energy off, freecam off. Slot 2 is the only
-Normal slot: Slots 1 and 5 are Creative, 3 Hard, 4 Peaceful; a runner's
-survival start state restores only in a survival game.
-Savestates `phantom-a`, `keycard-pickup-testing`, `physA`, `elevPre`,
-`elevMid`, `rope104` kept; `axe-held` / `axe-lighter` (Slot 2, Axe
-Plane / + Lighter in hand) for held-item tests; `tom-c6boss`, `tom-c6`,
-`tom-c6exit`, `tom-bigjump`, `tom-megan` (Tom's start states, Normal)
-for his crash. The author's config has Performance
-switches 12 (sun shadows) and 13 (cave grass) on, 14 (physics) off.
-
-**maks's performance report** (message `1553417650607235164`, read):
-i7-9700KF, RTX 2070 Super, 32 GB 2666 MHz; 150-170 fps in play - not
-low-end. 3-7 GCs per 30 s at 120-150 ms, 15-25 frames over 50 ms - but
-the session was ~50 Quick loads of 'elev boost' (one every ~15 s, each
-forcing ~1 collection and two ~520 ms streamed-scene hitches); the
-overlay's +660-900 KB/s in those windows is the restores (10-40 KB/s
-without). `Activation` 8.15 s on his title load. maks's rope list
-(v0.24.104-105, message `1553421208794431648`) still awaits answers.
-
-**Next session - small QA item:**
-- sxczurass: crouch fix (v0.24.102) is on the to-do list's *Please
-  test*; move it to *Done recently* once he confirms.
-
-**Hardware specs for raw FPS** (author asked on QA, 2026-09-26 15:26):
-maks's are in (above); sxczurass's still awaited - watch `qa_read`.
-
-**maks's elevator physics (Next up 5):** the heap lead is gone (above:
-no lasting heap step; pauses follow the live heap, ~80 ms at 280-300 MB
-here). Left: maks's answers (Quick-loads-only session + Mark + report
-when the boosts stop, asked 2026-09-26 12:00), then a per-FixedUpdate
-physics trace. Decide with the author whether it goes back to
-"deferred".
-
-**Performance / loads - what is left, in order of payoff:**
-1. Garbage left (~216 KB/s idle, ~2 MB/s in play per maks): strings,
-   `MaterialTween` `SendMessage` boxing, Unity's collision objects.
-   Measure during play (tracker: `AllocationTrackerAtStartup` + restart).
-   At ~1 collection per 100 MB, 2 MB/s = a 80-150 ms pause every ~50 s.
-2. The old world held 30-70 s after each Full load / death reload
-   (~25 ms longer pauses meanwhile). Root unknown (not static, not ours);
-   low payoff.
-3. **Raw FPS** (author, 2026-09-26: "a game changer for runners on
-   lower-end machines") - started v0.24.114-116, see *Pick up here*.
-   Behaviour-preserving savings ship on; anything that changes what is
-   drawn or simulated (draw distance, shadows, update rates) goes under
-   Experimental, labelled.
-4. The live heap: the A* navmesh is most of it and is needed.
-5. The big frame at a load's scene start-up (750-900 ms, after the
-   sweep is gone) and the Quick load's streamed-scene reload - both
-   the game's own work; only if a cheap cause shows up.
-
-**QA:** posted 2026-09-26: sxczurass's performance list (message
-`1553362967758905544`, `docs/tests/2026-09-26-sxczurass-perf-v0.24.97.md`)
-and the v0.24.98-100 list (message `1553370294511599627`,
-`docs/tests/2026-09-26-qa-v0.24.100.md`; not in `qa/*.txt` - add it to
-the QA tab with the next release if wanted);
-to-do list current. maks's reports of 2026-09-26 in
-`Downloads\qa-reports\yirequ\` (04-34 / 04-37 / 04-43 = physics, 11-37 =
-performance: in play 5-8 GCs per 30 s of 100-500 ms frames). Noted from
-#general: confirm before a capture overwrites a start state (maks); a
-full replay system (sxczurass + author, "lets go all the way").
-
-**Logs in the inventory (v0.24.134-135)**, Next up 7: Inventory tab,
-off by default, cap 5 (1-99), marks practice; design choices (author,
-2026-09-27): a full store **refuses** the pickup, and the **sled /
-holders / repairs use the store** (transpiled reads). Checked over the
-bridge (docs/confirmed.md); the sled, blueprints, repairs and forced
-drops (rope, zipline, bench, death) are on QA (message
-`1553724217869078670`, `docs/tests/2026-09-27-logs-v0.24.135.md`).
-Known: a log onto a zipline needs the arms; a save with more than 2
-stored loaded with the mod off keeps 2. Each count change logs
-`Logs in the inventory: stored a -> b (caller)`.
-
-**Earlier this day (v0.24.129-133), all checked over the
-bridge:** passengers on the 100% tab (`Game/PassengerReader`,
-v0.24.130-131; seats sorted; warns when the manifest is not carried -
-the game only counts then); the nature guide named as the book prints
-it - pages (v0.24.132: Plant Life 1-2, Animals 1-3, from the links'
-text) and entries (v0.24.133: the printed name nearest each tick, 43 of
-44; the 44th has no tick and sits under "Other" as before);
-title-screen scans gone (`SurvivalBookReader`, `InventoryReader`,
-v0.24.130). **maks's game crash**
-(QA message `1553525841344856146`, log in `Downloads\qa-reports\yirequ\`):
-first launch of v0.24.129, native crash right after a title-screen
-save load (log ends at the player bind, no exception); asked for the
-Unity crash folder and his Performance switches (message
-`1553710935607214143`). sxczurass's FPS follow-up answer (message
-`1553661518703497236`, files in `Downloads\qa-reports\sxczurass\`) was
-read here and passed to the FPS session by the author.
-
-**The plane axe message: fixed v0.24.129** (the game's post-load
-re-equip fallback; hidden during a restore, verified both sides over the
-bridge - game-notes *Held items across an in-place restore*). What held
-Cheesecake's hands 2 s is unknown: a `hands still busy after 2 s - ...`
-line says it next time.
-
-**Open, not blocking:**
-- **The endgame flag on a Go is fixed for the vault entrance only**
-  (v0.24.112, `AreaKeeper.InVaultEntrance`). A Go from the surface
-  straight into an endgame section (the lab) still leaves `IsInEndgame`
-  false - not seen to break anything yet; if an endgame trigger or the
-  lighting misbehaves after a Go, check the flag first.
-- **Other ride / climb modes in savestates** (author asked to note it,
-  2026-09-26): only cave ropes are put back (`Game/RopeClimb`,
-  v0.24.104-105); since v0.24.195 the others are at least ENDED before a
-  teleport / Quick load (`Game/RideModes`), not put back. A capture on a **zipline, sled, wall / cliff climb or
-  hang glider** is probably thrown or dropped the same way (the body is
-  held by the mode, the save has no mode). Next step when picked up:
-  find each mode's state flag and its enter / exit calls (`ilscan type
-  activateZipLine` / `activateSledPush` / `activateHangGlider`,
-  `playerAnimatorControl.cliffClimb`, `resetClimbWall` /
-  `resetClimbCliff`), capture on one via the bridge and restore it after
-  leaving, as for the rope (game-notes *Rope climb entrances*).
-- **Other cutscenes that parent the player** (IL `set_parent` refs):
-  Megan's pickup (`pickupGirlRoutine`), Timmy's goodbye, the raft out of
-  the world, a rope-down into a cave (`playerEnterCaveAction.doCave`),
-  the intro hang. The position fix covers them; none is replayed (their
-  states - Megan dead, the ending - are not in Slot 1). Megan's
-  transformation is replayed by `MeganKeeper` as before.
-- **Phantom stick** (fix list 2, author, once): not reproduced; waits
-  for a `Pickup gone, inventory unchanged: ...` line. Candidate cause
-  found in v0.24.70: a taken stick's flag follows a pool object to
-  another tree (game-notes *Greebles*). Unanswered: was the stick count
-  at its max (10)?
-- `Small Rock x1` "not at capture" after restores: an `LOD_PickUps`
-  rock (`Pool_Greebles/SmallRock(Clone)`), probably not spawned yet
-  when the capture ran 8 s after a teleport. `phantom-a` after a
-  title-screen load listed 19 (bones, skulls, a booze) - sections loaded
-  now and not at capture? Neither looked into.
-- From the tree work: a Quick load regrows a **half-chopped** tree fully
-  (as a Full load does); once, one of two new sapling sticks was not
-  removed; a Full load does not put back a cut sapling's sticks.
-- **Time of day** (v0.24.67): the sweep was not reproduced; `SunSync`
-  logs `sun: ... snapped` when it acts - ask for that line if seen.
-- **Community seeding is the author's call, later** (author, 2026-09-26:
-  "don't worry about which spots should go out"). The demo template
-  pack stays until then; to publish, follow `community/README.md` (old
-  entries need a fresh id first).
-
-**Next, in this order:**
-1. **Next up 6, performance / loads** - the list above: 3 (raw FPS, in
-   progress - *Pick up here*), 1 (garbage in play); 2, 4, 5 low payoff.
-   On high effort. Done: the endgame load in a run (v0.24.107-108),
-   the heap step (not a leak), the load's animation sweep (v0.24.109-110),
-   two idle cameras (v0.24.116).
-2. ~~Next up 7, 8~~ done (passengers, logs in the inventory; freecam
-   lighting v0.24.136).
-3. **Next up 5, Quick load physics parity** - the heap lead above first;
-   decide with the author whether it leaves "deferred".
-4. Then the rest of *Next up*; the deferred runner feedback waits
-   unless critical (judge it, and say so) - the author wants Next up
-   finished before QoL/UX work.
+**Recent releases** (detail in CHANGELOG.md and the commits):
+v0.24.184-189 autosplitter events + `.lss` comparisons + one-click `.lss`
+import, Quick load keeps the nature guide / to-do list / a book-open
+capture's hands; v0.24.190 imported runs compare, never count; v0.24.191
+lighter kept lit, settings persist, line options; v0.24.192 item caps;
+v0.24.193 first-input / rope events, a spot's cave on Go; v0.24.194 HUD
+"ON NOW" + last time; v0.24.195 rides ended on F7; v0.24.196 fast
+building, started attempts; v0.24.197 Timmy drawings; v0.24.198-199
+collider filter + real shapes; v0.24.200 the unfinished run's red line.
 
 ### Standing decisions and people
 
@@ -1333,7 +723,9 @@ line says it next time.
   **off by default under a clearly labelled "Experimental /
   gameplay-altering" section** of the Performance patches, and only when
   it genuinely improves performance or playability. "True to the game"
-  is the default; the label is the rule when it is not.
+  is the default; the label is the rule when it is not. The author
+  prefers **direct patches** over tuning settings (a settings sweep
+  only "if it's light on usage").
 - **Splits and comparisons** (author, 2026-09-27): a LiveSplit-style splits
   table on screen (movable, F5 hides) + in the Runs tab; every LiveSplit
   column, each toggleable; one comparison setting (the Runs tab's Compare
@@ -1370,7 +762,12 @@ the window is open, an on-screen notice, a 30 s perf log line,
 self-installing updates **with a changelog in the Updates tab**, a
 **memory census on every load**, offline IL
 scanner, the live test bridge with its **MCP server** (drive the game,
-screenshots, logs, restart / update the game) and the **QA Discord bot**.
+screenshots, logs, restart / update the game) and the **QA Discord bot**;
+a **LiveSplit-style splits table** (every column toggleable, Compare to:
+PB / best segments / another runner / a LiveSplit file), the autosplitter's
+events, one-click `.lss` import, run uploads to **forest.deter.cloud**
+(spots, runs, comparisons, photo map, 3D world), gameplay mods (god mode,
+item caps, logs in the inventory, fast building) under the HUD's "ON NOW".
 
 ### Key concepts
 
@@ -1491,7 +888,7 @@ screenshots, logs, restart / update the game) and the **QA Discord bot**.
 Confirmed features, by version and by whom: [`docs/confirmed.md`](docs/confirmed.md) (check it before re-testing something; add each new confirmation there).
 
 **Awaiting an in-game check** — ask before building on these (the
-current items are in *Pick up here*):
+current items are in docs/investigations.md):
 - **v0.23.6's census off by default** - no hitch after a load.
 - **Run lines cleared** on a plain spot / another segment (v0.22.7).
 - **Weapon-upgrade receivers kept** on a cross-save restore (v0.22.7): the
@@ -1532,110 +929,34 @@ current items are in *Pick up here*):
 
 ### Next up
 
-Ordered by what runners feel soonest for the effort. Items marked *(runner)*
-came from runners' own requests; the interpretation was checked with the
-author. This is all dev/alpha: nothing is used in real runs until the admins
-rule, and a few runners act as QA. The author: "work through the current
-list so we can move onto expanding more features".
+The author's feature list, ordered by what runners feel soonest. Done
+(detail in CHANGELOG.md): the load leak, updates under any name,
+savestates + fix list + sharing, practice QoL, passengers, logs in the
+inventory, god mode, freecam lighting, LiveSplit import, the website's
+first versions. All dev/alpha: nothing is used in real runs until the
+admins rule. The author: "work through the current list so we can move
+onto expanding more features".
 
-1-2. ~~The load leak, updates under any file name~~ done (v0.23.3-0.23.7).
-3. ~~Savestates, the fix list, sharing~~ done (through v0.24.83; open
-   leftovers in *Pick up here*). Author's idea, still open: reload the
-   slot **in place** on death (a *Quick load the slot's save* button did
-   it until v0.24.106 - `SavestateBridge.ReadSlotData` in git history).
-4. ~~Practice QoL~~ done and confirmed: auto-restart at the end of a timed
-   spot (`Runs.AutoRestartAtEnd`, one global setting, load-mode start
-   states too - author), no blood / no stagger (`Deaths.NoBlood` /
-   `Deaths.NoStagger`, off, practice-only - also the answer for Creative,
-   where nobody dies). Left: the flashed time's display (maks).
-5. **Quick load physics parity** *(runner maks, 2026-09-26; active
-   but deferred - author: "no conclusive evidence and current issues
-   are mainly anecdotal"; gone after a game restart for maks)*. After a **Quick load** (the preferred, default
-   restore - author), movement tech does not react as in a real run:
-   - **Elevator boost**: trigger the red elevator, full swing / smash the
-     axe into the door corner, release crouch and spam jump to clip
-     through the door and get shot forwards. Inputs that boost in a run
-     do not after a restore (the cutscene replay itself is right).
-   - **Logboosting**: placing a log wall so the player is squeezed
-     between it and a cave wall pushes them up; "not identical to the in
-     run circumstance".
-   - **Approach**: measure before theorising (gotcha 25). Read the
-     player's physics state through the bridge after a natural arrival
-     and after a Quick load at the same spot and diff it - Rigidbody
-     (velocity, sleep, constraints, interpolation, drag), collider
-     heights / crouch, `FirstPersonCharacter` flags, the PlayMaker FSM
-     and animator states, fixed-step phase, parenting left by a cutscene,
-     and colliders the restore adds or leaves behind. Then time the tech
-     with maks (the author cannot do the boost; QA Discord).
-   - **Ruled out (bridge, 2026-09-26, Slot 1)** - identical between a
-     natural arrival and a Quick load: the player's Rigidbody, capsule /
-     head sphere, physic materials, every `FirstPersonCharacter` /
-     `RigidBodyCollisionFlags` / `Buoyancy` field, parent, every
-     collider on the player (the held axe's `collide` too - it carries
-     `StoreInformation`); the red elevator 10 s into the ride (car
-     Rigidbody, door `Closed` + locked, panels, the 20 colliders within
-     9 m) and after it; `fixedDeltaTime` 0.0167 throughout (the game
-     has a 50 Hz path: PlayMaker `ScaleTime` sets `0.02 x timeScale` -
-     not hit by the ride); Physics globals; heap / full-GC pause flat
-     over 10 Quick loads (~280 MB, 80 ms). Terrain is 530 m below the
-     elevator top. So the state a Quick load leaves is right; what is
-     left is dynamic (during the swing / clip) - next: maks's answers
-     (posted 2026-09-26: Full vs Quick, capture before the trigger,
-     settles after moving?, clip vs launch), then a per-FixedUpdate
-     physics trace he can record in a run and after a load. Test
-     savestates `physA`, `elevPre` (in the car, before the trigger),
-     `elevMid` (2.6 s into the ride) are left for this.
-6. **Performance: can patches make the game itself faster?** (author,
-   2026-09-23; loads added 2026-09-26). Measure first, change second:
-   - **Done** (v0.24.86-94): the Game profiler, scene census, allocation
-     tracker, load timing lines; six behaviour-preserving patches
-     (`Game/PerfPatches`) - idle garbage roughly halved, a cave entry's
-     double asset sweep merged; the save load hand-over as an
-     Experimental switch (v0.24.96, index 6); the endgame load of our
-     restores in the background (v0.24.99, index 7). What is left:
-     *Pick up here*.
-   - **Tools**: `_modules[8].ToggleAllocations` (the tracker; 30 s lines
-     `Allocations (30 s): ... by type ... overlay ... by module`),
-     `ToggleProfiler` (with the tracker counting, its alloc column is
-     exact), `TogglePerfPatch i` (A/B live), `_perf.ListLayoutUsers`;
-     `Load timing:` lines always on; `_modules[10]._census.RunScene "x"`.
-   - **Rules**: behaviour-preserving patches only (cache a lookup, skip a
-     no-op, pool an allocation), each with its own switch and one log line;
-     measure before / after in one session. Anything changing timing
-     or outcomes is a gameplay change - label it honestly.
-7. **The author's list of 2026-09-23:**
-   - ~~100%: passengers~~ done (v0.24.130-131; no locations - the
-     game's database paths are wrong, game-notes *Passengers*).
-   - ~~Logs in the inventory~~ done (v0.24.134-135, `Game/LogStore`;
-     QA on the sled / repairs pending).
-   - God mode: done (v0.24.101, Deaths tab).
-8. ~~Freecam keeps the game's lighting~~ done (v0.24.136: flies the
-   game's own camera; `FreeCamBehaviour` in `Game/DebugDraw`).
-9. ~~LiveSplit split file import~~ **done** (v0.24.185): Runs ->
-   *LiveSplit file* - files from `config/ForestOverlay/livesplit/*.lss`,
-   one per segment (`livesplit/links.txt`: file, real / game, hand-set
-   row map - `LssLink`), the match by name with `<` `>` per row, then
-   Compare to -> *LiveSplit* (`<` `>`: PB, best segments, the file's
-   other comparisons; also in the cycle key) - comparisons only; the
-   ghost / lines race the runner's own PB. `Data/LssFile` holds the
-   parser / matcher (33 tests). Not built: other runners' `.foseg`
-   attempts as comparisons.
-10. **forest.deter.cloud - shared runs and a web viewer** *(runner)* -
-   **next** (author, 2026-09-27). Brief: [`docs/website.md`](docs/website.md)
-   (formats, identity, decisions, open questions for the author).
-11. **TAS** - exploratory only, on savestates and the recorder.
-12. **Speedrun tech research** (author, QA Discord 2026-09-26, "later
-    down the line"): helping runners place ziplines precisely (the big
-    schematic, a short window) and showing the expected trajectory;
-    **bomb boosting** (explode, open the menu, wait, close - distance
-    presumed from the velocity at the menu, the time in it and fps;
-    why runs sometimes hit objects or fly off course; maybe a boost
-    view, Experimental) - sxczurass's measurements by fps (2026-09-26, message
-    `1553447134911664168`) are in `Downloads\qa-reports\sxczurass\image.png`;
-    panel / axe clipping and the boost behind it; anything
-    new found on the way.
-13. Freeform zone shapes (the drawing pieces are on the 100% tab since
-    v0.24.197).
+1. **Quick load physics parity** *(runner maks; active but deferred)* -
+   investigations.
+2. **Performance: can patches make the game faster?** - raw FPS and
+   loads, investigations. Done so far: v0.24.86-143 (profiler, tracker,
+   load timing, PerfPatches 1-15, the reload freeze, the load crash).
+3. Reload the slot **in place** on death (author's idea; a *Quick load the
+   slot's save* button did it until v0.24.106 -
+   `SavestateBridge.ReadSlotData` in git history). Also the flashed
+   time's display (maks).
+4. **forest.deter.cloud** *(runner)* - its *Next* in docs/website.md;
+   maks's YouTube side-by-side (QA `1554074251831672943`, site only).
+5. **TAS** - exploratory only, on savestates and the recorder.
+6. **Speedrun tech research** (author, 2026-09-26, "later down the
+   line"): placing ziplines precisely (the big schematic, a short window)
+   and the expected trajectory; **bomb boosting** (explode, open the
+   menu, wait, close - distance from the velocity at the menu, the time in
+   it and fps; maybe a boost view, Experimental; sxczurass's measurements
+   by fps: `1553447134911664168`, `Downloads\qa-reports\sxczurass\image.png`);
+   panel / axe clipping.
+7. Freeform zone shapes.
 
 ### Deferred runner feedback
 
@@ -1658,7 +979,10 @@ again. **Keep the handoff current without being asked** (author,
 after every release or finished piece of work, in the same push,
 rewrite *Pick up here*, move confirmed items, add any lesson as a
 gotcha (`docs/gotchas.md` + its index line) and update *Next*. The author may switch session at any moment;
-the docs on `main` must always be ready for it.
+the docs on `main` must always be ready for it. With sessions running side
+by side: **`git fetch` and check `HEAD..origin/main` before bumping the
+version**, and `qa_read new_only` is shared - a message one session reads
+is gone from the other's new list (tell the author what belongs where).
 
 **When to switch session (author, 2026-09-26: "add those as rules").**
 Switch at a task boundary, not by habit or by a context number alone:
@@ -1680,7 +1004,9 @@ every turn. Reference detail lives in `docs/` and is linked from here:
 index here), [`docs/confirmed.md`](docs/confirmed.md) (confirmed in
 game), [`docs/savestates.md`](docs/savestates.md) (what each restore
 does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
-[`docs/game-notes.md`](docs/game-notes.md) (game internals). Before
+[`docs/game-notes.md`](docs/game-notes.md) (game internals),
+[`docs/investigations.md`](docs/investigations.md) (open threads across
+sessions, unverified items, test assets). Before
 adding a long block here, ask whether a session needs it on every turn
 or only when working on that area - the latter goes to `docs/`.
 
