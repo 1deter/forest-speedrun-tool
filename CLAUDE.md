@@ -562,6 +562,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
 84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`).
 85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material.
+86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer.
 
 ---
 
@@ -613,16 +614,23 @@ identity.
 
 ## Current status
 
-**Released: v0.24.220** (2026-10-02). The author runs it via the in-game
+**Released: v0.24.221** (2026-10-02). The author runs it via the in-game
 updater (Slot 1). **536 tests** (+ 83 site tests).
 
-### Pick up here (2026-10-02, v0.24.220 released)
+### Pick up here (2026-10-02, v0.24.221 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
-mode, the report or anything a run uploads. **Latest session (site
-only):** **caves drawn on the 2D map** - underground, the map draws the
+mode, the report or anything a run uploads. **Latest session
+(v0.24.221, capture tooling only):** the photo map's "overlook's shadow
+without the overlook" was the south mountains' models (to y ~1100) above
+the capture camera (terrain + 400 m): tops cut by the near plane, shadows
+still cast. The camera now clears the tallest renderer per tile (tested
+on two tiles: mountains whole). **The live map still needs a full
+recapture + bake + upload** (docs/website.md *The photo map*) - the game
+was at quality Fastest / 1366x768 that session (every tile far darker),
+so check the launcher settings first. Before: **caves drawn on the 2D map** - underground, the map draws the
 caves' and endgame's floor plan (`scripts/cave-bake.py` ->
 `wwwroot/terrain/caves.webp`, from the world's collision meshes, slivers
 between pieces filtered by walkable region; docs/website.md *Caves on the
@@ -699,9 +707,9 @@ one (a preset save as a start state, `run = <category name>`, in
    culling; BatchedMesh tried and dropped (slower); the remaining lever is
    texture arrays in the export - only if frame times call for it;
    Follow's camera through cave walls fixed; caves on the 2D map done.
-   The next item, from the author's 2026-10-02 notes: the overlook's
-   shadow on the snow hills in the photo map without the overlook. The load-order look (gotcha 83, an
-   investigation). The south mountains' textures in 3D: QoL, not a
+   The next item: the photo map recapture with v0.24.221 (the south
+   mountains drawn whole; launcher quality / resolution checked first).
+   The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run

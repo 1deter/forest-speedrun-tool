@@ -737,3 +737,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     per instance. Before a batching change, count distinct materials (or
     textures) in view against draw calls, and time a multi-draw item
     against an instanced call on the real browser.
+
+86. **A shadow with no object: the object is behind the camera's clip.**
+    (v0.24.221, aerial capture.) The photo map showed a dark shape on the
+    south snow with nothing casting it. The capture camera sat 400 m over
+    the *terrain*, but the mountains past the terrain's edge are models up
+    to y ~1100: the camera was inside them, the near plane cut their tops
+    away, and the shadow pass (the light's own view) still drew those tops.
+    Place a camera by the tallest renderer under it, not the heightmap;
+    when something casts a shadow but is not drawn, check the clip planes
+    and culling before the object's own state.

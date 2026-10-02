@@ -215,7 +215,18 @@ with a Water switch.
    camera's blood / frost / grey overlays are held off; lakes switch to a
    black stand-in by `LOD_GroupToggle`'s own distances, scaled by
    rangeScale too; the far plane reaches y -320 (the sinkhole's floor).
-   A full run took 17.5 min on 2026-10-01 (v0.24.180). Retake
+   A full run took 17.5 min on 2026-10-01 (v0.24.180). **The south
+   edge's mountains** (models past the terrain, up to y ~1100) had the
+   camera, 400 m over the terrain (y ~650), inside them: their tops cut
+   away by the near plane while still casting shadows on the snow (the
+   author's "overlook's shadow", 2026-10-02). Since v0.24.221 a tile's
+   camera clears the tallest renderer over it too (log: `camera raised to
+   y ...`, 8 renderers, the south rows); a test of tiles 8_0 / 9_0 drew
+   the mountains whole. **Not yet recaptured**: that game was at quality
+   0 (Fastest) in a 1366x768 window - every tile ~3-15x darker, an
+   untouched control too - so check the launcher's quality / resolution
+   (1200 px high before) and one tile against the old one before a full
+   run. Retake
    rows N+ with `AerialStart -1750 <z0 + N*218.75> 1750 1757.369 ...` -
    its files are numbered from row 0 again and it overwrites `tiles.txt`,
    so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`
@@ -609,10 +620,10 @@ per mesh): ~0.2 ms a test (all triangles: ~13 ms). The cut plane alone
 left the 4 m in front of the ghost. Checked headless on 1st logboost's runs
 (live API proxied to a local site): a clear passage instead of sliced
 rock; not yet seen by the author. Caves not drawn on the 2D map:
-**fixed 2026-10-02** (*Caves on the 2D map* below); in the photo map the overlook's shadow falls on the snow hills but
-the overlook itself is missing (likely: the capture culls the section,
-the sun's shadow pass does not - unchecked); the south mountains' 3D
-textures: nice QoL, not a dealbreaker.
+**fixed 2026-10-02** (*Caves on the 2D map* below); the photo map's
+"overlook's shadow" with no overlook: **fixed in the capture (v0.24.221),
+the live map needs a recapture** (*The photo map*, step 1); the south
+mountains' 3D textures: nice QoL, not a dealbreaker.
 
 Open: the load-order look
 (above); the web replay as fast
