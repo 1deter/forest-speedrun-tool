@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.201 - 2026-10-02
+
+- Savestates on a zipline, sled, hang glider or cliff climb: a Quick or
+  Full load now puts you back on it as captured (on the line at the same
+  spot and speed, pushing the same sled, gliding at the same speed, on the
+  cliff), as cave ropes already were.
+- A capture while gliding no longer drops you out of the air.
+- A capture while pushing a sled no longer loses the sled on a restore
+  (it was put near the middle of the map).
+
 ## v0.24.200 - 2026-10-02
 
 - The line of your last unfinished run (a restart, abort or death) stays

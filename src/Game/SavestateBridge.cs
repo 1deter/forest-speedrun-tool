@@ -161,9 +161,6 @@ namespace ForestOverlay.Game
         private FieldInfo _fakeParentTarget;     // FakeParent.target (the hand bone it belongs under)
         private MethodInfo _reParent;
         private MethodInfo _unParent;
-        private FieldInfo _animControl;
-        private FieldInfo _holdingGlider;
-        private FieldInfo _specialActions;
         private PropertyInfo _inOverlook;
         private FieldInfo _finishGameLoad;
 
@@ -297,8 +294,6 @@ namespace ForestOverlay.Game
             if (local != null)
             {
                 _itemSlots = local.GetField("ItemSlots", stat);
-                _animControl = local.GetField("AnimControl", stat);
-                _specialActions = local.GetField("SpecialActions", stat);
                 _inOverlook = local.GetProperty("IsInOverlookArea", stat);
                 _inventory = local.GetField("Inventory", stat);
                 if (_inventory != null) _inventoryGo = _inventory.FieldType.GetField("_inventoryGO", inst);
@@ -376,9 +371,6 @@ namespace ForestOverlay.Game
                 _fakeParentTarget = _fakeParentType.GetField("target", inst);
             }
 
-            Type anim = GameBridge.FindGameType("playerAnimatorControl");
-            if (anim != null) _holdingGlider = anim.GetField("holdingGlider", inst);
-
             Status = "serialize:" + (_serializeLevel != null) +
                      " loadNow:" + (_loadNow != null) +
                      " loadSaved:" + (_loadSavedLevel != null) +
@@ -447,8 +439,6 @@ namespace ForestOverlay.Game
 
             Stopwatch total = Stopwatch.StartNew();
 
-            DropGlider();
-
             bool unloaded = ForceUnloadStreaming(true, true);
             yield return null;
             Call(_unloadUnused);
@@ -467,6 +457,7 @@ namespace ForestOverlay.Game
                 yield return null;
 
             Stopwatch serialize = Stopwatch.StartNew();
+            RideModes.HeldGlider glider = null;
             try
             {
                 if (ReadBool(_isSuspended))
@@ -475,6 +466,11 @@ namespace ForestOverlay.Game
                 }
                 else
                 {
+                    // The game's save drops a held glider into the world
+                    // first (it is not saved in the hands). On this frame
+                    // only, and taken back after: a capture in flight used
+                    // to end the flight (RideModes, v0.24.201).
+                    glider = RideModes.DropForSave();
                     r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string;
                     r.Ok = !string.IsNullOrEmpty(r.Data);
                     if (!r.Ok) r.Message = "SerializeLevel returned nothing";
@@ -485,6 +481,11 @@ namespace ForestOverlay.Game
                 Exception inner = ex.InnerException ?? ex;
                 r.Message = "SerializeLevel threw: " + inner.GetType().Name + ": " + inner.Message;
                 _log.LogWarning("Savestate capture: " + inner);
+            }
+            if (glider != null)
+            {
+                string back = RideModes.TakeBack(glider);
+                if (back.Length > 0) _log.LogInfo("Savestate capture: glider dropped for the save, " + back + ".");
             }
             serialize.Stop();
 
@@ -1705,18 +1706,6 @@ namespace ForestOverlay.Game
         // ------------------------------------------------------------------
         // Save-routine steps. Each is individually guarded: a missing piece
         // is logged, not thrown.
-
-        private void DropGlider()
-        {
-            try
-            {
-                object anim = _animControl != null ? _animControl.GetValue(null) : null;
-                if (anim == null || _holdingGlider == null || !(bool)_holdingGlider.GetValue(anim)) return;
-                GameObject actions = _specialActions != null ? _specialActions.GetValue(null) as GameObject : null;
-                if (actions != null) actions.SendMessage("DropGlider", false);
-            }
-            catch (Exception) { }
-        }
 
         /// ForcedUnload(unload) on the greeble zones and every cave scene
         /// loader, as the game's save does. CheckInCave follows only on the

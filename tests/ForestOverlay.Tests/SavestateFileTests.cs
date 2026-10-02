@@ -198,6 +198,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void RideRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Ride);
+            Assert.DoesNotContain("ride", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Ride = new RideState(RideState.Zipline, new UnityEngine.Vector3(395.89f, 73.88f, -28.38f),
+                                   new UnityEngine.Vector3(0.65f, -7.3f, 24.67f)).Write();
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal("zipline 395.89,73.88,-28.38 0.65,-7.3,24.67", back.Ride);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RopeRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

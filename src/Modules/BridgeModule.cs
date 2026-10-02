@@ -653,6 +653,8 @@ namespace ForestOverlay.Modules
             if (area.Length > 0) cave += (cave.Length > 0 ? ", " : "") + area;
             string rope = RopeClimb.Leave();
             if (rope.Length > 0) cave += (cave.Length > 0 ? ", " : "") + rope;
+            string ride = RideModes.Leave();
+            if (ride.Length > 0) cave += (cave.Length > 0 ? ", " : "") + ride;
             if (!Ctx.Player.MoveTo(to, Quaternion.Euler(0f, yaw, 0f))) return "could not move the player";
             string fall = Ctx.Bridge.EndFall();
             Mark("teleport");

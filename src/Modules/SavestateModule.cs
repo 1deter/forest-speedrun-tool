@@ -340,9 +340,11 @@ namespace ForestOverlay.Modules
             string book = _book.Capture(out bookNote);
             List<int> held = _bridge.HeldIds();
             List<string> heldBefore = _bridge.PreviousHeld();
-            string mode = RideModes.Current();
-            if (mode.Length > 0)
-                Ctx.Log.LogInfo("Savestate capture: on a " + mode + " - a restore puts you at this spot without it (modes are not put back).");
+            // A ride / climb is outside the save: noted here, before the
+            // capture's frames move the player on (RideModes).
+            string ride = RideModes.Capture(pos);
+            if (ride.Length > 0)
+                Ctx.Log.LogInfo("Savestate capture: on a " + RideModes.Current() + " (" + ride + ") - a restore puts you back on it.");
             // The book stows the hands: the save then says nothing is held,
             // and what closing the book would take back out is the
             // inventory's "previously equipped" memory. A capture with the
@@ -399,7 +401,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, logs);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs);
                 if (error == null && areaWarning.Length > 0)
                 {
                     Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
@@ -413,7 +415,7 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance, string rope, int logs)
+                                  List<string> greebles, string stance, string rope, string ride, int logs)
         {
             _busy = false;
             if (!r.Ok)
@@ -448,6 +450,7 @@ namespace ForestOverlay.Modules
                 f.Stance = stance;
                 f.Logs = logs;
                 f.Rope = rope;
+                f.Ride = ride;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
                 f.Greebles = greebles;
@@ -612,7 +615,9 @@ namespace ForestOverlay.Modules
             if (rope.Length > 0) fall += (fall.Length > 0 ? ", " : "") + rope;
             // A cliff climb, sled, glider or zipline in flight holds the body
             // too: ended the game's way before the restore moves it.
-            string ride = RideModes.Leave();
+            // A glider in the hands goes into the world, so the restore
+            // gives back the capture's (its own, if it had one).
+            string ride = RideModes.Leave(true);
             if (ride.Length > 0) fall += (fall.Length > 0 ? ", " : "") + ride;
 
             Transform keep = Ctx.Player.Found ? Ctx.Player.Transform.root : null;
@@ -759,14 +764,22 @@ namespace ForestOverlay.Modules
                 // The captured blueprint after the hands (runner maks): the
                 // game's CreateBuilding picks the utility to hold beside it.
                 string pullOut = r.Ok && file != null && file.CutsceneAt < 0f ? file.Blueprint : "";
+                // The captured ride after the hands: a cliff climb needs
+                // the climbing axe held, a zipline / sled grab stows it.
+                string rideBack = r.Ok && file != null ? file.Ride : "";
                 if (r.Ok && file != null && file.Held != null && file.Held.Count > 0)
                     Ctx.Runner.StartCoroutine(_bridge.ReEquip(file.Held, NameOfItem,
                         delegate(string note)
                         {
                             Ctx.Log.LogInfo("Savestate restore " + what + ": " + note + ".");
                             PullOutBlueprint(pullOut, "Savestate restore " + what);
+                            PutRideBack(file, rideBack, "Savestate restore " + what);
                         }));
-                else PullOutBlueprint(pullOut, "Savestate restore " + what);
+                else
+                {
+                    PullOutBlueprint(pullOut, "Savestate restore " + what);
+                    PutRideBack(file, rideBack, "Savestate restore " + what);
+                }
 
                 string line = "restore " + what + " in place: " + r.Message +
                               ", pickups put back " + pickups +
@@ -1388,6 +1401,7 @@ namespace ForestOverlay.Modules
             // A load rebuilds the player off any rope (RopeClimb); after
             // the pin, which undid a climb entered before it (bridge).
             string rope = f.Rope.Length > 0 ? RopeClimb.Prepare(f.Rope) : "";
+            PutRideBack(f, f.Ride, "Savestate after the load");
             Ctx.Log.LogInfo("Savestate after the load: held the player at the captured spot for " +
                             (Time.realtimeSinceStartup - start).ToString("F1") + " s" +
                             (missing.Length > 0 ? " - gave up waiting for " + missing : " until the captured scenes were loaded") +
@@ -1472,6 +1486,17 @@ namespace ForestOverlay.Modules
         {
             if (string.IsNullOrEmpty(type)) return;
             Ctx.Runner.StartCoroutine(PullOutLater(type, prefix));
+        }
+
+        /// The capture's zipline / sled / glider / cliff climb, put back
+        /// (RideModes); its own log line when it is done.
+        private void PutRideBack(SavestateFile f, string ride, string prefix)
+        {
+            if (string.IsNullOrEmpty(ride)) return;
+            Ctx.Runner.StartCoroutine(RideModes.PutBack(ride, new Vector3(f.X, f.Y, f.Z), delegate(string note)
+            {
+                if (note.Length > 0) Ctx.Log.LogInfo(prefix + ": " + note + ".");
+            }));
         }
 
         private IEnumerator PullOutLater(string type, string prefix)

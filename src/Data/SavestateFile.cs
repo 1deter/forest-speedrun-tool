@@ -32,6 +32,7 @@ namespace ForestOverlay.Data
     //   keypaddoor = EndgameEntrance/keypadDoor_animate/doorTrigger
     //   stance = crouched
     //   rope = Caves/CaveRopeClimbDowns/Cave4Rope
+    //   ride = zipline 395.89,73.88,-28.38 0.65,-7.3,24.67
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
@@ -164,6 +165,10 @@ namespace ForestOverlay.Data
         /// on a rope or before v0.24.104.
         public string Rope = "";
 
+        /// Game/RideModes' zipline / sled / glider / cliff climb at capture
+        /// (Data/RideState); "" when on none or before v0.24.201.
+        public string Ride = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -204,6 +209,7 @@ namespace ForestOverlay.Data
             if (Stance.Length > 0) Line(sb, "stance", Stance);
             if (Logs >= 0) Line(sb, "logs", Logs.ToString(CultureInfo.InvariantCulture));
             if (Rope.Length > 0) Line(sb, "rope", Rope);
+            if (Ride.Length > 0) Line(sb, "ride", Ride);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -268,6 +274,7 @@ namespace ForestOverlay.Data
                             break;
                         }
                     case "rope": s.Rope = value; break;
+                    case "ride": s.Ride = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":
                         {
