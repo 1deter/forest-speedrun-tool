@@ -612,7 +612,7 @@ identity.
 ## Current status
 
 **Released: v0.24.216** (2026-10-02). The author runs it via the in-game
-updater (Slot 1). **527 tests** (+ 61 site tests).
+updater (Slot 1). **529 tests** (+ 65 site tests).
 
 ### Pick up here (2026-10-02, v0.24.216 released)
 

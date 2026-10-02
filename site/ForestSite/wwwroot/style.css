@@ -210,6 +210,31 @@ tr.focus td { background: #151300; }
 .status-open { color: var(--white); }
 .status-approved { color: var(--ahead-gain); }
 .status-rejected { color: var(--muted); }
+
+/* --- a run attempt (attempt.js) ---------------------------------------- */
+.verdict { border: 1px solid var(--line); border-left: 4px solid var(--muted); background: var(--panel); padding: 14px 16px; margin: 18px 0; max-width: 70ch; }
+.verdict p { margin: 4px 0 0; color: var(--white); }
+.vhead { font-family: Anton, Impact, sans-serif; font-size: 28px; letter-spacing: .03em; text-transform: uppercase; line-height: 1.1; }
+.vhead .mark { margin-right: .4em; }
+.v-green { border-left-color: var(--ahead-gain); } .v-green .vhead { color: var(--ahead-gain); }
+.v-amber { border-left-color: var(--yellow); } .v-amber .vhead { color: var(--yellow); }
+.v-red { border-left-color: var(--behind-lose); } .v-red .vhead { color: var(--behind-lose); }
+.v-running .vhead { color: var(--muted); }
+table.facts th { text-align: left; font-weight: 500; color: var(--muted); padding-right: 16px; white-space: nowrap; vertical-align: top; }
+table.facts td { color: var(--white); overflow-wrap: anywhere; }
+.findings { list-style: none; padding: 0; margin: 0; max-width: 80ch; }
+.findings li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); color: var(--white); overflow-wrap: anywhere; }
+.findings .mark { flex: none; width: 1.2em; text-align: center; font-weight: 600; }
+.f-ok .mark, .f-green .mark, .f-allowed .mark, p.f-ok { color: var(--ahead-gain); }
+.f-bad .mark, .f-red .mark, p.f-bad { color: var(--behind-lose); }
+.f-pending .mark, .f-amber .mark { color: var(--yellow); }
+.f-note .mark { color: var(--muted); }
+.f-allowed span:last-child, .f-note span:last-child { color: var(--dim); }
+.search.code { max-width: 120px; text-transform: uppercase; letter-spacing: .3em; font-family: ui-monospace, Consolas, monospace; font-size: 18px; }
+.coderesult { margin-top: 10px; max-width: 70ch; overflow-wrap: anywhere; }
+details.raw { margin-top: 14px; }
+details.raw summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+details.raw pre { background: var(--panel); border: 1px solid var(--line); padding: 10px; overflow-x: auto; font-size: 12px; color: var(--white); white-space: pre-wrap; overflow-wrap: anywhere; }
 tr.detail td { background: #080808; white-space: normal; cursor: default; }
 tr.detail:hover td { background: #080808; }
 table.admin tbody tr { cursor: default; }

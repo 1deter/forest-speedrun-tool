@@ -84,6 +84,10 @@ advantage.
   state-changing features are always locked. Seed the drafts from
   speedrun.com's categories **and their rules**, as a head start for the
   moderators.
+- **Anti-splicing is optional per category / run spot** (author, QA
+  2026-10-02: "may not be really necessary for the manhunt vs a new player
+  getting a WR"). A moderators' setting in phase 4: off = no code on
+  screen and no codes / checkpoint judgement on the attempt's page.
 
 ## What starts a run (author, 2026-10-02; v0.24.213)
 
@@ -170,11 +174,36 @@ public view: verdict, why, report), `GET .../log`,
 limit `attempt`: 3000 an hour per address. Logs in
 `<data>/attempts/<id>.log.gz`.
 
-**Not yet**: the page behind the link (`/attempt/<id>`, phase 3 - the
-link already points there); the report's own findings (game hash, other
-mods) are not part of the verdict yet - phase 3 judges them; the full 30
-Hz `.run` of a finished attempt still goes up as an ordinary run, not
-linked to the attempt.
+**Not yet**: the full 30 Hz `.run` of a finished attempt still goes up
+as an ordinary run, not linked to the attempt.
+
+## The report page (phase 3)
+
+**`/attempt/<id>`** (`wwwroot/attempt.js`; the server adds the verdict to
+the link preview, `Pages.AttemptSummary`): the verdict in plain words
+(Checked / Partly checked / Problems found / In progress), the facts
+(category, runner, spot, game mode, timer, real length, end, online,
+plugin), a **check a code** box (where a code from the video shows in
+the log, real time and timer), *What the site saw during the run* (the
+receipt's lines) and *What ran in the game* (the report's findings),
+the report as written behind a fold, and the log's download.
+
+**The verdict = the worse of two halves**, worked out when the page is
+read (so the allow-list applies to old attempts too):
+- the receipt, `Attempts.Judge` (stored when the log arrives);
+- the report, `Attempts.JudgeReport` (tested; reads the report with
+  `RunReport.Parse`, linked into the site): an unknown or unreadable game
+  hash, another mod / patcher / outside code, a foreign Harmony patch, a
+  game cheat = red; no report or a hash still being read = amber;
+  practice before the attempt = a note. Run mode's flags are judged by the
+  receipt (they are in the chain), not again.
+
+**Allowed mods** (`/admin/allowed`, any admin): every mod, patcher,
+outside code and patch owner a report has named (`attempt_items`, filled
+when a log arrives), with Allow / Stop allowing (`allowed_code`). The
+entry is exact - a new version is a new entry; a mod and its Harmony
+patches are two entries (a plugin's patches are listed by its Harmony
+id). Logged in the activity log with the entry.
 
 ## Other uses of locked settings
 
@@ -223,7 +252,8 @@ linked to the attempt.
    - A checkpoint POST about once a minute; a receipt on every reset; the full
      log on a finish.
    - An outbox queue with links (offline).
-3. **The report page** on the site.
+3. **The report page** on the site (built 2026-10-02 except the per-type hashes;
+   see *The report page* above).
    - Green / amber / red, in plain words, plus a "check a code" box.
    - On a hash mismatch, per-type hashes, compared on the server against a
      table built from the real game files and mapped to areas a runner

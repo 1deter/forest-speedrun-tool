@@ -122,6 +122,43 @@ namespace ForestOverlay.Data
             return sb.ToString();
         }
 
+        /// Format()'s text back (the site reads the report after an
+        /// attempt log's `[report]`). Unknown keys are skipped; the findings
+        /// after the blank line are not read - Findings() makes them again.
+        public static RunReport Parse(string text)
+        {
+            RunReport r = new RunReport();
+            if (string.IsNullOrEmpty(text)) return r;
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (line == "[runreport]") continue;
+                if (line.Length == 0) break;
+                int eq = line.IndexOf(" = ");
+                string key = eq < 0 ? line.TrimEnd(' ', '=') : line.Substring(0, eq);
+                string value = eq < 0 ? "" : line.Substring(eq + 3);
+                switch (key)
+                {
+                    case "attempt": int.TryParse(value, out r.Attempt); break;
+                    case "started": r.Started = value; break;
+                    case "at": r.StartedAt = value; break;
+                    case "plugin": r.PluginVersion = value; break;
+                    case "id": r.AttemptId = value; break;
+                    case "game": r.GameHash = value; break;
+                    case "ownpatches": int.TryParse(value, out r.OwnPatchedMethods); break;
+                    case "otherplugin": r.OtherPlugins.Add(value); break;
+                    case "otherpatcher": r.OtherPatchers.Add(value); break;
+                    case "othercode": r.OtherCode.Add(value); break;
+                    case "foreignpatch": r.ForeignPatches.Add(value); break;
+                    case "cheat": r.Cheats.Add(value); break;
+                    case "flag": r.Flags.Add(value); break;
+                    case "practicebefore": r.PracticeBefore = value; break;
+                }
+            }
+            return r;
+        }
+
         /// One log line: the verdict and what is wrong.
         public string Summary()
         {

@@ -59,6 +59,7 @@ async function adminPage(tab) {
     ["flagged", "Under review", flagged.filter(f => !f.hidden).length],
     ["spots", "Spots", spots.length],
     ["runners", "Runners", runners.length],
+    ["allowed", "Allowed mods", 0],
     ["activity", "Activity", 0],
   ];
   if (me.owner) tabs.push(["admins", "Admins", 0]);
@@ -67,7 +68,8 @@ async function adminPage(tab) {
   try {
     body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners)
       : tab === "spots" ? spotsView(spots) : tab === "activity" ? activityView(await adminCall("GET", "/log"))
-      : tab === "admins" ? adminsView(await adminCall("GET", "/admins")) : submissionsView(subs);
+      : tab === "admins" ? adminsView(await adminCall("GET", "/admins"))
+      : tab === "allowed" ? allowedView(await adminCall("GET", "/allowed")) : submissionsView(subs);
   } catch (e) { return failed(e); }
 
   show(
@@ -211,6 +213,37 @@ function spotsView(list) {
     el("p", { class: "note" }, "Deleting a runner's spot removes it and every run on it. It comes back if its owner uploads a run on it again - ban the runner if it keeps happening."),
     el("div", { class: "tablewrap" }, el("table", { class: "admin" },
       el("thead", null, el("tr", null, el("th", null, "Spot"), el("th", { class: "r" }, "Runs"), el("th", { class: "r col-date" }, "Last run"))),
+      rows)));
+}
+
+// --- allowed mods (run mode phase 3) ---------------------------------------------------
+
+const ALLOW_KINDS = { mod: "Mod", patcher: "Patcher", code: "Code", patches: "Patches by" };
+
+/// Every mod, patcher, outside code and patch owner a run report named:
+/// allowing one turns its "NOT OK" into "allowed by the moderators" on
+/// every attempt's page (the exact entry: a new version is a new entry).
+function allowedView(list) {
+  if (!list.length) return el("p", { class: "empty" }, "No run report has named another mod yet.");
+  const rows = el("tbody");
+  function render() {
+    rows.replaceChildren(...list.map(x => {
+      const q = "/allowed?kind=" + encodeURIComponent(x.kind) + "&text=" + encodeURIComponent(x.text);
+      const a = actions(x.allowed
+        ? confirmButton("Stop allowing", "Click again: attempts with it go red", () => act(a.say, "DELETE", q, () => { x.allowed = false; render(); }))
+        : el("button", { class: "chip", onclick: () => act(a.say, "POST", q, () => { x.allowed = true; render(); }) }, "Allow"));
+      return el("tr", null,
+        el("td", { class: "name" }, el("span", { class: "tag" }, ALLOW_KINDS[x.kind] || x.kind), " ", x.text,
+          x.allowed ? el("span", { class: "tag" }, "allowed" + (x.by ? " by " + x.by : "")) : null, a.box),
+        el("td", { class: "r" }, x.attempts));
+    }));
+  }
+  render();
+  return el("section", null,
+    el("p", { class: "note" }, "Everything run reports named besides ForestOverlay. Allow only what is known to be harmless: allowed entries show as " +
+      "allowed on every attempt's page instead of making it red. The entry is exact, so a new version of a mod needs allowing again."),
+    el("div", { class: "tablewrap" }, el("table", { class: "admin" },
+      el("thead", null, el("tr", null, el("th", null, "Named in reports"), el("th", { class: "r" }, "Attempts"))),
       rows)));
 }
 

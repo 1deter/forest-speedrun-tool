@@ -334,7 +334,7 @@ var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
 
     object result = await next(ctx);
     if (!HttpMethods.IsGet(http.Request.Method))
-        store.LogAdmin(who, http.Request.Method + " " + http.Request.Path.Value,
+        store.LogAdmin(who, http.Request.Method + " " + http.Request.Path.Value + Uri.UnescapeDataString(http.Request.QueryString.Value ?? ""),
                        result is IStatusCodeHttpResult s ? s.StatusCode ?? 200 : 200);
     return result;
 }).RequireRateLimiting("admin");
@@ -432,6 +432,14 @@ admin.MapDelete("/runs/{id:long}", (long id) => store.DeleteRun(id) ? Results.Ok
 admin.MapDelete("/attempts/{id}", (HttpContext c, string id) =>
     !IsOwner(c) ? Problem(403, "only the owner deletes attempts")
     : attempts.Delete(id) ? Results.Ok() : Problem(404, "no such attempt"));
+
+// Mods the moderators allow (phase 3): every mod / patcher / code / patch
+// owner a report named, and the allowed ones. ?kind=mod&text=<exact entry>.
+admin.MapGet("/allowed", () => Results.Json(attempts.AllowList()));
+admin.MapPost("/allowed", (HttpContext c, string kind, string text) =>
+    attempts.Allow(kind, text, c.Items["admin"] as string) ? Results.Ok() : Problem(400, "kind is mod, patcher, code or patches; text the exact entry"));
+admin.MapDelete("/allowed", (string kind, string text) =>
+    attempts.Disallow(kind, text) ? Results.Ok() : Problem(404, "not on the list"));
 admin.MapPost("/runners/{id}/reset-token", (string id) => store.ResetToken(id) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/ban", (string id) => store.Ban(id, true) ? Results.Ok() : Problem(404, "no such runner"));
 admin.MapPost("/runners/{id}/unban", (string id) => store.Ban(id, false) ? Results.Ok() : Problem(404, "no such runner"));
@@ -458,9 +466,21 @@ IResult SpotPage(HttpContext c, string rest)
     string url = "https://" + c.Request.Host.Value + "/spot/" + Uri.EscapeDataString(id);
     return Results.Content(Pages.WithMeta(indexHtml, title, description, url), "text/html; charset=utf-8");
 }
+// An attempt's page (run mode, phase 3): its verdict in the link preview.
+IResult AttemptPage(HttpContext c, string id)
+{
+    c.Response.Headers.CacheControl = "no-cache";
+    var a = ForestOverlay.Data.AttemptChain.IsAttemptId(id) ? attempts.View(id) : null;
+    if (a == null) return Results.Content(indexHtml, "text/html; charset=utf-8");
+    var j = System.Text.Json.JsonSerializer.SerializeToNode(a)!.AsObject();
+    var (title, description) = Pages.AttemptSummary(j);
+    string url = "https://" + c.Request.Host.Value + "/attempt/" + id;
+    return Results.Content(Pages.WithMeta(indexHtml, title, description, url), "text/html; charset=utf-8");
+}
 app.MapGet("/", Page);
 app.MapGet("/spot/{**rest}", SpotPage).RequireRateLimiting("read");
 app.MapGet("/admin/{**rest}", Page);
+app.MapGet("/attempt/{id}", AttemptPage).RequireRateLimiting("read");
 app.MapGet("/about", Page);
 api.MapFallback(() => Problem(404, "no such endpoint"));
 app.MapFallback(Page);
@@ -500,6 +520,24 @@ public static class Pages
         else sb.Append("No runs yet. ");
         sb.Append("Lines, ghosts and splits from ForestOverlay.");
         return (name + " - Forest Practice Runs", sb.ToString());
+    }
+
+    /// An attempt's title and verdict for link previews.
+    public static (string title, string description) AttemptSummary(JsonObject a)
+    {
+        string category = (string)a["category"] ?? "";
+        string name = (string)a["runnerName"] ?? "";
+        string verdict = (string)a["verdict"] ?? "";
+        string title = (category.Length > 0 ? category + " attempt" : "Run attempt") + (name.Length > 0 ? " by " + name : "");
+        string said = verdict switch
+        {
+            "green" => "Checked: the recording matches what the site saw during the run, and nothing else ran.",
+            "amber" => "Partly checked: some of it can be checked by the video's codes only.",
+            "red" => "Problems found: see the report.",
+            _ => "Still running, or its log has not reached the site yet.",
+        };
+        if (a["finalTimerMs"] is JsonValue tv && tv.TryGetValue(out long timer) && timer > 0) said = Time(timer / 1000.0) + ". " + said;
+        return (title + " - Forest Practice Runs", said + " ForestOverlay run mode.");
     }
 
     private static string Time(double seconds)

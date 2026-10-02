@@ -104,5 +104,30 @@ namespace ForestOverlay.Tests
             Assert.Contains("otherpatcher = Cheat.Patcher.dll\n", text);
             Assert.Contains("# NOT OK  Another BepInEx patcher is installed: Cheat.Patcher.dll.\n", text);
         }
+
+        [Fact]
+        public void ParseReadsFormatBack()
+        {
+            RunReport r = Clean();
+            r.AttemptId = "a-0123456789abcdef";
+            r.PluginVersion = "0.24.217";
+            r.OtherPlugins.Add("Other 1.0 (other.dll)");
+            r.ForeignPatches.Add("PlayerStats.Update (by other.mod)");
+            r.Cheats.Add("GodMode");
+            r.Flags.Add("the test bridge is on");
+            r.PracticeBefore = "Go";
+            r.OwnPatchedMethods = 12;
+            RunReport back = RunReport.Parse(r.Format());
+            Assert.Equal(r.Format(), back.Format());
+            Assert.Equal(r.Findings(), back.Findings());
+        }
+
+        [Fact]
+        public void ParseOfNothingIsPending()
+        {
+            RunReport r = RunReport.Parse("");
+            Assert.Equal("", r.GameHash);
+            Assert.Equal("Note  The game's files are still being checked.", r.Findings()[0]);
+        }
     }
 }

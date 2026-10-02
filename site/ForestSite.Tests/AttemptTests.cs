@@ -157,6 +157,65 @@ public sealed class AttemptTests : IDisposable
         Assert.Contains("the test bridge is on", why[0]);
     }
 
+    // --- what ran: the report ------------------------------------------------
+
+    private static string Report(Action<RunReport> change = null)
+    {
+        var r = new RunReport { Attempt = 1, Started = "Normal", PluginVersion = "test", GameHash = RunReport.KnownGameHashes[0] };
+        change?.Invoke(r);
+        return r.Format();
+    }
+
+    private static readonly ISet<(string, string)> None = new HashSet<(string, string)>();
+
+    [Fact]
+    public void Report_Clean_Green_NoReport_Amber()
+    {
+        var (v, f) = Attempts.JudgeReport(Report(), None);
+        Assert.Equal("green", v);
+        Assert.All(f, x => Assert.Equal("ok", x.Level));
+        Assert.Equal("amber", Attempts.JudgeReport("", None).verdict);
+        Assert.Equal("amber", Attempts.JudgeReport(Report(r => r.GameHash = ""), None).verdict);
+        Assert.Equal("red", Attempts.JudgeReport(Report(r => r.GameHash = "0123"), None).verdict);
+    }
+
+    [Fact]
+    public void Report_AnotherMod_Red_UnlessAllowed()
+    {
+        string text = Report(r =>
+        {
+            r.OtherPlugins.Add("Other 1.0 (other.dll)");
+            r.ForeignPatches.Add("PlayerStats.Update (by other.mod)");
+            r.ForeignPatches.Add("PlayerStats.Fell (by other.mod)");
+        });
+        var (v, f) = Attempts.JudgeReport(text, None);
+        Assert.Equal("red", v);
+        Assert.Contains(f, x => x.Level == "bad" && x.Text == "Another mod was loaded: Other 1.0 (other.dll).");
+        // Patches are said once per owner, with their methods.
+        Assert.Single(f, x => x.Text.Contains("other.mod"));
+        Assert.Contains(f, x => x.Text.Contains("2 methods: PlayerStats.Update, PlayerStats.Fell"));
+
+        var allowed = new HashSet<(string, string)> { ("mod", "Other 1.0 (other.dll)"), ("patches", "other.mod") };
+        var (v2, f2) = Attempts.JudgeReport(text, allowed);
+        Assert.Equal("green", v2);
+        Assert.Equal(2, f2.Count(x => x.Level == "allowed"));
+        // Another version is another entry.
+        Assert.Equal("red", Attempts.JudgeReport(text.Replace("Other 1.0", "Other 1.1"), allowed).verdict);
+    }
+
+    [Fact]
+    public void Report_CheatsRed_PracticeBeforeANote_UnreadNotAllowable()
+    {
+        Assert.Equal("red", Attempts.JudgeReport(Report(r => r.Cheats.Add("GodMode")), None).verdict);
+        var (v, f) = Attempts.JudgeReport(Report(r => r.PracticeBefore = "Go"), None);
+        Assert.Equal("green", v);
+        Assert.Contains(f, x => x.Level == "note");
+        var unread = RunReport.Parse(Report(r => r.OtherPlugins.Add("could not list the plugins: boom")));
+        Assert.Empty(Attempts.Items(unread));
+        Assert.Equal("some.mod", Attempts.PatchOwner("A.B (by some.mod)"));
+        Assert.Null(Attempts.PatchOwner("A.B"));
+    }
+
     // --- the API ------------------------------------------------------------
 
     private readonly string _data;
@@ -221,7 +280,7 @@ public sealed class AttemptTests : IDisposable
 
         c.Step(3000, 1100, true, 1, 2, 5);
         c.End(3100, "finished", 1150);
-        string log = c.Text + AttemptChain.ReportMarker + "\nclean\n";
+        string log = c.Text + AttemptChain.ReportMarker + "\n" + Report();
         var up = await Post(token, "/api/attempts/" + Id + "/log", new StringContent(log, Encoding.UTF8, "text/plain"));
         Assert.Equal(HttpStatusCode.OK, up.StatusCode);
         Assert.Equal("green", (await up.Content.ReadFromJsonAsync<JsonObject>())["verdict"].GetValue<string>());
@@ -236,7 +295,9 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("green", view["verdict"].GetValue<string>());
         Assert.Equal("finished", view["endReason"].GetValue<string>());
         Assert.Equal(1150, view["finalTimerMs"].GetValue<long>());
-        Assert.Equal("clean", view["report"].GetValue<string>());
+        Assert.Equal(Report().TrimEnd('\n'), view["report"].GetValue<string>());
+        Assert.Equal("green", view["recording"]["verdict"].GetValue<string>());
+        Assert.All(view["findings"].AsArray(), f => Assert.Equal("ok", f["level"].GetValue<string>()));
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());
         Assert.Contains(found["matches"].AsArray(), m => m["step"].GetValue<int>() == 3);
@@ -266,5 +327,53 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, (await Post(token, "/api/attempts/a-..%2F..%2Fx/log", new StringContent(c.Text, Encoding.UTF8, "text/plain"))).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await Post(null, "/api/attempts/" + Id + "/log", new StringContent(c.Text, Encoding.UTF8, "text/plain"))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/attempts/a-00000000000000fe")).StatusCode);
+    }
+
+    private async Task<HttpStatusCode> AdminCall(HttpMethod method, string path)
+    {
+        var msg = new HttpRequestMessage(method, path);
+        msg.Headers.Add("X-Admin-Token", "admin-secret");
+        return (await _http.SendAsync(msg)).StatusCode;
+    }
+
+    [Fact]
+    public async Task AnotherMod_Red_AllowedByAnAdmin_TheVerdictFollows()
+    {
+        string token = await Register(Runner);
+        string log = Chain(5, nonce: null).Text + AttemptChain.ReportMarker + "\n" + Report(r => r.OtherPlugins.Add("Other 1.0 (other.dll)"));
+        var up = await Post(token, "/api/attempts/" + Id + "/log", new StringContent(log, Encoding.UTF8, "text/plain"));
+        var answer = await up.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("red", answer["verdict"].GetValue<string>());
+        Assert.Contains(answer["why"].AsArray(), w => w.GetValue<string>().Contains("Other 1.0"));
+
+        // Listed for the admins, allowed: the receipt's amber (offline) is what is left.
+        var list = await AdminGet("/api/admin/allowed");
+        Assert.Contains(list.AsArray(), x => x["kind"].GetValue<string>() == "mod" && x["text"].GetValue<string>() == "Other 1.0 (other.dll)" && !x["allowed"].GetValue<bool>());
+        string q = "/api/admin/allowed?kind=mod&text=" + Uri.EscapeDataString("Other 1.0 (other.dll)");
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Post, q));
+        var view = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id);
+        Assert.Equal("amber", view["verdict"].GetValue<string>());
+        Assert.Contains(view["findings"].AsArray(), f => f["level"].GetValue<string>() == "allowed");
+        Assert.Equal(HttpStatusCode.BadRequest, await AdminCall(HttpMethod.Post, "/api/admin/allowed?kind=nope&text=x"));
+
+        // Taken off the list: red again.
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Delete, q));
+        Assert.Equal("red", (await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id))["verdict"].GetValue<string>());
+        Assert.Equal(HttpStatusCode.Forbidden, (await _http.GetAsync("/api/admin/allowed")).StatusCode);
+
+        // The page: the app, with the attempt in its link preview.
+        string page = await _http.GetStringAsync("/attempt/" + Id);
+        Assert.Contains("<meta property=\"og:title\" content=\"Any% attempt by Runner - Forest Practice Runs\">", page);
+        Assert.Contains("Problems found", page);
+        Assert.Contains("/attempt.js?v=", page);
+        Assert.Contains("<title>Forest Practice Runs</title>", await _http.GetStringAsync("/attempt/a-00000000000000fe"));
+    }
+
+    private async Task<JsonNode> AdminGet(string path)
+    {
+        var msg = new HttpRequestMessage(HttpMethod.Get, path);
+        msg.Headers.Add("X-Admin-Token", "admin-secret");
+        var r = await _http.SendAsync(msg);
+        return await r.Content.ReadFromJsonAsync<JsonNode>();
     }
 }

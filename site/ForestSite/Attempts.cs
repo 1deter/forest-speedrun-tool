@@ -53,7 +53,11 @@ CREATE TABLE IF NOT EXISTS attempts (
 CREATE INDEX IF NOT EXISTS attempts_runner ON attempts (runner_id);
 CREATE TABLE IF NOT EXISTS checkpoints (
   attempt_id TEXT NOT NULL, step INTEGER NOT NULL, head TEXT NOT NULL, received_ms INTEGER NOT NULL,
-  PRIMARY KEY (attempt_id, step));";
+  PRIMARY KEY (attempt_id, step));
+CREATE TABLE IF NOT EXISTS attempt_items (
+  attempt_id TEXT NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL, PRIMARY KEY (attempt_id, kind, text));
+CREATE TABLE IF NOT EXISTS allowed_code (
+  kind TEXT NOT NULL, text TEXT NOT NULL, by TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (kind, text));";
         cmd.ExecuteNonQuery();
     }
 
@@ -131,8 +135,27 @@ CREATE TABLE IF NOT EXISTS checkpoints (
                         verdict = $v, why = $w WHERE id = $id",
             ("$id", id), ("$t", now), ("$e", r.Ended ? Short(r.EndReason, 80) : "no end"), ("$em", r.Ended ? r.EndMs : r.LastMs),
             ("$ft", r.FinalTimerMs), ("$n", r.Steps.Count), ("$v", verdict), ("$w", string.Join("\n", why)));
-        return new(200, new { verdict, why });
+        var report = RunReport.Parse(r.Report);
+        foreach (var (kind, item) in Items(report))
+            _store.Update("INSERT INTO attempt_items (attempt_id, kind, text) VALUES ($id, $k, $t) ON CONFLICT DO NOTHING",
+                ("$id", id), ("$k", kind), ("$t", Short(item, 200)));
+        var (overall, all) = Overall(verdict, why, r.Report, Allowed());
+        return new(200, new { verdict = overall, why = all });
     }
+
+    /// The verdict over both halves: the receipt (Judge) and what ran (JudgeReport),
+    /// with the report's problems after the receipt's lines.
+    private static (string verdict, List<string> why) Overall(string receipt, IEnumerable<string> receiptWhy, string reportText,
+                                                             ISet<(string, string)> allowed)
+    {
+        var (level, findings) = JudgeReport(reportText, allowed);
+        var why = receiptWhy.ToList();
+        why.AddRange(findings.Where(f => f.Level == "bad" || f.Level == "pending").Select(f => f.Text));
+        return (Worst(receipt, level), why);
+    }
+
+    public static string Worst(string a, string b) =>
+        a == "red" || b == "red" ? "red" : a == "amber" || b == "amber" ? "amber" : a ?? b;
 
     // --- reads ------------------------------------------------------------
 
@@ -143,22 +166,169 @@ CREATE TABLE IF NOT EXISTS checkpoints (
         if (row == null) return null;
         string name = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", row.Runner)) as string ?? "";
         var cps = Checkpoints(id);
-        string report = null, started = null, plugin = null;
+        string report = null, started = null, plugin = null, startedAt = null, mode = null;
         int flags = 0;
         if (row.LogMs != null)
         {
             var r = AttemptChain.Read(LogText(id));
             report = r.Report; started = r.Started; plugin = r.Plugin; flags = r.Flags.Count;
+            var parsed = RunReport.Parse(report);
+            startedAt = parsed.StartedAt; mode = parsed.Started;
+        }
+        string verdict = "running";
+        string[] why = Lines(row.Why);
+        object findings = null, recording = null;
+        if (row.LogMs != null)
+        {
+            var allowed = Allowed();
+            var (v, all) = Overall(row.Verdict, why, report, allowed);
+            var (_, list) = JudgeReport(report, allowed);
+            verdict = v;
+            findings = list.Select(f => new { level = f.Level, text = f.Text }).ToList();
+            recording = new { verdict = row.Verdict, why };
+            why = all.ToArray();
         }
         return new
         {
-            id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started,
-            online = row.Nonce != null, issued = Iso(row.IssuedMs), checkpoints = cps.Count,
+            id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started, startedAt, mode,
+            online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
-            steps = row.Steps, flags, verdict = row.Verdict ?? (row.LogMs == null ? "running" : null), why = Lines(row.Why),
+            steps = row.Steps, flags, verdict, why, recording, findings,
             report,
         };
     }
+
+    // --- what ran: the report's findings (pure, tested) ----------------------------
+
+    public sealed record Finding(string Level, string Text);   // ok, bad, pending, allowed, note
+
+    /// The mods and code a report names, as (kind, text) - what the
+    /// admins can allow. "could not list" lines are never allowable.
+    public static IEnumerable<(string kind, string text)> Items(RunReport r)
+    {
+        foreach (string s in r.OtherPlugins) if (!Unread(s)) yield return ("mod", s);
+        foreach (string s in r.OtherPatchers) if (!Unread(s)) yield return ("patcher", s);
+        foreach (string s in r.OtherCode) yield return ("code", s);
+        var owners = new HashSet<string>();
+        foreach (string s in r.ForeignPatches)
+            if (!Unread(s) && PatchOwner(s) is { } o && owners.Add(o)) yield return ("patches", o);
+    }
+
+    private static bool Unread(string s) => s.StartsWith("could not list", StringComparison.Ordinal);
+
+    /// "PlayerStats.Update (by some.mod)" -> "some.mod".
+    public static string PatchOwner(string entry)
+    {
+        int at = entry.LastIndexOf(" (by ", StringComparison.Ordinal);
+        return at < 0 || !entry.EndsWith(")") ? null : entry.Substring(at + 5, entry.Length - at - 6);
+    }
+
+    /// The report's findings in plain words, judged: anything a report
+    /// says is wrong is red, unless the admins allowed that exact mod /
+    /// version; a report still checking (or none) is amber. Run mode's flags
+    /// are judged by the receipt (they are in the chain), not again here.
+    public static (string verdict, List<Finding> findings) JudgeReport(string text, ISet<(string, string)> allowed)
+    {
+        var f = new List<Finding>();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            f.Add(new("pending", "The game sent no report of what ran during the attempt."));
+            return ("amber", f);
+        }
+        var r = RunReport.Parse(text);
+        bool Ok(string kind, string item) => allowed.Contains((kind, item));
+
+        if (r.GameHash.Length == 0) f.Add(new("pending", "The game's files were still being checked when the attempt ended."));
+        else if (r.GameHash.StartsWith("error")) f.Add(new("bad", "The game's code could not be checked (" + r.GameHash + ")."));
+        else if (RunReport.IsKnownGame(r.GameHash)) f.Add(new("ok", "The game's code is the unmodified Steam game."));
+        else f.Add(new("bad", "The game's code is not the Steam game's - it was changed or is another version."));
+
+        if (r.OtherPlugins.Count + r.OtherPatchers.Count + r.OtherCode.Count == 0) f.Add(new("ok", "No other mods were loaded."));
+        foreach (string s in r.OtherPlugins)
+            f.Add(Ok("mod", s) ? new("allowed", "Another mod was loaded, allowed by the moderators: " + s + ".")
+                               : new("bad", "Another mod was loaded: " + s + "."));
+        foreach (string s in r.OtherPatchers)
+            f.Add(Ok("patcher", s) ? new("allowed", "Another BepInEx patcher was installed, allowed by the moderators: " + s + ".")
+                                   : new("bad", "Another BepInEx patcher was installed: " + s + "."));
+        foreach (string s in r.OtherCode)
+            f.Add(Ok("code", s) ? new("allowed", "Code from outside the game was loaded, allowed by the moderators: " + s + ".")
+                                : new("bad", "Code from outside the game was loaded: " + s + "."));
+
+        if (r.ForeignPatches.Count == 0) f.Add(new("ok", "Nothing else changed the game's code while it ran."));
+        var byOwner = new Dictionary<string, List<string>>();
+        foreach (string s in r.ForeignPatches)
+        {
+            string owner = PatchOwner(s);
+            if (owner == null || Unread(s)) { f.Add(new("bad", "Another mod changed the game's code: " + s + ".")); continue; }
+            if (!byOwner.TryGetValue(owner, out var list)) byOwner[owner] = list = new List<string>();
+            list.Add(s.Substring(0, s.Length - owner.Length - 6));
+        }
+        foreach (var (owner, methods) in byOwner)
+        {
+            string what = methods.Count + (methods.Count == 1 ? " method" : " methods") + ": " +
+                          string.Join(", ", methods.Take(8)) + (methods.Count > 8 ? " and " + (methods.Count - 8) + " more" : "");
+            f.Add(Ok("patches", owner) ? new("allowed", "Changes to the game's code by " + owner + ", allowed by the moderators (" + what + ").")
+                                       : new("bad", "Another mod (" + owner + ") changed the game's code while it ran (" + what + ")."));
+        }
+
+        if (r.Cheats.Count == 0) f.Add(new("ok", "The game's own cheats were off."));
+        foreach (string s in r.Cheats) f.Add(new("bad", "A game cheat was on: " + s + "."));
+
+        if (r.PracticeBefore.Length > 0)
+            f.Add(new("note", "Practice was used before this attempt (" + r.PracticeBefore + "); the attempt itself started clean."));
+
+        string verdict = f.Any(x => x.Level == "bad") ? "red" : f.Any(x => x.Level == "pending") ? "amber" : "green";
+        return (verdict, f);
+    }
+
+    // --- the allow-list (admins) ---------------------------------------------------
+
+    private static readonly string[] Kinds = { "mod", "patcher", "code", "patches" };
+
+    public ISet<(string, string)> Allowed()
+    {
+        using var c = _store.Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT kind, text FROM allowed_code";
+        var set = new HashSet<(string, string)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) set.Add((r.GetString(0), r.GetString(1)));
+        return set;
+    }
+
+    /// Every mod / patcher / code / patch owner reports have named, with
+    /// how many attempts and whether it is allowed - and allowed ones no
+    /// report names any more.
+    public List<object> AllowList()
+    {
+        using var c = _store.Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"
+SELECT kind, text, SUM(n), MAX(by), MAX(at), MAX(allowed) FROM (
+  SELECT i.kind, i.text, 1 AS n, NULL AS by, NULL AS at, 0 AS allowed FROM attempt_items i
+  UNION ALL SELECT kind, text, 0, by, at, 1 FROM allowed_code)
+GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
+        var list = new List<object>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new
+            {
+                kind = r.GetString(0), text = r.GetString(1), attempts = r.GetInt64(2), allowed = r.GetInt64(5) == 1,
+                by = r.IsDBNull(3) ? null : r.GetString(3), at = r.IsDBNull(4) ? null : Iso(r.GetInt64(4)),
+            });
+        return list;
+    }
+
+    public bool Allow(string kind, string text, string by)
+    {
+        if (!Kinds.Contains(kind) || string.IsNullOrWhiteSpace(text) || text.Length > 200) return false;
+        _store.Update("INSERT INTO allowed_code (kind, text, by, at) VALUES ($k, $t, $b, $a) ON CONFLICT DO NOTHING",
+            ("$k", kind), ("$t", text), ("$b", by ?? "?"), ("$a", _now()));
+        return true;
+    }
+
+    public bool Disallow(string kind, string text) =>
+        _store.Update("DELETE FROM allowed_code WHERE kind = $k AND text = $t", ("$k", kind ?? ""), ("$t", text ?? "")) == 1;
 
     /// Where a code shows in an attempt's log: the "check a code" box
     /// (phase 3's page). Empty when the log is not in yet.
@@ -179,6 +349,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     {
         if (!AttemptChain.IsAttemptId(id)) return false;
         _store.Update("DELETE FROM checkpoints WHERE attempt_id = $id", ("$id", id));
+        _store.Update("DELETE FROM attempt_items WHERE attempt_id = $id", ("$id", id));
         bool had = _store.Update("DELETE FROM attempts WHERE id = $id", ("$id", id)) == 1;
         try { File.Delete(Path.Combine(_dir, id + ".log.gz")); } catch (IOException) { }
         return had;
@@ -275,7 +446,8 @@ CREATE TABLE IF NOT EXISTS checkpoints (
         int matched = checkpoints.Count;
         return ("green", new List<string>
         {
-            "Started online; " + matched + " checkpoint(s) received during the run match the log, and they cover it in real time.",
+            matched == 0 ? "Started online, and short enough that the site's start code covers it: it ended before a checkpoint was due."
+                         : "Started online; " + matched + " checkpoint(s) received during the run match the log, and they cover it in real time.",
         });
     }
 

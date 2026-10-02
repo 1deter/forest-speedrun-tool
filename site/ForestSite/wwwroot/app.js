@@ -1,6 +1,6 @@
 // forest.deter.cloud: the spot list, a spot (map, board, splits), about,
 // the author's admin page (admin.js).
-// Paths: /, /spot/<id>, /spot/<id>/<route>, /about, /admin[/<tab>] - the
+// Paths: /, /spot/<id>, /spot/<id>/<route>, /attempt/<id> (attempt.js), /about, /admin[/<tab>] - the
 // server answers each with this page; links move by history.pushState.
 // Old hash links (#/spot/<id>, plugins before v0.24.158) are rewritten.
 "use strict";
@@ -74,6 +74,7 @@ function route() {
     (a.getAttribute("href") === "/about") === (parts[0] === "about")));
   window.scrollTo(0, 0);
   if (parts[0] === "spot" && parts[1]) return spotPage(parts[1], parts[2]);
+  if (parts[0] === "attempt" && parts[1]) return attemptPage(parts[1]);
   if (parts[0] === "about") return aboutPage();
   if (parts[0] === "admin") return adminPage(parts[1]);
   return homePage();
