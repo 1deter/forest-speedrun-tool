@@ -365,7 +365,24 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
   identical (0.000%; ~5 pixels differ between two runs of the old code
   too). Lines that really go down the sinkhole stay drawn - the next cut
   there would need the sinkhole's floor (a world model, not the heights).
-  Next candidate: BatchedMesh by material. Before (same day): 60
+  **BatchedMesh by material: tried and dropped** (2026-10-02, not
+  shipped). A model with fewer than N instances went into a BatchedMesh
+  per material + kind (each instance an item, split() switching its copy
+  or hiding it). Local site, desktop Edge (D3D11, `WEBGL_multi_draw`
+  present), `NORUNS=1`, submitting ms: tree spot 4.4-5.1 -> 11.0 (N 16) /
+  9.7 (N 2), plane wreck 2.3 -> 9.7 / 6.3, overview 2.6 -> 10.2 / 6.9,
+  Labskip fit 2.6 -> 9.9 / 5.3; draw calls barely fell (1196 -> 891 /
+  1113). Why: (1) ANGLE runs a multi-draw as a loop - an item costs about
+  a draw call (2689 items in 356 batches took 8.4 ms, the 548 instanced
+  calls 2.5 ms), so a 2-15 instance model became several items instead of
+  one instanced call; (2) materials barely repeat: 951 materials, 761
+  distinct looks, 623 distinct textures; 532 materials in the tree view
+  for 1196 calls - the floor for any per-material batching. The draw
+  calls follow the textures: the next lever would be texture arrays /
+  atlases in the export (models of one shader sharing a material, the
+  layer per instance), an export-side job - only if frame times call for
+  it (desktop 4-8 ms now). The batched code was not
+  committed. Before (same day): 60
   phone-only copies within 2 cm (70.6M -> 67.9M; a quarter everywhere had
   holed the trees and sunk Cave 6's floor).
 - **Collision is fetched when switched on** (2026-10-02): every collider's

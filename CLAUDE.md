@@ -560,6 +560,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK".
 83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
 84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`).
+85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material.
 
 ---
 
@@ -620,7 +621,11 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session (site
-only, no release, live):** **under-the-ground culling at ground level** -
+only, nothing shipped):** **BatchedMesh by material tried and dropped** -
+2-4x the submit time (Chrome's multi-draw is a loop: an item costs a draw
+call) and the materials barely repeat (623 distinct textures); numbers in
+docs/website.md *Load size*; the author's notes on the 3D view recorded.
+Before: **under-the-ground culling at ground level** -
 a camera 1-2 m over a slope now culls (only the cells under its near plane
 are asked) and a hole counts only when the line goes down it: tree spot
 634 -> 560 / 362 -> 300 draw calls, pictures identical (docs/website.md
@@ -682,7 +687,9 @@ one (a preset save as a start state, `run = <category name>`, in
    replay as fast as possible (author, 2026-10-02) - done so far: the
    *Detail* button, the far copies, view-cone culling (author: "fine"),
    every model culled per instance + under the ground, ground-level
-   culling; next candidate: BatchedMesh by material. Then the author's
+   culling; BatchedMesh tried and dropped (slower); the remaining lever is
+   texture arrays in the export - only if frame times call for it. The
+   next item: Follow's camera through cave walls. Then the author's
    2026-10-02 notes: Follow's camera goes through cave walls; caves not
    drawn on the 2D map; the overlook's shadow on the snow hills in the
    photo map without the overlook. The load-order look (gotcha 83, an

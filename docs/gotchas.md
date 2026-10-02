@@ -725,3 +725,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     read what the other path's caller does first (`ilscan body` of the
     menu's loader), and drive that path - its own buttons, with the one
     step that differs replaced - rather than the call alone.
+
+85. **Count what a batch would merge before building it.**
+    (2026-10-02, site, not shipped.) The 3D view's next speed-up was to be
+    BatchedMesh by material; built, it was 2-4x slower to submit. Two
+    things a count would have shown first: the view's 532 materials for
+    1196 draw calls (623 distinct textures in the world - almost nothing
+    shares a material, so per-material batches merge little), and that
+    Chrome's ANGLE runs `WEBGL_multi_draw` as a loop, so each batch item
+    costs about a draw call - a model's one instanced call became one item
+    per instance. Before a batching change, count distinct materials (or
+    textures) in view against draw calls, and time a multi-draw item
+    against an instanced call on the real browser.
