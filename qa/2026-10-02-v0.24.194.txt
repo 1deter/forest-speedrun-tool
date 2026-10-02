@@ -22,3 +22,4 @@ seen = Game event: cave-exit
 seen = Game event: rope-
 7) (v0.24.195) If you have a zipline, a log sled, a hang glider or a climbing-axe cliff: press F7 (or Go) while riding / climbing. Do you land cleanly at the spot, with the ride or climb ended (no flying off, no stuck animation)?
 seen = Teleport to
+8) (v0.24.200) Run a timed spot, then restart before the end (F7): does the unfinished run's line stay in red until the next one fails? (Runs -> Line options can turn it off.)

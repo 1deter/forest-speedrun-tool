@@ -594,10 +594,10 @@ identity.
 
 ## Current status
 
-**Released: v0.24.199** (2026-10-02). The author runs it via the in-game
-updater (v0.24.199 in the game at handoff, Slot 1). **480 tests** (+ 46 site tests).
+**Released: v0.24.200** (2026-10-02). The author runs it via the in-game
+updater (v0.24.200 in the game at handoff, Slot 1). **480 tests** (+ 46 site tests).
 
-### Pick up here (2026-10-02, v0.24.199 in the game)
+### Pick up here (2026-10-02, v0.24.200 in the game)
 
 **The overnight session (author, 2026-10-01 ~21:00: "get everything done
 in our up-next/todo list that you can ... build everything you can that
@@ -692,6 +692,10 @@ over the bridge:
   tested; checked live). **v0.24.199**: colliders drawn in their real
   shape (turned boxes, sphere rings, capsules; mesh colliders = bounds) -
   screenshot checked at the plane wreck.
+- **v0.24.200: the last unfinished run's line stays, red** (KeepFailed on
+  abort / restart / re-arm; Line options switch, on). Checked: the line
+  is kept (16 points); the red drawing itself not seen (lines show only
+  for the editor's selected entry - a bridge `go` selects none) - QA.
 - The import test's spot (2 runs) had been uploaded to the live site by
   the automatic upload - deleted there (admin API); habit noted under
   *Test spots*.

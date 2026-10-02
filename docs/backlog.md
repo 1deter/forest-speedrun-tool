@@ -27,9 +27,8 @@ unless critical.
   cave stalagmite drop, keycard cave body slide, wall climbs).
 - **maks, QA Discord 2026-09-26:** start a practice savestate from the
   title screen without loading a save first (restores there are refused
-  since v0.24.73 - it needs a scene loaded first); keep the run lines of
-  **failed** runs for analysis (they count as attempts since v0.24.196 -
-  their lines are not kept yet); shared runs
+  since v0.24.73 - it needs a scene loaded first); failed runs count as
+  attempts (v0.24.196) and the last one's line stays, red (v0.24.200); shared runs
   show **the runner's name**
   (`.foseg` attempts carry none yet - matters for the website too).
 
