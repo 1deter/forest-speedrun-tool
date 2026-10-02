@@ -21,8 +21,8 @@ unless critical.
   practice changes obvious - maks had No stagger on and thought he had
   found a new lineup. For the UI / UX refactor in a late update.
 - **HUD:** more control over the top-left HUD, less clutter (settings persist since v0.24.191).
-- **Debug views:** more detailed colliders (hitboxes - the filter takes
-  paths / layers / show-only since v0.24.198); colliders that change between
+- **Debug views:** (real collider shapes and a path / layer / show-only
+  filter since v0.24.198-199); colliders that change between
   attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
   cave stalagmite drop, keycard cave body slide, wall climbs).
 - **maks, QA Discord 2026-09-26:** start a practice savestate from the
