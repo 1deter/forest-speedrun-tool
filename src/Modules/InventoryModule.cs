@@ -170,7 +170,7 @@ namespace ForestOverlay.Modules
         private void TickLogs()
         {
             LogStore.Cap = Mathf.Clamp(_logCapCfg.Value, 1, 99);
-            LogStore.Maintain(_logsCfg.Value && !PlayerRef.AtTitleScreen);
+            LogStore.Maintain(_logsCfg.Value && !Ctx.Run.Active && !PlayerRef.AtTitleScreen);
             if (LogStore.Active && !_logsMarked)
             {
                 _logsMarked = true;
@@ -188,7 +188,8 @@ namespace ForestOverlay.Modules
 
         private void ApplyCaps()
         {
-            ItemCapPatch.Set(_capsOnCfg.Value ? _caps : null);
+            _capsApplied = CapsOn;
+            ItemCapPatch.Set(_capsApplied ? _caps : null);
             _capTexts.Clear();
             for (int i = 0; i < _caps.Count; i++)
             {
@@ -199,6 +200,9 @@ namespace ForestOverlay.Modules
             }
         }
 
+        private bool _capsApplied;
+        private bool CapsOn { get { return _capsOnCfg.Value && !Ctx.Run.Active; } }
+
         private void TickCaps()
         {
             if (_capsWriteAt > 0f && Time.unscaledTime >= _capsWriteAt)
@@ -207,11 +211,14 @@ namespace ForestOverlay.Modules
                 _capsCfg.Value = ItemCaps.Format(_caps);
             }
             if (!_capNamesResolved && _caps.Count > 0 && Ctx.Inventory.NameForId(_caps[0].Key) != null) { _capNamesResolved = true; ApplyCaps(); }
-            bool active = _capsOnCfg.Value && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
-            Ctx.Practice.SetOn("item caps", _capsOnCfg.Value && _caps.Count > 0);
-            Ctx.Practice.SetOn("logs in the inventory", _logsCfg.Value);
-            FastBuild.On = _fastBuildCfg.Value && !PlayerRef.AtTitleScreen;
-            Ctx.Practice.SetOn("fast building", _fastBuildCfg.Value);
+            // Run mode: caps off (the saved setting kept), back on after.
+            bool capsOn = CapsOn;
+            if (capsOn != _capsApplied) ApplyCaps();
+            bool active = capsOn && _caps.Count > 0 && !PlayerRef.AtTitleScreen && Ctx.Inventory.Available;
+            Ctx.Practice.SetOn("item caps", capsOn && _caps.Count > 0);
+            Ctx.Practice.SetOn("logs in the inventory", _logsCfg.Value && !Ctx.Run.Active);
+            FastBuild.On = _fastBuildCfg.Value && !Ctx.Run.Active && !PlayerRef.AtTitleScreen;
+            Ctx.Practice.SetOn("fast building", _fastBuildCfg.Value && !Ctx.Run.Active);
             if (FastBuild.On && !_fastBuildMarked) { _fastBuildMarked = true; Ctx.Practice.Mark("fast building"); }
             if (!_fastBuildCfg.Value) _fastBuildMarked = false;
             if (active && !_capsMarked)
@@ -262,7 +269,10 @@ namespace ForestOverlay.Modules
         private float DrawFastBuild(float y)
         {
             float w = _tabW - 20f;
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, " Fast building - hold to add, like Creative (gameplay mod, practice)");
+            bool guiWas = GUI.enabled;
+            GUI.enabled = guiWas && !Ctx.Run.Active;
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _fastBuildCfg.Value, Ctx.Run.Active ? " Fast building - locked during a run" : " Fast building - hold to add, like Creative (gameplay mod, practice)");
+            GUI.enabled = guiWas;
             if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
             y += 24f;
             if (!_fastBuildCfg.Value) return y + 4f;
@@ -274,7 +284,10 @@ namespace ForestOverlay.Modules
         private float DrawCaps(float y)
         {
             float w = _tabW - 20f;
-            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, " Item caps (gameplay mod, practice)");
+            bool guiWas = GUI.enabled;
+            GUI.enabled = guiWas && !Ctx.Run.Active;
+            bool on = GUI.Toggle(new Rect(10, y, w, 22), _capsOnCfg.Value, Ctx.Run.Active ? " Item caps - locked during a run" : " Item caps (gameplay mod, practice)");
+            GUI.enabled = guiWas;
             if (on != _capsOnCfg.Value) { _capsOnCfg.Value = on; ApplyCaps(); }
             y += 24f;
             if (!_capsOnCfg.Value) return y + 4f;
@@ -462,8 +475,11 @@ namespace ForestOverlay.Modules
         private float DrawLogs(float y)
         {
             float w = _tabW - 20f;
+            bool guiWas = GUI.enabled;
+            GUI.enabled = guiWas && !Ctx.Run.Active;
             bool on = GUI.Toggle(new Rect(10, y, w, 22), _logsCfg.Value,
-                                 " Logs in the inventory (gameplay mod, practice)");
+                                 Ctx.Run.Active ? " Logs in the inventory - locked during a run" : " Logs in the inventory (gameplay mod, practice)");
+            GUI.enabled = guiWas;
             if (on != _logsCfg.Value) _logsCfg.Value = on;
             y += 24f;
             if (!_logsCfg.Value) return y + 4f;

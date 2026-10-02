@@ -307,6 +307,7 @@ namespace ForestOverlay.Modules
         /// overwriting. `after` gets null on success or the reason.
         private void CaptureTo(string name, string path, Action<string> after)
         {
+            if (RefusedInRun("capture", after)) return;
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             if (PlayerRef.AtTitleScreen)
             {
@@ -509,6 +510,7 @@ namespace ForestOverlay.Modules
         {
             if (f == null) { if (done != null) done("could not read the file - " + _status); return; }
             if (_busy) { if (done != null) done("a savestate action is still running"); return; }
+            if (RefusedInRun("restore", done)) return;
             if (RefusedAtTitle("restore", done)) return;
 
             string mode = ModeMismatch(f);
@@ -564,6 +566,16 @@ namespace ForestOverlay.Modules
         /// A restore at the title screen deserialized the save into the
         /// menu scene (bridge, v0.24.72: `identifiers 0 -> 105`, no
         /// player); capture already refused there (v0.24.59).
+        // Run mode: no capture or restore during a run.
+        private bool RefusedInRun(string what, Action<string> done)
+        {
+            if (!Ctx.Run.Refuse("savestate " + what)) return false;
+            string why = Ctx.Run.RefusedText("Savestate " + what);
+            SetStatus(why);
+            if (done != null) done(why);
+            return true;
+        }
+
         private bool RefusedAtTitle(string what, Action<string> done)
         {
             if (!PlayerRef.AtTitleScreen) return false;
@@ -1693,6 +1705,7 @@ namespace ForestOverlay.Modules
         public void RestoreStartState(Segment s, Action<string> done)
         {
             if (Busy) { done("a savestate action is still running"); return; }
+            if (RefusedInRun("restore", done)) return;
             if (RefusedAtTitle("restore", done)) return;
 
             SavestateFile f;

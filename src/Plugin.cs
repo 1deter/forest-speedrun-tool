@@ -31,7 +31,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.205";
+        public const string PluginVersion = "0.24.206";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -102,6 +102,7 @@ namespace ForestOverlay
                 ctx.Inventory = _inventory;
                 ctx.PlayerState = _playerState;
                 ctx.Practice = _practice;
+                ctx.Run = new RunMode(Logger, _notice, _practice);
                 ctx.Notice = _notice;
                 ctx.Events = _events;
                 ctx.ConfigDirectory = configDir;
@@ -160,6 +161,7 @@ namespace ForestOverlay
             host.Register(new BridgeModule());       // PRACTICE ONLY, dev tool, off by default (live test bridge)
             host.Register(new CommunityModule());    // community spots / segments (downloads, never the runner's own file)
             host.Register(new RunUploadModule());    // finished runs to forest.deter.cloud (drawn in the Runs tab)
+            host.Register(new RunModeModule());      // run mode: a new game = a run, practice locked (drawn in the Runs tab)
         }
 
         // ------------------------------------------------------------------
@@ -310,7 +312,7 @@ namespace ForestOverlay
             // Measured every pass (CalcHeight does not allocate) so the box
             // grows with a wrapped line instead of cutting it off.
             int lines = _host.Hud.Count;
-            GUIStyle practiceStyle = _practice.Used ? _warnStyle : _hudLabelStyle;
+            GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
             float textH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
             float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, textW)) : 0f;
             textH += onH;

@@ -25,6 +25,24 @@ namespace ForestOverlay.Core
         private readonly GUIContent _label = new GUIContent("clean (info-only)");
 
         public bool Used { get { return _reason != null; } }
+
+        /// Draw the HUD line as a warning: practice used outside a run, or
+        /// a run that is not valid.
+        public bool Warn { get { return _runText != null ? _runInvalid : _reason != null; } }
+
+        /// Core/RunMode: told of every Mark (a Mark during a run flags it).
+        public System.Action<string> MarkedDuringRun;
+
+        // Run mode's line replaces the marker while an attempt runs.
+        private string _runText;
+        private bool _runInvalid;
+
+        public void SetRunText(string text, bool invalid)
+        {
+            _runText = text;
+            _runInvalid = invalid;
+            Rebuild();
+        }
         public string Reason { get { return _reason; } }
         public int UseCount { get { return _useCount; } }
 
@@ -33,6 +51,7 @@ namespace ForestOverlay.Core
             _useCount++;
             _reason = reason;
             Rebuild();
+            if (MarkedDuringRun != null) MarkedDuringRun(reason);
         }
 
         public void Reset()
@@ -64,6 +83,7 @@ namespace ForestOverlay.Core
 
         private void Rebuild()
         {
+            if (_runText != null) { _label.text = _runText; return; }
             _label.text = _reason == null
                 ? "clean (info-only)"
                 : "PRACTICE - " + _reason + " (x" + _useCount + ")";

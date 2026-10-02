@@ -5,6 +5,25 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.206 - 2026-10-02
+
+- **Run mode**: starting a new game now starts a run. While it is on, every
+  practice feature is locked so nothing can spoil the run by accident: Go,
+  F7, savestates, freecam, death revive, god mode, no blood / no stagger,
+  item caps, logs in the inventory, fast building and the experimental
+  performance switches (your settings are kept and come back afterwards).
+  The info box says RUN MODE and the attempt number.
+- During a run the overlay window opens over the pause menu (ESC) only, and
+  a death is the game's own (no revive or reload).
+- To practise again: Runs tab -> End run mode (click twice), or load a save
+  instead of starting a new game. Going back to the title screen counts as a
+  reset; the next new game is the next attempt.
+- Each attempt writes a short report to `config/ForestOverlay/run-reports`
+  and shows it in the Runs tab: whether the game is the unmodified Steam
+  game, whether other mods are loaded or change the game's code, and whether
+  the game's own cheats are on.
+- Opening the overlay window no longer counts as a practice action.
+
 ## v0.24.205 - 2026-10-02
 
 - The splits panel's summary lines no longer cut a long value at the left:

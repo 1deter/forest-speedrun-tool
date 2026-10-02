@@ -33,6 +33,18 @@ namespace ForestOverlay.Game
         private static object _pauseView, _inventoryView, _lootView;
         private static bool _resolved;
 
+        /// True while the game's pause menu (ESC) is the current view.
+        public static bool PauseMenuOpen()
+        {
+            try
+            {
+                if (!Resolve() || _pauseView == null) return false;
+                object inv = _inventory.GetValue(null);
+                return inv != null && Equals(_view.GetValue(inv, null), _pauseView);
+            }
+            catch (Exception) { return false; }
+        }
+
         /// Closes the pause menu or the inventory when one is open. Says
         /// what it did; "" when neither was.
         public static string IfOpen()

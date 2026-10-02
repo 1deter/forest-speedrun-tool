@@ -214,13 +214,14 @@ namespace ForestOverlay.Modules
             // which are on (the HUD's ON NOW line).
             if (_perf != null)
             {
+                _perf.SuspendExperimental(Ctx.Run.Active);
                 if (_perfNames == null)
                 {
                     _perfNames = new string[_perf.Count];
                     for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.Label(i).Trim();
                 }
                 for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
-                    if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i));
+                    if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i) && !_perf.ExperimentalSuspended);
             }
 
             // Freecam ends itself when the game tears its camera down (a
@@ -276,6 +277,7 @@ namespace ForestOverlay.Modules
             }
             else
             {
+                if (Ctx.Run.Refuse("freecam")) { _status = Ctx.Run.RefusedText("Freecam"); return; }
                 Camera cam = Camera.main;
                 if (cam == null) { _status = "no main camera"; return; }
 
@@ -296,6 +298,7 @@ namespace ForestOverlay.Modules
         /// `sunTime`. Turns the freecam on; read `_aerial.Status`.
         public string AerialStart(float x0, float z0, float x1, float z1, float tile, float settle, float rangeScale, float sunTime)
         {
+            if (Ctx.Run.Refuse("aerial capture")) return "run mode is on";
             if (!_freeCamOn) ToggleFreeCam();
             if (!_freeCamOn) return "freecam could not start: " + _status;
             _freeCam.InputEnabled = false;
@@ -413,7 +416,10 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _perf.Count; i++)
             {
                 if (_perf.IsExperimental(i) != experimental) continue;
+                bool guiWas = GUI.enabled;
+                if (experimental && _perf.ExperimentalSuspended) GUI.enabled = false;
                 bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), _perf.IsOn(i), _perf.Label(i));
+                GUI.enabled = guiWas;
                 if (on != _perf.IsOn(i)) _perf.Toggle(i);
                 y += Row;
                 if (_perf.Note(i).Length > 0) y += UiText.Draw(30, y, w - 42, _perf.Note(i));

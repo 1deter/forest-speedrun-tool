@@ -450,6 +450,7 @@ namespace ForestOverlay.Modules
         /// OnPlacedAtSpot for the run module once the world is final.
         private void Restart(Segment s)
         {
+            if (Ctx.Run.Refuse("restart (F7)")) { _status = Ctx.Run.RefusedText("Restart"); return; }
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
 
             // The pause menu and the inventory stop game time, and a restore
@@ -495,6 +496,7 @@ namespace ForestOverlay.Modules
         /// v0.22.0: one button, one job - restoring is Restart / F7).
         private void Teleport(Segment s)
         {
+            if (Ctx.Run.Refuse("Go (teleport)")) { _status = Ctx.Run.RefusedText("Go"); return; }
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
             PlaceAt(s, true);
         }

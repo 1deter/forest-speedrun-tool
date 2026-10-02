@@ -274,8 +274,25 @@ namespace ForestOverlay.Game
         {
             Fix f = _fixes[i];
             f.Cfg.Value = !f.Cfg.Value;
+            if (f.Experimental && _experimentalSuspended) return;   // applied when run mode ends
             Set(f, f.Cfg.Value);
         }
+
+        private bool _experimentalSuspended;
+
+        /// Run mode: the experimental (game-changing) switches are taken
+        /// out while it is on and put back as saved after. Cheap when
+        /// nothing changes - called every tick.
+        public void SuspendExperimental(bool suspend)
+        {
+            if (suspend == _experimentalSuspended) return;
+            _experimentalSuspended = suspend;
+            for (int i = 0; i < _fixes.Count; i++)
+                if (_fixes[i].Experimental) Set(_fixes[i], !suspend && _fixes[i].Cfg.Value);
+            _log.LogInfo("Performance patches: experimental ones " + (suspend ? "suspended (run mode)." : "back as saved."));
+        }
+
+        public bool ExperimentalSuspended { get { return _experimentalSuspended; } }
 
         /// Dev (bridge): every live script with an OnGUI that still gets
         /// Unity's layout pass (useGUILayout on, enabled) - what is left

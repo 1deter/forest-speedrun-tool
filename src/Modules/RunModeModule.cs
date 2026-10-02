@@ -1,0 +1,234 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using ForestOverlay.Core;
+using ForestOverlay.Data;
+using ForestOverlay.Game;
+using UnityEngine;
+
+namespace ForestOverlay.Modules
+{
+    // ------------------------------------------------------------------
+    // Run mode (Core/RunMode; author, 2026-10-02).
+    //
+    // A new game started from the title screen begins a run attempt:
+    // run mode goes on and locks every practice feature (they ask
+    // Ctx.Run.Refuse). Back to the title screen ends the attempt (a reset,
+    // author); the next new game is the next attempt. A saved game loaded
+    // instead ends run mode - practice from a save is not a run. End run
+    // mode (two clicks, Runs tab) unlocks practice until the next new game.
+    //
+    // Each attempt gets a report (Data/RunReport): the game's code, other
+    // mods, other code, foreign Harmony patches, the game's cheats, run
+    // mode's flags - written to config/ForestOverlay/run-reports/ and
+    // summarised in the log and the Runs tab. The patches and cheats are
+    // re-read during the attempt (a mod can patch late, the console can
+    // switch a cheat on).
+    //
+    // No tab of its own: the Runs tab draws its section (DrawSection).
+    // ------------------------------------------------------------------
+    public sealed class RunModeModule : OverlayModule
+    {
+        public override string Id { get { return "runmode"; } }
+        public override string DisplayName { get { return "Run mode"; } }
+
+        private BridgeModule _bridge;
+        private FieldInfo _finishLoad;      // Scene.FinishGameLoad (static)
+        private bool _loaded;               // last frame: in a loaded game
+        private bool _attemptOpen;          // an attempt is running (not reset yet)
+        private RunReport _report;
+        private string _reportPath;
+        private float _nextCheck;
+        private int _patchCount = -1;
+        private bool _reportDirty;
+
+        private float _confirmUntil;        // End run mode: the second click's window
+        private readonly GUIContent _stateText = new GUIContent("");
+        private readonly GUIContent _findingsText = new GUIContent("");
+        private string _builtFor;
+        private float _nextText;
+
+        public override void Initialise(ModuleContext ctx)
+        {
+            base.Initialise(ctx);
+            _bridge = Host.Find<BridgeModule>();
+            Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
+            if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            RunIntegrity.StartHashing(ctx.Log);
+            RebuildText();
+        }
+
+        private bool InLoadedGame()
+        {
+            if (!Ctx.Player.Found || PlayerRef.AtTitleScreen) return false;
+            if (_finishLoad == null) return true;
+            try { return (bool)_finishLoad.GetValue(null); }
+            catch (Exception) { return true; }
+        }
+
+        public override void Tick()
+        {
+            bool loaded = InLoadedGame();
+            if (loaded && !_loaded) OnGameLoaded();
+            if (PlayerRef.AtTitleScreen && _attemptOpen) EndAttempt("back to the title screen (a reset)");
+            _loaded = loaded;
+
+            if (Ctx.Run.Active && _report != null && Time.unscaledTime >= _nextCheck)
+            {
+                _nextCheck = Time.unscaledTime + 1f;
+                Watch();
+            }
+            if (_reportDirty) { _reportDirty = false; WriteReport(); }
+            RebuildText();
+        }
+
+        private void OnGameLoaded()
+        {
+            if (RunIntegrity.IsNewGame())
+            {
+                StartAttempt();
+                return;
+            }
+            // A save was loaded: practice, not a run.
+            if (Ctx.Run.Active) Ctx.Run.End("a saved game was loaded - only a new game is a run");
+        }
+
+        private void StartAttempt()
+        {
+            string before = Ctx.Practice.Used ? Ctx.Practice.Reason : "";
+            Ctx.Practice.Reset();   // a new game starts clean; the report keeps what came before
+            Ctx.Run.Begin(RunIntegrity.Describe());
+            _attemptOpen = true;
+
+            _report = new RunReport();
+            _report.Attempt = Ctx.Run.Attempt;
+            _report.Started = Ctx.Run.Started;
+            _report.StartedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            _report.PluginVersion = OverlayPlugin.PluginVersion;
+            _report.PracticeBefore = before;
+            RunIntegrity.Gather(_report, OverlayPlugin.PluginGuid, Ctx.PluginPath);
+            _patchCount = RunIntegrity.PatchedCount();
+            _reportPath = Path.Combine(Path.Combine(Ctx.ConfigDirectory, "run-reports"),
+                                       "attempt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
+            Watch();
+            WriteReport();
+
+            Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " started (" + _report.Started + ") - practice locked; " +
+                            _report.Summary() + ".");
+            if (!Host.AnyPanelOpen())
+                Ctx.Notice.Show("Run mode: a new game is a run - practice features are locked. End run mode in the Runs tab to practise.", 7f);
+        }
+
+        private void EndAttempt(string why)
+        {
+            _attemptOpen = false;
+            if (_report != null)
+            {
+                WriteReport();
+                Ctx.Log.LogInfo("Run mode: attempt " + _report.Attempt + " ended - " + why + "; " + _report.Summary() + ".");
+            }
+        }
+
+        // Once a second during an attempt: what can change while it runs.
+        private void Watch()
+        {
+            if (_bridge != null && _bridge.Enabled) Ctx.Run.Flag("the test bridge is on");
+
+            int cheats = _report.Cheats.Count;
+            RunIntegrity.ReadCheats(_report.Cheats);
+            for (int i = cheats; i < _report.Cheats.Count; i++) Ctx.Run.Flag("a game cheat is on: " + _report.Cheats[i]);
+
+            // The game's hash is read on a worker thread at startup.
+            if (_report.GameHash.Length == 0 && RunIntegrity.GameHash.Length > 0)
+            {
+                _report.GameHash = RunIntegrity.GameHash;
+                _reportDirty = true;
+            }
+
+            int patches = RunIntegrity.PatchedCount();
+            if (patches != _patchCount)
+            {
+                _patchCount = patches;
+                int foreign = _report.ForeignPatches.Count;
+                RunIntegrity.GatherPatches(_report, OverlayPlugin.PluginGuid);
+                if (_report.ForeignPatches.Count > foreign)
+                    Ctx.Log.LogWarning("Run mode: another mod patched the game during the attempt: " +
+                                       string.Join(", ", _report.ForeignPatches.ToArray()) + ".");
+                _reportDirty = true;
+            }
+
+            if (_report.Flags.Count != Ctx.Run.Flags.Count)
+            {
+                _report.Flags.Clear();
+                _report.Flags.AddRange(Ctx.Run.Flags);
+                _reportDirty = true;
+            }
+            if (cheats != _report.Cheats.Count) _reportDirty = true;
+        }
+
+        private void WriteReport()
+        {
+            if (_report == null || _reportPath == null) return;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_reportPath));
+                File.WriteAllText(_reportPath, _report.Format(), new System.Text.UTF8Encoding(false));
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Run mode: report not written: " + ex.Message); }
+        }
+
+        /// End run mode: practice unlocks until the next new game.
+        public void EndRunMode()
+        {
+            if (!Ctx.Run.Active) return;
+            if (_attemptOpen) EndAttempt("run mode ended by the runner");
+            Ctx.Run.End("ended by you - it starts again with the next new game");
+        }
+
+        // ------------------------------------------------------------------
+        // Text, rebuilt when it changes (never in OnGUI).
+        private void RebuildText()
+        {
+            if (Time.unscaledTime < _nextText) return;
+            _nextText = Time.unscaledTime + 0.25f;
+            bool confirming = Time.unscaledTime < _confirmUntil;
+            string key = Ctx.Run.Active + "|" + Ctx.Run.Attempt + "|" + Ctx.Run.Flags.Count + "|" + Ctx.Run.EndedWhy + "|" +
+                         (_report != null ? _report.GameHash.Length + "|" + _report.ForeignPatches.Count + "|" + _report.Cheats.Count : "") + "|" + confirming;
+            if (key == _builtFor) return;
+            _builtFor = key;
+
+            string state;
+            if (Ctx.Run.Active)
+                state = "Run mode: ON - attempt " + Ctx.Run.Attempt + (Ctx.Run.Started.Length > 0 ? " (" + Ctx.Run.Started + ")" : "") +
+                        ". Practice features are locked until the run ends. During a run the window opens over the pause menu (ESC) only.";
+            else
+                state = "Run mode: off - it turns on by itself when you start a new game." +
+                        (Ctx.Run.EndedWhy.Length > 0 ? " Last run mode ended: " + Ctx.Run.EndedWhy + "." : "");
+            if (confirming) state += "\nClick End run mode again to unlock practice (a run in progress stops counting).";
+            _stateText.text = state;
+
+            if (_report == null) { _findingsText.text = ""; return; }
+            List<string> lines = _report.Findings();
+            _findingsText.text = "Attempt " + _report.Attempt + " report:\n" + string.Join("\n", lines.ToArray());
+        }
+
+        /// The Runs tab's section; returns the new y.
+        public float DrawSection(float y, float w)
+        {
+            y += UiText.Draw(0, y, w, _stateText);
+            if (Ctx.Run.Active)
+            {
+                bool confirming = Time.unscaledTime < _confirmUntil;
+                if (GUI.Button(new Rect(0, y + 2, 200, 22), confirming ? "Click again to end" : "End run mode"))
+                {
+                    if (confirming) { _confirmUntil = 0f; EndRunMode(); }
+                    else { _confirmUntil = Time.unscaledTime + 4f; _nextText = 0f; }
+                }
+                y += 28f;
+            }
+            if (_findingsText.text.Length > 0) y += UiText.Draw(0, y, w, _findingsText) + 4f;
+            return y;
+        }
+    }
+}

@@ -17,6 +17,10 @@ namespace ForestOverlay.Core
         public PlayerRef Player;
         public PracticeState Practice;
 
+        /// Run mode: on during an attempt from a new game. Practice entry
+        /// points ask Run.Refuse(...) first.
+        public RunMode Run;
+
         /// A few seconds of text on screen, for when no panel is open.
         public Notice Notice;
 

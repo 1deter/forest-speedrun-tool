@@ -162,6 +162,9 @@ namespace ForestOverlay.Modules
         private DeathAction Decide(DeathKind kind)
         {
             if (kind == DeathKind.Multiplayer) return DeathAction.Normal;
+            // Run mode: a death is the game's own (no revive, no reload -
+            // loading a save ends run mode anyway).
+            if (Ctx.Run.Active) return DeathAction.Normal;
 
             if (ReviveApplies()) return DeathAction.Revive;
 
@@ -181,6 +184,7 @@ namespace ForestOverlay.Modules
         private bool ReviveApplies()
         {
             if (_practice == null || !_practice.HasSpot) return false;
+            if (Ctx.Run.Active) return false;   // run mode: a death is the game's
             return (_runs != null && _runs.Enabled) || _practice.CurrentHasStartState;
         }
 
@@ -208,24 +212,30 @@ namespace ForestOverlay.Modules
         {
             RefreshText();
 
-            DeathHooks.NoStagger = _noStaggerCfg.Value;
-            Ctx.Practice.SetOn("no stagger", _noStaggerCfg.Value);
-            Ctx.Practice.SetOn("no blood", _noBloodCfg.Value);
-            Ctx.Practice.SetOn("god mode", _godModeCfg.Value);
-            if (_noBloodCfg.Value) DeathHooks.ClearBlood();
-            if ((_noBloodCfg.Value || _noStaggerCfg.Value) && !_extrasMarked)
+            // Run mode: the toggles keep their saved value but do nothing.
+            bool run = Ctx.Run.Active;
+            bool noStagger = _noStaggerCfg.Value && !run;
+            bool noBlood = _noBloodCfg.Value && !run;
+            bool godMode = _godModeCfg.Value && !run;
+
+            DeathHooks.NoStagger = noStagger;
+            Ctx.Practice.SetOn("no stagger", noStagger);
+            Ctx.Practice.SetOn("no blood", noBlood);
+            Ctx.Practice.SetOn("god mode", godMode);
+            if (noBlood) DeathHooks.ClearBlood();
+            if ((noBlood || noStagger) && !_extrasMarked)
             {
                 _extrasMarked = true;
-                Ctx.Practice.Mark(_noBloodCfg.Value && _noStaggerCfg.Value ? "no blood, no stagger"
-                                  : _noBloodCfg.Value ? "no blood" : "no stagger");
-                Ctx.Log.LogInfo("Deaths: practice toggles on -" + (_noBloodCfg.Value ? " no blood" : "") +
-                                (_noStaggerCfg.Value ? " no stagger" : "") + ".");
+                Ctx.Practice.Mark(noBlood && noStagger ? "no blood, no stagger"
+                                  : noBlood ? "no blood" : "no stagger");
+                Ctx.Log.LogInfo("Deaths: practice toggles on -" + (noBlood ? " no blood" : "") +
+                                (noStagger ? " no stagger" : "") + ".");
             }
-            if (!_noBloodCfg.Value && !_noStaggerCfg.Value) _extrasMarked = false;
+            if (!noBlood && !noStagger) _extrasMarked = false;
 
             // God mode: kept on while the toggle is (a load or the console may
             // reset the flag); switched off only if we switched it on.
-            if (_godModeCfg.Value && !PlayerRef.AtTitleScreen && !DeathHooks.IsGodMode())
+            if (godMode && !PlayerRef.AtTitleScreen && !DeathHooks.IsGodMode())
             {
                 if (DeathHooks.SetGodMode(true))
                 {
@@ -237,7 +247,7 @@ namespace ForestOverlay.Modules
                     _godModeOurs = true;
                 }
             }
-            else if (!_godModeCfg.Value && _godModeOurs)
+            else if (!godMode && _godModeOurs)
             {
                 _godModeOurs = false;
                 DeathHooks.SetGodMode(false);
@@ -399,6 +409,12 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, w, ReviveText) + 4f;
 
             // Practice toggles - not tied to dying, so they work in Creative.
+            bool guiWas = GUI.enabled;
+            if (Ctx.Run.Active)
+            {
+                y += UiText.Draw(0, y, w, "Run mode: these three are off and locked during a run.") + 2f;
+                GUI.enabled = false;
+            }
             bool noBlood = GUI.Toggle(new Rect(0, y, w, 22), _noBloodCfg.Value,
                                       " No blood: keep the blood overlay off (practice)");
             if (noBlood != _noBloodCfg.Value) _noBloodCfg.Value = noBlood;
@@ -411,6 +427,7 @@ namespace ForestOverlay.Modules
                                   " God mode: take no damage - the game's own cheat (practice)");
             if (god != _godModeCfg.Value) _godModeCfg.Value = god;
             y += 26f;
+            GUI.enabled = guiWas;
             // What the button above (or the last death) just did, under it.
             y += UiText.Draw(0, y, w, _statusText) + 4f;
 

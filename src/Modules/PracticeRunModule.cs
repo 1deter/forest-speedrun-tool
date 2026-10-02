@@ -154,6 +154,7 @@ namespace ForestOverlay.Modules
 
             // Finished runs to the website (Modules/RunUploadModule).
             _upload = Host.Find<RunUploadModule>();
+            _runMode = Host.Find<RunModeModule>();
             if (_upload != null)
             {
                 _upload.CurrentSegment = SegmentForUpload;
@@ -187,6 +188,7 @@ namespace ForestOverlay.Modules
         }
 
         private RunUploadModule _upload;
+        private RunModeModule _runMode;
 
         /// The spot the runner is on: the armed segment, else the Practice
         /// tab's current spot (practice mode off arms nothing).
@@ -916,7 +918,8 @@ namespace ForestOverlay.Modules
             float cw = scrolls ? w - 20f : w;
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
-            float y = DrawLineOptions(0f, cw);
+            float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
+            y = DrawLineOptions(y, cw);
             y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);

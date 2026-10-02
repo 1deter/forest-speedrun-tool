@@ -232,6 +232,10 @@ namespace ForestOverlay.Core
 
             _perf.Frame(tickTotal, _ctx.Player.Found);
 
+            // During a run a window lives over the pause menu: closing the
+            // menu closes it, so it never holds the player in play.
+            if (!RunWindowAllowed()) CloseAllPanels();
+
             // What the window (or freecam) needs from the game this frame.
             // Only while a player exists: at the title screen there is no
             // one to hold, and the menu owns the input states itself.
@@ -289,6 +293,22 @@ namespace ForestOverlay.Core
             return false;
         }
 
+        /// Run mode: windows only at the title screen, while loading, or
+        /// over the game's pause menu (which stops time and holds the
+        /// player itself). Always true outside run mode.
+        public bool RunWindowAllowed()
+        {
+            if (_ctx.Run == null || !_ctx.Run.Active) return true;
+            if (!_ctx.Player.Found || PlayerRef.AtTitleScreen) return true;
+            return MenuClose.PauseMenuOpen();
+        }
+
+        private void CloseAllPanels()
+        {
+            for (int i = 0; i < _modules.Count; i++)
+                if (_modules[i].PanelOpen) TogglePanel(_modules[i]);
+        }
+
         public bool AnyPanelOpen()
         {
             for (int i = 0; i < _modules.Count; i++)
@@ -298,6 +318,11 @@ namespace ForestOverlay.Core
 
         public void TogglePanel(OverlayModule m)
         {
+            if (!m.PanelOpen && !RunWindowAllowed())
+            {
+                _ctx.Notice.Show("Run mode: press ESC first - during a run the window opens over the pause menu.", 6f);
+                return;
+            }
             m.PanelOpen = !m.PanelOpen;
 
             // Opening a window while "hide all UI" is on freed the mouse
@@ -381,12 +406,11 @@ namespace ForestOverlay.Core
 
             _ctx.Bridge.SetPlayerLocked(true);
 
-            if (!_playerLockApplied)
-            {
-                _playerLockApplied = true;
-                // Holding the player writes to the game, so it counts.
-                _ctx.Practice.Mark("player lock");
-            }
+            // Not a practice action (author, 2026-10-02): opening the window
+            // to look at splits or settings must not spoil a clean session.
+            // During a run the window opens over the pause menu only, where
+            // the game already holds the player (RunWindowAllowed).
+            _playerLockApplied = true;
         }
 
         private void ReleasePlayerLock()
