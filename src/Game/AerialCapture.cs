@@ -178,6 +178,9 @@ namespace ForestOverlay.Game
             Apply(cam, tile, rangeScale, sunTime);
             List<Renderer> tall = TallRenderers(terrain);
             if (Log != null) Log.LogInfo("Aerial capture: " + tall.Count + " renderer(s) reach above the terrain's camera height");
+            string sunOff = SunOff();
+            if (sunOff != null && Log != null)
+                Log.LogWarning("Aerial capture: " + sunOff + " - every tile will come out dark (cave / endgame lighting); walk or teleport out first");
             Vector3 home = PlayerPosition != null ? PlayerPosition() : Vector3.zero;
             try
             {
@@ -608,6 +611,18 @@ namespace ForestOverlay.Game
             Type t = GameBridge.FindGameType("PlayerCamLocation");
             FieldInfo f = t != null ? t.GetField("PlayerLoc", Any) : null;
             if (f != null) f.SetValue(null, p);
+        }
+
+        /// Why the sun is not lighting the world, or null when it is: a save
+        /// loaded in the endgame and teleported out without the game's exit
+        /// left TimeAndWeather/R10 (the sun's parent) off (fixed in v0.24.222).
+        private static string SunOff()
+        {
+            object atmos = StaticGet("TheForestAtmosphere", "Instance");
+            Light sun = atmos != null ? Get(atmos, "Sun") as Light : null;
+            if (sun == null) return null;
+            if (!sun.gameObject.activeInHierarchy) return "the sun is switched off ('" + ObjectProbe.PathOf(sun.transform) + "' inactive)";
+            return null;
         }
 
         private static object StaticGet(string type, string member)

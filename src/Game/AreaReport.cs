@@ -140,21 +140,48 @@ namespace ForestOverlay.Game
         /// (SetInEndGame has no caller in code) and read for the lighting:
         /// a teleport out of the lab kept it, and the surface looked like a
         /// cave (author, 2026-09-25; clearing it by hand fixed the look).
+        /// What walking back out over the LoadEndgame box does: its backward
+        /// crossing event (ExitEndgame), whose listeners clear the flag AND
+        /// switch the outdoor sun back on (TimeAndWeather/R10, switched off
+        /// in the endgame). Clearing the flag alone left a save loaded in the
+        /// lab and teleported out with no sunlight - every aerial capture
+        /// tile 3-15x darker (v0.24.222). The flag is still cleared by hand
+        /// if the event is missing or did not.
         public static string LeaveEndgame()
         {
             try
             {
                 Resolve();
                 if (_inEndgame == null || !(bool)_inEndgame.GetValue(null, null)) return "";
+                string how = CrossBackwards();
+                if (!(bool)_inEndgame.GetValue(null, null)) return "endgame left as walking out does (" + how + ")";
                 MethodInfo set = _inEndgame.GetSetMethod(true);
-                if (set == null) return "endgame: still set (no setter)";
+                if (set == null) return "endgame: still set (no setter; " + how + ")";
                 set.Invoke(null, new object[] { false });
-                return "endgame flag cleared";
+                return "endgame flag cleared (" + how + ")";
             }
             catch (Exception ex)
             {
                 return "endgame: clearing failed (" + ex.Message + ")";
             }
+        }
+
+        /// Invokes the LoadEndgame SceneLoadTrigger's _onCrossingBackwards
+        /// (the event only - not its DelayedUnload). Says what it did.
+        private static string CrossBackwards()
+        {
+            GameObject go = GameObject.FindWithTag("EndgameLoader");
+            if (go == null) return "no EndgameLoader";
+            Component trigger = null;
+            Component[] cs = go.GetComponents<Component>();
+            for (int i = 0; i < cs.Length; i++)
+                if (cs[i] != null && cs[i].GetType().Name == "SceneLoadTrigger") trigger = cs[i];
+            if (trigger == null) return "no SceneLoadTrigger";
+            FieldInfo f = trigger.GetType().GetField("_onCrossingBackwards", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            UnityEngine.Events.UnityEvent ev = f != null ? f.GetValue(trigger) as UnityEngine.Events.UnityEvent : null;
+            if (ev == null) return "no backward crossing event";
+            ev.Invoke();
+            return "ExitEndgame sent";
         }
 
         /// What the LoadEndgame box's forward crossing does (EnterEndgame ->

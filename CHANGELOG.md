@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.222 - 2026-10-03
+
+- Teleporting out of the endgame (Go to a spot, F7) after loading a save
+  there now brings the sunlight back. Before, the world outside stayed
+  lit like a cave: dim, with no sun.
+
 ## v0.24.221 - 2026-10-02
 
 - Website tooling only (no change in play): the photo map capture now
