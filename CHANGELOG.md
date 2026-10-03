@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.225 - 2026-10-03
+
+- Developer tool only: the state machine export names where each event
+  is sent. Nothing changes for runners.
+
 ## v0.24.224 - 2026-10-03
 
 - Developer tool only (the test bridge): the game's PlayMaker state

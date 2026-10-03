@@ -172,6 +172,24 @@ namespace ForestOverlay.Game
                 object opt = Get(v, "OwnerOption");
                 return opt != null && opt.ToString() == "UseOwner" ? "owner" : "gameobject " + Value(Get(v, "GameObject"), depth + 1);
             }
+            if (tn == "FsmEventTarget")
+            {
+                string target = "" + Get(v, "target");
+                if (target == "Self" || target == "BroadcastAll" || target == "HostFSM" || target == "SubFSMs") return "to " + target;
+                string fsmName = Value(Get(v, "fsmName"), depth + 1);
+                return "to " + target + " " + Value(Get(v, "gameObject"), depth + 1) +
+                       (fsmName != null && fsmName != "\"\"" && fsmName != "none" ? " fsm " + fsmName : "") +
+                       (Value(Get(v, "sendToChildren"), depth + 1) == "True" ? " (+children)" : "");
+            }
+            if (tn == "FsmAnimationCurve")
+            {
+                AnimationCurve curve = Get(v, "curve") as AnimationCurve;
+                if (curve == null) return "curve none";
+                StringBuilder cs = new StringBuilder("curve");
+                foreach (Keyframe k in curve.keys)
+                    cs.Append(' ').Append(k.time.ToString("0.###", CultureInfo.InvariantCulture)).Append(':').Append(k.value.ToString("0.###", CultureInfo.InvariantCulture));
+                return cs.ToString();
+            }
             if (tn == "FsmProperty") return "property " + Get(v, "PropertyName") + " of " + Value(Get(v, "TargetObject"), depth + 1);
             if (tn == "FunctionCall") return "call " + Get(v, "FunctionName") + " (" + Get(v, "ParameterType") + ")";
             if (tn.StartsWith("Fsm") && t.GetProperty("UseVariable") != null)
