@@ -244,10 +244,74 @@ namespace ForestOverlay.Tests
             Assert.Empty(r.D.Ready);
         }
 
+        /// A detector that saw a ground smash `ago` game seconds back (with a
+        /// crouch released `stood` seconds back; < 0 never crouched).
+        private static MoveDetector Smashed(float ago, float stood = -1f)
+        {
+            var d = new MoveDetector();
+            float t = System.Math.Max(ago, stood) + 0.5f;
+            int n = (int)System.Math.Round(t / Dt);
+            for (int i = 0; i < n; i++)
+            {
+                float left = t - i * Dt;
+                bool smash = left > ago && left <= ago + 0.4f;
+                bool crouch = stood >= 0f && left > stood;
+                d.PhysicsStep(Dt, true, false, Vector3.zero, Vector3.zero, "", false, "", smash, crouch);
+            }
+            return d;
+        }
+
+        [Fact]
+        public void A_crossing_without_a_ground_smash_is_only_logged()
+        {
+            // The yacht's cabin, a door, any tight room: no smash, no clip.
+            var d = new MoveDetector();
+            for (int i = 0; i < 120; i++) d.PhysicsStep(Dt, true, false, Vector3.zero, Vector3.zero, "");
+            d.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'Object40'", 2, 5f);
+            Assert.Empty(d.Ready);
+            Assert.Contains("no axe ground smash and no structure", d.TakeUngated());
+
+            var late = Smashed(2.5f);
+            late.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'door_leaf'", 1, 5f);
+            Assert.Empty(late.Ready);
+        }
+
+        [Fact]
+        public void A_clip_after_a_smash_says_whether_the_player_stood_up()
+        {
+            var d = Smashed(0.3f, 0.2f);
+            d.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'door_leaf'", 1, 5f);
+            Assert.Single(d.Ready);
+            Assert.Contains("s after an axe ground smash", d.Ready[0].Detail);
+            Assert.Contains("s after standing up from a crouch", d.Ready[0].Detail);
+
+            var s = Smashed(0.3f);
+            s.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'door_leaf'", 1, 5f);
+            Assert.Contains("not standing up from a crouch", s.Ready[0].Detail);
+        }
+
+        [Fact]
+        public void A_clip_while_squeezed_by_a_built_wall_counts()
+        {
+            // The keycard cave clip: a log / stone wall built against thin
+            // rock squeezes the player into it (author, 2026-10-03).
+            var d = new MoveDetector();
+            for (int i = 0; i < 60; i++) d.PhysicsStep(Dt, true, false, Vector3.zero, Vector3.zero, "", false, i < 50 ? "'WallDefensiveChunkBuilt(Clone)'" : "");
+            d.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'Collision' under 'Cave_04_Collision'", 3, 5f);
+            Assert.Single(d.Ready);
+            Assert.Contains("touching a structure they built ('WallDefensiveChunkBuilt(Clone)')", d.Ready[0].Detail);
+            Assert.DoesNotContain("smash", d.Ready[0].Detail);
+
+            var late = new MoveDetector();
+            for (int i = 0; i < 200; i++) late.PhysicsStep(Dt, true, false, Vector3.zero, Vector3.zero, "", false, i < 50 ? "'Wall'" : "");
+            late.Clipped(Vector3.zero, new Vector3(1f, 1f, 1f), "'rock'", 3, 5f);
+            Assert.Empty(late.Ready);
+        }
+
         [Fact]
         public void A_clip_is_reported_once_per_solid_while_it_repeats()
         {
-            var d = new MoveDetector();
+            var d = Smashed(0.1f);
             Vector3 a = new Vector3(0f, 1f, 0f), b = new Vector3(1.2f, 1f, 0f);
             d.Clipped(a, b, "'door_leaf' (a BoxCollider 0.1 m thick)", 3, 10f);
             d.Clipped(b, a, "'door_leaf' (a BoxCollider 0.1 m thick)", 1, 11f);   // back and forth: the same clip

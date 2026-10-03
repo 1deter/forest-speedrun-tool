@@ -96,9 +96,17 @@ namespace ForestOverlay.Data
     // Clip through a solid. The capsule's centre ends up on the other side
     // of a solid collider the player had touched (Game/ClipWatch casts the
     // line from the last place the centre was clear of every solid to the
-    // next one, both ways, and the same collider must answer both: the line
-    // went into it and out again - a single mesh face crossed from behind,
-    // as in the yacht's cabin, is not a solid passed through; a collider only counts once the player has had a contact
+    // next one: the line must enter the collider through a front face - a
+    // mesh face crossed from behind, as in the yacht's cabin, is not one;
+    // ending up inside a rock counts, coming out of one does not) and only
+    // within ClipSmashWindow of one of the runners' two ways in (author,
+    // 2026-10-03): an axe ground smash (playerAnimatorControl
+    // .doingGroundChop - the head collider following the head bone, the
+    // clip's own mechanism; "always done with a smash and a crouch"; the
+    // text says whether the player stood up from a crouch around it), or a
+    // structure they built squeezing them ("building a stone/log wall when
+    // pressed up against a thin texture ... phases you through", the
+    // keycard cave clip in true any%). Others are only logged (Ungated); a collider only counts once the player has had a contact
     // with it, which leaves out every pair the game told the physics to
     // ignore - terrain in caves and at cave mouths, ropes, structures on
     // rafts). The same collider again within ClipRepeat is one clip.
@@ -133,6 +141,7 @@ namespace ForestOverlay.Data
         public const float LiftMaxStep = 4f;       // more unexplained rise in one step = a teleport
         public const float ClipRepeat = 2f;        // game seconds: the same collider again = the same clip
         public const float SettleSeconds = 0.5f;   // game seconds after a teleport when nothing counts
+        public const float ClipSmashWindow = 1.5f; // game seconds after a ground smash a clip counts
 
         public sealed class Move
         {
@@ -190,6 +199,9 @@ namespace ForestOverlay.Data
         private Vector3 _liftFrom;
         private float _settle;
         private string _liftStructure = "";
+        private float _sinceSmash = 1000f, _sinceStand = 1000f, _sinceStructure = 1000f;
+        private string _clipStructure = "";
+        private bool _wasCrouching;
 
         // --- clips: the last one, to merge repeats ---
         private string _clipWhat = "";
@@ -371,8 +383,16 @@ namespace ForestOverlay.Data
         /// was a plain step (no teleport, not kinematic, not the first) - only
         /// then may a clip be judged across it.
         public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact, bool carried = false,
-                                string structure = "")
+                                string structure = "", bool smash = false, bool crouching = false)
         {
+            if (dt > 0f)
+            {
+                _sinceSmash = smash ? 0f : _sinceSmash + dt;
+                if (!string.IsNullOrEmpty(structure)) { _sinceStructure = 0f; _clipStructure = structure; }
+                else _sinceStructure += dt;
+                _sinceStand = _wasCrouching && !crouching ? 0f : _sinceStand + dt;
+                _wasCrouching = crouching;
+            }
             if (!hasPlayer || kinematic || dt <= 0f)
             {
                 _stepHas = false;
@@ -456,6 +476,14 @@ namespace ForestOverlay.Data
         /// solid on the way; `time`: game seconds now.
         public void Clipped(Vector3 from, Vector3 to, string what, int insideSteps, float time)
         {
+            bool smashed = _sinceSmash <= ClipSmashWindow;
+            bool squeezed = _sinceStructure <= ClipSmashWindow;
+            if (!smashed && !squeezed)
+            {
+                Ungated = what + " (no axe ground smash and no structure they built touched in the last " +
+                          ClipSmashWindow.ToString("0.0", CultureInfo.InvariantCulture) + " s)";
+                return;
+            }
             if (what == _clipWhat && time - _clipAt < ClipRepeat) { _clipAt = time; return; }
             _clipWhat = what;
             _clipAt = time;
@@ -469,9 +497,21 @@ namespace ForestOverlay.Data
                        (insideSteps > 0 ? ", " + insideSteps.ToString(CultureInfo.InvariantCulture) + " physics step" + (insideSteps == 1 ? "" : "s") + " inside solids on the way"
                                         : " in one physics step") +
                        ", to (" + to.x.ToString("0.0", CultureInfo.InvariantCulture) + ", " + to.y.ToString("0.0", CultureInfo.InvariantCulture) + ", " +
-                       to.z.ToString("0.0", CultureInfo.InvariantCulture) + ")";
+                       to.z.ToString("0.0", CultureInfo.InvariantCulture) + ")" +
+                       (smashed ? ", " + _sinceSmash.ToString("0.00", CultureInfo.InvariantCulture) + " s after an axe ground smash" +
+                                  (_sinceStand <= ClipSmashWindow + 0.5f
+                                       ? ", " + _sinceStand.ToString("0.00", CultureInfo.InvariantCulture) + " s after standing up from a crouch"
+                                       : ", not standing up from a crouch")
+                                : "") +
+                       (squeezed ? (smashed ? ", and" : ",") + " touching a structure they built (" + _clipStructure + ")" : "");
             Ready.Add(m);
         }
+
+        /// A crossing that did not count (no ground smash), for the log; "" none.
+        public string Ungated { get; private set; }
+
+        /// Ungated, then cleared.
+        public string TakeUngated() { string s = Ungated ?? ""; Ungated = ""; return s; }
 
         // ------------------------------------------------------------------
 

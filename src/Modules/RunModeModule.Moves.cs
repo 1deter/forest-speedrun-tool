@@ -44,6 +44,8 @@ namespace ForestOverlay.Modules
         {
             string dropped = _moves.TakeDropped();
             if (dropped.Length > 0) Ctx.Log.LogInfo("Move watch: " + dropped + ".");
+            string ungated = _moves.TakeUngated();
+            if (ungated.Length > 0) Ctx.Log.LogInfo("Move watch: a crossing, not reported: " + ungated + ".");
             string small = _moves.TakeSmallLift();
             if (small.Length > 0) Ctx.Log.LogInfo("Move watch: a small lift, not reported: " + small + ".");
             if (_moves.Ready.Count == 0) return;

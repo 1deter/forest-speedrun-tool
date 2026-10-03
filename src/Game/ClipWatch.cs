@@ -19,10 +19,17 @@ namespace ForestOverlay.Game
     //
     // Clips: the last place the centre was clear of every solid the player
     // had touched is kept; when it is clear again, the line from there to
-    // here is cast both ways and a touched solid that answers BOTH casts is
-    // a clip: the line went into it and out again (a mesh's back face does
-    // not answer a ray, so one face crossed from behind - the yacht cabin's
-    // tight furniture, live v0.24.232 - answers one way only).
+    // here is cast and a touched solid entered through a front face is a
+    // clip (a mesh's back face does not answer a ray: one face crossed from
+    // behind - the yacht cabin's tight furniture, live v0.24.232 - does not
+    // count; ending up inside a rock does, coming out of one does not).
+    //
+    // Clips count only after an axe ground smash: playerAnimatorControl
+    // .doingGroundChop (set in its OnAnimatorMove while the full-body layer
+    // plays axeGround2 / axeAttack - the head collider following the head
+    // bone, game-notes *The axe ground smash*), with FirstPersonCharacter
+    // .crouching for "stood up from a crouch". Both read every step through
+    // DynamicMethod field getters (no boxing).
     //
     // Lifts name a player-built structure in contact (BuildingHealth /
     // BuildingHealthChunk on it or a parent - a log wall, a custom wall, a
@@ -69,10 +76,11 @@ namespace ForestOverlay.Game
         private static string _contactName = "";
         private static readonly string[] _structure = new string[Slots];   // the built structure's name, "" not one
         private static Type _health, _healthChunk;
+        private static FieldInfo _animControl, _fpCharacter;   // static LocalPlayer.AnimControl / FpCharacter
+        private static Func<object, bool> _groundChop, _crouching;
 
         private readonly Collider[] _overlap = new Collider[16];
         private readonly RaycastHit[] _hits = new RaycastHit[16];
-        private readonly RaycastHit[] _forward = new RaycastHit[16];
 
         private Transform _player;
         private Rigidbody _rb;
@@ -94,6 +102,13 @@ namespace ForestOverlay.Game
                 BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
                 MethodInfo onEnter = enter != null ? enter.GetMethod("OnCollisionEnter", f) : null;
                 MethodInfo onExit = exit != null ? exit.GetMethod("OnCollisionExit", f) : null;
+                BindingFlags s = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                _animControl = lp != null ? lp.GetField("AnimControl", s) : null;
+                _fpCharacter = lp != null ? lp.GetField("FpCharacter", s) : null;
+                _groundChop = BoolGetter(GameBridge.FindGameType("playerAnimatorControl"), "doingGroundChop");
+                _crouching = BoolGetter(GameBridge.FindGameType("FirstPersonCharacter"), "crouching");
+                if (_groundChop == null || _animControl == null)
+                    _log.LogWarning("ClipWatch: playerAnimatorControl.doingGroundChop not found - clips are never reported.");
                 _health = GameBridge.FindGameType("TheForest.Buildings.World.BuildingHealth");
                 _healthChunk = GameBridge.FindGameType("TheForest.Buildings.World.BuildingHealthChunk");
                 if (_lpTransform == null || onEnter == null || onExit == null || host == null || harmony == null)
@@ -113,6 +128,33 @@ namespace ForestOverlay.Game
                 Status = "failed: " + ex.Message;
                 _log.LogWarning("ClipWatch: " + Status);
             }
+        }
+
+        /// `(object o) => ((T)o).field` for a bool instance field, null when missing.
+        private static Func<object, bool> BoolGetter(Type t, string field)
+        {
+            try
+            {
+                FieldInfo f = t != null ? t.GetField(field, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                if (f == null || f.FieldType != typeof(bool)) return null;
+                System.Reflection.Emit.DynamicMethod dm = new System.Reflection.Emit.DynamicMethod(
+                    "Get_" + field, typeof(bool), new[] { typeof(object) }, typeof(ClipWatch).Module, true);
+                System.Reflection.Emit.ILGenerator il = dm.GetILGenerator();
+                il.Emit(System.Reflection.Emit.OpCodes.Ldarg_0);
+                il.Emit(System.Reflection.Emit.OpCodes.Castclass, t);
+                il.Emit(System.Reflection.Emit.OpCodes.Ldfld, f);
+                il.Emit(System.Reflection.Emit.OpCodes.Ret);
+                return (Func<object, bool>)dm.CreateDelegate(typeof(Func<object, bool>));
+            }
+            catch (Exception) { return null; }
+        }
+
+        private static bool Read(FieldInfo holder, Func<object, bool> getter)
+        {
+            if (holder == null || getter == null) return false;
+            object o = holder.GetValue(null);
+            UnityEngine.Object u = o as UnityEngine.Object;
+            return u != null && getter(o);
         }
 
         private static Transform PlayerTransform()
@@ -264,7 +306,8 @@ namespace ForestOverlay.Game
                 Steps++;
                 Vector3 c = t.TransformPoint(_capsule.center);
                 bool carried = TrackMovers();
-                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName, carried, StructureTouched());
+                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName, carried, StructureTouched(),
+                                           Read(_animControl, _groundChop), Read(_fpCharacter, _crouching));
                 if (!plain) { _hasClear = false; _insideSteps = 0; }
 
                 int layer = t.gameObject.layer;
@@ -308,8 +351,8 @@ namespace ForestOverlay.Game
             return false;
         }
 
-        /// A counted solid the line a-b goes into and out of (it answers a
-        /// cast from each end), the nearest to a; null none.
+        /// The nearest counted solid the line a-b enters through a front
+        /// face; null none.
         private Collider Across(Vector3 a, Vector3 b)
         {
             Vector3 dir = b - a;
@@ -317,18 +360,10 @@ namespace ForestOverlay.Game
             dir /= len;
             int n = Physics.RaycastNonAlloc(a, dir, _hits, len, _mask, QueryTriggerInteraction.Ignore);
             if (n > _hits.Length) n = _hits.Length;
-            for (int i = 0; i < n; i++) _forward[i] = _hits[i];
-            int m = Physics.RaycastNonAlloc(b, -dir, _hits, len, _mask, QueryTriggerInteraction.Ignore);
-            if (m > _hits.Length) m = _hits.Length;
             Collider best = null;
             float bestD = float.MaxValue;
             for (int i = 0; i < n; i++)
-            {
-                Collider c = _forward[i].collider;
-                if (_forward[i].distance >= bestD || !Counts(c)) continue;
-                for (int j = 0; j < m; j++)
-                    if (_hits[j].collider == c) { best = c; bestD = _forward[i].distance; break; }
-            }
+                if (_hits[i].distance < bestD && Counts(_hits[i].collider)) { best = _hits[i].collider; bestD = _hits[i].distance; }
             return best;
         }
     }

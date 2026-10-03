@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.234 - 2026-10-03
+
+- A clip is now only noted when it comes right after one of the two ways
+  runners clip: **an axe ground smash** (the note says whether you stood
+  up from a crouch), or **a wall you built squeezing you** into rock (the
+  keycard cave clip). Getting pushed around in tight rooms is no longer
+  noted. Ending up inside a rock counts as a clip.
+
 ## v0.24.233 - 2026-10-03
 
 - The lift detection now only notes lifts that involve **a structure you
