@@ -134,9 +134,22 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
    answer cache, rate limits, hybrid search, the card / doc / FSM / code
    tools, Gemini + OpenAI-compatible providers with fallback, the eval run,
    the deploy (`bot/deploy`, `.github/workflows/bot.yml`). 24 tests.
-   **Not yet run against a real model or Discord** - waits for the author's
-   keys (`bot/deploy/README.md` *One-time setup*).
-3. **First live run**: `forest-bot eval` with the real key - read the
-   answers, tune the prompt / cards on what fails; then the VPS and Discord.
+   **Live since 2026-10-03** on the VPS (container `forest-bot`), in the
+   **QA server for now** (the author: testing there while the community
+   admins answer), Gemini 3.8 Flash -> 3.5 Flash-Lite (no Mistral for now -
+   author). First live fixes: no LaTeX in answers, 5xx retries, `/ask`
+   without a channel object, globalization on (gotcha 93).
+3. **Next: the eval run + tuning** - `forest-bot eval` locally (the
+   author's `GEMINI_API_KEY` is a User variable; `FOREST_BOT_DATA` to a temp
+   folder), read every answer, fix what fails in the prompt or the cards.
+   Seen already: an answer explained the slide cancel without saying it is
+   not reproduced in game (the honesty rule must hold for a card's
+   `[runner]` / not-reproduced claims too). Check the Megan question's
+   answer ("not documented", nothing invented) and the research queue
+   (`sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue`).
+   Then: the embedding model locally (author OK needed for the ~130 MB
+   download - not asked yet) so local runs search like the VPS; the
+   production server once the admins agree (`FOREST_BOT_CHANNELS`,
+   a queue channel).
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).

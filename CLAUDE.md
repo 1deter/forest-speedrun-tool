@@ -579,6 +579,8 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes.
 90. **A speed and a distance in the same window can belong to different things** - a tp landing while the body held 300 m/s read as huge speed; a step longer than the speed allows is a teleport. Test detectors with tp / set mixed in.
 91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports.
+92. **The plugin's SDK project compiles every `.cs` under the repo** - a new top-level project folder goes into `ForestOverlay.csproj`'s `Remove` lines in the same commit; build the plugin before pushing.
+93. **A Discord bot's first live run fails in ways no test sees** - Discord.Net needs globalization on; a command-only install leaves `Channel` null (go by ids); retry 5xx; read the container log after the first deploy.
 
 ---
 
@@ -649,10 +651,14 @@ fallback). Built: `knowledge/` - 23 cards, the glossary, 40 test questions;
 Writing the cards against the code corrected / added facts (game-notes
 *Knowledge base pass*): the fall cap is the speed cap, the pause menu
 stops time on Hard too, the zipline exit weakens braking 60x for 1 s,
-`doCave`'s 1.5 s / 3 s, the red elevator's use limit. **Next: the first
-live run** - needs the author's Gemini key (+ Mistral optional) and the
-Discord application (`bot/deploy/README.md` *One-time setup*); then
-`forest-bot eval`, read the answers, tune; then the VPS + Discord.
+`doCave`'s 1.5 s / 3 s, the red elevator's use limit. **The bot is live**
+on the VPS and answers in the **QA server** (temporary, while the
+community admins answer; author 2026-10-03) - Gemini 3.8 Flash ->
+Flash-Lite, no Mistral for now. First-run fixes: plugin csproj excluding
+`bot/` (gotcha 92), no LaTeX, 5xx retries, `/ask` with no channel object,
+globalization on (gotcha 93). **Next: the eval run + tuning** -
+docs/knowledge-bot.md *Build order* 3 (the slide-cancel honesty slip, the
+Megan answer, the queue).
 Earlier the same day: banned-move detection finished (v0.24.227-234:
 bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
 gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
@@ -698,8 +704,8 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base (23 cards) and the bot (`bot/`) are built; next its first
-   live run with the author's keys (eval, tune, deploy), then more cards
+   knowledge base (23 cards) and the bot (`bot/`) are built and live in
+   the QA server; next the eval run + tuning, then more cards
    (Megan, cannibal AI from `docs/fsm/`, categories, routes -
    `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,

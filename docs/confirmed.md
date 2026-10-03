@@ -332,3 +332,5 @@ Confirmed 2026-10-03 (game, bridge, v0.24.230): fall damage cancel detection - a
 Confirmed 2026-10-03 (game, bridge, v0.24.229): cave state force load detection - three normal Cave 1 entries silent (let go 12.6 m under the terrain), an entry cut short reported (let go at the mouth 1.9 m above, in cave state); every crawl / swim entrance's normal let-go is 7.5 m or more under the terrain.
 
 Confirmed 2026-10-04 (game, the author by hand): the trap boost - the large swinging rock trap's knockback stacks in the pause menu like a bomb's (game-notes *Speedrun tech*); "cool i guess but longer to build and less versatile than a small bomb trap".
+
+Confirmed 2026-10-03 (the author, live): the game-knowledge bot (`bot/`) runs on the VPS (`forest-bot` container, deployed by CI) and answers in the QA server - mentions and `/ask` work after v1daab00's fixes; first answers through Gemini 3.8 Flash were correct and sourced (bomb boost fps, max fall speed); the decompiled code (3,668 files) and the embedding model loaded there.

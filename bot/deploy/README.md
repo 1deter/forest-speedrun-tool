@@ -13,10 +13,12 @@ discord.com/developers/applications -> New Application ("Forest Knowledge"
 or anything) ->
 - *Bot*: Reset Token -> copy it (this is `FOREST_BOT_DISCORD_TOKEN`); turn on
   **Message Content Intent** (needed to read replies and mentions).
-- *Installation* (or OAuth2 -> URL Generator): scopes `bot` +
-  `applications.commands`; permissions: View Channels, Send Messages, Send
-  Messages in Threads, Read Message History. Open the link, add it to the
-  server.
+- *Installation*: Installation Contexts -> **Guild Install** ticked; Default
+  Install Settings -> Guild Install -> scopes `applications.commands` **and
+  `bot`** (without `bot` only the command is added - the bot user is not in
+  the server and cannot be mentioned); permissions: View Channels, Send
+  Messages, Send Messages in Threads, Read Message History. Save, open the
+  Install Link, Add to Server. The bot then shows in the member list.
 - Right-click the channel(s) it should answer in -> Copy Channel ID (turn on
   Developer Mode in Discord's settings if the option is missing).
 
@@ -42,16 +44,27 @@ puts `compose.yaml` and an `.env` template in `/opt/forest-bot`, downloads
 the embedding model (~130 MB) into `/var/lib/forest-bot/embed`, and prints
 the deploy key once.
 
-**4. The game's code** (private - never in the repo, never served): from the
-author's PC, copy the decompiled folder up and hand it to the container:
+**4. The game's code** (private - never in the repo, never served). Done
+2026-10-03 this way: pack the decompiled folder into one archive on the PC
+(`tar czf game-code.tar.gz --exclude=Assembly-CSharp/obj Assembly-CSharp`
+in `%LOCALAPPDATA%\ForestOverlay\game-src` - 2.5 MB; a session's sandbox
+may hide that folder from the author, so copy it to the Desktop), upload it
+with Termius SFTP into the home folder (`/home/ubuntu/` - the bot's data
+folder is locked to the container's user), then in a VPS terminal **from
+the home folder**:
 
 ```sh
-scp -r "$LOCALAPPDATA/ForestOverlay/game-src/Assembly-CSharp" <user>@<vps>:/tmp/game-code
-ssh <user>@<vps> 'sudo rm -rf /var/lib/forest-bot/code && sudo mv /tmp/game-code /var/lib/forest-bot/code && sudo chown -R 1654:1654 /var/lib/forest-bot/code'
+sudo rm -rf /var/lib/forest-bot/code
+sudo mkdir -p /var/lib/forest-bot/code
+sudo tar xzf ~/game-code.tar.gz -C /var/lib/forest-bot/code --strip-components=1
+sudo chown -R 1654:1654 /var/lib/forest-bot/code
+rm ~/game-code.tar.gz
+sudo docker restart forest-bot
+sudo docker logs --tail 20 forest-bot      # "Code: 3668 files, 4671 types"
 ```
 
-Redo it after a game update (re-decompile first - docs/knowledge-bot.md
-*Decompiled code*). Without it the bot still answers, without the code tools.
+The Forest is no longer updated, so this is a one-time step. Without it the
+bot still answers, without the code tools.
 
 **5. GitHub:** repo -> Settings -> Secrets and variables -> Actions -> New
 repository secret: `BOT_DEPLOY_KEY` = the private key setup printed (BEGIN
@@ -59,7 +72,13 @@ and END lines included). `DEPLOY_HOST` / `DEPLOY_HOST_KEY` are the site's.
 
 **6. First deploy:** Actions -> bot -> Run workflow. Then
 `sudo docker logs --tail 50 forest-bot` should show the knowledge loaded,
-the embeddings, the code, the models and `Discord: ready as ...`.
+the embeddings, the code, the models and `Discord: ready as ...`. The very
+first start embeds every knowledge piece on the VPS's CPU (~2 min for 812);
+later starts load them from `vectors.db` in milliseconds. The onnxruntime
+"Failed to persist telemetry device ID" warning is harmless (read-only
+filesystem). `/ask` registered globally can take up to an hour to show;
+`FOREST_BOT_TEST_GUILD=<server id>` in `.env` registers it in one server at
+once (mentions work immediately either way).
 
 ## Day to day
 

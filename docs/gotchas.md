@@ -810,3 +810,24 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     overlapping geometry and pushed out. Before trusting a geometric
     detector, check whether the collider moves (pose over two reads) and
     give every teleport a settle time.
+
+92. **The plugin's SDK project compiles every `.cs` under the repo.**
+    (2026-10-03, the knowledge bot.) `ForestOverlay.csproj` sits at the repo
+    root and globs `**/*.cs`; only the folders in its `Compile Remove` line
+    are left out. The new `bot/` (net10.0) was not, so the net35 plugin
+    build failed in CI the moment it was pushed. A new top-level project
+    folder goes into the three `Remove` lines (`Compile`, `None`,
+    `EmbeddedResource`) in the same commit - and build the plugin, not
+    only the new project, before pushing.
+
+93. **A Discord bot's first live run fails in ways no test sees.**
+    (2026-10-03, forest-bot.) Three in a row: `InvariantGlobalization`
+    (copied from the site) made Discord.Net throw on every server's locale
+    (`CultureInfo("en-US")` in `GUILD_CREATE`), so the server never loaded
+    and every message was an "Unknown Channel"; an install link with only
+    `applications.commands` (no `bot` scope) added the command but not the
+    bot user, so `SocketSlashCommand.Channel` was null and the handler
+    threw ("the application did not respond"); and Gemini answered a 503
+    "high demand" on the very first question. Go by interaction ids
+    (`ChannelId`, `GuildId`), keep globalization on for Discord.Net, retry
+    5xx, and read the container log after every first deploy.
