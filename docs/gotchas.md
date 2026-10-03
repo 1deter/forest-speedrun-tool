@@ -747,3 +747,15 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     Place a camera by the tallest renderer under it, not the heightmap;
     when something casts a shadow but is not drawn, check the clip planes
     and culling before the object's own state.
+
+87. **An exit is an event, not a flag.** (v0.24.222.) Our teleport out of
+    the endgame cleared `IsInEndgame` and nothing else; walking out fires
+    the LoadEndgame trigger's backward-crossing event (`ExitEndgame`), whose
+    listeners also switch the outdoor sun (`TimeAndWeather/R10`) back on.
+    A save loaded in the lab and teleported out stayed lit like a cave
+    (the photo capture came out 3-15x darker; the author: "cavestate
+    lighting"). Like gotcha 20, but for a state the game changes through
+    scene-wired UnityEvents: read the trigger's events (`fields ...
+    m_PersistentCalls.m_Calls[i]`) and invoke them instead of setting the
+    flag. A normal cave round trip was fine - test from a save loaded
+    inside, not only from a walk in.

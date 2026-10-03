@@ -222,11 +222,16 @@ with a Water switch.
    author's "overlook's shadow", 2026-10-02). Since v0.24.221 a tile's
    camera clears the tallest renderer over it too (log: `camera raised to
    y ...`, 8 renderers, the south rows); a test of tiles 8_0 / 9_0 drew
-   the mountains whole. **Not yet recaptured**: that game was at quality
-   0 (Fastest) in a 1366x768 window - every tile ~3-15x darker, an
-   untouched control too - so check the launcher's quality / resolution
-   (1200 px high before) and one tile against the old one before a full
-   run. Retake
+   the mountains whole. **Capture from the surface's own light**: Slot 1
+   loads in the endgame lab, and before v0.24.222 a `tp` out left the sun
+   off (cave lighting - every tile 3-15x darker, author spotted it); the
+   capture now logs a warning when the sun is off. Check one tile against
+   the old capture before a full run (the plane wreck tile 9_12: mean
+   ~(84, 93, 57)). Recaptured 2026-10-03 on v0.24.222 (17.4 min, 1200 px,
+   max graphics; the two south rows' cameras at y ~1500). The long N-S
+   shadow south of the map's middle (tile 9_0) is real: the snow mountain
+   model west of it (to y ~440) casts it, and it moves with `sunTime`.
+   Retake
    rows N+ with `AerialStart -1750 <z0 + N*218.75> 1750 1757.369 ...` -
    its files are numbered from row 0 again and it overwrites `tiles.txt`,
    so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`
@@ -621,8 +626,8 @@ left the 4 m in front of the ghost. Checked headless on 1st logboost's runs
 (live API proxied to a local site): a clear passage instead of sliced
 rock; not yet seen by the author. Caves not drawn on the 2D map:
 **fixed 2026-10-02** (*Caves on the 2D map* below); the photo map's
-"overlook's shadow" with no overlook: **fixed in the capture (v0.24.221),
-the live map needs a recapture** (*The photo map*, step 1); the south
+"overlook's shadow" with no overlook: **fixed and recaptured
+(v0.24.221-222)** (*The photo map*, step 1); the south
 mountains' 3D textures: nice QoL, not a dealbreaker.
 
 Open: the load-order look

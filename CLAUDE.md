@@ -563,6 +563,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`).
 85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material.
 86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer.
+87. **An exit is an event, not a flag** - our tp out of the endgame cleared `IsInEndgame` only; the game's `ExitEndgame` event also turns the sun back on. Invoke the trigger's UnityEvents; test from a save loaded inside.
 
 ---
 
@@ -614,23 +615,30 @@ identity.
 
 ## Current status
 
-**Released: v0.24.221** (2026-10-02). The author runs it via the in-game
+**Released: v0.24.222** (2026-10-03). The author runs it via the in-game
 updater (Slot 1). **536 tests** (+ 83 site tests).
 
-### Pick up here (2026-10-02, v0.24.221 released)
+### Pick up here (2026-10-03, v0.24.222 released)
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session
-(v0.24.221, capture tooling only):** the photo map's "overlook's shadow
-without the overlook" was the south mountains' models (to y ~1100) above
-the capture camera (terrain + 400 m): tops cut by the near plane, shadows
-still cast. The camera now clears the tallest renderer per tile (tested
-on two tiles: mountains whole). **The live map still needs a full
-recapture + bake + upload** (docs/website.md *The photo map*) - the game
-was at quality Fastest / 1366x768 that session (every tile far darker),
-so check the launcher settings first. Before: **caves drawn on the 2D map** - underground, the map draws the
+(v0.24.221-222):** the photo map's "overlook's shadow without the
+overlook": the south mountains' models (to y ~1100) stood above the
+capture camera (terrain + 400 m) - tops cut by the near plane, shadows
+still cast; the camera now clears the tallest renderer per tile
+(v0.24.221). The dark test tiles were **cave lighting**, spotted by the
+author: our tp out of the endgame only cleared `IsInEndgame`, leaving the
+sun's parent `TimeAndWeather/R10` off; it now sends the game's
+`ExitEndgame` (v0.24.222, live-checked from Slot 1; runners teleporting
+out of the lab get the sun back too; gotcha 87). **Recaptured** on
+v0.24.222 (2026-10-03, 1200 px, max graphics) and uploaded (build
+1790985923): the south mountains whole. A long N-S shadow on the snow
+south of the map's middle stays - the snow mountain west of it (model to
+y ~440) casts it, it moves with the sun (checked at sunTime 290); ask the
+author whether that was what they meant. Old capture kept in
+`config/ForestOverlay/aerial.backup-2026-10-03`. Before: **caves drawn on the 2D map** - underground, the map draws the
 caves' and endgame's floor plan (`scripts/cave-bake.py` ->
 `wwwroot/terrain/caves.webp`, from the world's collision meshes, slivers
 between pieces filtered by walkable region; docs/website.md *Caves on the
@@ -707,9 +715,7 @@ one (a preset save as a start state, `run = <category name>`, in
    culling; BatchedMesh tried and dropped (slower); the remaining lever is
    texture arrays in the export - only if frame times call for it;
    Follow's camera through cave walls fixed; caves on the 2D map done.
-   The next item: the photo map recapture with v0.24.221 (the south
-   mountains drawn whole; launcher quality / resolution checked first).
-   The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
+   Photo map recaptured (v0.24.222). The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
@@ -741,7 +747,7 @@ load physics parity (deferred), Tom's crashes (paused).
 in [`docs/website.md`](docs/website.md)): spots, runs uploaded from the
 game (on by default; a test run that finishes uploads - delete it,
 *Test spots*), other runners' PBs as comparisons, the admin page, spot
-submissions, the photo map (recaptured 2026-10-01 on v0.24.180) and the
+submissions, the photo map (recaptured 2026-10-03 on v0.24.222) and the
 3D world of the game's own models (surface, caves, the endgame lab; per
 kind switches, texture packs). Every push to `site/`, `src/Data/`,
 `community/` deploys; watch a deploy by polling the live page with a
