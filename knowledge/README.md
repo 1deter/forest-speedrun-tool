@@ -76,7 +76,8 @@ wall-and-log-boost, zipline-boost, swimming, position-snaps,
 tunnelling-and-speed-cap, elevator-skip, lab-skip, endgame-gate,
 keycards-and-pickups, endgame-splits, caves-and-loading,
 saves-and-loading, deaths-and-revives, pausing-and-game-time,
-dev-console-and-creative, forestoverlay. Each was checked against the
+dev-console-and-creative, forestoverlay (+ timmy-forehead-skip, a
+runner report only, 2026-10-03). Each was checked against the
 decompiled code while written (corrections made on the way: the pause menu
 stops time on Hard too; the fall cap is the speed cap; the zipline exit
 weakens braking).

@@ -19,6 +19,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | elevator skip, elevator clip, elevator boost | clipping out of the red elevator's locked car early | elevator-skip |
 | red elevator | Hell Corridor elevator to the overlook; checks no keycard | elevator-skip |
 | lab skip, gold door skip, megan skip | past the gold door over invisible collision + a clip, skipping Timmy / Megan / boss | lab-skip |
+| timmy forehead skip, forehead skip, bed skip | runner-reported: aim at Timmy's scar at ~15-18 fps to skip the bed part of his cutscene (not researched) | timmy-forehead-skip |
 | invisible section, invisible collision | the lab's collision (`EndCollision`), always present, drawn only through area gates | lab-skip |
 | true any% | any% including the keycard cave wall clip | endgame-gate |
 | keycard skip, keycardless | beating the game without keycard 210 - not possible in single player | endgame-gate |

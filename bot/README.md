@@ -42,6 +42,8 @@ forest-bot ask "<question>"    # one answer on the console, with its lookups
 forest-bot chat                # a console conversation (follow-ups)
 forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota)
 forest-bot queue               # the open research queue
+forest-bot answer <id>         # a stored answer in full (the queue's "answer #n")
+forest-bot resolve <id>        # close a queue item once it is dealt with
 ```
 
 Locally: `dotnet run --project bot/ForestBot -c Release -- <mode> ...`; the

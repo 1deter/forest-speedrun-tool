@@ -42,6 +42,12 @@ switch (mode)
         using Brain brain = new Brain(cfg, log, withModels: false);
         Console.WriteLine(brain.Corpus.Problems.Count == 0 ? "OK: no knowledge problems" : brain.Corpus.Problems.Count + " problem(s)");
         Console.WriteLine("Prompt: " + Prompt.Build(brain.Corpus, brain.Code.FileCount > 0).Length + " chars");
+        if (args.Contains("--unconfirmed"))
+            foreach (ForestBot.Knowledge.Card c in brain.Corpus.Cards.Values)
+            {
+                Console.WriteLine(c.Id + " (" + c.Confidence + "):");
+                foreach (string u in c.Unconfirmed()) Console.WriteLine("  - " + u);
+            }
         return brain.Corpus.Problems.Count == 0 && brain.Corpus.Cards.Count > 0 ? 0 : 1;
     }
     case "ask":
@@ -80,6 +86,24 @@ switch (mode)
         using Brain brain = new Brain(cfg, log, withModels: false);
         foreach (QueueItem q in brain.Store.OpenQueue())
             Console.WriteLine($"#{q.Id} {q.Created:yyyy-MM-dd} {q.Reason} (answer #{q.AnswerId}): {q.Question}\n    {q.Detail}");
+        return 0;
+    }
+    case "answer":
+    {
+        // A stored answer in full (a thumbs-down's comment rarely says enough).
+        using Brain brain = new Brain(cfg, log, withModels: false);
+        StoredAnswer a = args.Length > 1 && long.TryParse(args[1].TrimStart('#'), out long id) ? brain.Store.GetAnswer(id) : null;
+        if (a == null) { Console.Error.WriteLine("usage: answer <id> (an id from `queue`)"); return 1; }
+        (int up, int down) = brain.Store.Votes(a.Id);
+        Console.WriteLine($"#{a.Id} (conversation #{a.ConversationId}) {a.Status} {a.Model}, +{up} -{down}\nQ: {a.Question}\n\n{a.Answer}\n\nsources: {a.Sources}");
+        return 0;
+    }
+    case "resolve":
+    {
+        using Brain brain = new Brain(cfg, log, withModels: false);
+        if (args.Length < 2 || !long.TryParse(args[1].TrimStart('#'), out long id)) { Console.Error.WriteLine("usage: resolve <queue id>"); return 1; }
+        brain.Store.Resolve(id);
+        Console.WriteLine("resolved #" + id);
         return 0;
     }
     case "run":

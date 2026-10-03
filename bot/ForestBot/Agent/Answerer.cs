@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Text;
 using ForestBot.Llm;
 
@@ -153,7 +154,64 @@ public sealed class Answerer
             keep.Add(raw);
         }
         if (answer.Sources.Count == 0) answer.Sources.AddRange(answer.Read);
-        answer.Text = string.Join("\n", keep).Trim();
+        answer.Text = PlainMath(string.Join("\n", keep).Trim());
+    }
+
+    private static readonly (string tex, string plain)[] TexSymbols =
+    {
+        ("\\Delta", "Δ"), ("\\delta", "δ"), ("\\times", "×"), ("\\cdot", "·"), ("\\approx", "≈"), ("\\leq", "≤"),
+        ("\\geq", "≥"), ("\\le", "≤"), ("\\ge", "≥"), ("\\neq", "≠"), ("\\pm", "±"), ("\\to", "→"),
+        ("\\rightarrow", "→"), ("\\infty", "∞"), ("\\theta", "θ"), ("\\pi", "π"), ("\\,", " "), ("\\;", " "), ("\\ ", " "),
+    };
+
+    /// Math the model wrote as LaTeX despite the prompt ($\Delta\text{x}$,
+    /// seen live 2026-10-03 - Discord shows it raw), as plain text. Code
+    /// blocks and inline code are left alone.
+    public static string PlainMath(string text)
+    {
+        if (text.IndexOf('$') < 0 && text.IndexOf("\\(", StringComparison.Ordinal) < 0 && text.IndexOf("\\[", StringComparison.Ordinal) < 0) return text;
+        StringBuilder b = new StringBuilder();
+        string[] lines = text.Split('\n');
+        bool code = false;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0) b.Append('\n');
+            string line = lines[i];
+            if (line.TrimStart().StartsWith("```")) { code = !code; b.Append(line); continue; }
+            if (code) { b.Append(line); continue; }
+            string[] parts = line.Split('`');   // odd parts are inline code
+            for (int p = 0; p < parts.Length; p++)
+            {
+                if (p > 0) b.Append('`');
+                b.Append(p % 2 == 1 ? parts[p] : MathSpans(parts[p]));
+            }
+        }
+        return b.ToString();
+    }
+
+    private static string MathSpans(string s)
+    {
+        s = Regex.Replace(s, @"\$\$(.+?)\$\$|\\\[(.+?)\\\]|\\\((.+?)\\\)", m => Tex(m.Groups[1].Value + m.Groups[2].Value + m.Groups[3].Value));
+        // $...$ only when it looks like math (a backslash, ^, _ or braces) - "$5" stays.
+        return Regex.Replace(s, @"\$([^$\n]+?)\$", m => Regex.IsMatch(m.Groups[1].Value, @"[\\^_{}]") ? Tex(m.Groups[1].Value) : m.Value);
+    }
+
+    private static string Tex(string t)
+    {
+        for (int guard = 0; guard < 5; guard++)
+        {
+            string before = t;
+            t = Regex.Replace(t, @"([\^_])\{([^{}]*)\}", "$1$2");
+            t = Regex.Replace(t, @"\\frac\{([^{}]*)\}\{([^{}]*)\}", "($1) / ($2)");
+            t = Regex.Replace(t, @"\\sqrt\{([^{}]*)\}", "sqrt($1)");
+            t = Regex.Replace(t, @"\\(?:text|mathrm|mathbf|mathit|operatorname|textbf)\{([^{}]*)\}", "$1");
+            if (t == before) break;
+        }
+        foreach ((string tex, string plain) in TexSymbols) t = t.Replace(tex, plain);
+        t = Regex.Replace(t, @"\\(left|right)\b", "");
+        t = Regex.Replace(t, @"\\([A-Za-z]+)", "$1");
+        t = t.Replace("{", "").Replace("}", "");
+        return Regex.Replace(t, @"  +", " ").Trim();
     }
 
     /// The sources as one Discord subtext line: cards by name, the rest

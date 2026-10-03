@@ -581,6 +581,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports.
 92. **The plugin's SDK project compiles every `.cs` under the repo** - a new top-level project folder goes into `ForestOverlay.csproj`'s `Remove` lines in the same commit; build the plugin before pushing.
 93. **A Discord bot's first live run fails in ways no test sees** - Discord.Net needs globalization on; a command-only install leaves `Channel` null (go by ids); retry 5xx; read the container log after the first deploy.
+94. **Tune for the model that actually answers** - Flash's free daily quota is gone after ~1 eval question (shared with the live bot): Flash-Lite answers most of the day; a 429's `quotaId` says per-day vs per-minute; never score a rate-limited answer.
 
 ---
 
@@ -633,32 +634,36 @@ identity.
 ## Current status
 
 **Released: v0.24.234** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **620 tests** (+ 85 site tests, + 24 bot tests).
+updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**This session: the game-knowledge bot - the knowledge base and the
-bot** (no plugin code, no release). The author's second
-round of decisions is in *Standing decisions* (gateway bot, follow-ups by
-reply, no site pages, the decompiled C# quoted freely) and
-[`docs/knowledge-bot.md`](docs/knowledge-bot.md) (retrieval local - FTS5 +
-a bge-small ONNX model; Gemini Flash writes, Mistral's free tier as the
-fallback). Built: `knowledge/` - 23 cards, the glossary, 40 test questions;
-`bot/` - the whole bot (`bot/README.md`), 24 tests, CI + deploy
-(`.github/workflows/bot.yml`, `bot/deploy`; deploy skipped until
-`BOT_DEPLOY_KEY`). The decompiled source lives in
-`%LOCALAPPDATA%\ForestOverlay\game-src\` (+ ilspycmd, the DLL's hash).
-Writing the cards against the code corrected / added facts (game-notes
-*Knowledge base pass*): the fall cap is the speed cap, the pause menu
-stops time on Hard too, the zipline exit weakens braking 60x for 1 s,
-`doCave`'s 1.5 s / 3 s, the red elevator's use limit. **The bot is live**
-on the VPS and answers in the **QA server** (temporary, while the
-community admins answer; author 2026-10-03) - Gemini 3.8 Flash ->
-Flash-Lite, no Mistral for now. First-run fixes: plugin csproj excluding
-`bot/` (gotcha 92), no LaTeX, 5xx retries, `/ask` with no channel object,
-globalization on (gotcha 93). **Next: the eval run + tuning** -
-docs/knowledge-bot.md *Build order* 3 (the slide-cancel honesty slip, the
-Megan answer, the queue).
+**This session: the knowledge bot's eval run + tuning** (no plugin code,
+no release; docs/knowledge-bot.md *Build order* 3). Eval 41% -> **87%**
+(+ the new questions ~88%), all on Flash-Lite: Flash's free daily quota
+runs out almost at once (gotcha 94), so the live bot is mostly Flash-Lite
+too. Fixed: the eval waits out per-minute rests and retries the judge;
+429s log their `quotaId`; `read_card` puts a **NOT CONFIRMED** list
+(`[runner]` / `[inferred]` / not reproduced / Open questions) on top of
+each card; LaTeX in answers becomes plain text in code; prompt rules from
+the author's live thread (Discord `1555989862652313620`: the bot called
+the runner-reported **Timmy forehead skip** "a joke" and repeated it
+louder on pushback; denied, then invented a cause for, a ~50 m/s after an
+axe clip): never dismiss a runner report, guesses only under "Possible
+causes (guesses, not tested)", no "does not" beyond what was tested, no
+developer motives, re-check on pushback, rules questions still looked up.
+New card `timmy-forehead-skip` (runner report); the clip speed noted in
+smash-clip / wall-and-log-boost; 3 new eval questions (43); `forest-bot
+answer <id>` / `resolve <id>` for the 👎 queue. Builds on the bot built and
+deployed earlier the same day (`knowledge/` 24 cards, `bot/`, the VPS
+container; decisions in *Standing decisions* and docs/knowledge-bot.md;
+decompiled source in `%LOCALAPPDATA%\ForestOverlay\game-src\`). **Next:**
+the embedding model locally (author OK for ~130 MB, not asked), more
+cards (Megan's FSMs - `girlMutantAiManager.setAiParams` weights are read
+fine from code, the FSM side is not; cannibal AI), the production
+server once the admins agree; resolve queue #1 (Megan) / #2 (the clip
+speed, noted) on the VPS with `resolve`. A run with SSH from a session is
+blocked by the permission classifier - the author runs VPS commands.
 Earlier the same day: banned-move detection finished (v0.24.227-234:
 bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
 gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
@@ -704,8 +709,8 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base (23 cards) and the bot (`bot/`) are built and live in
-   the QA server; next the eval run + tuning, then more cards
+   knowledge base (24 cards) and the bot (`bot/`) are built and live in
+   the QA server; eval + tuning done (87%, 2026-10-03); next more cards
    (Megan, cannibal AI from `docs/fsm/`, categories, routes -
    `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,

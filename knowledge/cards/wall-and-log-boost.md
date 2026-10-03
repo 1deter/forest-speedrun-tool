@@ -43,7 +43,11 @@ you, the same push is a **clip**.
 **It is a lift, not a launch** [live]: a box moved 0.3 / 1 / 2 m into the
 player's feet lifted the player out by **exactly that depth**, in one step,
 with **zero velocity left over**. You end up standing on top; you do not
-fly. Any extra height has to come from a jump after it.
+fly. Any extra height has to come from a jump after it. That test moved a
+box into a standing player; a clip through a wall during a smash (see
+`smash-clip`) has not been measured, and a runner reports a short
+**~50 m/s** burst after a good elevator or panel clip [runner; not
+reproduced].
 
 ## Numbers
 
@@ -77,3 +81,5 @@ fly. Any extra height has to come from a jump after it.
 - The runners' own wall boost and keycard cave clip have not been done with
   real input over the bridge yet; which structures and placements work best
   is their knowledge.
+- Whether a depenetration during a clip can leave the player moving (the
+  runner-reported ~50 m/s after an axe clip) - the lift test left none.

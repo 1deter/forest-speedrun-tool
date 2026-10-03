@@ -51,7 +51,7 @@ public sealed class GeminiChat : IChatModel
         using HttpResponseMessage held = resp;
         bool overloaded = (int)resp.StatusCode >= 500;
         if (resp.StatusCode == HttpStatusCode.TooManyRequests || overloaded)
-            throw new ModelUnavailableException(Name + ": HTTP " + (int)resp.StatusCode + " " + Brief(text),
+            throw new ModelUnavailableException(Name + ": HTTP " + (int)resp.StatusCode + QuotaIds(text) + " " + Brief(text),
                 overloaded ? TimeSpan.FromSeconds(20) : RetryAfter(resp, text), overloaded);
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException(Name + ": HTTP " + (int)resp.StatusCode + " " + Brief(text));
@@ -175,6 +175,22 @@ public sealed class GeminiChat : IChatModel
                 return TimeSpan.FromSeconds(Math.Max(1, s));
         }
         return TimeSpan.FromSeconds(60);
+    }
+
+    /// The quotas a 429 names (" [GenerateRequestsPerDayPerProjectPerModel-FreeTier]"):
+    /// a per-day quota and a per-minute one need different handling, and
+    /// the name sits past what Brief keeps.
+    internal static string QuotaIds(string body)
+    {
+        List<string> ids = new List<string>();
+        for (int i = body.IndexOf("\"quotaId\"", StringComparison.Ordinal); i >= 0;
+             i = body.IndexOf("\"quotaId\"", i + 1, StringComparison.Ordinal))
+        {
+            int q1 = body.IndexOf('"', body.IndexOf(':', i) + 1);
+            int q2 = q1 < 0 ? -1 : body.IndexOf('"', q1 + 1);
+            if (q2 > q1 && !ids.Contains(body.Substring(q1 + 1, q2 - q1 - 1))) ids.Add(body.Substring(q1 + 1, q2 - q1 - 1));
+        }
+        return ids.Count == 0 ? "" : " [" + string.Join(", ", ids) + "]";
     }
 
     internal static string Brief(string s)

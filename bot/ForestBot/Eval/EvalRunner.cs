@@ -11,13 +11,17 @@ namespace ForestBot.Eval;
 // fact and "not" item against the answer. Writes a report to the data
 // folder and prints the score. Run it before swapping models or after a
 // large knowledge change; it spends quota (~3-6 requests a question),
-// so it paces itself.
+// so it paces itself, and waits out a short quota rest (a per-minute
+// limit) instead of scoring the question "busy" - the first full run
+// lost half its questions that way (2026-10-03).
 // ------------------------------------------------------------------
 public sealed class EvalRunner
 {
     private readonly Brain _brain;
     private readonly Action<string> _out;
     public TimeSpan Pause = TimeSpan.FromSeconds(8);
+    /// The longest quota rest waited out; a longer one (a daily quota) is busy.
+    public TimeSpan MaxWait = TimeSpan.FromMinutes(5);
 
     public EvalRunner(Brain brain, Action<string> output)
     {
@@ -34,13 +38,13 @@ public sealed class EvalRunner
 
         foreach (EvalQuestion q in questions)
         {
-            Answer a = await _brain.Answerer.AskAsync(q.Question, new List<Turn>(), ct);
+            Answer a = await AskAsync(q.Question, new List<Turn>(), ct);
             (int ok, int n, string detail) = await JudgeAsync(q.Question, a, q.Must, q.Not, q.Cards, ct);
             string thenDetail = "";
             if (q.Then != null && !a.Busy)
             {
                 await Task.Delay(Pause, ct);
-                Answer b = await _brain.Answerer.AskAsync(q.Then, new List<Turn> { new Turn { Question = q.Question, Answer = a.Text } }, ct);
+                Answer b = await AskAsync(q.Then, new List<Turn> { new Turn { Question = q.Question, Answer = a.Text } }, ct);
                 (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
                 ok += ok2; n += n2;
                 thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
@@ -64,6 +68,27 @@ public sealed class EvalRunner
         File.WriteAllText(path, report.ToString());
         _out("Report: " + path);
         return score;
+    }
+
+    /// An answer, retried while every model rests for less than MaxWait.
+    private async Task<Answer> AskAsync(string question, List<Turn> history, CancellationToken ct)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            Answer a = await _brain.Answerer.AskAsync(question, history, ct);
+            if (!a.Busy || attempt >= 5 || !await WaitForModelAsync(ct)) return a;
+        }
+    }
+
+    /// Sleeps until the soonest resting model is back; false if that is
+    /// longer than MaxWait.
+    private async Task<bool> WaitForModelAsync(CancellationToken ct)
+    {
+        TimeSpan wait = _brain.Models.NextAvailable();
+        if (wait > MaxWait) return false;
+        _out("  (quota rest - waiting " + (int)wait.TotalSeconds + " s)");
+        await Task.Delay(wait + TimeSpan.FromSeconds(2), ct);
+        return true;
     }
 
     /// Asks the judge which facts the answer states. Expected cards count
@@ -94,9 +119,22 @@ public sealed class EvalRunner
         bool[] m = new bool[must.Count], n = new bool[not.Count];
         try
         {
-            IChatModel judge = _brain.Models.Pick() ?? throw new InvalidOperationException("no model for the judge");
-            ChatResult r = await judge.CompleteAsync("You are a strict, fair grader. Output JSON only.",
-                new List<ChatMessage> { ChatMessage.User(prompt.ToString()) }, null, 1024, ct);
+            ChatResult r = null;
+            for (int attempt = 0; r == null; attempt++)
+            {
+                IChatModel judge = _brain.Models.Pick();
+                if (judge == null)
+                {
+                    if (attempt >= 5 || !await WaitForModelAsync(ct)) throw new InvalidOperationException("no model for the judge");
+                    continue;
+                }
+                try
+                {
+                    r = await judge.CompleteAsync("You are a strict, fair grader. Output JSON only.",
+                        new List<ChatMessage> { ChatMessage.User(prompt.ToString()) }, null, 1024, ct);
+                }
+                catch (ModelUnavailableException u) { _brain.Models.Rest(judge, u.RetryAfter, u.Message); }
+            }
             string json = r.Text.Trim();
             int s = json.IndexOf('{'), e = json.LastIndexOf('}');
             JsonNode node = JsonNode.Parse(json.Substring(s, e - s + 1));

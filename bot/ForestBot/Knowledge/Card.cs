@@ -95,11 +95,20 @@ public sealed class Card
         return "- " + Id + " - " + Title + ": " + s;
     }
 
-    /// The card as the model reads it: title, metadata, body.
+    /// The card as the model reads it: title, metadata, the claims that
+    /// are not confirmed (on top - a model skims past an inline "[inferred]";
+    /// the 2026-10-03 eval called a never-reproduced clip "based on live
+    /// tests"), body.
     public string Render()
     {
         StringBuilder b = new StringBuilder();
         b.Append("card: ").Append(Id).Append('\n');
+        List<string> unconfirmed = Unconfirmed();
+        if (unconfirmed.Count > 0)
+        {
+            b.Append("NOT CONFIRMED - if your answer uses any of these, say so in it (\"runners report\", \"not tested in game\", \"a guess\"):\n");
+            foreach (string u in unconfirmed) b.Append("- ").Append(u).Append('\n');
+        }
         if (Aliases.Count > 0) b.Append("aliases: ").Append(string.Join(", ", Aliases)).Append('\n');
         if (!string.IsNullOrEmpty(Confidence)) b.Append("confidence: ").Append(Confidence).Append('\n');
         if (!string.IsNullOrEmpty(Checked)) b.Append("checked: ").Append(Checked).Append('\n');
@@ -108,6 +117,100 @@ public sealed class Card
         if (Code.Count > 0) b.Append("code to open: ").Append(string.Join(", ", Code)).Append('\n');
         b.Append('\n').Append(Body);
         return b.ToString();
+    }
+
+    private static readonly string[] UnconfirmedMarks =
+    {
+        "[runner", "[inferred", "not reproduced", "a guess", "not confirmed", "not tested", "untested",
+    };
+
+    /// The card's claims that are not confirmed: the card-wide confidence
+    /// when it is runner / inferred, every sentence or bullet tagged
+    /// [runner] / [inferred] or saying "not reproduced" / "a guess" (a
+    /// heading tagged so covers its section), and the "Open questions".
+    public List<string> Unconfirmed()
+    {
+        List<string> list = new List<string>();
+        if (Confidence == "runner" || Confidence == "inferred")
+            list.Add("The whole card's core claims are " + (Confidence == "runner" ? "runners' reports" : "inferred") + ", not reproduced in game.");
+        foreach ((string heading, string text) in Sections)
+        {
+            if (heading.Equals("Open questions", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (string unit in Units(text)) Add(list, "Open question (not known): " + unit);
+                continue;
+            }
+            if (HasMark(heading)) { Add(list, "The section '" + heading + "' as a whole."); continue; }
+            foreach (string unit in Units(text))
+                if (HasMark(unit)) Add(list, unit);
+        }
+        return list;
+    }
+
+    private static bool HasMark(string s)
+    {
+        s = s.Replace("[inferred: calculated]", "");   // arithmetic on known numbers
+        foreach (string m in UnconfirmedMarks)
+            if (s.IndexOf(m, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        return false;
+    }
+
+    private static void Add(List<string> list, string s)
+    {
+        if (list.Count >= 15) return;
+        if (s.Length > 260) s = s.Substring(0, 257) + "...";
+        if (!list.Contains(s)) list.Add(s);
+    }
+
+    /// Bullets and sentences of a section's text, code blocks skipped. A
+    /// sentence ends at ". " or at a "[tag] " closing it.
+    private static IEnumerable<string> Units(string text)
+    {
+        List<string> paras = new List<string>();
+        StringBuilder para = new StringBuilder();
+        List<string> tableRows = new List<string>();
+        bool code = false;
+        foreach (string raw in text.Split('\n'))
+        {
+            string line = raw.Trim();
+            if (line.StartsWith("```")) { code = !code; continue; }
+            if (code) continue;
+            if (line.StartsWith("|"))
+            {
+                if (para.Length > 0) paras.Add(para.ToString());
+                para.Clear();
+                if (line.Trim('|', '-', ' ', ':').Length > 0) tableRows.Add(line);
+                continue;
+            }
+            bool bullet = line.StartsWith("- ") || line.StartsWith("* ");
+            int num = line.IndexOf(". ", StringComparison.Ordinal);
+            bool numbered = num > 0 && num < 4 && char.IsDigit(line[0]);
+            if (line.Length == 0 || bullet || numbered)
+            {
+                if (para.Length > 0) paras.Add(para.ToString());
+                para.Clear();
+                if (line.Length == 0) continue;
+                line = bullet ? line.Substring(2) : line.Substring(num + 2);
+            }
+            para.Append(para.Length > 0 ? " " : "").Append(line);
+        }
+        if (para.Length > 0) paras.Add(para.ToString());
+        foreach (string row in tableRows) yield return row;   // a row is one claim
+        foreach (string p in paras)
+        {
+            int start = 0;
+            for (int i = 0; i < p.Length; i++)
+            {
+                bool atEnd = i + 1 == p.Length || p[i + 1] == ' ';
+                bool end = (p[i] == '.' || p[i] == '?' || p[i] == '!') && atEnd;
+                if (!end) continue;
+                string s = p.Substring(start, i + 1 - start).Trim();
+                if (s.Length > 0) yield return s;
+                start = i + 1;
+            }
+            string rest = p.Substring(start).Trim();
+            if (rest.Length > 0) yield return rest;
+        }
     }
 
     internal static List<string> SplitList(string value)

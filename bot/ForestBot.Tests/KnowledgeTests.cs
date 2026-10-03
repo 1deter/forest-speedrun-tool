@@ -20,6 +20,30 @@ public class KnowledgeTests
         "Stand near an explosion. It flies you far.\n\nSecond paragraph.\n\n## How\n\nPause.\n\n```csharp\n## not a heading\n```\n\n## Numbers\n\n8 m/s.\n";
 
     [Fact]
+    public void Card_lists_unconfirmed_claims_on_top()
+    {
+        string text = "---\nid: clip\ntitle: Clip\nconfidence: code\n---\n\n# Clip\n\nA clip.\n\n## Why it works\n\n" +
+            "The capsule stays small [live]. Depenetration pushes it out [code]. Runners need uncapped fps [runner].\n" +
+            "- the head sphere moves 1.63 m [live]\n- it is all one window [inferred]\n\n" +
+            "## How the pieces combine [inferred]\n\nThey combine.\n\n```csharp\nx = 1; // not reproduced\n```\n\n" +
+            "## Open questions\n\n- Why fps matters (a guess).\n";
+        Card c = Card.Parse(text, "clip");
+        Assert.Equal(new[]
+        {
+            "Runners need uncapped fps [runner].",
+            "it is all one window [inferred]",
+            "The section 'How the pieces combine [inferred]' as a whole.",
+            "Open question (not known): Why fps matters (a guess).",
+        }, c.Unconfirmed());
+        string r = c.Render();
+        Assert.True(r.IndexOf("NOT CONFIRMED", StringComparison.Ordinal) < r.IndexOf("# Clip", StringComparison.Ordinal));
+
+        Card live = Card.Parse(Sample, "x");
+        Assert.Empty(live.Unconfirmed());
+        Assert.DoesNotContain("NOT CONFIRMED", live.Render());
+    }
+
+    [Fact]
     public void Card_front_matter_and_sections()
     {
         List<string> problems = new List<string>();

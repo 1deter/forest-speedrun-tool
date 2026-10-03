@@ -126,3 +126,11 @@ are the missing part.
 - The exact frame-by-frame collider positions during a successful runner
   clip - needs the move done by hand with `anim watch` and per-frame reads.
 - Why fps matters (the "more frames in the window" idea is a guess).
+- A runner reports a temporary **~50 m/s** after a good elevator or panel
+  clip, bigger the better the clip [runner, the knowledge bot's feedback
+  2026-10-03]. Not measured: the live depenetration test (a box lifting the
+  player, `wall-and-log-boost`) left zero velocity, but it was not a clip
+  through a wall. Measuring it needs a real clip with the speed read each
+  frame. A "big position change in one step = big speed" explanation does
+  not fit that measurement (the lift moved the player up to 2 m in one step
+  and left no speed) - why a clip would differ is not known.

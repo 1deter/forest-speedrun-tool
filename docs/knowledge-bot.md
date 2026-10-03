@@ -139,14 +139,20 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
    admins answer), Gemini 3.8 Flash -> 3.5 Flash-Lite (no Mistral for now -
    author). First live fixes: no LaTeX in answers, 5xx retries, `/ask`
    without a channel object, globalization on (gotcha 93).
-3. **Next: the eval run + tuning** - `forest-bot eval` locally (the
-   author's `GEMINI_API_KEY` is a User variable; `FOREST_BOT_DATA` to a temp
-   folder), read every answer, fix what fails in the prompt or the cards.
-   Seen already: an answer explained the slide cancel without saying it is
-   not reproduced in game (the honesty rule must hold for a card's
-   `[runner]` / not-reproduced claims too). Check the Megan question's
-   answer ("not documented", nothing invented) and the research queue
-   (`sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue`).
+3. **Eval run + tuning** - done 2026-10-03: 41% (quota noise) -> 87% on
+   Flash-Lite (`forest-bot eval` locally: the author's `GEMINI_API_KEY` is a
+   User variable, `FOREST_BOT_DATA` to a temp folder; ~40 min for all 43,
+   it waits out per-minute limits). Flash's free **daily** quota is spent
+   almost at once (shared with the live bot), so tune for Flash-Lite.
+   Honesty: `read_card` lists a card's unconfirmed claims on top
+   (`forest-bot check --unconfirmed` shows them); prompt rules from the
+   author's live thread (runner reports never dismissed, labelled guesses,
+   no over-wide "does not", re-check on pushback); LaTeX stripped in code.
+   Left: Megan's answer reads the code's weights but rarely says the FSM
+   side is unresearched; the judge (Flash-Lite) misgrades now and then -
+   read the answers, not only the score. The queue:
+   `sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue`
+   (`answer <id>` shows a 👎'd answer, `resolve <id>` closes an item).
    Then: the embedding model locally (author OK needed for the ~130 MB
    download - not asked yet) so local runs search like the VPS; the
    production server once the admins agree (`FOREST_BOT_CHANNELS`,

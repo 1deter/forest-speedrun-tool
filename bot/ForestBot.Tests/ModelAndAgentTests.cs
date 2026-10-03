@@ -11,6 +11,21 @@ namespace ForestBot.Tests;
 
 public class ModelAndAgentTests
 {
+    [Fact]
+    public void Latex_in_answers_becomes_plain_text()
+    {
+        Assert.Equal("velocity = Δposition / Δtime (often)",
+            Answerer.PlainMath(@"velocity = $\Delta\text{position} / \Delta\text{time}$ (often)"));
+        Assert.Equal("d ≈ 1.3 × fps × t", Answerer.PlainMath(@"$$d \approx 1.3 \times fps \times t$$"));
+        Assert.Equal("v = sqrt(2 · 8 · 10)", Answerer.PlainMath(@"\(v = \sqrt{2 \cdot 8 \cdot 10}\)"));
+        Assert.Equal("(0.9 v^2) / (27.5)", Answerer.PlainMath(@"$\frac{0.9 v^{2}}{27.5}$"));
+        // left alone: money, inline code, code blocks
+        Assert.Equal("costs $5 and $6", Answerer.PlainMath("costs $5 and $6"));
+        Assert.Equal("`$\\Delta$` x", Answerer.PlainMath("`$\\Delta$` x"));
+        string block = "```csharp\nvar s = $\"{x}\\n\";\n```";
+        Assert.Equal(block, Answerer.PlainMath(block));
+    }
+
     private static readonly List<ToolSpec> OneTool = new List<ToolSpec>
     {
         new ToolSpec { Name = "search", Description = "d", Parameters = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() } },

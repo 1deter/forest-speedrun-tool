@@ -831,3 +831,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     "high demand" on the very first question. Go by interaction ids
     (`ChannelId`, `GuildId`), keep globalization on for Discord.Net, retry
     5xx, and read the container log after every first deploy.
+
+94. **Tune for the model that actually answers, and grade only what was answered.**
+    (2026-10-03, forest-bot eval.) The first eval scored 41%: Gemini 3.8
+    Flash's free **daily** quota (`GenerateRequestsPerDayPerProjectPerModel`)
+    ran out after one question - shared with the live bot, so Flash-Lite
+    answers most of the day - and Flash-Lite's per-minute limit made half
+    the questions "busy", scored as wrong; the judge hit the same 429s. The
+    real score was 87%. The 429's `quotaId` (now in the log line) says which
+    limit; the eval waits out short rests. Honesty fixes must hold on the
+    weaker model: an inline `[inferred]` was skimmed past until `read_card`
+    put a NOT CONFIRMED list on top.
