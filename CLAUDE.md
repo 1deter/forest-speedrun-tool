@@ -551,7 +551,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one.
 73. **Diff a switch's two outputs before shipping it** - the "-dry" photo layer was the wet one (the ocean never draws in the capture) and "eye adaptation off" did not hold; compare on / off results and read a setting back before building on it.
 74. **A check against a clamped result must clamp its input too** - the 3D patch, clamped inside the map, never "covered" a centre near the edge and was rebuilt every 0.4 s (the white flicker).
-75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model.
+75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model. Corrected 2026-10-03: those pits ARE water in game (only the sinkhole is dry) - check a "dry" verdict in game.
 76. **A game can have more than one distance switch** - LOD_Manager's ranges and 963 `LOD_GroupToggle`s with their own; a shape cut at a tile edge = a switch on the tile's centre (`ilscan refs PlayerCamLocation::PlayerLoc`).
 77. **A scene object can be moved at run time** - the yacht stands 130 m from its scene position (a positive handle under a spawned root); check an exported object against `find` before chasing its look.
 78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places.
@@ -624,6 +624,15 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session
+(2026-10-03, site only, no release):** the photo map's lakes (author:
+"water is still missing from medium/small lakes and the middle"). The
+bake now draws every "The Forest/Water" model from the world export in
+any area (the middle's lakes are one plane, `BigLake_v2` at y 48.4, filed
+under caves), fills every inland basin below sea level except the
+sinkhole (five teleports: underwater - gotcha 75 corrected) and measures
+the sinkhole's pool against its floor model. Baked + uploaded (build
+1790988341); not yet seen by the author. Suspected from the code, not
+checked: the 3D view draws BigLake unclipped / only with caves on (*Next* 1). **Session before
 (v0.24.221-222):** the photo map's "overlook's shadow without the
 overlook": the south mountains' models (to y ~1100) stood above the
 capture camera (terrain + 400 m) - tops cut by the near plane, shadows
