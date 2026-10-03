@@ -327,3 +327,5 @@ Confirmed 2026-10-02 (site, the author on the live site: "seems to work well"): 
 Confirmed 2026-10-02 (site, the author on the live site, Follow in a cave): the 3D view's view-cone culling - "it's fine"; the wall over the right of the view was the Follow camera inside the cave rock, not culling.
 
 Confirmed 2026-10-03 (site, the author on the live site): the photo map's lakes (BigLake_v2, the inland basins, the sinkhole's pool - "looks good now"); the 3D view's middle lake as surface water ("seems fine"); the south mountains' textures and the overlook / boss room no longer black; caves on the 2D map ("a little bit hard to read but it's fine"); Follow's camera kept out of cave rock ("works great now"); ground-level and per-instance culling (nothing odd seen); the long N-S snow shadow gone in the v0.24.222 recapture.
+
+Confirmed 2026-10-04 (game, the author by hand): the trap boost - the large swinging rock trap's knockback stacks in the pause menu like a bomb's (game-notes *Speedrun tech*); "cool i guess but longer to build and less versatile than a small bomb trap".

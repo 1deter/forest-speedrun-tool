@@ -2639,7 +2639,9 @@ back at each frame (the mouse rotators are off during the knockback).
 `FirstPersonCharacter.Update` zeroes the horizontal velocity while the pause
 menu is up, but forces waiting for the physics step are untouched.
 Other senders of `Explosion` to the player start the same knockback, so the
-same stacking (IL, untested): the **large swinging rock trap**
+same stacking: the **large swinging rock trap** (confirmed by the author
+2026-10-04: the trap boost works, but takes longer to build and is less
+versatile than a small bomb trap)
 (`trapHit.registerTrapHit`: `largeSwingingRock`, rock speed > 11 m/s,
 `Explosion(-1)` to whatever it hits - `Player` / `playerHitDetect`
 included), enemy thrown rocks (`thrownRockDamage`), the fat creepy's charge

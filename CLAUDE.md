@@ -647,8 +647,9 @@ judged on the last collision ENTER's vertical speed (the slide cancel);
 the cave force load is `doCave`'s timed `InACave`; the keycard bounty is
 closed in code for single player (the end buttons live in
 `endgame_streaming`, loaded only after the vault door or from a save made
-inside the loaded lab). New-tech candidate: the swinging rock trap's
-knockback stacks like a bomb (IL, untested). Detection designs (not built):
+inside the loaded lab). The swinging rock trap's knockback stacks
+like a bomb (confirmed by the author 2026-10-04: works, but slower to build
+and less versatile than a small bomb trap). Detection designs (not built):
 docs/run-mode.md *Banned moves: detection*. Before that (same day): the
 author looked at the website work of the last
 sessions and confirmed all of it (docs/confirmed.md, 2026-10-03): the photo
@@ -692,11 +693,10 @@ spot exists yet - making one is the author's call.
       code for `LocalPlayer.Transform.position =` / `SetParent`): can one be
       started, interrupted or cancelled so it leaves the player somewhere
       useful (a free teleport, through a wall)?
-   e. **Panel / elevator clip** with real input (a) + `anim watch`, and the
-      **trap boost** (the large swinging rock trap's hit is the same
-      knockback as a bomb, so the same pause trick should work without a
-      bomb - Creative, built trap), the multi-thrower's rocks likewise; the
-      fall-damage slide cancel on bodies.
+   e. **Panel / elevator clip** with real input (a) + `anim watch`, the
+      multi-thrower's rocks (same knockback as a bomb; the trap boost is
+      already confirmed by the author), and the fall-damage slide cancel on
+      bodies.
    Check what the runners already know first (gotcha 89). Then check
    *Reload save on death* gives the same game as a manual reload
    (docs/run-mode.md *Decisions*).
