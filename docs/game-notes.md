@@ -2955,9 +2955,24 @@ needs uncapped fps. Measured pieces:
   (3 m, centre -0.85) until the next crouch**, and the head sphere snaps back
   to standing height when the smash ends - a 0.5 m gap between body and head
   colliders. This is the "uncrouch when the axe hits the ground" step.
+`doingGroundChop` is set in `playerAnimatorControl.OnAnimatorMove` while
+the full-body layer plays `axeGround2` or `axeAttack`, and stays true ~1.5 s
+per smash (live; it comes on ~0.2 s after the swing event). Facing a wall,
+the smash's head sphere shoves the player ~1.5 m back from it within 0.1 s.
 Why fps matters and how it ends up on the far side were not found; a real
 input recording (or the author doing it with `anim watch` and per-frame
 position reads) is the next step.
+
+**Movers in the world** (live, 2026-10-03). The yacht
+(`yachtWobblePrefab(Clone)/.../yacht_alec_collision/Object40`, a
+non-convex MeshCollider) sits on a **kinematic Rigidbody that bobs**: ~0.1 m
+and ~0.2 degrees over half a second. A player on it is pushed with no
+velocity (a 1.0 m rise while walking). The game also unhooks collision per
+pair with `Physics.IgnoreCollision` in 50+ places (terrain at cave doors /
+zones / holes, ropes, ziplines, structures on rafts, bodies on sleds); Unity
+5.6 has no `GetIgnoreCollision` to read them back - only contacts
+(`OnCollisionEnterProxy` / `OnCollisionExitProxy` on the player) show what
+the player really collides with.
 
 **Depenetration** (live). A static collider appearing inside the player (a
 box moved into the feet by 0.3 / 1 / 2 m) lifts the player out by exactly

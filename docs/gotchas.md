@@ -799,3 +799,14 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     physics step, x2, + 2 m) is a teleport: restart the window. Test a
     detector with the instrument's own actions (tp, set) mixed in, not only
     the clean case.
+
+91. **A world object can be a mover, and a teleport lands inside things.**
+    (2026-10-03, v0.24.231.) The clip / lift detector's first live sweep
+    flagged the yacht twice: its hull (`yacht_alec_collision/Object40`) is
+    a MeshCollider on a **kinematic rigidbody that bobs** a few cm and
+    tenths of a degree every frame, so the physics pushed the player
+    around on it with no velocity - a "lift" and a centre "crossing" the
+    hull. Every other flag came 0-0.3 s after a `tp`: the player set down
+    overlapping geometry and pushed out. Before trusting a geometric
+    detector, check whether the collider moves (pose over two reads) and
+    give every teleport a settle time.

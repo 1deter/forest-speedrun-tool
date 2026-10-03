@@ -125,7 +125,7 @@ Where things live:
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
 | **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Game/InputInject` + `Data/InjectedInputs` (press / hold the game's controls, tested), `Game/FsmExport` (`fsm`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
-| **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts, categories) | `Core/RunMode` (`Ctx.Run`: `Refuse(feature, what)` at every practice entry point, `Locks` / `Forces` for gameplay switches, flags, `Use`), `Data/RunCategory` (the categories' text + features, tested, linked by the site), `Modules/RunModeModule.Categories` (fetch, cache, Runs tab pick), `site/ForestSite/Categories` (versions, speedrun.com sync, judging, tested), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site; `move` lines), `site/ForestSite/Attempts` (endpoints' logic + `Judge` + `MoveNotes`, tested), banned-move detection `Data/MoveDetector` (tested) + `Game/MoveWatch` + `Modules/RunModeModule.Moves`, `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
+| **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts, categories) | `Core/RunMode` (`Ctx.Run`: `Refuse(feature, what)` at every practice entry point, `Locks` / `Forces` for gameplay switches, flags, `Use`), `Data/RunCategory` (the categories' text + features, tested, linked by the site), `Modules/RunModeModule.Categories` (fetch, cache, Runs tab pick), `site/ForestSite/Categories` (versions, speedrun.com sync, judging, tested), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site; `move` lines), `site/ForestSite/Attempts` (endpoints' logic + `Judge` + `MoveNotes`, tested), banned-move detection `Data/MoveDetector` (tested) + `Game/MoveWatch` + `Game/ClipWatch` (clips, lifts) + `Modules/RunModeModule.Moves`, `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
 | Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
 ### Rules for modules
@@ -575,6 +575,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 88. **An image library's resize can read the alpha as coverage** - Pillow's RGBA thumbnail premultiplies; Standard textures keep smoothness there (0) and 19 lab textures exported black. Resize colour and alpha apart; count black textures after an export.
 89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes.
 90. **A speed and a distance in the same window can belong to different things** - a tp landing while the body held 300 m/s read as huge speed; a step longer than the speed allows is a teleport. Test detectors with tp / set mixed in.
+91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports.
 
 ---
 
@@ -626,25 +627,27 @@ identity.
 
 ## Current status
 
-**Released: v0.24.230** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **599 tests** (+ 85 site tests).
+**Released: v0.24.234** (2026-10-03). The author runs it via the in-game
+updater (Slot 1). **620 tests** (+ 85 site tests).
 
-### Pick up here (2026-10-03, v0.24.230 released)
+### Pick up here (2026-10-03, v0.24.234 released)
 
-**This session: banned-move detection, part 3 - the fall damage cancel
-(v0.24.230)** (docs/run-mode.md *Banned moves: detection*, *Built*):
-`Game/MoveWatch` prefixes `FirstPersonCharacter.HandleLanded` and reads
-every gate the game applies; `Data/MoveDetector.Landed` reports a landing
-judged at <= 28 m/s (`prevVelocity`, the last collision enter) while the
-player fell faster than 30 m/s in the last 0.25 s. Live on v0.24.230:
-ground drop, lake drop and a steep terrain slope silent (the game holds
-the player on steep terrain at ~3 m/s - no false flags from slides there);
-the cancel's state faked over the bridge reported. The site names it
-against a banned move with "fall damage" / "slide cancel". Not
-reproduced: the runners' own slide on bodies (Cave 6 keycard drop) - the
-author's hands-on list (*Next* 5). Earlier the same day: v0.24.229 cave
-state force load, v0.24.227-228 bomb boost + huge speed (gotcha 90), tech
-research round 2 - game-notes *Speedrun tech*.
+**This session: banned-move detection, the last part - lifts out of a
+structure and clips (v0.24.231-234)** (docs/run-mode.md *Banned moves:
+detection*, *Built*): `Game/ClipWatch` (a FixedUpdate + the game's
+collision proxies on the player) feeds `MoveDetector.PhysicsStep` /
+`Clipped`. A lift (log boost, wall boost) = a rise with no velocity to
+explain it while touching a player-built structure; a clip = the capsule's
+centre entering a solid through a front face within 1.5 s of an axe ground
+smash or of touching a built structure (author's two clip recipes,
+2026-10-03). Three rounds of live false flags fixed on the way: teleport
+landings (0.5 s settle), the yacht's bobbing hull (movers) and its tight
+cabin (no-velocity lifts from furniture; a face crossed from behind) -
+gotcha 91. Live: every false-flag case silent, a hut lift and a
+smash-gated wall clip reported. With this every move in the detection
+table is built. Earlier the same day: v0.24.230 fall damage cancel,
+v0.24.229 cave state force load, v0.24.227-228 bomb boost + huge speed
+(gotcha 90), tech research round 2 - game-notes *Speedrun tech*.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -678,11 +681,9 @@ categories are drafts - publishing is the moderators' job. No community run
 spot exists yet - making one is the author's call.
 
 **Next, in order (one per session):**
-1. **Banned-move detection, the rest** (author, 2026-10-03: "build
-   detection"; bomb boost + huge speed v0.24.227-228, cave state force
-   load v0.24.229, fall damage cancel v0.24.230): clips / log boosts
-   next, with recorded runs - docs/run-mode.md *Banned moves: detection*. Same
-   pattern: pure detector + false-flag tests, `move` lines, never flags.
+1. **Banned-move detection** - built (v0.24.227-234, every row of
+   docs/run-mode.md *Banned moves: detection*); left: the moves done for
+   real (item 5).
 2. **Tech research, round 2** - done 2026-10-03 (*Pick up here*). Left
    from it: check *Reload save on death* gives the same game as a manual
    reload (docs/run-mode.md *Decisions*), the elevator skip done by hand
@@ -713,7 +714,10 @@ spot exists yet - making one is the author's call.
    40 px, top centre), the attempt page with a real attempt, /admin's
    *Categories* tab (investigations *Not seen by the author*); the
    detected moves done for real - a bomb boost, a cave force load (smash
-   in the air), a fall damage cancel (sliding on bodies, Cave 6).
+   in the air), a fall damage cancel (sliding on bodies, Cave 6), a smash
+   clip (a cave panel / the red elevator door), a log boost, the keycard
+   cave wall clip (true any%) - read the `Move seen:` / `Move watch:` /
+   `ClipWatch:` lines after each.
 - Website: done apart from texture arrays in the export - only if frame
   times call for them (docs/website.md *Load size*).
 

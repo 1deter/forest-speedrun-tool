@@ -310,7 +310,7 @@ the bridge against a local site):
   tab line "from the next attempt"); `WebRequest.Send` with headers and
   one response header back; the site's `Categories.ETag` / `Unchanged`.
 
-## Banned moves: detection (bomb boost + huge speed v0.24.227-228, cave force load v0.24.229, fall damage cancel v0.24.230)
+## Banned moves: detection (bomb boost + huge speed v0.24.227-228, cave force load v0.24.229, fall damage cancel v0.24.230, lifts + clips v0.24.231-234)
 
 How each common move works is in [`game-notes.md`](game-notes.md) *Speedrun
 tech and the endgame gate*. Whether a move is a glitch is the community's
@@ -408,7 +408,47 @@ than the table's plan:
   damage" / "fall cancel" / "slide cancel" (not "waterfall"). Not
   reproduced: the runners' own input (sliding on bodies, Cave 6) - the
   author's hands-on list.
-- **Next**: clips / log boosts, with recorded runs to tune them.
+- **Lifts out of a structure and clips (v0.24.231-234)**: `Game/ClipWatch`,
+  a FixedUpdate on the plugin's own object (never a component on the
+  player), reads the body capsule's centre each physics step; contacts come
+  from the game's own collision proxies on the player (Harmony postfixes on
+  `OnCollisionEnterProxy` / `OnCollisionExitProxy`) - the only way to see
+  what the player really collides with, since the game unhooks pairs with
+  `Physics.IgnoreCollision` in 50+ places and Unity 5.6 cannot read them
+  back. One OverlapSphere + one raycast a step, nothing allocated.
+  - **Lift** (log boost, custom wall boost): depenetration leaves no
+    velocity (live: a box 0.8 m into the feet lifted the player 0.8 m at
+    velocity 0), so `MoveDetector.PhysicsStep` sums the rise beyond what the
+    vertical speed allows; reported at 1 m **only when a player-built
+    structure was touched** in the episode (`BuildingHealth` /
+    `BuildingHealthChunk` up the parents) - walking into the yacht cabin's
+    bench lifts the 4.6 m capsule 1.2 m too (logged, not reported).
+  - **Clip**: the line from the last place the capsule's centre was clear
+    of every touched solid to the next one enters a solid through a front
+    face (ending inside a rock counts; a face crossed from behind does not)
+    - counted only within 1.5 s of one of the runners' two ways in (author,
+    2026-10-03): an **axe ground smash** (`playerAnimatorControl
+    .doingGroundChop`, ~1.5 s per smash, read through a DynamicMethod
+    getter; the text says whether crouch was released) or **a structure
+    they built** touched (a log / stone wall squeezing them into thin rock,
+    the keycard cave clip in true any%). Other crossings are logged
+    (`Move watch: a crossing, not reported`).
+  - Never counted: 0.5 s after any teleport (the player is set down
+    overlapping things and pushed out), kinematic steps, a solid that moved
+    in the last second (the yacht's hull bobs on a kinematic body), terrain,
+    triggers, moving bodies.
+  - **Live (bridge)**: silent - the red elevator car tp, ride and walk out,
+    sprint + jumps on rough ground, scraping a wall with jumps, the plane
+    wreck, Cave 6, walking the yacht and into its cabin bench. Reported - a
+    leaf hut's collider moved 1.2 m into the feet ("out of a structure they
+    built ('LeafHutBuilt(Clone)')"), a 0.1 m wall with the centre set past
+    its middle 0.15 s after a real ground smash ("not standing up from a
+    crouch"); the same without a smash only logged, and set short of the
+    middle silent. Not reproduced: the runners' own inputs (a panel /
+    elevator smash clip, a log boost, the keycard cave wall clip) - the
+    author's hands-on list. The site matches "clip" and "log boost" /
+    "wall boost" in a category's banned moves.
+- **Next**: the detected moves done for real (the author's hands-on list).
 
 ## Other uses of locked settings
 
