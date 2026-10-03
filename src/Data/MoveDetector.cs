@@ -69,16 +69,20 @@ namespace ForestOverlay.Data
     // decides. Live (2026-10-03): an 82 m drop onto the ground is judged at
     // 55 (the speed it hit at); a drop into the big lake at 1.3, swimming.
     //
-    // Lift out of a collider (the log boost, the custom wall boost). PhysX
+    // Lift out of a structure (the log boost, the custom wall boost). PhysX
     // pushes a body out of a solid that appears or squeezes into it by moving
     // it, with no velocity left over (live, 2026-10-03: a box put 0.8 m into
     // the player's feet lifted them 0.8 m, velocity 0 throughout; game-notes
-    // *Depenetration*). Nothing the game does on purpose raises the player
-    // faster than its own speed explains: jumps, knockbacks and swimming are
-    // velocity, rides and climbs are kinematic. So: per physics step, the
-    // rise beyond what the vertical speed (before or after the step) allows,
-    // summed while it keeps coming (a gap of LiftQuiet ends an episode),
-    // reported at LiftReport. A step rising more than LiftMaxStep unexplained,
+    // *Depenetration*). Jumps, knockbacks and swimming are velocity, rides
+    // and climbs are kinematic - but ordinary geometry does it too: the
+    // player's capsule is 4.6 m tall and walking into the yacht cabin's
+    // bench lifted it 1.2 m in two steps (live, v0.24.232). The runners'
+    // lifts both use a structure they built (a log wall, a custom wall), so:
+    // per physics step, the rise beyond what the vertical speed (before or
+    // after the step) allows, summed while it keeps coming (a gap of
+    // LiftQuiet ends an episode); reported at LiftReport when the player
+    // touched a player-built structure during it (`structure`), else only
+    // logged (SmallLift). A step rising more than LiftMaxStep unexplained,
     // or moving further sideways than its speed allows, is a teleport; for
     // SettleSeconds after one (or after the player appears) nothing counts:
     // a teleport sets the player down overlapping whatever is there and the
@@ -92,7 +96,9 @@ namespace ForestOverlay.Data
     // Clip through a solid. The capsule's centre ends up on the other side
     // of a solid collider the player had touched (Game/ClipWatch casts the
     // line from the last place the centre was clear of every solid to the
-    // next one; a collider only counts once the player has had a contact
+    // next one, both ways, and the same collider must answer both: the line
+    // went into it and out again - a single mesh face crossed from behind,
+    // as in the yacht's cabin, is not a solid passed through; a collider only counts once the player has had a contact
     // with it, which leaves out every pair the game told the physics to
     // ignore - terrain in caves and at cave mouths, ropes, structures on
     // rafts). The same collider again within ClipRepeat is one clip.
@@ -183,6 +189,7 @@ namespace ForestOverlay.Data
         private float _liftQuiet;
         private Vector3 _liftFrom;
         private float _settle;
+        private string _liftStructure = "";
 
         // --- clips: the last one, to merge repeats ---
         private string _clipWhat = "";
@@ -363,7 +370,8 @@ namespace ForestOverlay.Data
         /// solid the player last touched (for the text). Returns true when it
         /// was a plain step (no teleport, not kinematic, not the first) - only
         /// then may a clip be judged across it.
-        public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact, bool carried = false)
+        public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact, bool carried = false,
+                                string structure = "")
         {
             if (!hasPlayer || kinematic || dt <= 0f)
             {
@@ -409,15 +417,18 @@ namespace ForestOverlay.Data
                     _lift.Position = pos - d;
                     _liftFrom = pos - d;
                     _lift.Detail = "";
+                    _liftStructure = "";
                 }
                 _lift.Distance += rise;
                 _lift.Seconds += dt;
                 _lift.PausedPushes++;   // steps that lifted
                 if (!string.IsNullOrEmpty(contact)) _lift.Detail = contact;
+                if (!string.IsNullOrEmpty(structure)) _liftStructure = structure;
                 _liftQuiet = 0f;
             }
             else if (_lift != null)
             {
+                if (!string.IsNullOrEmpty(structure)) _liftStructure = structure;
                 _lift.Seconds += dt;
                 _liftQuiet += dt;
                 if (_liftQuiet >= LiftQuiet) EndLift();
@@ -543,17 +554,20 @@ namespace ForestOverlay.Data
             Move m = _lift;
             _lift = null;
             string near = m.Detail;
+            string built = _liftStructure;
+            _liftStructure = "";
             string text = "lifted " + Meters2(m.Distance) + " m beyond what their speed allows over " +
                           m.PausedPushes.ToString(CultureInfo.InvariantCulture) + " physics step" + (m.PausedPushes == 1 ? "" : "s") + " (" +
                           m.Seconds.ToString("0.00", CultureInfo.InvariantCulture) + " s)" +
                           (near.Length > 0 ? ", last touching " + near : "");
-            if (m.Distance < LiftReport)
+            if (m.Distance < LiftReport || built.Length == 0)
             {
-                if (m.Distance >= LiftReport * 0.3f) SmallLift = text;
+                if (m.Distance >= LiftReport * 0.3f)
+                    SmallLift = text + (built.Length == 0 ? " (no player-built structure touched)" : " (touching the structure " + built + ")");
                 return;
             }
-            m.Detail = "the physics pushed the player up out of a solid: " + text +
-                       " - the way a log wall or a wall placed into the player lifts them";
+            m.Detail = "the physics pushed the player up out of a structure they built (" + built + "): " + text +
+                       " - how a log boost or a custom wall boost lifts them";
             Ready.Add(m);
         }
 

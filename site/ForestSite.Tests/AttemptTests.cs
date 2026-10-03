@@ -207,7 +207,7 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("Fall damage cancels", fall.MaybeBanned);   // not "waterfall"
 
         var lift = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 6, Kind = "lift", Detail = "d" } }, cat)[0];
-        Assert.Equal("Lift out of a solid", lift.Label);
+        Assert.Equal("Lift out of a structure", lift.Label);
         Assert.Equal("No log boosting", lift.MaybeBanned);
         var clip = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 7, Kind = "clip", Detail = "d" } }, falls)[0];
         Assert.Equal("Clip through a solid", clip.Label);

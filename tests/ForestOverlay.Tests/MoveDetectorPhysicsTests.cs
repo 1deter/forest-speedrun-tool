@@ -22,13 +22,14 @@ namespace ForestOverlay.Tests
             public string Contact = "'Log Wall' (a BoxCollider 0.5 m thick)";
             public bool LastPlain;
             public bool Carried;
+            public string Structure = "'LogWallBuilt(Clone)'";
 
             /// One physics step: the body moved by its velocity plus `push`
             /// (what the solver moved it without leaving any velocity).
             public void Step(Vector3 push)
             {
                 Pos = Pos + Vel * Dt + push;
-                LastPlain = D.PhysicsStep(Dt, true, Kinematic, Pos, Vel, Contact, Carried);
+                LastPlain = D.PhysicsStep(Dt, true, Kinematic, Pos, Vel, Contact, Carried, Structure);
                 Moves.AddRange(D.Ready);
                 D.Ready.Clear();
             }
@@ -65,7 +66,40 @@ namespace ForestOverlay.Tests
             Assert.Equal(MoveDetector.LiftKind, m.Kind);
             Assert.InRange(m.Distance, 1.9f, 2.1f);
             Assert.Contains("Log Wall", m.Detail);
+            Assert.Contains("LogWallBuilt", m.Detail);
             Assert.Contains("2.0 m", m.Detail);
+        }
+
+        [Fact]
+        public void A_lift_by_ordinary_geometry_is_only_logged()
+        {
+            // Live, v0.24.232: walking into the yacht cabin's bench lifted the
+            // player 1.2 m in two steps, no structure anywhere.
+            var s = Started();
+            s.Structure = "";
+            s.Contact = "'Object40' under 'yacht_alec_collision'";
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            s.Run(0.5f);
+            Assert.Empty(s.Moves);
+            string log = s.D.TakeSmallLift();
+            Assert.Contains("1.2 m", log);
+            Assert.Contains("no player-built structure", log);
+        }
+
+        [Fact]
+        public void A_structure_touched_anywhere_in_the_episode_counts()
+        {
+            var s = Started();
+            s.Structure = "";
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            s.Structure = "'WallChunkBuilt(Clone)'";
+            s.Step(Vector3.zero);
+            s.Structure = "";
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            s.Run(0.5f);
+            Assert.Single(s.Moves);
+            Assert.Contains("WallChunkBuilt", s.Moves[0].Detail);
         }
 
         [Fact]

@@ -85,7 +85,7 @@ namespace ForestOverlay.Modules
                 case MoveDetector.HugeSpeedKind: return "Huge speed";
                 case MoveDetector.CaveForceLoad: return "Cave state force load";
                 case MoveDetector.FallDamageCancel: return "Fall damage cancel";
-                case MoveDetector.LiftKind: return "Lift out of a solid";
+                case MoveDetector.LiftKind: return "Lift out of a structure";
                 case MoveDetector.ClipKind: return "Clip through a solid";
                 default: return kind;
             }

@@ -19,8 +19,15 @@ namespace ForestOverlay.Game
     //
     // Clips: the last place the centre was clear of every solid the player
     // had touched is kept; when it is clear again, the line from there to
-    // here is cast both ways (a mesh's back face does not answer a ray) and
-    // a touched solid across it is a clip. "Touched" comes from the game's
+    // here is cast both ways and a touched solid that answers BOTH casts is
+    // a clip: the line went into it and out again (a mesh's back face does
+    // not answer a ray, so one face crossed from behind - the yacht cabin's
+    // tight furniture, live v0.24.232 - answers one way only).
+    //
+    // Lifts name a player-built structure in contact (BuildingHealth /
+    // BuildingHealthChunk on it or a parent - a log wall, a custom wall, a
+    // hut): the runners' lifts come from one, ordinary geometry lifts the
+    // player too. "Touched" comes from the game's
     // own collision proxies on the player (Harmony postfixes on
     // OnCollisionEnterProxy / OnCollisionExitProxy): in contact now, or
     // left less than TouchKeep seconds ago. Pairs the game tells the physics
@@ -60,9 +67,12 @@ namespace ForestOverlay.Game
         private static readonly Quaternion[] _rot = new Quaternion[Slots];
         private static readonly float[] _moved = new float[Slots];  // game time it last moved
         private static string _contactName = "";
+        private static readonly string[] _structure = new string[Slots];   // the built structure's name, "" not one
+        private static Type _health, _healthChunk;
 
         private readonly Collider[] _overlap = new Collider[16];
         private readonly RaycastHit[] _hits = new RaycastHit[16];
+        private readonly RaycastHit[] _forward = new RaycastHit[16];
 
         private Transform _player;
         private Rigidbody _rb;
@@ -84,6 +94,8 @@ namespace ForestOverlay.Game
                 BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
                 MethodInfo onEnter = enter != null ? enter.GetMethod("OnCollisionEnter", f) : null;
                 MethodInfo onExit = exit != null ? exit.GetMethod("OnCollisionExit", f) : null;
+                _health = GameBridge.FindGameType("TheForest.Buildings.World.BuildingHealth");
+                _healthChunk = GameBridge.FindGameType("TheForest.Buildings.World.BuildingHealthChunk");
                 if (_lpTransform == null || onEnter == null || onExit == null || host == null || harmony == null)
                 {
                     Status = "the player's collision proxies were not found - clips and lifts are not detected";
@@ -130,6 +142,7 @@ namespace ForestOverlay.Game
                     _pos[free] = c.transform.position;
                     _rot[free] = c.transform.rotation;
                     _moved[free] = -100f;
+                    _structure[free] = StructureName(c);
                 }
                 _touched[free] = c;
                 _left[free] = -1f;
@@ -160,6 +173,26 @@ namespace ForestOverlay.Game
             return false;
         }
 
+        /// "'LeafHutBuilt(Clone)'" when the collider belongs to a player-built
+        /// structure, else "".
+        private static string StructureName(Collider c)
+        {
+            Component h = null;
+            if (_health != null) h = c.GetComponentInParent(_health);
+            if (h == null && _healthChunk != null) h = c.GetComponentInParent(_healthChunk);
+            return h != null ? "'" + h.name + "'" : "";
+        }
+
+        /// A built structure the player touches now (or left < TouchKeep ago), "" none.
+        private static string StructureTouched()
+        {
+            float now = Time.time;
+            for (int i = 0; i < Slots; i++)
+                if (_touched[i] != null && !string.IsNullOrEmpty(_structure[i]) && (_left[i] < 0f || now - _left[i] <= TouchKeep))
+                    return _structure[i];
+            return "";
+        }
+
         /// Notes which touched solids moved since the last step; true when
         /// one the player is touching now moved recently (carried).
         private static bool TrackMovers()
@@ -175,7 +208,10 @@ namespace ForestOverlay.Game
                 Transform ct = c.transform;
                 Vector3 p = ct.position;
                 Quaternion r = ct.rotation;
-                if ((p - _pos[i]).sqrMagnitude > 1e-6f || Quaternion.Angle(r, _rot[i]) > 0.05f) _moved[i] = now;
+                // 0.1 mm / ~0.002 degrees a step: the yacht bobs ~1 mm and ~0.006 degrees
+                // a step at 60 Hz (Quaternion.Angle reads that as 0 in floats).
+                if ((p - _pos[i]).sqrMagnitude > 1e-8f || ((r * Vector3.forward) - (_rot[i] * Vector3.forward)).sqrMagnitude > 1e-9f ||
+                    ((r * Vector3.up) - (_rot[i] * Vector3.up)).sqrMagnitude > 1e-9f) _moved[i] = now;
                 _pos[i] = p;
                 _rot[i] = r;
                 if (_left[i] < 0f && now - _moved[i] <= MoverKeep) carried = true;
@@ -228,7 +264,7 @@ namespace ForestOverlay.Game
                 Steps++;
                 Vector3 c = t.TransformPoint(_capsule.center);
                 bool carried = TrackMovers();
-                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName, carried);
+                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName, carried, StructureTouched());
                 if (!plain) { _hasClear = false; _insideSteps = 0; }
 
                 int layer = t.gameObject.layer;
@@ -272,23 +308,27 @@ namespace ForestOverlay.Game
             return false;
         }
 
-        /// The nearest counted solid on the line a-b, cast both ways.
+        /// A counted solid the line a-b goes into and out of (it answers a
+        /// cast from each end), the nearest to a; null none.
         private Collider Across(Vector3 a, Vector3 b)
         {
             Vector3 dir = b - a;
             float len = dir.magnitude;
             dir /= len;
-            Collider best = Nearest(a, dir, len);
-            return best != null ? best : Nearest(b, -dir, len);
-        }
-
-        private Collider Nearest(Vector3 from, Vector3 dir, float len)
-        {
-            int n = Physics.RaycastNonAlloc(from, dir, _hits, len, _mask, QueryTriggerInteraction.Ignore);
+            int n = Physics.RaycastNonAlloc(a, dir, _hits, len, _mask, QueryTriggerInteraction.Ignore);
+            if (n > _hits.Length) n = _hits.Length;
+            for (int i = 0; i < n; i++) _forward[i] = _hits[i];
+            int m = Physics.RaycastNonAlloc(b, -dir, _hits, len, _mask, QueryTriggerInteraction.Ignore);
+            if (m > _hits.Length) m = _hits.Length;
             Collider best = null;
             float bestD = float.MaxValue;
-            for (int i = 0; i < n && i < _hits.Length; i++)
-                if (_hits[i].distance < bestD && Counts(_hits[i].collider)) { best = _hits[i].collider; bestD = _hits[i].distance; }
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = _forward[i].collider;
+                if (_forward[i].distance >= bestD || !Counts(c)) continue;
+                for (int j = 0; j < m; j++)
+                    if (_hits[j].collider == c) { best = c; bestD = _forward[i].distance; break; }
+            }
             return best;
         }
     }

@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         ["huge-speed"] = ("Huge speed", Array.Empty<string>()),
         ["cave-force-load"] = ("Cave state force load", new[] { "cave" }),
         ["fall-damage-cancel"] = ("Fall damage cancel", new[] { "fall damage", "fall-damage", "fall cancel", "slide cancel" }),
-        ["lift"] = ("Lift out of a solid", new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" }),
+        ["lift"] = ("Lift out of a structure", new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" }),
         ["clip"] = ("Clip through a solid", new[] { "clip" }),
     };
 

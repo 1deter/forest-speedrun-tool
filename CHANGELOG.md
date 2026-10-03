@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.233 - 2026-10-03
+
+- The lift detection now only notes lifts that involve **a structure you
+  built** (a log wall, a custom wall, a hut) - how a log boost or a wall
+  boost works. Walking into low furniture can lift you too (the yacht's
+  cabin), so other lifts are no longer noted.
+- A clip is now only noted when your body went into a solid and out the
+  other side, not for squeezing past a single surface in a tight room.
+
 ## v0.24.232 - 2026-10-03
 
 - Fewer false notes from the new lift and clip detection: being set down
