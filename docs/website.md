@@ -534,7 +534,13 @@ What the export decides (details: gotchas 64-67):
   them (like the ocean), so in 3D these models are the only water. A
   surface chunk's lake is clipped to where the terrain's heights are
   below it (`groundClip`: the models overhang the shore); cave lakes are
-  not clipped.
+  not clipped. A lake counts as the surface's by its material, not its
+  chunk (`World.surfaceWater`, 2026-10-03): the middle's `BigLake_v2`, a
+  stream and the GeeseLakes (+ their `LakeFake` beds) are filed as caves
+  (gotcha 70) and were drawn unclipped and, underground, as a solid blue
+  sheet over the cave view; now clipped and faded with the surface. The
+  sinkhole's pool stays with its floor (not faded). Checked headless
+  (`site-look.py eval`, KEEPRUNS=1, under BigLake) before / after.
 - **Water button**: a `-dry` layer hides the sea plane, the lakes and
   their `LakeFake` planes (`World.setWater`).
 - **South at the top** (author, 2026-10-01): 2D draws turned 180 degrees

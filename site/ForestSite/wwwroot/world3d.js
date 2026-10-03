@@ -749,6 +749,22 @@ export class World {
     return t;
   }
 
+  /// A lake of the surface wherever the export filed it: the export chunks a
+  /// model by its origin, and the middle's lakes (BigLake_v2, one plane at
+  /// y 48.4 with its origin at 0, 0), a stream, the GeeseLakes and the
+  /// sinkhole's pool are filed as caves (gotcha 70) - then unclipped over
+  /// the shore and not faded underground. A "The Forest/Water" surface
+  /// (not the caves' WaterCave) or a LakeFake bed counts as the surface's;
+  /// the sinkhole's pool stays with its floor and cliffs (filed as caves,
+  /// not faded; in a terrain hole, so never clipped).
+  surfaceWater(mi) {
+    const model = this.meta.models[mi];
+    return !!model && model.kind !== "collide" && model.mats.some(x => {
+      const d = x >= 0 ? this.meta.materials[x] : null;
+      return !!d && ((d.shader === "The Forest/Water" && d.name !== "SinkholeWater") || /^LakeFake/.test(d.name || ""));
+    });
+  }
+
   /// One InstancedMesh per model over every ready chunk.
   async rebuild() {
     const models = [...this.dirtyModels], gen = this.gen;
@@ -759,6 +775,7 @@ export class World {
       if (c.state !== "ready") continue;
       for (const [mi, m] of c.items) if (by.has(mi)) { by.get(mi).push(m); if (file.startsWith("c/surface")) surface.set(mi, true); }
     }
+    for (const mi of models) if (this.surfaceWater(mi)) surface.set(mi, true);
     for (const mi of models) {
       const old = this.drawn.get(mi);
       if (old) { this.group.remove(old); old.dispose(); this.drawn.delete(mi); }

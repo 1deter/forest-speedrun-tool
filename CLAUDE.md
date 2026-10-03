@@ -631,8 +631,13 @@ any area (the middle's lakes are one plane, `BigLake_v2` at y 48.4, filed
 under caves), fills every inland basin below sea level except the
 sinkhole (five teleports: underwater - gotcha 75 corrected) and measures
 the sinkhole's pool against its floor model. Baked + uploaded (build
-1790988341); not yet seen by the author. Suspected from the code, not
-checked: the 3D view draws BigLake unclipped / only with caves on (*Next* 1). **Session before
+1790988341); not yet seen by the author. Then (same day, site only): the
+3D view counted BigLake, a stream and the GeeseLakes as cave water (the
+export files them as caves) - unclipped, and underground a solid blue
+sheet over the caves; now surface water by material
+(`World.surfaceWater`; docs/website.md *Terrain, sea and water*).
+Checked headless; "only with caves on" was wrong (it loads by distance).
+**Session before
 (v0.24.221-222):** the photo map's "overlook's shadow without the
 overlook": the south mountains' models (to y ~1100) stood above the
 capture camera (terrain + 400 m) - tops cut by the near plane, shadows
@@ -727,8 +732,8 @@ one (a preset save as a start state, `run = <category name>`, in
    Photo map recaptured (v0.24.222); its lakes drawn (2026-10-03: the
    middle's BigLake_v2 plane, every inland basin below sea level, the
    sinkhole's pool - author: "water is still missing"; not yet seen by the
-   author). The 3D view's middle lake model is filed under caves: drawn
-   unclipped / only with caves on - check it. The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
+   author). The 3D view's middle lake fixed (surface water by material,
+   2026-10-03; not yet seen by the author). The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
