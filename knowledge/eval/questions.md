@@ -359,3 +359,37 @@ must:
 - the retail game ships the developer console (256 commands)
 not:
 - claims the developers forgot it or did not mean to ship it
+
+### cannibal-sight
+question: how far away can cannibals see me, and does crouching or bushes actually help?
+cards: cannibal-ai
+must:
+- the sight range is computed from the player: base 100, scaled by trees nearby, light and the Stealth stat, clamped 4-100 m
+- crouching lowers it (by 20 by day, 40 at night) and makes small trees / bushes block their sight
+- a bush lowers it by 50 crouched (20 standing); in the open by day it is ~84 m standing, ~67 m crouched
+- a cannibal cannot see you outside 65 degrees either side of where it faces
+
+### cannibal-noise
+question: do cannibals hear me walking?
+cards: cannibal-ai
+must:
+- normal walking makes no noise (and does not add the running penalty to sight)
+- running is heard within ~59 m on the surface (more in caves)
+- crouched movement is silent
+
+### cannibal-speedcap
+question: is there a speed cap when cannibals are near or hit you?
+cards: cannibal-ai, player-physics
+must:
+- the 3 m/s cap (hitByEnemy) is not set by enemies: only after a rope climb while overlapping another co-op player
+- nothing in the code starts the 5.5 m/s cap
+not:
+- says enemies slow the player to 3 or 5.5 m/s
+
+### cannibal-day0
+question: why are cannibals asleep at the start of a new game and when do they attack?
+cards: cannibal-ai
+must:
+- on day 0 in daylight families sleep 250 s after spawning, then wake
+- day 0 has only skinny families (6 on Normal)
+- by default they stalk (aggression under 5); a stalker attacks when you come within 8 m

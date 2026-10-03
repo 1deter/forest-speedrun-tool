@@ -922,6 +922,59 @@ Thrown spears are `SpearThrown_Dynamic(Clone)` roots with a `PickUp`
 (item Spear) on `spear_High/Trigger`; picked back up they stay as
 inactive copies.
 
+## Cannibal AI: what runs, sight, noise (code + bridge, 2026-10-03)
+
+Explained for runners in `knowledge/cards/cannibal-ai.md`; the facts:
+
+- A live cannibal has 4 PlayMaker FSMs (brain, combat, encounter,
+  sleeping). `global_motorFSM` / `global_visionFSM` / `action_searchFSM` /
+  `action_inTreeFSM` are **not on the object** (`mutantScriptSetup.pmMotor`
+  null) - events sent to them are lost. Their work is C#: sight in
+  `mutantSearchFunctions` (`toLook` / `toTrack`), motor in `mutantAI`,
+  search in `pmSearchReplace`. The combat FSM dispatches: 29 states start a
+  `pmCombatReplace` coroutine. Combat FSM disabled while asleep, enabled
+  awake (bridge).
+- **Sight range lives on the player**: `visRangeSetup.updateVisParams`
+  (0.65 s): `(100 - crouchOffset - bushOffset + movementPenalty) x
+  clamp(1 - trees/12, 0.4, 0.8) x offsetFactor (1.05) x (1 - Stealth x
+  StealthRatio / 75) x amountOfLight + litWeapon (70 x light) +
+  lighterRange (50, 70 dark surface)`, clamped 4-100 -> `unscaledVisRange`.
+  Light: 1 -> 0.5 over TimeOfDay 50-90, 0.5 until 310 (the 270-310 ramp
+  stays under the clamp), caves 0.65. Crouch 40 x (1.5 - light); bush
+  (`SmallTree` trigger) 50 crouched / 20 standing; movement +35 when
+  `overallSpeed` > 0.5 (walking reads 0.34). Bridge, day, open: 84 standing,
+  67.2 crouched.
+- A cannibal's look (`toLook`, ~0.25 s): one ray from the head to the
+  player's collider centre + 1.2 m, within 100 m and +-65 deg; valid when
+  closer than `unscaledVisRange` and not `targetDown`; locks at once within
+  30 m or when `playerAware`, else after 3 valid sightings (the counter is
+  not reset by misses). Losing a target = `playerAware` for 30 s.
+- Crouch: `enableCrouchLayers` -> close enemies `setVisionLayersOn` ->
+  `visLayerMask` 104208384 (adds layer 12 `treeSmall`); standing 104204288;
+  the spawn default 104212480 has layer 13 `ReflectBig` instead (bridge).
+  The ranges the player sends (`setVisionRange` 12 crouched,
+  `setLighterRange`, `setMudRange`, `setcrouchRange` - wrong case, never
+  lands) are stored on `mutantSearchFunctions` and never read.
+- Noise: `playerNoiseDetection` pulses every 0.5 s to cannibals within
+  `soundRange`; `noiseDetectFSM` sets it from `overallSpeed` (walk > 0.9,
+  run > 1.5; 0 crouched). Bridge: walking 0, running 58.8 (42 x 1.4;
+  caves x 2.2 running, x 1.65 otherwise). `mutantSoundDetect`: 5 s
+  cooldown, distraction 60 s, torch light 12 s.
+- Mood: brain `chooseMood` - aggression >= 5 aggressive, else passive
+  (stalk). `mutantDayCycle`: aggression 1 (days 0-1), 2, 3, 4 (day 4+);
+  `setAggressive` sets 10. `maxAttackers = 3`. `doStalkRoutine`: < 8 m
+  attack; < 24 m weighted roll (run away 1, attack 0.25 default / 0.1 day /
+  0.15 skinny, ...); > 53 m close in.
+- Spawns: `updateSpawns` starts at the 5th nearest spawn point
+  (`spawnCounter = 4` after a distance sort); caps by day in
+  `setDayConditions` (days 6-9 have no branch); families per day in
+  `mutantSpawnManager.setAmountDay*` (`setAmountDay15` unreachable - the
+  10-24 branch comes first); dawn despawns cannibals beyond 75 m.
+- The player's 3 m/s cap (`hitByEnemy`) is set only by
+  `PlayerClimbRopeAction.restorePlayerCollisions` (co-op players
+  overlapping after a rope); the 5.5 m/s `doClampVelocity` has no caller in
+  code (`ilscan strings` finds none).
+
 ## Megan's boss AI (FSM export + code + bridge, 2026-10-03)
 
 The runner-facing version is `knowledge/cards/megan-boss.md`; FSMs in

@@ -107,8 +107,10 @@ The cap does nothing when:
   (zipline 50, glider 40, their own rules).
 
 The code also has lower caps of 3 m/s (`hitByEnemy`) and 5.5 m/s
-(`setNearEnemyVelocity`, 0.65 s); what turns them on in normal play was not
-traced [code].
+(`setNearEnemyVelocity`, 0.65 s). Enemies do not turn them on: the 3 m/s
+one is set only after a rope climb while your body overlaps another co-op
+player, and nothing in the code starts the 5.5 m/s one - see `cannibal-ai`
+[code].
 
 ## Ground and air
 

@@ -77,7 +77,7 @@ tunnelling-and-speed-cap, elevator-skip, lab-skip, endgame-gate,
 keycards-and-pickups, endgame-splits, caves-and-loading,
 saves-and-loading, deaths-and-revives, pausing-and-game-time,
 dev-console-and-creative, forestoverlay (+ timmy-forehead-skip, a
-runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs). Each was checked against the
+runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads). Each was checked against the
 decompiled code while written (corrections made on the way: the pause menu
 stops time on Hard too; the fall cap is the speed cap; the zipline exit
 weakens braking).
@@ -92,15 +92,14 @@ to it):
 - What equipping cuts after a keycard pickup ("spam 1").
 - Where keycard 242 lies.
 - The wall-side swim jump (1.5x) and wall-side swim speed.
-- What turns on the 3 m/s / 5.5 m/s enemy speed caps.
 - Zipline exit distances by height and angle.
 - Megan: her hits' damage live, a timed fight within 35 m vs bombs, births
   before the block, what kills the boss-room babies, weapon damage to her
   (`megan-boss`).
+- Cannibals: weapon swing noise range, the bush bonus above 60 fps, the
+  Stealth stat's sources, cave sight / noise live (`cannibal-ai`).
 
 Planned next - each needs research, not only writing:
-- `cannibal-ai` - from `docs/fsm/mutant-*.txt` (+ the motor / vision FSMs
-  not exported yet).
 - `categories-and-rules` - speedrun.com's categories and what each allows.
 - `routes` - the any% / Creative routes step by step (from the guides).
 - `crafting-and-building` - what runners build (bomb traps, walls,

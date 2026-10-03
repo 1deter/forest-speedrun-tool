@@ -18,6 +18,9 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | ground smash, axe smash | the axe attack into the ground while looking down | smash-clip |
 | elevator skip, elevator clip, elevator boost | clipping out of the red elevator's locked car early | elevator-skip |
 | red elevator | Hell Corridor elevator to the overlook; checks no keycard | elevator-skip |
+| cannibals, enemy ai, stealth, detection | sight range computed on the player (light, crouch, bushes, trees, running, lighter); running is heard at ~59 m, walking is silent | cannibal-ai |
+| stalking, stalker | a passive cannibal watching you: attacks within 8 m, rolls within 24 m | cannibal-ai |
+| families, cannibal spawns | spawner groups by day (day 0: 6 skinny); the 4 nearest spawn points are skipped | cannibal-ai |
 | megan, boss fight, megan ai | the endgame boss: within 35 m she attacks every cycle (picked by distance); beyond 35 m she rolls, and births babies | megan-boss |
 | boss babies, baby spawn | Megan's births: only when you stay beyond 35 m, stop for good after 3+ spawners | megan-boss |
 | lab skip, gold door skip, megan skip | past the gold door over invisible collision + a clip, skipping Timmy / Megan / boss | lab-skip |

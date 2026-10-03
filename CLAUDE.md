@@ -638,19 +638,24 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**Latest session: the `megan-boss` card** (no plugin code, no release).
-Megan's FSMs exported live from the `ruben-megan` savestate (Full load,
-no slot swap) into `docs/fsm/megan-*.txt` and read with her code; card
-`knowledge/cards/megan-boss.md`, game-notes *Megan's boss AI*, 4 eval
-questions (replacing `unknown-megan`). The finding: within 35 m she
-attacks every cycle (picked by distance); the weighted roll (and every
-baby birth) comes only after 1-2 s beyond 35 m; births stop for good at
-3+ spawners. PlayMaker runs global transitions before local ones (IL).
-Then the author's own conclusions from the code were checked (spin 4.76%
-a roll, not 3%; co-op health counts every player within 350 m: 616 / 739
-/ 800; thrown spear 40, read live; dodge after a hit ignores the 15 s
-lock) and the card corrected. Queue #1 resolved. Left: the card's open
+**Latest session: the `cannibal-ai` card** (no plugin code, no release).
+A new Normal game over the bridge (Slot 1 is Peaceful Creative - no
+cannibals; `GameSetup.Game` stays Creative across `OnNewNormalGame`, so
+`call static:TheForest.Utils.GameSetup SetGameType Standard` first; skip
+the plane intro with `press Jump`). Finding: the cannibals' motor / vision
+/ search FSMs **do not exist** - that AI is C# (`mutantSearchFunctions`,
+`mutantAI`, `pmSearchReplace`; the combat FSM dispatches to
+`pmCombatReplace`), so nothing was left to export. Sight range is computed
+on the player (`visRangeSetup`: 84 m standing / 67.2 crouched, day, open,
+live); walking is silent, running is heard at 58.8 m (live); the player's
+"stealth ranges" sent to cannibals are never read; the 3 / 5.5 m/s "enemy"
+caps are not enemies (co-op rope overlap / no caller) - research queue item
+closed. Card `knowledge/cards/cannibal-ai.md`, game-notes *Cannibal AI*,
+docs/fsm/README corrected, 4 eval questions (49). Left: the card's open
 questions (knowledge/README.md research queue).
+
+**Before that: the `megan-boss` card** (her FSMs exported live from the
+`ruben-megan` savestate; game-notes *Megan's boss AI*).
 
 **Before that: the knowledge bot's eval run + tuning** (no plugin code,
 no release; docs/knowledge-bot.md *Build order* 3). Eval 41% -> **87%**
@@ -673,8 +678,7 @@ deployed earlier the same day (`knowledge/` 24 cards, `bot/`, the VPS
 container; decisions in *Standing decisions* and docs/knowledge-bot.md;
 decompiled source in `%LOCALAPPDATA%\ForestOverlay\game-src\`). **Next:**
 the embedding model locally (author OK for ~130 MB, not asked), more
-cards (cannibal AI - export the motor / vision FSMs from a live cannibal
-first), the production server once the admins agree. The queue holds
+cards (categories, routes, crafting), the production server once the admins agree. The queue holds
 none open (#1 Megan and #2 resolved). VPS: `ssh -i
 ~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec
 forest-bot dotnet /srv/current/forest-bot.dll queue'` - run it without
@@ -725,10 +729,10 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base (24 cards) and the bot (`bot/`) are built and live in
+   knowledge base (26 cards) and the bot (`bot/`) are built and live in
    the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`
-   done (2026-10-03); next more cards (cannibal AI from `docs/fsm/`,
-   categories, routes - `knowledge/README.md`).
+   and `cannibal-ai` done (2026-10-03); next more cards (categories,
+   routes, crafting - `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,

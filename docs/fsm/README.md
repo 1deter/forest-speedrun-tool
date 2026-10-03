@@ -16,9 +16,12 @@ fields. A field bound to an FSM variable reads `{name}`; `to GameObject
 | `rabbit-aiBaseFSM.txt`, `lizard-aiBaseFSM.txt` | animals | small-animal AI |
 | `megan-*.txt` | `girlMutant(Clone)/girl_base`, transformed (savestate `ruben-megan`, Normal, 2026-10-03) | the boss fight: combat (94 states), motor, alert; read in `knowledge/cards/megan-boss.md` |
 
-Not here yet: the cannibals' `global_motorFSM`, `moveFSM` and
-`global_visionFSM` (their combat / brain FSMs send events there, but the
-pooled, inactive cannibals do not carry them - export them from a live one),
-other spawned-only FSMs - export them in a session that
+**The cannibals' `global_motorFSM`, `global_visionFSM`, `action_searchFSM`
+and `action_inTreeFSM` do not exist** - a live, awake cannibal carries only
+the four exported here (bridge, 2026-10-03); events sent to the others are
+lost, and their work is C# (`mutantSearchFunctions`, `mutantAI`,
+`pmSearchReplace`). The combat FSM is a dispatcher: many states only start
+a `pmCombatReplace` coroutine - read that code for what a state does
+(game-notes *Cannibal AI*). Other spawned-only FSMs - export them in a session that
 reaches them (`type PlayMakerFSM all` lists what exists, `fsm <target>
 children`).
