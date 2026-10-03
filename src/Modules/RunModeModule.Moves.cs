@@ -82,6 +82,7 @@ namespace ForestOverlay.Modules
                 case MoveDetector.BombBoost: return "Bomb boost";
                 case MoveDetector.HugeSpeedKind: return "Huge speed";
                 case MoveDetector.CaveForceLoad: return "Cave state force load";
+                case MoveDetector.FallDamageCancel: return "Fall damage cancel";
                 default: return kind;
             }
         }
@@ -99,6 +100,8 @@ namespace ForestOverlay.Modules
                          : "Move detection is off: " + MoveWatch.Status + ".";
             if (MoveWatch.Detector != null && !MoveWatch.CaveStatus.StartsWith("watching"))
                 watch = (watch.Length > 0 ? watch + "\n" : "") + "Cave entrances are not watched: " + MoveWatch.CaveStatus + ".";
+            if (MoveWatch.Detector != null && !MoveWatch.LandStatus.StartsWith("watching"))
+                watch = (watch.Length > 0 ? watch + "\n" : "") + "Landings are not watched: " + MoveWatch.LandStatus + ".";
             if (_attemptMoves.Count == 0) return watch;
             return (watch.Length > 0 ? watch + "\n" : "") +
                    "Moves seen in this attempt (in its log for the verifier - not flags, the attempt stays valid):\n- " +

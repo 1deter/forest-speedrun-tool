@@ -52,12 +52,29 @@ namespace ForestOverlay.Data
     // "in a cave", LocalPlayer.Goto). Live survey (2026-10-03, every crawl
     // and swim entrance in the game): a normal entry ends 7.5 m (Cave 2) to
     // 300 m under the terrain; the mouths sit 0-3 m above it.
+    //
+    // Fall damage cancel (high for "a fast landing took no damage"). The
+    // game judges a landing (FirstPersonCharacter.HandleLanded, on the
+    // Grounded rising edge) on prevVelocity: the vertical speed of the most
+    // recent collision ENTER, written nowhere else (game-notes *Fall damage
+    // and the slide cancel*). A landing that is not a new enter (contact
+    // kept while sliding off a surface) or follows a slow enter is judged on
+    // that small value. So: every gate the game applies passes (fall damage
+    // allowed, over 0.75 s in the air, no shell / glider / plane crash /
+    // landing already running, not swimming), the game's judged speed is
+    // not over FallSpeed, and the player really fell faster than
+    // FallReport within FallWindow before the landing. A long natural slide
+    // down a steep slope reaches the ground the same way - the text says
+    // what the game judged against what the player did, the verifier
+    // decides. Live (2026-10-03): an 82 m drop onto the ground is judged at
+    // 55 (the speed it hit at); a drop into the big lake at 1.3, swimming.
     // ------------------------------------------------------------------
     public sealed class MoveDetector
     {
         public const string BombBoost = "bomb-boost";
         public const string HugeSpeedKind = "huge-speed";
         public const string CaveForceLoad = "cave-force-load";
+        public const string FallDamageCancel = "fall-damage-cancel";
 
         public const float PushPerFrame = 8f;      // m/s, the coroutine's AddForce
         public const int MinPausedPushes = 4;      // 32 m/s piled up
@@ -69,6 +86,11 @@ namespace ForestOverlay.Data
         public const float CalmSeconds = 1f;
         public const float MaxPhysicsStep = 0.05f;   // a frame can hold a whole physics step (1/60 s) and then some
         public const float CaveDepth = 3f;         // m under the terrain: LocalPlayer.Goto's "in a cave" (a normal entry ends >= 7.5)
+        public const float FallSpeed = 28f;        // m/s: HandleLanded hurts over this
+        public const float FallReport = 30f;       // m/s: our own measure must pass this (a margin over the game's line)
+        public const float FallWindow = 0.25f;     // game seconds before the landing
+        public const float FallAirTime = 0.75f;    // HandleLanded: no damage under this air time
+        public const float FatalAirTime = 3.8f;    // HandleLanded: 1000 damage over this
 
         public sealed class Move
         {
@@ -118,6 +140,12 @@ namespace ForestOverlay.Data
         private Move _huge;
         private float _hugeQuiet;
 
+        // --- the fastest fall over the last FallWindow (two half buckets) ---
+        private float _fallCur, _fallPrev, _fallAge;
+
+        /// The fastest downward speed over the last FallWindow of game time.
+        public float RecentFall { get { return Mathf.Max(_fallCur, _fallPrev); } }
+
         public MoveDetector() { Dropped = ""; }
 
         /// Forget everything (a load, an attempt starting, our own teleport).
@@ -136,6 +164,7 @@ namespace ForestOverlay.Data
             _wDt = _wDist = _wMax = 0f;
             if (_huge != null && !drop) EndHuge();
             _huge = null;
+            _fallCur = _fallPrev = _fallAge = 0f;
         }
 
         /// The knockback's coroutine started (its first MoveNext).
@@ -179,6 +208,7 @@ namespace ForestOverlay.Data
                 _stopPushes = 0;
                 _hasLast = false;
                 _wDt = _wDist = _wMax = 0f;
+                _fallCur = _fallPrev = _fallAge = 0f;
                 return;
             }
             if (gameDt <= 0f)
@@ -214,7 +244,35 @@ namespace ForestOverlay.Data
                 if (_afterLeft <= 0f) Finish();
             }
 
+            Fall(gameDt, kinematic, vel.y);
             Huge(gameDt, kinematic, pos, speed);
+        }
+
+        /// The game's landing ran (a prefix on HandleLanded, before it
+        /// judges). `judged` = its prevVelocity; `gameGates` = every other
+        /// condition it hurts on (fall damage allowed, over FallAirTime in
+        /// the air, no landing already running, no plane crash, not a shell
+        /// ride or a glider over 32 m/s); `swimming` = in water.
+        public void Landed(Vector3 pos, float judged, bool gameGates, float airSeconds, bool swimming, float fallNow)
+        {
+            float fell = Mathf.Max(RecentFall, fallNow);
+            _fallCur = _fallPrev = _fallAge = 0f;
+            if (!gameGates || swimming || airSeconds <= FallAirTime) return;
+            if (judged > FallSpeed || fell <= FallReport) return;
+            Move m = new Move();
+            m.Kind = FallDamageCancel;
+            m.Position = pos;
+            m.PeakSpeed = fell;
+            m.Seconds = airSeconds;
+            bool fatal = airSeconds > FatalAirTime;
+            int damage = (int)(0.9f * fell * fell / 27.5f);
+            m.Detail = "a landing after " + airSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s in the air, falling at " +
+                       Speed(fell) + " m/s, took no fall damage: the game judged it on an earlier contact at " +
+                       Mathf.Max(0f, judged).ToString("0.0", CultureInfo.InvariantCulture) + " m/s (it hurts over " + Speed(FallSpeed) +
+                       "); at the real speed it would have been " +
+                       (fatal ? "fatal (over " + FatalAirTime.ToString("0.0", CultureInfo.InvariantCulture) + " s in the air)" : damage + " damage") +
+                       " - a slide down a steep slope lands the same way";
+            Ready.Add(m);
         }
 
         /// A crawl / swim cave entrance let the player go (doCave ended).
@@ -248,6 +306,14 @@ namespace ForestOverlay.Data
         }
 
         // ------------------------------------------------------------------
+
+        private void Fall(float gameDt, bool kinematic, float vy)
+        {
+            if (kinematic) { _fallCur = _fallPrev = _fallAge = 0f; return; }
+            _fallAge += gameDt;
+            if (_fallAge >= FallWindow * 0.5f) { _fallPrev = _fallCur; _fallCur = 0f; _fallAge = 0f; }
+            if (-vy > _fallCur) _fallCur = -vy;
+        }
 
         private void Huge(float gameDt, bool kinematic, Vector3 pos, float speed)
         {

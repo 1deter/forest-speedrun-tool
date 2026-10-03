@@ -31,6 +31,12 @@ namespace ForestOverlay.Game
     // cutscene, `timmyCutscene`). A call that started from $PC > 0 and
     // returned false is the let-go: where the player is then, against the
     // terrain, is Data/MoveDetector.CaveEntryEnded's whole question.
+    //
+    // Landings (IL, FirstPersonCharacter::HandleLanded): it hurts when
+    // prevVelocity > 28 && !(shell ride or glider with prevVelocityXZ > 32)
+    // && allowFallDamage && jumpingTimer > 0.75 && !jumpLand &&
+    // !Clock.planecrash. A prefix reads all of it before the game acts, so
+    // Data/MoveDetector.Landed sees what the game is about to judge.
     // ------------------------------------------------------------------
     public static class MoveWatch
     {
@@ -53,6 +59,15 @@ namespace ForestOverlay.Game
         public static int CaveEntries, CaveLetGo;
 
         private static FieldInfo _cavePc, _caveEnter, _cavePosGo, _caveThis, _caveTimmy;
+
+        public static string LandStatus = "not installed";
+
+        /// Landings seen since startup ("did it see anything").
+        public static int Landings;
+
+        private static FieldInfo _prevVel, _prevVelXZ, _allowFall, _jumpTimer, _jumpLand, _fpcRb;
+        private static PropertyInfo _swimming;
+        private static FieldInfo _animControl, _shellRide, _flyingGlider, _planeCrash;
         private static PropertyInfo _isInCaves;   // static LocalPlayer.IsInCaves
         private static bool _caveActive;
         private static Vector3 _caveFrom;
@@ -83,6 +98,7 @@ namespace ForestOverlay.Game
 
                 _harmony = new Harmony(harmonyId + ".movewatch");
                 InstallCave(lp);
+                InstallLand(lp);
                 _harmony.Patch(move,
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic)),
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.NonPublic)));
@@ -130,6 +146,78 @@ namespace ForestOverlay.Game
                 CaveStatus = "failed: " + ex.Message;
                 _log.LogWarning("MoveWatch: cave entrances " + CaveStatus);
             }
+        }
+
+        private static void InstallLand(Type lp)
+        {
+            try
+            {
+                Type fpc = GameBridge.FindGameType("FirstPersonCharacter");
+                BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                BindingFlags s = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo landed = fpc != null ? fpc.GetMethod("HandleLanded", f, null, Type.EmptyTypes, null) : null;
+                if (fpc != null)
+                {
+                    _prevVel = fpc.GetField("prevVelocity", f);
+                    _prevVelXZ = fpc.GetField("prevVelocityXZ", f);
+                    _allowFall = fpc.GetField("allowFallDamage", f);
+                    _jumpTimer = fpc.GetField("jumpingTimer", f);
+                    _jumpLand = fpc.GetField("jumpLand", f);
+                    _swimming = fpc.GetProperty("swimming", f);
+                    _fpcRb = fpc.GetField("rb", f);
+                }
+                _animControl = lp != null ? lp.GetField("AnimControl", s) : null;
+                Type anim = GameBridge.FindGameType("playerAnimatorControl");
+                _shellRide = anim != null ? anim.GetField("doShellRideMode", f) : null;
+                _flyingGlider = anim != null ? anim.GetField("flyingGlider", f) : null;
+                Type clock = GameBridge.FindGameType("Clock");
+                _planeCrash = clock != null ? clock.GetField("planecrash", s) : null;
+                if (landed == null || _prevVel == null || _allowFall == null || _jumpTimer == null || _jumpLand == null)
+                {
+                    LandStatus = "the game's landing was not found - fall damage cancels are not detected";
+                    _log.LogWarning("MoveWatch: " + LandStatus + ".");
+                    return;
+                }
+                _harmony.Patch(landed, new HarmonyMethod(typeof(MoveWatch).GetMethod("LandPrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+                LandStatus = "watching landings";
+                _log.LogInfo("MoveWatch: " + LandStatus + " (FirstPersonCharacter.HandleLanded).");
+            }
+            catch (Exception ex)
+            {
+                LandStatus = "failed: " + ex.Message;
+                _log.LogWarning("MoveWatch: landings " + LandStatus);
+            }
+        }
+
+        private static void LandPrefix(object __instance)
+        {
+            try
+            {
+                Landings++;
+                MoveDetector d = Detector;
+                if (d == null) return;
+                float judged = (float)_prevVel.GetValue(__instance);
+                float air = (float)_jumpTimer.GetValue(__instance);
+                bool gates = (bool)_allowFall.GetValue(__instance) && !(bool)_jumpLand.GetValue(__instance);
+                if (_planeCrash != null && (bool)_planeCrash.GetValue(null)) gates = false;
+                object ac = _animControl != null ? _animControl.GetValue(null) : null;
+                if (ac != null && _prevVelXZ != null)
+                {
+                    bool ride = (_shellRide != null && (bool)_shellRide.GetValue(ac)) || (_flyingGlider != null && (bool)_flyingGlider.GetValue(ac));
+                    if (ride && ((Vector3)_prevVelXZ.GetValue(__instance)).magnitude > 32f) gates = false;
+                }
+                bool swimming = _swimming != null && (bool)_swimming.GetValue(__instance, null);
+                Transform t = _lpTransform != null ? _lpTransform.GetValue(null) as Transform : null;
+                Rigidbody rb = _fpcRb != null ? _fpcRb.GetValue(__instance) as Rigidbody : null;
+                float now = rb != null ? -rb.velocity.y : 0f;
+                int before = d.Ready.Count;
+                float fell = Mathf.Max(d.RecentFall, now);
+                d.Landed(t != null ? t.position : Vector3.zero, judged, gates, air, swimming, now);
+                if (d.Ready.Count > before || (fell > MoveDetector.FallSpeed && judged <= MoveDetector.FallSpeed))
+                    _log.LogInfo("MoveWatch: a landing after " + air.ToString("0.00") + " s in the air: judged at " + judged.ToString("0.0") +
+                                 " m/s, fell at " + fell.ToString("0.0") + " m/s, damage allowed " + gates + ", swimming " + swimming + ".");
+            }
+            catch (Exception) { }
         }
 
         private static void CavePrefix(object __instance, out int __state)

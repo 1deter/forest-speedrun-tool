@@ -5,6 +5,15 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.230 - 2026-10-03
+
+- Run mode now notices a **fall damage cancel**: a landing at a speed that
+  should hurt (over 28 m/s) that took no damage because the game judged it
+  on an earlier, slower contact. It goes into the attempt's log with the
+  real speed, the speed the game judged and what the damage would have
+  been. Like the other moves it is a note for the verifier, never a flag -
+  a long slide down a steep slope can land the same way.
+
 ## v0.24.229 - 2026-10-03
 
 - Run mode now notices a **cave state force load**: a crawl or swim cave

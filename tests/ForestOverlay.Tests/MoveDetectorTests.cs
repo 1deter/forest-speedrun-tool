@@ -488,5 +488,111 @@ namespace ForestOverlay.Tests
             d.Reset(drop: true);
             Assert.Single(d.Ready);
         }
+
+        // --- fall damage cancel -----------------------------------------
+        // Live (2026-10-03): an 82 m drop onto the ground is judged at 55
+        // m/s (the speed it hit at), a drop into the big lake at 1.3.
+
+        private static Sim Falling(float speed, float seconds)
+        {
+            var s = new Sim { Fps = 144f, Pos = new Vector3(0f, 500f, 0f) };
+            s.Vel = new Vector3(0f, -speed, 0f);
+            s.Run(seconds);
+            return s;
+        }
+
+        [Fact]
+        public void A_landing_the_game_judges_at_its_real_speed_is_not_reported()
+        {
+            var s = Falling(55f, 2.5f);
+            s.D.Landed(s.Pos, 55f, true, 2.5f, false, 0f);
+            Assert.Empty(s.D.Ready);
+        }
+
+        [Fact]
+        public void A_fast_landing_judged_on_a_slow_contact_is_reported()
+        {
+            var s = Falling(40f, 2f);
+            s.D.Landed(s.Pos, 1.3f, true, 2f, false, 0f);
+            var m = Assert.Single(s.D.Ready);
+            Assert.Equal(MoveDetector.FallDamageCancel, m.Kind);
+            Assert.InRange(m.PeakSpeed, 39.9f, 40.1f);
+            Assert.Contains("falling at 40 m/s", m.Detail);
+            Assert.Contains("earlier contact at 1.3 m/s", m.Detail);
+            Assert.Contains("52 damage", m.Detail);   // 0.9 * 40 * 40 / 27.5
+        }
+
+        [Fact]
+        public void A_cancelled_landing_over_the_fatal_air_time_says_fatal()
+        {
+            var s = Falling(55f, 5f);
+            s.D.Landed(s.Pos, 0f, true, 5f, false, 0f);
+            Assert.Contains("fatal", Assert.Single(s.D.Ready).Detail);
+        }
+
+        [Theory]
+        [InlineData(false, 2f, false)]   // the game's own gates say no damage (no fall damage allowed, a shell ride, ...)
+        [InlineData(true, 0.7f, false)]  // a short hop: no damage under 0.75 s
+        [InlineData(true, 2f, true)]     // into water
+        public void A_landing_the_game_would_never_hurt_is_not_reported(bool gates, float air, bool swimming)
+        {
+            var s = Falling(45f, 2f);
+            s.D.Landed(s.Pos, 1f, gates, air, swimming, 0f);
+            Assert.Empty(s.D.Ready);
+        }
+
+        [Fact]
+        public void A_slow_landing_is_not_reported()
+        {
+            var s = Falling(25f, 2f);
+            s.D.Landed(s.Pos, 0f, true, 2f, false, 0f);
+            Assert.Empty(s.D.Ready);
+        }
+
+        [Fact]
+        public void A_fast_fall_slowed_well_before_the_landing_is_not_reported()
+        {
+            // Hit something at speed (judged then), slowed, landed later.
+            var s = Falling(45f, 1.5f);
+            s.Vel = new Vector3(0f, -5f, 0f);
+            s.Run(0.4f);
+            s.D.Landed(s.Pos, 2f, true, 2f, false, 0f);
+            Assert.Empty(s.D.Ready);
+        }
+
+        [Fact]
+        public void The_speed_at_the_landing_itself_counts()
+        {
+            var s = Falling(5f, 1f);
+            s.D.Landed(s.Pos, 2f, true, 1.5f, false, 35f);
+            Assert.Single(s.D.Ready);
+        }
+
+        [Fact]
+        public void A_kinematic_fall_or_a_reset_clears_the_fall()
+        {
+            var s = Falling(45f, 1f);
+            s.Kinematic = true;
+            s.Run(0.1f);
+            s.Kinematic = false;
+            s.Vel = Vector3.zero;
+            s.Run(0.02f);
+            s.D.Landed(s.Pos, 0f, true, 2f, false, 0f);
+            Assert.Empty(s.D.Ready);
+
+            var r = Falling(45f, 1f);
+            r.D.Reset(drop: true);
+            r.D.Landed(r.Pos, 0f, true, 2f, false, 0f);
+            Assert.Empty(r.D.Ready);
+        }
+
+        [Fact]
+        public void Two_landings_in_a_row_count_the_fall_once()
+        {
+            var s = Falling(45f, 1f);
+            s.D.Landed(s.Pos, 0f, true, 2f, false, 0f);
+            s.D.Landed(s.Pos, 0f, true, 2f, false, 0f);
+            Assert.Single(s.D.Ready);
+        }
     }
 }
