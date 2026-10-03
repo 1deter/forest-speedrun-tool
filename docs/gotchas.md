@@ -631,6 +631,12 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     it is open to the map's edge). For a render artefact, hide each layer
     in turn (models, sea, patch, world group) and see which one takes it
     away; a raycast that hits nothing says it is not a model.
+    **Correction (2026-10-03):** "sea only open to the edge" was too
+    strict - the inland basins below sea level ARE water in the game
+    (teleported into five: underwater); only the sinkhole is dry. The
+    middle's lakes are also a model (`BigLake_v2`, y 48.4) the export files
+    under "caves" (origin 0,0,0), so a surface-only filter missed it. Check
+    a "dry" verdict in game before baking it in.
 
 76. **A game can have more than one distance switch.** (2026-10-01, the
     photo map's black lakes.) The aerial capture raised LOD_Manager's

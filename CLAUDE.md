@@ -715,7 +715,11 @@ one (a preset save as a start state, `run = <category name>`, in
    culling; BatchedMesh tried and dropped (slower); the remaining lever is
    texture arrays in the export - only if frame times call for it;
    Follow's camera through cave walls fixed; caves on the 2D map done.
-   Photo map recaptured (v0.24.222). The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
+   Photo map recaptured (v0.24.222); its lakes drawn (2026-10-03: the
+   middle's BigLake_v2 plane, every inland basin below sea level, the
+   sinkhole's pool - author: "water is still missing"; not yet seen by the
+   author). The 3D view's middle lake model is filed under caves: drawn
+   unclipped / only with caves on - check it. The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run

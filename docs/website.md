@@ -237,9 +237,14 @@ with a Water switch.
    so back the folder up first, rename the new `<ix>_<k>` to `<ix>_<k+N>`
    and put the full `tiles.txt` back (done this way on 2026-10-01).
 2. **Bake**: `python scripts/aerial-bake.py` -> `site/aerial-out/` (not in
-   git; pyramid L0-6, 256 px; `canopy` / `ground` get the sea drawn from
-   the terrain's heights - open water joined to the map's edge, shaded by
-   depth, the sinkhole and other pits stay dry; `canopy-dry` /
+   git; pyramid L0-6, 256 px; `canopy` / `ground` get the water drawn,
+   shaded by depth: the sea from the terrain's heights - every pixel below
+   41.5 except the sinkhole (the inland basins are water in the game:
+   teleported into five, underwater, 2026-10-03) - and the lakes from the
+   3D world export (`site/world-out`: every "The Forest/Water" model but
+   the caves' `LakeCaveNew`, any area - the middle's lakes are one plane,
+   `BigLake_v2` at y 48.4, filed under caves; the sinkhole's pool against
+   its floor model, the terrain being a hole there); `canopy-dry` /
    `ground-dry` are the capture as it is: the Water button;
    `aerial.json` carries `build`, the tiles' `?v=`). The server refuses
    a file asked for with another build's `?v=`, and any `?v=` while the

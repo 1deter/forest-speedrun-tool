@@ -10,8 +10,16 @@ capture, so those were the same pictures.)
 
 The water is drawn here, from the terrain's heights (terrain.json +
 heights.u16): "canopy" / "ground" get the sea over every pixel whose ground
-is under sea level, shading with depth; "canopy-dry" / "ground-dry" are the
-capture as it is (the map's Water button switches between them).
+is under sea level (the inland basins too; the sinkhole stays dry),
+shading with depth; "canopy-dry" / "ground-dry" are the
+capture as it is (the map's Water button switches between them). The
+lakes (the game's "The Forest/Water" surfaces, which never show in the
+capture either) come from the 3D world export (site/world-out, world.json:
+every surface instance of a water material, its triangles laid flat into a
+1 m grid of water levels) and are shaded the same way where the ground is
+below their level - the models overhang the shore (author, 2026-10-03:
+"water is still missing from medium/small lakes and the middle section").
+Without a world export the lakes are skipped, with a warning.
 
     python scripts/aerial-bake.py [capture folder] [out folder]
 
@@ -32,12 +40,19 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import world_pack
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CAPTURE = os.path.join(os.environ.get("FOREST_ROOT", r"G:\SteamLibrary\steamapps\common\The Forest"),
                                "BepInEx", "config", "ForestOverlay", "aerial")
 DEFAULT_OUT = os.path.join(ROOT, "site", "aerial-out")      # not in git; uploaded to the site
+DEFAULT_WORLD = os.path.join(ROOT, "site", "world-out")     # the 3D world export, for the lakes
+SINKHOLE = (236.0, -129.0)     # world x, z of the sinkhole's floor (its lowest point, y 0)
+LAKE_GRID = 1.0                # metres per cell of the lake-level grid
+FLOOR_MESHES = ("sinkhole_floor", "Lower_Sinkhole_Cut:Lower_Sinkhole_Cut")   # ground under the terrain's hole
 WEB = 256
 MAX_LEVEL = 6                  # 3500 m / (256 * 64) = 0.21 m per pixel
 QUALITY = 82
@@ -81,32 +96,117 @@ def row_steps(src, tiles):
 
 def load_heights(terrain):
     """The terrain's heights as world y, [z row][x column] (map.js groundAt),
-    and the sea's depth there: sea level minus the ground, only where the
-    water is open to the map's edge (the sinkhole and other pits below sea
-    level stay dry), 0 elsewhere."""
+    and the sea's depth there: sea level minus the ground wherever the
+    ground is below it, except the sinkhole (the pit below sea level that
+    holds no water: everything connected under sea level to SINKHOLE).
+    The inland basins below sea level are water in the game (author,
+    2026-10-03: "water is still missing from ... the middle section";
+    checked by teleporting into five of them - underwater - 2026-10-03)."""
     path = os.path.join(ROOT, "site", "ForestSite", "wwwroot", "terrain", terrain["heights"])
     g = terrain["grid"]
     h = np.fromfile(path, dtype="<u2").astype(np.float32).reshape(g, g)
     h = terrain["y0"] + h / 65535.0 * terrain["sizeY"]
     under = h < terrain["sea"]
-    sea = np.zeros_like(under)
-    stack = [(j, i) for j in range(g) for i in (0, g - 1)] + [(j, i) for i in range(g) for j in (0, g - 1)]
+    dry = np.zeros_like(under)
+    i0 = int(round((SINKHOLE[0] - terrain["x0"]) / terrain["sizeX"] * (g - 1)))
+    j0 = int(round((SINKHOLE[1] - terrain["z0"]) / terrain["sizeZ"] * (g - 1)))
+    stack = [(j0, i0)]
     while stack:
         j, i = stack.pop()
-        if sea[j, i] or not under[j, i]:
+        if dry[j, i] or not under[j, i]:
             continue
-        sea[j, i] = True
+        dry[j, i] = True
         if j > 0: stack.append((j - 1, i))
         if j < g - 1: stack.append((j + 1, i))
         if i > 0: stack.append((j, i - 1))
         if i < g - 1: stack.append((j, i + 1))
+    sea = under & ~dry
     # A sample just above the sea beside open water keeps its (negative)
     # depth, so the shore fades between samples instead of stepping.
     near = sea.copy()
     near[1:, :] |= sea[:-1, :]; near[:-1, :] |= sea[1:, :]
     near[:, 1:] |= sea[:, :-1]; near[:, :-1] |= sea[:, 1:]
     depth = np.where(near, terrain["sea"] - h, -10.0).astype(np.float32)
-    return depth
+    return depth, h
+
+
+def instances(world, meta, wanted):
+    """(model index, world-space vertices, indices, mesh) of every instance
+    of the models in wanted, in any area of the world export."""
+    keys = np.array(sorted(wanted), np.uint32)
+    for c in meta["chunks"]:
+        recs = np.frombuffer(world_pack.read_chunk(world, meta, c), np.dtype([("m", "<u4"), ("v", "<f4", 12)]))
+        for rec in recs[np.isin(recs["m"], keys)]:
+            v = rec["v"].reshape(3, 4).astype(np.float64)
+            model = meta["models"][int(rec["m"])]
+            mesh = meta["meshes"][model["mesh"]]
+            raw = world_pack.read(world, meta, model["mesh"])
+            if raw is None:
+                continue
+            nv = mesh["nv"]
+            pos = np.frombuffer(raw, "<f4", nv * 3, 0).reshape(nv, 3).astype(np.float64)
+            at = nv * 12 + (nv * 8 if mesh.get("uv") else 0)
+            idx = np.frombuffer(raw, "<u4" if mesh.get("i32") else "<u2", mesh["ni"], at)
+            yield int(rec["m"]), pos @ v[:, :3].T + v[:, 3], idx, mesh
+
+
+def load_lakes(world, terrain):
+    """(water level, floor) as world y per LAKE_GRID cell over the terrain's
+    square, row 0 north, NaN where there is none; None without a world
+    export. The level: every instance's triangles that use a "The
+    Forest/Water" material (lakes, the snow lake, the middle's big lakes,
+    the sinkhole's pool), laid flat at their mean height. The floor: the
+    top of the FLOOR_MESHES, the ground where the terrain has a hole (the
+    sinkhole: the height map stops at 0, its floor is a model ~300 m
+    lower, and its pool at the hell cave's door lies on it)."""
+    path = os.path.join(world, "world.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        meta = json.load(f)
+    # The caves' own lakes (LakeCaveNew) are left out; the rest are kept
+    # from every area - the export files a model by its origin, and the
+    # middle's lakes (BigLake_v2, one plane at y 48.4), some GeeseLakes and
+    # the sinkhole's pool are chunked as "caves" (gotcha 70).
+    water = {i for i, m in enumerate(meta["materials"])
+             if m.get("shader") == "The Forest/Water" and "Cave" not in m["name"]}
+    n = int(round(terrain["sizeX"] / LAKE_GRID))
+    to_grid = lambda p: ((p[:, 0] - terrain["x0"]) / LAKE_GRID, (terrain["z0"] + terrain["sizeZ"] - p[:, 2]) / LAKE_GRID)
+    level = Image.new("F", (n, n), float("nan"))
+    draw = ImageDraw.Draw(level)
+    # Models drawing a water material (render models only), and which of their submeshes.
+    subs = {}
+    for i, model in enumerate(meta["models"]):
+        if model["kind"] != "collide":
+            w = [k for k, mat in enumerate(model["mats"]) if mat in water]
+            if w:
+                subs[i] = w
+    lakes, tris = 0, 0
+    for m, p, idx, mesh in instances(world, meta, subs):
+        u, w = to_grid(p)
+        lakes += 1
+        for s in subs[m]:
+            first, count = mesh["sub"][s]
+            t = idx[first:first + count].reshape(-1, 3)
+            for a, b, d in t:
+                y = (p[a, 1] + p[b, 1] + p[d, 1]) / 3.0
+                draw.polygon([(u[a], w[a]), (u[b], w[b]), (u[d], w[d])], fill=float(y))
+            tris += len(t)
+    print("lakes: %d water instance(s), %d triangles" % (lakes, tris))
+    # The floor: triangles lowest first, so a cell keeps the highest surface over it.
+    floor = Image.new("F", (n, n), float("nan"))
+    draw = ImageDraw.Draw(floor)
+    names = {i for i, mesh in enumerate(meta["meshes"]) if mesh["name"] in FLOOR_MESHES}
+    tri = []
+    for m, p, idx, mesh in instances(world, meta, {i for i, mo in enumerate(meta["models"])
+                                                  if mo["mesh"] in names and mo["kind"] != "collide"}):
+        u, w = to_grid(p)
+        t = idx.reshape(-1, 3)
+        tri += [(float(p[t[k], 1].mean()), [(u[a], w[a]), (u[b], w[b]), (u[d], w[d])]) for k, (a, b, d) in enumerate(t)]
+    for y, poly in sorted(tri, key=lambda e: e[0]):
+        draw.polygon(poly, fill=y)
+    print("floor: %d triangles" % len(tri))
+    return np.asarray(level, np.float32), np.asarray(floor, np.float32)
 
 
 def sample(grid, terrain, x, z):
@@ -122,13 +222,31 @@ def sample(grid, terrain, x, z):
     return top * (1 - fv) + bottom * fv
 
 
-def add_water(img, sea_depth, terrain, west, north, tile):
-    """The sea over a capture tile resized to img's size (west / north edge, metres)."""
+def lake_depth(lakes, ground, terrain, xs, zs):
+    """A lake's depth at world xs (columns) / zs (rows): its level minus the
+    ground (the floor model where the terrain has a hole), -10 where there
+    is no lake (nearest cell of the lake grids)."""
+    level, floor = lakes
+    n = level.shape[0]
+    i = np.clip(((xs - terrain["x0"]) / LAKE_GRID).astype(np.int32), 0, n - 1)
+    j = np.clip(((terrain["z0"] + terrain["sizeZ"] - zs) / LAKE_GRID).astype(np.int32), 0, n - 1)
+    level = level[j[:, None], i[None, :]]
+    f = floor[j[:, None], i[None, :]]
+    g = sample(ground, terrain, xs[None, :], zs[:, None])
+    g = np.where(np.isnan(f) | (g > terrain["y0"] + 0.5), g, f)
+    return np.where(np.isnan(level), -10.0, level - g)
+
+
+def add_water(img, sea_depth, terrain, west, north, tile, lakes=None, ground=None):
+    """The sea and the lakes over a capture tile resized to img's size (west /
+    north edge, metres)."""
     w = img.width
     step = tile / w
     xs = west + (np.arange(w, dtype=np.float32) + 0.5) * step
     zs = north - (np.arange(w, dtype=np.float32) + 0.5) * step
     depth = sample(sea_depth, terrain, xs[None, :], zs[:, None])
+    if lakes is not None:
+        depth = np.maximum(depth, lake_depth(lakes, ground, terrain, xs, zs))
     if depth.max() <= 0:
         return img
     d = np.clip(depth, 0, None)[..., None]
@@ -173,7 +291,10 @@ def main():
         k = relief.width / 2 ** level
         return relief.crop((round(tx * k), round(ty * k), round((tx + 1) * k), round((ty + 1) * k))).resize((WEB, WEB), Image.BILINEAR)
 
-    sea_depth = load_heights(terrain)
+    sea_depth, ground = load_heights(terrain)
+    lakes = load_lakes(os.environ.get("FOREST_WORLD", DEFAULT_WORLD), terrain)
+    if lakes is None:
+        print("WARNING: no world export (site/world-out or FOREST_WORLD) - the lakes are not drawn")
     for iz, k in row_steps(os.path.join(capture, "canopy"), tiles):
         print("WARNING: capture row %d is %.2fx as bright as row %d below it - the light changed mid-capture; "
               "retake rows %d+ (docs/website.md, The photo map)" % (iz, k, iz - 1, iz))
@@ -195,7 +316,7 @@ def main():
             left, top = (cx0 - tx0) / mpp, (top_z - cz1) / mpp        # in top-level pixels
             img = Image.open(path).convert("RGB").resize((round(px), round(px)), Image.LANCZOS)
             if not dry:
-                img = add_water(img, sea_depth, terrain, cx0, cz1, tile)
+                img = add_water(img, sea_depth, terrain, cx0, cz1, tile, lakes, ground)
             for tx in range(int(left // WEB), int(math.ceil((left + px) / WEB))):
                 for ty in range(int(top // WEB), int(math.ceil((top + px) / WEB))):
                     if not (0 <= tx < n and 0 <= ty < n):
