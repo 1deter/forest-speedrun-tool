@@ -2671,9 +2671,16 @@ climb entrances): locks the player, sets `enterCaveInt`, then sends
 `InACave` **on a timer** (2.5 s, then 0.5 s) and afterwards waits only while
 layer 0's tag is `enterCaveHash`. If the enter animation never plays (a
 smash in the air holds the animator) the player is not moved, the timer
-still sends `InACave` (terrain collision off, cave lighting, cave streaming)
-and the wait ends at once: released at the mouth, outside, in cave state -
-the runners' description exactly. Falling through the terrain from there is
+still sends `InACave` (terrain collision off, cave lighting, cave streaming).
+Correction (IL re-read + live, 2026-10-03): after `InACave` the coroutine
+waits until layer 0 or 2 is tagged `enterCave`, then holds the player
+while it stays tagged and lets go the frame it is not - so the let-go
+comes wherever the root motion had got to when the animation stopped.
+Live: an `Animator.Rebind` 1.7 s in let the player go standing at the
+Cave 1 mouth, 1.9 m above the terrain, in cave state - the runners'
+description. A normal entry lets go 7.5-300 m under the terrain (survey of
+every crawl / swim entrance; `activateCave` needs the look raycast -
+`set <trigger> activateCave.enabled true` + `press Take` drives one). Falling through the terrain from there is
 `InACave`'s terrain collision being ignored.
 
 **Axe / wall clips and log boosts** (not read in depth). Both look like

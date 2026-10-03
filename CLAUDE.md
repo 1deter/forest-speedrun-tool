@@ -626,36 +626,27 @@ identity.
 
 ## Current status
 
-**Released: v0.24.228** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **575 tests** (+ 85 site tests).
+**Released: v0.24.229** (2026-10-03). The author runs it via the in-game
+updater (Slot 1). **588 tests** (+ 85 site tests).
 
-### Pick up here (2026-10-03, v0.24.228 released)
+### Pick up here (2026-10-03, v0.24.229 released)
 
-**This session: banned-move detection, part 1 (*Next* item 1)** - the
-bomb boost and huge speed, built and live-tested (docs/run-mode.md
-*Banned moves: detection*, *Built*):
-- **v0.24.227**: `Game/MoveWatch` counts the knockback coroutine's pushes
-  made while game time is stopped (the boost's exact mechanism);
-  `Data/MoveDetector` (pure, 31 tests, false-flag scenarios first) turns
-  them into a bomb boost (seconds stopped, frames piled, speed, distance)
-  and reports huge speed (>= 200 m/s speed AND distance over 0.1 s, not
-  kinematic, not a knockback until calm); `RunModeModule.Moves` logs
-  `Move seen:` always and folds a `move` line into the attempt's chain;
-  the site's attempt page lists them beside the banned moves. **A move is
-  never a flag** (the verdict ignores it).
-- **v0.24.228**: a teleport landing while the body still held a high speed
-  read as huge speed (found live; gotcha 90) - a step longer than the
-  speed allows restarts the window.
-- Live (bridge): silent for a plain knockback, pauses with no knockback, a
-  3-push pause, a 1,050 m fall (falls cap at 55.4 m/s), death by explosion
-  + Reload save on death, a forced 300 m/s air control held to ~78 m/s;
-  reported for real ESC boosts (early 293 m, late 35 m) and a real 300 m/s.
-  End to end in run mode to the live site (test attempt deleted).
-  v0.24.228 re-checked live: the tp case x3 silent, a control boost still
-  reported.
-Earlier the same day: tech research round 2 (bomb boost refined, position
-writers, red elevator door fix v0.24.226, water) - game-notes *Speedrun
-tech*; savestate `elevPre2` (red elevator car, door shut).
+**This session: banned-move detection, part 2 - the cave state force load
+(v0.24.229)** (docs/run-mode.md *Banned moves: detection*, *Built*):
+`Game/MoveWatch` hooks `playerEnterCaveAction`'s `doCave` coroutine; at
+its let-go it reads the player against the terrain; `Data/MoveDetector.
+CaveEntryEnded` reports an entry that ends in cave state no more than 3 m
+under the terrain (LocalPlayer.Goto's own rule). Survey (bridge, every
+crawl and swim entrance): normal entries end 7.5 m (Cave 2) to 300 m
+under it. Live on v0.24.229: three normal Cave 1 entries silent (12.6 m
+under), an entry cut short by `Animator.Rebind` after `InACave` reported
+(let go at the mouth, 1.9 m above, standing there in cave state - the
+runners' description). Run mode / site path shared with the bomb boost
+(checked end to end in v0.24.227); the site names it against a banned
+move containing "cave". Not reproduced: the runners' own input (smash in
+the air) - the author's hands-on list (*Next* 5).
+Before (same day): v0.24.227-228 bomb boost + huge speed (live-tested;
+gotcha 90), tech research round 2 - game-notes *Speedrun tech*.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -690,8 +681,8 @@ spot exists yet - making one is the author's call.
 
 **Next, in order (one per session):**
 1. **Banned-move detection, the rest** (author, 2026-10-03: "build
-   detection"; bomb boost + huge speed done in v0.24.227-228): the cave
-   state flag next, then fall damage, then clips / log boosts with
+   detection"; bomb boost + huge speed v0.24.227-228, cave state force
+   load v0.24.229): fall damage next, then clips / log boosts with
    recorded runs - docs/run-mode.md *Banned moves: detection*. Same
    pattern: pure detector + false-flag tests, `move` lines, never flags.
 2. **Tech research, round 2** - done 2026-10-03 (*Pick up here*). Left

@@ -310,7 +310,7 @@ the bridge against a local site):
   tab line "from the next attempt"); `WebRequest.Send` with headers and
   one response header back; the site's `Categories.ETag` / `Unchanged`.
 
-## Banned moves: detection (bomb boost + huge speed built, v0.24.227-228)
+## Banned moves: detection (bomb boost + huge speed v0.24.227-228, cave force load v0.24.229)
 
 How each common move works is in [`game-notes.md`](game-notes.md) *Speedrun
 tech and the endgame gate*. Whether a move is a glitch is the community's
@@ -370,7 +370,24 @@ than the table's plan:
   off (146 m in 0.5 s). In run mode the move reached the attempt log and
   the live site's page (test attempt deleted). One false positive found
   and fixed (the teleport above).
-- **Next**: the cave state flag, then fall damage, then clips / log boosts.
+- **Cave state force load (v0.24.229)**: not "InACave while above the
+  terrain" but the entrance's own let-go - a prefix / postfix on
+  `playerEnterCaveAction/<doCave>c__Iterator0::MoveNext` notes where an
+  entry (`enter`) took hold and, when it returns false (the player let
+  go; the Timmy goodbye hand-over skipped), logs `MoveWatch: a cave
+  entrance let go of the player at ..., N m under the terrain, in cave
+  state ...` and reports an entry ending in cave state no more than 3 m
+  under the terrain. Survey (2026-10-03, bridge, every crawl and swim
+  entrance): normal let-gos 7.5 m (Cave 2) to 300 m under; the mouths
+  stand 0-3 m above. Live: normal entries silent; an entry cut short
+  (`Animator.Rebind` after `InACave`) let the player go standing at the
+  mouth in cave state - reported. The site's `MoveNotes` matches banned
+  moves containing "cave". **Not built**: a general "cave state above the
+  terrain" watch - the climb holes (Cave 9 ledge 2.1 m under), swim
+  mouths (0.7 m above) and the sinkhole (terrain 0, cave state from y 0)
+  sit inside its margin; it would need data from real runs. An entry the
+  game never lets go of (killed coroutine) is not seen.
+- **Next**: fall damage, then clips / log boosts.
 
 ## Other uses of locked settings
 
