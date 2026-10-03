@@ -45,15 +45,19 @@ public sealed class OpenAiChat : IChatModel
     public async Task<ChatResult> CompleteAsync(string system, IReadOnlyList<ChatMessage> messages,
         IReadOnlyList<ToolSpec> tools, int maxOutputTokens, CancellationToken ct)
     {
-        JsonObject body = BuildRequest(_model, system, messages, tools, maxOutputTokens);
-        using HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, _baseUrl + "/chat/completions");
-        req.Headers.Add("Authorization", "Bearer " + _key);
-        req.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-        using HttpResponseMessage resp = await _http.SendAsync(req, ct);
-        string text = await resp.Content.ReadAsStringAsync(ct);
-        if (resp.StatusCode == HttpStatusCode.TooManyRequests || (int)resp.StatusCode >= 500)
+        string json = BuildRequest(_model, system, messages, tools, maxOutputTokens).ToJsonString();
+        (HttpResponseMessage resp, string text) = await Retry.SendAsync(_http, () =>
+        {
+            HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, _baseUrl + "/chat/completions");
+            req.Headers.Add("Authorization", "Bearer " + _key);
+            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            return req;
+        }, ct);
+        using HttpResponseMessage held = resp;
+        bool overloaded = (int)resp.StatusCode >= 500;
+        if (resp.StatusCode == HttpStatusCode.TooManyRequests || overloaded)
             throw new ModelUnavailableException(Name + ": HTTP " + (int)resp.StatusCode + " " + GeminiChat.Brief(text),
-                resp.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60));
+                overloaded ? TimeSpan.FromSeconds(20) : resp.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60), overloaded);
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException(Name + ": HTTP " + (int)resp.StatusCode + " " + GeminiChat.Brief(text));
         ChatResult r = ParseResponse(text);

@@ -66,7 +66,36 @@ public sealed class ChatResult
 public sealed class ModelUnavailableException : Exception
 {
     public TimeSpan RetryAfter;
-    public ModelUnavailableException(string message, TimeSpan retryAfter) : base(message) { RetryAfter = retryAfter; }
+    /// True = overloaded (5xx, temporary); false = out of quota (429).
+    public bool Overloaded;
+    public ModelUnavailableException(string message, TimeSpan retryAfter, bool overloaded = false) : base(message)
+    {
+        RetryAfter = retryAfter;
+        Overloaded = overloaded;
+    }
+}
+
+// ------------------------------------------------------------------
+// A model API call with two quick retries on 5xx ("high demand" spikes
+// are usually seconds long - seen on the first live test, 2026-10-03).
+// 429 is not retried here: the chain rests that model instead.
+// ------------------------------------------------------------------
+public static class Retry
+{
+    public static TimeSpan[] Delays = { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5) };
+
+    public static async Task<(HttpResponseMessage resp, string text)> SendAsync(HttpClient http, Func<HttpRequestMessage> make, CancellationToken ct)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            using HttpRequestMessage req = make();
+            HttpResponseMessage resp = await http.SendAsync(req, ct);
+            string text = await resp.Content.ReadAsStringAsync(ct);
+            if ((int)resp.StatusCode < 500 || attempt >= Delays.Length) return (resp, text);
+            resp.Dispose();
+            await Task.Delay(Delays[attempt], ct);
+        }
+    }
 }
 
 public interface IChatModel

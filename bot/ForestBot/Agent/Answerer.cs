@@ -56,6 +56,7 @@ public sealed class Answerer
 
     public async Task<Answer> AskAsync(string question, IReadOnlyList<Turn> history, CancellationToken ct)
     {
+        bool overloaded = false;
         for (int attempt = 0; attempt < Math.Max(1, _models.Models.Count); attempt++)
         {
             IChatModel model = _models.Pick();
@@ -67,14 +68,17 @@ public sealed class Answerer
             catch (ModelUnavailableException e)
             {
                 _models.Rest(model, e.RetryAfter, e.Message);
+                overloaded |= e.Overloaded;
             }
         }
         TimeSpan wait = _models.NextAvailable();
+        string when = wait.TotalMinutes >= 2 ? "in about " + (int)Math.Ceiling(wait.TotalMinutes) + " minutes." : "in a minute.";
         return new Answer
         {
             Busy = true, Status = "busy",
-            Text = "I'm out of free capacity right now - please try again " +
-                   (wait.TotalMinutes >= 2 ? "in about " + (int)Math.Ceiling(wait.TotalMinutes) + " minutes." : "in a minute."),
+            Text = overloaded
+                ? "The AI service I use is overloaded right now - please try again " + when
+                : "I'm out of free capacity right now - please try again " + when,
         };
     }
 

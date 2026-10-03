@@ -40,14 +40,19 @@ public sealed class GeminiChat : IChatModel
     public async Task<ChatResult> CompleteAsync(string system, IReadOnlyList<ChatMessage> messages,
         IReadOnlyList<ToolSpec> tools, int maxOutputTokens, CancellationToken ct)
     {
-        JsonObject body = BuildRequest(system, messages, tools, maxOutputTokens, _thinkingLevel);
-        using HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, Endpoint + _model + ":generateContent");
-        req.Headers.Add("x-goog-api-key", _key);
-        req.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-        using HttpResponseMessage resp = await _http.SendAsync(req, ct);
-        string text = await resp.Content.ReadAsStringAsync(ct);
-        if (resp.StatusCode == HttpStatusCode.TooManyRequests || (int)resp.StatusCode >= 500)
-            throw new ModelUnavailableException(Name + ": HTTP " + (int)resp.StatusCode + " " + Brief(text), RetryAfter(resp, text));
+        string json = BuildRequest(system, messages, tools, maxOutputTokens, _thinkingLevel).ToJsonString();
+        (HttpResponseMessage resp, string text) = await Retry.SendAsync(_http, () =>
+        {
+            HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, Endpoint + _model + ":generateContent");
+            req.Headers.Add("x-goog-api-key", _key);
+            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            return req;
+        }, ct);
+        using HttpResponseMessage held = resp;
+        bool overloaded = (int)resp.StatusCode >= 500;
+        if (resp.StatusCode == HttpStatusCode.TooManyRequests || overloaded)
+            throw new ModelUnavailableException(Name + ": HTTP " + (int)resp.StatusCode + " " + Brief(text),
+                overloaded ? TimeSpan.FromSeconds(20) : RetryAfter(resp, text), overloaded);
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException(Name + ": HTTP " + (int)resp.StatusCode + " " + Brief(text));
         ChatResult r = ParseResponse(text);
