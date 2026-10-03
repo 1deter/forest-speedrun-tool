@@ -6,7 +6,7 @@ tags: categories, rules, timing
 confidence: runner
 checked: 2026-10-03
 sources: speedrun.com API v1, game w6j5341j (The Forest): categories with rules and subcategories, leaderboards top 3, read 2026-10-03; site/ForestSite/Categories.cs (how the tool seeds them); docs/run-mode.md "Categories"
-related: bomb-boost, smash-clip, lab-skip, elevator-skip, endgame-gate, wall-and-log-boost, dev-console-and-creative, pausing-and-game-time, endgame-splits, forestoverlay
+related: routes, bomb-boost, smash-clip, lab-skip, elevator-skip, endgame-gate, wall-and-log-boost, dev-console-and-creative, pausing-and-game-time, endgame-splits, forestoverlay
 code: Categories.Seeds, Categories.BannedOf, RunCategory
 ---
 
@@ -74,8 +74,10 @@ tech the other cards explain. All of it is `[inferred]` from the rule text
   keycard cave clip (`wall-and-log-boost`), clipping out of the red
   elevator (`elevator-skip`), the cliff-climb snap past walls
   (`position-snaps`). Glitchless bans these **even when you stay in
-  bounds** - "Sahara" is the runners' name for a place reached that way.
-  Where exactly "Sahara" is has not been confirmed here [inferred].
+  bounds** - "Sahara" is the runners' name for the cave section that leads
+  to the vault door (yirequ's Glitchless guide has a chapter of that name;
+  `routes`): the Glitchless route walks into it, and clipping in is banned
+  [runner].
 - **"Developer mode"** - the game's built-in developer console (F1:
   `goto`, `itemhack`, ...; `dev-console-and-creative`).
 - **"Third party software"** - cheat tools, trainers, memory editors.
@@ -152,6 +154,12 @@ difficulties are faster than Creative under *No Explosive Glitch* (5:10
 vs 5:48), so Creative's route there is a different one, not just the same
 route with god mode.
 
+## Moderators
+
+Cheesecake404, Killerkaz, Chazb, Gortern, sxczurass, fruich, yirequ
+(speedrun.com, 2026-10-03). Rule questions go to them, on speedrun.com or
+the speedrun Discord linked from the game's page.
+
 ## How ForestOverlay uses them
 
 The tool's website copies speedrun.com's categories once a day into
@@ -163,7 +171,6 @@ Nothing is published yet (2026-10-03) - publishing is the moderators' job
 
 ## Open questions
 
-- Where "Sahara" is and how runners get there.
 - Whether a bomb used without the pause menu counts as "the explosives
   glitch" under *No Explosive Glitch*.
 - What "Any% Bombs" was meant to be.

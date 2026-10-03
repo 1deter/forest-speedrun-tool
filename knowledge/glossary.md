@@ -52,6 +52,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | dev console, itemhack, goto | the game's built-in developer console | dev-console-and-creative |
 | Creative | god mode + infinite energy + no survival, set by the mode | dev-console-and-creative |
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
-| explosives glitch, OOB, Sahara | the bomb boost; out of bounds; a place reached by clipping - banned by board | categories-and-rules |
+| explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
+| route, K4 skip, Sahara, shift reset, sodas | the runs step by step; Sahara = the cave to the vault door | routes |
 | ForestOverlay, the tool, savestates, Quick load, run mode | this project's speedrun plugin | forestoverlay |
 | fps, uncapped fps | matters wherever the game pushes once per rendered frame (bomb boost) or samples per frame (smash clip) | player-physics |

@@ -420,3 +420,28 @@ must:
 - unrestricted Any% exists only for Creative; Normal is run under No Explosive Glitch or Glitchless
 - No Explosive Glitch bans the explosives glitch, i.e. the bomb boost
 - the moderators decide edge cases; the written rules are short
+
+### route-neg
+question: what's the route for creative any% no explosive glitch?
+cards: routes
+must:
+- start from the speedrun.com preferred save; plane clip with the axe smash, then place a zipline near Cave 6
+- Cave 6 for the keycard: clips, custom wall boosts, sliding on the bodies to avoid fall damage
+- Cave 4 (K4 skip) to the vault door, passing the cave loading trigger
+- lab skip or the normal corridors, then the red elevator with the elevator skip
+
+### route-glitchless-stamina
+question: how do people manage stamina in glitchless?
+cards: routes
+must:
+- release sprint before any animation (cave entrance, rope, door) so stamina regenerates - the shift reset
+- sodas and crafted stamina mixes (from the flowers); 7 sodas bought at the lab's soda machine at 100 coins each
+- coins: around 620+ by the machine; fewer means a detour or buying at the endgame machine
+- no sprinting when swimming up or down; leave the water with a full bar
+
+### route-sahara
+question: what is sahara in the glitchless rules?
+cards: routes, categories-and-rules
+must:
+- the runners' name for the cave section leading to the vault door
+- glitchless bans clipping into it; the glitchless route walks in

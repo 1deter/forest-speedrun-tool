@@ -77,7 +77,7 @@ tunnelling-and-speed-cap, elevator-skip, lab-skip, endgame-gate,
 keycards-and-pickups, endgame-splits, caves-and-loading,
 saves-and-loading, deaths-and-revives, pausing-and-game-time,
 dev-console-and-creative, forestoverlay (+ timmy-forehead-skip, a
-runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API). Each was checked against the
+runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API; routes, 2026-10-03, from three guides' transcripts). Each was checked against the
 decompiled code while written (corrections made on the way: the pause menu
 stops time on Hard too; the fall cap is the speed cap; the zipline exit
 weakens braking).
@@ -96,13 +96,14 @@ to it):
 - Megan: her hits' damage live, a timed fight within 35 m vs bombs, births
   before the block, what kills the boss-room babies, weapon damage to her
   (`megan-boss`).
-- Categories: where "Sahara" is; whether a bomb without the pause menu is
+- Categories: whether a bomb without the pause menu is
   "the explosives glitch"; what the empty "Any% Bombs" board was for
   (`categories-and-rules`; questions for the moderators / runners).
+- Routes: the unrestricted Any% (bombs) route; the "shift reset" (stamina
+  during animations with sprint held) in code (`routes`).
 - Cannibals: weapon swing noise range, the bush bonus above 60 fps, the
   Stealth stat's sources, cave sight / noise live (`cannibal-ai`).
 
 Planned next - each needs research, not only writing:
-- `routes` - the any% / Creative routes step by step (from the guides).
 - `crafting-and-building` - what runners build (bomb traps, walls,
   ziplines, gliders) and how long it takes.
