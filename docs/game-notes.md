@@ -2785,15 +2785,39 @@ does, a way to visualise it):
 - **Hitting objects**: the knockback is Continuous (CCD) - the sweep stops the
   player at the first collider in the path (a tree 23 m out ended one live
   test) instead of passing it.
-- **Still open** (next session, with real input): (a) the table's distance
-  grows less than linearly with time paused (1 s ~250 m, 2 s ~400-580 m, 3 s
-  ~665-790 m) while the piled-up push is linear in frames - candidates: how
-  much of the free phase is left at the pause, ground contact, the 55 m/s cap
-  once the controller comes back; (b) the sideways drift ("flying off
-  course": z -10 to -50 over 1,000+ m in the table) - candidates: CCD sliding
-  along slopes / objects, the remaining free-phase steps; (c) a boost
-  visualiser = the predicted path from the frames paused and the time left in
-  the free phase, swept like the CCD does.
+- **Measured with real pauses (2026-10-03, v0.24.225, bridge `press Esc`
+  = the game's own pause menu; `Stats.Explosion 5`; ~235 fps; fixed step
+  1/60 s, gravity -16).** In the air (no ground, nothing to hit), the
+  velocity after closing the menu is 8 m/s x frames paused (+ the frames
+  before the pause), held for **~10 physics steps (~0.163 s of game time)**
+  and then zeroed horizontally - every time, whatever the pause length:
+  0.5 s / 1 s / 2 s paused (123 / 237 / 475 frames) = 170 / 308 / 652 m,
+  **1.30-1.38 m per paused frame** (8 m/s x 0.163 s). So the distance is
+  linear in frames paused when nothing is hit: **~1.3 m x fps x seconds
+  paused**.
+- **Pausing late costs a third per 0.05 s.** The free window is counted
+  from the blast in game time: pause 0 / 0.05 / 0.10 / 0.15 s after it ->
+  317 / 239 / 91 / 51 m for the same 1 s paused (window left 0.163 / 0.11 /
+  0.04 s, then one physics step = the late regime). sxczurass's table sits
+  at 0.8-0.9 of the air figure (240 fps 1 s: 276 m vs 312), what a pause
+  ~0.02-0.03 s after the blast gives - a human reaction.
+- **The "less than linear" and the drift are the ground.** Same test on
+  the ground where sxczurass ran (from x 772, z 0, back to +x, 1 s and 2 s
+  paused): both flew straight at ~1,870 / ~3,700 m/s for 2 steps, then hit
+  the same terrain rise at x ~887 - the CCD contact turned the velocity
+  into **sideways (-z) and up** (1,870 m/s -> (315, 198, -633)): only
+  ~170 / ~250 m of horizontal travel instead of ~310 / ~620, and the
+  vertical part is **not** zeroed by the explode state (only the horizontal
+  is): a launch of 540 m / 1,100 m straight up. A faster boost covers more
+  ground inside the same 0.163 s, so it is more likely to meet a slope or
+  an object - the longer pauses lose more (the table's 3-5 s rows), and the
+  hit decides the sideways drift. Off course = something touched inside
+  the window; a level runway (or a jump just before) is the optimal setup.
+- **A boost visualiser** (not built; Experimental if wanted): the path is a
+  straight line along the player's back, length 8 x frames paused x the
+  window left (0.163 s - game time since the blast), swept with the
+  player's capsule (`Physics.CapsuleCast`) to show the first hit - where
+  the boost bends and launches.
 The knockback uses **Continuous** collision detection: a boost cannot tunnel
 through static colliders (gold door test below: 200 and 1,500 m/s stopped).
 The inventory cannot replace the pause menu: it refuses to open while

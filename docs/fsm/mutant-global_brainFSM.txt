@@ -1,0 +1,1040 @@
+fsm global_brainFSM  on mutant_male(Clone)004/mutant_male_BASE
+start state: base
+active state now: 
+
+[variables]
+  float objectAngle = 0
+  float playerAngle = 0
+  float playerDist = 0
+  float playerDist2D = 0
+  float randFloat1 = 0
+  float targetDir = 0
+  float targetDist = 0
+  int aggression = 30
+  int currentDay = 0
+  int fear = 9
+  int groundTag = 0
+  int playerGroundTag = 0
+  int tempInt1 = 0
+  bool aggressiveBOOL = False
+  bool dark = False
+  bool deadBool = False
+  bool doingSleep = False
+  bool eatBodyBool = False
+  bool enableControllerBool = True
+  bool enableGravityBool = True
+  bool fearOverrideBool = False
+  bool femaleBool = False
+  bool femaleSkinnyBool = False
+  bool firemanBool = False
+  bool groundWalkable = True
+  bool leaderBool = False
+  bool paleBool = False
+  bool playerIsRed = False
+  bool sleepBool = False
+  bool targetSeenBool = False
+  bool tempBool1 = False
+  string fsmName = ""
+  vector3 closestObjectVECT = (0, 0, 0)
+  vector3 pathVector = (0, 0, 0)
+  vector3 trapLookatDir = (0, 0, 0)
+  gameobject closestObjectGO = null
+  gameobject fearTargetGo = null
+  gameobject footPivotGo = null
+  gameobject leaderGo = null
+  gameobject rootGo = null
+  gameobject spawnGo = null
+  gameobject target = null
+  gameobject trapLookatGo = null
+
+[events]
+  FINISHED (global), doBehaviour (global), toActivateFSM (global), toAggressive, toChange (global), toChangeMood (global), toDeadfallDeath, toDeath (global), toDeathTrap, toDeathTrapNoose, toDisableFSM (global), toNooseDeath, toNooseTrap, toPassive (global), toReset (global), toSetAggressive (global), toSetDying (global), toSetFearful (global), toSetPassive (global), toSetRunAway, toSetSearching (global), toSetSleep, toSleep, toSpikedDeath
+
+[global transitions]
+  on toSetSleep -> setSleep
+  on toSetRunAway -> setRunAway
+  on toSetSearching -> setSearching
+  on toSetAggressive -> setAggressive
+  on toSetPassive -> setPassive
+  on toActivateFSM -> wait
+  on toDeathTrap -> deathFromTrap
+  on toDeath -> death
+  on toSetFearful -> checkVis
+  on toReset -> base
+  on toSetDying -> dying
+  on toNooseTrap -> goToNooseEncounter
+  on toDeathTrapNoose -> nooseDeathStart
+
+[state base]
+  on FINISHED -> setSleeping
+  action GetParent
+    gameObject = owner
+    storeResult = {rootGo}
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "EnemyHealth"
+    methodName = "enableBodyColliderGo"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetUp"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {deadBool}
+    boolValue = False
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state chooseMood]
+  on toSleep -> setSleeping
+  on toSetSearching -> 
+  on toSetAggressive -> 
+  on toSetPassive -> 
+  on toNooseTrap -> 
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action SetBoolValue (disabled)
+    boolVariable = {fearOverrideBool}
+    boolValue = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {sleepBool}
+    isTrue = event toSleep
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {targetSeenBool}
+    isTrue = null
+    isFalse = event toSetSearching
+    everyFrame = False
+  action IntCompare
+    integer1 = {aggression}
+    integer2 = 5
+    equal = event toSetAggressive
+    lessThan = event toSetPassive
+    greaterThan = event toSetAggressive
+    everyFrame = False
+
+[state passive]
+  on toChangeMood -> refresh 2
+  action BoolTest
+    boolVariable = {sleepBool}
+    isTrue = event toActivateFSM
+    isFalse = null
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call setRepathRate (float)
+    stopOnExit = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "inTreeBool"
+    setValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "disabledBool"
+    setValue = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "sleepBOOL"
+    Value = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "isStalkingBool"
+    setValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event toChangeMood
+    realTime = False
+
+[state aggressive]
+  on toChangeMood -> refresh 3
+  action BoolTest
+    boolVariable = {sleepBool}
+    isTrue = event toActivateFSM
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = True
+    everyFrame = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = True
+    resetOnExit = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "inTreeBool"
+    setValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "disabledBool"
+    setValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "isStalkingBool"
+    setValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call setRepathRate (float)
+    stopOnExit = False
+  action Wait
+    time = 3
+    finishEvent = event toChangeMood
+    realTime = False
+
+[state setAggressive]
+  on FINISHED -> aggressive
+  on toNooseTrap -> 
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sleepBOOL"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "isStalkingBool"
+    setValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetIntValue
+    intVariable = {aggression}
+    intValue = 10
+    everyFrame = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = True
+    resetOnExit = False
+  action Wait
+    time = 0.3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setPassive]
+  on FINISHED -> passive
+  on toNooseTrap -> 
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sleepBOOL"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = True
+    resetOnExit = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = False
+    everyFrame = False
+  action NextFrameEvent (disabled)
+    sendEvent = event FINISHED
+  action SetIntValue
+    intVariable = {aggression}
+    intValue = 1
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setSleeping]
+  on toActivateFSM -> 
+  action SetBoolValue (disabled)
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {enableControllerBool}
+    boolValue = True
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call setRepathRate (float)
+    stopOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    enable = True
+    resetOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_sleepingFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action GetEventInfo
+    sentByGameObject = none
+    fsmName = {fsmName}
+    getBoolData = none
+    getIntData = none
+    getFloatData = none
+    getVector2Data = none
+    getVector3Data = none
+    getStringData = none
+    getGameObjectData = none
+    getRectData = none
+    getQuaternionData = none
+    getMaterialData = none
+    getTextureData = none
+    getColorData = none
+    getObjectData = none
+
+[state setSearching]
+  on FINISHED -> searching
+  on toNooseTrap -> 
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sleepBOOL"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = False
+    everyFrame = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_searchFSM"
+    enable = True
+    resetOnExit = False
+  action NextFrameEvent (disabled)
+    sendEvent = event FINISHED
+  action Wait
+    time = 0.3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state searching]
+  on toChangeMood -> refresh
+  action BoolTest
+    boolVariable = {sleepBool}
+    isTrue = event toActivateFSM
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmSearchReplace"
+    functionCall = call goToActivateRoutine (None)
+    stopOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "action_searchFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event toChangeMood
+    realTime = False
+
+[state wait]
+  on FINISHED -> chooseMood
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doingSleep}
+    boolValue = False
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state deathFromTrap]
+  on FINISHED -> checkDeathType
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantScriptSetup"
+    functionCall = call disableNonActiveFSM (string)
+    stopOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_searchFSM"
+    enable = False
+    resetOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetDown"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = ""
+    everyFrame = False
+    result = none
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantTargetFunctions"
+    methodName = "forceRemoveAttacker"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {enableControllerBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+  action NextFrameEvent
+    sendEvent = event FINISHED
+  action Wait (disabled)
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setFearful]
+  on FINISHED -> fearful
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = True
+    resetOnExit = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetIntValue
+    intVariable = {aggression}
+    intValue = 10
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+
+[state fearful]
+  on toChangeMood -> 
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAnimatorControl"
+    functionCall = call smoothChangeIdle (float)
+    stopOnExit = False
+
+[state checkDeathType]
+  on toNooseDeath -> goToNooseEncounter
+  on toSpikedDeath -> deadSpikedWall
+  on toDeadfallDeath -> wait2
+  action GetAnimatorInt
+    gameObject = owner
+    parameter = "trapTypeInt1"
+    everyFrame = False
+    result = {tempInt1}
+  action IntSwitch
+    intVariable = {tempInt1}
+    compareTo = [0, 2, 1]
+    sendEvent = [event toSpikedDeath, event toNooseDeath, event toDeadfallDeath]
+    everyFrame = False
+  action IntCompare (disabled)
+    integer1 = {tempInt1}
+    integer2 = 2
+    equal = event toNooseDeath
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+
+[state goToNooseEncounter]
+  on FINISHED -> waitForReset
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_searchFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_encounterFSM"
+    enable = True
+    resetOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetDown"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantTargetFunctions"
+    methodName = "forceRemoveAttacker"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {enableControllerBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_encounterFSM"
+    sendEvent = event toTrapNoose
+    delay = 0
+    everyFrame = False
+
+[state death]
+  on FINISHED -> deathFinish
+  action SetBoolValue
+    boolVariable = {deadBool}
+    boolValue = True
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "onFireBool"
+    setValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetDown"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantTargetFunctions"
+    methodName = "forceRemoveAttacker"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAiManager"
+    methodName = "sendDeathReactions"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantTypeSetup"
+    methodName = "removeFromSpawn"
+    delay = 0.5
+    repeating = False
+    repeatDelay = 0
+    cancelOnExit = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantScriptSetup"
+    functionCall = call disableAllFSM (None)
+    stopOnExit = False
+  action Wait (disabled)
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state deathFinish]
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state deadSpikedWall]
+  on FINISHED -> death
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantScriptSetup"
+    functionCall = call disableNonActiveFSM (string)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SmoothLookAtDirection
+    gameObject = owner
+    targetDirection = {trapLookatDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 10
+    lateUpdate = True
+  action LookAt (disabled)
+    gameObject = owner
+    targetObject = {trapLookatGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    debug = False
+    debugLineColor = RGBA(1.000, 0.922, 0.016, 1.000)
+    everyFrame = False
+  action Wait
+    time = 0.65
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setRunAway]
+  on FINISHED -> runAwayFromExplosion
+  on toNooseTrap -> 
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = True
+    resetOnExit = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetIntValue
+    intVariable = {aggression}
+    intValue = 10
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "explodeReactBool"
+    setValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+
+[state runAwayFromExplosion]
+  on toActivateFSM -> 
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "explodeReactBool"
+    setValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event toActivateFSM
+    realTime = False
+
+[state checkVis]
+  on toSetSearching -> 
+  on FINISHED -> setFearful
+  on toNooseTrap -> 
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {sleepBool}
+    isTrue = event toSetSleep
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_visionFSM"
+    variableName = "lookingForTarget"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {targetSeenBool}
+    isTrue = event FINISHED
+    isFalse = event toSetSearching
+    everyFrame = False
+
+[state refresh]
+  on FINISHED -> searching
+
+[state waitForReset]
+  on toActivateFSM -> 
+
+[state wait2]
+  on FINISHED -> death
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state dying]
+
+[state refresh 2]
+  on FINISHED -> passive
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state refresh 3]
+  on FINISHED -> aggressive
+
+[state nooseDeathStart]
+  on FINISHED -> goToNooseEncounter
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_searchFSM"
+    enable = False
+    resetOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetDown"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "EnemyHealth"
+    methodName = "disableBodyColliderGo"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantTargetFunctions"
+    methodName = "forceRemoveAttacker"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {enableControllerBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+
+[state setSleep]
+  on FINISHED -> gotoCave
+  on toNooseTrap -> 
+  action SetBoolValue
+    boolVariable = {sleepBool}
+    boolValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {fearOverrideBool}
+    boolValue = True
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {deadBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "trapBool"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toNooseTrap
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {enableGravityBool}
+    boolValue = True
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = False
+    everyFrame = False
+  action EnableFSM
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    enable = True
+    resetOnExit = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = False
+    resetOnExit = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_searchFSM"
+    enable = False
+    resetOnExit = False
+  action NextFrameEvent
+    sendEvent = event FINISHED
+  action Wait (disabled)
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state gotoCave]
+  on toChangeMood -> refresh 4
+  action SetBoolValue
+    boolVariable = {aggressiveBOOL}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue (disabled)
+    boolVariable = {fearOverrideBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_sleepingFSM"
+    sendEvent = event goToCave
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event toChangeMood
+    realTime = False
+
+[state refresh 4]
+  on FINISHED -> gotoCave

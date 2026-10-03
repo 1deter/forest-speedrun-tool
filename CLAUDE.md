@@ -210,7 +210,15 @@ coroutine), and the overlay's own actions: `savestates`, `capture`,
 (waits until idle), `tp`, `dump`, plus `wait` / `waitidle`; since
 v0.24.27-0.24.31 also `mark` (a magenta beacon through walls), `shot`
 (a screenshot into the bridge folder), `anim` / `anim watch N`
-(background) / `anim reset` (the player's animator).
+(background) / `anim reset` (the player's animator); since v0.24.223-225
+the game's own input - `press <action> [frames]` (waits until released),
+`hold <action> [s]`, `release <action|all>`, `axis <name> <v> [s]`,
+`input` / `input seen` (the names the game reads: Jump, Run, Crouch,
+Fire1, AltFire, Take, Esc, Inventory, ...; axes Horizontal, Vertical,
+Mouse X / Y) through postfixes on `TheForest.Utils.Input` (`Game/InputInject`,
+installed on the first input command; a command on frame F acts from F+1) -
+and `fsm <target> [path] [children]` (PlayMaker FSMs as text into
+`bridge/fsm/`, `Game/FsmExport`; the exports are kept in `docs/fsm/`).
 The author does what needs hands (combat, chopping) while a session
 drives the rest. A bad path is an error line, never an exception.
 `in.txt` still present after a call = the game is not reading (not
@@ -617,10 +625,27 @@ identity.
 
 ## Current status
 
-**Released: v0.24.222** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **536 tests** (+ 83 site tests).
+**Released: v0.24.225** (2026-10-03). The author runs it via the in-game
+updater (Slot 1). **543 tests** (+ 83 site tests).
 
-### Pick up here (2026-10-03, v0.24.222 released)
+### Pick up here (2026-10-03, v0.24.225 released)
+
+**This session (tech research round 2, items 2a + 2b done):** v0.24.223
+bridge input injection (`press` / `hold` / `release` / `axis` / `input`,
+confirmed live: a 1-frame Jump rose 2.4 m, Vertical 1 for 2 s walked
+12.6 m, + Run 25.7 m, Crouch held / released), v0.24.224-225 the `fsm`
+export; the player's six FSMs, the cannibals' four and rabbit / lizard
+AI are in [`docs/fsm/`](docs/fsm/README.md). Not tested live: a
+hold-to-take (`GetButtonAfterDelay`, rerouted - the log says 4 reads);
+Megan's / the boss FSMs need a session that visits her. **2c measured**
+(game-notes *Bomb boost, refined*): with real pauses the boost holds 8 m/s
+x frames paused for ~10 physics steps (0.163 s of game time from the blast),
+~1.3 m per paused frame, linear when nothing is hit; pausing 0.05 s late
+costs a third; the table's "less than linear" and the drift are terrain hits
+inside the window, which turn the speed sideways and UP (the vertical part
+is never zeroed: 500-1,100 m launches). Posted to QA. Turning the view with
+the bridge: `axis "Mouse X" v s` (+-2 for 0.1 s = ~60 deg; `set` on the
+rotation does not hold). **Next: 2d (position writers), then 2e.**
 
 **Handoff 2026-10-04 (from the overnight research session; the author
 switched session at ~500k context).** The overnight sweep (research, no code,
@@ -673,19 +698,10 @@ spot exists yet - making one is the author's call.
    state, fall damage, clips / log boosts.
 2. **Tech research, round 2** (author, 2026-10-04: "build the rewired
    inputs, you can export the state machines ... go ahead"):
-   a. **Bridge input injection** (dev-only, `src/`; release as usual):
-      bridge commands that press / hold the game's Rewired actions (Jump,
-      Run, Crouch, Take, Fire1, Esc, Inventory, the axes) through the game's
-      own `TheForest.Utils.Input` reads, so Jump / sprint / crouch tech can be
-      tested live. Off unless the test bridge is on; flagged like every
-      bridge action.
-   b. **Export the PlayMaker FSMs to text** (player `pmControl`,
-      `pmDamage`, combat; states, transitions, actions with fields) - also
-      step one of the knowledge bot (docs/knowledge-bot.md).
-   c. **The bomb boost's open questions** (game-notes *Bomb boost, refined*:
-      sublinear distance vs time paused, sideways drift, objects hit; maybe
-      a predicted-path visualiser, Experimental) with sxczurass's table as
-      the reference and (a) for real pauses.
+   a. + b. done (v0.24.223-225): input injection, the FSM export
+      (docs/fsm/).
+   c. done (measured; the visualiser is designed in game-notes, not built -
+      the author's call).
    d. **Position writers**: every script that moves / parents the player
       directly instead of walking it (cutscenes, ropes, ladders, cliff
       climb, sit, raft, sled, cave enter / exit, keypad walk-up, Timmy /

@@ -1,0 +1,145 @@
+fsm tempBlockManagerFSM  on player/player_BASE
+start state: start
+active state now: start
+
+[variables]
+  bool tempBool1 = False
+  bool tempBool2 = False
+
+[events]
+  FINISHED (global), doAction, doBlock, resetBlock (global), toReset (global)
+
+[global transitions]
+
+[state start]
+  on doBlock -> checkAnimator
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "controlFSM"
+    variableName = "blocking"
+    setValue = False
+    everyFrame = False
+  action GetButtonDown
+    buttonName = "AltFire"
+    sendEvent = event doBlock
+    storeResult = none
+  action GetMouseButtonDown
+    button = Right
+    sendEvent = event doBlock
+    storeResult = none
+
+[state checkAnimator]
+  on FINISHED -> start
+  on doAction -> setBlockInFsm
+  on toReset -> start
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "pmControl"
+    variableName = "seatedBool"
+    storeValue = {tempBool2}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool2}
+    isTrue = event FINISHED
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "ballHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "hangingBool"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = False
+  action GetButtonUp
+    buttonName = "AltFire"
+    sendEvent = event toReset
+    storeResult = none
+  action GetMouseButtonUp
+    button = Right
+    sendEvent = event toReset
+    storeResult = none
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "stickHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event doAction
+    isFalse = event FINISHED
+    everyFrame = False
+
+[state setBlockInFsm]
+  on toReset -> resetBlockInControl
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "controlFSM"
+    variableName = "blocking"
+    setValue = True
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "ballHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = True
+  action GetMouseButtonUp
+    button = Right
+    sendEvent = event toReset
+    storeResult = none
+  action GetButtonUp
+    buttonName = "AltFire"
+    sendEvent = event toReset
+    storeResult = none
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "pmControl"
+    variableName = "seatedBool"
+    storeValue = {tempBool2}
+    everyFrame = True
+  action BoolTest
+    boolVariable = {tempBool2}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = True
+
+[state resetBlockInControl]
+  on FINISHED -> start
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "controlFSM"
+    variableName = "blocking"
+    setValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "controlFSM"
+    sendEvent = event resetBlock
+    delay = 0
+    everyFrame = False

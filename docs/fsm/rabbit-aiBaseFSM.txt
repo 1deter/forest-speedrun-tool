@@ -1,0 +1,834 @@
+fsm aiBaseFSM  on rabbitGo(Clone)001
+start state: init
+active state now: homeState
+
+[variables]
+  float distFloat1 = 0
+  float objectAngle = 0
+  float playerDist = 18.605
+  float randFloat1 = 4.863
+  float targetDist = 0
+  float tempFloat1 = 2
+  float waypointArriveDist = 5
+  int HashIdle = 0
+  int HashOnTree = 0
+  int HashTag = 0
+  int count = 0
+  int getHash = 0
+  int randInt1 = 2
+  bool scaredBool = False
+  bool trappedBool = False
+  bool treeBool = False
+  vector3 attachPos = (0, 0, 0)
+  vector3 targetLookPos = (0, 0, 0)
+  vector3 targetObjectVec = (0, 0, 0)
+  vector3 treePos = (0, 0, 0)
+  gameobject animatorGo = GameObject 'rabbit_ANIM_base'
+  gameobject pickupTriggerGo = GameObject 'Trigger'
+  gameobject smashTriggerGo = null
+  gameobject targetGO = GameObject 'player'
+  gameobject targetObjectGO = null
+  gameobject treeGO = null
+  gameobject waypointGO = GameObject 'currentWaypoint'
+
+[events]
+  FINISHED (global), doAction, gotHit (global), noValidTarget, notVisible, scaredBool, toCheck, toCheckTrap, toClimb, toDeath (global), toDisableFSM (global), toHome, toIdle, toMatchPos, toRandomPoint, toRun (global), toRunAway, toSoundAlert, toTrapReset, toTrapped, toTree (global), toWalk (global)
+
+[global transitions]
+  on toSoundAlert -> getWaypoint 2
+  on gotHit -> takeDamage
+  on toDeath -> death
+  on toRunAway -> getWaypoint
+  on toHome -> homeState
+  on toTrapped -> trapped
+  on toTrapReset -> resetTrap
+
+[state homeState]
+  on doAction -> checkPlayer
+  on toRunAway -> 
+  action RandomInt
+    min = 0
+    max = 2
+    storeResult = {randInt1}
+    inclusiveMax = True
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSpawnFunctions"
+    methodName = "disableTrapDespawnDist"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action ActivateGameObject
+    gameObject = gameobject {pickupTriggerGo}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action ConvertIntToFloat
+    intVariable = {randInt1}
+    floatVariable = {tempFloat1}
+    everyFrame = False
+  action SetAnimatorFloat
+    gameObject = gameobject {animatorGo}
+    parameter = "idleType"
+    Value = {tempFloat1}
+    dampTime = 0.6
+    everyFrame = True
+  action SetGameObject
+    variable = {targetObjectGO}
+    gameObject = none
+    everyFrame = False
+  action SetGameObject
+    variable = {treeGO}
+    gameObject = none
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action RandomFloat
+    min = 1
+    max = 5
+    storeResult = {randFloat1}
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 13
+    tolerance = 0
+    equal = null
+    lessThan = event toRunAway
+    greaterThan = null
+    everyFrame = True
+  action SendRandomEvent (disabled)
+    events = [event toTree, null]
+    weights = [0.1, 1]
+    delay = 0
+  action Wait
+    time = {randFloat1}
+    finishEvent = event doAction
+    realTime = False
+
+[state init]
+  on FINISHED -> homeState
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+  action SetBoolValue
+    boolVariable = {trappedBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = gameobject {animatorGo}
+    parameter = "trapped"
+    Value = False
+    everyFrame = False
+  action SetGameObject
+    variable = {targetObjectGO}
+    gameObject = null
+    everyFrame = False
+
+[state checkPlayer]
+  on toRunAway -> getWaypoint
+  on FINISHED -> homeState
+  on toRandomPoint -> getRandomPoint
+  on toWalk -> getWaypoint
+  on toCheckTrap -> checkCloseTrap
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 21
+    tolerance = 0
+    equal = null
+    lessThan = event toWalk
+    greaterThan = null
+    everyFrame = False
+  action SendRandomEvent
+    events = [event FINISHED, event toRandomPoint, event toCheckTrap]
+    weights = [1, 0.4, 0.05]
+    delay = 0
+
+[state walkAway]
+  on FINISHED -> 
+  on toCheck -> checkTarget
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toMove (None)
+    stopOnExit = False
+  action Wait
+    time = 1.2
+    finishEvent = event toCheck
+    realTime = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state checkTarget]
+  on toIdle -> homeState
+  on FINISHED -> walkAway
+  on toRun -> startRunAway
+  action IntAdd
+    intVariable = {count}
+    add = 1
+    everyFrame = False
+  action IntCompare
+    integer1 = {count}
+    integer2 = 10
+    equal = event toIdle
+    lessThan = null
+    greaterThan = event toIdle
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {targetGO}
+    isNull = event toIdle
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event toIdle
+    greaterThan = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {scaredBool}
+    isTrue = event toRun
+    isFalse = null
+    everyFrame = False
+
+[state getWaypoint]
+  on doAction -> wait
+  on noValidTarget -> retry
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetIntValue
+    intVariable = {count}
+    intValue = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    functionCall = call findPointAwayFromPlayer (float)
+    stopOnExit = False
+  action Wait
+    time = 0.25
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state getRandomPoint]
+  on doAction -> chooseMove
+  on noValidTarget -> retry2
+  action SetIntValue
+    intVariable = {count}
+    intValue = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state moveTo]
+  on FINISHED -> checkDist1
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalAI"
+    methodName = "getPlayerAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkDist1]
+  on toIdle -> init
+  on FINISHED -> moveTo
+  on toRunAway -> 
+  action IntAdd
+    intVariable = {count}
+    add = 1
+    everyFrame = False
+  action IntCompare
+    integer1 = {count}
+    integer2 = 12
+    equal = event toIdle
+    lessThan = null
+    greaterThan = event toIdle
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {targetGO}
+    isNull = event toIdle
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 11
+    tolerance = 0
+    equal = null
+    lessThan = event toRunAway
+    greaterThan = null
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event toIdle
+    greaterThan = null
+    everyFrame = False
+
+[state takeDamage]
+  on toRunAway -> 
+  on toTrapped -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalHealth"
+    methodName = "scaredTimeout"
+    delay = 10
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSpawnFunctions"
+    methodName = "disableTrapDespawnDist"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {trappedBool}
+    isTrue = event toTrapped
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {scaredBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toRunAway
+    delay = 0
+    everyFrame = False
+
+[state death]
+  on FINISHED -> destroyMe
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalAI"
+    methodName = "goRagdoll"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "lizardAI"
+    functionCall = call goRagdoll (None)
+    stopOnExit = False
+  action Translate
+    gameObject = owner
+    vector = none
+    x = none
+    y = -50
+    z = none
+    space = World
+    perSecond = False
+    everyFrame = False
+    lateUpdate = True
+    fixedUpdate = False
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state destroyMe]
+  on FINISHED -> 
+  action DestroySelf (disabled)
+    detachChildren = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toHome
+    delay = 0
+    everyFrame = False
+
+[state runAway]
+  on FINISHED -> 
+  on toCheck -> checkTarget 2
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toCheck
+    realTime = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state checkTarget 2]
+  on toIdle -> homeState
+  on FINISHED -> runAway
+  on toRun -> 
+  action IntAdd
+    intVariable = {count}
+    add = 1
+    everyFrame = False
+  action IntCompare
+    integer1 = {count}
+    integer2 = 10
+    equal = event toIdle
+    lessThan = null
+    greaterThan = event toIdle
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {targetGO}
+    isNull = event toIdle
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event toIdle
+    greaterThan = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {scaredBool}
+    isTrue = event toRun
+    isFalse = null
+    everyFrame = False
+
+[state chooseMove]
+  on toRun -> moveTo
+  on toWalk -> moveTo 2
+  action SendRandomEvent
+    events = [event toRun, event toWalk]
+    weights = [1, 0.5]
+    delay = 0
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state moveTo 2]
+  on FINISHED -> checkDist1 2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalAI"
+    methodName = "getPlayerAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toMove (None)
+    stopOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkDist1 2]
+  on toIdle -> init
+  on FINISHED -> moveTo 2
+  on toRunAway -> 
+  action IntAdd
+    intVariable = {count}
+    add = 1
+    everyFrame = False
+  action IntCompare
+    integer1 = {count}
+    integer2 = 24
+    equal = event toIdle
+    lessThan = null
+    greaterThan = event toIdle
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = event toRunAway
+    greaterThan = null
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {targetGO}
+    isNull = event toIdle
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event toIdle
+    greaterThan = null
+    everyFrame = False
+
+[state chooseRun]
+  on FINISHED -> walkAway
+  on toRun -> startRunAway
+  action BoolTest
+    boolVariable = {scaredBool}
+    isTrue = event toRun
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendRandomEvent
+    events = [event toRun, event FINISHED]
+    weights = [1, 0]
+    delay = 0
+
+[state retry]
+  on FINISHED -> getRandomPoint2
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state retry2]
+  on FINISHED -> getRandomPoint
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state wait]
+  on FINISHED -> chooseRun
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state trapped]
+  on toHome -> 
+  action SetAnimatorFloat
+    gameObject = gameobject {animatorGo}
+    parameter = "idleType"
+    Value = 1
+    dampTime = 0
+    everyFrame = False
+  action ActivateGameObject
+    gameObject = gameobject {pickupTriggerGo}
+    activate = True
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSpawnFunctions"
+    methodName = "enableTrapDespawnDist"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = gameobject {animatorGo}
+    parameter = "trapped"
+    Value = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {trappedBool}
+    boolValue = True
+    everyFrame = False
+
+[state checkCloseTrap]
+  on doAction -> moveTo 3
+  on noValidTarget -> checkPlayer
+  action SetGameObject
+    variable = {targetObjectGO}
+    gameObject = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    methodName = "findCloseTrap"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state checkDist1 3]
+  on toHome -> 
+  on FINISHED -> moveTo 3
+  on toRunAway -> 
+  action IntAdd (disabled)
+    intVariable = {count}
+    add = 1
+    everyFrame = False
+  action IntCompare (disabled)
+    integer1 = {count}
+    integer2 = 12
+    equal = event toIdle
+    lessThan = null
+    greaterThan = event toIdle
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {targetObjectGO}
+    isNull = event toHome
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action GameObjectCompareTag
+    gameObject = {targetObjectGO}
+    tag = "trapSprung"
+    trueEvent = event toHome
+    falseEvent = null
+    storeResult = none
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 16
+    tolerance = 0
+    equal = null
+    lessThan = event toRunAway
+    greaterThan = null
+    everyFrame = False
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {targetGO}
+    storeResult = {targetDist}
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDist}
+    float2 = 0.1
+    tolerance = 0
+    equal = null
+    lessThan = event toIdle
+    greaterThan = null
+    everyFrame = False
+
+[state moveTo 3]
+  on FINISHED -> checkDist1 3
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "animalAI"
+    methodName = "getPlayerAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toMove (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state resetTrap]
+  on FINISHED -> getWaypoint
+  action SetAnimatorFloat (disabled)
+    gameObject = gameobject {animatorGo}
+    parameter = "idleType"
+    Value = 1
+    dampTime = 0
+    everyFrame = False
+  action ActivateGameObject
+    gameObject = gameobject {pickupTriggerGo}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {trappedBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = gameobject {animatorGo}
+    parameter = "trapped"
+    Value = False
+    everyFrame = False
+
+[state startRunAway]
+  on FINISHED -> runAway
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animalAI"
+    methodName = "startRunning"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state getRandomPoint2]
+  on doAction -> wait
+  on noValidTarget -> retry
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetIntValue (disabled)
+    intVariable = {count}
+    intValue = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 0.25
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state getWaypoint 2]
+  on doAction -> wait
+  on noValidTarget -> retry
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "moveFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetIntValue
+    intVariable = {count}
+    intValue = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "animalSearchFunctions"
+    functionCall = call findPointAwayFromSound (float)
+    stopOnExit = False
+  action Wait
+    time = 0.25
+    finishEvent = event noValidTarget
+    realTime = False

@@ -1,0 +1,6410 @@
+fsm controlFSM  on player/player_BASE
+start state: init
+active state now: waitForInput
+
+[variables]
+  float animFloat1 = 0
+  float axeSmashAngle = 0.431
+  float blockStaminaDrain = -10
+  float currY = 0
+  float layerFloat1 = 0
+  float seatOffset = 0
+  float seatOffsetY = 0
+  float staminaDrain = -8
+  float statStamina = 0
+  float tempAxis = 0
+  float tempFloat1 = 0
+  int attackHash = 60754182
+  int axeCombo1Hash = -1474250830
+  int climbHash = -947335621
+  int climbIdleHash = 273148051
+  int combo1Hash = 358906633
+  int combo2Hash = -1939002701
+  int combo3Hash = -76932571
+  int getAnimInt1 = 0
+  int getHash = 0
+  int heldHash = 308119761
+  int hitDirection = 0
+  int idlingHash = -321575814
+  int knockBackHash = 211423215
+  int lastSwingInt = 1
+  int repairAttackHash = 1692706711
+  int shellRideHash = -870815123
+  int statMaxStamina = 0
+  int stick1Hash = 2012936152
+  int stick2Hash = -286022046
+  bool allowJumpAttack = False
+  bool atRepairTrigger = False
+  bool blocking = False
+  bool canDoAxeSmash = False
+  bool checkHeldBool = False
+  bool climbBool = False
+  bool climbTopBool = False
+  bool crouchBlockedBool = False
+  bool doingJumpAttack = False
+  bool getAnimBool1 = False
+  bool groundAxeChop = False
+  bool grounded = True
+  bool hangingUpsideDown = False
+  bool heavyAttackBool = False
+  bool invBool = False
+  bool lookAtTree = False
+  bool multiHitBool = False
+  bool noControl = False
+  bool paddleBool = False
+  bool pushSledBool = False
+  bool seatedBool = False
+  bool smallTreeBool = False
+  bool smashBool = False
+  bool swimBool = False
+  bool tempAnimBool1 = False
+  bool tempBool1 = False
+  bool vrBool = False
+  string currState = ""
+  vector3 attachPos = (0, 0, 0)
+  vector3 lookAtTreePos = (0, 0, 0)
+  vector3 seatOffsetVec = (0, 0, 0)
+  vector3 seatedPos = (0, 0, 0)
+  vector3 smashPos = (0, 0, 0)
+  vector3 smashPosLook = (0, 0, 0)
+  gameobject actionGo = null
+  gameobject camGo = GameObject 'MainCamNew'
+  gameobject climbGo = null
+  gameobject inventoryGo = GameObject 'INVENTORY'
+  gameobject playerRoot = GameObject 'player'
+  gameobject seatedGo = null
+  gameobject smallBirdGO = GameObject 'smallBirdPos'
+  gameobject smashGo = null
+  gameobject spearGo = null
+  gameobject stickGO = null
+  gameobject targetGO = null
+
+[events]
+  FINISHED (global), axeAttack, ballAttack, blockReaction, break, cancelBird, doAction, drawBow, eventA, eventB, eventC, eventD, flareAttack, goToChainSawAttack, goToCombo, goToGenericAttack, goToJump, goToRepairAttack, goToReset, goToRockAttack, goToShellAttack, goToSpearAttack, goToSpearThrow, goToStickBlock, goToStickCombo, initChargeAttack, molotovAttack, playerAttacking (global), releaseBow, resetBlock (global), rockAttack, spearAttack, spearThrow, stickAttack, stickBlock, stickShove, toAxeSmash, toBirdReset, toBlockBreak, toChainSawAttack, toChargeAttack, toCheckArms, toCheckItem, toClimb, toDeath (global), toDisable (global), toExitClimb, toExitPushSled, toFlameThrowerAttack, toFlareAttack, toFlareGunAim, toFlashLightHeld, toFlashLightStash, toFlintLockAim, toForceReset (global), toGenericAttack, toHit, toInventoryClose, toInventoryOpen, toLightObject, toLightObjectOff, toLighterIgnite, toNoControl, toOnHand, toOverHead, toPaddle, toPedHeld, toPedStash, toPushSled, toRepairAttack, toReset2, toReset3, toResetClimb, toResetPlayer, toResetSpear, toRockSmash, toSeated, toShellAttack, toSmash, toSpearHeld, toStickAttack, toSwim, toTreeAttack, toUpperCut, toWait
+
+[global transitions]
+  on toReset2 -> resetDelayLyr2
+  on toReset3 -> resetDelayLyr3
+  on toHit -> gotHit
+  on toTreeAttack -> checkTreeType
+  on toDeath -> death
+  on toStickAttack -> checkSmash
+  on toClimb -> checkTop
+  on toPushSled -> waitForAnim
+  on toAxeSmash -> waitForAnim2
+  on goToSpearAttack -> spearAttack
+  on toResetPlayer -> resetAnimator
+  on initChargeAttack -> initCharge
+  on goToStickBlock -> waitForDoubleClick
+  on goToShellAttack -> shellAttack
+  on goToGenericAttack -> startGenericAttack
+  on goToRepairAttack -> repairAttack
+  on goToChainSawAttack -> checkTree
+  on toFlareAttack -> shootFlareGun
+  on goToSpearThrow -> startSpearThrow
+  on goToRockAttack -> checkDeath
+
+[state waitForInput]
+  on stickAttack -> checkSmash
+  on axeAttack -> checkTreeType
+  on stickBlock -> waitForDoubleClick
+  on flareAttack -> shootFlareGun
+  on toCheckArms -> checkHeld
+  on toLighterIgnite -> lighterIgnite
+  on toPedHeld -> pedActive
+  on toFlashLightHeld -> flashLightActive
+  on toFlashLightStash -> flashLightDisable
+  on rockAttack -> checkDeath
+  on toOnHand -> birdOnHand
+  on toLightObject -> lightObjectOn
+  on spearAttack -> spearAttack
+  on ballAttack -> toBallAttack
+  on molotovAttack -> toMolotovAttack
+  on toInventoryOpen -> invOpen
+  on toSwim -> swimming
+  on toSeated -> initSeated
+  on toClimb -> startClimb
+  on toCheckItem -> checkItem
+  on stickShove -> shellAttack
+  on goToJump -> wait2
+  on toPaddle -> paddle
+  on spearThrow -> startSpearThrow
+  on toNoControl -> noControl
+  on toGenericAttack -> startGenericAttack
+  on toRepairAttack -> repairAttack
+  on toChainSawAttack -> checkTree
+  on toFlintLockAim -> aimFlintLock
+  on toFlareGunAim -> aimFlareGun
+  on toFlameThrowerAttack -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event toNoControl
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = event toSeated
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {paddleBool}
+    isTrue = event toPaddle
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {pushSledBool}
+    isTrue = event toPushSled
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {climbBool}
+    isTrue = event toClimb
+    isFalse = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickShove"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "weaponHit"
+    Value = 0
+    dampTime = 0
+    everyFrame = False
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call runWaitForInputScripts (None)
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 0
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBool"
+    everyFrame = True
+    result = {tempAnimBool1}
+  action BoolTest
+    boolVariable = {tempAnimBool1}
+    isTrue = event goToJump
+    isFalse = null
+    everyFrame = False
+  action GameObjectCompareTag
+    gameObject = {inventoryGo}
+    tag = "open"
+    trueEvent = event toInventoryOpen
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+  action GetButtonDown
+    buttonName = "checkArms"
+    sendEvent = event toCheckArms
+    storeResult = none
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "swimmingBool"
+    everyFrame = True
+    result = {swimBool}
+  action BoolTest
+    boolVariable = {swimBool}
+    isTrue = event toSwim
+    isFalse = null
+    everyFrame = True
+
+[state stickAttack]
+  on goToStickCombo -> waitForCombo
+  on toSmash -> checkAxe
+  on toChargeAttack -> checkCharge
+  on goToRepairAttack -> 
+  on toTreeAttack -> 
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call checkChargeConditions (None)
+    stopOnExit = False
+  action BoolTest
+    boolVariable = {atRepairTrigger}
+    isTrue = event goToRepairAttack
+    isFalse = null
+    everyFrame = False
+  action SetIntValue
+    intVariable = {lastSwingInt}
+    intValue = 0
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkAxeSmashAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {canDoAxeSmash}
+    isTrue = event toSmash
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toSmash
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempAnimBool1}
+  action BoolTestMulti
+    boolVariables = [{lookAtTree}, {tempAnimBool1}]
+    boolStates = [True, True]
+    trueEvent = event toTreeAttack
+    falseEvent = null
+    storeResult = none
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call syncPlayerAttack (int)
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "syncPlayerAttack"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetButton
+    buttonName = "Fire1"
+    storeResult = {tempBool1}
+    everyFrame = False
+  action Wait
+    time = 3
+    finishEvent = event goToStickCombo
+    realTime = False
+
+[state waitForCombo]
+  on stickAttack -> stickAttack2
+  on toReset2 -> 
+  on axeAttack -> stickAttack2
+  on toTreeAttack -> 
+  on goToStickBlock -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempAnimBool1}
+  action BoolTestMulti (disabled)
+    boolVariables = [{lookAtTree}, {tempAnimBool1}]
+    boolStates = [True, True]
+    trueEvent = event toTreeAttack
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+  action BoolTest (disabled)
+    boolVariable = {lookAtTree}
+    isTrue = event toTreeAttack
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {blocking}
+    isTrue = event goToStickBlock
+    isFalse = null
+    everyFrame = True
+  action Wait
+    time = 3
+    finishEvent = event toReset2
+    realTime = False
+
+[state resetDelayLyr2]
+  on FINISHED -> waitForInput
+  on stickBlock -> waitForDoubleClick
+  on stickAttack -> checkSmash
+  on axeAttack -> checkTreeType
+  on toSeated -> initSeated
+  on toNoControl -> noControl
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "doAttackHeavyBool"
+    Value = False
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargingBool"
+    Value = False
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "shellRideBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearRaiseBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "resetClimbBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {heavyAttackBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bowFireBool"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doingJumpAttack}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = gameobject {smallBirdGO}
+    parameter = "toHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {smashBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearThrowBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickShove"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "comboBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackHighBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smallTree"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {smallTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "rotatePlayerFSM"
+    variableName = "treeHit"
+    setValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "lighterIgnite"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smallTree"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickShove"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "rotatePlayerFSM"
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event toNoControl
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = event toSeated
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {blocking}
+    isTrue = event stickBlock
+    isFalse = null
+    everyFrame = True
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call runReset2Scripts (None)
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state axeAttack]
+  on FINISHED -> axeWaitForCombo
+  on toReset2 -> 
+  on eventA -> waitForIdle
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event eventA
+    everyFrame = True
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothEnableLayerNew (int)
+    stopOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "doSmoothEnableLayer2"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {combo1Hash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state axeWaitForCombo]
+  on axeAttack -> wait
+  on toReset2 -> 
+  on eventA -> waitForIdle
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event eventA
+    everyFrame = True
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "weaponHit"
+    everyFrame = False
+    result = {animFloat1}
+  action FloatCompare (disabled)
+    float1 = {animFloat1}
+    float2 = 0.5
+    tolerance = 0.05
+    equal = null
+    lessThan = event toReset2
+    greaterThan = null
+    everyFrame = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+
+[state axeCombo1]
+  on FINISHED -> axeWaitForCombo1
+  on toReset2 -> 
+  on eventA -> waitForIdle
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "rotatePlayerFSM"
+    variableName = "treeHit"
+    setValue = True
+    everyFrame = False
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event eventA
+    everyFrame = True
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "bigTree"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {combo2Hash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+
+[state axeWaitForCombo1]
+  on axeAttack -> axeAttack
+  on toReset2 -> 
+  on eventA -> waitForIdle
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event eventA
+    everyFrame = True
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "weaponHit"
+    everyFrame = False
+    result = {animFloat1}
+  action FloatCompare (disabled)
+    float1 = {animFloat1}
+    float2 = 0.5
+    tolerance = 0.05
+    equal = null
+    lessThan = event toReset2
+    greaterThan = null
+    everyFrame = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+
+[state chooseRandomAttack]
+  on eventA -> stickAttack
+  on eventB -> 
+  action InvokeMethod
+    gameObject = gameobject {stickGO}
+    behaviour = "weaponInfo"
+    methodName = "resetCombo"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call checkChargeConditions (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackHeavyBool"
+    Value = False
+    everyFrame = False
+  action GetButtonUp (disabled)
+    buttonName = "Fire1"
+    sendEvent = null
+    storeResult = {checkHeldBool}
+  action SetIntValue
+    intVariable = {lastSwingInt}
+    intValue = 1
+    everyFrame = False
+  action IntSwitch
+    intVariable = {lastSwingInt}
+    compareTo = [0, 1]
+    sendEvent = [event eventB, event eventA]
+    everyFrame = False
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamY"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = 0
+    tolerance = 0
+    equal = null
+    lessThan = event eventA
+    greaterThan = event eventB
+    everyFrame = False
+
+[state checkIfHit]
+  on eventA -> axeCombo1
+  on eventC -> waitForIdle
+  on toReset2 -> 
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "weaponHit"
+    everyFrame = False
+    result = {animFloat1}
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = event eventC
+    everyFrame = True
+  action FloatWindowCompare (disabled)
+    floatTest = {animFloat1}
+    floatLower = 0.45
+    floatUpper = 1.55
+    inWindow = event eventA
+    outOfWindow = event toReset2
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {animFloat1}
+    float2 = 1
+    tolerance = 0.05
+    equal = event eventA
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "smallTree"
+    everyFrame = False
+    result = {getAnimBool1}
+  action BoolTest (disabled)
+    boolVariable = {getAnimBool1}
+    isTrue = event eventC
+    isFalse = event toReset2
+    everyFrame = False
+
+[state waitForDoubleClick]
+  on FINISHED -> doBlock
+  on stickBlock -> 
+  on blockReaction -> blockHit
+  on resetBlock -> 
+  on break -> waitForInput
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "hangingBool"
+    everyFrame = False
+    result = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "doAttackHeavyBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargingBool"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {heavyAttackBool}
+    boolValue = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event break
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.11
+    finishEvent = event FINISHED
+    realTime = False
+
+[state doBlock]
+  on blockReaction -> takeStamina
+  on resetBlock -> resetBlock
+  on spearAttack -> resetDelayLyr2
+  on stickAttack -> resetDelayLyr2
+  on axeAttack -> resetDelayLyr2
+  on rockAttack -> resetDelayLyr2
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "doAttackHeavyBool"
+    Value = False
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargingBool"
+    Value = False
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "spearHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = True
+    everyFrame = False
+  action SetTag (disabled)
+    gameObject = gameobject {playerRoot}
+    tag = "noDamage"
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "nextHit"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {blocking}
+    boolValue = False
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bookHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableBlockHitState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "setBlockParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "sendCoopBlock"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+
+[state init]
+  on FINISHED -> waitForInput
+  action FindGameObject (disabled)
+    objectName = "player"
+    withTag = "Player"
+    store = {playerRoot}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bowFireBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action FindGameObject (disabled)
+    objectName = "MainCamNew"
+    withTag = "MainCamera"
+    store = {camGo}
+
+[state blockHit]
+  on FINISHED -> doBlock
+  on resetBlock -> resetDelayLyr2
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "nextHit"
+    Value = True
+    everyFrame = False
+  action iTweenMoveAdd (disabled)
+    gameObject = gameobject {playerRoot}
+    id = none
+    vector = (0, 0, -1)
+    time = 0.5
+    delay = 0
+    speed = none
+    easeType = easeOutCubic
+    loopType = none
+    space = Self
+    orientToPath = False
+    lookAtObject = none
+    lookAtVector = none
+    lookTime = 0
+    axis = none
+    startEvent = null
+    finishEvent = null
+    realTime = False
+    stopOnExit = True
+    loopDontFinish = True
+  action StartCoroutine
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call enablePushBack (float)
+    stopOnExit = False
+  action Wait
+    time = 0.4
+    finishEvent = event FINISHED
+    realTime = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableHitState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state shootFlareGun]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call disableFlintLockAimMode (None)
+  action Wait
+    time = 1
+    finishEvent = event toReset2
+    realTime = False
+
+[state checkArms]
+  on toReset3 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset3
+    realTime = False
+
+[state checkHeld]
+  on FINISHED -> checkArms
+  on eventB -> checkArmsLeft
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event eventB
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+
+[state checkArmsLeft]
+  on toReset3 -> 
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset3
+    realTime = False
+
+[state resetDelayLyr3]
+  on FINISHED -> waitForInput
+  on stickBlock -> waitForDoubleClick
+  on stickAttack -> checkSmash
+  on axeAttack -> checkTreeType
+  on spearAttack -> 
+  on rockAttack -> checkDeath
+  on toChainSawAttack -> checkTree
+  on toNoControl -> noControl
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "lookAtItem"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {smashBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "aimAtTarget"
+    Value = 0
+    dampTime = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "lighterIgnite"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "pedHeld"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "flashLightHeld"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event toNoControl
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 3
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 4
+    finishEvent = event FINISHED
+    realTime = False
+
+[state lighterIgnite]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "lighterIgnite"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event toReset2
+    realTime = False
+
+[state pedActive]
+  on toPedStash -> resetDelayLyr3
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "pedHeld"
+    Value = True
+    everyFrame = False
+
+[state flashLightActive]
+  on FINISHED -> waitForInput
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "flashLightHeld"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state wait]
+  on FINISHED -> checkIfHit
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state delay]
+  on FINISHED -> waitForInput
+  action Wait (disabled)
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state flashLightDisable]
+  on FINISHED -> waitForInput
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "flashLightHeld"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state rockAttack]
+  on FINISHED -> waitForReset2
+  action SendEvent
+    eventTarget = to BroadcastAll
+    sendEvent = event playerAttacking
+    delay = 0
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action SetIntValue
+    intVariable = {hitDirection}
+    intValue = 3
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 3
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.25
+    finishEvent = event FINISHED
+    realTime = False
+
+[state rockSmashAttack]
+  on FINISHED -> resetSpine
+  action GetPosition (disabled)
+    gameObject = gameobject {smashGo}
+    vector = {smashPos}
+    x = none
+    y = none
+    z = none
+    space = World
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    functionCall = call setSmashPosition (Vector3)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to BroadcastAll
+    sendEvent = event playerAttacking
+    delay = 0
+    everyFrame = False
+  action AnimateFloat
+    animCurve = curve 0:1 1:0
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action Wait
+    time = 1.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkDeath]
+  on toRockSmash -> rockSmashAttack
+  on FINISHED -> checkhash 2
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRockSmash
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {smashBool}
+    isTrue = event toRockSmash
+    isFalse = event FINISHED
+    everyFrame = False
+  action BoolChanged (disabled)
+    boolVariable = {smashBool}
+    changedEvent = event toRockSmash
+    storeResult = none
+  action BoolFlip (disabled)
+    boolVariable = {smashBool}
+
+[state resetSpine]
+  on FINISHED -> resetController
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action AnimateFloat
+    animCurve = curve 0:0 1:1
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state birdOnHand]
+  on FINISHED -> resetLayer
+  on toBirdReset -> break2
+  on cancelBird -> resetLayer
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "enableBirdOnHand"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action ActivateGameObject (disabled)
+    gameObject = gameobject {smallBirdGO}
+    activate = True
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = True
+    everyFrame = False
+  action GetMouseButtonDown
+    button = Left
+    sendEvent = event toBirdReset
+    storeResult = none
+  action AnimateFloat (disabled)
+    animCurve = curve 0:0 1:1
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = gameobject {smallBirdGO}
+    parameter = "toHand"
+    Value = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObject gameobject {smallBirdGO}
+    sendEvent = event toHand
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 9.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkTreeType]  default to stick attack
+  on eventA -> setTreeLook
+  on FINISHED -> checkhash
+  on toSmash -> waitForAnim2
+  on toStickAttack -> 
+  on eventB -> hangingAttack
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackHeavyBool"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {hangingUpsideDown}
+    isTrue = event eventB
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {lookAtTree}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkAxeSmashAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action BoolTest
+    boolVariable = {canDoAxeSmash}
+    isTrue = event toSmash
+    isFalse = null
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toSmash
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "smallAxe"
+    everyFrame = False
+    result = {getAnimBool1}
+  action BoolTest
+    boolVariable = {getAnimBool1}
+    isTrue = event toStickAttack
+    isFalse = null
+    everyFrame = False
+
+[state setTreeLook]
+  on FINISHED -> axeAttack
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "rotatePlayerFSM"
+    sendEvent = event toTreeHit
+    delay = 0
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state resetLayer]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disableBirdOnHand"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action ActivateGameObject (disabled)
+    gameObject = gameobject {smallBirdGO}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = gameobject {smallBirdGO}
+    parameter = "toHand"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state lightObjectOff]
+  on FINISHED -> waitForInput
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "leanForward"
+    Value = False
+    everyFrame = False
+
+[state lightObjectOn]
+  on FINISHED -> lightObjectOff
+  on toLightObjectOff -> lightObjectOff
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "leanForward"
+    Value = True
+    everyFrame = False
+  action GetButtonUp
+    buttonName = "leanForward"
+    sendEvent = event toLightObjectOff
+    storeResult = none
+  action Wait
+    time = 3.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state stickAttack2]
+  on goToStickCombo -> waitForCombo 2
+  on toSmash -> checkAxe
+  on toChargeAttack -> checkCharge 2
+  on goToRepairAttack -> 
+  on toTreeAttack -> 
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call checkChargeConditions (None)
+    stopOnExit = False
+  action BoolTest
+    boolVariable = {atRepairTrigger}
+    isTrue = event goToRepairAttack
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkAxeSmashAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {canDoAxeSmash}
+    isTrue = event toSmash
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toSmash
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempAnimBool1}
+  action BoolTestMulti
+    boolVariables = [{lookAtTree}, {tempAnimBool1}]
+    boolStates = [True, True]
+    trueEvent = event toTreeAttack
+    falseEvent = null
+    storeResult = none
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "setComboOne"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {multiHitBool}
+    boolValue = False
+    everyFrame = False
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "enableAnimLayer2"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 3
+    finishEvent = event goToStickCombo
+    realTime = False
+
+[state checkSmash]
+  on FINISHED -> chooseRandomAttack
+  on toSmash -> 
+  on toOverHead -> checkAxe
+  on toReset2 -> 
+  on goToRepairAttack -> 
+  action BoolTest
+    boolVariable = {atRepairTrigger}
+    isTrue = event goToRepairAttack
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {axeCombo1Hash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {crouchBlockedBool}
+    isTrue = event FINISHED
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = event FINISHED
+    lessThan = event FINISHED
+    greaterThan = event toOverHead
+    everyFrame = False
+
+[state overheadAttack]
+  on FINISHED -> waitForReset
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to BroadcastAll
+    sendEvent = event playerAttacking
+    delay = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+  action GetAnimatorNextStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state spearAttack]
+  on toReset2 -> 
+  action BoolTest
+    boolVariable = {vrBool}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait (disabled)
+    time = 0.25
+    finishEvent = event toReset2
+    realTime = False
+  action GetButtonUp
+    buttonName = "Fire1"
+    sendEvent = event toReset2
+    storeResult = none
+
+[state toBallAttack]
+  on toReset2 -> 
+  action BoolTest
+    boolVariable = {vrBool}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.24
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset2
+    realTime = False
+
+[state toMolotovAttack]
+  on toReset2 -> 
+  action BoolTest
+    boolVariable = {vrBool}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.25
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset2
+    realTime = False
+
+[state checkAxe]
+  on FINISHED -> overheadAttack
+  on toAxeSmash -> 
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toAxeSmash
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {groundAxeChop}
+    isTrue = event toAxeSmash
+    isFalse = null
+    everyFrame = False
+
+[state resetController]
+  on FINISHED -> waitForReset3
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state waitForReset]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 2.5
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForReset2]
+  on toReset2 -> 
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForReset3]
+  on toReset2 -> 
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event goToReset
+    realTime = False
+
+[state gotHit]
+  on toReset2 -> 
+  on toResetClimb -> resetClimb
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disableBirdOnHand"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "rotatePlayerFSM"
+    sendEvent = event toForceReset
+    delay = 0
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {checkHeldBool}
+    boolValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {heavyAttackBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {pushSledBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "pushSledBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {seatedBool}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "animEventsManager"
+    methodName = "resetDrinkParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action BoolTest
+    boolVariable = {climbBool}
+    isTrue = event toResetClimb
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action Wait
+    time = 0.3
+    finishEvent = event toReset2
+    realTime = False
+
+[state invOpen]
+  on break -> delay2
+  action GetButton (disabled)
+    buttonName = "Inventory"
+    storeResult = {invBool}
+    everyFrame = True
+  action BoolTest (disabled)
+    boolVariable = {invBool}
+    isTrue = null
+    isFalse = event break
+    everyFrame = True
+  action GetButtonDown (disabled)
+    buttonName = "Inventory"
+    sendEvent = event break
+    storeResult = none
+  action GameObjectIsVisible (disabled)
+    gameObject = gameobject {inventoryGo}
+    trueEvent = null
+    falseEvent = event break
+    storeResult = none
+    everyFrame = True
+  action GameObjectCompareTag
+    gameObject = {inventoryGo}
+    tag = "closed"
+    trueEvent = event break
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+
+[state delay2]
+  on toReset2 -> 
+  action Wait
+    time = 0.1
+    finishEvent = event toReset2
+    realTime = False
+
+[state axeSmashAttack 2]
+  on goToCombo -> waitForCombo2
+  on eventA -> setTreeLook
+  on axeAttack -> checkAngle 2
+  on stickAttack -> checkAngle 2
+  on break -> break3
+  action BoolTest
+    boolVariable = {lookAtTree}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 0
+    time = 0.85
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothEnableLayerNew (int)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call scaleCapsuleForAxe (None)
+    stopOnExit = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = True
+    everyFrame = False
+  action AnimateFloat (disabled)
+    animCurve = curve 0:1 0.5:0
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event break
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 1.5
+    finishEvent = event goToCombo
+    realTime = False
+
+[state resetSpine 2]
+  on FINISHED -> waitForReset3 2
+  on axeAttack -> waitForIdle2
+  on stickAttack -> waitForIdle2
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 1
+    time = 0.4
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = False
+    everyFrame = False
+  action AnimateFloat (disabled)
+    animCurve = curve 0:0 0.4:1
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action Wait
+    time = 0.41
+    finishEvent = event FINISHED
+    realTime = False
+
+[state waitForReset3 2]
+  on toReset2 -> 
+  on axeAttack -> waitForIdle2
+  on stickAttack -> waitForIdle2
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkCrouchLayers"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorNextStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForCombo2]
+  on axeAttack -> checkAngle
+  on goToReset -> resetSpine 2
+  on toTreeAttack -> 
+  on stickAttack -> checkAngle
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = False
+    everyFrame = False
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = True
+    result = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 0.35
+    tolerance = 0
+    equal = null
+    lessThan = event toTreeAttack
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action GetAnimatorNextStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action Wait
+    time = 1.8
+    finishEvent = event goToReset
+    realTime = False
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state axeSmashAttack 3]
+  on goToCombo -> waitForCombo2
+  on break -> resetSpine 2
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event break
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event break
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = event toTreeAttack
+    greaterThan = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = True
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothEnableLayerNew (int)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call scaleCapsuleForAxe (None)
+    stopOnExit = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action Wait
+    time = 2
+    finishEvent = event goToCombo
+    realTime = False
+
+[state death]
+  on toResetPlayer -> resetAnimator
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "animEventsManager"
+    methodName = "disableWeapon"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "resetClimbBool"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "setClimbBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bowFireBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "exitClimbMode"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "resetCliffClimb"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {climbBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {climbTopBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action Wait (disabled)
+    time = 8
+    finishEvent = event FINISHED
+    realTime = False
+
+[state resetAnimator]
+  on toReset2 -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "resetPushSled"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "resetClimbBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "deathFromInjuredBool"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "resetCliffClimb"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "resetCamera"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bowFireBool"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {lookAtTree}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "exitClimbMode"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state waitForIdle2]
+  on doAction -> break
+  on toReset2 -> 
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 1
+    time = 0.4
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForCombo 2]
+  on stickAttack -> stickAttack
+  on toReset2 -> 
+  on axeAttack -> stickAttack
+  on toTreeAttack -> 
+  on goToStickBlock -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action BoolTest (disabled)
+    boolVariable = {lookAtTree}
+    isTrue = event toTreeAttack
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempAnimBool1}
+  action BoolTestMulti (disabled)
+    boolVariables = [{lookAtTree}, {tempAnimBool1}]
+    boolStates = [True, True]
+    trueEvent = event toTreeAttack
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 3
+    finishEvent = event toReset2
+    realTime = False
+  action BoolTest
+    boolVariable = {blocking}
+    isTrue = event goToStickBlock
+    isFalse = null
+    everyFrame = True
+
+[state swimming]
+  on FINISHED -> resetSwim
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 1
+    time = 1
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action BoolTest
+    boolVariable = {swimBool}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "swimmingBool"
+    everyFrame = True
+    result = {swimBool}
+
+[state resetSwim]
+  on toReset2 -> 
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = 1
+    toFloat = 0
+    time = 0.6
+    storeResult = {animFloat1}
+    finishEvent = event toReset2
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = {animFloat1}
+    everyFrame = True
+
+[state break]
+  on doAction -> switchAttack
+  on FINISHED -> axeSmashAttack 2
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = False
+
+[state doSeated]
+  on FINISHED -> setCam
+  action SetVector3XYZ
+    vector3Variable = {seatOffsetVec}
+    vector3Value = none
+    x = 0
+    y = 0
+    z = {seatOffset}
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = gameobject {playerRoot}
+    targetObject = {seatedGo}
+    targetPosition = {seatOffsetVec}
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3.1
+    debug = False
+    finishTolerance = 1
+    finishEvent = event FINISHED
+  action SmoothLookAt (disabled)
+    gameObject = gameobject {camGo}
+    targetObject = {seatedGo}
+    targetPosition = {seatOffsetVec}
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = event FINISHED
+  action StartCoroutine
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call setControllerSpeed (float)
+    stopOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sittingBool"
+    Value = True
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {seatedBool}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = True
+
+[state resetSeated]
+  on toReset2 -> 
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sittingBool"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state setCam]
+  on FINISHED -> resetSeated
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "setSeatedCam"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state break2]
+  on toStickAttack -> 
+  on toChainSawAttack -> checkTree
+  on toFlareAttack -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disableBirdOnHand"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action ActivateGameObject (disabled)
+    gameObject = gameobject {smallBirdGO}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "chainSawHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toChainSawAttack
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "flaregunHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toFlareAttack
+    isFalse = null
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "flintLockHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toFlareAttack
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toStickAttack
+    delay = 0
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state drawBow]
+  on releaseBow -> releaseBow
+  on FINISHED -> 
+  action Wait (disabled)
+    time = 25
+    finishEvent = null
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state releaseBow]
+  on FINISHED -> waitForInput
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "bowFireBool"
+    Value = False
+    everyFrame = False
+
+[state waitForCombo3]
+  on goToReset -> toReset
+  on axeAttack -> checkState
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state normalAxeAttack2]
+  on goToReset -> toReset
+  on goToCombo -> waitForCombo3
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.25
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothDisableLayerNew (int)
+    stopOnExit = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call checkChargeConditions (None)
+    stopOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state toReset]
+  on toReset2 -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state normalAxeAttack]
+  on goToReset -> toReset
+  on goToCombo -> waitForCombo3
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 1
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call checkChargeConditions (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothDisableLayerNew (int)
+    stopOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.25
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call syncPlayerAttack (int)
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "syncPlayerAttack"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state checkState]
+  on FINISHED -> normalAxeAttack2
+  on toSmash -> goToSmash
+  on toTreeAttack -> 
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toAxeSmash
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkAxeSmashAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {canDoAxeSmash}
+    isTrue = event toSmash
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {lookAtTree}
+    isTrue = event toTreeAttack
+    isFalse = null
+    everyFrame = False
+
+[state checkhash]
+  on goToReset -> toReset
+  on FINISHED -> checkState 3
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {knockBackHash}
+    equal = event goToReset
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForCombo3 2]
+  on goToReset -> toReset 2
+  on rockAttack -> checkState 2
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state rockAttack2]
+  on goToReset -> toReset 2
+  on goToCombo -> checkhash 3
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state toReset 2]
+  on toReset2 -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state rockAttack 2]
+  on goToReset -> toReset 2
+  on goToCombo -> waitForCombo3 2
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call syncPlayerAttack (int)
+  action Wait
+    time = 2
+    finishEvent = event goToReset
+    realTime = False
+
+[state checkState 2]
+  on FINISHED -> rockAttack2
+  on toRockSmash -> rockSmashAttack
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = 0.45
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRockSmash
+    everyFrame = False
+
+[state checkhash 2]
+  on goToReset -> toReset 2
+  on FINISHED -> rockAttack 2
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {knockBackHash}
+    equal = event goToReset
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+
+[state checkhash 3]
+  on goToReset -> toReset 2
+  on FINISHED -> waitForCombo3 2
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {knockBackHash}
+    equal = event goToReset
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+
+[state switchAttack]
+  on toTreeAttack -> 
+  on toStickAttack -> 
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toTreeAttack
+    isFalse = event toStickAttack
+    everyFrame = False
+
+[state checkAngle]
+  on doAction -> resetSpine 2
+  on FINISHED -> axeSmashAttack 3
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = False
+
+[state startClimb]
+  on FINISHED -> waitInput
+  on toResetClimb -> resetClimb
+  on toExitClimb -> exitClimb
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 0
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 0
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "setClimbBool"
+    Value = True
+    everyFrame = True
+  action SetAnimatorTrigger (disabled)
+    gameObject = owner
+    trigger = "setClimbTrigger"
+  action SetPosition (disabled)
+    gameObject = gameobject {playerRoot}
+    vector = {attachPos}
+    x = none
+    y = none
+    z = none
+    space = World
+    everyFrame = True
+    lateUpdate = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {climbGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {climbHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {climbIdleHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 25
+    finishEvent = event toResetClimb
+    realTime = False
+
+[state waitInput]
+  on toExitClimb -> exitClimb
+  on doAction -> 
+  on toResetClimb -> resetClimb
+  on eventA -> climbUp
+  on eventB -> climbDown
+  on eventC -> climbLeft
+  on eventD -> climbRight
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 0
+    everyFrame = False
+  action GetButtonDown
+    buttonName = "Take"
+    sendEvent = event toResetClimb
+    storeResult = none
+  action AxisEvent
+    horizontalAxis = "Horizontal"
+    verticalAxis = "Vertical"
+    leftEvent = event eventC
+    rightEvent = event eventD
+    upEvent = event eventA
+    downEvent = event eventB
+    anyDirection = null
+    noDirection = null
+
+[state climbUp]
+  on break -> waitInput
+  on toExitClimb -> exitClimb
+  on toResetClimb -> resetClimb
+  on eventB -> climbDown
+  on eventC -> climbLeft
+  on eventD -> climbRight
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 1
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "doClimbBool"
+    Value = True
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Vertical"
+    sendEvent = event break
+    storeResult = none
+  action GetButtonDown
+    buttonName = "Take"
+    sendEvent = event toResetClimb
+    storeResult = none
+  action AxisEvent
+    horizontalAxis = "Horizontal"
+    verticalAxis = "Vertical"
+    leftEvent = event eventC
+    rightEvent = event eventD
+    upEvent = null
+    downEvent = event eventB
+    anyDirection = null
+    noDirection = event break
+
+[state exitClimb]
+  on toReset2 -> waitForInput
+  action SetBoolValue
+    boolVariable = {climbBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = -1
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {climbTopBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "setClimbBool"
+    Value = False
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state startClimbTop]
+  on FINISHED -> safety
+  on toResetClimb -> resetClimb
+  action SetAnimatorTrigger
+    gameObject = owner
+    trigger = "setClimbTopTrigger"
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "setClimbBool"
+    Value = True
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 0
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 0
+    everyFrame = True
+  action SetPosition (disabled)
+    gameObject = gameobject {playerRoot}
+    vector = {attachPos}
+    x = none
+    y = none
+    z = none
+    space = World
+    everyFrame = True
+    lateUpdate = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {climbHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {climbIdleHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 25
+    finishEvent = event toResetClimb
+    realTime = False
+
+[state checkTop]
+  on FINISHED -> wait3
+  on eventA -> startClimbTop
+  action SetBoolValue
+    boolVariable = {smashBool}
+    boolValue = False
+    everyFrame = False
+  action ActivateGameObject
+    gameObject = gameobject {smallBirdGO}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 3
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = gameobject {smallBirdGO}
+    parameter = "toHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "comboBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickShove"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "checkArms"
+    Value = False
+    everyFrame = False
+  action ActivateGameObject
+    gameObject = gameobject {smallBirdGO}
+    activate = False
+    recursive = False
+    resetOnExit = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birdResetBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onHand"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {climbTopBool}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+
+[state climbDown]
+  on break -> waitInput
+  on toExitClimb -> exitClimb
+  on toResetClimb -> resetClimb
+  on eventA -> climbUp
+  on eventC -> climbLeft
+  on eventD -> climbRight
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = -1
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "doClimbDownBool"
+    Value = True
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Vertical"
+    sendEvent = event break
+    storeResult = none
+  action GetButtonDown
+    buttonName = "Take"
+    sendEvent = event toResetClimb
+    storeResult = none
+  action AxisEvent
+    horizontalAxis = "Horizontal"
+    verticalAxis = "Vertical"
+    leftEvent = event eventC
+    rightEvent = event eventD
+    upEvent = event eventA
+    downEvent = null
+    anyDirection = null
+    noDirection = event break
+
+[state pushSled]
+  on toExitPushSled -> resetPlayer
+  action BoolTest
+    boolVariable = {pushSledBool}
+    isTrue = null
+    isFalse = event toExitPushSled
+    everyFrame = True
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "sendEnableSledTrigger"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "pushSledBool"
+    Value = True
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 0
+    everyFrame = False
+
+[state resetPlayer]
+  on toReset2 -> 
+  action SetBoolValue
+    boolVariable = {pushSledBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "pushSledBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state resetClimb]
+  on toReset2 -> 
+  on FINISHED -> waitInput
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "resetClimbBool"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "setClimbBool"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disableLockGravity"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {climbBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {climbTopBool}
+    boolValue = False
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForAnim]
+  on FINISHED -> pushSled
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "pushSledBool"
+    Value = True
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 1
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 0
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkItem]
+  on toReset3 -> 
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "PlayerStats"
+    methodName = "CheckItem"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "lookAtItem"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset3
+    realTime = False
+
+[state checkBreak]
+  on FINISHED -> blockHit
+  on toBlockBreak -> breakBlock
+  on resetBlock -> resetDelayLyr2
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "staminaFSM"
+    variableName = "statStamina"
+    storeValue = {statStamina}
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {statStamina}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = event toBlockBreak
+    greaterThan = null
+    everyFrame = False
+
+[state takeStamina]
+  on FINISHED -> checkBreak
+  on resetBlock -> resetDelayLyr2
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+
+[state breakBlock]
+  on FINISHED -> resetDelayLyr2
+  on resetBlock -> resetDelayLyr2
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickBlock"
+    Value = False
+    everyFrame = False
+  action SetAnimatorTrigger (disabled)
+    gameObject = owner
+    trigger = "knockBackTrigger"
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "nextHit"
+    Value = False
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call HitFromPlayMaker (int)
+  action iTweenMoveAdd (disabled)
+    gameObject = gameobject {playerRoot}
+    id = none
+    vector = (0, 0, -1)
+    time = 0.5
+    delay = 0
+    speed = none
+    easeType = easeOutCubic
+    loopType = none
+    space = Self
+    orientToPath = False
+    lookAtObject = none
+    lookAtVector = none
+    lookTime = 0
+    axis = none
+    startEvent = null
+    finishEvent = null
+    realTime = False
+    stopOnExit = True
+    loopDontFinish = True
+  action StartCoroutine
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call enablePushBack (float)
+    stopOnExit = False
+
+[state shellAttack]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickShove"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action Wait
+    time = 2
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForAnim2]
+  on toReset2 -> 
+  on FINISHED -> axeSmashAttack 2
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = True
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = event toReset2
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = True
+    everyFrame = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 3
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {axeCombo1Hash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {axeCombo1Hash}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state checkAngle 2]
+  on doAction -> resetSpine 2
+  on goToCombo -> waitForCombo2
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 0
+    time = 0.85
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event goToCombo
+    realTime = False
+
+[state jumping]
+  on axeAttack -> checkWeapon
+  on toWait -> checkBow
+  on stickAttack -> checkWeapon
+  on rockAttack -> checkAngle2 2
+  on spearAttack -> toSpear
+  on toReset2 -> 
+  on stickBlock -> toBlock
+  on stickShove -> goToShell
+  on toGenericAttack -> goToGeneric
+  on eventA -> resetJump
+  on flareAttack -> shootFlareGun
+  on toChainSawAttack -> toSaw
+  on spearThrow -> toSpear2
+  on ballAttack -> toBallAttack 2
+  on molotovAttack -> toBallAttack 2
+  action BoolTest
+    boolVariable = {grounded}
+    isTrue = event toReset2
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {seatedBool}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toWait
+    isFalse = null
+    everyFrame = True
+
+[state checkAngle2]
+  on doAction -> checkJump
+  on toStickAttack -> 
+  on toReset2 -> 
+  on toTreeAttack -> 
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0.01
+    equal = event doAction
+    lessThan = null
+    greaterThan = event doAction
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toTreeAttack
+    isFalse = event toStickAttack
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event toReset2
+    realTime = False
+
+[state checkJump]
+  on FINISHED -> jumping
+  on doAction -> startJumpAttack
+  action BoolTest
+    boolVariable = {allowJumpAttack}
+    isTrue = event doAction
+    isFalse = event FINISHED
+    everyFrame = False
+
+[state startJumpAttack]
+  on doAction -> axeFlyingSmash
+  on toReset2 -> 
+  action SetBoolValue
+    boolVariable = {doingJumpAttack}
+    boolValue = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 1
+    time = 0.35
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {axeCombo1Hash}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 5
+    finishEvent = event toReset2
+    realTime = False
+
+[state axeFlyingSmash]
+  on goToCombo -> waitForCombo2
+  action BoolTest (disabled)
+    boolVariable = {lookAtTree}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue (disabled)
+    boolVariable = {doingJumpAttack}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {layerFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {layerFloat1}
+    toFloat = 0
+    time = 0.2
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call smoothEnableLayerNew (int)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call scaleCapsuleForAxe (None)
+    stopOnExit = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "smashBool"
+    Value = True
+    everyFrame = False
+  action AnimateFloat (disabled)
+    animCurve = curve 0:1 0.5:0
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action Wait
+    time = 1.5
+    finishEvent = event goToCombo
+    realTime = False
+
+[state initSeated]
+  on FINISHED -> doSeated
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkWeapon]
+  on doAction -> checkAngle2
+  on toStickAttack -> 
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "axeHeld"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {groundAxeChop}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toStickAttack
+    delay = 0
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state toSpear]
+  on goToSpearAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToSpearAttack
+    delay = 0
+    everyFrame = False
+
+[state checkCharge]
+  on toChargeAttack -> initCharge
+  on FINISHED -> noCharge
+  action BoolTest
+    boolVariable = {checkHeldBool}
+    isTrue = event FINISHED
+    isFalse = event toChargeAttack
+    everyFrame = False
+
+[state initCharge]
+  on toChargeAttack -> doCharge
+  on toReset2 -> 
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "attackHeavyBool"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "enableAnimLayer2"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 2
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call setControllerSpeed (float)
+    stopOnExit = False
+  action GetButton
+    buttonName = "Fire1"
+    storeResult = {tempBool1}
+    everyFrame = True
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event toChargeAttack
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Fire1"
+    sendEvent = event toChargeAttack
+    storeResult = none
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = {currState}
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {axeCombo1Hash}
+    equal = event toChargeAttack
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 3.5
+    finishEvent = event toReset2
+    realTime = False
+
+[state noCharge]
+  on goToStickCombo -> waitForCombo
+  action SetBoolValue (disabled)
+    boolVariable = {checkHeldBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackHeavyBool"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 3
+    finishEvent = event goToStickCombo
+    realTime = True
+
+[state doCharge]
+  on toReset2 -> 
+  on goToStickBlock -> 
+  action SetBoolValue
+    boolVariable = {heavyAttackBool}
+    boolValue = True
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stickAttack"
+    Value = False
+    everyFrame = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action SetBoolValue (disabled)
+    boolVariable = {checkHeldBool}
+    boolValue = True
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "enableAnimLayer2"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {blocking}
+    isTrue = event goToStickBlock
+    isFalse = null
+    everyFrame = True
+  action Wait
+    time = 4
+    finishEvent = event toReset2
+    realTime = False
+
+[state checkCharge 2]
+  on toChargeAttack -> initCharge
+  on FINISHED -> noCharge 2
+  action BoolTest
+    boolVariable = {checkHeldBool}
+    isTrue = event FINISHED
+    isFalse = event toChargeAttack
+    everyFrame = False
+
+[state noCharge 2]
+  on goToStickCombo -> waitForCombo 2
+  action SetBoolValue (disabled)
+    boolVariable = {checkHeldBool}
+    boolValue = False
+    everyFrame = False
+  action Wait
+    time = 3
+    finishEvent = event goToStickCombo
+    realTime = True
+
+[state paddle]
+  on toReset2 -> 
+  action BoolTest
+    boolVariable = {paddleBool}
+    isTrue = null
+    isFalse = event toReset2
+    everyFrame = True
+
+[state climbLeft]
+  on break -> waitInput
+  on toExitClimb -> exitClimb
+  on toResetClimb -> resetClimb
+  on eventB -> climbDown
+  on eventA -> climbUp
+  on eventD -> climbRight
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 3
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "doClimbBool"
+    Value = True
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Horizontal"
+    sendEvent = event break
+    storeResult = none
+  action GetButtonDown
+    buttonName = "Take"
+    sendEvent = event toResetClimb
+    storeResult = none
+  action AxisEvent
+    horizontalAxis = "Horizontal"
+    verticalAxis = "Vertical"
+    leftEvent = null
+    rightEvent = event eventD
+    upEvent = event eventA
+    downEvent = event eventB
+    anyDirection = null
+    noDirection = event break
+
+[state climbRight]
+  on break -> waitInput
+  on toExitClimb -> exitClimb
+  on toResetClimb -> resetClimb
+  on eventB -> climbDown
+  on eventA -> climbUp
+  on eventC -> climbLeft
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 2
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "doClimbBool"
+    Value = True
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Horizontal"
+    sendEvent = event break
+    storeResult = none
+  action GetButtonDown
+    buttonName = "Take"
+    sendEvent = event toResetClimb
+    storeResult = none
+  action AxisEvent
+    horizontalAxis = "Horizontal"
+    verticalAxis = "Vertical"
+    leftEvent = event eventC
+    rightEvent = null
+    upEvent = event eventA
+    downEvent = event eventB
+    anyDirection = null
+    noDirection = event break
+
+[state startSpearThrow]
+  on toResetSpear -> resetspear
+  on spearAttack -> throwSpear
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearThrowBool"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.25
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bookHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toResetSpear
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "spearHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event toResetSpear
+    everyFrame = True
+
+[state throwSpear]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SendMessage (disabled)
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.15
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset2
+    realTime = False
+
+[state wait2]
+  on FINISHED -> jumping
+  on axeAttack -> toAxe
+  on stickAttack -> toStivck
+  on rockAttack -> checkAngle2 2
+  on spearAttack -> toSpear
+  on stickShove -> goToShell
+  on toGenericAttack -> goToGeneric
+  on flareAttack -> shootFlareGun
+  on toChainSawAttack -> toSaw
+  on spearThrow -> toSpear2
+  on ballAttack -> toBallAttack 2
+  on molotovAttack -> toBallAttack 2
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state safety]
+  on FINISHED -> waitInput
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "exitClimbTopBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "resetClimbBool"
+    Value = False
+    everyFrame = False
+
+[state checkState 3]
+  on FINISHED -> normalAxeAttack
+  on toSmash -> goToSmash
+  on toTreeAttack -> 
+  action GetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toAxeSmash
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "checkAxeSmashAngle"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {canDoAxeSmash}
+    isTrue = event toSmash
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {lookAtTree}
+    isTrue = event toTreeAttack
+    isFalse = null
+    everyFrame = False
+
+[state toStivck]
+  on toStickAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toStickAttack
+    delay = 0
+    everyFrame = False
+
+[state toAxe]
+  on toTreeAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toTreeAttack
+    delay = 0
+    everyFrame = False
+
+[state hangingAttack]
+  on toReset2 -> 
+  on FINISHED -> waitFor
+  action BoolTest
+    boolVariable = {hangingUpsideDown}
+    isTrue = null
+    isFalse = event toReset2
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state waitFor]
+  on axeAttack -> hangingAttack
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {hangingUpsideDown}
+    isTrue = null
+    isFalse = event toReset2
+    everyFrame = True
+
+[state resetspear]
+  on toReset2 -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state checkBow]
+  on FINISHED -> waitForInput
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "drawBowBool"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = True
+
+[state waitForIdle]
+  on toReset2 -> 
+  on axeAttack -> choppingTree?
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    layerWeight = {layerFloat1}
+  action FloatCompare
+    float1 = {layerFloat1}
+    float2 = 0.5
+    tolerance = 0
+    equal = null
+    lessThan = event toReset2
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event toReset2
+    realTime = False
+
+[state resetBlock]
+  on FINISHED -> resetDelayLyr2
+  action SetBoolValue
+    boolVariable = {blocking}
+    boolValue = False
+    everyFrame = False
+
+[state toBlock]
+  on goToStickBlock -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToStickBlock
+    delay = 0
+    everyFrame = False
+
+[state noControl]
+  on FINISHED -> waitForInput
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = True
+
+[state goToShell]
+  on goToShellAttack -> 
+  on doAction -> toShellRide
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0.01
+    equal = event doAction
+    lessThan = null
+    greaterThan = event doAction
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToShellAttack
+    delay = 0
+    everyFrame = False
+
+[state startGenericAttack]
+  on toReset2 -> 
+  on FINISHED -> genericAttack 2
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendMessage
+    gameObject = gameobject {playerRoot}
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call setStamina (float)
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state genericAttack 2]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event toReset2
+    realTime = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {heldHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state goToGeneric]
+  on goToGenericAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToGenericAttack
+    delay = 0
+    everyFrame = False
+
+[state break3]
+  on toReset2 -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "stopSmoothEnableRoutines"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 0
+    everyFrame = True
+  action Wait
+    time = 0.1
+    finishEvent = event toReset2
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state choppingTree?]
+  on FINISHED -> checkTreeType
+  on toReset2 -> 
+  on doAction -> waitForIdle 2
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {combo1Hash}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {combo2Hash}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {layerFloat1}
+    float2 = 0.5
+    tolerance = 0
+    equal = null
+    lessThan = event FINISHED
+    greaterThan = null
+    everyFrame = True
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event FINISHED
+    delay = 0
+    everyFrame = False
+
+[state waitForIdle 2]
+  on toReset2 -> 
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    layerWeight = {layerFloat1}
+  action FloatCompare
+    float1 = {layerFloat1}
+    float2 = 0.5
+    tolerance = 0
+    equal = null
+    lessThan = event toReset2
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "AxeAttack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event toReset2
+    realTime = False
+
+[state resetJump]
+  on toReset2 -> 
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "jumpType"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBool"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state wait3]
+  on FINISHED -> startClimb
+  on toResetClimb -> resetClimb
+  on toExitClimb -> resetClimb
+  action Wait
+    time = 0.3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state repairAttack]
+  on FINISHED -> checkReset
+  on break -> resetAttack
+  on eventB -> gotToStick
+  action BoolTest (disabled)
+    boolVariable = {atRepairTrigger}
+    isTrue = null
+    isFalse = event eventB
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.38
+    finishEvent = event FINISHED
+    realTime = False
+  action GetButtonUp (disabled)
+    buttonName = "Fire1"
+    sendEvent = event break
+    storeResult = none
+
+[state checkReset]
+  on toReset2 -> 
+  on eventA -> repairAttack
+  on FINISHED -> resetAttack
+  on eventB -> checkEquip
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {attackHash}
+    equal = null
+    lessThan = event eventB
+    greaterThan = event eventB
+    everyFrame = True
+  action GetButton
+    buttonName = "Fire1"
+    storeResult = {tempBool1}
+    everyFrame = True
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = True
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state resetAttack]
+  on toReset2 -> 
+  on eventA -> repairAttack
+  action GetButton
+    buttonName = "Fire1"
+    storeResult = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state gotToStick]
+  on toStickAttack -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toStickAttack
+    delay = 0
+    everyFrame = False
+
+[state chainSawTree]
+  on break -> wait5
+  on eventB -> resetChainSaw
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event break
+    everyFrame = True
+  action GetButtonUp
+    buttonName = "Fire1"
+    sendEvent = event eventB
+    storeResult = none
+
+[state resetChainSaw]
+  on toReset3 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = False
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 2
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {idlingHash}
+    equal = event toReset2
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toReset3
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 3
+    finishEvent = event toReset2
+    realTime = False
+
+[state checkTree]
+  on eventA -> chainSawTree
+  on eventB -> chainSawAttack 2
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = event eventB
+    everyFrame = False
+
+[state chainSawAttack 2]
+  on break -> resetChainSaw
+  on eventA -> chainSawTree
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "clampSpine"
+    Value = True
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "sawAttack"
+    Value = True
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 2
+    layerWeight = 1
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetButtonUp
+    buttonName = "Fire1"
+    sendEvent = event break
+    storeResult = none
+
+[state wait5]
+  on FINISHED -> bigTree?
+  action Wait
+    time = 0.25
+    finishEvent = event FINISHED
+    realTime = False
+
+[state bigTree?]
+  on FINISHED -> resetChainSaw
+  on eventA -> chainSawTree
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bigTree"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = event FINISHED
+    everyFrame = False
+
+[state toSaw]
+  on goToChainSawAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToChainSawAttack
+    delay = 0
+    everyFrame = False
+
+[state checkEquip]
+  on FINISHED -> resetAttack
+  on toReset2 -> 
+  on eventA -> 
+  action GetButton (disabled)
+    buttonName = "Fire1"
+    storeResult = {tempBool1}
+    everyFrame = True
+  action BoolTest (disabled)
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "repairHammerHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event toReset2
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {attackHash}
+    equal = event eventA
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state aimFlintLock]
+  on resetBlock -> resetAim
+  on flareAttack -> shootFlareGun
+  on toResetSpear -> resetAim
+  action GetButtonDown
+    buttonName = "Fire1"
+    sendEvent = event flareAttack
+    storeResult = none
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bookHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearRaiseBool"
+    Value = True
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "aimModeValid"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GameObjectCompareTag
+    gameObject = {inventoryGo}
+    tag = "open"
+    trueEvent = event toResetSpear
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call enableFlintLockAimMode (None)
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "flaregunHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "flintLockHeld"
+    everyFrame = True
+    result = {tempAnimBool1}
+  action BoolTestMulti (disabled)
+    boolVariables = [{tempAnimBool1}, {tempBool1}]
+    boolStates = [False, False]
+    trueEvent = null
+    falseEvent = event resetBlock
+    storeResult = none
+    everyFrame = True
+  action BoolTest
+    boolVariable = {tempAnimBool1}
+    isTrue = null
+    isFalse = event resetBlock
+    everyFrame = True
+
+[state resetAim]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearRaiseBool"
+    Value = False
+    everyFrame = False
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call disableFlintLockAimMode (None)
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset2
+    delay = 0
+    everyFrame = False
+
+[state aimFlareGun]
+  on resetBlock -> resetAim
+  on flareAttack -> shootFlareGun
+  on toResetSpear -> resetAim
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "bookHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "spearRaiseBool"
+    Value = True
+    everyFrame = False
+  action GetButtonDown
+    buttonName = "Fire1"
+    sendEvent = event flareAttack
+    storeResult = none
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call enableFlintLockAimMode (None)
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "aimModeValid"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GameObjectCompareTag
+    gameObject = {inventoryGo}
+    tag = "open"
+    trueEvent = event toResetSpear
+    falseEvent = null
+    storeResult = none
+    everyFrame = True
+  action BoolTest
+    boolVariable = {noControl}
+    isTrue = event resetBlock
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "flaregunHeld"
+    everyFrame = True
+    result = {tempBool1}
+  action BoolTestMulti (disabled)
+    boolVariables = [{tempAnimBool1}, {tempBool1}]
+    boolStates = [False, False]
+    trueEvent = null
+    falseEvent = event resetBlock
+    storeResult = none
+    everyFrame = True
+  action GetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "flintLockHeld"
+    everyFrame = True
+    result = {tempAnimBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event resetBlock
+    everyFrame = True
+
+[state toShellRide]
+  on FINISHED -> shellRide
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "shellRideBool"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state shellRide]
+  on toReset2 -> 
+  action GetButtonDown
+    buttonName = "Jump"
+    sendEvent = event toReset2
+    storeResult = none
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {shellRideHash}
+    equal = null
+    lessThan = event toReset2
+    greaterThan = event toReset2
+    everyFrame = True
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "shellHeld"
+    everyFrame = True
+    result = {tempAnimBool1}
+  action BoolTest
+    boolVariable = {tempAnimBool1}
+    isTrue = null
+    isFalse = event toReset2
+    everyFrame = True
+
+[state toSpear2]
+  on goToSpearThrow -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToSpearThrow
+    delay = 0
+    everyFrame = False
+
+[state checkAngle2 2]
+  on doAction -> checkJump
+  on toReset2 -> 
+  on goToRockAttack -> 
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "normCamX"
+    everyFrame = False
+    result = {tempFloat1}
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = {axeSmashAngle}
+    tolerance = 0.01
+    equal = event doAction
+    lessThan = event goToRockAttack
+    greaterThan = event doAction
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event toReset2
+    realTime = False
+
+[state toBallAttack 2]
+  on toReset2 -> 
+  on FINISHED -> resetBallAttack
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    methodName = "sendPlayerAttacking"
+    delay = 0.24
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state goToSmash]
+  on toAxeSmash -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toAxeSmash
+    delay = 0
+    everyFrame = False
+
+[state resetBallAttack]
+  on FINISHED -> jumping
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+
+[state flameAttack]
+  on toReset2 -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action GetButtonUp
+    buttonName = "Fire1"
+    sendEvent = null
+    storeResult = False

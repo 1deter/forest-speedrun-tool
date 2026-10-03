@@ -1,0 +1,197 @@
+fsm noiseDetectFSM  on player/player_BASE
+start state: trackNoise
+active state now: trackNoise
+
+[variables]
+  float runLevel = 1.5
+  float speed = 0
+  float walkLevel = 0.9
+  bool crouchBool = False
+
+[events]
+  FINISHED (global), crouched, toReset (global), toRunningNoise, toWalkingNoise, toWeaponNoise
+
+[global transitions]
+
+[state trackNoise]
+  on toWalkingNoise -> waitBlock
+  on toReset -> 
+  on toRunningNoise -> waitBlock
+  on toWeaponNoise -> weaponNoise
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "crouchIdle"
+    everyFrame = True
+    result = {crouchBool}
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {speed}
+  action FloatCompare
+    float1 = {speed}
+    float2 = {runLevel}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRunningNoise
+    everyFrame = True
+  action FloatCompare
+    float1 = {speed}
+    float2 = {walkLevel}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toWalkingNoise
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerNoiseDetection"
+    functionCall = call resetNoiseRange (None)
+    stopOnExit = False
+
+[state walkingNoise]
+  on toReset -> trackNoise
+  on toRunningNoise -> runningNoise
+  on crouched -> crouchBuffer
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "crouchIdle"
+    everyFrame = True
+    result = {crouchBool}
+  action BoolTest
+    boolVariable = {crouchBool}
+    isTrue = event crouched
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {speed}
+  action FloatCompare
+    float1 = {speed}
+    float2 = {runLevel}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRunningNoise
+    everyFrame = True
+  action FloatCompare
+    float1 = {speed}
+    float2 = {walkLevel}
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = null
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerNoiseDetection"
+    functionCall = call setNoiseRange (float)
+    stopOnExit = False
+
+[state runningNoise]
+  on toReset -> trackNoise
+  on toWalkingNoise -> walkingNoise
+  on crouched -> crouchBuffer
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "crouchIdle"
+    everyFrame = True
+    result = {crouchBool}
+  action BoolTest
+    boolVariable = {crouchBool}
+    isTrue = event crouched
+    isFalse = null
+    everyFrame = True
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {speed}
+  action FloatCompare
+    float1 = {speed}
+    float2 = {runLevel}
+    tolerance = 0
+    equal = null
+    lessThan = event toWalkingNoise
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {speed}
+    float2 = {walkLevel}
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = null
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerNoiseDetection"
+    functionCall = call setNoiseRange (float)
+    stopOnExit = False
+
+[state waitBlock]
+  on FINISHED -> trackNoiseCheck
+  on toWeaponNoise -> weaponNoise
+  on toReset -> crouchBuffer
+  action Wait
+    time = 0.4
+    finishEvent = event FINISHED
+    realTime = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "crouchIdle"
+    everyFrame = True
+    result = {crouchBool}
+  action BoolTest
+    boolVariable = {crouchBool}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = True
+
+[state trackNoiseCheck]
+  on toWalkingNoise -> walkingNoise
+  on toReset -> trackNoise
+  on toRunningNoise -> runningNoise
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {speed}
+  action FloatCompare
+    float1 = {speed}
+    float2 = {runLevel}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRunningNoise
+    everyFrame = True
+  action FloatCompare
+    float1 = {speed}
+    float2 = {walkLevel}
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = event toWalkingNoise
+    everyFrame = True
+
+[state weaponNoise]
+  on FINISHED -> trackNoise
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "playerNoiseDetection"
+    functionCall = call setWeaponNoiseRange (float)
+    stopOnExit = False
+  action Wait
+    time = 0.7
+    finishEvent = event FINISHED
+    realTime = False
+
+[state crouchBuffer]
+  on FINISHED -> trackNoise
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False

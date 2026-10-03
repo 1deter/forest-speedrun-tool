@@ -1,0 +1,292 @@
+fsm damageFSM  on player/player_BASE
+start state: init
+active state now: startState
+
+[variables]
+  float animFloat1 = 0
+  vector3 hitDir = (0, 0, 0)
+  gameobject bodyCollision = GameObject 'playerHitDetect'
+  gameobject playerRoot = GameObject 'player'
+
+[events]
+  FINISHED (global), toBlackOut, toDeath (global), toHit, toHitFall
+
+[global transitions]
+
+[state startState]
+  on toHit -> gotHit
+  on toDeath -> death
+  on toHitFall -> gotHitFall
+  action SetTag
+    gameObject = gameobject {playerRoot}
+    tag = "Player"
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "deathBool"
+    Value = False
+    everyFrame = False
+  action SetTag
+    gameObject = owner
+    tag = "playerBase"
+  action SetTag
+    gameObject = gameobject {bodyCollision}
+    tag = "playerHitDetect"
+  action SetLayer
+    gameObject = gameobject {bodyCollision}
+    layer = 15
+
+[state gotHit]
+  on FINISHED -> resetHit
+  on toHit -> rehit
+  on toDeath -> death
+  on toHitFall -> gotHitFall
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call runGotHitScripts (None)
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    functionCall = call runGotHitScripts (None)
+    stopOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "runGotHitScripts"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disconnectFromObject"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "animEventsManager"
+    methodName = "disableWeapon"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "animEventsManager"
+    methodName = "disableSmashWeapon"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "animEventsManager"
+    methodName = "disableWeapon2"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableHitState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.4
+    finishEvent = event FINISHED
+    realTime = False
+
+[state resetHit]
+  on FINISHED -> startState
+  on toHit -> gotHit
+  on toHitFall -> gotHitFall
+  on toDeath -> death
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "disableExplodeCamera"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state init]
+  on FINISHED -> startState
+  action GetOwner (disabled)
+    storeGameObject = {playerRoot}
+  action FindGameObject
+    objectName = "player"
+    withTag = "Player"
+    store = {playerRoot}
+  action FindGameObject (disabled)
+    objectName = "player"
+    withTag = "Player"
+    store = {playerRoot}
+
+[state death]
+  on FINISHED -> wait
+  action SetTag (disabled)
+    gameObject = gameobject {playerRoot}
+    tag = "playerBase"
+  action SetTag (disabled)
+    gameObject = owner
+    tag = "Untagged"
+  action SetTag (disabled)
+    gameObject = gameobject {bodyCollision}
+    tag = "Untagged"
+  action SetLayer
+    gameObject = gameobject {bodyCollision}
+    layer = 31
+  action StartCoroutine (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call enablePushBack (float)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "setDeathState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disconnectFromObject"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "deathBool"
+    Value = True
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableHitState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SmoothLookAtDirection
+    gameObject = gameobject {playerRoot}
+    targetDirection = {hitDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 10
+    lateUpdate = True
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state wait]
+  on FINISHED -> startState
+  action Wait
+    time = 3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state gotHitFall]
+  on FINISHED -> resetHit
+  on toDeath -> death
+  action AnimateFloat (disabled)
+    animCurve = curve 0:4.5 0.25:2.334 0.5:0
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableControllerFreeze"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "disconnectFromObject"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "playerAnimatorControl"
+    methodName = "resetCarryingGirl"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableExplodeCamera"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    functionCall = call enableExplodeCamera (None)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {playerRoot}
+    behaviour = "playerHitReactions"
+    methodName = "enableHitState"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SmoothLookAtDirection (disabled)
+    gameObject = gameobject {playerRoot}
+    targetDirection = {hitDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 1
+    lateUpdate = True
+  action Wait
+    time = 3.45
+    finishEvent = event FINISHED
+    realTime = False
+
+[state rehit]
+  on FINISHED -> gotHit

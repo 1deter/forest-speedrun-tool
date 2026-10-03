@@ -1,0 +1,312 @@
+fsm rotatePlayerFSM  on player/player_BASE
+start state: init
+active state now: checkAngle
+
+[variables]
+  float animFloat1 = 0
+  float animFloat2 = 0
+  float initialRotY = 0
+  float overallSpeed = 0
+  float playerAngle = 0
+  float playerRotY = 0
+  float storeFloat1 = 0
+  bool treeHit = False
+  vector3 accel = (0, 0, 0)
+  vector3 lookAtDir = (0, 0, 0)
+  vector3 playerRotation = (0, 0, 0)
+  vector3 treePos = (0, 0, 0)
+  vector3 treeStandPos = (0, 0, 0)
+  quaternion playerQuatRot = (0.0, 0.0, 0.0, 0.0)
+  gameobject lookAtGO = GameObject 'lookAtGo'
+  gameobject treeGO = null
+
+[events]
+  FINISHED (global), toForceReset (global), toForward (global), toLeft, toMatchForward (global), toReset (global), toRight, toTreeHit (global)
+
+[global transitions]
+
+[state checkAngle]
+  on toLeft -> 
+  on toRight -> 
+  on toForward -> rotateToForward
+  on toMatchForward -> matchForward
+  on toTreeHit -> clampSpine
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+
+[state init]
+  on FINISHED -> checkAngle
+
+[state rotateToForward]
+  on FINISHED -> resetSpine2
+  on toForward -> lookForward
+  action AnimateFloat
+    animCurve = curve 0:1 0.5:0
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action LookAt (disabled)
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    debug = False
+    debugLineColor = RGBA(1.000, 0.922, 0.016, 1.000)
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 10
+    debug = False
+    finishTolerance = 0.3
+    finishEvent = null
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {overallSpeed}
+  action FloatCompare
+    float1 = {overallSpeed}
+    float2 = 0.1
+    tolerance = 0
+    equal = null
+    lessThan = event FINISHED
+    greaterThan = null
+    everyFrame = True
+
+[state matchForward]
+  on FINISHED -> checkAngle
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 4
+    debug = False
+    finishTolerance = 2
+    finishEvent = event FINISHED
+
+[state lookatTree]
+  on toReset -> resetSpine
+  action GetFsmVector3
+    gameObject = owner
+    fsmName = "controlFSM"
+    variableName = "lookAtTreePos"
+    storeValue = {treePos}
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "playerTargetFunctions"
+    functionCall = call moveToTreeTarget (Vector3)
+    stopOnExit = False
+  action AnimateFloat (disabled)
+    animCurve = curve 0:1 0.5:0.2
+    floatVariable = {animFloat2}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat2}
+    everyFrame = True
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 5
+    layerWeight = {animFloat2}
+    everyFrame = True
+  action SmoothLookAtDirection (disabled)
+    gameObject = owner
+    targetDirection = none
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 5
+    lateUpdate = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = none
+    targetPosition = {treePos}
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 5
+    debug = False
+    finishTolerance = 0.1
+    finishEvent = null
+  action FloatWindowCompare
+    floatTest = {playerAngle}
+    floatLower = -50
+    floatUpper = 50
+    inWindow = null
+    outOfWindow = event toReset
+    everyFrame = True
+
+[state resetSpine]
+  on FINISHED -> checkAngle
+  action AnimateFloat (disabled)
+    animCurve = curve 0:0.2 0.5:1
+    floatVariable = {animFloat2}
+    finishEvent = event FINISHED
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 5
+    layerWeight = {animFloat2}
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 8
+    debug = False
+    finishTolerance = 0.3
+    finishEvent = event FINISHED
+  action LookAt
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    debug = False
+    debugLineColor = RGBA(1.000, 0.922, 0.016, 1.000)
+    everyFrame = False
+
+[state lookForward]
+  on FINISHED -> checkAngle
+  action LookAt
+    gameObject = owner
+    targetObject = {lookAtGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    debug = False
+    debugLineColor = RGBA(1.000, 0.922, 0.016, 1.000)
+    everyFrame = True
+  action GetAnimatorFloat
+    gameObject = owner
+    parameter = "overallSpeed"
+    everyFrame = True
+    result = {overallSpeed}
+  action FloatCompare
+    float1 = {overallSpeed}
+    float2 = 0.1
+    tolerance = 0
+    equal = null
+    lessThan = event FINISHED
+    greaterThan = null
+    everyFrame = True
+
+[state resetSpine2]
+  on FINISHED -> checkAngle
+  action AnimateFloat
+    animCurve = curve 0:0 0.5:1
+    floatVariable = {animFloat1}
+    finishEvent = event FINISHED
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+
+[state clampSpine]
+  on toReset -> resetSpine3
+  on toForceReset -> resetSpine3 2
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {storeFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {storeFloat1}
+    toFloat = 0
+    time = 0.3
+    storeResult = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action FloatWindowCompare (disabled)
+    floatTest = {playerAngle}
+    floatLower = -50
+    floatUpper = 50
+    inWindow = null
+    outOfWindow = event toReset
+    everyFrame = True
+
+[state resetSpine3]
+  on FINISHED -> checkAngle
+  on toTreeHit -> clampSpine
+  on toForceReset -> resetSpine3 2
+  action GetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {storeFloat1}
+  action FloatInterpolate
+    mode = EaseInOut
+    fromFloat = {storeFloat1}
+    toFloat = 1
+    time = 0.3
+    storeResult = {animFloat1}
+    finishEvent = event FINISHED
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = {animFloat1}
+    everyFrame = True
+
+[state resetSpine3 2]
+  on FINISHED -> checkAngle
+  on toTreeHit -> clampSpine
+  action GetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 4
+    everyFrame = False
+    layerWeight = {storeFloat1}
+  action FloatInterpolate (disabled)
+    mode = EaseInOut
+    fromFloat = {storeFloat1}
+    toFloat = 1
+    time = 0.3
+    storeResult = {animFloat1}
+    finishEvent = event FINISHED
+    realTime = False
+  action SetAnimatorLayerWeight
+    gameObject = owner
+    layerIndex = 4
+    layerWeight = 1
+    everyFrame = False

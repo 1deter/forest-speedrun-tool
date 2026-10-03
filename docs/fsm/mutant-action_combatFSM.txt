@@ -1,0 +1,4231 @@
+fsm action_combatFSM  on mutant_male(Clone)004/mutant_male_BASE
+start state: init
+active state now: 
+
+[variables]
+  float angleFloat1 = 0
+  float closestPlayerDist = 0
+  float closestPlayerHeight = 0
+  float distFloat1 = 0
+  float fearWeight = 0
+  float fearWeightInverse = 0
+  float fsmAttack = 0
+  float fsmAttackChance = 0
+  float fsmAwayFlank = 0
+  float fsmAwayReturn = 0
+  float fsmAwayScream = 0
+  float fsmAwayToBurn = 0
+  float fsmAwayToRock = 0
+  float fsmBackAway = 0
+  float fsmClimbTreeAfterAttack = 0
+  float fsmDisengage = 0
+  float fsmFollowUpAfterAttack = 0
+  float fsmLeaderCallFollowers = 0.5
+  float fsmRunAwayAfterAttack = 0
+  float fsmRunAwayChance = 0
+  float fsmRunAwayDist = 0
+  float fsmRunBack = 0
+  float fsmRunForward = 0
+  float fsmRunForwardStopDist = 0
+  float fsmRunForwardToTree = 0
+  float fsmRunHideAfterAttack = 0
+  float fsmRunTowardPlayerDist = 0
+  float fsmRunTowardsAttack = 0
+  float fsmRunTowardsFlank = 0
+  float fsmRunTowardsScream = 0
+  float fsmScream = 0
+  float fsmScreamRunTowards = 0
+  float fsmSneakBack = 0
+  float fsmSneakForward = 0
+  float fsmStalkLeaveArea = 0
+  float fsmStalkRunTowards = 0
+  float fsmStalkToAmbush = 0
+  float fsmStalkToFlank = 0
+  float fsmStalkToRock = 0
+  float fsmStalkToSneakForward = 0
+  float fsmStalkToTree = 0
+  float fsmStepLeft = 0
+  float fsmStepRight = 0
+  float fsmToStalkAfterAttack = 0
+  float fsmToStructure = 0
+  float fsmTreeAttack = 0
+  float fsmTreeClimb = 0
+  float objectAngle = 0
+  float playerAngle = 0
+  float playerDist = 0
+  float randFloat1 = 0
+  float randFloat2 = 0
+  float rotateSpeed = 3
+  float targetDir = 0
+  float targetDist = 0
+  float tempDist1 = 0
+  float tempFloat1 = 0
+  float timeoutFloat1 = 0
+  float waypointArriveDist = 12
+  int HashAttack = 0
+  int HashIdle = 0
+  int HashJumpFall = 0
+  int HashLanding = 0
+  int HashOnRock = 0
+  int counter1 = 0
+  int counter2 = 0
+  int counterWatching = 0
+  int fearInt = 0
+  int getHash = 0
+  int jumpCountInt = 0
+  int jumpRetryInt = 0
+  int randomInt1 = 0
+  int statHealth = 0
+  int tempInt1 = 0
+  bool attackBelowBool = False
+  bool attackBool = False
+  bool attackStructure = False
+  bool backAwayBool = False
+  bool closeCombatBool = False
+  bool deathBool = False
+  bool deathFinal = False
+  bool deathRecoverBool = False
+  bool disabledBool = False
+  bool doFoodStructure = False
+  bool doGoToLeader = False
+  bool doLeaderCallFollower = False
+  bool doingAmbush = False
+  bool eatBodyBool = False
+  bool enemyCloseBOOL = False
+  bool exitWaterBool = False
+  bool explodeReactBool = False
+  bool fearBOOL = False
+  bool freakoutBool = False
+  bool fsmInsideBase = False
+  bool getFiremanBool = False
+  bool goToStructure = False
+  bool inTreeBool = False
+  bool isStalkingBool = False
+  bool jumpDownBool = False
+  bool leaderBool = False
+  bool lowTreeBool = False
+  bool onFireBool = False
+  bool onRockBOOL = False
+  bool onStructureBool = False
+  bool playerWasOffNav = False
+  bool rescueBool = False
+  bool runToAttack = False
+  bool skipActionBool = False
+  bool stalking = False
+  bool stealthKillBool = False
+  bool structureTimeout = False
+  bool switchStalk = False
+  bool tempBool1 = False
+  bool tempBool2 = False
+  bool timeOutBool = False
+  bool toClimbWall = False
+  bool toPlayerWatch = False
+  string fsmName = ""
+  vector3 attachPos = (0, 0, 0)
+  vector3 closeRockPOS = (0, 0, 0)
+  vector3 closestObjectVECT = (0, 0, 0)
+  vector3 getPathVector = (0, 0, 0)
+  vector3 lookatPos = (0, 0, 0)
+  vector3 nextTreePos = (0, 0, 0)
+  vector3 tempPos = (0, 0, 0)
+  vector3 tempVec1 = (0, 0, 0)
+  vector3 treePos = (0, 0, 0)
+  gameobject bodyCollisionGo = null
+  gameobject closestObjectGO = null
+  gameobject currentAttackerGo = null
+  gameobject currentMemberGo = null
+  gameobject currentTargetGo = null
+  gameobject leaderGo = null
+  gameobject lookatGo = null
+  gameobject matchPosGo = null
+  gameobject nextTreeGO = null
+  gameobject playerFsmGO = null
+  gameobject playerGO = null
+  gameobject rootGo = null
+  gameobject structureGo = null
+  gameobject target = null
+  gameobject targetGO = null
+  gameobject tempGO1 = null
+  gameobject thisGO = null
+  gameobject treeGO = null
+  gameobject treeGo = null
+  gameobject wallGo = null
+  gameobject wayPointGO = null
+
+[events]
+  FINISHED (global), cancelEvent, chooseAction, doAction, doDisable, doFear, eventA, eventB, eventC, goToAction, goToAmbush, goToAttack, goToAttackBelow, goToBackAway, goToBurnStructure, goToCallFollower, goToClimbWall, goToDodge, goToEatBody, goToExitWater, goToExplodeRun, goToFlank, goToGuard1, goToLeader, goToNearbyPoint, goToOnFire, goToPlayerWatch, goToPrayToPlayer, goToRandomPoint, goToRescue1, goToRock, goToRunAway, goToRunForward, goToSpawn, goToStalking, goToStructure, goToTrapTrigger, goToTree, goToTreeAttack, goToVisStructure, goToWalkable, gotHit (global), initCloseAttack, next, noValidPath, noValidTarget, noValidTree (global), playerAttacking (global), return, returnToBase, runTowards (global), targetFound (global), toAction, toActivateFSM (global), toAttack (global), toBaseStalk, toBaseTree, toBurn, toBurnRecover, toCaveEvent, toCloseAttack, toCloseCombat, toCreepForward, toDeath (global), toDisableFSM (global), toDodge, toFear, toForceDown, toFreakOut, toJumpAttack (global), toKeepAway, toOnRock (global), toPlayerWatch, toReset (global), toRetreat, toRockJumpAttack, toRun (global), toRunAway, toRunHide, toScream, toSetAggressive (global), toSetDying (global), toSetFearful (global), toSetPassive (global), toSetSearching (global), toSighted (global), toStalking (global), toStructure, toTargetLost (global), toTimeout, toTree (global), toTreeJump, toTreeJumpAway, toWalkable, toWander, validPath
+
+[global transitions]
+  on goToVisStructure -> checkSkinny 2
+  on goToPrayToPlayer -> doPrayToPlayer
+  on goToClimbWall -> beginWallRun
+  on goToExitWater -> setToLand
+  on goToNearbyPoint -> startRunaway 6
+  on toDisableFSM -> disabled 3
+  on toBaseStalk -> setStalkParams
+  on goToAttack -> toAttack
+  on toCreepForward -> setTarget1 3
+  on toTimeout -> doTimeoutRoutine
+  on goToTree -> findATree
+  on goToTreeAttack -> attack 2
+  on goToWalkable -> startRunaway 5
+  on goToExplodeRun -> startRunaway 3
+  on goToRunAway -> startRunaway
+  on initCloseAttack -> checkAngle
+  on gotHit -> checkAngle3
+  on toDeath -> toResetTrans
+  on toKeepAway -> keepAwayState
+  on toDodge -> checkdist2
+  on toCloseCombat -> closeCombatRoutine1
+  on toRunHide -> chooseAction1
+  on toFear -> fearRoutine
+  on toTargetLost -> checkActive
+  on toFreakOut -> freakout
+  on toRockJumpAttack -> runToRock
+  on goToBurnStructure -> findStruct
+  on goToBackAway -> getRunAwayPoint 5
+  on goToFlank -> findFlankPoint
+  on goToStalking -> enableSearching
+  on goToLeader -> toLeader
+  on goToCallFollower -> leaderCallFollowers
+  on goToOnFire -> burning
+  on goToTrapTrigger -> isPathValid 19
+  on goToStructure -> checkSkinny
+  on goToAttackBelow -> run2Roof
+  on goToRock -> checkForRock 3
+  on goToRescue1 -> checkPlayerDist 4
+  on goToEatBody -> checkDistance 9
+  on goToGuard1 -> checkPlayerDist 6
+  on goToRunForward -> setTarget1 5
+  on toReset -> doPostAttack
+  on goToRandomPoint -> getRunAwayPoint 9
+  on goToSpawn -> goToSpawnRoutine
+
+[state checkAngle]
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doCloseAttackRoutine (bool)
+    stopOnExit = True
+
+[state doDodge]
+  on FINISHED -> counterAttack
+  action RandomInt
+    min = 0
+    max = 1
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "randInt1"
+    Value = {randomInt1}
+    everyFrame = False
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "hitDirection"
+    Value = none
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "blockBOOL"
+    Value = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 2
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetTag (disabled)
+    gameObject = gameobject {bodyCollisionGo}
+    tag = "noDamage"
+  action Wait (disabled)
+    time = 0.25
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkdist2]
+  on goToDodge -> checkAngle4
+  on toReset -> 
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event goToDodge
+    greaterThan = event toReset
+    everyFrame = False
+
+[state decisionMaker]
+  on doAction -> 
+  on toCloseAttack -> doCloseAttack1
+  on runTowards -> runToAttack
+  on FINISHED -> 
+  on toStructure -> checkAttackStruc 2
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 14.5
+    tolerance = 0
+    equal = null
+    lessThan = event toCloseAttack
+    greaterThan = null
+    everyFrame = False
+  action SendRandomEvent
+    events = [null, event toStructure]
+    weights = [0.5, {fsmToStructure}]
+    delay = 0
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 14.5
+    tolerance = 0
+    equal = null
+    lessThan = event toCloseAttack
+    greaterThan = event runTowards
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDist}
+    float2 = 14.5
+    tolerance = 0
+    equal = null
+    lessThan = event toCloseAttack
+    greaterThan = null
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDist}
+    float2 = 70
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toActivateFSM
+    everyFrame = False
+
+[state disabled]
+  on toActivateFSM -> checkCave
+  action SetBoolValue
+    boolVariable = {disabledBool}
+    boolValue = False
+    everyFrame = False
+  action EnableFSM (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    enable = False
+    resetOnExit = False
+
+[state setupFSM]
+  on FINISHED -> doPostAttack
+  on eventA -> doLeaderSetup
+  on eventB -> doNoLeaderSetup
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_VisionFSM"
+    sendEvent = event toTrackActiveTarget
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SetBoolValue
+    boolVariable = {disabledBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantScriptSetup"
+    functionCall = call disableNonActiveFSM (string)
+    stopOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "leaderBool"
+    storeValue = {leaderBool}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {leaderBool}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action GetFsmGameObject
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "leaderGo"
+    storeValue = {tempGO1}
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {tempGO1}
+    isNull = event eventB
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state init]
+  on FINISHED -> setupStats
+  action GetParent
+    gameObject = owner
+    storeResult = {rootGo}
+  action SetBoolValue
+    boolVariable = {doGoToLeader}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {structureTimeout}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doLeaderCallFollower}
+    boolValue = False
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "leaderBool"
+    storeValue = {leaderBool}
+    everyFrame = False
+  action GetOwner
+    storeGameObject = {thisGO}
+  action GetFsmInt
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "fear"
+    storeValue = {fearInt}
+    everyFrame = False
+  action ConvertIntToFloat
+    intVariable = {fearInt}
+    floatVariable = {fearWeight}
+    everyFrame = False
+  action FloatDivide
+    floatVariable = {fearWeight}
+    divideBy = 10
+    everyFrame = False
+  action SetFloatValue
+    floatVariable = {fearWeightInverse}
+    floatValue = {fearWeight}
+    everyFrame = False
+  action FloatOperator
+    float1 = 1
+    float2 = {fearWeightInverse}
+    operation = Subtract
+    storeResult = {fearWeightInverse}
+    everyFrame = False
+
+[state fearRoutine]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doFearRoutine (None)
+    stopOnExit = True
+  action SetFsmBool (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "fearBOOL"
+    setValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "eatBodyBool"
+    setValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {eatBodyBool}
+    boolValue = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = null
+    isFalse = event toReset
+    everyFrame = True
+
+[state doPostAttack]
+  on FINISHED -> decisionMaker
+  on toRunHide -> 
+  on toCaveEvent -> checkSpawnDist
+  on toCloseCombat -> 
+  on toFear -> 
+  on toDeath -> 
+  on toTimeout -> 
+  on goToExplodeRun -> 
+  on toPlayerWatch -> switchToStalk
+  on doDisable -> disabled
+  on toWalkable -> checkWalkable
+  on goToStalking -> 
+  on goToLeader -> 
+  on goToExitWater -> 
+  on goToClimbWall -> 
+  on goToAttackBelow -> 
+  on goToRescue1 -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doResetRoutine (None)
+    stopOnExit = True
+  action SetBoolValue
+    boolVariable = {doingAmbush}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doFoodStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {skipActionBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {switchStalk}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {onRockBOOL}
+    boolValue = False
+    everyFrame = False
+  action SetIntValue
+    intVariable = {counter1}
+    intValue = 0
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {deathBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {disabledBool}
+    isTrue = event doDisable
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {attackBelowBool}
+    isTrue = event goToAttackBelow
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {doGoToLeader}
+    isTrue = event goToLeader
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "groundWalkable"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event toWalkable
+    everyFrame = False
+  action BoolTest
+    boolVariable = {toPlayerWatch}
+    isTrue = event toTimeout
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {timeOutBool}
+    isTrue = event toTimeout
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {explodeReactBool}
+    isTrue = event goToExplodeRun
+    isFalse = null
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    variableName = "inCaveBool"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {rescueBool}
+    isTrue = event goToRescue1
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {freakoutBool}
+    isTrue = event toFreakOut
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {toClimbWall}
+    isTrue = event goToClimbWall
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {isStalkingBool}
+    isTrue = event goToStalking
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {closeCombatBool}
+    isTrue = event toCloseCombat
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {backAwayBool}
+    isTrue = event toRunHide
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toCaveEvent
+    isFalse = null
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "eatBodyBool"
+    storeValue = {tempBool2}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool2}
+    isTrue = event goToEatBody
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {enemyCloseBOOL}
+    isTrue = null
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {freakoutBool}
+    isTrue = event toFreakOut
+    isFalse = null
+    everyFrame = False
+  action NextFrameEvent
+    sendEvent = event FINISHED
+
+[state chooseAction1]
+  on eventA -> 
+  on eventB -> 
+  on eventC -> 
+  on noValidPath -> toReset6 2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doRunHideRoutine (None)
+    stopOnExit = True
+  action BoolTest
+    boolVariable = {rescueBool}
+    isTrue = event goToRescue1
+    isFalse = null
+    everyFrame = True
+
+[state setDisabled]
+  on FINISHED -> doPostAttack
+  action SetBoolValue
+    boolVariable = {disabledBool}
+    boolValue = True
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {closeCombatBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {deathBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {backAwayBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackBool}
+    boolValue = False
+    everyFrame = False
+
+[state setupStats]
+  on FINISHED -> setDisabled
+  action GetEventInfo
+    sentByGameObject = none
+    fsmName = {fsmName}
+    getBoolData = none
+    getIntData = none
+    getFloatData = none
+    getVector2Data = none
+    getVector3Data = none
+    getStringData = none
+    getGameObjectData = none
+    getRectData = none
+    getQuaternionData = none
+    getMaterialData = none
+    getTextureData = none
+    getColorData = none
+    getObjectData = none
+  action GetFsmInt
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "fear"
+    storeValue = {fearInt}
+    everyFrame = False
+  action ConvertIntToFloat
+    intVariable = {fearInt}
+    floatVariable = {fearWeight}
+    everyFrame = False
+  action FloatDivide
+    floatVariable = {fearWeight}
+    divideBy = 10
+    everyFrame = False
+  action SetFloatValue
+    floatVariable = {fearWeightInverse}
+    floatValue = {fearWeight}
+    everyFrame = False
+  action FloatOperator
+    float1 = 1
+    float2 = {fearWeightInverse}
+    operation = Subtract
+    storeResult = {fearWeightInverse}
+    everyFrame = False
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkAngle4]
+  on goToDodge -> doDodge
+  on toReset -> 
+  action FloatWindowCompare
+    floatTest = {playerAngle}
+    floatLower = -60
+    floatUpper = 60
+    inWindow = event goToDodge
+    outOfWindow = event toReset
+    everyFrame = False
+  action Wait (disabled)
+    time = 1
+    finishEvent = null
+    realTime = False
+
+[state checkAngle3]
+  on toDeath -> 
+  on goToOnFire -> 
+  on goToRunAway -> 
+  on toTree -> 
+  on toReset -> 
+  on goToExitWater -> 
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call resetCoroutines (None)
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call gotHitRoutine (None)
+    stopOnExit = True
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call gotHitRoutine (None)
+  action SetGameObject
+    variable = {structureGo}
+    gameObject = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doFoodStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {toClimbWall}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doGoToLeader}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doLeaderCallFollower}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {disabledBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {lowTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {switchStalk}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetAggressive
+    delay = 0
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {isStalkingBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "fearBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "rescueBool1"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = -1
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {explodeReactBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = False
+    everyFrame = False
+  action RandomInt (disabled)
+    min = 0
+    max = 1
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "randInt2"
+    Value = {randomInt1}
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "idleWaryBOOL"
+    Value = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "eatBodyBool"
+    setValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {eatBodyBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "feedingBOOL"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {deathFinal}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {deathBool}
+    isTrue = event toDeath
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {onFireBool}
+    isTrue = event goToOnFire
+    isFalse = null
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event next
+    delay = 0
+    everyFrame = False
+
+[state toResetTrans]
+  on toReset -> 
+  action SendMessage
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call resetCoroutines (None)
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doDeathRoutine (None)
+    stopOnExit = True
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doGoToLeader}
+    boolValue = False
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {deathBool}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {deathBool}
+    boolValue = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state keepAwayState]
+  on toReset -> 
+  on toRunAway -> 
+  on runTowards -> 
+  on doAction -> 
+  on goToRescue1 -> 
+  on goToGuard1 -> 
+  on toFreakOut -> 
+  on goToExplodeRun -> 
+  on goToEatBody -> 
+  on goToLeader -> 
+  on goToExitWater -> 
+  on goToClimbWall -> 
+  on noValidPath -> toReset6
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doKeepAwayRoutine (None)
+    stopOnExit = True
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call resetCoroutines (None)
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call doKeepAwayRoutine (None)
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {freakoutBool}
+    isTrue = event toFreakOut
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {doGoToLeader}
+    isTrue = event goToLeader
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {explodeReactBool}
+    isTrue = event goToExplodeRun
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {toClimbWall}
+    isTrue = event goToClimbWall
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {eatBodyBool}
+    isTrue = event goToEatBody
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {rescueBool}
+    isTrue = event goToRescue1
+    isFalse = null
+    everyFrame = True
+  action SetIntValue
+    intVariable = {counter2}
+    intValue = 0
+    everyFrame = False
+
+[state setTarget3]
+  on toReset -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state findFlankPoint]
+  on toReset -> setTarget3
+  on noValidPath -> setTarget3
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doFlankRoutine (None)
+    stopOnExit = True
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findFlankPointToPlayer (float)
+    stopOnExit = True
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait (disabled)
+    time = 0.5
+    finishEvent = event toReset
+    realTime = False
+
+[state closeCombatRoutine1]
+  on doFear -> 
+  on toRunAway -> 
+  on toReset -> 
+  on goToRescue1 -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doCloseCombatRoutine (None)
+    stopOnExit = True
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {doGoToLeader}
+    isTrue = event goToLeader
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {explodeReactBool}
+    isTrue = event goToExplodeRun
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {rescueBool}
+    isTrue = event goToRescue1
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = False
+
+[state targetLost]
+  on FINISHED -> runToLastSighting 2
+  on targetFound -> toReset
+  on goToClimbWall -> 
+  on goToExitWater -> 
+  on eventA -> resetOffNav
+  on toStructure -> checkAttackStruc 3
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeBOOL"
+    Value = False
+    everyFrame = False
+  action SetGameObject
+    variable = {structureGo}
+    gameObject = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "resetCombatParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action BoolTest
+    boolVariable = {goToStructure}
+    isTrue = event toStructure
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {toClimbWall}
+    isTrue = event goToClimbWall
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {playerWasOffNav}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToLastSighting"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkActive]
+  on toDisableFSM -> 
+  on FINISHED -> targetLost
+  action BoolTest
+    boolVariable = {disabledBool}
+    isTrue = event toDisableFSM
+    isFalse = event FINISHED
+    everyFrame = False
+
+[state doLeaderSetup]
+  on FINISHED -> doPostAttack
+  action RandomFloat (disabled)
+    min = 30
+    max = 120
+    storeResult = {timeoutFloat1}
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toTimeout
+    delay = 0
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFollowerFunctions"
+    methodName = "sendAttackEvent"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state doNoLeaderSetup]
+  on FINISHED -> doPostAttack
+  action RandomFloat (disabled)
+    min = 30
+    max = 120
+    storeResult = {timeoutFloat1}
+  action SendEvent (disabled)
+    eventTarget = to Self
+    sendEvent = event toTimeout
+    delay = {timeoutFloat1}
+    everyFrame = False
+  action Wait
+    time = 0.05
+    finishEvent = event FINISHED
+    realTime = False
+
+[state startRunaway]
+  on noValidPath -> stop 14
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doRunAwayRoutine (None)
+    stopOnExit = True
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "resetCombatParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onRockBOOL"
+    Value = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+
+[state counterAttack]
+  on toReset -> 
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = True
+    everyFrame = False
+  action SetTag (disabled)
+    gameObject = gameobject {bodyCollisionGo}
+    tag = "enemyCollide"
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "blockBOOL"
+    Value = False
+    everyFrame = False
+  action Wait (disabled)
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state freakout]
+  on doAction -> runAway
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {freakoutBool}
+    boolValue = False
+    everyFrame = False
+  action SendRandomEvent (disabled)
+    events = [null, event toReset]
+    weights = [1, 1]
+    delay = 0
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "freakoutBOOL"
+    Value = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {currentMemberGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 4
+    finishEvent = event doAction
+    realTime = False
+
+[state runAway]
+  on toReset -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {freakoutBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "freakoutBOOL"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToRunAway
+    delay = 0
+    everyFrame = False
+
+[state enableSearch]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetSearching
+    delay = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+
+[state runToRock]
+  on doAction -> runToRockLookat
+  on toFear -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = True
+  action Wait
+    time = 0.5
+    finishEvent = event doAction
+    realTime = False
+
+[state beginJumpAttack]
+  on FINISHED -> jumpAttack2
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "disableControllerBool"
+    setValue = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackJumpBOOL"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBOOL"
+    Value = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {wayPointGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 0.5
+    finishEvent = null
+  action Wait
+    time = 0.35
+    finishEvent = event FINISHED
+    realTime = False
+
+[state jumpAttack2]
+  on FINISHED -> finish
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackJumpBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBOOL"
+    Value = False
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 0.4
+    finishEvent = event FINISHED
+    realTime = False
+
+[state runToRockLookat]
+  on doAction -> beginJumpAttack
+  on toFear -> 
+  on toReset -> 
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 9.5
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {wayPointGO}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 0.3
+    finishEvent = null
+  action Wait
+    time = 5
+    finishEvent = event toReset
+    realTime = False
+
+[state finish]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "disableControllerBool"
+    setValue = False
+    everyFrame = False
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashIdle}
+    equal = event toReset
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state getRunAwayPoint 5]
+  on noValidTarget -> stop 15
+  on noValidPath -> stop 15
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToBackAwayRoutine (None)
+    stopOnExit = True
+  action SetBoolValue (disabled)
+    boolVariable = {backAwayBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findPointAwayFromPlayer (float)
+    stopOnExit = False
+  action Wait (disabled)
+    time = 1
+    finishEvent = event goToRandomPoint
+    realTime = False
+
+[state checkCave]
+  on FINISHED -> setupFSM
+  on eventA -> setCaveStats
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "action_sleepingFSM"
+    variableName = "inCaveBool"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+
+[state setCaveStats]
+  on FINISHED -> setupFSM
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAiManager"
+    methodName = "setCaveCombat"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state checkSpawnDist]
+  on FINISHED -> decisionMaker
+  on goToSpawn -> 
+  action GetFsmGameObject
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "spawnGo"
+    storeValue = {tempGO1}
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {tempGO1}
+    storeResult = {tempFloat1}
+    everyFrame = False
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = 40
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event goToSpawn
+    everyFrame = False
+
+[state goToSpawnRoutine]
+  on noValidPath -> stop 6
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToSpawnRoutine (None)
+    stopOnExit = True
+
+[state stop 6]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state startRunaway 3]
+  on noValidPath -> stop 10
+  action SetBoolValue
+    boolVariable = {explodeReactBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToExplodeRunRoutine (None)
+    stopOnExit = True
+
+[state getRunAwayPoint 9]
+  on doAction -> 
+  on noValidTarget -> stop 8
+  on toReset -> stop 8
+  on noValidPath -> stop 8
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToRandomPointRoutine (None)
+    stopOnExit = True
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call castPointAroundPlayer (float)
+    stopOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait (disabled)
+    time = 2
+    finishEvent = event toReset
+    realTime = False
+
+[state stop 8]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state switchToStalk]
+  on goToStalking -> 
+  action SetBoolValue
+    boolVariable = {toPlayerWatch}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetPassive
+    delay = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToStalking
+    delay = 0
+    everyFrame = False
+
+[state setToBody]
+  on noValidPath -> reset3
+  on validPath -> runToBody 2
+  on doAction -> runToBody 2
+  on cancelEvent -> reset3
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToBody"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GameObjectIsActiveInHierarchy
+    gameObject = {currentMemberGo}
+    isActive = null
+    isNotActive = event cancelEvent
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event cancelEvent
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFamilyFunctions"
+    methodName = "setOccupied"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action Wait
+    time = 0.35
+    finishEvent = event doAction
+    realTime = False
+
+[state stop3]
+  on doAction -> matchTarget 2
+  on cancelEvent -> reset3
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "enemyAnimEvents"
+    methodName = "disableCollision"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GameObjectIsActiveInHierarchy
+    gameObject = {currentMemberGo}
+    isActive = null
+    isNotActive = event cancelEvent
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event cancelEvent
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "feedingBOOL"
+    Value = True
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "screamBOOL"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {eatBodyBool}
+    isTrue = null
+    isFalse = event cancelEvent
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {currentMemberGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 2
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 5
+    finishEvent = event doAction
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashOnRock}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state matchTarget 2]
+  on FINISHED -> eatBody
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action AnimatorMatchTarget
+    gameObject = owner
+    bodyPart = Body
+    target = none
+    targetPosition = {attachPos}
+    targetRotation = none
+    positionWeight = (1, 0, 1)
+    rotationWeight = 0
+    startNormalizedTime = 0.2
+    targetNormalizedTime = 0.8
+    everyFrame = True
+  action GetAnimatorNextStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait (disabled)
+    time = 2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state eatBody]
+  on doAction -> finished
+  on cancelEvent -> reset3
+  on targetFound -> reset3
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action GameObjectIsActiveInHierarchy
+    gameObject = {currentMemberGo}
+    isActive = null
+    isNotActive = event cancelEvent
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event cancelEvent
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toLook (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantWorldSearchFunctions"
+    functionCall = call sendFeedingEffect (GameObject)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "screamBOOL"
+    Value = False
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {currentMemberGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 1
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action FloatCompare (disabled)
+    float1 = {playerDist}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 10
+    max = 25
+    storeResult = {randFloat1}
+  action Wait
+    time = {randFloat1}
+    finishEvent = event doAction
+    realTime = False
+  action BoolTest
+    boolVariable = {eatBodyBool}
+    isTrue = null
+    isFalse = event cancelEvent
+    everyFrame = True
+
+[state runToBody 2]
+  on toFear -> 
+  on doAction -> getEatPos
+  on cancelEvent -> reset3
+  on noValidPath -> reset3
+  action GameObjectIsActiveInHierarchy
+    gameObject = {currentMemberGo}
+    isActive = null
+    isNotActive = event cancelEvent
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event cancelEvent
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toDisableVis (None)
+    stopOnExit = False
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = True
+  action GetDistance
+    gameObject = owner
+    target = {currentMemberGo}
+    storeResult = {tempFloat1}
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBlockBool"
+    Value = True
+    everyFrame = False
+  action FloatCompare
+    float1 = {tempFloat1}
+    float2 = 13.4
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 7
+    finishEvent = event cancelEvent
+    realTime = False
+
+[state reset3]
+  on toReset -> 
+  action RandomInt
+    min = 0
+    max = 2
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = {tempInt1}
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFamilyFunctions"
+    methodName = "resetFamilyParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "eatBodyBool"
+    setValue = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toTrackActiveTarget
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SetBoolValue
+    boolVariable = {eatBodyBool}
+    boolValue = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "feedingBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBlockBool"
+    Value = False
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event toReset
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantWorldSearchFunctions"
+    functionCall = call stopFeedingEffect (GameObject)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state finished]
+  on FINISHED -> reset3
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event FINISHED
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantWorldSearchFunctions"
+    functionCall = call gibCurrentMutant (GameObject)
+    stopOnExit = False
+
+[state getEatPos]
+  on FINISHED -> stop3
+  on cancelEvent -> reset3
+  action GameObjectIsActiveInHierarchy
+    gameObject = {currentMemberGo}
+    isActive = null
+    isNotActive = event cancelEvent
+    storeResult = none
+    everyFrame = False
+  action GameObjectIsNull
+    gameObject = {currentMemberGo}
+    isNull = event cancelEvent
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action GetPosition
+    gameObject = gameobject {currentMemberGo}
+    vector = {tempVec1}
+    x = none
+    y = none
+    z = none
+    space = World
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "findEatPos"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findEatingPos (Vector3)
+    stopOnExit = False
+
+[state checkDeath]
+  on FINISHED -> setToBody
+  on toReset -> 
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "deathBOOL"
+    everyFrame = False
+    result = {tempBool1}
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event toReset
+    isFalse = null
+    everyFrame = False
+
+[state findStruct]
+  on noValidTarget -> toReset2
+  on noValidPath -> toReset2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToStructureRoutine (None)
+    stopOnExit = True
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findCloseBurnStructure (None)
+    stopOnExit = False
+  action Wait (disabled)
+    time = 1
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state toReset2]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state toReset2 2]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state checkWalkable]
+  on FINISHED -> goToWalkable
+  action Wait
+    time = 0.6
+    finishEvent = event FINISHED
+    realTime = False
+
+[state startRunaway 5]
+  on FINISHED -> getRunAwayPoint 10
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "onRockBOOL"
+    Value = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+
+[state getRunAwayPoint 10]
+  on doAction -> goToNearby
+  on noValidTarget -> goToNearby
+  on toReset -> 
+  on noValidPath -> goToNearby
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findWalkableGround (None)
+    stopOnExit = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.1
+    finishEvent = event doAction
+    realTime = False
+
+[state goToNearby]
+  on goToRandomPoint -> 
+  action Wait
+    time = 0.2
+    finishEvent = event goToNearbyPoint
+    realTime = False
+  action Wait (disabled)
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state goToWalkable]
+  on FINISHED -> decisionMaker
+  on goToWalkable -> 
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "groundWalkable"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = event FINISHED
+    isFalse = event goToWalkable
+    everyFrame = False
+
+[state checkAttackStruc 2]
+  on goToBurnStructure -> 
+  on goToStructure -> 
+  on FINISHED -> State 3
+  action BoolTest
+    boolVariable = {structureTimeout}
+    isTrue = event FINISHED
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setStructureTimeout"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetIntValue (disabled)
+    intVariable = none
+    intValue = 0
+    everyFrame = False
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "firemanBool"
+    storeValue = {getFiremanBool}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {getFiremanBool}
+    isTrue = event goToBurnStructure
+    isFalse = event goToStructure
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findCloseStructure (None)
+    stopOnExit = False
+
+[state baseStalk]
+  on chooseAction -> 
+  on toAction -> 
+  on goToAttack -> 
+  on goToRandomPoint -> 
+  on toReset -> 
+  on toFear -> 
+  on goToLeader -> 
+  on goToEatBody -> 
+  on toFreakOut -> 
+  on goToRescue1 -> 
+  on goToExitWater -> 
+  on goToClimbWall -> 
+  on goToAttackBelow -> 
+  on goToTree -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doStalkRoutine (None)
+    stopOnExit = True
+  action GetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "groundWalkable"
+    storeValue = {tempBool1}
+    everyFrame = True
+  action BoolTest
+    boolVariable = {inTreeBool}
+    isTrue = event goToTree
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {attackBelowBool}
+    isTrue = event goToAttackBelow
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {rescueBool}
+    isTrue = event goToRescue1
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {explodeReactBool}
+    isTrue = event goToExplodeRun
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {freakoutBool}
+    isTrue = event toFreakOut
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {toClimbWall}
+    isTrue = event goToClimbWall
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {eatBodyBool}
+    isTrue = event goToEatBody
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {tempBool1}
+    isTrue = null
+    isFalse = event goToRandomPoint
+    everyFrame = True
+  action BoolTest
+    boolVariable = {isStalkingBool}
+    isTrue = null
+    isFalse = event toReset
+    everyFrame = True
+  action BoolTest
+    boolVariable = {doGoToLeader}
+    isTrue = event goToLeader
+    isFalse = null
+    everyFrame = True
+  action BoolTest
+    boolVariable = {fearBOOL}
+    isTrue = event toFear
+    isFalse = null
+    everyFrame = False
+  action SetFsmBool (disabled)
+    gameObject = owner
+    fsmName = "action_inTreeFSM"
+    variableName = "stalking"
+    setValue = False
+    everyFrame = False
+  action SendRandomEvent (disabled)
+    events = [null, event chooseAction]
+    weights = [1, 0.09]
+    delay = 0
+  action FloatCompare (disabled)
+    float1 = {playerDist}
+    float2 = 8
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "stalkingBOOL"
+    Value = True
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "enemyAnimEvents"
+    methodName = "playStalkPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action RandomInt (disabled)
+    min = 0
+    max = 3
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "randInt1"
+    Value = {tempInt1}
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.4
+    finishEvent = event toAction
+    realTime = False
+
+[state runForward 3]
+  on return -> stop 2
+  on noValidPath -> stop 2
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toMove
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "playerDist"
+    storeValue = {playerDist}
+    everyFrame = True
+  action RandomBool
+    storeResult = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "crouchBOOL"
+    Value = {tempBool1}
+    everyFrame = False
+  action Wait
+    time = 7
+    finishEvent = event return
+    realTime = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {fsmRunForwardStopDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+
+[state setTarget1 5]
+  on FINISHED -> runForward 3
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state enableSearching]
+  on FINISHED -> baseStalk
+
+[state stop 2]
+  on toBaseStalk -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event toBaseStalk
+    realTime = False
+
+[state setStalkParams]
+  on FINISHED -> baseStalk
+
+[state toAttack]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "dodgeBOOL"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFollowerFunctions"
+    methodName = "sendAttackEvent"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetAggressive
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 0.5
+    finishEvent = event toReset
+    realTime = False
+
+[state setTarget1 3]
+  on FINISHED -> walkForward
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state walkForward]
+  on return -> stop 11
+  on goToAttack -> 
+  on noValidPath -> stop 11
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toWalk (None)
+    stopOnExit = False
+  action RandomFloat
+    min = 5
+    max = 9
+    storeResult = {randFloat2}
+  action RandomInt
+    min = 0
+    max = 1
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action ConvertIntToFloat
+    intVariable = {tempInt1}
+    floatVariable = {randFloat1}
+    everyFrame = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "walkTypeFloat1"
+    Value = {randFloat1}
+    dampTime = 1
+    everyFrame = True
+  action GetFsmFloat
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "playerDist"
+    storeValue = {playerDist}
+    everyFrame = True
+  action RandomBool
+    storeResult = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "crouchBOOL"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = {randFloat2}
+    finishEvent = event return
+    realTime = False
+  action FloatCompare
+    float1 = {closestPlayerDist}
+    float2 = 8
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 25
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+
+[state stop 11]
+  on toBaseStalk -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action BoolTest
+    boolVariable = {isStalkingBool}
+    isTrue = null
+    isFalse = event toReset
+    everyFrame = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "walkTypeFloat1"
+    Value = 0
+    dampTime = 1.5
+    everyFrame = True
+  action Wait
+    time = 1.6
+    finishEvent = event toBaseStalk
+    realTime = False
+
+[state doTimeoutRoutine]
+  on noValidPath -> toReset4 2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doTimeoutRoutine (None)
+    stopOnExit = True
+  action SetIntValue (disabled)
+    intVariable = {counter1}
+    intValue = 0
+    everyFrame = False
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "resetCombatParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action GetFsmBool (disabled)
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "leaderBool"
+    storeValue = {leaderBool}
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {leaderBool}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {skipActionBool}
+    isTrue = event doAction
+    isFalse = null
+    everyFrame = False
+
+[state findATree]
+  on noValidPath -> disable
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doOnTreeRoutine (None)
+    stopOnExit = True
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = True
+    everyFrame = False
+
+[state disable]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toActivateFSM
+    delay = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state attack 2]
+  on toBaseTree -> 
+  on doAction -> waitForAnim 2
+  on toTreeJump -> waitForAnim 3
+  on toTreeJumpAway -> waitForAnim 2
+  action GetFsmFloat
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "playerAngle"
+    storeValue = {angleFloat1}
+    everyFrame = False
+  action FloatCompare
+    float1 = {angleFloat1}
+    float2 = -130
+    tolerance = 0
+    equal = null
+    lessThan = event toTreeJumpAway
+    greaterThan = null
+    everyFrame = False
+  action FloatCompare
+    float1 = {angleFloat1}
+    float2 = 130
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toTreeJumpAway
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {angleFloat1}
+    floatLower = -50
+    floatUpper = 50
+    inWindow = event toTreeJump
+    outOfWindow = event toBaseTree
+    everyFrame = False
+
+[state toJumpDownBack]
+  on FINISHED -> raycast
+  action RandomInt (disabled)
+    min = 0
+    max = 1
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.6
+    finishEvent = event FINISHED
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashJumpFall}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state setGround 3]
+  on FINISHED -> toCombat 2
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "actionBOOL1"
+    Value = False
+    everyFrame = False
+  action SetLayer (disabled)
+    gameObject = gameobject {rootGo}
+    layer = 14
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toTrackActiveTarget
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state toCombat 2]
+  on toReset -> 
+  action SetLayer
+    gameObject = gameobject {rootGo}
+    layer = 14
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "targetStats"
+    methodName = "setTargetUp"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetAggressive
+    delay = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state waitForAnim 2]
+  on doAction -> toJumpDownBack
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashIdle}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state waitForAnim 3]
+  on doAction -> toJumpDownForward
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashIdle}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state toJumpDownForward]
+  on FINISHED -> raycast
+  action RandomInt (disabled)
+    min = 0
+    max = 1
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = 1
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.6
+    finishEvent = event FINISHED
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashJumpFall}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state raycast]
+  on FINISHED -> 
+  on doAction -> setGround 3
+  on toForceDown -> forceGround 2
+  action SetLayer
+    gameObject = gameobject {rootGo}
+    layer = 31
+  action GetPosition
+    gameObject = gameobject {playerGO}
+    vector = {tempPos}
+    x = none
+    y = none
+    z = none
+    space = World
+    everyFrame = False
+  action AnimatorMatchTarget
+    gameObject = owner
+    bodyPart = Body
+    target = null
+    targetPosition = {tempPos}
+    targetRotation = none
+    positionWeight = (0.4, 0, 0.4)
+    rotationWeight = 0
+    startNormalizedTime = 0.1
+    targetNormalizedTime = 1
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = null
+    targetPosition = {tempPos}
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 2
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 5
+    finishEvent = event toForceDown
+    realTime = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashLanding}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state forceGround 2]
+  on FINISHED -> setGround 3
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAnimatorControl"
+    methodName = "forceJumpLand"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+
+[state runToLastSighting 2]
+  on return -> enableSearch
+  on targetFound -> toReset
+  on noValidPath -> stop5
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toLook (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action Wait
+    time = 10
+    finishEvent = event return
+    realTime = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+
+[state disabled 3]
+  on FINISHED -> setDisabled
+  action GetEventInfo
+    sentByGameObject = none
+    fsmName = {fsmName}
+    getBoolData = none
+    getIntData = none
+    getFloatData = none
+    getVector2Data = none
+    getVector3Data = none
+    getStringData = none
+    getGameObjectData = none
+    getRectData = none
+    getQuaternionData = none
+    getMaterialData = none
+    getTextureData = none
+    getColorData = none
+    getObjectData = none
+  action SetFsmInt (disabled)
+    gameObject = owner
+    fsmName = "global_visionFSM"
+    variableName = "visRetry"
+    setValue = 6
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {runToAttack}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {goToStructure}
+    boolValue = False
+    everyFrame = False
+  action SetLayer
+    gameObject = gameobject {rootGo}
+    layer = 14
+  action SetBoolValue
+    boolVariable = {jumpDownBool}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeBOOL"
+    Value = False
+    everyFrame = False
+  action SetGameObject
+    variable = {closestObjectGO}
+    gameObject = null
+    everyFrame = False
+  action SetGameObject
+    variable = {treeGO}
+    gameObject = null
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call setVisRetry (int)
+    stopOnExit = False
+
+[state toReset]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state leaderCallFollowers]
+  on FINISHED -> waitForAction
+  action InvokeMethod (disabled)
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFamilyFunctions"
+    methodName = "sendToLeaderEvent"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFollowerFunctions"
+    methodName = "sendToLeaderEvent"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = 2
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "callBool"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state waitForAction]
+  on goToAttack -> 
+  on toBaseStalk -> 
+  on toReset -> 
+  action BoolTest
+    boolVariable = {isStalkingBool}
+    isTrue = null
+    isFalse = event toReset
+    everyFrame = True
+  action SetBoolValue
+    boolVariable = {doGoToLeader}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {doLeaderCallFollower}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "encounterBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "callBool"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = gameobject {rootGo}
+    behaviour = "mutantFollowerFunctions"
+    methodName = "sendToLeaderEvent"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 13
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 9
+    max = 16
+    storeResult = {randFloat1}
+  action Wait
+    time = {randFloat1}
+    finishEvent = event toBaseStalk
+    realTime = False
+
+[state toLeader]
+  on FINISHED -> run 2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToLeader"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {doGoToLeader}
+    boolValue = False
+    everyFrame = False
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state stop4]
+  on goToAttack -> 
+  on toReset -> 
+  on toScream -> setScream
+  on FINISHED -> waitForPlayer
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action RandomBool
+    storeResult = {tempBool1}
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "crouchBOOL"
+    Value = {tempBool1}
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action FloatCompare (disabled)
+    float1 = {playerDist}
+    float2 = 13
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat (disabled)
+    min = 5
+    max = 12
+    storeResult = {tempFloat1}
+  action Wait (disabled)
+    time = {tempFloat1}
+    finishEvent = event toReset
+    realTime = False
+  action SendRandomEvent
+    events = [event toScream, event FINISHED]
+    weights = [1, 1]
+    delay = 0
+
+[state run 2]
+  on return -> stop4
+  on toReset -> 
+  on noValidPath -> stop4
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stalkingBOOL"
+    Value = False
+    everyFrame = False
+  action RandomBool (disabled)
+    storeResult = {tempBool1}
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "crouchBOOL"
+    Value = {tempBool1}
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toDisableVis (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {structureGo}
+    storeResult = {tempFloat1}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 17
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 9
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 8
+    finishEvent = event toReset
+    realTime = False
+
+[state setScream]
+  on FINISHED -> waitForPlayer
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "screamBOOL"
+    Value = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 1.5
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state waitForPlayer]
+  on goToAttack -> 
+  on toReset -> 
+  on toScream -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "screamBOOL"
+    Value = False
+    everyFrame = False
+  action FloatCompare
+    float1 = {closestPlayerDist}
+    float2 = 13
+    tolerance = 0
+    equal = null
+    lessThan = event toReset
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 5
+    max = 10
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event toReset
+    realTime = False
+  action SendRandomEvent (disabled)
+    events = [event toScream, null]
+    weights = [1, 1]
+    delay = 0
+
+[state burning]
+  on toBurnRecover -> waitForIdle
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "resetCombatParams"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toDisableVis (None)
+    stopOnExit = False
+  action RandomInt
+    min = 0
+    max = 3
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randInt1"
+    Value = {randomInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "burning"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {onFireBool}
+    isTrue = null
+    isFalse = event toBurnRecover
+    everyFrame = True
+
+[state waitForIdle]
+  on toReset -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "burning"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {onFireBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toLook (None)
+    stopOnExit = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashIdle}
+    equal = event toReset
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+
+[state startRunaway 6]
+  on noValidPath -> stop 13
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToNearbyPointRoutine (None)
+    stopOnExit = True
+
+[state stop 13]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state isPathValid 19]
+  on validPath -> run 3
+  on noValidPath -> toReset2 3
+  on toReset -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.3
+    finishEvent = event validPath
+    realTime = False
+
+[state run 3]
+  on return -> attackTrap
+  on toReset -> toReset2 3
+  on noValidPath -> done 4
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stalkingBOOL"
+    Value = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toDisableVis (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action GameObjectIsNull
+    gameObject = {structureGo}
+    isNull = event toReset
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsActiveInHierarchy
+    gameObject = {structureGo}
+    isActive = null
+    isNotActive = event return
+    storeResult = none
+    everyFrame = True
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {structureGo}
+    storeResult = {tempFloat1}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 9
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 8
+    finishEvent = event toReset
+    realTime = False
+
+[state done 4]
+  on goToRunAway -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToRunAway
+    delay = 0
+    everyFrame = False
+
+[state attackTrap]
+  on return -> done 4
+  on toReset -> toReset2 3
+  action SetBoolValue (disabled)
+    boolVariable = {attackStructure}
+    boolValue = True
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {closestPlayerDist}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stalkingBOOL"
+    Value = False
+    everyFrame = False
+  action RandomInt (disabled)
+    min = 0
+    max = 2
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "randAttackInt1"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = True
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {structureGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 2.5
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action GameObjectIsActiveInHierarchy
+    gameObject = {structureGo}
+    isActive = null
+    isNotActive = event return
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {structureGo}
+    isNull = event return
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action Wait
+    time = 2
+    finishEvent = event return
+    realTime = False
+
+[state toReset2 3]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state toReset4 2]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {timeOutBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toLook (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state State 3]
+  on toCloseAttack -> doCloseAttack1
+  on runTowards -> runToAttack
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 14.5
+    tolerance = 0
+    equal = null
+    lessThan = event toCloseAttack
+    greaterThan = event runTowards
+    everyFrame = False
+
+[state setToLand]
+  on doAction -> isPathValid 5
+  on noValidTarget -> retry 3
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAnimatorControl"
+    methodName = "resetAllActionBools"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state isPathValid 5]
+  on toWander -> 
+  on validPath -> move 2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.1
+    finishEvent = event validPath
+    realTime = False
+
+[state move 2]
+  on doAction -> stop2 2
+  on toReset -> 
+  on noValidPath -> stop2 2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 6
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 10
+    finishEvent = event toReset
+    realTime = False
+
+[state stop2 2]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {exitWaterBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state retry 3]
+  on FINISHED -> setToLand
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state stop5]
+  on FINISHED -> enableSearch
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkSkinny]
+  on noValidTarget -> toReset2 2
+  on noValidPath -> toReset2 2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToStructureRoutine (None)
+    stopOnExit = True
+  action GetFsmBool (disabled)
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "femaleSkinnyBool"
+    storeValue = {tempBool1}
+    everyFrame = False
+  action BoolTest (disabled)
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+
+[state beginWallRun]
+  on noValidPath -> toReset5
+  on cancelEvent -> toReset5
+  on noValidTarget -> toReset5
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToClimbWallRoutine (None)
+    stopOnExit = True
+
+[state toReset5]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {inTreeBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {toClimbWall}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackJumpBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "jumpBOOL"
+    Value = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "resetWallOccupied"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetBoolValue
+    boolVariable = {toClimbWall}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "climbDirInt"
+    Value = -1
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {stalking}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "actionBOOL1"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state run2Roof]
+  on noValidTarget -> toReset2 4
+  on toReset -> toReset2 4
+  on noValidPath -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToAttackBelowRoutine (None)
+    stopOnExit = True
+
+[state toReset2 4]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackBelowBool}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {stalking}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {isStalkingBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBelowBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "crouchBOOL"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_brainFSM"
+    sendEvent = event toSetAggressive
+    delay = 0
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state runToAttack]
+  on toKeepAway -> 
+  on toRockJumpAttack -> 
+  on toFear -> 
+  on noValidPath -> stopScream
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call runToAttackRoutine (None)
+    stopOnExit = True
+
+[state doCloseAttack1]
+  on toReset -> 
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call resetCoroutines (None)
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doCloseAttackRoutine (bool)
+    stopOnExit = True
+  action SendMessage (disabled)
+    gameObject = owner
+    delivery = SendMessage
+    options = DontRequireReceiver
+    functionCall = call doCloseAttackRoutine (bool)
+
+[state checkForRock 3]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doOnRockRoutine (None)
+    stopOnExit = True
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findCloseJumpObj (None)
+    stopOnExit = False
+  action Wait (disabled)
+    time = 0.3
+    finishEvent = event toReset
+    realTime = False
+
+[state checkPlayerDist 4]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToRescueRoutine (None)
+    stopOnExit = True
+
+[state checkDistance 9]
+  on doAction -> goToEat 4
+  on FINISHED -> break2 6
+  action GetDistance
+    gameObject = owner
+    target = {currentMemberGo}
+    storeResult = {distFloat1}
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {distFloat1}
+    floatLower = 12
+    floatUpper = 90
+    inWindow = event doAction
+    outOfWindow = null
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {distFloat1}
+    float2 = 70
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = event FINISHED
+    everyFrame = False
+
+[state break2 6]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {eatBodyBool}
+    boolValue = False
+    everyFrame = False
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_brainFSM"
+    variableName = "eatBodyBool"
+    setValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state goToEat 4]
+  on FINISHED -> checkDeath
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event FINISHED
+    delay = 0
+    everyFrame = False
+
+[state checkPlayerDist 6]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToGuardRoutine (None)
+    stopOnExit = True
+  action FloatCompare (disabled)
+    float1 = {playerDist}
+    float2 = 12
+    tolerance = 0
+    equal = event FINISHED
+    lessThan = event FINISHED
+    greaterThan = event doAction
+    everyFrame = False
+
+[state toReset6]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state toReset6 2]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state stop 14]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state stop 10]
+  on toReset -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state stop 15]
+  on toReset -> 
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state stopScream]
+  on toReset -> 
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "screamBOOL"
+    Value = True
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event toReset
+    realTime = False
+
+[state doPrayToPlayer]
+  on noValidPath -> toReset4 3
+  on toReset -> toReset4 3
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call doPrayToPlayerRoutine (None)
+    stopOnExit = True
+
+[state toReset4 3]
+  on toReset -> 
+  action SetBoolValue
+    boolVariable = {timeOutBool}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toLook (None)
+    stopOnExit = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False
+
+[state resetOffNav]
+  on FINISHED -> enableSearch
+  action SetBoolValue
+    boolVariable = {playerWasOffNav}
+    boolValue = False
+    everyFrame = False
+
+[state checkAttackStruc 3]
+  on goToVisStructure -> 
+  action SetBoolValue
+    boolVariable = {goToStructure}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToVisStructure
+    delay = 0
+    everyFrame = False
+
+[state checkSkinny 2]
+  on noValidTarget -> toReset2 5
+  on noValidPath -> toReset2 5
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "pmCombatReplace"
+    functionCall = call goToVisibleStructureRoutine (None)
+    stopOnExit = True
+
+[state toReset2 5]
+  on toReset -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toReset
+    delay = 0
+    everyFrame = False

@@ -1,0 +1,205 @@
+fsm staminaFSM  on player/player_BASE
+start state: init
+active state now: getStats
+
+[variables]
+  float animFloat1 = 0
+  float extraTiredSpeed = 0.3
+  float halfMaxStamina = 50
+  float notTiredSpeed = 0.825
+  float statMaxStamina = 100
+  float statStamina = 100
+  float tempFloat1 = 0
+  float tiredSpeed = 0.63
+
+[events]
+  FINISHED (global), toLowBreath, toMaxBreath, toMidBreath, toSetLayer, toSetStats
+
+[global transitions]
+
+[state getStats]
+  on toMidBreath -> setMidBreath
+  on toMaxBreath -> 
+  on toSetStats -> setStats
+  action SetFloatValue
+    floatVariable = {halfMaxStamina}
+    floatValue = {statMaxStamina}
+    everyFrame = True
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {notTiredSpeed}
+    dampTime = 1
+    everyFrame = True
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 6
+    layerWeight = 0
+    everyFrame = False
+  action FloatDivide
+    floatVariable = {halfMaxStamina}
+    divideBy = 2
+    everyFrame = True
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = {halfMaxStamina}
+    tolerance = 0
+    equal = null
+    lessThan = event toMidBreath
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = 30
+    tolerance = 0
+    equal = null
+    lessThan = event toMaxBreath
+    greaterThan = null
+    everyFrame = True
+
+[state setMidBreath]
+  on toLowBreath -> setLowBreath
+  on toMaxBreath -> setMaxBreath
+  on toSetLayer -> 
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {notTiredSpeed}
+    dampTime = 1
+    everyFrame = True
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "breatheFloat"
+    Value = 0
+    dampTime = 1
+    everyFrame = True
+  action GetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 6
+    everyFrame = False
+    layerWeight = {tempFloat1}
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 0.5
+    tolerance = 0
+    equal = null
+    lessThan = event toSetLayer
+    greaterThan = null
+    everyFrame = False
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = {halfMaxStamina}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toLowBreath
+    everyFrame = True
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = 5
+    tolerance = 0
+    equal = null
+    lessThan = event toMaxBreath
+    greaterThan = null
+    everyFrame = True
+
+[state setMaxBreath]
+  on toMidBreath -> setMidBreath
+  on FINISHED -> extraTired!
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = 30
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toMidBreath
+    everyFrame = True
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "breatheFloat"
+    Value = 1
+    dampTime = 1
+    everyFrame = True
+  action AnimateFloat (disabled)
+    animCurve = curve 0:0 1:1
+    floatVariable = {animFloat1}
+    finishEvent = null
+    realTime = False
+  action Wait (disabled)
+    time = 5
+    finishEvent = event FINISHED
+    realTime = False
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = 10
+    tolerance = 0
+    equal = event FINISHED
+    lessThan = event FINISHED
+    greaterThan = null
+    everyFrame = True
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {tiredSpeed}
+    dampTime = 1
+    everyFrame = True
+
+[state init]
+  on FINISHED -> getStats
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setLowBreath]
+  on FINISHED -> getStats
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 6
+    layerWeight = 0
+    everyFrame = False
+  action AnimateFloat (disabled)
+    animCurve = curve 0:1 1:0
+    floatVariable = {animFloat1}
+    finishEvent = event FINISHED
+    realTime = False
+  action SetAnimatorLayerWeight (disabled)
+    gameObject = owner
+    layerIndex = 6
+    layerWeight = {animFloat1}
+    everyFrame = True
+  action SetAnimatorFloat (disabled)
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {notTiredSpeed}
+    dampTime = 1
+    everyFrame = False
+
+[state disabled]
+
+[state setStats]
+  on FINISHED -> getStats
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {notTiredSpeed}
+    dampTime = 0
+    everyFrame = False
+
+[state extraTired!]
+  on toMidBreath -> setMidBreath
+  on toMaxBreath -> setMaxBreath
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "tiredFloat"
+    Value = {extraTiredSpeed}
+    dampTime = 1
+    everyFrame = True
+  action FloatCompare
+    float1 = {statStamina}
+    float2 = 13
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toMaxBreath
+    everyFrame = True
