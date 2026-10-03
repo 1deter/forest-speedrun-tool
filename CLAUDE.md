@@ -626,27 +626,25 @@ identity.
 
 ## Current status
 
-**Released: v0.24.229** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **588 tests** (+ 85 site tests).
+**Released: v0.24.230** (2026-10-03). The author runs it via the in-game
+updater (Slot 1). **599 tests** (+ 85 site tests).
 
-### Pick up here (2026-10-03, v0.24.229 released)
+### Pick up here (2026-10-03, v0.24.230 released)
 
-**This session: banned-move detection, part 2 - the cave state force load
-(v0.24.229)** (docs/run-mode.md *Banned moves: detection*, *Built*):
-`Game/MoveWatch` hooks `playerEnterCaveAction`'s `doCave` coroutine; at
-its let-go it reads the player against the terrain; `Data/MoveDetector.
-CaveEntryEnded` reports an entry that ends in cave state no more than 3 m
-under the terrain (LocalPlayer.Goto's own rule). Survey (bridge, every
-crawl and swim entrance): normal entries end 7.5 m (Cave 2) to 300 m
-under it. Live on v0.24.229: three normal Cave 1 entries silent (12.6 m
-under), an entry cut short by `Animator.Rebind` after `InACave` reported
-(let go at the mouth, 1.9 m above, standing there in cave state - the
-runners' description). Run mode / site path shared with the bomb boost
-(checked end to end in v0.24.227); the site names it against a banned
-move containing "cave". Not reproduced: the runners' own input (smash in
-the air) - the author's hands-on list (*Next* 5).
-Before (same day): v0.24.227-228 bomb boost + huge speed (live-tested;
-gotcha 90), tech research round 2 - game-notes *Speedrun tech*.
+**This session: banned-move detection, part 3 - the fall damage cancel
+(v0.24.230)** (docs/run-mode.md *Banned moves: detection*, *Built*):
+`Game/MoveWatch` prefixes `FirstPersonCharacter.HandleLanded` and reads
+every gate the game applies; `Data/MoveDetector.Landed` reports a landing
+judged at <= 28 m/s (`prevVelocity`, the last collision enter) while the
+player fell faster than 30 m/s in the last 0.25 s. Live on v0.24.230:
+ground drop, lake drop and a steep terrain slope silent (the game holds
+the player on steep terrain at ~3 m/s - no false flags from slides there);
+the cancel's state faked over the bridge reported. The site names it
+against a banned move with "fall damage" / "slide cancel". Not
+reproduced: the runners' own slide on bodies (Cave 6 keycard drop) - the
+author's hands-on list (*Next* 5). Earlier the same day: v0.24.229 cave
+state force load, v0.24.227-228 bomb boost + huge speed (gotcha 90), tech
+research round 2 - game-notes *Speedrun tech*.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -682,8 +680,8 @@ spot exists yet - making one is the author's call.
 **Next, in order (one per session):**
 1. **Banned-move detection, the rest** (author, 2026-10-03: "build
    detection"; bomb boost + huge speed v0.24.227-228, cave state force
-   load v0.24.229): fall damage next, then clips / log boosts with
-   recorded runs - docs/run-mode.md *Banned moves: detection*. Same
+   load v0.24.229, fall damage cancel v0.24.230): clips / log boosts
+   next, with recorded runs - docs/run-mode.md *Banned moves: detection*. Same
    pattern: pure detector + false-flag tests, `move` lines, never flags.
 2. **Tech research, round 2** - done 2026-10-03 (*Pick up here*). Left
    from it: check *Reload save on death* gives the same game as a manual
@@ -713,7 +711,9 @@ spot exists yet - making one is the author's call.
    - a real ESC + F2, the Runs tab section, End / Start run mode by
    clicking, a run spot's F7, the run code on a real recording (`CodeSize`
    40 px, top centre), the attempt page with a real attempt, /admin's
-   *Categories* tab (investigations *Not seen by the author*).
+   *Categories* tab (investigations *Not seen by the author*); the
+   detected moves done for real - a bomb boost, a cave force load (smash
+   in the air), a fall damage cancel (sliding on bodies, Cave 6).
 - Website: done apart from texture arrays in the export - only if frame
   times call for them (docs/website.md *Load size*).
 

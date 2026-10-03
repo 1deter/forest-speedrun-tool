@@ -200,6 +200,11 @@ public sealed class AttemptTests : IDisposable
         var cave = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 4, Kind = "cave-force-load", Detail = "d" } }, caves)[0];
         Assert.Equal("Cave state force load", cave.Label);
         Assert.Equal("Cave force loads", cave.MaybeBanned);
+
+        var falls = RunCategory.Parse("[category]\nid = gl\nname = Glitchless\nbanned = No waterfall clips\nbanned = Fall damage cancels\n").Single();
+        var fall = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 5, Kind = "fall-damage-cancel", Detail = "d" } }, falls)[0];
+        Assert.Equal("Fall damage cancel", fall.Label);
+        Assert.Equal("Fall damage cancels", fall.MaybeBanned);   // not "waterfall"
     }
 
     // --- what ran: the report ------------------------------------------------

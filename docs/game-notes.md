@@ -2658,7 +2658,10 @@ runs on the `Grounded` rising edge in `FixedUpdate`; damage =
 is not a new collision enter (contact kept while sliding off a smooth edge),
 or one preceded by a new enter at low vertical speed (grazing a seam between
 colliders), is judged on that small value: no damage, and no 3.8 s death
-either. Likely the runners' slide cancel; not reproduced. `jumpingTimer`
+either. Likely the runners' slide cancel; not reproduced. Steep terrain
+does not give one by itself (live, 2026-10-03): the game holds the player
+on a 55-80 degree terrain slope at ~3 m/s, so no speed builds while the
+contact is kept. Detected since v0.24.230 (docs/run-mode.md). `jumpingTimer`
 counts `Time.deltaTime` (stops in the pause menu; one 9 s frame counts 9 s).
 **A fall is capped at 55.43 m/s** (live, 2026-10-03: from y 1,500 the
 speed held there for 16 s; rigidbody drag 0, mass 7). Air control also

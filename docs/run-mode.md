@@ -310,7 +310,7 @@ the bridge against a local site):
   tab line "from the next attempt"); `WebRequest.Send` with headers and
   one response header back; the site's `Categories.ETag` / `Unchanged`.
 
-## Banned moves: detection (bomb boost + huge speed v0.24.227-228, cave force load v0.24.229)
+## Banned moves: detection (bomb boost + huge speed v0.24.227-228, cave force load v0.24.229, fall damage cancel v0.24.230)
 
 How each common move works is in [`game-notes.md`](game-notes.md) *Speedrun
 tech and the endgame gate*. Whether a move is a glitch is the community's
@@ -387,7 +387,28 @@ than the table's plan:
   mouths (0.7 m above) and the sinkhole (terrain 0, cave state from y 0)
   sit inside its margin; it would need data from real runs. An entry the
   game never lets go of (killed coroutine) is not seen.
-- **Next**: fall damage, then clips / log boosts.
+- **Fall damage cancel (v0.24.230)**: a prefix on
+  `FirstPersonCharacter.HandleLanded` reads what the game is about to
+  judge (`prevVelocity`, `allowFallDamage`, `jumpingTimer`, `jumpLand`,
+  shell ride / glider over 32 m/s, `Clock.planecrash`, `swimming`);
+  `MoveDetector.Landed` reports a landing that passes every gate but
+  `prevVelocity` (<= 28) while the player really fell faster than 30 m/s
+  within the last 0.25 s of game time (two half-window buckets fed every
+  frame, plus the body's speed at the landing; kinematic frames clear
+  them). The text gives the real speed, the judged one and the damage it
+  would have been (fatal over 3.8 s in the air). `MoveWatch: a landing
+  ...` is logged for every landing where the two speeds disagree, reported
+  or not. Live (bridge): an 82 m drop onto the ground is judged at 55 m/s
+  (silent); a drop into the big lake judged at 0 but swimming (silent);
+  **steep terrain never builds speed** - the game holds the player on a
+  55-80 degree slope (~3 m/s), so terrain slides are not a false-flag
+  source; the cancel's game state faked (`prevVelocity` zeroed every frame
+  of an 82 m fall) was reported (55 m/s, judged 0, 100 damage). 71
+  landings seen, no other report. The site's `MoveNotes` matches "fall
+  damage" / "fall cancel" / "slide cancel" (not "waterfall"). Not
+  reproduced: the runners' own input (sliding on bodies, Cave 6) - the
+  author's hands-on list.
+- **Next**: clips / log boosts, with recorded runs to tune them.
 
 ## Other uses of locked settings
 
