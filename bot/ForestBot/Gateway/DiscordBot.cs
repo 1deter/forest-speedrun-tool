@@ -73,7 +73,9 @@ public sealed class DiscordBot
     {
         if (cmd.CommandName != "ask") return;
         string question = (cmd.Data.Options.FirstOrDefault(o => o.Name == "question")?.Value as string ?? "").Trim();
-        if (!Allowed(cmd.Channel))
+        // cmd.Channel is null when the bot user is not in the server (only the
+        // command was installed) - the interaction still works, so go by ids.
+        if (!AllowedId(cmd.ChannelId, cmd.GuildId == null))
         {
             await cmd.RespondAsync("I only answer in the bot's channels.", ephemeral: true);
             return;
@@ -85,7 +87,7 @@ public sealed class DiscordBot
             return;
         }
         await cmd.DeferAsync();
-        Reply reply = await _brain.AskAsync(question, cmd.User.Id.ToString(), cmd.Channel.Id.ToString(), null, CancellationToken.None);
+        Reply reply = await _brain.AskAsync(question, cmd.User.Id.ToString(), cmd.ChannelId?.ToString(), null, CancellationToken.None);
         List<string> parts = Parts("> **" + Quote(question) + "**\n\n" + reply.Answer.Text, reply);
         for (int i = 0; i < parts.Count; i++)
         {
@@ -221,8 +223,18 @@ public sealed class DiscordBot
         catch (Exception e) { _log("Discord: queue post failed: " + e.Message); }
     }
 
+    /// The same rule by ids, for interactions whose channel the bot cannot see.
+    private bool AllowedId(ulong? channelId, bool dm)
+    {
+        if (dm) return _cfg.AllowDms;
+        if (_cfg.Channels.Count == 0) return true;
+        if (channelId is ulong id && _cfg.Channels.Contains(id)) return true;
+        return channelId is ulong tid && _client.GetChannel(tid) is SocketThreadChannel t && t.ParentChannel != null && _cfg.Channels.Contains(t.ParentChannel.Id);
+    }
+
     private bool Allowed(IChannel channel)
     {
+        if (channel == null) return false;
         if (channel is IDMChannel) return _cfg.AllowDms;
         if (_cfg.Channels.Count == 0) return true;
         if (_cfg.Channels.Contains(channel.Id)) return true;
