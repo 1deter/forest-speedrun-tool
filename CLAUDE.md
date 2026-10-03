@@ -95,6 +95,7 @@ folders because it is the code that can break an install.
 | `tools/BridgeMcp/` | MCP server over the live test bridge (`.mcp.json`: `forest`). Dev-time only, never shipped |
 | `site/` | forest.deter.cloud: ASP.NET Core + SQLite + plain JS, links the pure `src/Data` format files; `site/deploy` + `.github/workflows/site.yml` deploy it to the author's VPS ([`docs/website.md`](docs/website.md)) |
 | `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
+| `knowledge/` | The game-knowledge bot's knowledge base: `cards/` (one mechanic each, for runners), `glossary.md`, `eval/questions.md`; format in `knowledge/README.md`. Never shipped in the DLL |
 
 Modules never reach for globals or each other — shared services arrive via
 `ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.
@@ -632,22 +633,24 @@ updater (Slot 1). **620 tests** (+ 85 site tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**This session: banned-move detection, the last part - lifts out of a
-structure and clips (v0.24.231-234)** (docs/run-mode.md *Banned moves:
-detection*, *Built*): `Game/ClipWatch` (a FixedUpdate + the game's
-collision proxies on the player) feeds `MoveDetector.PhysicsStep` /
-`Clipped`. A lift (log boost, wall boost) = a rise with no velocity to
-explain it while touching a player-built structure; a clip = the capsule's
-centre entering a solid through a front face within 1.5 s of an axe ground
-smash or of touching a built structure (author's two clip recipes,
-2026-10-03). Three rounds of live false flags fixed on the way: teleport
-landings (0.5 s settle), the yacht's bobbing hull (movers) and its tight
-cabin (no-velocity lifts from furniture; a face crossed from behind) -
-gotcha 91. Live: every false-flag case silent, a hut lift and a
-smash-gated wall clip reported. With this every move in the detection
-table is built. Earlier the same day: v0.24.230 fall damage cancel,
-v0.24.229 cave state force load, v0.24.227-228 bomb boost + huge speed
-(gotcha 90), tech research round 2 - game-notes *Speedrun tech*.
+**This session: the game-knowledge bot, part 1 - the knowledge base**
+(no plugin code, no release). The author's second round of decisions is in
+*Standing decisions* (gateway bot, follow-ups by reply, no site pages, the
+decompiled C# quoted freely); the design is rewritten in
+[`docs/knowledge-bot.md`](docs/knowledge-bot.md) (hybrid FTS5 + embeddings
+search, tools into cards / docs / FSMs / code, answer cache, 👍 / 👎 to a
+research queue, test questions). Built: `knowledge/` - 23 cards (every
+common tech + physics, deaths, caves, saves, splits, the tool), the
+glossary, 40 test questions; the decompiled source moved to
+`%LOCALAPPDATA%\ForestOverlay\game-src\` (+ ilspycmd, the DLL's hash).
+Writing the cards against the code corrected / added facts (game-notes
+*Knowledge base pass*): the fall cap is the speed cap, the pause menu
+stops time on Hard too, the zipline exit weakens braking 60x for 1 s,
+`doCave`'s 1.5 s / 3 s. **Next: the bot itself** (`bot/`, .NET 10,
+Discord.Net gateway, Gemini) - build order in docs/knowledge-bot.md.
+Earlier the same day: banned-move detection finished (v0.24.227-234:
+bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
+gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -689,15 +692,12 @@ spot exists yet - making one is the author's call.
    reload (docs/run-mode.md *Decisions*), the elevator skip done by hand
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
-   decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): first the knowledge base (Claude sessions write
-   per-tech explainers - mechanism, why it works, evidence, the optimal
-   version, live / IL - and extract the PlayMaker FSMs to text), then the
-   bot: `/ask` via Discord's interactions endpoint on the site's VPS, a
-   Gemini free-tier Flash model behind a swappable interface, a section
-   index in the prompt + tools (fetch a section, search, `ilscan` on a
-   private copy of Assembly-CSharp.dll, FSM lookup), confidence tags and
-   sources, unanswered questions queued for research sessions, per-user
-   rate limits, "busy" when the quota is out.
+   decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
+   knowledge base's first 23 cards are done (`knowledge/`); next the bot
+   (`bot/`: Discord gateway + follow-ups by reply + 👍 / 👎, Gemini Flash
+   behind an interface, hybrid search, card / doc / FSM / code tools,
+   research queue, answer cache, the eval run), then more cards (Megan,
+   cannibal AI from `docs/fsm/`, categories, routes - `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,
@@ -863,7 +863,14 @@ total playtime lines.
   ("as long as it's not being served and just used as an informational
   lookup ... for educating speedrunners"). A **new Discord application**;
   the author creates the Gemini key when it is built. Plan:
-  [`docs/knowledge-bot.md`](docs/knowledge-bot.md).
+  [`docs/knowledge-bot.md`](docs/knowledge-bot.md). Also decided
+  (author, 2026-10-03, second round): answers of **the highest quality**;
+  **follow-up questions** by replying to an answer; a **regular (gateway)
+  bot**, not an interactions endpoint; **no public knowledge pages** on the
+  site ("people won't really be using the site all that much as the
+  discord"); feedback (👍 / 👎) on the bot's answers; no `/about`; the
+  **decompiled C#** kept privately on the server and **quoted freely** ("i'm
+  not distributing it, i'm simply describing its functionality").
 - **Teleports and the endgame** (author, 2026-10-03): Go / tp behave
   like the game's own developer-console teleport - if the console does not
   load the endgame there, neither do we (a Go into the lab from a save

@@ -3092,6 +3092,50 @@ snow-cave elevator up; saving mid-air (the game saves only at shelters);
 falling "through" steep terrain (it was the player walking off a ledge into a
 hole - and a capsule spawned inside a 77° face by our own tp).
 
+### Knowledge base pass (decompiled C#, 2026-10-03)
+
+Read while writing the bot's cards (`knowledge/cards/`); code only unless
+marked.
+- **The fall cap is the speed cap.** Leaving the ground sets `jumping`
+  (`HandleStartJumping`); in the air `HandleJumpSpeed` clamps the speed to
+  `maximumVelocity` (55 on the player; the script default 25 is overridden),
+  on the ground `ClampVelocity` does. The step's gravity (26 x 1/60 = 0.43)
+  is added after the clamp: 55.43 m/s, the measured fall speed.
+  `ClampVelocity` also has 3 m/s (`hitByEnemy`) and 5.5 m/s
+  (`setNearEnemyVelocity`, `doClampVelocity`, 0.65 s) caps - no caller of
+  either found in C# or the exported FSMs.
+- **The pause menu stops time on every single-player difficulty**
+  (`HudGui.TogglePauseMenu`: `if (!BoltNetwork.isRunning) timeScale = 0`);
+  only the inventory skips Hard / Hard Survival
+  (`PlayerInventory.PauseTimeInInventory`, also `targetFrameRate = 60`
+  while open, 0.05 s after opening). So the bomb boost works on Hard.
+- **The knockback's second phase also pushes**: after the 0.5 s loop,
+  while layer 2 is `explode`-tagged, `AddForce(-forward * 8)` continues for
+  0.25 s of game time (`playerHitReactions.enableExplodeCamera`) - but
+  `playerAnimatorControl.Update` zeroes the horizontal velocity every frame
+  in that state, which is what ends the boost.
+- **Zipline exit**: `ExitZipLine` over 10 m/s starts `PreserveExitVelocity`
+  (1 s of game time, `_doingExitVelocity`); during it
+  `FirstPersonCharacter.FixedUpdate` applies the input's velocity change
+  with `ForceMode.Acceleration` instead of `VelocityChange` (ground and air)
+  - the controller's braking is ~1/60 as strong. The ride: gravity off,
+  +10 m/s² along the line, cap 50, lets go within 1.5 m of ground / under
+  0.8 m/s after 1.3 s / on Take or Jump; the exit restarts `startJumpTimer`.
+- **`doCave` timings**: crawl / climb entrances send `InACave` 1.5 s in
+  (1 s + 0.5 s), swim entrances 3 s in (2.5 s + 0.5 s); the player's
+  colliders are triggers (no collision) for the whole entry, and the player
+  is parented to the entrance. (*Cave state force load* above said 2.5 s +
+  0.5 s - that is the swim case.)
+- **`PlayerStats.Explosion`**: ignored during `isExplode` (2.2 s), an
+  endgame cutscene, the enter-cave animation, an `explode` state, or views
+  below World; 25 damage (x3 from the player's own explosive with realistic
+  player damage), minus armour; must survive it to be knocked back.
+- **Red elevator split, keyless**: `ElevatorSystem.Goto` sends
+  `openDoorRoutine` when `_playKeycardAnim` and (`!_sequence ||
+  _sequence.IsActor`), then waits 5 s; the keyless live ride waited 5 s with
+  no animation - whether `endGameCutScene` rose (the ASL's split) is not
+  checked. `_useCount` counts rides.
+
 ## How to extend this file
 
 0. **Decompiled C#** (2026-10-03, the overnight sweep) - for reading whole

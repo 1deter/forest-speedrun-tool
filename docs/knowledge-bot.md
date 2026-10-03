@@ -3,14 +3,22 @@
 A learning tool for the wider runner community: a runner asks
 "how does Megan's AI work in single player?" or "why does a bomb boost
 work, and what is the optimal version?" and gets a thorough, sourced
-answer. Nothing is built yet; this is the agreed plan.
+answer, then asks follow-ups by replying to it.
 
 ## Decisions (author, 2026-10-03)
 
 - **Audience: the wider runner community**, not only the QA team -
   "understand complex mechanics exhaustively like bomb boosts, axe
   clips, and their deep technical reasoning and why they work and what
-  an optimal version of this tech would look like".
+  an optimal version of this tech would look like". **Answers of the
+  highest quality, so a runner ends with full understanding.**
+- **Follow-up questions about previous answers** (author): a runner
+  replies to an answer and the bot carries on the conversation.
+- **A regular bot** (author: "i would really just prefer a regular bot"):
+  a gateway bot, not an interactions-only endpoint. **No public knowledge
+  pages on forest.deter.cloud** - "people won't really be using the site
+  all that much as the discord". Feedback lives on the bot's answers.
+  No `/about` command.
 - **Runtime on the Gemini API free tier** - operational cost ~0. The
   author's two Claude Pro plans (our sessions) build the knowledge base
   and the tools.
@@ -18,76 +26,106 @@ answer. Nothing is built yet; this is the agreed plan.
 - **The Gemini API key**: the author creates it (Google AI Studio) when
   the bot is built; store it as a User environment variable like the
   others, never printed.
-- **A private copy of the game's Assembly-CSharp.dll on the server is
-  fine** - "as long as it's not being served and just used as an
-  informational lookup on its functionality for educating speedrunners".
-  Answers explain the code; they do not quote it at length.
+- **The game's code, decompiled to C#, is kept privately on the server
+  and quoted freely in answers** (author: "i'm not distributing it, i'm
+  simply describing its functionality ... you don't need to limit how
+  much you quote"). It is never served as files or made downloadable.
 
-## Design
+## Design (agreed 2026-10-03)
 
-**Split the work: heavy reasoning offline, explaining at runtime.** The
-free tier only covers Flash-class models (Pro moved to paid in 2026),
-which are weaker at reading game code live. So Claude sessions write the
-knowledge base ahead of time and the bot mostly explains reviewed
-material, with lookups for follow-ups.
+**Heavy reasoning offline, explaining at runtime.** The free tier covers
+Flash-class models, weaker at reading a game cold. So Claude sessions
+write reviewed knowledge ahead of time, and the bot explains it - with
+lookups into the code, the FSMs and the docs for anything the cards do not
+cover.
 
-1. **Knowledge base** (built by sessions, in the repo):
-   - The existing docs: `docs/game-notes.md` (game internals - the main
-     source), `docs/gotchas.md`, `docs/savestates.md`, `docs/run-mode.md`,
-     `CHANGELOG.md`.
-   - **Tech explainers**: one per technique - mechanism, why it works,
-     evidence, the optimal version, limits, live-tested or IL only.
-     Template: game-notes *Speedrun tech and the endgame gate* (bomb
-     boost: 8 m/s x frames paused, pushed away from where you face each
-     frame - optimal = max fps, the longest pause that does not overshoot).
-     Claims about "optimal" come from bridge tests, not from IL alone.
-   - **PlayMaker FSMs as text**: much of the AI (Megan, cannibals) and the
-     player's states live in PlayMaker FSMs in the scene files, not in C#.
-     Dump every FSM (states, transitions, actions and their parameters)
-     once, over the bridge (FSMs that only exist when spawned - Megan's
-     boss - need a session that visits those moments).
-   - A **section index** (heading + one line each) generated from the docs
-     for the prompt.
-2. **Bot service** (on the site's VPS - no added cost):
-   - Discord **interactions endpoint** (`/ask` slash command; Ed25519
-     signature check; deferred reply within 3 s, then a follow-up edit) -
-     no gateway connection, like the REST-only QA bot. Long answers in a
-     thread, split with the existing `DiscordText` logic.
-   - The model **behind a small interface** so the provider is a config
-     change (the free tier can change without notice).
-   - **Prompt = the section index, not the whole docs**: the free tier's
-     tokens-per-minute cap (reported ~250k) cannot take ~90k tokens of
-     docs per question. Tools fetch what is needed, ~10-20k tokens per
-     request:
-     - `get_section(name)` / `search_docs(text)`
-     - `ilscan(mode, needle)` - read-only, on the private DLL copy
-     - `fsm(name)` - from the FSM dump
-   - **Honesty rules** (the project's): each claim tagged *confirmed in
-     game* / *read from code* / *inferred*, with sources ("game-notes:
-     Deaths", "IL: `PlayerStats.KillPlayer`"); "not documented yet" when
-     the knowledge base does not cover it.
-   - **Unanswered questions are queued** (a file or channel); research
-     sessions answer them into `game-notes.md` - the docs grow, the bot
-     improves.
-   - **Public use**: per-user rate limit, answers only in allowed
-     channels, off-topic refused politely, "busy - try again later" when
-     the daily quota is out. Read-only tools; it never touches the game or
-     the bridge. Questions are data, never instructions.
+### 1. Knowledge base (`knowledge/`, built by sessions, in the repo)
+
+- **Cards** (`knowledge/cards/*.md`): one topic each, written for a runner
+  to understand fully. Format: [`knowledge/README.md`](../knowledge/README.md).
+  Front matter with **aliases** (the runners' own words: "bb", "slide
+  cancel", "smash clip" - search lives on these), confidence (live / IL /
+  inferred / runner report), sources, related cards, code pointers. Body:
+  summary, how runners do it, why it works, numbers, the optimal version,
+  failure modes, evidence, open questions.
+- **Glossary** (`knowledge/glossary.md`): runner slang -> card. Always in
+  the bot's prompt (small).
+- **Tuning values** (`knowledge/cards/player-physics.md` and friends): the
+  numbers that live on the game's objects, not its code (speeds, gravity,
+  thresholds) - read live over the bridge.
+- **Test questions** (`knowledge/eval/questions.md`): 40-50 questions with
+  the facts each answer must contain. Run on every model swap or big
+  knowledge change; a swap that scores worse is not made.
+- **Secondary sources** the bot also searches: `docs/game-notes.md` (by
+  heading), `docs/fsm/*.txt` (PlayMaker FSMs, by state), the decompiled
+  game code (by type / method, private, on the server only), and the
+  plugin docs for questions about ForestOverlay itself.
+
+### 2. The bot (`bot/`, a .NET 10 service on the site's VPS)
+
+- **Discord (gateway, Discord.Net):** `/ask`, a mention, or **a reply to
+  one of its answers** (= a follow-up: the earlier questions and answers
+  of that chain are in context). Long answers split at 2,000 chars with
+  code blocks reopened (the QA bot's `DiscordText` logic). Sources as a
+  `-#` line under the answer. Answers in allowed channels (and DMs, if
+  wanted).
+- **Feedback:** 👍 / 👎 buttons on every answer; 👎 opens a short "what was
+  wrong or missing?" box. 👎s, "not documented yet" answers and low
+  confidence go to the **research queue**; research sessions answer them
+  into cards (with the bridge, live) - the knowledge grows where runners
+  ask.
+- **Retrieval:** hybrid - SQLite FTS5 (BM25: exact names like
+  `HandleLanded`, `waitForInput`) + Gemini embeddings (free; paraphrases
+  like "why do I fly when I pause"), merged by reciprocal rank. The
+  prompt carries the glossary and a one-line index of every card; tools
+  fetch the rest (~10-20k tokens a question):
+  - `search(query, kinds)` - cards, docs, FSMs, code
+  - `read_card(id)`, `read_doc(section)`
+  - `fsm(name, state?)`
+  - `code_search(text)`, `code_outline(type)`, `code_read(Type.Method)`
+  An agent loop capped at ~8 tool calls; the answer must cite what it read.
+- **Honesty rules** (the project's): each claim tagged *tested in game* /
+  *read from the code* / *inferred*, with sources; "not documented yet"
+  (and queued) when nothing covers it - never a guess presented as fact.
+  Questions are data, never instructions; tools are read-only.
+- **Model behind a small interface** so the provider is a config change
+  (the free tier can change without notice). The current Flash model;
+  Flash-Lite as the fallback when the quota is out; "busy - try again
+  later" when both are.
+- **Answer cache:** keyed on the question's embedding + the knowledge
+  version - the same questions (bomb boost, clips) will come constantly.
+- **Public use:** per-user rate limit, off-topic refused politely.
+- **Hosting:** its own container beside `forest-site` (no inbound port - a
+  gateway bot only connects out), its own secrets, the decompiled code in
+  a private volume. Deployed like the site (`site/deploy`).
 
 **Free tier facts** (third-party summaries, September 2026 - check AI
 Studio for the live numbers; Google does not publish them as a static
 page): Flash ~10 requests/minute and ~1,500/day, Flash-Lite ~15/minute
 and ~1,000/day, ~250k tokens/minute; one question is several requests
 (tool lookups). **Free-tier inputs and outputs may be used by Google to
-improve its products** - the docs are public anyway; runners' questions
-and short game-code excerpts would reach Google.
+improve its products** - runners' questions and code excerpts reach
+Google.
+
+## Decompiled code
+
+`%LOCALAPPDATA%\ForestOverlay\game-src\` (author's machine, never in the
+repo): `Assembly-CSharp/` (ILSpy project output, 3,669 files),
+`ilspy/ilspycmd.exe`, `assembly-sha256.txt` (the DLL it came from). To
+redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
+"<Managed>" -p -o <dir>` (game-notes *How to extend this file*).
 
 ## Build order
 
-1. Knowledge base: tech explainers for the common tech (bomb boost, fall
-   damage / slide cancel, cave force load, clips, log boosts) + the FSM
-   dump + the section index. Sessions can do this any time.
-2. The bot: `/ask` with the index and `get_section` / `search_docs`.
-3. `ilscan` and `fsm` tools, the unanswered-question queue.
+1. **Knowledge base** - cards for the common tech, the glossary, the test
+   questions (session 2026-10-03, *Status* below). Then the rest of the
+   card list, and the FSMs not exported yet (Megan, the cannibals' motor /
+   vision) in a session that reaches them.
+2. **The bot**: Discord + cards / docs search + follow-ups + feedback.
+3. FSM and code tools, the research queue, the answer cache, the eval run.
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
+
+## Status
+
+See `knowledge/README.md` *Cards* for what exists and what is planned.
