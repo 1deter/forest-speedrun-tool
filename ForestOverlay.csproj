@@ -25,9 +25,9 @@
     they would be compiled into the net35 assembly and fail.
   -->
   <ItemGroup>
-    <Compile Remove="tools/**;tests/**;patcher/**;site/**" />
-    <None Remove="tools/**;tests/**;patcher/**;site/**" />
-    <EmbeddedResource Remove="tools/**;tests/**;patcher/**;site/**" />
+    <Compile Remove="tools/**;tests/**;patcher/**;site/**;bot/**" />
+    <None Remove="tools/**;tests/**;patcher/**;site/**;bot/**" />
+    <EmbeddedResource Remove="tools/**;tests/**;patcher/**;site/**;bot/**" />
   </ItemGroup>
 
   <!--
