@@ -5,6 +5,16 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.231 - 2026-10-03
+
+- Run mode now notices two more moves: a **lift out of a solid** (the
+  physics pushing you up out of something that appeared in you or squeezed
+  you - how a log boost or a wall boost works) and a **clip through a
+  solid** (your body ending up on the other side of a wall, door or panel
+  you were touching). Both go into the attempt's log with what you touched
+  and how far you went. Like the other moves they are notes for the
+  verifier, never flags.
+
 ## v0.24.230 - 2026-10-03
 
 - Run mode now notices a **fall damage cancel**: a landing at a speed that

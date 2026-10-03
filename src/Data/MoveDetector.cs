@@ -68,6 +68,26 @@ namespace ForestOverlay.Data
     // what the game judged against what the player did, the verifier
     // decides. Live (2026-10-03): an 82 m drop onto the ground is judged at
     // 55 (the speed it hit at); a drop into the big lake at 1.3, swimming.
+    //
+    // Lift out of a collider (the log boost, the custom wall boost). PhysX
+    // pushes a body out of a solid that appears or squeezes into it by moving
+    // it, with no velocity left over (live, 2026-10-03: a box put 0.8 m into
+    // the player's feet lifted them 0.8 m, velocity 0 throughout; game-notes
+    // *Depenetration*). Nothing the game does on purpose raises the player
+    // faster than its own speed explains: jumps, knockbacks and swimming are
+    // velocity, rides and climbs are kinematic. So: per physics step, the
+    // rise beyond what the vertical speed (before or after the step) allows,
+    // summed while it keeps coming (a gap of LiftQuiet ends an episode),
+    // reported at LiftReport. A step rising more than LiftMaxStep unexplained,
+    // or moving further sideways than its speed allows, is a teleport.
+    //
+    // Clip through a solid. The capsule's centre ends up on the other side
+    // of a solid collider the player had touched (Game/ClipWatch casts the
+    // line from the last place the centre was clear of every solid to the
+    // next one; a collider only counts once the player has had a contact
+    // with it, which leaves out every pair the game told the physics to
+    // ignore - terrain in caves and at cave mouths, ropes, structures on
+    // rafts). The same collider again within ClipRepeat is one clip.
     // ------------------------------------------------------------------
     public sealed class MoveDetector
     {
@@ -75,6 +95,8 @@ namespace ForestOverlay.Data
         public const string HugeSpeedKind = "huge-speed";
         public const string CaveForceLoad = "cave-force-load";
         public const string FallDamageCancel = "fall-damage-cancel";
+        public const string LiftKind = "lift";
+        public const string ClipKind = "clip";
 
         public const float PushPerFrame = 8f;      // m/s, the coroutine's AddForce
         public const int MinPausedPushes = 4;      // 32 m/s piled up
@@ -91,6 +113,11 @@ namespace ForestOverlay.Data
         public const float FallWindow = 0.25f;     // game seconds before the landing
         public const float FallAirTime = 0.75f;    // HandleLanded: no damage under this air time
         public const float FatalAirTime = 3.8f;    // HandleLanded: 1000 damage over this
+        public const float LiftStepMin = 0.02f;    // m of unexplained rise in one step that counts
+        public const float LiftReport = 1f;        // m in one episode
+        public const float LiftQuiet = 0.25f;      // game seconds with no lift end an episode
+        public const float LiftMaxStep = 4f;       // more unexplained rise in one step = a teleport
+        public const float ClipRepeat = 2f;        // game seconds: the same collider again = the same clip
 
         public sealed class Move
         {
@@ -140,6 +167,17 @@ namespace ForestOverlay.Data
         private Move _huge;
         private float _hugeQuiet;
 
+        // --- physics steps: lifts out of colliders ---
+        private bool _stepHas;
+        private Vector3 _stepPos, _stepVel;
+        private Move _lift;
+        private float _liftQuiet;
+        private Vector3 _liftFrom;
+
+        // --- clips: the last one, to merge repeats ---
+        private string _clipWhat = "";
+        private float _clipAt = -100f;
+
         // --- the fastest fall over the last FallWindow (two half buckets) ---
         private float _fallCur, _fallPrev, _fallAge;
 
@@ -165,6 +203,10 @@ namespace ForestOverlay.Data
             if (_huge != null && !drop) EndHuge();
             _huge = null;
             _fallCur = _fallPrev = _fallAge = 0f;
+            _stepHas = false;
+            if (_lift != null && !drop) EndLift();
+            _lift = null;
+            _clipWhat = "";
         }
 
         /// The knockback's coroutine started (its first MoveNext).
@@ -303,6 +345,103 @@ namespace ForestOverlay.Data
             if (_stopPushes > 0) Drop("the attempt ended with game time stopped");
             _stopPushes = 0;
             if (_huge != null) EndHuge();
+            if (_lift != null) EndLift();
+        }
+
+        /// One physics step (our FixedUpdate: `pos` = the capsule's centre
+        /// after the last step, `vel` = the body's velocity). `contact` = the
+        /// solid the player last touched (for the text). Returns true when it
+        /// was a plain step (no teleport, not kinematic, not the first) - only
+        /// then may a clip be judged across it.
+        public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact)
+        {
+            if (!hasPlayer || kinematic || dt <= 0f)
+            {
+                _stepHas = false;
+                if (_lift != null) EndLift();
+                return false;
+            }
+            if (!_stepHas)
+            {
+                _stepHas = true;
+                _stepPos = pos;
+                _stepVel = vel;
+                return false;
+            }
+            Vector3 d = pos - _stepPos;
+            float side = (float)System.Math.Sqrt(d.x * d.x + d.z * d.z);
+            float sideCould = Mathf.Max(Flat(vel), Flat(_stepVel)) * dt * 2f + 2f;
+            float up = Mathf.Max(0f, Mathf.Max(vel.y, _stepVel.y)) * dt;
+            float down = Mathf.Max(0f, Mathf.Max(-vel.y, -_stepVel.y)) * dt * 2f + 1f;
+            float rise = d.y - up;
+            _stepPos = pos;
+            _stepVel = vel;
+            if (side > sideCould || rise > LiftMaxStep || -d.y > down)
+            {
+                // A teleport: not the physics'.
+                if (_lift != null) EndLift();
+                return false;
+            }
+            if (rise > LiftStepMin)
+            {
+                if (_lift == null)
+                {
+                    _lift = new Move();
+                    _lift.Kind = LiftKind;
+                    _lift.Position = pos - d;
+                    _liftFrom = pos - d;
+                    _lift.Detail = "";
+                }
+                _lift.Distance += rise;
+                _lift.Seconds += dt;
+                _lift.PausedPushes++;   // steps that lifted
+                if (!string.IsNullOrEmpty(contact)) _lift.Detail = contact;
+                _liftQuiet = 0f;
+            }
+            else if (_lift != null)
+            {
+                _lift.Seconds += dt;
+                _liftQuiet += dt;
+                if (_liftQuiet >= LiftQuiet) EndLift();
+            }
+            if (_lift != null)
+            {
+                float far = Vector3.Distance(_liftFrom, pos);
+                if (far > _lift.PeakSpeed) _lift.PeakSpeed = far;   // the farthest from where it began
+            }
+            return true;
+        }
+
+        /// The unexplained rise of the episode under way (0 = none) - for the log.
+        public float LiftSoFar { get { return _lift != null ? _lift.Distance : 0f; } }
+
+        /// A finished lift episode under LiftReport, for the log ("" none).
+        public string SmallLift { get; private set; }
+
+        /// SmallLift, then cleared.
+        public string TakeSmallLift() { string s = SmallLift ?? ""; SmallLift = ""; return s; }
+
+        /// The capsule's centre went from `from` to `to` across `what` (a
+        /// solid the player had touched; its name, kind and thickness in
+        /// words). `insideSteps`: physics steps the centre spent inside a
+        /// solid on the way; `time`: game seconds now.
+        public void Clipped(Vector3 from, Vector3 to, string what, int insideSteps, float time)
+        {
+            if (what == _clipWhat && time - _clipAt < ClipRepeat) { _clipAt = time; return; }
+            _clipWhat = what;
+            _clipAt = time;
+            Move m = new Move();
+            m.Kind = ClipKind;
+            m.Position = from;
+            m.Distance = Vector3.Distance(from, to);
+            m.PausedPushes = insideSteps;
+            m.Detail = "the player's body passed through " + what + ", a solid they had touched: " +
+                       Meters2(m.Distance) + " m from where they were last clear of it" +
+                       (insideSteps > 0 ? ", " + insideSteps.ToString(CultureInfo.InvariantCulture) + " physics step" + (insideSteps == 1 ? "" : "s") + " inside solids on the way"
+                                        : " in one physics step") +
+                       ", to (" + to.x.ToString("0.0", CultureInfo.InvariantCulture) + ", " + to.y.ToString("0.0", CultureInfo.InvariantCulture) + ", " +
+                       to.z.ToString("0.0", CultureInfo.InvariantCulture) + ")";
+            Ready.Add(m);
         }
 
         // ------------------------------------------------------------------
@@ -380,6 +519,29 @@ namespace ForestOverlay.Data
                        " s, not from an explosion knockback, a ride or a cutscene";
             Ready.Add(m);
         }
+
+        private void EndLift()
+        {
+            Move m = _lift;
+            _lift = null;
+            string near = m.Detail;
+            string text = "lifted " + Meters2(m.Distance) + " m beyond what their speed allows over " +
+                          m.PausedPushes.ToString(CultureInfo.InvariantCulture) + " physics step" + (m.PausedPushes == 1 ? "" : "s") + " (" +
+                          m.Seconds.ToString("0.00", CultureInfo.InvariantCulture) + " s)" +
+                          (near.Length > 0 ? ", last touching " + near : "");
+            if (m.Distance < LiftReport)
+            {
+                if (m.Distance >= LiftReport * 0.3f) SmallLift = text;
+                return;
+            }
+            m.Detail = "the physics pushed the player up out of a solid: " + text +
+                       " - the way a log wall or a wall placed into the player lifts them";
+            Ready.Add(m);
+        }
+
+        private static float Flat(Vector3 v) { return (float)System.Math.Sqrt(v.x * v.x + v.z * v.z); }
+
+        private static string Meters2(float v) { return Mathf.Max(0f, v).ToString("0.0", CultureInfo.InvariantCulture); }
 
         private void Finish()
         {

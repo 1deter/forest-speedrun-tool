@@ -205,6 +205,14 @@ public sealed class AttemptTests : IDisposable
         var fall = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 5, Kind = "fall-damage-cancel", Detail = "d" } }, falls)[0];
         Assert.Equal("Fall damage cancel", fall.Label);
         Assert.Equal("Fall damage cancels", fall.MaybeBanned);   // not "waterfall"
+
+        var lift = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 6, Kind = "lift", Detail = "d" } }, cat)[0];
+        Assert.Equal("Lift out of a solid", lift.Label);
+        Assert.Equal("No log boosting", lift.MaybeBanned);
+        var clip = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 7, Kind = "clip", Detail = "d" } }, falls)[0];
+        Assert.Equal("Clip through a solid", clip.Label);
+        Assert.Equal("No waterfall clips", clip.MaybeBanned);
+        Assert.Null(Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 8, Kind = "clip", Detail = "d" } }, cat)[0].MaybeBanned);
     }
 
     // --- what ran: the report ------------------------------------------------

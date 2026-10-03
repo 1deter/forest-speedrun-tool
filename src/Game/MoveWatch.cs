@@ -78,6 +78,16 @@ namespace ForestOverlay.Game
             _log = log;
             try
             {
+                Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                if (lp != null) _lpTransform = lp.GetField("Transform", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                _harmony = new Harmony(harmonyId + ".movewatch");
+                InstallCave(lp);
+                InstallLand(lp);
+                GameObject host = new GameObject("ForestOverlay_MoveWatch");
+                host.hideFlags = HideFlags.HideAndDontSave;
+                UnityEngine.Object.DontDestroyOnLoad(host);
+                ClipWatch.Install(host, _harmony, log);
+
                 Type hit = GameBridge.FindGameType("playerHitReactions");
                 Type it = null;
                 if (hit != null)
@@ -93,12 +103,6 @@ namespace ForestOverlay.Game
                     _log.LogWarning("MoveWatch: " + Status + ".");
                     return;
                 }
-                Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
-                if (lp != null) _lpTransform = lp.GetField("Transform", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-
-                _harmony = new Harmony(harmonyId + ".movewatch");
-                InstallCave(lp);
-                InstallLand(lp);
                 _harmony.Patch(move,
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic)),
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.NonPublic)));

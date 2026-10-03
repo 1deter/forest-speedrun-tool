@@ -44,6 +44,8 @@ namespace ForestOverlay.Modules
         {
             string dropped = _moves.TakeDropped();
             if (dropped.Length > 0) Ctx.Log.LogInfo("Move watch: " + dropped + ".");
+            string small = _moves.TakeSmallLift();
+            if (small.Length > 0) Ctx.Log.LogInfo("Move watch: a small lift, not reported: " + small + ".");
             if (_moves.Ready.Count == 0) return;
             for (int i = 0; i < _moves.Ready.Count; i++)
             {
@@ -83,6 +85,8 @@ namespace ForestOverlay.Modules
                 case MoveDetector.HugeSpeedKind: return "Huge speed";
                 case MoveDetector.CaveForceLoad: return "Cave state force load";
                 case MoveDetector.FallDamageCancel: return "Fall damage cancel";
+                case MoveDetector.LiftKind: return "Lift out of a solid";
+                case MoveDetector.ClipKind: return "Clip through a solid";
                 default: return kind;
             }
         }
@@ -102,6 +106,8 @@ namespace ForestOverlay.Modules
                 watch = (watch.Length > 0 ? watch + "\n" : "") + "Cave entrances are not watched: " + MoveWatch.CaveStatus + ".";
             if (MoveWatch.Detector != null && !MoveWatch.LandStatus.StartsWith("watching"))
                 watch = (watch.Length > 0 ? watch + "\n" : "") + "Landings are not watched: " + MoveWatch.LandStatus + ".";
+            if (MoveWatch.Detector != null && !ClipWatch.Status.StartsWith("watching"))
+                watch = (watch.Length > 0 ? watch + "\n" : "") + "Clips and lifts are not watched: " + ClipWatch.Status + ".";
             if (_attemptMoves.Count == 0) return watch;
             return (watch.Length > 0 ? watch + "\n" : "") +
                    "Moves seen in this attempt (in its log for the verifier - not flags, the attempt stays valid):\n- " +
