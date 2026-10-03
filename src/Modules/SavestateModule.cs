@@ -50,6 +50,7 @@ namespace ForestOverlay.Modules
         private SetupHold _setupHold;
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
+        private SlidingDoorKeeper _slidingDoors;
         private KeypadDoorKeeper _doors;
         private AreaKeeper _area;
         private NatureKeeper _nature;
@@ -115,6 +116,7 @@ namespace ForestOverlay.Modules
             _setupHold.Install(OverlayPlugin.PluginGuid);
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
+            _slidingDoors = new SlidingDoorKeeper(ctx.Log);
             _doors = new KeypadDoorKeeper(ctx.Log);
             _area = new AreaKeeper(ctx.Log);
             _nature = new NatureKeeper(ctx.Log);
@@ -377,6 +379,7 @@ namespace ForestOverlay.Modules
             string megan = _megan.Capture();
             float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
             string elevators = _elevators.Capture(rideAge);
+            string slidingDoors = _slidingDoors.Capture();
             string keypadDoor = cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
             string activeArea = _area.Capture();
             string areaWarning = activeArea == AreaKeeper.None ? _area.UnenteredSection(pos) : "";
@@ -409,7 +412,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints);
                 if (error == null && areaWarning.Length > 0)
                 {
                     Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
@@ -421,7 +424,7 @@ namespace ForestOverlay.Modules
 
         private string OnCaptured(SavestateBridge.Result r, string name, string path, Vector3 pos, bool inCave, List<string> pickups,
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
-                                  string cutscene, float cutsceneAt, string megan, string elevators, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
+                                  string cutscene, float cutsceneAt, string megan, string elevators, string slidingDoors, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
                                   List<string> greebles, string stance, string rope, string ride, int logs, string blueprints)
         {
@@ -453,6 +456,7 @@ namespace ForestOverlay.Modules
                 if (cutscene != null) { f.Cutscene = cutscene; f.CutsceneAt = cutsceneAt; }
                 f.Megan = megan;
                 f.Elevators = elevators;
+                f.SlidingDoors = slidingDoors;
                 f.ActiveArea = activeArea;
                 f.KeypadDoor = keypadDoor;
                 f.Blueprint = blueprint;
@@ -742,6 +746,9 @@ namespace ForestOverlay.Modules
                 List<Component> rides = new List<Component>();
                 string elevatorNote = r.Ok && file != null
                     ? _elevators.Restore(file.Elevators, RideCutsceneAt(file), false, rides) : "";
+                // And the endgame's sliding doors (the car door: open after
+                // a ride, it stayed open through the next one).
+                string slidingNote = r.Ok && file != null ? _slidingDoors.Restore(file.SlidingDoors) : "";
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
@@ -820,6 +827,7 @@ namespace ForestOverlay.Modules
                               (panelNote.Length == 0 ? "" : " | " + panelNote) +
                               (meganNote.Length == 0 ? "" : " | " + meganNote) +
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
+                              (slidingNote.Length == 0 ? "" : " | " + slidingNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (guideNote.Length == 0 ? "" : " | " + guideNote) +

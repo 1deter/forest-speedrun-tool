@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.226 - 2026-10-03
+
+- Quick load in the endgame puts the lab's sliding doors back as they
+  were. Before, after a red elevator ride, a Quick load back into the car
+  left its door open - the "locked" car stayed open for the whole ride, so
+  the elevator skip did not behave like a real run.
+
 ## v0.24.225 - 2026-10-03
 
 - Developer tool only: the state machine export names where each event

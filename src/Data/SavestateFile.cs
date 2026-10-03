@@ -60,7 +60,9 @@ namespace ForestOverlay.Data
     // `megan` is the endgame boss at capture (Game/MeganKeeper: `seated`
     // with her seat, `transformed`, `gone`); absent outside the endgame and
     // before v0.24.35. `elevators` the loaded endgame elevators' cars and
-    // use counts (Game/ElevatorKeeper); absent before v0.24.40. `activearea`
+    // use counts (Game/ElevatorKeeper); absent before v0.24.40. `doors` the
+    // endgame's sliding doors (Game/SlidingDoorKeeper: path|open 0-1|state|
+    // locked); absent before v0.24.226. `activearea`
     // the endgame's active area (Game/AreaKeeper: a path or `none`); absent
     // outside the endgame and before v0.24.41. `bushes` marks which bush /
     // sapling cuts came before the capture (Game/NatureKeeper: world, then
@@ -138,6 +140,9 @@ namespace ForestOverlay.Data
 
         /// Game/ElevatorKeeper's value at capture; "" when absent.
         public string Elevators = "";
+
+        /// Game/SlidingDoorKeeper's value at capture; "" when absent.
+        public string SlidingDoors = "";
 
         /// Game/AreaKeeper's value at capture; "" when absent.
         public string ActiveArea = "";
@@ -218,6 +223,7 @@ namespace ForestOverlay.Data
                 Line(sb, "cutscene", Cutscene + "@" + CutsceneAt.ToString("0.00", CultureInfo.InvariantCulture));
             if (Megan.Length > 0) Line(sb, "megan", Megan);
             if (Elevators.Length > 0) Line(sb, "elevators", Elevators);
+            if (SlidingDoors.Length > 0) Line(sb, "doors", SlidingDoors);
             if (ActiveArea.Length > 0) Line(sb, "activearea", ActiveArea);
             if (KeypadDoor.Length > 0) Line(sb, "keypaddoor", KeypadDoor);
             if (Blueprint.Length > 0) Line(sb, "blueprint", Blueprint);
@@ -280,6 +286,7 @@ namespace ForestOverlay.Data
                     case "areas": s.Areas = value; break;
                     case "megan": s.Megan = value; break;
                     case "elevators": s.Elevators = value; break;
+                    case "doors": s.SlidingDoors = value; break;
                     case "activearea": s.ActiveArea = value; break;
                     case "keypaddoor": s.KeypadDoor = value; break;
                     case "blueprint": s.Blueprint = value; break;
