@@ -60,6 +60,7 @@ namespace ForestOverlay.Modules
         private bool _waitIdle;            // waitidle / restart: until savestates are idle
         private int _idleFrames;
         private bool _waitCallback;        // capture / restore: until their callback
+        private string _waitInput;         // press: until that action is released
         private float _animUntil;          // anim watch: sampling the player's animator until (realtime), 0 = off
         private readonly AnimProbe _anim = new AnimProbe();
         private string _callbackResult;
@@ -90,11 +91,23 @@ namespace ForestOverlay.Modules
             RebuildStatus();
         }
 
+        public override void Shutdown()
+        {
+            InputInject.Uninstall();
+        }
+
         public override void Tick()
         {
             if (!Enabled)
             {
-                if (_announced) { _announced = false; Ctx.Log.LogInfo("Bridge: off."); RebuildStatus(); }
+                if (_announced)
+                {
+                    _announced = false;
+                    int let = InputInject.State.ReleaseAll(Time.frameCount);
+                    Ctx.Log.LogInfo("Bridge: off." + (let > 0 ? " Released " + let + " held input(s)." : ""));
+                    RebuildStatus();
+                }
+                InputInject.Tick();
                 return;
             }
 
@@ -118,6 +131,8 @@ namespace ForestOverlay.Modules
                 if (Time.realtimeSinceStartup >= _animUntil) { _animUntil = 0f; lines.Add("anim watch: done"); }
                 if (lines.Count > 0) Append(string.Join("\n", lines.ToArray()) + "\n");
             }
+
+            InputInject.Tick();
 
             if (_pendingId != 0) { TickPending(); return; }
 
@@ -221,6 +236,8 @@ namespace ForestOverlay.Modules
                 done = _callbackDone;
                 error = _callbackResult;
             }
+            else if (_waitInput != null)
+                done = InputInject.State.Ended(_waitInput, Time.frameCount, now);
             else if (_waitIdle)
             {
                 SavestateModule s = Host.Find<SavestateModule>();
@@ -230,7 +247,7 @@ namespace ForestOverlay.Modules
             }
             else done = now >= _waitUntil;
 
-            if (!done && (_waitCallback || _waitIdle) && now >= _waitUntil)
+            if (!done && (_waitCallback || _waitIdle || _waitInput != null) && now >= _waitUntil)
             {
                 done = true;
                 error = "timed out after " + (now - _pendingStart).ToString("0", CultureInfo.InvariantCulture) + " s";
@@ -240,6 +257,7 @@ namespace ForestOverlay.Modules
             int id = _pendingId;
             _pendingId = 0;
             _waitCallback = _waitIdle = _callbackDone = false;
+            _waitInput = null;
             _callbackResult = null;
 
             string took = (now - _pendingStart).ToString("0.00", CultureInfo.InvariantCulture) + " s";
@@ -464,6 +482,8 @@ namespace ForestOverlay.Modules
                     return null;
                 }
                 case "tp": return Teleport(a, o);
+                case "press": case "hold": case "release": case "axis": case "input":
+                    return InputCommand(cmd, a, o, out waits);
                 case "mark": return MarkCommand(a, o);
                 case "shot":
                 {
@@ -540,6 +560,9 @@ namespace ForestOverlay.Modules
             "mark <target> | mark x y z | mark clear   - a magenta beacon on it for the player to find (max 16)",
             "anim | anim watch <seconds> | anim reset   - the player's animator: layers, states (tags), clips, parameters; watch: every change, in the background; reset: what a restart does to an action",
             "shot [name]   - a screenshot into the bridge folder",
+            "press <action> [frames]   - the game's own input (Jump, Run, Crouch, Take, Fire1, Esc, ...): down next frame, held N frames (1), waits until released",
+            "hold <action> [seconds] | release <action|all> | axis <name> <value> [seconds] | axis <name> off   - held until released / timed, no wait",
+            "input | input seen [clear]   - what is held; the action / axis names the game has read since the first input command",
         };
 
         private static void Help(List<string> o)
@@ -636,6 +659,78 @@ namespace ForestOverlay.Modules
         }
 
         private AreaKeeper _areas;
+
+        // The game's own input (Game/InputInject): the reads every script
+        // and PlayMaker action makes see the press, from the next frame.
+        private string InputCommand(string cmd, List<string> a, List<string> o, out bool waits)
+        {
+            waits = false;
+            string err = InputInject.Install(Ctx.Log, OverlayPlugin.PluginGuid);
+            if (err != null) return "input injection unavailable: " + err;
+            int frame = Time.frameCount;
+            float now = Time.realtimeSinceStartup;
+            InjectedInputs s = InputInject.State;
+
+            if (cmd == "input")
+            {
+                if (a.Count > 0 && a[0] == "seen")
+                {
+                    InputInject.DescribeSeen(o);
+                    if (a.Count > 1 && a[1] == "clear") { InputInject.ClearSeen(); o.Add("(cleared)"); }
+                    return null;
+                }
+                s.Describe(frame, now, o);
+                return null;
+            }
+            if (a.Count == 0) return cmd + " needs a name (help)";
+            string name = a[0];
+            float sec;
+
+            switch (cmd)
+            {
+                case "press":
+                {
+                    int frames = 1;
+                    if (a.Count > 1 && (!int.TryParse(a[1], out frames) || frames < 1)) return "press <action> [frames >= 1]";
+                    s.Press(name, frame, frames);
+                    _waitInput = name;
+                    WaitFor(30f);
+                    waits = true;
+                    Mark("input " + name);
+                    o.Add("pressing " + name + " from frame " + (frame + 1) + " for " + frames + " frame(s)");
+                    return null;
+                }
+                case "hold":
+                    sec = 0f;
+                    if (a.Count > 1 && !BridgeCommand.TryParseFloat(a[1], out sec)) return "hold <action> [seconds]";
+                    s.Hold(name, frame, sec, now);
+                    Mark("input " + name);
+                    o.Add("holding " + name + " from frame " + (frame + 1) + (sec > 0f ? " for " + sec + " s" : " until released"));
+                    return null;
+                case "release":
+                    if (name == "all") { o.Add("released " + s.ReleaseAll(frame) + " input(s)"); return null; }
+                    if (!s.Release(name, frame)) return "nothing held as '" + name + "' (input lists what is)";
+                    o.Add("released " + name + " (up on frame " + (frame + 1) + ")");
+                    return null;
+                default: // axis
+                {
+                    if (a.Count > 1 && a[1] == "off")
+                    {
+                        if (!s.Release(name, frame)) return "no axis '" + name + "' set";
+                        o.Add("axis " + name + " back to the real input");
+                        return null;
+                    }
+                    float v;
+                    if (a.Count < 2 || !BridgeCommand.TryParseFloat(a[1], out v)) return "axis <name> <value> [seconds] | axis <name> off";
+                    sec = 0f;
+                    if (a.Count > 2 && !BridgeCommand.TryParseFloat(a[2], out sec)) return "axis <name> <value> [seconds]";
+                    s.SetAxis(name, v, frame, sec, now);
+                    Mark("input " + name);
+                    o.Add("axis " + name + " = " + v + " from frame " + (frame + 1) + (sec > 0f ? " for " + sec + " s" : " until off"));
+                    return null;
+                }
+            }
+        }
 
         private string Teleport(List<string> a, List<string> o)
         {
