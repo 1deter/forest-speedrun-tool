@@ -625,146 +625,54 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session
-(2026-10-03, site only, no release):** the photo map's lakes (author:
-"water is still missing from medium/small lakes and the middle"). The
-bake now draws every "The Forest/Water" model from the world export in
-any area (the middle's lakes are one plane, `BigLake_v2` at y 48.4, filed
-under caves), fills every inland basin below sea level except the
-sinkhole (five teleports: underwater - gotcha 75 corrected) and measures
-the sinkhole's pool against its floor model. Baked + uploaded (build
-1790988341); not yet seen by the author. Then (same day, site only): the
-3D view counted BigLake, a stream and the GeeseLakes as cave water (the
-export files them as caves) - unclipped, and underground a solid blue
-sheet over the caves; now surface water by material
-(`World.surfaceWater`; docs/website.md *Terrain, sea and water*).
-Checked headless; "only with caves on" was wrong (it loads by distance).
-**Session before
-(v0.24.221-222):** the photo map's "overlook's shadow without the
-overlook": the south mountains' models (to y ~1100) stood above the
-capture camera (terrain + 400 m) - tops cut by the near plane, shadows
-still cast; the camera now clears the tallest renderer per tile
-(v0.24.221). The dark test tiles were **cave lighting**, spotted by the
-author: our tp out of the endgame only cleared `IsInEndgame`, leaving the
-sun's parent `TimeAndWeather/R10` off; it now sends the game's
-`ExitEndgame` (v0.24.222, live-checked from Slot 1; runners teleporting
-out of the lab get the sun back too; gotcha 87). **Recaptured** on
-v0.24.222 (2026-10-03, 1200 px, max graphics) and uploaded (build
-1790985923): the south mountains whole. A long N-S shadow on the snow
-south of the map's middle stays - the snow mountain west of it (model to
-y ~440) casts it, it moves with the sun (checked at sunTime 290); ask the
-author whether that was what they meant. Old capture kept in
-`config/ForestOverlay/aerial.backup-2026-10-03`. Before: **caves drawn on the 2D map** - underground, the map draws the
-caves' and endgame's floor plan (`scripts/cave-bake.py` ->
-`wwwroot/terrain/caves.webp`, from the world's collision meshes, slivers
-between pieces filtered by walkable region; docs/website.md *Caves on the
-2D map*); checked headless, not yet seen by the author. Before: **Follow's
-camera no longer sits in cave rock** - a solid model
-between the ghost and the camera pulls it in front (docs/website.md, the
-author's notes); checked headless on 1st logboost, not yet seen by the
-author. Before (nothing shipped): **BatchedMesh by material tried and dropped** -
-2-4x the submit time (Chrome's multi-draw is a loop: an item costs a draw
-call) and the materials barely repeat (623 distinct textures); numbers in
-docs/website.md *Load size*; the author's notes on the 3D view recorded.
-Before: **under-the-ground culling at ground level** -
-a camera 1-2 m over a slope now culls (only the cells under its near plane
-are asked) and a hole counts only when the line goes down it: tree spot
-634 -> 560 / 362 -> 300 draw calls, pictures identical (docs/website.md
-*Load size*). Before: **every model culled per instance + under the
-ground**: with the camera above opaque
-terrain, instances wholly under it are not drawn unless seen over the
-sinkhole - plane wreck view 461 -> 305 draw calls (5.1 -> 3.9 ms),
-overview 498 -> 293, Labskip 460 -> 424; pictures pixel-identical. Before:
-**view-cone culling** of far instances: the Labskip view 23.5M -> 5.6M
-triangles, 761 -> 460 draw calls, 7.8 -> 3.5 ms (phone viewport 8.1 -> 2.8
-ms), the same picture; neither yet seen by the author (watch the screen's
-edges while orbiting fast). Before: **far copies** in the 3D world (docs/website.md
-*Load size*): each heavy mesh has lighter copies (meshoptimizer, leaf cards
-thinned and grown; the author: "seems to work well"), and the page draws each instance with the lightest one
-whose error is under a pixel at its distance - live, every device: four
-surface views 101.2M -> 33.0M triangles, 48.3 -> 46.0 MB, the 4080's frame
-11.2 -> 6.8 ms; the pictures the same by eye. World re-uploaded (build
-1790961787); the upload now goes in 16 MB chunks (a 61 MB one hit
-Cloudflare's 100 s); seen by the author on a MacBook and an iPhone 13 mini. Before: the 3D world's
-files served Brotli'd; the Detail button's two console errors fixed; the 3D
-view fastest by default + a *Detail* button; the 2D map's max-zoom
-lag fixed (relief drawn only on screen, one draw per frame, zoom-out cap;
-smooth per the author). Before that (v0.24.220,
-confirmed over the bridge against a local site - docs/confirmed.md):
-**category values + automatic refresh** - a category forcing Logs in the
-inventory / Item caps carries `logcap = n` / `cap <item name> = n`
-(/admin's editor, the attempt page; the Inventory tab greys them in the
-run and names unknown items); the game re-checks `/api/categories.txt`
-every 2 min, when an attempt ends and when a run spot starts one, with
-the ETag (304 unchanged; live site checked). Then (site only, author's
-request): /admin's item caps are picked from the game's item list
-(`wwwroot/items.json`, search with hints, no free text - docs/website.md
-*Item list*). Before (v0.24.218-219):
-**run mode phase 4, categories** (docs/run-mode.md *Categories*): the
-moderators' categories on /admin's *Categories* tab (any admin), seeded
-and kept in step with speedrun.com daily (24 drafts on the first sync,
-one per category x difficulty; a Manhunt preset draft); every feature
-locked / runner's choice / forced on, anti-splice on / off, amber
-accepted or not, banned moves (text; seeded from the "No ..." rules),
-rules, the run spot; every save a version, attempts judged by theirs.
-The plugin fetches the published ones (Runs tab: `<` `>` for Start run
-mode, *Check categories*; a run spot's `run =` wins), applies them in
-`Core/RunMode` (`Refuse(feature, what)`, `Locks`, `Forces`, `Use`) and
-the report names category + version + the game. **Nothing is published
-yet**: all live categories are drafts - publishing (and checking the
-speedrun.com drafts) is the moderators' / author's job.
-Earlier: phase 3 (v0.24.217, the attempt page, allowed mods, a changed
-game named by area), phases 1-2 and run spots (v0.24.206-216).
-Not yet seen by the author's own eyes and hands: run mode by hand (a real
-ESC + F2, the Runs tab section, End run mode / Start run mode by
-clicking, a run spot's F7), the run code on a real recording (`CodeSize`
-40 px default, top centre), the attempt page with a real attempt, and
-the /admin *Categories* tab. No community run spot exists yet - making
-one (a preset save as a start state, `run = <category name>`, in
-`community/`) is the author's call.
+(2026-10-03, no code):** the author looked at the website work of the last
+sessions and confirmed all of it (docs/confirmed.md, 2026-10-03): the photo
+map's lakes, the 3D middle lake, the south mountains' / lab textures, caves
+on the 2D map ("a little bit hard to read but it's fine"), Follow's camera
+in caves; the long N-S snow shadow is gone in the recapture. Two decisions
+made (*Standing decisions*: teleports into the endgame; Quick load physics
+is maks's call - asked him, QA `1555760732086476832`). Before that, site
+only: the photo map's lakes and the 3D surface water (docs/website.md
+*Terrain, sea and water*), the 3D view's culling and far copies (*Load
+size*), caves on the 2D map, the photo map recaptured on v0.24.222 (the
+sun back after a tp out of the endgame, gotcha 87). Run mode phases 1-4
+(v0.24.206-220): docs/run-mode.md. **Nothing is published yet**: all live
+categories are drafts - publishing is the moderators' job. No community run
+spot exists yet - making one is the author's call.
 
 **Next, in order (one per session):**
-1. **Website, later** (docs/website.md *Load size* / *Open*): the web
-   replay as fast as possible (author, 2026-10-02) - done so far: the
-   *Detail* button, the far copies, view-cone culling (author: "fine"),
-   every model culled per instance + under the ground, ground-level
-   culling; BatchedMesh tried and dropped (slower); the remaining lever is
-   texture arrays in the export - only if frame times call for it;
-   Follow's camera through cave walls fixed; caves on the 2D map done.
-   Photo map recaptured (v0.24.222); its lakes drawn (2026-10-03: the
-   middle's BigLake_v2 plane, every inland basin below sea level, the
-   sinkhole's pool - author: "water is still missing"; not yet seen by the
-   author). The 3D view's middle lake fixed (surface water by material,
-   2026-10-03; not yet seen by the author). The load-order look: gone in
-   the current world (2026-10-03, docs/website.md). The south mountains'
-   textures in 3D and the black lab textures (overlook, boss room) fixed
-   and live (2026-10-03, world build 1790991223; not yet seen by the
-   author). *Next* 1 is done apart from texture arrays (only if frame
-   times call for them).
-2. **A session with the author** for what needs their eyes or hands
-   (investigations *Not seen by the author / needs hands*, plus the run
-   mode check above) and the decisions below.
-3. **Later, from phase 4** (author, 2026-10-02): research the runners'
-   tech for banned moves (verdicts: glitch or not, in between) and detect
-   what can be; check *Reload save on death* gives the same game as a
-   manual reload (docs/run-mode.md *Decisions*), then circle back.
+1. **From phase 4** (author, 2026-10-02): research the runners' tech for
+   banned moves (verdicts: glitch or not, in between) and detect what can
+   be; check *Reload save on death* gives the same game as a manual reload
+   (docs/run-mode.md *Decisions*), then circle back.
+2. Then the main *Next up* list below.
+3. **Last, when every task is done** (author, 2026-10-03: "leave these for
+   later when we're done with all tasks"): run mode by hand with the author
+   - a real ESC + F2, the Runs tab section, End / Start run mode by
+   clicking, a run spot's F7, the run code on a real recording (`CodeSize`
+   40 px, top centre), the attempt page with a real attempt, /admin's
+   *Categories* tab (investigations *Not seen by the author*).
+- Website: done apart from texture arrays in the export - only if frame
+  times call for them (docs/website.md *Load size*).
 
-**Decisions waiting for the author** (ask, never build ahead):
-- A teleport into an unloaded endgame (backlog); whether Quick load
-  physics leaves "deferred".
-- Categories to publish and their run spots are the moderators' (author,
-  2026-10-02: "i've given them the tools") - not waiting on anyone here.
+**Decisions waiting for the author:** none open. Categories to publish
+and their run spots are the moderators' (author, 2026-10-02: "i've given
+them the tools").
 
 **Waiting on testers** - the QA to-do list (`qa_todo`) is the record:
-the overnight lists (`1555319960941756437`, `1555327671276273677` +
-`1555328852698333277`), the per-tester lists (maks `1553807713593597984`,
-sxczurass `1553811127278764167`), Tom's crashes (paused - author),
-maks's fog / elevator / rope list, sxczurass's FPS answers + specs + the
-crouch fix (v0.24.102), Cheesecake's Frame test, Ruben's inventory.
-Detail: investigations.
+maks on Quick load physics (`1555760732086476832`: still different? which
+move / spot / Quick or Full? else close it), the overnight lists
+(`1555319960941756437`, `1555327671276273677` + `1555328852698333277`), the
+per-tester lists (maks `1553807713593597984`, sxczurass
+`1553811127278764167`), Tom's crashes (paused - author), maks's fog /
+elevator / rope list, sxczurass's FPS answers + specs + the crouch fix
+(v0.24.102), Cheesecake's Frame test, Ruben's inventory. Detail:
+investigations.
 
 **Investigations** (each stays in one session when picked up; detail in
 investigations): raw FPS, performance / loads (garbage in play), Quick
-load physics parity (deferred), Tom's crashes (paused).
+load physics parity (maks decides - waiting on his answer), Tom's crashes
+(paused).
 
 **The website** (https://forest.deter.cloud, `site/`, brief and recipes
 in [`docs/website.md`](docs/website.md)): spots, runs uploaded from the
@@ -879,6 +787,15 @@ total playtime lines.
   defined by the moderators on /admin, seeded from speedrun.com's rules.
   Nothing relies on secrecy (open source). Full list and phases:
   [`docs/run-mode.md`](docs/run-mode.md).
+- **Teleports and the endgame** (author, 2026-10-03): Go / tp behave
+  like the game's own developer-console teleport - if the console does not
+  load the endgame there, neither do we (a Go into the lab from a save
+  without it loaded still falls through; that is the console's behaviour).
+  Exceptions only for what would bug / break (ending a ride or rope in
+  flight, the areas left behind); **never restore elevators or other
+  savestate state on a plain teleport** - "it sort of bleeds savestate
+  functionality into a teleport". A ride under way is stopped on Go / tp
+  (ElevatorKeeper.StopRides), nothing is put back.
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
@@ -1076,8 +993,8 @@ first versions. All dev/alpha: nothing is used in real runs until the
 admins rule. The author: "work through the current list so we can move
 onto expanding more features".
 
-1. **Quick load physics parity** *(runner maks; active but deferred)* -
-   investigations.
+1. **Quick load physics parity** *(runner maks; up to him - author,
+   2026-10-03; asked QA `1555760732086476832`)* - investigations.
 2. **Performance: can patches make the game faster?** - raw FPS and
    loads, investigations. Done so far: v0.24.86-143 (profiler, tracker,
    load timing, PerfPatches 1-15, the reload freeze, the load crash).

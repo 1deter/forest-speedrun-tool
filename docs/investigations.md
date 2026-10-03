@@ -100,11 +100,14 @@ held him next time - ask for it. Options -> Graphics with F7 untested.
   150-170 fps; 3-7 GCs per 30 s at 120-150 ms - a session of ~50 Quick
   loads (each forces ~1 collection + two ~520 ms streamed-scene hitches).
 
-## Quick load physics parity (maks; active but deferred)
+## Quick load physics parity (maks; his call)
 
 Author: "no conclusive evidence and current issues are mainly
-anecdotal"; gone after a game restart for maks. Decide with the author
-whether it leaves "deferred".
+anecdotal"; gone after a game restart for maks. Author, 2026-10-03:
+"during testing it seemed to be fine and perhaps placebo ... it's really
+all up to him". Asked maks (QA `1555760732086476832`): still different on
+the current version? which move / spot, Quick or Full? else close it.
+No answer = leave it; "close" = delete this section.
 
 After a Quick load, movement tech reacts differently from a real run:
 - **Elevator boost**: trigger the red elevator, full swing / smash the axe

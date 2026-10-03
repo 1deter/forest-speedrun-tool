@@ -325,3 +325,5 @@ Confirmed 2026-10-02 (site, the author on the live site): the 2D map smooth at m
 Confirmed 2026-10-02 (site, the author on the live site: "seems to work well"): the 3D world's far copies (build 1790961787) - each instance drawn with the lightest copy under a pixel of error at its distance; seen on a MacBook and an iPhone 13 mini (author, 2026-10-02).
 
 Confirmed 2026-10-02 (site, the author on the live site, Follow in a cave): the 3D view's view-cone culling - "it's fine"; the wall over the right of the view was the Follow camera inside the cave rock, not culling.
+
+Confirmed 2026-10-03 (site, the author on the live site): the photo map's lakes (BigLake_v2, the inland basins, the sinkhole's pool - "looks good now"); the 3D view's middle lake as surface water ("seems fine"); the south mountains' textures and the overlook / boss room no longer black; caves on the 2D map ("a little bit hard to read but it's fine"); Follow's camera kept out of cave rock ("works great now"); ground-level and per-instance culling (nothing odd seen); the long N-S snow shadow gone in the v0.24.222 recapture.

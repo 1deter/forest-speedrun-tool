@@ -640,7 +640,7 @@ instance sphere, then triangles in groups of 32 with a box each (made once
 per mesh): ~0.2 ms a test (all triangles: ~13 ms). The cut plane alone
 left the 4 m in front of the ghost. Checked headless on 1st logboost's runs
 (live API proxied to a local site): a clear passage instead of sliced
-rock; not yet seen by the author. Caves not drawn on the 2D map:
+rock; seen by the author 2026-10-03 ("works great now"). Caves not drawn on the 2D map:
 **fixed 2026-10-02** (*Caves on the 2D map* below); the photo map's
 "overlook's shadow" with no overlook: **fixed and recaptured
 (v0.24.221-222)** (*The photo map*, step 1); the south
@@ -650,8 +650,8 @@ mountains' 3D textures: **fixed 2026-10-03** - their maps kept at 1024 px
 in linear light). Same day: 19 lab textures (the overlook, the boss room)
 were solid black - Pillow's RGBA resize premultiplies by the alpha, where
 Standard textures keep smoothness (0); colour and alpha now shrink apart
-(gotcha 88). Live world build 1790991223; checked headless, not yet seen
-by the author.
+(gotcha 88). Live world build 1790991223; seen by the author
+2026-10-03 (fixed).
 
 Open: the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
@@ -687,7 +687,7 @@ Cave 6 test spot (1283.9, -70.6, 612.9) is on a drawn floor; the Labskip
 route runs over the lab's floors; a few sampled floors visited over the
 bridge were in caves (a `tp` into an unloaded cave shows sky - judge by
 the walls, not the background). Headless shots only (Edge via
-Playwright); not yet seen by the author. Some pieces sit kilometres off the
+Playwright); seen by the author 2026-10-03 ("a little bit hard to read but it's fine"). Some pieces sit kilometres off the
 map (x -17840): the bake keeps |x|, |z| <= 2500.
 
 ## Item list (2026-10-02)
