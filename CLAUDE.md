@@ -565,6 +565,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer.
 87. **An exit is an event, not a flag** - our tp out of the endgame cleared `IsInEndgame` only; the game's `ExitEndgame` event also turns the sun back on. Invoke the trigger's UnityEvents; test from a save loaded inside.
 88. **An image library's resize can read the alpha as coverage** - Pillow's RGBA thumbnail premultiplies; Standard textures keep smoothness there (0) and 19 lab textures exported black. Resize colour and alpha apart; count black textures after an export.
+89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes.
 
 ---
 
@@ -621,32 +622,18 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 
 ### Pick up here (2026-10-03, v0.24.222 released)
 
-**Overnight sweep 2026-10-03/04 (research, no code; detail in
-docs/game-notes.md *Speedrun tech* -> *Overnight sweep*).** New tech
-candidates, most useful first: (1) **bomb boost timing** - pause within
-~0.13 s of the blast (before the explode animation starts) = ~1,000 m/s for
-several physics steps (120-170 m for 0.5 s paused); paused later = one hop of
-0.13 m per paused frame (live); (2) **diagonal is 10% faster** (input clamped
-to 1.1, live); (3) **surface swimming ignores its 3 m/s cap when touching a
-wall at the side or under water** - sprint-swim along walls ~2.5x (IL);
-(4) **water wall jump**: 1.5x jump, no cooldown, touching a wall (IL);
-(5) the air keeps extra speed ~5x longer than the ground (live). Explained:
-the **red elevator checks no keycard** (only the gold door does - the lab
-skip works because of it; ride = 5 s + teleport + 25 s behind a locked
-0.1 m door = the "elevator skip"), the crouch-smash leaves a crouch-size
-capsule while standing (part of the panel clip; clip not reproduced),
-looking down shifts the colliders 0.4 m, placed walls lift the player out
-(no launch), Discrete tunnelling through the gold door at 100+ m/s
-(blocked in play by the 55 cap and the knockback's CCD), the first-death warp
-always lands at Cave2DeadPlace, a death while swimming is game over. Dead
-ends: inventory as a boost pause, early exit from the elevator ride, the
-snow-cave elevator upwards, mid-air saves. Correction: boss / creepy melee
-does not knock the player back. **Questions for the author:** may a session
-record a real panel clip with you (`anim watch` + per-frame positions) to
-finish the clip mechanism? Should *Banned moves: detection* add the elevator
-skip (leaving the car before its door unlocks) and wall-hug swimming?
-Untested live (no bridge Jump / Run input): water wall jump, swim cap, jump
-climbing steep slopes, trap / multi-thrower knockbacks.
+**Handoff 2026-10-04 (from the overnight research session; the author
+switched session at ~500k context).** The overnight sweep (research, no code,
+docs/game-notes.md *Speedrun tech* -> *Overnight sweep*) found little new
+(author: "you didn't really find much"; the bomb boost's fps x time was
+already known - gotcha 89). Kept: why there is a "last usable frame" (the
+explode animation zeroes horizontal speed after ~0.13 s), CCD stopping boosts
+at objects, the keyless red elevator chain, collider shifts (looking down,
+the axe smash, the crouch-size capsule after uncrouching in a smash),
+diagonal = input clamped to 1.1. Dropped: the water wall jump (author: no way
+to jump in water). The swim cap is "might be gimmicky". **The author's next
+ask is *Next* item 2 (tech research, round 2) - do it in the next session**;
+item 1 (banned-move detection) stays open after it.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -683,16 +670,36 @@ spot exists yet - making one is the author's call.
    detection in the next session"): docs/run-mode.md *Banned moves:
    detection* - the bomb boost and huge-speed flags first, then cave
    state, fall damage, clips / log boosts.
-2. **The rest of the tech sweep** (author asked "exhaustively tested all
-   avenues?" - no): other time-scale paths (inventory / crafting pause,
-   `maximumDeltaTime` 9 hitches) against every game-time timer; direct
-   position writers on the player (cutscenes, ropes, ladders, zipline
-   exit, the first-death warp); jump / grounding leniency (`FauxGrounded`,
-   `jumpFuzzyDelay`); rides and water speeds; saving / reloading mid-air;
-   the rest of the endgame (gold keycard, red elevator, Megan, overlook);
-   building as a tool; multiplayer; live tests of the trap boost and the
-   slide cancel. Then check *Reload save on death* gives the same game as
-   a manual reload (docs/run-mode.md *Decisions*), then circle back.
+2. **Tech research, round 2** (author, 2026-10-04: "build the rewired
+   inputs, you can export the state machines ... go ahead"):
+   a. **Bridge input injection** (dev-only, `src/`; release as usual):
+      bridge commands that press / hold the game's Rewired actions (Jump,
+      Run, Crouch, Take, Fire1, Esc, Inventory, the axes) through the game's
+      own `TheForest.Utils.Input` reads, so Jump / sprint / crouch tech can be
+      tested live. Off unless the test bridge is on; flagged like every
+      bridge action.
+   b. **Export the PlayMaker FSMs to text** (player `pmControl`,
+      `pmDamage`, combat; states, transitions, actions with fields) - also
+      step one of the knowledge bot (docs/knowledge-bot.md).
+   c. **The bomb boost's open questions** (game-notes *Bomb boost, refined*:
+      sublinear distance vs time paused, sideways drift, objects hit; maybe
+      a predicted-path visualiser, Experimental) with sxczurass's table as
+      the reference and (a) for real pauses.
+   d. **Position writers**: every script that moves / parents the player
+      directly instead of walking it (cutscenes, ropes, ladders, cliff
+      climb, sit, raft, sled, cave enter / exit, keypad walk-up, Timmy /
+      Megan pickups, the death warp; ~30, listed by grepping the decompiled
+      code for `LocalPlayer.Transform.position =` / `SetParent`): can one be
+      started, interrupted or cancelled so it leaves the player somewhere
+      useful (a free teleport, through a wall)?
+   e. **Panel / elevator clip** with real input (a) + `anim watch`, and the
+      **trap boost** (the large swinging rock trap's hit is the same
+      knockback as a bomb, so the same pause trick should work without a
+      bomb - Creative, built trap), the multi-thrower's rocks likewise; the
+      fall-damage slide cancel on bodies.
+   Check what the runners already know first (gotcha 89). Then check
+   *Reload save on death* gives the same game as a manual reload
+   (docs/run-mode.md *Decisions*).
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): first the knowledge base (Claude sessions write
    per-tech explainers - mechanism, why it works, evidence, the optimal

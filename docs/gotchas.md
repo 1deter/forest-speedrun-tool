@@ -774,3 +774,18 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     the cave work). Resize colour and alpha apart, and after an export
     count textures whose mean is ~0 (`world_pack.read_texture`) - 1 of 523
     is meant to be black (`BlackFadeIntoCaves`).
+
+89. **Before calling something new tech, read what the runners already
+    know.** (2026-10-03, overnight tech sweep.) The sweep's headline - the
+    bomb boost scales with fps x time paused - was in the author's QA post
+    and sxczurass's measurement table a week earlier; the "keyless red
+    elevator" was in maks's save notes; a "water wall jump" read from code
+    turned out impossible in play (author). Start a research pass with
+    `qa_read` around the topic (search the QA history, `before` / `after`),
+    `Downloads\qa-reports\`, the speedrun.com guides (videos; YouTube's
+    transcript panel in the built-in browser gives the words), then build on
+    their open questions. A code branch is not a mechanic until a real input
+    reaches it. Bridge traps from the same night: our `tp` stops elevator
+    rides (move the player with `set player Transform.position` in ride
+    tests), and a test spawn must be clear of steep slopes (a capsule placed
+    inside a 77° face fell under the map - our setup, not the game).

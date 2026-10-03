@@ -2746,7 +2746,13 @@ x1.75), swim 3.75, glider cap 40. The player's rigidbody is **Discrete**
 (Continuous only during an explosion knockback), no interpolation, and
 `maxDepenetrationVelocity` is 1e32 (unlimited).
 
-**Bomb boost, refined** (live). The knockback coroutine pushes 8 m/s per
+**Bomb boost, refined** (live). Not new to the runners: the author's QA
+post of 2026-09-26 (15:02 on the bot's clock) already says the distance
+comes from fps x time in the menu (+ the velocity when pausing), and
+sxczurass's table (QA `1553447134911664168`,
+`Downloads\qa-reports\sxczurass\image.png`: frame-by-frame steps with a
+"last usable frame", and distances at 180 / 210 / 240 fps for 1-5 s paused)
+measured it. What follows is the *why*. The knockback coroutine pushes 8 m/s per
 rendered frame, but the push only builds freely until the player's animator
 (layer 2) enters the `explode`-tagged state, about **0.13 s of game time**
 (~30 frames at 230 fps); from then on `playerAnimatorControl.Update` sets the
@@ -2764,6 +2770,28 @@ So the long boost is "pause the instant the bomb goes off". The menu's
 during the knockback `OnAnimatorMove` sets `isKinematic = false` every frame
 (root motion is on), so the push keeps piling up even from the ground. The
 direction is the player's back at the blast (both mouse rotators are off).
+Against the runners' open questions (author's post: "why sometimes they are
+hitting game objects or flying off course", what the velocity at the pause
+does, a way to visualise it):
+- **"Last usable frame"** = the end of the free phase: the frame the explode
+  animation state starts and the horizontal velocity is zeroed each frame.
+  sxczurass's per-frame steps (growing each physics step, then stopping)
+  are exactly this. It is ~0.13 s of *game time*, so more frames at high fps.
+- **Velocity at the pause**: in the late regime the explode state zeroes the
+  horizontal velocity every frame, so only the vertical part survives; in the
+  early regime the existing velocity adds to the piled-up push (IL + live).
+- **Hitting objects**: the knockback is Continuous (CCD) - the sweep stops the
+  player at the first collider in the path (a tree 23 m out ended one live
+  test) instead of passing it.
+- **Still open** (next session, with real input): (a) the table's distance
+  grows less than linearly with time paused (1 s ~250 m, 2 s ~400-580 m, 3 s
+  ~665-790 m) while the piled-up push is linear in frames - candidates: how
+  much of the free phase is left at the pause, ground contact, the 55 m/s cap
+  once the controller comes back; (b) the sideways drift ("flying off
+  course": z -10 to -50 over 1,000+ m in the table) - candidates: CCD sliding
+  along slopes / objects, the remaining free-phase steps; (c) a boost
+  visualiser = the predicted path from the frames paused and the time left in
+  the free phase, swept like the CCD does.
 The knockback uses **Continuous** collision detection: a boost cannot tunnel
 through static colliders (gold door test below: 200 and 1,500 m/s stopped).
 The inventory cannot replace the pause menu: it refuses to open while
@@ -2805,14 +2833,17 @@ the player slides - but stays grounded and may jump. Live: sliding down an
 ~80° terrain face read `Grounded` and `allowJump` true. Jump-climbing a steep
 face could not be tested (the bridge cannot press Jump).
 
-**Water** (IL). Jump while swimming: touching a wall at the side
-(`collisionFlags == Sides`) or a low mesh contact (`allowWaterJump`) gives
-**1.5 x the land jump** (19 m/s, ~7 m) with **no cooldown**; otherwise a small
-water jump (6.3 m/s) with a 1 s block. Surface swimming is capped at 3 m/s
+**Water** (IL). `FirstPersonCharacter.Update` has a swim-jump branch
+(touching a wall at the side or a low mesh contact = 1.5x the land jump, no
+cooldown; else a small water jump with a 1 s block), but **the author: "there
+is no way to jump in water"** - something gates it in play (the FSM, the
+input map, or `swimming` meaning something narrower); not checked, treat the
+branch as dead until a real Jump press shows otherwise. Surface swimming is capped at 3 m/s
 (`maxSwimVelocity`) even when sprinting (target 3.75 x 2.2 = 8.25), **except
 while touching a wall at the side or with the head under water** - the cap is
 not applied then (diving has its own 6.5-7 m/s cap). So sprint-swimming along
-a shore or wall, or diving, is up to ~2.5x faster than open-water swimming.
+a shore or wall, or diving, is up to ~2.5x faster than open-water swimming
+(untested; the author: "might be gimmicky").
 The inventory cannot open under water.
 
 **Looking down moves the player's colliders** (live). Every frame
@@ -2941,6 +2972,15 @@ falling "through" steep terrain (it was the player walking off a ledge into a
 hole - and a capsule spawned inside a 77° face by our own tp).
 
 ## How to extend this file
+
+0. **Decompiled C#** (2026-10-03, the overnight sweep) - for reading whole
+   behaviours, faster than `ilscan body`:
+   `dotnet tool install ilspycmd --tool-path <scratch>/ilspy`, then
+   `ilspycmd "<Managed>/Assembly-CSharp.dll" -r "<Managed>" -p -o <scratch>/src`
+   (~3,700 files, a few minutes) and grep it. Never commit the output. Live
+   UnityEvent wiring (who a trigger / button / sequence calls) is not in the
+   code: read `<event>.m_PersistentCalls.m_Calls[i].m_Target` /
+   `.m_MethodName` over the bridge.
 
 1. **In-game dump (`F11`)** — reflection metadata: type names, field names and
    types, live values. The explorer's "Dump filtered" gives full method
