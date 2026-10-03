@@ -223,6 +223,11 @@ def stats(levels):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHUNK = 250.0
 TEX_MAX = 256
+# Materials whose main texture is painted once over a whole model hundreds of
+# metres across (the south mountains, 1024 px in the game): kept at this size,
+# not TEX_MAX - at 256 px a mountain was smooth grey up close (2026-10-03).
+TEX_BIG = 1024
+BIG_MATERIALS = ("MountainLeft", "MountainMiddle", "MountainRight", "MountainGrassVariation")
 CAVE_LAYER = 17
 VOLUME_LAYERS = (4, 25)     # Water, Blocker: switched-off cubes with Base_Orange / Default-Diffuse
 CUT_SHADERS = ("Foliage", "Leaves", "Transparent", "Cutout", "Grass")
@@ -405,14 +410,22 @@ class Export:
         self.mesh_ix[key] = ix
         return ix
 
-    def texture(self, pptr):
-        k = self.key(pptr)
+    def texture(self, pptr, size=TEX_MAX):
+        k = self.key(pptr) if size == TEX_MAX else (self.key(pptr), size)
         if k in self.textures:
             return self.textures[k]
         ix = -1
         try:
             img = pptr.read().image.convert("RGBA")
-            img.thumbnail((TEX_MAX, TEX_MAX))
+            # Colour and alpha shrunk apart: Pillow's RGBA resize premultiplies
+            # by alpha, and the Standard shader's textures keep smoothness
+            # there (0 on the lab's concrete / metal) - they came out black
+            # (the overlook, the boss room; 2026-10-03).
+            rgb, a = img.convert("RGB"), img.getchannel("A")
+            rgb.thumbnail((size, size))
+            a.thumbnail((size, size))
+            img = rgb.copy()
+            img.putalpha(a)
             ix = sum(1 for v in self.textures.values() if v >= 0)
             img.convert("RGB").save(os.path.join(self.out, "t", "%d.jpg" % ix), quality=85)
             # Leaves, grass, fences: the alpha cuts the shape out. Kept as a
@@ -442,7 +455,9 @@ class Export:
         """A material's colour and textures: "tex" the main texture; "top"
         (+ "topScale") the layer the game's Lux shader lays over upward
         faces - snow on the snow cliffs, grass on cliffs, moss on rocks
-        (_WnAlbedoSmoothness)."""
+        (_WnAlbedoSmoothness); "detail" (+ "detailScale") the Standard
+        shader's detail albedo, multiplied in (x2) where the material turns
+        it on (_DETAIL_MULX2: the mountains' rock up close, 78 materials)."""
         entry = {"name": "", "color": [0.7, 0.7, 0.7, 1], "tex": -1}
         try:
             m = read()
@@ -453,6 +468,7 @@ class Export:
                 entry["shader"] = ""
             props = m.m_SavedProperties
             floats = dict(props.m_Floats)
+            detail = "_DETAIL_MULX2" in str(getattr(m, "m_ShaderKeywords", ""))
             for name, c in props.m_Colors:
                 if name == "_Color":
                     entry["color"] = [round(c.r, 3), round(c.g, 3), round(c.b, 3), round(c.a, 3)]
@@ -460,13 +476,16 @@ class Export:
                 if not (te.m_Texture and te.m_Texture.path_id):
                     continue
                 if name == "_MainTex":
-                    entry["tex"] = self.texture(te.m_Texture)
+                    entry["tex"] = self.texture(te.m_Texture, TEX_BIG if m.m_Name in BIG_MATERIALS else TEX_MAX)
                     sc = [round(float(te.m_Scale.x), 3), round(float(te.m_Scale.y), 3)]
                     if sc != [1, 1] and sc[0] and sc[1]:
                         entry["scale"] = sc     # the material's tiling (cave shells: one texture over 200 m without it)
                 elif name == "_WnAlbedoSmoothness":
                     entry["top"] = self.texture(te.m_Texture)
                     entry["topScale"] = round(float(te.m_Scale.x), 3) or 1
+                elif name == "_DetailAlbedoMap" and detail:
+                    entry["detail"] = self.texture(te.m_Texture)
+                    entry["detailScale"] = [round(float(te.m_Scale.x), 3) or 1, round(float(te.m_Scale.y), 3) or 1]
             # Cut out by its alpha: foliage / leaves / transparent shaders, a
             # Standard one in cutout mode (_Mode 1). Never by the texture alone:
             # the rock and ground shaders (Lux) keep smoothness in the alpha.

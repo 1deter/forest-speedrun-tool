@@ -148,6 +148,25 @@ function topLayer(mat, tex, scale) {
   mat.customProgramCacheKey = () => "top";
 }
 
+/// The Standard shader's detail albedo (_DETAIL_MULX2): a tiled texture
+/// multiplied in at x2 - the mountains' rock up close (their own map is one
+/// 1024 px picture over a 2 km model). In linear light x2 in gamma is x4.59,
+/// Unity's own constant. Tiled on the raw UVs by its own scale (map's UVs /
+/// the main tiling). Runs after any top layer's change.
+function detailLayer(mat, tex, scale, main) {
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey();
+  mat.onBeforeCompile = (shader, r) => {
+    prev.call(mat, shader, r);
+    shader.uniforms.detailMap = { value: tex };
+    shader.uniforms.detailScale = { value: new THREE.Vector2(scale[0] / (main ? main[0] : 1), scale[1] / (main ? main[1] : 1)) };
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform sampler2D detailMap;\nuniform vec2 detailScale;")
+      .replace("#include <map_fragment>", `#include <map_fragment>
+        diffuseColor.rgb *= texture2D(detailMap, vMapUv * detailScale).rgb * 4.59;`);
+  };
+  mat.customProgramCacheKey = () => prevKey + "detail";
+}
+
 /// A surface lake's water is drawn only where the ground (the terrain's
 /// heights, setGround) is below it: the lakes' models are larger than the
 /// lakes, and away from the detail patch the terrain mesh is coarse (~14 m),
@@ -689,6 +708,7 @@ export class World {
       mat.side = THREE.DoubleSide;
     }
     if (d && d.top >= 0 && mat.map) topLayer(mat, this.texture(d.top), d.topScale || 1);   // needs the main UVs
+    if (d && d.detail >= 0 && mat.map) detailLayer(mat, this.texture(d.detail), d.detailScale || [1, 1], d.scale);
     if (bed) {
       if (surface) groundClip(mat, this.ground);
       mat.visible = this.water;

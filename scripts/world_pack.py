@@ -321,7 +321,7 @@ def pack(out, meta, far=True):
                 # as .png (the .jpg when it has no .png), every other one - and
                 # the top layers - as .jpg. Packing both sent each cut-out
                 # twice (17.4 MB of textures for the 10.4 a view used, 2026-10-02).
-                for t, ct in ((mat.get("tex", -1), mat.get("cut")), (mat.get("top", -1), False)):
+                for t, ct in ((mat.get("tex", -1), mat.get("cut")), (mat.get("top", -1), False), (mat.get("detail", -1), False)):
                     if t is not None and t >= 0:
                         users[("t", t, "png" if ct and str(t) in pngs else "jpg")].add(key)
 
