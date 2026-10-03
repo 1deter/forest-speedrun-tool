@@ -85,23 +85,27 @@ recorded** - the ghost is a marker.
   would go (Next up 6, "placing ziplines precisely"). Works in game
   (`Game/DebugDraw` lines) and on the site (3D lines coloured by speed).
 
-**Open questions for the author:**
-1. Audit log: for verifiers (anti-cheat), for runners (learning / route
-   review), or both? It decides how much detail goes in and whether it
-   must be in the hash chain.
-2. Which interactions matter most first - building, items, fights, doors?
-3. First-person replay: in game only, or on the site too? Is the view
-   enough at first, with the arms later?
-4. Grenade camera: a camera following the player's flight, a camera on the
-   path's arc you can scrub, or a prediction shown *before* the move
-   (practice aid, Experimental)?
-5. Should practice runs (not only run mode attempts) keep the audit log?
+**Decided (author, 2026-10-03):**
+1. The audit log is for verifiers and runners alike; its point is a
+   **rundown** - a short summary of a run's interactions a verifier can
+   skim (counts and highlights per kind, e.g. "3 blueprints placed, 41
+   items picked up, 2 deaths, 1 cave force load"), with the full timeline
+   behind it. Not a must-have; worth it as a summary.
+2. All interaction kinds matter equally.
+3. First-person replay: **in game first**, the website as a later extra;
+   the camera view first, the arms later if they are a lot of work.
+4. Trajectory view: build every variant (follow camera, scrubbable arc,
+   prediction before the move) and let runners say which ones help.
+5. **Run mode attempts only** - no audit log for practice runs (the
+   author saw no reason; neither did Claude: practice already has run
+   lines, splits and the item track, and the `Move seen:` log lines stay
+   in LogOutput.log for testing the detectors).
 
 ## Order, if picked up
 
 1. Look direction in the recording (cheap, needed by everything else).
-2. Audit `event` lines for what is already seen + the attempt page's
-   timeline.
+2. Audit `event` lines for what is already seen (run mode attempts) + the
+   attempt page's rundown (summary first) and timeline.
 3. Buildings and interactions on the in-game and site replays.
 4. Trajectory view (bomb boost first, then ziplines).
 5. First-person replay with animations.

@@ -703,8 +703,11 @@ spot exists yet - making one is the author's call.
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,
    first-person replays with animations, a trajectory / "grenade camera"
-   view for bomb boosts and ziplines) - [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md),
-   open questions there for the author.
+   view for bomb boosts and ziplines) - [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md)
+   (decisions there: run mode only, a skimmable rundown, in game first).
+   **After v1** (author, 2026-10-03): UI work, refactoring inefficient /
+   bad code, and a lighter repo with only useful information - plus
+   feature / QoL ideas as they come.
 5. **Last, when every task is done** (author, 2026-10-03: "leave these for
    later when we're done with all tasks"): run mode by hand with the author
    - a real ESC + F2, the Runs tab section, End / Start run mode by
