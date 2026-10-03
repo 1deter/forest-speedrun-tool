@@ -29,14 +29,16 @@ namespace ForestOverlay.Data
     // rigidbody speed AND the distance it really covered both at least
     // HugeSpeed over HugeWindow of game time. Needing both rules out
     // teleports (distance, no speed) and a stale velocity on a body that
-    // is not moving (speed, no distance). Not counted: a kinematic body
+    // is not moving (speed, no distance). A frame that moves the player
+    // further than its speed can over a whole physics step is a teleport
+    // and restarts the window (live, v0.24.227: a tp while the body still
+    // held 300 m/s read as 509 m in 0.1 s). Not counted: a kinematic body
     // (rides, cutscenes, the game's own movers), and a knockback - from
     // its first push until the player has been slower than CalmSpeed for
     // CalmSeconds (a plain knockback reaches ~260 m/s, and a boost's speed
     // is the boost's own record). Speeds the game reaches by itself stay
-    // under HugeSpeed: a sprint ~10 m/s, a fall from any height in the
-    // world well below it (gravity 16 m/s2, the fall kills at 3.8 s in
-    // the air = ~61 m/s).
+    // under HugeSpeed: a sprint ~10 m/s, and a fall never passes 55.4 m/s
+    // (live, 2026-10-03: from y 1500, the speed held at 55.43 for 16 s).
     // ------------------------------------------------------------------
     public sealed class MoveDetector
     {
@@ -51,6 +53,7 @@ namespace ForestOverlay.Data
         public const float HugeEndSeconds = 1f;    // below HugeSpeed this long = the episode ended
         public const float CalmSpeed = 30f;
         public const float CalmSeconds = 1f;
+        public const float MaxPhysicsStep = 0.05f;   // a frame can hold a whole physics step (1/60 s) and then some
 
         public sealed class Move
         {
@@ -95,6 +98,7 @@ namespace ForestOverlay.Data
         private float _calm;
         private bool _hasLast;
         private Vector3 _last;
+        private float _lastSpeed;
         private float _wDt, _wDist, _wMax;
         private Move _huge;
         private float _hugeQuiet;
@@ -226,10 +230,18 @@ namespace ForestOverlay.Data
                 if (_huge != null) EndHuge();
                 return;
             }
-            if (!_hasLast) { _hasLast = true; _last = pos; _wDt = _wDist = _wMax = 0f; return; }
+            if (!_hasLast) { _hasLast = true; _last = pos; _lastSpeed = speed; _wDt = _wDist = _wMax = 0f; return; }
 
             float step = Vector3.Distance(_last, pos);
+            float could = Mathf.Max(speed, _lastSpeed) * Mathf.Max(gameDt, MaxPhysicsStep) * 2f + 2f;
             _last = pos;
+            _lastSpeed = speed;
+            if (step > could)
+            {
+                // A teleport: the distance is not the speed's.
+                _wDt = _wDist = _wMax = 0f;
+                return;
+            }
             _wDt += gameDt;
             _wDist += step;
             if (speed > _wMax) _wMax = speed;

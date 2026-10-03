@@ -2660,6 +2660,11 @@ or one preceded by a new enter at low vertical speed (grazing a seam between
 colliders), is judged on that small value: no damage, and no 3.8 s death
 either. Likely the runners' slide cancel; not reproduced. `jumpingTimer`
 counts `Time.deltaTime` (stops in the pause menu; one 9 s frame counts 9 s).
+**A fall is capped at 55.43 m/s** (live, 2026-10-03: from y 1,500 the
+speed held there for 16 s; rigidbody drag 0, mass 7). Air control also
+pulls a forced horizontal speed down within a physics step or two (a
+300 m/s set every frame moved the player ~78 m/s) while
+`FirstPersonCharacter` is enabled - the knockback disables it.
 
 **Cave state force load** (IL). `playerEnterCaveAction.doCave` (crawl /
 climb entrances): locks the player, sets `enterCaveInt`, then sends

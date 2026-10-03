@@ -310,7 +310,7 @@ the bridge against a local site):
   tab line "from the next attempt"); `WebRequest.Send` with headers and
   one response header back; the site's `Categories.ETag` / `Unchanged`.
 
-## Banned moves: detection (research 2026-10-03, nothing built)
+## Banned moves: detection (bomb boost + huge speed built, v0.24.227-228)
 
 How each common move works is in [`game-notes.md`](game-notes.md) *Speedrun
 tech and the endgame gate*. Whether a move is a glitch is the community's
@@ -333,6 +333,44 @@ clip line is one `Physics.Linecast` per physics step. All read-only.
 Order to build, if wanted: the bomb boost and huge-speed flags (exact,
 cheap), the cave state flag, then fall damage, then clips / log boosts
 with recorded runs to tune them.
+
+**Built (v0.24.227-228, 2026-10-03)** - the first two rows, done better
+than the table's plan:
+- **Bomb boost**: not "explosion + pause menu within 0.5 s" but the
+  mechanism itself - a prefix / postfix on the knockback coroutine's
+  `MoveNext` (`Game/MoveWatch`) counts every push made while
+  `Time.deltaTime` is 0 (both push phases, IL in the file). One stop of
+  game time = one boost, reported after 1 s of game time with the seconds
+  stopped, pause menu or not, the time since the blast, the frames piled
+  up, the peak speed and the distance. Fewer than 4 piled pushes are not
+  reported; a stop the player never comes back from (a load, the player
+  gone) is dropped and logged.
+- **Huge speed**: 200 m/s, not 150 (a plain knockback reaches ~260; a fall
+  is capped by the game at 55.4 m/s, live). Both the rigidbody speed and
+  the distance really covered over 0.1 s of game time; a frame moving
+  further than the speed allows over a physics step is a teleport and
+  restarts the window (v0.24.228: a tp while the body held 300 m/s was
+  reported in v0.24.227); kinematic bodies skipped; excused from a
+  knockback's first push until under 30 m/s for 1 s.
+- **Where it goes**: `Data/MoveDetector` (pure, tested with the false-flag
+  scenarios) -> `Modules/RunModeModule.Moves` -> a log line `Move seen:`
+  always (practice too) and, during an attempt, a `move|ms|kind|x|y|z|text`
+  line folded into the chain (`Data/AttemptChain`), listed in the Runs tab.
+  **Never a flag** - the attempt stays valid; the site lists the moves on
+  the attempt page (*Moves the game saw*), each with the category's banned
+  move it may be (`Attempts.MoveNotes`: bomb / explosi / knockback in the
+  rule's words), and leaves the verdict alone.
+- **Live checks (v0.24.227, bridge, 288 fps)**: silent for a plain
+  knockback (154 pushes), a 3 s pause with no knockback, a 3-push pause
+  (below the line), a 1,050 m fall, death by explosion + Reload save on
+  death, a forced 300 m/s that the game's air control held to ~78 m/s of
+  real movement; reported: ESC 1.02 s 0.02 s after the blast (217 frames,
+  1,904 m/s, 293 m), a late pause 0.62 s after (229 frames, 35 m - the
+  late regime's hop, a real boost), a real 300 m/s with the controller
+  off (146 m in 0.5 s). In run mode the move reached the attempt log and
+  the live site's page (test attempt deleted). One false positive found
+  and fixed (the teleport above).
+- **Next**: the cave state flag, then fall damage, then clips / log boosts.
 
 ## Other uses of locked settings
 

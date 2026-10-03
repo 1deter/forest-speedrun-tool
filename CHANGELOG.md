@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.228 - 2026-10-03
+
+- Huge speed is no longer reported for a teleport (a cave entrance, the
+  elevator, a load) that lands while the player still has a high speed.
+
 ## v0.24.227 - 2026-10-03
 
 - Run mode notices two moves and writes them into the attempt's log for

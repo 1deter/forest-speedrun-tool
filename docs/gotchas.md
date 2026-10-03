@@ -789,3 +789,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     rides (move the player with `set player Transform.position` in ride
     tests), and a test spawn must be clear of steep slopes (a capsule placed
     inside a 77° face fell under the map - our setup, not the game).
+
+90. **A speed and a distance in the same window can belong to different
+    things.** (2026-10-03, v0.24.227.) Huge-speed detection needed both
+    the rigidbody's speed and the distance covered to pass 200 m/s - to
+    rule out teleports and stale velocities - and still reported "509 m in
+    0.1 s" when a `tp` landed on a frame where the body held 300 m/s from
+    a forced velocity. A frame's step longer than its speed allows (a whole
+    physics step, x2, + 2 m) is a teleport: restart the window. Test a
+    detector with the instrument's own actions (tp, set) mixed in, not only
+    the clean case.

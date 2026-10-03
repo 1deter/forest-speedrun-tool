@@ -190,6 +190,48 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void A_teleport_while_the_body_holds_a_high_velocity_is_not_huge_speed()
+        {
+            // Live, v0.24.227: a tp 507 m down while the rigidbody still held
+            // 300 m/s from the frame before read as "509 m in 0.1 s".
+            var s = new Sim { Fps = 290f };
+            s.Run(1f);
+            for (int i = 0; i < 5; i++)
+            {
+                s.Vel = new Vector3(78f, 0f, 0f);    // the real movement, under the line
+                s.Run(0.25f);
+                s.Pos = s.Pos + new Vector3(-20f, -507f, 0f);
+                s.D.Frame(1f / 290f, 1f / 290f, true, false, s.Pos, new Vector3(300f, 0f, 0f));
+                s.Vel = new Vector3(300f, 0f, 0f);   // still reads high a few frames
+                for (int k = 0; k < 3; k++) s.D.Frame(1f / 290f, 1f / 290f, true, false, s.Pos, s.Vel);
+                s.Vel = Vector3.zero;
+                s.Run(2f);
+            }
+            s.Flush();
+            Assert.Empty(s.Moves);
+        }
+
+        [Fact]
+        public void A_bomb_boost_fast_enough_to_cross_a_lot_per_step_is_not_a_teleport()
+        {
+            // 3,700 m/s (game-notes: a 2 s pause at ~230 fps) = 62 m per
+            // physics step, landing in one rendered frame of many.
+            var s = new Sim { Fps = 240f };
+            s.Run(1f);
+            s.D.Reset(drop: true);
+            for (int step = 0; step < 30; step++)
+            {
+                s.Pos = s.Pos + new Vector3(3700f / 60f, 0f, 0f);
+                s.D.Frame(1f / 240f, 1f / 240f, true, false, s.Pos, new Vector3(3700f, 0f, 0f));
+                for (int k = 0; k < 3; k++) s.D.Frame(1f / 240f, 1f / 240f, true, false, s.Pos, new Vector3(3700f, 0f, 0f));
+            }
+            s.Vel = Vector3.zero;
+            s.Run(2f);
+            s.Flush();
+            Assert.Equal(MoveDetector.HugeSpeedKind, Assert.Single(s.Moves).Kind);
+        }
+
+        [Fact]
         public void A_velocity_without_movement_is_not_huge_speed()
         {
             var s = new Sim();
@@ -214,8 +256,8 @@ namespace ForestOverlay.Tests
         [Fact]
         public void The_longest_fall_is_not_huge_speed()
         {
-            // Gravity 16: the fall is lethal at 3.8 s (~61 m/s); even an
-            // unbroken 10 s fall stays under the line.
+            // The game caps a fall at 55.4 m/s (live); even an uncapped
+            // 10 s fall at gravity 16 stays under the line.
             var s = new Sim { Fps = 120f };
             for (int i = 0; i < 1200; i++)
             {
