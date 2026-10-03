@@ -661,9 +661,11 @@ decompiled source in `%LOCALAPPDATA%\ForestOverlay\game-src\`). **Next:**
 the embedding model locally (author OK for ~130 MB, not asked), more
 cards (Megan's FSMs - `girlMutantAiManager.setAiParams` weights are read
 fine from code, the FSM side is not; cannibal AI), the production
-server once the admins agree; resolve queue #1 (Megan) / #2 (the clip
-speed, noted) on the VPS with `resolve`. A run with SSH from a session is
-blocked by the permission classifier - the author runs VPS commands.
+server once the admins agree. The queue holds only #1 (Megan - resolve
+it once her card exists; #2, the clip speed, resolved). VPS: `ssh -i
+~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec
+forest-bot dotnet /srv/current/forest-bot.dll queue'` - the permission
+classifier blocks it unless the author asked for it in chat.
 Earlier the same day: banned-move detection finished (v0.24.227-234:
 bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
 gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
