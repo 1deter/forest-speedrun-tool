@@ -651,9 +651,8 @@ bomb boost and huge speed, built and live-tested (docs/run-mode.md
   + Reload save on death, a forced 300 m/s air control held to ~78 m/s;
   reported for real ESC boosts (early 293 m, late 35 m) and a real 300 m/s.
   End to end in run mode to the live site (test attempt deleted).
-  **Not yet re-checked live on v0.24.228**: the tp case (run the
-  scratchpad-style script: `tp` high, `set player Rigidbody.velocity
-  300,0,0` x80, `tp` down - expect no `Move seen: huge-speed`).
+  v0.24.228 re-checked live: the tp case x3 silent, a control boost still
+  reported.
 Earlier the same day: tech research round 2 (bomb boost refined, position
 writers, red elevator door fix v0.24.226, water) - game-notes *Speedrun
 tech*; savestate `elevPre2` (red elevator car, door shut).
