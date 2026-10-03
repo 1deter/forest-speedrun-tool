@@ -1,0 +1,38 @@
+fsm global_alertManagerFSM  on girlMutant(Clone)/girl_base
+start state: start
+active state now: 
+
+[variables]
+  bool alertedBool = False
+
+[events]
+  FINISHED (global), doAction, toNoise (global)
+
+[global transitions]
+
+[state start]
+  on toNoise -> checkAction
+
+[state setNoiseAlert]
+  on FINISHED -> coolDown
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "action_combatFSM"
+    sendEvent = event toNoise
+    delay = 0
+    everyFrame = False
+
+[state coolDown]
+  on FINISHED -> start
+  action Wait
+    time = 4
+    finishEvent = event FINISHED
+    realTime = False
+
+[state checkAction]
+  on doAction -> setNoiseAlert
+  on FINISHED -> start
+  action BoolTest
+    boolVariable = {alertedBool}
+    isTrue = event FINISHED
+    isFalse = event doAction
+    everyFrame = False

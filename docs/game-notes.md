@@ -922,6 +922,24 @@ Thrown spears are `SpearThrown_Dynamic(Clone)` roots with a `PickUp`
 (item Spear) on `spear_High/Trigger`; picked back up they stay as
 inactive copies.
 
+## Megan's boss AI (FSM export + code + bridge, 2026-10-03)
+
+The runner-facing version is `knowledge/cards/megan-boss.md`; FSMs in
+`docs/fsm/megan-*.txt`. PlayMaker checks **global transitions before the
+state's own** (`Fsm.ProcessEvent`, IL) - blank local transitions in an
+export never apply. The loop: `randomIdle` -> `setToPlayer` ->
+`worldCheck` -> `moveToPlayer`, whose every-frame check sends her to
+attack (`checkTurns` -> `chanceToDodge` -> `chooseAttack`) **as soon as
+the player is within 35 m**; only after 1-2 s still beyond 35 m does she
+reach `chooseAction`, the weighted roll `girlMutantAiManager.setAiParams`
+feeds (births 6, attack 0.5 + 5, walk forward 2 beyond 35 m). `chooseAttack`
+picks by `targetDist` alone (8 / 13 / 27 / 38 / 50 m bands). Dodge weight 0
+for 15 s after `activateGirlMutant`, then 0.25 : 1. A hit -> `gotHit` ->
+counter after 0.2 s (live). Explosion: flat 30 (live 370 -> 340), 25%
+stagger for 10 s. 370 health on Normal (live). Births stop once
+`spawnedBabies` (the spawners, never destroyed) holds more than 2 - live 6
+spawners / 5 babies in `ruben-megan`. Melee 28 x `creepyDamageRatio`.
+
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
 Enemies are spawned and despawned by `mutantController` (static

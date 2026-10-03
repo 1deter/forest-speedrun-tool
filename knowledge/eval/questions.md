@@ -272,15 +272,32 @@ must:
 - the author rules it allowed: it is the game's own load of the same save
 - the moderators decide categories (not the bot)
 
-### unknown-megan
+### megan-attack
 question: how does megan's boss fight AI decide when to attack?
-cards: (none)
+cards: megan-boss
 must:
-- the attack weights come from the game's code (girlMutantAiManager.setAiParams): they change at 35 m from the player and below half health
-- says how the FSM turns the weights into attacks / timings is not documented or tested yet
+- within 35 m she goes straight to an attack every cycle (moveToPlayer checks the distance every frame)
+- the attack is picked by distance (stomp under 8 m, close 8-13, mid 13-27, long 27-38, leap 38-50, run over 50)
+- the weighted roll (setAiParams weights) is reached only after 1-2 s beyond 35 m
 not:
-- states attack timings or patterns as tested in game
-- invents numbers that are not in the code
+- says the attack is chosen at random from the weights
+- states fight timings as tested in game
+
+### megan-babies
+question: how do i stop megan spawning babies?
+cards: megan-boss
+must:
+- stay within 35 m - births come only from the roll she reaches beyond 35 m
+- beyond 35 m the birth weight is 6 of 13.5 (about 44%)
+- she stops for good once more than 2 spawners exist; spawners are never destroyed
+
+### megan-bombs
+question: how many bombs does it take to kill megan?
+cards: megan-boss
+must:
+- 370 health (Normal), an explosion takes a flat 30 regardless of distance
+- about 13 explosions with nothing else
+- each explosion has a 25% chance to stagger her for 10 s
 
 ### unknown-gold-card-spot
 question: where exactly is the gold keycard?

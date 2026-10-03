@@ -1,0 +1,2938 @@
+fsm action_combatFSM  on girlMutant(Clone)/girl_base
+start state: init
+active state now: init
+
+[variables]
+  float attackDist = 9
+  float closestPlayerDist = 7.034
+  float fsmChargeAttackWeight = 0.5
+  float fsmDodgeWeight = 0
+  float fsmLongAttackWeight = 4.5
+  float fsmRoamRange = 200
+  float fsmRunForwardWeight = 0
+  float fsmSearchRange = 50
+  float fsmSpawnBabyWeight = 6
+  float fsmSpinAttackWeight = 0.03
+  float fsmStrafeWeight = 1
+  float fsmToIdleWeight = 1
+  float fsmWalkBackWeight = 0.6
+  float fsmWalkForwardWeight = 1
+  float playerAngle = 0
+  float playerDist = 7.46
+  float playerDistSearch = 0
+  float randAggression = 0
+  float randFloat1 = 0
+  float smoothedPathDir = 0
+  float stalkDistance = 21
+  float targetDir = -176.196
+  float targetDist = 7.46
+  float tempDist1 = 0
+  float tempFloat1 = 0
+  float visionRange = 62
+  float waypointArriveDist = 6
+  int HashAttack = 60754182
+  int HashIdle = -601574123
+  int HashWalk = 0
+  int counter1 = 0
+  int getHash = 0
+  int randomInt1 = 0
+  int tempInt1 = 0
+  bool activeInWorld = False
+  bool attackStructure = False
+  bool exitWaterBool = False
+  bool fsmBlockBabySpawn = False
+  bool fsmGoHomeBool = True
+  bool gettingHit = False
+  bool hordeModeActive = False
+  bool inCaveBool = False
+  bool sleepBool = False
+  bool sleepOnAwake = False
+  bool staggered = False
+  bool tempBOOL1 = False
+  bool tempBool1 = False
+  bool toAttractArtifact = False
+  bool toRepelArtifact = False
+  vector3 currentWaypoint = (0, 0, 0)
+  vector3 lastTargetSight = (0, 0, 0)
+  vector3 pathVector = (0, 0, 0)
+  vector3 playerDir = (0, 0, 0)
+  gameobject animatorGO = null
+  gameobject hitGO = null
+  gameobject playerGO = GameObject 'player'
+  gameobject rootGo = GameObject 'girlMutant(Clone)'
+  gameobject spawnGo = null
+  gameobject structureGo = null
+  gameobject target = GameObject 'player'
+  gameobject treeGo = null
+  gameobject wayPointGO = GameObject 'currentWaypoint'
+
+[events]
+  FINISHED (global), MOUSE DOWN, begin, doAction, goToAction, goToAttack, goToAttackStructure, goToCloseAttack, goToExitWater, goToHome, goToOnFire, goToStructure, gotHit (global), no, noValidPath, noValidTarget, return, runTowards (global), targetFound (global), targetLost (global), toActivateFSM (global), toAttack (global), toAttackDodge, toAttract, toChargeAttack, toCloseAttack, toCloseRangeSearch, toCloseSearch, toCounterAttack, toDeath (global), toDisableFSM (global), toDodge, toDodgeBack, toExitWater, toHit, toHitExplode, toIdle, toJumpAttack (global), toLongAttack, toLongSearch, toMainAttack, toMidAttack, toMove (global), toNext, toNoise (global), toPlayer, toRandomSearch, toRecheck, toRepel, toReset (global), toRun (global), toRunAttack, toRunForward, toScream, toSearch (global), toSetTarget, toSpawnBaby, toSpinAttack, toStompClose, toStrafe, toVisCheck, toWalk (global), toWalkBack (global), toWalkForward, toWander, validPath, yes
+
+[global transitions]
+  on goToExitWater -> setToLand
+  on goToStructure -> findStruct 2
+  on goToAttackStructure -> fromPlayerBlock
+  on toDeath -> death
+  on toHitExplode -> hitExplode
+  on gotHit -> gotHit
+  on goToAttack -> checkTurns
+  on toMainAttack -> chooseAttack
+  on goToHome -> findHomePoint
+  on goToOnFire -> startOnFire
+  on toWander -> randomIdle
+  on toExitWater -> exitWater
+
+[state findWaypoint]
+  on doAction -> isPathValid
+  on targetFound -> 
+  on noValidTarget -> retry
+  on return -> findHomePoint
+  action BoolTest
+    boolVariable = {sleepOnAwake}
+    isTrue = event toWander
+    isFalse = null
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {spawnGo}
+    storeResult = {tempFloat1}
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {fsmRoamRange}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event return
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state runForward]
+  on return -> stopRunning
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "targetDist"
+    storeValue = {targetDist}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 24
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 7
+    finishEvent = event return
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state randomWander]
+  on targetLost -> findWaypoint
+  on FINISHED -> chooseAction
+  on goToAttack -> 
+  action SetFsmBool
+    gameObject = owner
+    fsmName = "global_alertManagerFSM"
+    variableName = "alertedBool"
+    setValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action SetIntValue
+    intVariable = {counter1}
+    intValue = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 17
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action RandomFloat
+    min = 3
+    max = 5
+    storeResult = {randFloat1}
+  action Wait
+    time = {randFloat1}
+    finishEvent = event FINISHED
+    realTime = False
+
+[state stopRunning]
+  on toWander -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action RandomFloat
+    min = 5
+    max = 8
+    storeResult = {randFloat1}
+  action Wait
+    time = 1
+    finishEvent = event toWander
+    realTime = False
+
+[state death]
+  on FINISHED -> init
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "Speed"
+    Value = 0
+    dampTime = 0
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state isPathValid]
+  on toRun -> wait1
+  on noValidPath -> findWaypoint
+  on validPath -> wait1
+  action IntAdd
+    intVariable = {counter1}
+    add = 1
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action IntCompare (disabled)
+    integer1 = {counter1}
+    integer2 = 3
+    equal = event toRandomSearch
+    lessThan = null
+    greaterThan = event toRandomSearch
+    everyFrame = False
+  action Wait
+    time = 0.3
+    finishEvent = event toRun
+    realTime = False
+
+[state init]
+  on begin -> setToPlayer
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePlayerTracking"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeAttack"
+    Value = False
+    everyFrame = False
+  action FindGameObject (disabled)
+    objectName = "player"
+    withTag = "Player"
+    store = {playerGO}
+  action GetRoot
+    gameObject = owner
+    storeRoot = {rootGo}
+  action GetParent (disabled)
+    gameObject = owner
+    storeResult = {rootGo}
+  action Wait (disabled)
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state retry]
+  on FINISHED -> findWaypoint
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state waitForTurns]
+  on FINISHED -> runForward
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 1
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {HashIdle}
+    equal = event FINISHED
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state wait1]
+  on FINISHED -> worldCheck 2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToWaypoint"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state doAttack]
+  on FINISHED -> reset
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state reset]
+  on toWander -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 1.5
+    finishEvent = event toWander
+    realTime = False
+
+[state findHomePoint]
+  on doAction -> wait1
+  on targetFound -> 
+  on noValidTarget -> retry
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call castPointAroundSpawn (float)
+    stopOnExit = True
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToHome"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = event doAction
+    realTime = False
+
+[state doCloseAttack]
+  on doAction -> coolDown
+  on toWander -> 
+  on toSpinAttack -> longSpinAttack
+  action SendRandomEvent
+    events = [event toSpinAttack, null]
+    weights = [{fsmSpinAttackWeight}, 0.6]
+    delay = 0
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackDistInt"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+  action SmoothLookAt (disabled)
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action RandomInt
+    min = 0
+    max = 1
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = {randomInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "closeAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1.2
+    finishEvent = event doAction
+    realTime = False
+
+[state coolDown]
+  on toWander -> 
+  on toCloseAttack -> 
+  on toLongAttack -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "closeAttack"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = False
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event toCloseAttack
+    greaterThan = event toLongAttack
+    everyFrame = False
+  action Wait
+    time = 0.8
+    finishEvent = event toWander
+    realTime = False
+
+[state hitExplode]
+  on toWander -> 
+  on return -> hitstagger
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stomp"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birth"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {sleepOnAwake}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "rearUpBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action SetAnimatorTrigger
+    gameObject = owner
+    trigger = "hitTrigger"
+  action BoolTest
+    boolVariable = {staggered}
+    isTrue = event return
+    isFalse = null
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event toWander
+    realTime = False
+
+[state gotHit]
+  on toWander -> 
+  on toCounterAttack -> counterAttack
+  on return -> hitstagger
+  action SetBoolValue
+    boolVariable = {sleepOnAwake}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stomp"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "closeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birth"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "hitStagger"
+    everyFrame = False
+    result = {tempBOOL1}
+  action BoolTest
+    boolVariable = {tempBOOL1}
+    isTrue = event return
+    isFalse = null
+    everyFrame = False
+  action Wait
+    time = 0.2
+    finishEvent = event toCounterAttack
+    realTime = False
+
+[state checkDist2]
+  on FINISHED -> chooseAttack
+  on doAction -> doWalkback
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = event FINISHED
+    everyFrame = False
+
+[state doWalkback]
+  on FINISHED -> chooseAttack
+  on doAction -> doDodge2
+  action SetBoolValue
+    boolVariable = {gettingHit}
+    boolValue = False
+    everyFrame = False
+  action SendRandomEvent
+    events = [null, event doAction]
+    weights = [1, 1]
+    delay = 0
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalkBack
+    delay = 0
+    everyFrame = False
+  action RandomInt
+    min = -1
+    max = 1
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "dodgeDirInt"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorTrigger (disabled)
+    gameObject = owner
+    trigger = "dodgeTrigger"
+  action Wait
+    time = 2
+    finishEvent = event FINISHED
+    realTime = False
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+
+[state chanceToDodge]
+  on toDodge -> checkDist2
+  on FINISHED -> chooseAttack
+  on toAttackDodge -> attackOrDodge
+  action BoolTest
+    boolVariable = {gettingHit}
+    isTrue = event toAttackDodge
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SendRandomEvent
+    events = [event toDodge, event FINISHED]
+    weights = [{fsmDodgeWeight}, 1]
+    delay = 0
+
+[state chooseAttack]
+  on toCloseAttack -> doCloseAttack
+  on toLongAttack -> doLongAttack
+  on toJumpAttack -> doTurn3
+  on toWander -> 
+  on toStompClose -> doCloseStomp
+  on toMidAttack -> doMidAttack
+  on toRunAttack -> runToPlayer 2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "creepySfx"
+    methodName = "PlayerSighted"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event toExitWater
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 8
+    tolerance = 0
+    equal = null
+    lessThan = event toStompClose
+    greaterThan = null
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {targetDist}
+    floatLower = 8
+    floatUpper = 13
+    inWindow = event toCloseAttack
+    outOfWindow = null
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {targetDist}
+    floatLower = 13
+    floatUpper = 27
+    inWindow = event toMidAttack
+    outOfWindow = null
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {targetDist}
+    floatLower = 27
+    floatUpper = 38
+    inWindow = event toLongAttack
+    outOfWindow = null
+    everyFrame = False
+  action FloatWindowCompare
+    floatTest = {targetDist}
+    floatLower = 38
+    floatUpper = 50
+    inWindow = event toJumpAttack
+    outOfWindow = null
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 50
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toRunAttack
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toWander
+    delay = 0
+    everyFrame = False
+
+[state doLongRunningAttack]
+  on doAction -> coolDown
+  on toWander -> 
+  action RandomInt
+    min = 2
+    max = 3
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 1.3
+    finishEvent = event doAction
+    realTime = False
+
+[state doJumpAttack]
+  on doAction -> coolDown 2
+  on toWander -> 
+  action RandomInt (disabled)
+    min = 2
+    max = 3
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 2
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = -2
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = True
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 2
+    finishEvent = event doAction
+    realTime = False
+
+[state checkTurns]
+  on doAction -> doTurn
+  on FINISHED -> chanceToDodge
+  on goToExitWater -> 
+  on return -> hitstagger
+  action BoolTest
+    boolVariable = {staggered}
+    isTrue = event return
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event toExitWater
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "creepySfx"
+    methodName = "PlayerSighted"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action FloatCompare
+    float1 = {targetDir}
+    float2 = 135
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event doAction
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDir}
+    float2 = -135
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = False
+
+[state doTurn]
+  on FINISHED -> chanceToDodge
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "turnBool"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state doTurn2]
+  on FINISHED -> doLongRunningAttack
+  action FloatCompare (disabled)
+    float1 = {targetDir}
+    float2 = 50
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event doAction
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDir}
+    float2 = -50
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "turnBool"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state doTurn3]
+  on FINISHED -> doJumpAttack
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "turnBool"
+    Value = True
+    everyFrame = False
+  action Wait (disabled)
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False
+
+[state isPathValid 2]
+  on toRun -> runFire
+  on noValidPath -> 
+  on validPath -> runFire
+  action IntAdd
+    intVariable = {counter1}
+    add = 1
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.3
+    finishEvent = event toRun
+    realTime = False
+
+[state runFire]
+  on return -> stopRunning 2
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 12
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 15
+    finishEvent = event return
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state stopRunning 2]
+  on toWander -> 
+  on goToOnFire -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "onFireBool"
+    everyFrame = False
+    result = {tempBOOL1}
+  action BoolTest
+    boolVariable = {tempBOOL1}
+    isTrue = event goToOnFire
+    isFalse = event toWander
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event toWander
+    realTime = False
+
+[state startOnFire]
+  on FINISHED -> chanceToAttack
+  on return -> hitstagger
+  action BoolTest
+    boolVariable = {staggered}
+    isTrue = event return
+    isFalse = null
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {sleepOnAwake}
+    boolValue = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "creepyAnimatorControl"
+    methodName = "resetCreepyFemaleAnimator"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state findRandomPoint]
+  on doAction -> isPathValid 2
+  on noValidTarget -> retry2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 0.3
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state retry2]
+  on FINISHED -> findRandomPoint
+  action Wait
+    time = 0.3
+    finishEvent = event FINISHED
+    realTime = False
+
+[state chanceToAttack]
+  on FINISHED -> findRandomPoint
+  on doAction -> findPlayer
+  action SendRandomEvent
+    events = [event doAction, event FINISHED]
+    weights = [1, 0]
+    delay = 0
+
+[state findPlayer]
+  on FINISHED -> runToPlayer2
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state runToPlayer2]
+  on return -> stopRunning 3
+  on toRunAttack -> 
+  on noValidPath -> stopRunning 3
+  on goToExitWater -> 
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 15
+    tolerance = 0
+    equal = null
+    lessThan = event toRunAttack
+    greaterThan = null
+    everyFrame = True
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "targetDist"
+    storeValue = {targetDist}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 15
+    finishEvent = event return
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state stopRunning 3]
+  on toWander -> 
+  on goToOnFire -> 
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "onFireBool"
+    everyFrame = False
+    result = {tempBOOL1}
+  action BoolTest
+    boolVariable = {tempBOOL1}
+    isTrue = event goToOnFire
+    isFalse = event toWander
+    everyFrame = False
+  action Wait
+    time = 5
+    finishEvent = event toWander
+    realTime = False
+
+[state coolDown 2]
+  on toWander -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 1.2
+    finishEvent = event toWander
+    realTime = False
+
+[state randomIdle]
+  on FINISHED -> setToPlayer
+  on goToExitWater -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "hitStagger"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stomp"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "closeAttack"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {staggered}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "creepySfx"
+    methodName = "PlayerLost"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birth"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "dodgePlayer"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = False
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendRandomEvent (disabled)
+    events = [event doAction, null]
+    weights = [0.5, 1]
+    delay = 0
+
+[state setRandomIdle]
+  on FINISHED -> randomWander
+  action SetAnimatorTrigger
+    gameObject = owner
+    trigger = "varTrigger1"
+
+[state chooseAction]
+  on toCloseSearch -> findPlayerPoint
+  on toSearch -> findWaypoint
+  on toPlayer -> hordeToPlayer
+  on toStrafe -> setDir
+  on toWalkBack -> moveAwayFromPlayer
+  on toWalkForward -> moveToPlayer
+  on toIdle -> idle
+  on toSpawnBaby -> moveAwayFromPlayer 2
+  on toMainAttack -> 
+  on toRunForward -> runToPlayer
+  on toNext -> moveAroundWorld
+  action BoolTest (disabled)
+    boolVariable = {hordeModeActive}
+    isTrue = event toPlayer
+    isFalse = null
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 105
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toNext
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendRandomEvent
+    events = [event toSpawnBaby, event toMainAttack, event toMainAttack, event toStrafe, event toWalkBack, event toWalkForward, event toIdle, event toRunForward]
+    weights = [{fsmSpawnBabyWeight}, {fsmChargeAttackWeight}, {fsmLongAttackWeight}, {fsmStrafeWeight}, {fsmWalkBackWeight}, {fsmWalkForwardWeight}, {fsmToIdleWeight}, {fsmRunForwardWeight}]
+    delay = 0
+
+[state findPlayerPoint]
+  on doAction -> isPathValid
+  on targetFound -> 
+  on noValidTarget -> retry
+  on return -> 
+  action BoolTest
+    boolVariable = {sleepOnAwake}
+    isTrue = event toWander
+    isFalse = null
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {spawnGo}
+    storeResult = {tempFloat1}
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = {fsmRoamRange}
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event return
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findPointInFrontOfPlayer (float)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state hordeToPlayer]
+  on FINISHED -> wait1
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.25
+    finishEvent = event FINISHED
+    realTime = False
+
+[state isPathValid 18]
+  on validPath -> walk
+  on noValidPath -> toReset2 2
+  on toWander -> 
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.3
+    finishEvent = event validPath
+    realTime = False
+
+[state walk]
+  on return -> setNextPos
+  on toWander -> 
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toDisableFSM
+    delay = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackCombo"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attackBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "rearUpBool"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = True
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toDisableVis (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action GameObjectIsNull
+    gameObject = {structureGo}
+    isNull = event toWander
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {structureGo}
+    storeResult = {tempFloat1}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 7
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 9
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 8
+    finishEvent = event toWander
+    realTime = False
+
+[state attackStructure]
+  on return -> done 2
+  on toWander -> 
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = True
+    everyFrame = False
+  action RandomInt
+    min = 0
+    max = 2
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = True
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toStop (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {structureGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 2
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action GameObjectIsActiveInHierarchy
+    gameObject = {structureGo}
+    isActive = null
+    isNotActive = event return
+    storeResult = none
+    everyFrame = True
+  action GameObjectIsNull
+    gameObject = {structureGo}
+    isNull = event return
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action Wait
+    time = 10
+    finishEvent = event return
+    realTime = False
+
+[state findStruct 2]
+  on goToAction -> isPathValid 18
+  on noValidTarget -> toReset2 2
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findCloseStructure (None)
+    stopOnExit = False
+  action Wait
+    time = 1
+    finishEvent = event noValidTarget
+    realTime = False
+
+[state toReset2 2]
+  on toWander -> 
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "treeAttack"
+    Value = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event toWander
+    delay = 0
+    everyFrame = False
+
+[state walk2]
+  on noValidTarget -> toReset2 2
+  on return -> setTimout
+  on toWander -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action StartCoroutine (disabled)
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call toRun (None)
+    stopOnExit = False
+  action GameObjectIsNull
+    gameObject = {structureGo}
+    isNull = event toWander
+    isNotNull = null
+    storeResult = none
+    everyFrame = True
+  action SmoothLookAt
+    gameObject = owner
+    targetObject = {structureGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action GetDistance (disabled)
+    gameObject = owner
+    target = {structureGo}
+    storeResult = {tempFloat1}
+    everyFrame = True
+  action FloatCompare (disabled)
+    float1 = {tempFloat1}
+    float2 = 6
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 7
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 3
+    finishEvent = event toWander
+    realTime = False
+
+[state setNextPos]
+  on noValidTarget -> toReset2 2
+  on return -> walk2
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToStructure"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.1
+    finishEvent = event return
+    realTime = False
+
+[state setTimout]
+  on FINISHED -> attackStructure
+  action BoolTest (disabled)
+    boolVariable = {tempBool1}
+    isTrue = event eventA
+    isFalse = null
+    everyFrame = False
+  action SetFloatValue
+    floatVariable = {tempFloat1}
+    floatValue = 35
+    everyFrame = False
+  action RandomFloat (disabled)
+    min = 0
+    max = 1
+    storeResult = none
+
+[state fromPlayerBlock]
+  on FINISHED -> isPathValid 18
+
+[state done 2]
+  on FINISHED -> chanceToStomp 2
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "attackBOOL"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "treeAttack"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = False
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {attackStructure}
+    boolValue = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toTrackActiveTarget
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call toTrack (None)
+    stopOnExit = False
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event FINISHED
+    delay = 0
+    everyFrame = False
+
+[state chanceToStomp 2]
+  on toWander -> 
+  action SendRandomEvent
+    events = [null, event toWander]
+    weights = [0.15, 1]
+    delay = 0
+  action SetAnimatorTrigger
+    gameObject = owner
+    trigger = "tauntTrigger"
+  action Wait
+    time = 2
+    finishEvent = event toWander
+    realTime = False
+
+[state setToLand]
+  on doAction -> isPathValid 5
+  on noValidTarget -> retry 2
+  action SetBoolValue (disabled)
+    boolVariable = {exitWaterBool}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "creepyAnimatorControl"
+    methodName = "resetCreepyFemaleAnimator"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findRandomPoint (float)
+    stopOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = null
+    realTime = False
+
+[state isPathValid 5]
+  on toWander -> 
+  on validPath -> move 2
+  on noValidPath -> retry 2
+  action IntAdd (disabled)
+    intVariable = {counter1}
+    add = 1
+    everyFrame = False
+  action GameObjectIsNull (disabled)
+    gameObject = {treeGo}
+    isNull = event toWander
+    isNotNull = null
+    storeResult = none
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "enablePathSearch"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action IntCompare (disabled)
+    integer1 = {counter1}
+    integer2 = 5
+    equal = null
+    lessThan = null
+    greaterThan = event toWander
+    everyFrame = False
+  action Wait
+    time = 0.1
+    finishEvent = event validPath
+    realTime = False
+
+[state move 2]
+  on doAction -> stop2
+  on toWander -> 
+  on noValidPath -> retry 2
+  action SetBoolValue
+    boolVariable = {exitWaterBool}
+    boolValue = False
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action GetDistance
+    gameObject = owner
+    target = {wayPointGO}
+    storeResult = {tempDist1}
+    everyFrame = True
+  action FloatCompare
+    float1 = {tempDist1}
+    float2 = 6
+    tolerance = 0
+    equal = null
+    lessThan = event doAction
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 10
+    finishEvent = event toWander
+    realTime = False
+
+[state stop2]
+  on toWander -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SmoothLookAt (disabled)
+    gameObject = gameobject {rootGo}
+    targetObject = {treeGo}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = False
+    speed = 1
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action Wait
+    time = 1
+    finishEvent = event toWander
+    realTime = False
+
+[state retry 2]
+  on FINISHED -> setToLand
+  action Wait
+    time = 0.25
+    finishEvent = event FINISHED
+    realTime = False
+
+[state setToPlayer]
+  on FINISHED -> worldCheck
+  action InvokeMethod (disabled)
+    gameObject = owner
+    behaviour = "creepySfx"
+    methodName = "PlayerSighted"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event toExitWater
+    isFalse = null
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestPlayer"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state moveToPlayer]
+  on return -> stopRunning 4
+  on toRunAttack -> 
+  on noValidPath -> stopRunning 4
+  on goToHome -> 
+  on goToAttack -> toAttack
+  on goToAction -> chooseAction
+  on toRepel -> repelArtifact
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {toRepelArtifact}
+    isTrue = event toRepel
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {fsmGoHomeBool}
+    isTrue = event goToHome
+    isFalse = null
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 35
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "targetDist"
+    storeValue = {targetDist}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 1
+    max = 2
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state stopRunning 4]
+  on toWander -> 
+  on goToOnFire -> 
+  on goToAction -> chooseAction
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action GetAnimatorBool
+    gameObject = owner
+    parameter = "onFireBool"
+    everyFrame = False
+    result = {tempBOOL1}
+  action BoolTest
+    boolVariable = {tempBOOL1}
+    isTrue = event goToOnFire
+    isFalse = event toWander
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event toWander
+    realTime = False
+
+[state moveAwayFromPlayer]
+  on return -> stopRunning 4
+  on toRunAttack -> 
+  on noValidPath -> stopRunning 4
+  on goToExitWater -> 
+  on goToAttack -> toAttack
+  on goToAction -> chooseAction
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalkBack
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 1
+    max = 3
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state toAttack]
+  on goToAttack -> 
+  action SendEvent
+    eventTarget = to Self
+    sendEvent = event goToAttack
+    delay = 0
+    everyFrame = False
+
+[state strafePlayer]
+  on return -> stopRunning 4
+  on toRunAttack -> 
+  on noValidPath -> 
+  on goToExitWater -> 
+  on goToAttack -> toAttack
+  on goToAction -> stopStrafe
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = {tempInt1}
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 25
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 2
+    max = 4
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state setDir]
+  on FINISHED -> strafePlayer
+  action SetIntValue
+    intVariable = {tempInt1}
+    intValue = -1
+    everyFrame = False
+  action SendRandomEvent
+    events = [null, event FINISHED]
+    weights = [1, 1]
+    delay = 0
+  action SetIntValue
+    intVariable = {tempInt1}
+    intValue = 1
+    everyFrame = False
+
+[state stopStrafe]
+  on FINISHED -> chooseAction
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "strafeDir"
+    Value = 0
+    everyFrame = False
+
+[state idle]
+  on return -> stopRunning 4
+  on toRunAttack -> 
+  on noValidPath -> 
+  on goToExitWater -> 
+  on goToAttack -> 
+  on goToAction -> chooseAction
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 30
+    tolerance = 0
+    equal = null
+    lessThan = event goToAttack
+    greaterThan = null
+    everyFrame = True
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "targetDist"
+    storeValue = {targetDist}
+    everyFrame = True
+  action RandomFloat
+    min = 4
+    max = 7
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state temp]
+  on doAction -> State 1
+  action Wait
+    time = 6
+    finishEvent = event doAction
+    realTime = False
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "birth"
+    Value = False
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = False
+    everyFrame = False
+
+[state doDodge2]
+  on toWander -> 
+  action SetBoolValue
+    boolVariable = {gettingHit}
+    boolValue = False
+    everyFrame = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalkBack
+    delay = 0
+    everyFrame = False
+  action RandomInt
+    min = -1
+    max = 1
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "dodgePlayer"
+    Value = True
+    everyFrame = False
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "dodgeDirInt"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorTrigger (disabled)
+    gameObject = owner
+    trigger = "dodge"
+  action Wait
+    time = 2.5
+    finishEvent = event toWander
+    realTime = False
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+
+[state tempBirth]
+  on toWander -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "birth"
+    Value = True
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action Wait
+    time = 4.5
+    finishEvent = event toWander
+    realTime = False
+
+[state moveAwayFromPlayer 2]
+  on return -> chooseAction
+  on noValidPath -> stopRunning 4
+  on goToExitWater -> 
+  on goToAction -> tempBirth
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {fsmBlockBabySpawn}
+    isTrue = event return
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalkBack
+    delay = 0
+    everyFrame = False
+  action FloatCompare (disabled)
+    float1 = {targetDist}
+    float2 = {waypointArriveDist}
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat (disabled)
+    min = 3
+    max = 4
+    storeResult = {tempFloat1}
+  action Wait
+    time = 3
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state State 1]
+  on FINISHED -> temp
+  action RandomInt
+    min = 0
+    max = 1
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "randAttackInt1"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state hitstagger]
+  on toWander -> 
+  action Wait
+    time = 10
+    finishEvent = event toWander
+    realTime = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action BoolTest
+    boolVariable = {staggered}
+    isTrue = null
+    isFalse = event toWander
+    everyFrame = True
+
+[state attackOrDodge]
+  on doAction -> chooseAttack
+  on FINISHED -> doWalkback
+  action SendRandomEvent
+    events = [event doAction, event FINISHED]
+    weights = [1, 0.4]
+    delay = 0
+
+[state runToPlayer]
+  on return -> stopRunning 4
+  on toRunAttack -> 
+  on noValidPath -> stopRunning 4
+  on goToExitWater -> 
+  on goToAttack -> 
+  on goToAction -> stopRunning 4
+  on toChargeAttack -> leapAttackShort
+  action SetAnimatorBool (disabled)
+    gameObject = owner
+    parameter = "onFireBool"
+    Value = True
+    everyFrame = False
+  action BoolTest
+    boolVariable = {exitWaterBool}
+    isTrue = event goToExitWater
+    isFalse = null
+    everyFrame = False
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 25
+    tolerance = 0
+    equal = null
+    lessThan = event toChargeAttack
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 7
+    max = 10
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event goToAction
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state leapAttackShort]
+  on doAction -> 
+  on FINISHED -> doAttack
+  action RandomInt
+    min = -2
+    max = 0
+    storeResult = {randomInt1}
+    inclusiveMax = True
+  action SetAnimatorInt (disabled)
+    gameObject = owner
+    parameter = "attackType"
+    Value = {randomInt1}
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = -2
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = True
+    everyFrame = False
+
+[state counterAttack]
+  on toWander -> 
+  on toSpinAttack -> longSpinAttack
+  on toMainAttack -> 
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toStop
+    delay = 0
+    everyFrame = False
+  action SendRandomEvent
+    events = [event toSpinAttack, null]
+    weights = [{fsmSpinAttackWeight}, 0.6]
+    delay = 0
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 8
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toMainAttack
+    everyFrame = False
+  action RandomInt
+    min = 0
+    max = 2
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "counterAttackInt"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "attack"
+    Value = True
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "closeAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1.2
+    finishEvent = event toWander
+    realTime = False
+
+[state doCloseStomp]
+  on doAction -> 
+  on toWander -> 
+  on FINISHED -> coolDown 3
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stomp"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state coolDown 3]
+  on toWander -> 
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "stomp"
+    Value = False
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event toWander
+    realTime = False
+
+[state doMidAttack]
+  on doAction -> coolDown
+  on toWander -> 
+  on toSpinAttack -> longSpinAttack
+  action SendRandomEvent
+    events = [event toSpinAttack, null]
+    weights = [{fsmSpinAttackWeight}, 0.6]
+    delay = 0
+  action RandomInt
+    min = 0
+    max = 4
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 1.3
+    finishEvent = event doAction
+    realTime = False
+
+[state runToPlayer 2]
+  on return -> coolDown
+  on toRunAttack -> 
+  on noValidPath -> coolDown
+  on toChargeAttack -> toLeapAttack
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 35
+    tolerance = 0
+    equal = null
+    lessThan = event toChargeAttack
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 7
+    max = 10
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event return
+    realTime = False
+
+[state toLeapAttack]
+  on toAttack -> runToPlayer 3
+  on FINISHED -> coolDown
+  action SendRandomEvent
+    events = [null, event toAttack]
+    weights = [1, 1]
+    delay = 0
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "chargeAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state toArmSmashAttack]
+  on FINISHED -> coolDown
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = True
+    everyFrame = False
+  action Wait
+    time = 1
+    finishEvent = event FINISHED
+    realTime = False
+
+[state runToPlayer 3]
+  on return -> coolDown
+  on noValidPath -> coolDown
+  on toChargeAttack -> toArmSmashAttack
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toRun
+    delay = 0
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 25
+    tolerance = 0
+    equal = null
+    lessThan = event toChargeAttack
+    greaterThan = null
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 10
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action RandomFloat
+    min = 7
+    max = 10
+    storeResult = {tempFloat1}
+  action Wait
+    time = {tempFloat1}
+    finishEvent = event return
+    realTime = False
+
+[state doLongAttack]
+  on doAction -> coolDown
+  on toWander -> 
+  action RandomInt
+    min = 0
+    max = 2
+    storeResult = {tempInt1}
+    inclusiveMax = True
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = {tempInt1}
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "longAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo (disabled)
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare (disabled)
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 1.5
+    finishEvent = event doAction
+    realTime = False
+
+[state longSpinAttack]
+  on doAction -> coolDown
+  on toWander -> 
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 1
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "turnBool"
+    Value = False
+    everyFrame = False
+  action SetAnimatorInt
+    gameObject = owner
+    parameter = "attackType"
+    Value = 5
+    everyFrame = False
+  action SetAnimatorBool
+    gameObject = owner
+    parameter = "midAttack"
+    Value = True
+    everyFrame = False
+  action GetAnimatorCurrentStateInfo
+    gameObject = owner
+    layerIndex = 0
+    everyFrame = False
+    name = none
+    nameHash = none
+    tagHash = {getHash}
+    isStateLooping = none
+    length = none
+    normalizedTime = none
+    loopCount = none
+    currentLoopProgress = none
+  action IntCompare
+    integer1 = {getHash}
+    integer2 = {HashAttack}
+    equal = event doAction
+    lessThan = null
+    greaterThan = null
+    everyFrame = False
+  action Wait
+    time = 4
+    finishEvent = event doAction
+    realTime = False
+
+[state moveAroundWorld]
+  on toPlayer -> findPlayerPoint
+  on toSearch -> findWaypoint
+  on toAttract -> findArtifact
+  on toRepel -> repelArtifact
+  action BoolTest
+    boolVariable = {toAttractArtifact}
+    isTrue = event toAttract
+    isFalse = null
+    everyFrame = False
+  action BoolTest
+    boolVariable = {toRepelArtifact}
+    isTrue = event toRepel
+    isFalse = null
+    everyFrame = False
+  action SendRandomEvent
+    events = [event toSearch, event toPlayer]
+    weights = [0.9, 0.1]
+    delay = 0
+
+[state worldCheck]
+  on FINISHED -> moveToPlayer
+  on toNext -> moveAroundWorld
+  action BoolTest
+    boolVariable = {activeInWorld}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 90
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toNext
+    everyFrame = False
+
+[state worldCheck 2]
+  on FINISHED -> waitForTurns
+  on toNext -> walkForward
+  action BoolTest
+    boolVariable = {activeInWorld}
+    isTrue = null
+    isFalse = event FINISHED
+    everyFrame = False
+  action FloatCompare
+    float1 = {playerDist}
+    float2 = 90
+    tolerance = 0
+    equal = null
+    lessThan = null
+    greaterThan = event toNext
+    everyFrame = False
+
+[state walkForward]
+  on return -> stopRunning
+  action SendEvent
+    eventTarget = to GameObjectFSM owner fsm "global_motorFSM"
+    sendEvent = event toWalk
+    delay = 0
+    everyFrame = False
+  action GetFsmFloat (disabled)
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "targetDist"
+    storeValue = {targetDist}
+    everyFrame = True
+  action FloatCompare
+    float1 = {targetDist}
+    float2 = 24
+    tolerance = 0
+    equal = null
+    lessThan = event return
+    greaterThan = null
+    everyFrame = True
+  action Wait
+    time = 7
+    finishEvent = event return
+    realTime = False
+  action SendEvent (disabled)
+    eventTarget = to GameObjectFSM owner fsm "global_visionFSM"
+    sendEvent = event toLookForTarget
+    delay = 0
+    everyFrame = False
+
+[state exitWater]
+  on FINISHED -> setToLand
+
+[state findArtifact]
+  on FINISHED -> isPathValid
+  action SetBoolValue
+    boolVariable = {toAttractArtifact}
+    boolValue = False
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    methodName = "setToClosestArtifact"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action Wait
+    time = 0.2
+    finishEvent = event FINISHED
+    realTime = False
+
+[state repelArtifact]
+  on FINISHED -> isPathValid
+  on doAction -> isPathValid
+  action SetBoolValue
+    boolVariable = {toRepelArtifact}
+    boolValue = False
+    everyFrame = False
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantSearchFunctions"
+    functionCall = call findPointAwayFromArtifact (None)
+    stopOnExit = False
+  action Wait
+    time = 0.5
+    finishEvent = event FINISHED
+    realTime = False

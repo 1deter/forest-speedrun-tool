@@ -638,7 +638,19 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**This session: the knowledge bot's eval run + tuning** (no plugin code,
+**Latest session: the `megan-boss` card** (no plugin code, no release).
+Megan's FSMs exported live from the `ruben-megan` savestate (Full load,
+no slot swap) into `docs/fsm/megan-*.txt` and read with her code; card
+`knowledge/cards/megan-boss.md`, game-notes *Megan's boss AI*, 3 eval
+questions (replacing `unknown-megan`). The finding: within 35 m she
+attacks every cycle (picked by distance); the weighted roll (and every
+baby birth) comes only after 1-2 s beyond 35 m; births stop for good at
+3+ spawners. PlayMaker runs global transitions before local ones (IL).
+Left: resolve queue #1 on the VPS (the command below - ask the author
+first, the classifier blocks it otherwise); the card's open questions
+(knowledge/README.md research queue).
+
+**Before that: the knowledge bot's eval run + tuning** (no plugin code,
 no release; docs/knowledge-bot.md *Build order* 3). Eval 41% -> **87%**
 (+ the new questions ~88%), all on Flash-Lite: Flash's free daily quota
 runs out almost at once (gotcha 94), so the live bot is mostly Flash-Lite
@@ -659,10 +671,9 @@ deployed earlier the same day (`knowledge/` 24 cards, `bot/`, the VPS
 container; decisions in *Standing decisions* and docs/knowledge-bot.md;
 decompiled source in `%LOCALAPPDATA%\ForestOverlay\game-src\`). **Next:**
 the embedding model locally (author OK for ~130 MB, not asked), more
-cards (Megan's FSMs - `girlMutantAiManager.setAiParams` weights are read
-fine from code, the FSM side is not; cannibal AI), the production
-server once the admins agree. The queue holds only #1 (Megan - resolve
-it once her card exists; #2, the clip speed, resolved). VPS: `ssh -i
+cards (cannibal AI - export the motor / vision FSMs from a live cannibal
+first), the production server once the admins agree. The queue holds
+only #1 (Megan - her card exists now: resolve it; #2 resolved). VPS: `ssh -i
 ~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec
 forest-bot dotnet /srv/current/forest-bot.dll queue'` - the permission
 classifier blocks it unless the author asked for it in chat.
@@ -712,9 +723,9 @@ spot exists yet - making one is the author's call.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
    knowledge base (24 cards) and the bot (`bot/`) are built and live in
-   the QA server; eval + tuning done (87%, 2026-10-03); next more cards
-   (Megan, cannibal AI from `docs/fsm/`, categories, routes -
-   `knowledge/README.md`).
+   the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`
+   done (2026-10-03); next more cards (cannibal AI from `docs/fsm/`,
+   categories, routes - `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,

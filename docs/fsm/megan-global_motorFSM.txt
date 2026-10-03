@@ -1,0 +1,169 @@
+fsm global_motorFSM  on girlMutant(Clone)/girl_base
+start state: init
+active state now: wait
+
+[variables]
+  bool movingBool = False
+  vector3 modWantedDir = (0, 0, 0)
+  vector3 wantedDir = (0, 0, 0)
+  gameobject animatorGO = null
+  gameobject rootGo = GameObject 'girlMutant(Clone)'
+  gameobject target = null
+
+[events]
+  FINISHED (global), toMove (global), toRun (global), toStop (global), toWalk (global), toWalkBack (global), doAction, toWander, toRunAttack
+
+[global transitions]
+
+[state wait]
+  on toRun -> doMovement
+  on toWalk -> doWalk
+  on toWalkBack -> walkBack
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "Speed"
+    Value = 0
+    dampTime = 0
+    everyFrame = False
+  action InvokeMethod
+    gameObject = owner
+    behaviour = "mutantAI"
+    methodName = "stopMovement"
+    delay = 0
+    repeating = False
+    repeatDelay = 1
+    cancelOnExit = False
+  action SetBoolValue
+    boolVariable = {movingBool}
+    boolValue = False
+    everyFrame = False
+
+[state doMovement]
+  on toStop -> wait
+  on toWalk -> doWalk
+  on toWalkBack -> walkBack
+  action SetBoolValue
+    boolVariable = {movingBool}
+    boolValue = True
+    everyFrame = False
+  action SetVector3Value
+    vector3Variable = {modWantedDir}
+    vector3Value = {wantedDir}
+    everyFrame = True
+  action Vector3Multiply
+    vector3Variable = {modWantedDir}
+    multiplyBy = -1
+    everyFrame = True
+  action SmoothLookAtDirection
+    gameObject = gameobject {rootGo}
+    targetDirection = {modWantedDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 4
+    lateUpdate = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call startMovement (None)
+    stopOnExit = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "Speed"
+    Value = 1
+    dampTime = 0
+    everyFrame = False
+
+[state init]
+  on FINISHED -> wait
+  action FindChild
+    gameObject = owner
+    childName = "female_creepy_BASE"
+    storeResult = {animatorGO}
+  action GetRoot
+    gameObject = owner
+    storeRoot = {rootGo}
+  action GetParent (disabled)
+    gameObject = owner
+    storeResult = {rootGo}
+
+[state doWalk]
+  on toStop -> wait
+  on toRun -> doMovement
+  on toWalkBack -> walkBack
+  action SetVector3Value
+    vector3Variable = {modWantedDir}
+    vector3Value = {wantedDir}
+    everyFrame = True
+  action Vector3Multiply
+    vector3Variable = {modWantedDir}
+    multiplyBy = -1
+    everyFrame = True
+  action SetBoolValue
+    boolVariable = {movingBool}
+    boolValue = True
+    everyFrame = False
+  action SmoothLookAtDirection
+    gameObject = gameobject {rootGo}
+    targetDirection = {modWantedDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 2
+    lateUpdate = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call startMovement (None)
+    stopOnExit = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "Speed"
+    Value = 0.3
+    dampTime = 0
+    everyFrame = False
+
+[state walkBack]
+  on toStop -> wait
+  on toRun -> doMovement
+  on toWalk -> doWalk
+  action GetFsmGameObject
+    gameObject = owner
+    fsmName = "action_combatFSM"
+    variableName = "target"
+    storeValue = {target}
+    everyFrame = False
+  action SetBoolValue
+    boolVariable = {movingBool}
+    boolValue = True
+    everyFrame = False
+  action SmoothLookAt
+    gameObject = gameobject {rootGo}
+    targetObject = {target}
+    targetPosition = none
+    upVector = none
+    keepVertical = True
+    invertDirection = True
+    speed = 3
+    debug = False
+    finishTolerance = 1
+    finishEvent = null
+  action SmoothLookAtDirection (disabled)
+    gameObject = gameobject {rootGo}
+    targetDirection = {wantedDir}
+    minMagnitude = 0.1
+    upVector = none
+    keepVertical = True
+    speed = 2
+    lateUpdate = True
+  action StartCoroutine
+    gameObject = owner
+    behaviour = "mutantAI"
+    functionCall = call startMovement (None)
+    stopOnExit = False
+  action SetAnimatorFloat
+    gameObject = owner
+    parameter = "Speed"
+    Value = -0.3
+    dampTime = 0
+    everyFrame = False

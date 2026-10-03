@@ -14,10 +14,11 @@ fields. A field bound to an FSM variable reads `{name}`; `to GameObject
 | `player-staminaFSM.txt`, `player-rotatePlayerFSM.txt`, `player-noiseDetectFSM.txt`, `player-tempBlockManagerFSM.txt` | same | stamina, body rotation, noise, blocking |
 | `mutant-*.txt` | `mutant_male_BASE` (pooled; the female's four are identical) | cannibal brain, combat, encounters, sleeping |
 | `rabbit-aiBaseFSM.txt`, `lizard-aiBaseFSM.txt` | animals | small-animal AI |
+| `megan-*.txt` | `girlMutant(Clone)/girl_base`, transformed (savestate `ruben-megan`, Normal, 2026-10-03) | the boss fight: combat (94 states), motor, alert; read in `knowledge/cards/megan-boss.md` |
 
 Not here yet: the cannibals' `global_motorFSM`, `moveFSM` and
 `global_visionFSM` (their combat / brain FSMs send events there, but the
 pooled, inactive cannibals do not carry them - export them from a live one),
-Megan / the boss and other spawned-only FSMs - export them in a session that
+other spawned-only FSMs - export them in a session that
 reaches them (`type PlayMakerFSM all` lists what exists, `fsm <target>
 children`).
