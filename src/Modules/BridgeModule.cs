@@ -482,6 +482,7 @@ namespace ForestOverlay.Modules
                     return null;
                 }
                 case "tp": return Teleport(a, o);
+                case "fsm": return FsmCommand(a, o);
                 case "press": case "hold": case "release": case "axis": case "input":
                     return InputCommand(cmd, a, o, out waits);
                 case "mark": return MarkCommand(a, o);
@@ -562,6 +563,7 @@ namespace ForestOverlay.Modules
             "shot [name]   - a screenshot into the bridge folder",
             "press <action> [frames]   - the game's own input (Jump, Run, Crouch, Take, Fire1, Esc, ...): down next frame, held N frames (1), waits until released",
             "hold <action> [seconds] | release <action|all> | axis <name> <value> [seconds] | axis <name> off   - held until released / timed, no wait",
+            "fsm <target> [path] [children]   - PlayMaker FSMs as text (states, transitions, actions' fields) into bridge/fsm/; target a PlayMakerFSM, a Fsm or a GameObject",
             "input | input seen [clear]   - what is held; the action / axis names the game has read since the first input command",
         };
 
@@ -659,6 +661,37 @@ namespace ForestOverlay.Modules
         }
 
         private AreaKeeper _areas;
+
+        private string FsmCommand(List<string> a, List<string> o)
+        {
+            bool children = a.Remove("children");
+            if (a.Count < 1) return "fsm <target> [path] [children]";
+            object target; Type st;
+            string err = _probe.ResolveTarget(a[0], out target, out st);
+            if (err != null) return err;
+            if (a.Count > 1)
+            {
+                object v; Type vt;
+                err = _probe.Walk(target, st, a[1], out v, out vt);
+                if (err != null) return err;
+                target = v;
+            }
+            List<Component> fsms = FsmExport.Collect(target, children);
+            if (fsms.Count == 0) return "no PlayMakerFSM there (children looks below a GameObject)";
+            string dir = Path.Combine(_dir, "fsm");
+            Directory.CreateDirectory(dir);
+            foreach (Component pm in fsms)
+            {
+                int states, actions;
+                string text = FsmExport.Write(pm, out states, out actions);
+                string name = pm.gameObject.name + "-" + FsmExport.FsmName(pm);
+                foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                string path = Path.Combine(dir, name + ".txt");
+                File.WriteAllText(path, text, new UTF8Encoding(false));
+                o.Add(states + " state(s), " + actions + " action(s) -> " + path);
+            }
+            return null;
+        }
 
         // The game's own input (Game/InputInject): the reads every script
         // and PlayMaker action makes see the press, from the next frame.

@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.224 - 2026-10-03
+
+- Developer tool only (the test bridge): the game's PlayMaker state
+  machines (the player's actions, damage, combat) can be written out as
+  text for research. Nothing changes for runners.
+
 ## v0.24.223 - 2026-10-03
 
 - Developer tool only (the test bridge, off by default): the bridge can
