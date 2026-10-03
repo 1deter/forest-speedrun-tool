@@ -614,7 +614,12 @@ order - the order chunks happened to arrive. Not the transparent pass
 (only the lakes are transparent there) and no duplicate instances there;
 cause not found. Compare shots taken the same way (single views; a second
 view after a first loads in a different order), and when a diff flips, test
-the old build with `DELAY` first (gotcha 83).
+the old build with `DELAY` first (gotcha 83). **Gone in the current world**
+(2026-10-03, version 3 + far copies + culling): the tree spot at ground
+level (phone with touch, and 375 px without) and a desktop view from 100 m
+up, each with no delay and three `DELAY` seeds (60% of `b/*` held back):
+the draw order differed every time (`world.group.children`), the pictures
+did not (largest pixel difference 2 / 255). Closed; the gotcha stands.
 
 **The Elevator Boost end** (2026-10-02, headless vs a game `shot`): the
 end box (-456, 707, -1969) sits inside the overlook room, an endgame
@@ -641,8 +646,7 @@ rock; not yet seen by the author. Caves not drawn on the 2D map:
 (v0.24.221-222)** (*The photo map*, step 1); the south
 mountains' 3D textures: nice QoL, not a dealbreaker.
 
-Open: the load-order look
-(above); the web replay as fast
+Open: the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one
 pixel per CSS pixel with no antialiasing by default; its **Detail** button
 (beside Collision, `forest.map3d.detail` in localStorage, `Map3D.sharp`;

@@ -733,7 +733,8 @@ one (a preset save as a start state, `run = <category name>`, in
    middle's BigLake_v2 plane, every inland basin below sea level, the
    sinkhole's pool - author: "water is still missing"; not yet seen by the
    author). The 3D view's middle lake fixed (surface water by material,
-   2026-10-03; not yet seen by the author). The load-order look (gotcha 83, an investigation). The south mountains' textures in 3D: QoL, not a
+   2026-10-03; not yet seen by the author). The load-order look: gone in
+   the current world (2026-10-03, docs/website.md). The south mountains' textures in 3D: QoL, not a
    dealbreaker (author).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
