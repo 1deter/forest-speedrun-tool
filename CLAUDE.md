@@ -666,8 +666,8 @@ spot exists yet - making one is the author's call.
    building as a tool; multiplayer; live tests of the trap boost and the
    slide cancel. Then check *Reload save on death* gives the same game as
    a manual reload (docs/run-mode.md *Decisions*), then circle back.
-3. **The game-knowledge Discord bot** (author, 2026-10-03; decisions in
-   *Standing decisions*): first the knowledge base (Claude sessions write
+3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
+   decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): first the knowledge base (Claude sessions write
    per-tech explainers - mechanism, why it works, evidence, the optimal
    version, live / IL - and extract the PlayMaker FSMs to text), then the
    bot: `/ask` via Discord's interactions endpoint on the site's VPS, a
@@ -826,7 +826,9 @@ total playtime lines.
   the author's two Claude Pro plans build the knowledge base and tools.
   A private copy of the game's Assembly-CSharp.dll on the server is fine
   ("as long as it's not being served and just used as an informational
-  lookup ... for educating speedrunners").
+  lookup ... for educating speedrunners"). A **new Discord application**;
+  the author creates the Gemini key when it is built. Plan:
+  [`docs/knowledge-bot.md`](docs/knowledge-bot.md).
 - **Teleports and the endgame** (author, 2026-10-03): Go / tp behave
   like the game's own developer-console teleport - if the console does not
   load the endgame there, neither do we (a Go into the lab from a save
@@ -1107,7 +1109,8 @@ does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
 [`docs/game-notes.md`](docs/game-notes.md) (game internals),
 [`docs/investigations.md`](docs/investigations.md) (open threads across
 sessions, unverified items, test assets), [`docs/run-mode.md`](docs/run-mode.md)
-(run mode and anti-cheat: decisions, phases). Before
+(run mode and anti-cheat: decisions, phases), [`docs/knowledge-bot.md`](docs/knowledge-bot.md)
+(the game-knowledge Discord bot). Before
 adding a long block here, ask whether a session needs it on every turn
 or only when working on that area - the latter goes to `docs/`.
 
