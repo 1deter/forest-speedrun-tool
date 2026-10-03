@@ -66,6 +66,7 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             InitCodes(ctx);
             InitCategories(ctx);
+            InitMoves(ctx);
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             RunIntegrity.StartHashing(ctx.Log);
@@ -83,6 +84,7 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             bool loaded = InLoadedGame();
+            TickMoves(loaded);
             if (loaded && !_loaded) OnGameLoaded();
             bool reloading = _death != null && _death.ReloadPending;
             if (PlayerRef.AtTitleScreen && _attemptOpen && !reloading) EndAttempt("back to the title screen (a reset)", "title screen");
@@ -183,6 +185,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Reset();   // an attempt starts clean; the report keeps what came before
             RunCategory cat = CategoryFor(_runSpot);
             Ctx.Run.Begin(started, label, cat);
+            ResetMoves();
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -215,6 +218,7 @@ namespace ForestOverlay.Modules
         /// `reason`: the log's short word (reset, finished, title screen, ...).
         private void EndAttempt(string why, string reason)
         {
+            FlushMoves();   // a boost still being measured goes into this attempt's log
             _attemptOpen = false;
             Ctx.Run.Reset();
             CheckCategoriesSoon();   // a new version is ready for the next attempt
@@ -304,7 +308,8 @@ namespace ForestOverlay.Modules
             _nextText = Time.unscaledTime + 0.25f;
             bool confirming = Time.unscaledTime < _confirmUntil;
             string key = Ctx.Run.Active + "|" + Ctx.Run.Attempt + "|" + Ctx.Run.Flags.Count + "|" + Ctx.Run.EndedWhy + "|" +
-                         (_report != null ? _report.GameHash.Length + "|" + _report.ForeignPatches.Count + "|" + _report.Cheats.Count : "") + "|" + confirming;
+                         (_report != null ? _report.GameHash.Length + "|" + _report.ForeignPatches.Count + "|" + _report.Cheats.Count : "") + "|" + confirming +
+                         "|" + _attemptMoves.Count + "|" + MoveWatch.Status;
             if (key == _builtFor) return;
             _builtFor = key;
 
@@ -319,9 +324,11 @@ namespace ForestOverlay.Modules
             if (confirming) state += "\nClick End run mode again to unlock practice (a run in progress stops counting).";
             _stateText.text = state;
 
-            if (_report == null) { _findingsText.text = ""; return; }
+            string moves = MovesText();
+            if (_report == null) { _findingsText.text = moves; return; }
             List<string> lines = _report.Findings();
-            _findingsText.text = "Attempt " + _report.Attempt + " report:\n" + string.Join("\n", lines.ToArray());
+            _findingsText.text = "Attempt " + _report.Attempt + " report:\n" + string.Join("\n", lines.ToArray()) +
+                                 (moves.Length > 0 ? "\n" + moves : "");
         }
 
         /// The Runs tab's section; returns the new y.

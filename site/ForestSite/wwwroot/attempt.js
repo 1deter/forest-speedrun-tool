@@ -100,6 +100,17 @@ async function attemptPage(id) {
       cat.rules.length ? el("details", { class: "raw" }, el("summary", null, "Rules"), el("ul", null, cat.rules.map(r => el("li", null, r)))) : null);
   }
 
+  // Moves the game saw (the plugin's detection): leads for the verifier,
+  // never part of the verdict.
+  const moves = a.moves && a.moves.length ? el("section", null,
+    el("h2", null, "Moves the game saw"),
+    el("p", { class: "note" }, "The game noticed these during the attempt. They are not a verdict: check them on the video " +
+      "at the time shown, against the category's banned moves."),
+    lineList(a.moves.map(m => [m.maybeBanned ? "warn" : "note",
+      clock(m.realMs) + " - " + m.label + ": " + m.detail +
+        (m.pos ? " (at " + m.pos.map(v => Math.round(v)).join(", ") + ")" : "") + "." +
+        (m.maybeBanned ? " The category bans “" + m.maybeBanned + "” - this may be it." : "")]))) : null;
+
   const recording = a.recording && a.recording.judged === false && a.recording.verdict !== "red"
     ? el("p", { class: "sub" }, "Not judged: " + (cat ? cat.name : "this category") + " does not use the anti-splice codes. A log that contradicts the site would still show here.")
     : a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
@@ -116,6 +127,7 @@ async function attemptPage(id) {
     el("div", { class: "tablewrap" }, el("table", { class: "facts" }, el("tbody", null,
       facts.map(([k, v]) => el("tr", null, el("th", null, k), el("td", null, v)))))),
     rules,
+    moves,
     cat && !cat.antisplice ? null : el("section", null,
       el("h2", null, "Check a code"),
       el("p", { class: "note" }, "In run mode the game shows a four-letter code at the top of the screen that changes every second. " +

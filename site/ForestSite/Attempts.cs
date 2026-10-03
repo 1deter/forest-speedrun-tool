@@ -192,22 +192,28 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         var cps = Checkpoints(id);
         string report = null, started = null, plugin = null, startedAt = null, mode = null;
         int flags = 0;
+        AttemptChain.Replay replay = null;
         if (row.LogMs != null)
         {
-            var r = AttemptChain.Read(LogText(id));
+            var r = replay = AttemptChain.Read(LogText(id));
             report = r.Report; started = r.Started; plugin = r.Plugin; flags = r.Flags.Count;
             var parsed = RunReport.Parse(report);
             startedAt = parsed.StartedAt; mode = parsed.Started;
         }
         string verdict = "running";
         string[] why = Lines(row.Why);
-        object findings = null, recording = null, category = null;
+        object findings = null, recording = null, category = null, moves = null;
         if (row.LogMs != null)
         {
             var allowed = Allowed();
             var parsedReport = RunReport.Parse(report);
             var cat = CategoryOf(parsedReport);
             category = Categories.View(cat);
+            moves = MoveNotes(replay.Moves, cat).Select(m => new
+            {
+                kind = m.Kind, label = m.Label, realMs = m.RealMs, detail = m.Detail,
+                pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
+            }).ToList();
             var (v, all) = Overall(row.Verdict, why, report, allowed, cat);
             var (_, list) = JudgeReport(report, allowed, null, cat);
             verdict = v;
@@ -220,9 +226,44 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started, startedAt, mode,
             online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
-            steps = row.Steps, flags, verdict, why, recording, findings, rules = category,
+            steps = row.Steps, flags, verdict, why, recording, findings, rules = category, moves,
             report = ShownReport(report),
         };
+    }
+
+    // --- moves the game saw (pure, tested) -----------------------------------------
+
+    /// One `move` line for the attempt page (Data/MoveDetector).
+    public sealed record MoveNote(string Kind, string Label, long RealMs, string Detail, bool HasPos, double X, double Y, double Z,
+                                  string MaybeBanned);
+
+    // Words that name each kind in a category's banned moves (speedrun.com's
+    // rule text: "No bomb boosting", "The explosives glitch").
+    private static readonly Dictionary<string, (string Label, string[] Words)> MoveKinds = new()
+    {
+        ["bomb-boost"] = ("Bomb boost", new[] { "bomb", "explosi", "knockback" }),
+        ["huge-speed"] = ("Huge speed", Array.Empty<string>()),
+    };
+
+    /// The moves the game saw, in plain words, each with the category's
+    /// banned move it may be (by the words the rule uses) - a lead for the
+    /// verifier to check on the video. Never part of the verdict
+    /// (docs/run-mode.md: a move is never an automatic reject).
+    public static List<MoveNote> MoveNotes(IEnumerable<AttemptChain.MoveInfo> moves, RunCategory category)
+    {
+        var list = new List<MoveNote>();
+        if (moves == null) return list;
+        foreach (var m in moves)
+        {
+            string label = m.Kind;
+            string[] words = Array.Empty<string>();
+            if (MoveKinds.TryGetValue(m.Kind, out var k)) { label = k.Label; words = k.Words; }
+            string banned = null;
+            if (category != null)
+                banned = category.Banned.FirstOrDefault(b => words.Any(w => b.Contains(w, StringComparison.OrdinalIgnoreCase)));
+            list.Add(new MoveNote(m.Kind, label, m.RealMs, m.Detail, m.HasPos, m.X, m.Y, m.Z, banned));
+        }
+        return list;
     }
 
     // --- what ran: the report's findings (pure, tested) ----------------------------

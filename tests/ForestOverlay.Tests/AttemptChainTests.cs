@@ -109,6 +109,47 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void MovesAreFoldedAndReadBack()
+        {
+            AttemptChain c = new AttemptChain();
+            c.Header("a-0123456789abcdef", "r-1", "R", "0.24.227", "any", "", "", "seed", new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc));
+            c.Step(0, -1, true, 0, 0, 0);
+            string before = c.Head;
+            c.Move(1500, "bomb-boost", true, 772.5f, 40.25f, -0.01f, "game time stopped 1.00 s | (the pause menu)");
+            Assert.NotEqual(before, c.Head);   // folded: a removed move changes every later code
+            c.Move(1600, "huge-speed", false, 0, 0, 0, "300 m/s");
+            c.Step(2000, -1, true, 1, 1, 1);
+            c.End(2100, "reset", -1);
+            Assert.Contains("move|1500|bomb-boost|77250|4025|-1|game time stopped 1.00 s   (the pause menu)\n", c.Text);
+
+            AttemptChain.Replay r = AttemptChain.Read(c.Text);
+            Assert.Null(r.Error);
+            Assert.Equal(2, r.Moves.Count);
+            Assert.Equal(1500, r.Moves[0].RealMs);
+            Assert.Equal("bomb-boost", r.Moves[0].Kind);
+            Assert.True(r.Moves[0].HasPos);
+            Assert.Equal(772.5, r.Moves[0].X, 3);
+            Assert.Equal(-0.01, r.Moves[0].Z, 3);
+            Assert.False(r.Moves[1].HasPos);
+            Assert.Empty(r.Flags);   // a move is never a flag
+            Assert.Equal(c.Head, r.FinalHead);
+        }
+
+        [Fact]
+        public void BadMoveLinesAreRefused()
+        {
+            AttemptChain c = new AttemptChain();
+            c.Header("a-0123456789abcdef", "r-1", "R", "p", "any", "", "", "seed", new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc));
+            c.Step(1000, -1, true, 0, 0, 0);
+            string text = c.Text;
+            Assert.Equal("bad move line", AttemptChain.Read(text + "move|1200|bomb-boost|1|2|3\n").Error);
+            Assert.Equal("bad move line", AttemptChain.Read(text + "move|1200|bomb-boost|x|2|3|d\n").Error);
+            Assert.Equal("bad move line", AttemptChain.Read(text + "move|1200||1|2|3|d\n").Error);
+            Assert.Equal("time goes backwards at a move", AttemptChain.Read(text + "move|900|bomb-boost|1|2|3|d\n").Error);
+            Assert.Null(AttemptChain.Read(text + "move|1200|bomb-boost|-|-|-|d\n").Error);
+        }
+
+        [Fact]
         public void AttemptIds()
         {
             string id = AttemptChain.NewAttemptId();

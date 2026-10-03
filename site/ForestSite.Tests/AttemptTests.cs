@@ -157,6 +157,46 @@ public sealed class AttemptTests : IDisposable
         Assert.Contains("the test bridge is on", why[0]);
     }
 
+    [Fact]
+    public void Moves_NeverChangeTheVerdict()
+    {
+        var c = new AttemptChain();
+        c.Header(Id, Runner, "Runner", "test", "Any%", "-", "-", "seed", DateTime.UtcNow);
+        c.Nonce(100, "n1");
+        c.Step(1000, -1, true, 0, 0, 0);
+        c.Move(1500, "bomb-boost", true, 1, 2, 3, "game time stopped 2.00 s");
+        c.Move(1600, "huge-speed", true, 1, 2, 3, "1,500 m/s");
+        c.End(2000, "reset", -1);
+        var r = AttemptChain.Read(c.Text);
+        Assert.Null(r.Error);
+        var (v, why) = Attempts.Judge(r, "n1", Issued, new List<Attempts.Cp>(), Issued + 2000);
+        Assert.Equal("green", v);
+        Assert.DoesNotContain(why, w => w.Contains("boost") || w.Contains("m/s"));
+        var cat = RunCategory.Parse("[category]\nid = any\nname = Any%\nbanned = The explosives glitch\n").Single();
+        var (ov, _) = Attempts.Overall(v, why, Report(), new HashSet<(string, string)>(), cat);
+        Assert.Equal("green", ov);
+    }
+
+    [Fact]
+    public void MoveNotes_NameTheBannedMoveTheyMayBe()
+    {
+        var cat = RunCategory.Parse("[category]\nid = any\nname = Any%\nbanned = No log boosting\nbanned = The Explosives glitch\n").Single();
+        var moves = new List<AttemptChain.MoveInfo>
+        {
+            new() { RealMs = 1, Kind = "bomb-boost", Detail = "d", HasPos = true, X = 1 },
+            new() { RealMs = 2, Kind = "huge-speed", Detail = "d" },
+            new() { RealMs = 3, Kind = "something-new", Detail = "d" },
+        };
+        var notes = Attempts.MoveNotes(moves, cat);
+        Assert.Equal("The Explosives glitch", notes[0].MaybeBanned);   // not "log boosting": a bomb boost is not a log boost
+        Assert.Equal("Bomb boost", notes[0].Label);
+        Assert.Null(notes[1].MaybeBanned);
+        Assert.Equal("something-new", notes[2].Label);                 // a kind from a newer plugin still shows
+        Assert.Null(Attempts.MoveNotes(moves, null)[0].MaybeBanned);
+        var noBomb = RunCategory.Parse("[category]\nid = g\nname = Glitched\nbanned = No OOB\n").Single();
+        Assert.Null(Attempts.MoveNotes(moves, noBomb)[0].MaybeBanned);
+    }
+
     // --- what ran: the report ------------------------------------------------
 
     private static string Report(Action<RunReport> change = null)
@@ -343,6 +383,7 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal((HttpStatusCode)429, (await Post(token, "/api/attempts/" + Id + "/checkpoints", JsonContent.Create(new { step = 3, head = c.Head }))).StatusCode);
 
         c.Step(3000, 1100, true, 1, 2, 5);
+        c.Move(3050, "bomb-boost", true, 772.5f, 40f, 0f, "game time stopped 1.00 s");
         c.End(3100, "finished", 1150);
         string log = c.Text + AttemptChain.ReportMarker + "\n" + Report();
         var up = await Post(token, "/api/attempts/" + Id + "/log", new StringContent(log, Encoding.UTF8, "text/plain"));
@@ -361,6 +402,11 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal(1150, view["finalTimerMs"].GetValue<long>());
         Assert.Equal(Report().TrimEnd('\n'), view["report"].GetValue<string>());
         Assert.Equal("green", view["recording"]["verdict"].GetValue<string>());
+        // A move is shown, never judged: the attempt is still green.
+        var mv = Assert.Single(view["moves"].AsArray());
+        Assert.Equal("Bomb boost", mv["label"].GetValue<string>());
+        Assert.Equal(3050, mv["realMs"].GetValue<long>());
+        Assert.Equal(772.5, mv["pos"][0].GetValue<double>(), 3);
         Assert.All(view["findings"].AsArray(), f => Assert.Equal("ok", f["level"].GetValue<string>()));
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());

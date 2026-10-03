@@ -38,6 +38,8 @@ namespace ForestOverlay.Data
     //   nonce|<real ms>|<hex>       the site's, folded when it arrives
     //   split|<real ms>|<row>|<timer ms>
     //   flag|<real ms>|<why the attempt is not valid>
+    //   move|<real ms>|<kind>|<x cm>|<y cm>|<z cm>|<what happened>   a move the
+    //                               game saw (Data/MoveDetector): evidence, not a flag
     //   end|<real ms>|<reason>|<final timer ms or ->
     //   [report]                    the run report, not folded (a claim)
     // ------------------------------------------------------------------
@@ -123,6 +125,15 @@ namespace ForestOverlay.Data
         {
             LastMs = realMs;
             Add("flag|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + Clean(why));
+        }
+
+        /// A move the game saw (Data/MoveDetector kinds) - a verifier's lead,
+        /// never a reason the attempt is not valid.
+        public void Move(long realMs, string kind, bool hasPos, float x, float y, float z, string detail)
+        {
+            LastMs = realMs;
+            Add("move|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + Dash(kind) + "|" +
+                (hasPos ? Cm(x) + "|" + Cm(y) + "|" + Cm(z) : "-|-|-") + "|" + Clean(detail));
         }
 
         public void End(long realMs, string reason, long finalTimerMs)
@@ -227,6 +238,15 @@ namespace ForestOverlay.Data
             public string Code;
         }
 
+        public sealed class MoveInfo
+        {
+            public long RealMs;
+            public string Kind;
+            public bool HasPos;
+            public double X, Y, Z;   // metres
+            public string Detail;
+        }
+
         public sealed class Replay
         {
             public string Error;    // null = the log reads
@@ -245,6 +265,9 @@ namespace ForestOverlay.Data
 
             /// The step with number n, or null.
             public StepInfo Step(int n) { return n >= 1 && n <= Steps.Count ? Steps[n - 1] : null; }
+
+            /// Moves the game saw (`move` lines), in order.
+            public readonly List<MoveInfo> Moves = new List<MoveInfo>();
 
             /// Real time the log covers: its last record.
             public long LastMs;
@@ -326,6 +349,19 @@ namespace ForestOverlay.Data
                             if (ms < last) { r.Error = "time goes backwards at a flag"; return r; }
                             last = ms; r.Flags.Add(p[2]);
                             break;
+                        case "move":
+                        {
+                            if (p.Length != 7 || !Long(p[1], out ms) || p[2].Length == 0 || !Pos(p[3]) || !Pos(p[4]) || !Pos(p[5]))
+                            { r.Error = "bad move line"; return r; }
+                            if (ms < last) { r.Error = "time goes backwards at a move"; return r; }
+                            last = ms;
+                            MoveInfo mv = new MoveInfo();
+                            mv.RealMs = ms; mv.Kind = p[2]; mv.Detail = p[6];
+                            mv.HasPos = p[3] != "-" && p[4] != "-" && p[5] != "-";
+                            if (mv.HasPos) { mv.X = Metres(p[3]); mv.Y = Metres(p[4]); mv.Z = Metres(p[5]); }
+                            r.Moves.Add(mv);
+                            break;
+                        }
                         case "end":
                         {
                             long timer;
@@ -370,6 +406,11 @@ namespace ForestOverlay.Data
         {
             if (s == "-") { v = -1; return true; }
             return Long(s, out v);
+        }
+
+        private static double Metres(string cm)
+        {
+            return long.Parse(cm, NumberStyles.Integer, CultureInfo.InvariantCulture) / 100.0;
         }
 
         private static bool Pos(string s)

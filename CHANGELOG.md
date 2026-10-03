@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.227 - 2026-10-03
+
+- Run mode notices two moves and writes them into the attempt's log for
+  the verifier: a **bomb boost** (game time stopped during an explosion
+  knockback - how long, how many frames of push piled up, the speed and
+  distance after) and **huge speed** (over 200 m/s, not from a knockback,
+  a ride or a cutscene). They are never flags: the attempt stays valid,
+  and the attempt page lists them next to the category's banned moves so
+  the verifier knows where to look in the video.
+- The Runs tab lists the moves seen in the current attempt.
+
 ## v0.24.226 - 2026-10-03
 
 - Quick load in the endgame puts the lab's sliding doors back as they
