@@ -393,3 +393,30 @@ must:
 - on day 0 in daylight families sleep 250 s after spawning, then wake
 - day 0 has only skinny families (6 on Normal)
 - by default they stalk (aggression under 5); a stalker attacks when you come within 8 m
+
+### categories-list
+question: what speedrun categories does the forest have and what's the difference?
+cards: categories-and-rules
+must:
+- Any% (Creative only, everything allowed incl. bombs), Any% No Explosive Glitch, Any% Glitchless, Inbounds%, co-op boards, VR%, Bathrobe%, Shark%, 100%
+- No Explosive Glitch bans the explosives glitch (the bomb boost)
+- Glitchless bans out of bounds and clipping through walls, even in bounds
+- difficulty subcategories: Peaceful, Normal, Hardmode, Creative
+
+### categories-timing
+question: when does the timer start and stop in any%?
+cards: categories-and-rules, endgame-splits
+must:
+- starts when player movement occurs
+- ends when the "E" interact prompt disappears, starting the end cutscene
+- real time (RTA): loads and time paused count
+not:
+- says load times are removed
+
+### categories-bombs-normal
+question: can I use bomb boosts on normal difficulty runs?
+cards: categories-and-rules, bomb-boost
+must:
+- unrestricted Any% exists only for Creative; Normal is run under No Explosive Glitch or Glitchless
+- No Explosive Glitch bans the explosives glitch, i.e. the bomb boost
+- the moderators decide edge cases; the written rules are short

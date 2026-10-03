@@ -638,7 +638,17 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**Latest session: the `cannibal-ai` card** (no plugin code, no release).
+**Latest session: the `categories-and-rules` card** (no plugin code, no
+release). speedrun.com's API (game `w6j5341j`): every category's rules,
+subcategories and top 3 (one-off reads, 2026-10-03). Unrestricted Any% is
+Creative only; "explosives glitch" = the bomb boost, Glitchless bans OOB +
+wall clips ("Sahara" - place unknown), "Any% Bombs" and 100% have no runs.
+Peaceful = no enemies at all (`Cheats.NoEnemies`, game-notes). The bot's
+glossary now goes into search in parts (`Corpus` AddParts; it reached the
+6 KB chunk limit) - it is always in the prompt, keep its lines short.
+3 eval questions (52). Next: `routes`, `crafting-and-building`.
+
+**Before that: the `cannibal-ai` card** (no plugin code, no release).
 A new Normal game over the bridge (Slot 1 is Peaceful Creative - no
 cannibals; `GameSetup.Game` stays Creative across `OnNewNormalGame`, so
 `call static:TheForest.Utils.GameSetup SetGameType Standard` first; skip
@@ -729,10 +739,10 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base (26 cards) and the bot (`bot/`) are built and live in
-   the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`
-   and `cannibal-ai` done (2026-10-03); next more cards (categories,
-   routes, crafting - `knowledge/README.md`).
+   knowledge base (27 cards) and the bot (`bot/`) are built and live in
+   the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`,
+   `cannibal-ai`, `categories-and-rules` done (2026-10-03); next
+   more cards (routes, crafting - `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,

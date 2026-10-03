@@ -58,7 +58,7 @@ public sealed class Corpus
         if (File.Exists(glossary))
         {
             c.Glossary = Read(glossary, hash).Replace("\r\n", "\n").Trim();
-            c.Add(new Chunk { Id = "glossary", Kind = "glossary", Title = "Glossary", Text = c.Glossary });
+            c.AddParts("glossary", "glossary", "Glossary", "", c.Glossary);   // in parts once it outgrows a chunk
         }
 
         foreach (string name in DocNames)

@@ -3181,6 +3181,11 @@ marked.
   `ClampVelocity` also has 3 m/s (`hitByEnemy`) and 5.5 m/s
   (`setNearEnemyVelocity`, `doClampVelocity`, 0.65 s) caps - no caller of
   either found in C# or the exported FSMs.
+- **Peaceful = no enemies at all.** `Cheats.NoEnemies` is
+  `NoEnemiesInternal || (!IsCreativeGame && IsPeacefulMode) ||
+  (IsCreativeGame && !PlayerPreferences.AllowEnemiesCreative)`;
+  `spawnMutants.Start` returns at once on Peaceful or NoEnemies (surface,
+  caves, the boss-room babies), and the cave / worm spawns check it too.
 - **The pause menu stops time on every single-player difficulty**
   (`HudGui.TogglePauseMenu`: `if (!BoltNetwork.isRunning) timeScale = 0`);
   only the inventory skips Hard / Hard Survival
