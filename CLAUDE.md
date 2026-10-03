@@ -645,7 +645,10 @@ costs a third; the table's "less than linear" and the drift are terrain hits
 inside the window, which turn the speed sideways and UP (the vertical part
 is never zeroed: 500-1,100 m launches). Posted to QA. Turning the view with
 the bridge: `axis "Mouse X" v s` (+-2 for 0.1 s = ~60 deg; `set` on the
-rotation does not hold). **Next: 2d (position writers), then 2e.**
+rotation does not hold). **2d done** (game-notes *Position writers*): the
+climbing axe's cliff grab casts on ReflectBig + Terrain only, so it snaps
+through any other wall - confirmed live with a test cube; rope / keypad /
+rides surveyed. **Next: 2e.**
 
 **Handoff 2026-10-04 (from the overnight research session; the author
 switched session at ~500k context).** The overnight sweep (research, no code,
@@ -702,7 +705,7 @@ spot exists yet - making one is the author's call.
       (docs/fsm/).
    c. done (measured; the visualiser is designed in game-notes, not built -
       the author's call).
-   d. **Position writers**: every script that moves / parents the player
+   d. done (game-notes *Position writers*). Was: **Position writers**: every script that moves / parents the player
       directly instead of walking it (cutscenes, ropes, ladders, cliff
       climb, sit, raft, sled, cave enter / exit, keypad walk-up, Timmy /
       Megan pickups, the death warp; ~30, listed by grepping the decompiled

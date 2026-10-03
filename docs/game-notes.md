@@ -2833,6 +2833,50 @@ the hit state. **Correction:** `enemyWeaponMelee` sends `Explosion` to *trees*
 (creepy male / boss), not to the player - melee does not knock the player
 back this way.
 
+**Position writers** (2026-10-03, decompiled C# + live; tech round 2d).
+Every script that sets the player's position or parent directly (97
+methods reference the player's transform and a position / parent write;
+~30 really move the player). For each: where it puts the player, what
+starts it, and whether it checks walls - a snap is a free teleport through
+whatever the start check cannot see.
+- **Cliff climb (climbing axe, item 138) - goes through walls, live.**
+  `activateCliffClimb.scanForCliff` casts **5 m** from the camera with
+  layer mask 67117056 = **ReflectBig (13) + Terrain (26) only**; Take
+  snaps the player to `hit.point - forward` (`enterClimbCliff`). Anything
+  on another layer between the camera and a climbable surface is
+  invisible to the ray: live, a 0.3 m wall (a Default-layer cube) at 1.9 m
+  in front of a `Cliff_Rock` 3.8 m away - Take put the player 0.5 m past
+  the wall's far face, climbing. On the surface any ReflectBig rock
+  counts; in caves the hit must be tagged `climbWall`. Which real walls
+  qualify (layers: player-built walls, doors, the lab) is not checked -
+  read a wall's `layer` before trying one.
+- **Rope grab** (`enterClimbRope`): from up to **6.1 m** (camera to the
+  rope's bottom trigger), and if the player is more than 2.5 m below the
+  attach point, the position is set to it (a pull up to ~6 m). The wall
+  check casts trigger -> camera on Default, ReflectBig, Cave, Wall, Prop,
+  Blocker, Terrain - only small props / trees / animals let it through.
+- **Keypad walk-up** (`openKeypadDoor`): parents the player to the door's
+  `playerPos` from anywhere within **4.75 m** of the keypad while the
+  Grabber touches its trigger, idle / walking - no line-of-sight check.
+  A walk-up from behind or below a wall is plausible; untested, and the
+  pull goes to the door's front (where a runner already is).
+- **Rafts, houseboats, cranes** (`DynamicFloor.UpdatePlayerPosition`):
+  carry the player by writing the position every physics step (no
+  collision) while on the floor's extents or counted on it.
+- **Bench / chair** (`PlayerSitAction`): getting up puts the player back
+  where they sat down - no gain. **Skinning**: moves to 1.3 m (3 m for
+  type 5) from the animal, then back up to 2 m toward the start - stays
+  near the start. **Zipline grab**: within 2.5 m, snapped 2.5 m under the
+  line. **Rock thrower**: held at its seat, released there. **Cave crawl
+  entrances** (`doCave`): parented to the entrance and moved by the
+  animation (the force load above). **Crane climb**: x / z held on the
+  rope.
+- **Dead code**: `CaveTriggers.CaveDoorRoutine` (mirror the player through
+  a door, depth x 1.25 / 1.5) is never started.
+- Cutscenes (`TriggerCutScene`, `PlayerStats` drag-away / hanging / wake-up,
+  Timmy / Megan pickups, the endings) place the player at fixed markers -
+  no player-chosen destination.
+
 **Diagonal running is 10% faster** (live). `DetermineVelocityChange` clamps
 the input vector to length **1.1**, not 1: W alone = 1.0, W+A / W+D = 1.1.
 Walking: strafe 6.23 m/s, diagonal 6.91 m/s on the same floor. This is the
