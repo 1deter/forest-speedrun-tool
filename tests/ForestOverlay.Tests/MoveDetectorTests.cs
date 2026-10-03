@@ -426,5 +426,67 @@ namespace ForestOverlay.Tests
             s.Flush();
             Assert.Equal(MoveDetector.HugeSpeedKind, Assert.Single(s.Moves).Kind);
         }
+
+        // --- cave state force load ---------------------------------------
+        // Depths from the live survey of every crawl / swim entrance
+        // (2026-10-03): where a normal entry let go of the player.
+
+        [Theory]
+        [InlineData(12.4f)]   // Cave 1
+        [InlineData(7.5f)]    // Cave 2, the shallowest
+        [InlineData(8.2f)]    // Cave 5
+        [InlineData(9.3f)]    // Cave 3
+        [InlineData(45.2f)]   // a passage inside a cave
+        [InlineData(308.6f)]  // the end cave's swim entrance (the sinkhole: terrain 0)
+        public void A_normal_cave_entry_is_not_reported(float under)
+        {
+            var d = new MoveDetector();
+            d.CaveEntryEnded(new Vector3(1f, 2f, 3f), true, true, under, 9f, 6f);
+            Assert.Empty(d.Ready);
+        }
+
+        [Theory]
+        [InlineData(-3.1f)]   // let go at the Cave 1 mouth (it stands 3 m above the terrain)
+        [InlineData(0f)]
+        [InlineData(2.9f)]
+        [InlineData(3f)]      // the game's own line: not in a cave
+        public void An_entry_let_go_at_the_mouth_in_cave_state_is_reported(float under)
+        {
+            var d = new MoveDetector();
+            d.CaveEntryEnded(new Vector3(82f, 84f, 653f), true, true, under, 0.4f, 1.6f);
+            var m = Assert.Single(d.Ready);
+            Assert.Equal(MoveDetector.CaveForceLoad, m.Kind);
+            Assert.Equal(new Vector3(82f, 84f, 653f), m.Position);
+            Assert.Contains(under < 0f ? "above the terrain" : "under the terrain", m.Detail);
+            Assert.Contains("0.4 m from where it took hold", m.Detail);
+        }
+
+        [Fact]
+        public void An_entry_that_ends_out_of_cave_state_is_not_reported()
+        {
+            // ignoreLighting entrances never send InACave: no cave state, nothing gained.
+            var d = new MoveDetector();
+            d.CaveEntryEnded(Vector3.zero, false, true, -3f, 0f, 1.5f);
+            Assert.Empty(d.Ready);
+        }
+
+        [Fact]
+        public void An_entry_with_no_terrain_to_compare_is_not_reported()
+        {
+            var d = new MoveDetector();
+            d.CaveEntryEnded(Vector3.zero, true, false, 0f, 0f, 1.5f);
+            d.CaveEntryEnded(Vector3.zero, true, true, float.NaN, 0f, 1.5f);
+            Assert.Empty(d.Ready);
+        }
+
+        [Fact]
+        public void A_cave_force_load_survives_a_reset_and_needs_no_frames()
+        {
+            // It is reported at once, so an attempt ending or a teleport right after cannot lose it.
+            var d = new MoveDetector();
+            d.CaveEntryEnded(Vector3.zero, true, true, -1f, 0f, 1.5f);
+            d.Reset(drop: true);
+            Assert.Single(d.Ready);
+        }
     }
 }

@@ -23,6 +23,14 @@ namespace ForestOverlay.Game
     // timer it saw is timer - deltaTime). A push with Time.deltaTime 0 is a
     // push while game time is stopped: the bomb boost's whole mechanism.
     // A prefix keeps $PC from before the call (0 = the start).
+    //
+    // Cave entrances (IL, playerEnterCaveAction/<doCave>c__Iterator0
+    // ::MoveNext): $PC 0 = the start (`enter`: in, not out; the player is
+    // parented to `posGo` there); $PC 3 sends InACave; it returns false
+    // when it lets go of the player (or hands over to the Timmy goodbye
+    // cutscene, `timmyCutscene`). A call that started from $PC > 0 and
+    // returned false is the let-go: where the player is then, against the
+    // terrain, is Data/MoveDetector.CaveEntryEnded's whole question.
     // ------------------------------------------------------------------
     public static class MoveWatch
     {
@@ -39,6 +47,16 @@ namespace ForestOverlay.Game
         public static int Pushes, StoppedPushes, Knockbacks;
 
         public static string Status = "not installed";
+        public static string CaveStatus = "not installed";
+
+        /// Cave entries seen / let go of since startup ("did it see anything").
+        public static int CaveEntries, CaveLetGo;
+
+        private static FieldInfo _cavePc, _caveEnter, _cavePosGo, _caveThis, _caveTimmy;
+        private static PropertyInfo _isInCaves;   // static LocalPlayer.IsInCaves
+        private static bool _caveActive;
+        private static Vector3 _caveFrom;
+        private static float _caveAt;
 
         public static void Install(ManualLogSource log, string harmonyId)
         {
@@ -64,6 +82,7 @@ namespace ForestOverlay.Game
                 if (lp != null) _lpTransform = lp.GetField("Transform", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
                 _harmony = new Harmony(harmonyId + ".movewatch");
+                InstallCave(lp);
                 _harmony.Patch(move,
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Prefix", BindingFlags.Static | BindingFlags.NonPublic)),
                     new HarmonyMethod(typeof(MoveWatch).GetMethod("Postfix", BindingFlags.Static | BindingFlags.NonPublic)));
@@ -75,6 +94,84 @@ namespace ForestOverlay.Game
                 Status = "failed: " + ex.Message;
                 _log.LogWarning("MoveWatch: " + Status);
             }
+        }
+
+        private static void InstallCave(Type lp)
+        {
+            try
+            {
+                Type act = GameBridge.FindGameType("playerEnterCaveAction");
+                Type it = null;
+                if (act != null)
+                    foreach (Type n in act.GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic))
+                        if (n.Name.StartsWith("<doCave>")) { it = n; break; }
+                BindingFlags f = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo move = it != null ? it.GetMethod("MoveNext", f) : null;
+                _cavePc = it != null ? it.GetField("$PC", f) : null;
+                _caveEnter = it != null ? it.GetField("enter", f) : null;
+                _cavePosGo = it != null ? it.GetField("posGo", f) : null;
+                _caveThis = it != null ? it.GetField("$this", f) : null;
+                _caveTimmy = act != null ? act.GetField("timmyCutscene", f) : null;
+                _isInCaves = lp != null ? lp.GetProperty("IsInCaves", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+                if (move == null || _cavePc == null || _caveEnter == null || _isInCaves == null)
+                {
+                    CaveStatus = "the cave entrance coroutine was not found - cave state force loads are not detected";
+                    _log.LogWarning("MoveWatch: " + CaveStatus + ".");
+                    return;
+                }
+                _harmony.Patch(move,
+                    new HarmonyMethod(typeof(MoveWatch).GetMethod("CavePrefix", BindingFlags.Static | BindingFlags.NonPublic)),
+                    new HarmonyMethod(typeof(MoveWatch).GetMethod("CavePostfix", BindingFlags.Static | BindingFlags.NonPublic)));
+                CaveStatus = "watching cave entrances";
+                _log.LogInfo("MoveWatch: " + CaveStatus + " (" + it.Name + ".MoveNext).");
+            }
+            catch (Exception ex)
+            {
+                CaveStatus = "failed: " + ex.Message;
+                _log.LogWarning("MoveWatch: cave entrances " + CaveStatus);
+            }
+        }
+
+        private static void CavePrefix(object __instance, out int __state)
+        {
+            __state = -1;
+            try { __state = (int)_cavePc.GetValue(__instance); }
+            catch (Exception) { }
+        }
+
+        private static void CavePostfix(object __instance, bool __result, int __state)
+        {
+            try
+            {
+                Transform t = _lpTransform != null ? _lpTransform.GetValue(null) as Transform : null;
+                if (__state == 0)
+                {
+                    _caveActive = (bool)_caveEnter.GetValue(__instance) && __result;
+                    if (!_caveActive) return;
+                    CaveEntries++;
+                    GameObject at = _cavePosGo != null ? _cavePosGo.GetValue(__instance) as GameObject : null;
+                    _caveFrom = at != null ? at.transform.position : (t != null ? t.position : Vector3.zero);
+                    _caveAt = Time.time;
+                    return;
+                }
+                if (__result || !_caveActive) return;
+                _caveActive = false;
+                CaveLetGo++;
+                object self = _caveThis != null ? _caveThis.GetValue(__instance) : null;
+                if (self != null && _caveTimmy != null && (bool)_caveTimmy.GetValue(self)) return;   // the goodbye cutscene takes over
+                MoveDetector d = Detector;
+                if (d == null || t == null) return;
+                Vector3 p = t.position;
+                Terrain terrain = Terrain.activeTerrain;
+                float under = terrain != null ? terrain.SampleHeight(p) + terrain.GetPosition().y - p.y : float.NaN;
+                bool inCaves = (bool)_isInCaves.GetValue(null, null);
+                float from = Vector3.Distance(_caveFrom, p);
+                _log.LogInfo("MoveWatch: a cave entrance let go of the player at (" + p.x.ToString("0.0") + ", " + p.y.ToString("0.0") + ", " +
+                             p.z.ToString("0.0") + "), " + (terrain != null ? under.ToString("0.0") + " m under the terrain" : "no terrain") +
+                             ", in cave state " + inCaves + ", " + from.ToString("0.0") + " m from where it took hold.");
+                d.CaveEntryEnded(p, inCaves, terrain != null, under, from, Time.time - _caveAt);
+            }
+            catch (Exception) { }
         }
 
         public static void Uninstall()

@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.229 - 2026-10-03
+
+- Run mode now notices a **cave state force load**: a crawl or swim cave
+  entrance that puts you in cave state but lets go of you at the mouth,
+  outside, instead of inside the cave. It goes into the attempt's log with
+  where it happened and how far above / under the ground you were. Like the
+  bomb boost, it is a note for the verifier, never a flag - the attempt stays
+  valid, and the website lists it under "Moves the game saw".
+- Normal cave entries never show: every crawl and swim entrance in the game
+  was checked, and each leaves you at least 7 m underground.
+
 ## v0.24.228 - 2026-10-03
 
 - Huge speed is no longer reported for a teleport (a cave entrance, the

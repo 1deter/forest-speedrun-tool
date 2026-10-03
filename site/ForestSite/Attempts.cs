@@ -243,6 +243,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     {
         ["bomb-boost"] = ("Bomb boost", new[] { "bomb", "explosi", "knockback" }),
         ["huge-speed"] = ("Huge speed", Array.Empty<string>()),
+        ["cave-force-load"] = ("Cave state force load", new[] { "cave" }),
     };
 
     /// The moves the game saw, in plain words, each with the category's

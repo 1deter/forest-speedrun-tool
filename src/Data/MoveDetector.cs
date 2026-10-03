@@ -39,11 +39,25 @@ namespace ForestOverlay.Data
     // is the boost's own record). Speeds the game reaches by itself stay
     // under HugeSpeed: a sprint ~10 m/s, and a fall never passes 55.4 m/s
     // (live, 2026-10-03: from y 1500, the speed held at 55.43 for 16 s).
+    //
+    // Cave state force load (exact). A crawl / swim cave entrance
+    // (playerEnterCaveAction.doCave) parents the player to the entrance,
+    // sends InACave on a timer and lets the enter animation's root motion
+    // carry them in; it lets go once the animation ends. When the animation
+    // is cut short (the runners' smash in the air), the timer still sends
+    // InACave and the player is let go at the mouth: in cave state - no
+    // terrain collision, cave streaming - outside (game-notes *Cave state
+    // force load*). So: an entry that ends in cave state with the player
+    // not more than CaveDepth under the terrain (the game's own rule for
+    // "in a cave", LocalPlayer.Goto). Live survey (2026-10-03, every crawl
+    // and swim entrance in the game): a normal entry ends 7.5 m (Cave 2) to
+    // 300 m under the terrain; the mouths sit 0-3 m above it.
     // ------------------------------------------------------------------
     public sealed class MoveDetector
     {
         public const string BombBoost = "bomb-boost";
         public const string HugeSpeedKind = "huge-speed";
+        public const string CaveForceLoad = "cave-force-load";
 
         public const float PushPerFrame = 8f;      // m/s, the coroutine's AddForce
         public const int MinPausedPushes = 4;      // 32 m/s piled up
@@ -54,6 +68,7 @@ namespace ForestOverlay.Data
         public const float CalmSpeed = 30f;
         public const float CalmSeconds = 1f;
         public const float MaxPhysicsStep = 0.05f;   // a frame can hold a whole physics step (1/60 s) and then some
+        public const float CaveDepth = 3f;         // m under the terrain: LocalPlayer.Goto's "in a cave" (a normal entry ends >= 7.5)
 
         public sealed class Move
         {
@@ -200,6 +215,27 @@ namespace ForestOverlay.Data
             }
 
             Huge(gameDt, kinematic, pos, speed);
+        }
+
+        /// A crawl / swim cave entrance let the player go (doCave ended).
+        /// `inCaves`: the game's cave state now; `underTerrain`: the terrain
+        /// height above the player minus their height (negative = above
+        /// it; ignored without `hasTerrain`); `fromStart`: metres from where
+        /// the entry took hold of them; `seconds`: game seconds it held them.
+        public void CaveEntryEnded(Vector3 pos, bool inCaves, bool hasTerrain, float underTerrain, float fromStart, float seconds)
+        {
+            if (!inCaves || !hasTerrain || float.IsNaN(underTerrain) || underTerrain > CaveDepth) return;
+            Move m = new Move();
+            m.Kind = CaveForceLoad;
+            m.Position = pos;
+            m.Distance = fromStart;
+            m.Seconds = seconds;
+            m.Detail = "a cave entrance put the player in cave state and let go of them " +
+                       Mathf.Abs(underTerrain).ToString("0.0", CultureInfo.InvariantCulture) + " m " +
+                       (underTerrain < 0f ? "above" : "under") + " the terrain (a normal entry ends 7 m or more under it), " +
+                       fromStart.ToString("0.0", CultureInfo.InvariantCulture) + " m from where it took hold, after " +
+                       seconds.ToString("0.0", CultureInfo.InvariantCulture) + " s";
+            Ready.Add(m);
         }
 
         /// The attempt ends: what is still being measured is reported.

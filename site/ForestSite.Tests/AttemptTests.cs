@@ -195,6 +195,11 @@ public sealed class AttemptTests : IDisposable
         Assert.Null(Attempts.MoveNotes(moves, null)[0].MaybeBanned);
         var noBomb = RunCategory.Parse("[category]\nid = g\nname = Glitched\nbanned = No OOB\n").Single();
         Assert.Null(Attempts.MoveNotes(moves, noBomb)[0].MaybeBanned);
+
+        var caves = RunCategory.Parse("[category]\nid = gl\nname = Glitchless\nbanned = No bomb boosting\nbanned = Cave force loads\n").Single();
+        var cave = Attempts.MoveNotes(new[] { new AttemptChain.MoveInfo { RealMs = 4, Kind = "cave-force-load", Detail = "d" } }, caves)[0];
+        Assert.Equal("Cave state force load", cave.Label);
+        Assert.Equal("Cave force loads", cave.MaybeBanned);
     }
 
     // --- what ran: the report ------------------------------------------------
