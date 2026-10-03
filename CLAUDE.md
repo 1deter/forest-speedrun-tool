@@ -621,6 +621,33 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 
 ### Pick up here (2026-10-03, v0.24.222 released)
 
+**Overnight sweep 2026-10-03/04 (research, no code; detail in
+docs/game-notes.md *Speedrun tech* -> *Overnight sweep*).** New tech
+candidates, most useful first: (1) **bomb boost timing** - pause within
+~0.13 s of the blast (before the explode animation starts) = ~1,000 m/s for
+several physics steps (120-170 m for 0.5 s paused); paused later = one hop of
+0.13 m per paused frame (live); (2) **diagonal is 10% faster** (input clamped
+to 1.1, live); (3) **surface swimming ignores its 3 m/s cap when touching a
+wall at the side or under water** - sprint-swim along walls ~2.5x (IL);
+(4) **water wall jump**: 1.5x jump, no cooldown, touching a wall (IL);
+(5) the air keeps extra speed ~5x longer than the ground (live). Explained:
+the **red elevator checks no keycard** (only the gold door does - the lab
+skip works because of it; ride = 5 s + teleport + 25 s behind a locked
+0.1 m door = the "elevator skip"), the crouch-smash leaves a crouch-size
+capsule while standing (part of the panel clip; clip not reproduced),
+looking down shifts the colliders 0.4 m, placed walls lift the player out
+(no launch), Discrete tunnelling through the gold door at 100+ m/s
+(blocked in play by the 55 cap and the knockback's CCD), the first-death warp
+always lands at Cave2DeadPlace, a death while swimming is game over. Dead
+ends: inventory as a boost pause, early exit from the elevator ride, the
+snow-cave elevator upwards, mid-air saves. Correction: boss / creepy melee
+does not knock the player back. **Questions for the author:** may a session
+record a real panel clip with you (`anim watch` + per-frame positions) to
+finish the clip mechanism? Should *Banned moves: detection* add the elevator
+skip (leaving the car before its door unlocks) and wall-hug swimming?
+Untested live (no bridge Jump / Run input): water wall jump, swim cap, jump
+climbing steep slopes, trap / multi-thrower knockbacks.
+
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run

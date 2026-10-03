@@ -2643,7 +2643,7 @@ same stacking (IL, untested): the **large swinging rock trap**
 (`trapHit.registerTrapHit`: `largeSwingingRock`, rock speed > 11 m/s,
 `Explosion(-1)` to whatever it hits - `Player` / `playerHitDetect`
 included), enemy thrown rocks (`thrownRockDamage`), the fat creepy's charge
-(`fatCreepyCharger`), creepy-male / boss melee (`enemyWeaponMelee`). No other
+(`fatCreepyCharger`) - not melee (corrected in the overnight sweep below). No other
 per-frame push on the player exists (every `AddForce` on its rigidbody
 checked: zipline exit, glider drop, raft are one-off or other bodies).
 
@@ -2701,7 +2701,7 @@ lab. There is one keycard 210 in the world (`C6_Props/C6_secretRoom02/
 Keycard`, a world pickup that respawns on every save load). Not covered:
 multiplayer (a client of a host who opened it) and anything physical that
 reaches the buttons with the lab loaded.
-Facts on the way: **the lab's collision is in the main scene**
+Facts on the way (the red elevator itself checks no keycard - *Overnight sweep* below): **the lab's collision is in the main scene**
 (`EndCollision`, layer 25 `Blocker`, which the player collides with:
 artifact room, boss room, offices, corridors...) - always there, drawn or
 not (the "invisible section"); `ConsoleMacros/loadEndGame_macro` is the dev
@@ -2722,6 +2722,223 @@ in the endgame, `LoadEndgame.ForceUnload` + `ExitOverlookArea` /
 entry, cave state (`SetCurrentCave(1)`, `InACave`), `WakeInCave`, starvation
 0, thirst 0.35, `TimeOfDay` 1. In the endgame's boss fight it is
 `EndgameWakeUp` instead.
+
+### Overnight sweep (IL + bridge, 2026-10-03/04)
+
+The rest of the avenues from the tech sweep. Method: the game's assembly
+decompiled to C# (ILSpy, `ilspycmd`, into a scratch folder - faster to read
+than `ilscan body`), UnityEvent wiring read live over the bridge
+(`m_PersistentCalls.m_Calls[i].m_Target` / `m_MethodName`), tests at
+~220-240 fps on Slot 1 (Creative, god mode). **live** = reproduced over the
+bridge; **IL** = read only. The runners' own descriptions come from
+sxczurass's *Creative Bombless Any% Guide (2025)* (speedrun.com guides,
+YouTube `qGNfvSwsdII`, transcript) and the chapter list of fruich's 2023
+Creative tutorial; the other guide videos have no speech or no transcript.
+
+**Player physics numbers** (live). `Physics.gravity` is (0, -16, 0) and
+`FirstPersonCharacter.FixedUpdate` adds its own `-gravity * mass` (10 m/s²):
+**26 m/s²** in all. Jump = `sqrt(2 * jumpHeight 8 * gravity 10)` = 12.65 m/s
+up, ~3.1 m, ~1 s in the air. Physics runs at 60 Hz (`fixedDeltaTime`
+0.0167). Speed cap `maximumVelocity` 55 (applied each physics step while
+grounded or `jumping`, inside `if (!MovementLocked && (!Locked || landing))`).
+Walk 6.5, run 13.5 (x up to 1.3 with athleticism), crouch 4.5 (run-crouch
+x1.75), swim 3.75, glider cap 40. The player's rigidbody is **Discrete**
+(Continuous only during an explosion knockback), no interpolation, and
+`maxDepenetrationVelocity` is 1e32 (unlimited).
+
+**Bomb boost, refined** (live). The knockback coroutine pushes 8 m/s per
+rendered frame, but the push only builds freely until the player's animator
+(layer 2) enters the `explode`-tagged state, about **0.13 s of game time**
+(~30 frames at 230 fps); from then on `playerAnimatorControl.Update` sets the
+horizontal velocity to 0 every frame while that state plays. Measured:
+- knockback alone: up to 215-264 m/s, 25-40 m (stopped by the first tree);
+- **pause early** (within those ~0.13 s): the frames spent paused stay in the
+  velocity after the menu closes, for the rest of the free phase: 0.5 s
+  paused (~120 frames) = ~1,000 m/s for several physics steps, **120-170 m**;
+- **pause late** (the explode animation already playing, which lasts 0.5 s +
+  up to 0.25 s of game time): the piled-up push is applied for **one physics
+  step** and then zeroed: a hop of 8 x frames paused / 60 m = **0.13 m per
+  paused frame** (0.5 s at 240 fps = 16 m).
+So the long boost is "pause the instant the bomb goes off". The menu's
+`LockView` makes a grounded player kinematic (forces would be lost), but
+during the knockback `OnAnimatorMove` sets `isKinematic = false` every frame
+(root motion is on), so the push keeps piling up even from the ground. The
+direction is the player's back at the blast (both mouse rotators are off).
+The knockback uses **Continuous** collision detection: a boost cannot tunnel
+through static colliders (gold door test below: 200 and 1,500 m/s stopped).
+The inventory cannot replace the pause menu: it refuses to open while
+`useRootMotion` (the knockback) or `jumping`.
+Knockback sources (`Explosion(dist)` with dist < 15 to the player): bombs and
+explosives (`Explode`), the large swinging rock trap (`trapHit`, rock faster
+than 11 m/s, `Explosion(-1)`), thrown rocks faster than 12 m/s
+(`thrownRockDamage`: enemies' rocks and the player-built multi-thrower's
+projectiles, `MultiThrowerProjectile`), the fat creepy's charge
+(`fatCreepyCharger`), and in co-op the server's explosion event. A second
+explosion within 2.2 s is ignored (`isExplode`); a swimming player only gets
+the hit state. **Correction:** `enemyWeaponMelee` sends `Explosion` to *trees*
+(creepy male / boss), not to the player - melee does not knock the player
+back this way.
+
+**Diagonal running is 10% faster** (live). `DetermineVelocityChange` clamps
+the input vector to length **1.1**, not 1: W alone = 1.0, W+A / W+D = 1.1.
+Walking: strafe 6.23 m/s, diagonal 6.91 m/s on the same floor. This is the
+runners' "always run diagonally".
+
+**Air keeps speed ~5x longer than the ground** (live). Extra speed (40 m/s
+set by hand, W held): on the ground 40 -> 6.3 m/s in 0.1 s (up to 4 m/s
+removed per physics step plus friction); in the air 40 -> 6.5 m/s over
+~0.6 s (`HandleJumpSpeed`'s air control, fading with `clampAirTouch`). A real
+jump also zeroes all input for 0.2 s (`clampInput`), so the first 0.2 s of a
+jump loses nothing. Why runners jump after a zipline exit or a boost.
+
+**Jump and grounding rules** (IL). A jump needs `allowJump`, `CanJump`, not
+crouch-blocked, not on a rope / sled / climbing / diving / locked / in the
+inventory, and `Grounded` **or** within 0.21 s of the last grounded physics
+step (`fauxGroundedTimer`, coyote time; then `blockFauxJump` for 0.5 s).
+`allowJump` turns off 0.25 s after leaving the ground; a jump blocks the next
+press for 0.2 s. `Grounded` is set by any collision with a contact below the
+capsule's lower sphere (or 3+ contacts in its lower 0.8 m) - **there is no
+slope-angle check**, except for CapsuleColliders (normal steeper than 45° does
+not ground) and surfaces marked slippery (`getWalkableSurface`: there the jump
+is 1/9 high). Above 65° (`extremeAngleGroundedLimit`) friction drops to 0, so
+the player slides - but stays grounded and may jump. Live: sliding down an
+~80° terrain face read `Grounded` and `allowJump` true. Jump-climbing a steep
+face could not be tested (the bridge cannot press Jump).
+
+**Water** (IL). Jump while swimming: touching a wall at the side
+(`collisionFlags == Sides`) or a low mesh contact (`allowWaterJump`) gives
+**1.5 x the land jump** (19 m/s, ~7 m) with **no cooldown**; otherwise a small
+water jump (6.3 m/s) with a 1 s block. Surface swimming is capped at 3 m/s
+(`maxSwimVelocity`) even when sprinting (target 3.75 x 2.2 = 8.25), **except
+while touching a wall at the side or with the head under water** - the cap is
+not applied then (diving has its own 6.5-7 m/s cap). So sprint-swimming along
+a shore or wall, or diving, is up to ~2.5x faster than open-water swimming.
+The inventory cannot open under water.
+
+**Looking down moves the player's colliders** (live). Every frame
+`playerAnimatorControl` sets the body capsule's and the head sphere's centre
+`z = Clamp(normCamX, 0, 0.4)`: looking down shifts both **0.4 m forward**.
+
+**The axe ground smash and the panel / elevator clip** (live, the clip itself
+not reproduced). The runners' recipe: crouch, face the wall / panel,
+Shift+W, jump, smash the axe into the ground at the top of the jump (looking
+down), and as the axe hits the ground move the mouse up and **uncrouch**; it
+needs uncapped fps. Measured pieces:
+- during a ground smash (`axeAttackGround1`, `doingGroundChop`) the head
+  sphere (r 0.6) follows the head bone: centre forward 0.4 -> **1.63 m** and
+  down 1.76 -> 0.97 m over ~30 frames. Pressed against the gold door it pushed
+  the body back 0.24 m (no clip, standing);
+- `ScaleCapsuleForCrouching` does nothing while `doingGroundChop`. Standing up
+  during the smash lets the stand-up routine finish without resizing: the
+  player stands (`crouching` false) with the **body capsule still crouch-size
+  (3 m, centre -0.85) until the next crouch**, and the head sphere snaps back
+  to standing height when the smash ends - a 0.5 m gap between body and head
+  colliders. This is the "uncrouch when the axe hits the ground" step.
+Why fps matters and how it ends up on the far side were not found; a real
+input recording (or the author doing it with `anim watch` and per-frame
+position reads) is the next step.
+
+**Depenetration** (live). A static collider appearing inside the player (a
+box moved into the feet by 0.3 / 1 / 2 m) lifts the player out by exactly
+that depth in one step, with **no** velocity left over. So a wall or log
+placed where the player stands lifts them onto it - the likely core of the
+runners' custom-wall "climbing wall boost" (and log boosts) - but it is a
+lift, not a launch.
+
+**Tunnelling** (live). The player (Discrete) through the gold door's 0.11 m
+leaves: 20 / 40 / 55 m/s stopped; with the speed cap off (as during a
+knockback) **100 / 200 / 500 m/s passed through**; the same with Continuous
+(the knockback's mode) stopped at 200 and 1,500 m/s. The 55 cap and the
+knockback's CCD close this in normal play; a way to be over ~60-100 m/s
+while Discrete and not capped (Locked / MovementLocked when the knockback
+ends) was not found.
+
+**Red elevator: no keycard anywhere** (live wiring + IL).
+`Sections/HellCorridor/Elevator_01a`: the **Enter Button**
+(`ButtonDoorSystem.ActivateButton`) opens and unlocks the car door; Take on
+`Trigger_Elevator` (car door closed) -> `AnimationSequence` stage 1 ->
+`PlayerPositionTest1` (within 7 m of the car) -> `PlayerPositionTest2`
+(inside, in front of the trigger) -> `ElevatorSystem.GotoRemotePoint`.
+`setKeycardId(242)` there only picks the animation; nothing calls `Owns`.
+Live without keycard 242: 5 s wait (no animation played, the player was not
+moved) -> car and player teleported together (relative offset kept) to the
+overlook (-542.44, 704.79, -1967.46) -> **25 s** with the car door
+**locked** (`MovingDummy` is active during the ride: its `OnEnableProxy` sends
+`Lock`, `OnDisableProxy` `Unlock`) -> door opens. Entering the door's trigger
+mid-ride did nothing; after the ride it opened the door. The door leaves are
+0.1 m boxes - the runners' "elevator skip" clips out of the locked car early
+(up to 25 s). The keycard is checked only at the gold door
+(`ArtifactRoom/ElevatorCardReader/Trigger`, `activateKeypadDoor`, 242), which
+unlocks `LabDoor_Door (4)` between the ArtifactRoom and the BrokenCorridor.
+Area gates (route order): ... GlassOffice_C -> ArtifactRoom -> CorridorBasic
+-> Meetingrooms -> Lab Corridor -> BossRoom (Megan), and ArtifactRoom ->
+**(gold door)** BrokenCorridor -> EndgameCaves -> HellCorridor (red elevator)
+-> ControlRoom. Getting past the gold door any other way skips Timmy, Megan
+and the boss: that is the runners' **lab skip** (rocks, ledges and seven jumps
+on invisible collision - the lab's `EndCollision` is always present, the
+sections draw only when entered through their gates - then a smash clip into
+the elevator corridor), which the keyless elevator makes work. Use limit 1.
+Also: the overlook's second elevator (`Elevator_ToSnowCave EG`) is one-way
+down to the snow cave (the car starts at the top, its trigger is disabled
+once it moves) - no way up from below. With the lab **unloaded** (after
+leaving it backwards, a tp out, a first death) the main-scene collision has an
+**open doorway** where the gold door stands (only the side wall
+`Collision_ArtifactRoom/collision (31)`); the door leaves, the elevator and the
+end buttons all live in `endgame_streaming`. `_canLoad` stays true once the
+vault door opened, so re-entering reloads the lab fresh (doors locked again).
+
+**Keypad prompts** (IL). `activateKeypadDoor.Update` shows the Take prompt
+only within 4.75 m, not on a rope, and with the base animator layer in an
+idle- or walk-tagged state - not jumping, falling or landing. Hence "jump from
+the lowest point so the keycard button shows up instantly". In co-op the door
+opening (`DoEnvironmentAnimation` -> `onDoorOpen` -> `SetCanLoad`) runs on
+every player, so one keycard opens the lab for all.
+
+**The game's timers and pauses** (IL). The inventory sets `timeScale` 0 (and
+caps fps at 60) only in Normal / Peaceful / Creative single player - not Hard,
+Hard Survival, co-op or VR. While on a zipline the inventory component is
+disabled: no inventory and no pause menu on a zipline. Real-time timers that
+keep running while paused: the adrenaline rush cooldown (120 s,
+`realtimeSinceStartup`; the rush gives back half the missing stamina when
+health drops into the grey zone) and the crafting / upgrade animation.
+`jumpingTimer` and the 0.35 s fall-damage arm (`Invoke`) are game time; a
+load hitch counts in full (`maximumDeltaTime` 9 s), so a hitch mid-fall can
+turn a survivable landing into the 3.8 s "fell too long" death.
+
+**Deaths** (live + IL). All seven `DeadSpotController.DeadSpots` entries are
+the same `Cave2DeadPlace` (-692.29, 110.44, 1110.9): the first death's
+"random" warp is always there (single player, outside the boss fight; the
+first death outside a cave plays the drag-away cutscene first, then the
+same warp). IL: a death **while swimming** (drowning, or killed in the water)
+goes to `DeathInWater` -> `KillMeFast` after 7 s - the game-over camera, no
+warp, even on the first death (single player).
+
+**Rides** (IL). Zipline: +10 m/s² along the line per physics step, capped
+50 m/s; Jump or Take lets go and keeps the velocity (`PreserveExitVelocity`
+adds a fading push along the line for 1 s) and restarts `jumpingTimer`. The
+runners' zipline boost is that exit speed kept by staying in the air.
+
+**The runners' words, mapped** (sxczurass's guide; mechanism status):
+uncapped fps for the panel clip (fps dependence not explained yet);
+"plane clip" / "panel clip" / lab-skip clip / "elevator boost" = the
+crouch-smash-uncrouch above; "slide on the bodies to not get fall damage"
+(cave 6 drop to the keycard) = the fall-damage rule above (*Fall damage and
+the slide cancel*: damage is judged on the last collision enter, and a body's
+steep collider turns the fall into a slide; untested); "custom wall ... boost
+yourself to the top" = the depenetration lift; "spam 1 after the keycard
+pickup" = equipping cancels the pickup animation before the book opens;
+"a trigger loads the rest of the caves" (cave 4) - pass it or the cave stays
+unloaded; "jump from the lowest point" = the keypad prompt rule; "always run
+diagonally" = the 1.1 input clamp; zipline boost = the kept exit speed.
+
+**Dead ends** (this sweep): the inventory as a bomb-boost pause (refused, see
+above); other per-frame pushes (the zipline, the glider and the shell sled
+push once per physics step, not per frame); leaving the red elevator car
+through its door trigger mid-ride (locked); calling the red elevator from
+outside the car (the "in front" test needs the player inside); riding the
+snow-cave elevator up; saving mid-air (the game saves only at shelters);
+falling "through" steep terrain (it was the player walking off a ledge into a
+hole - and a capsule spawned inside a 77° face by our own tp).
 
 ## How to extend this file
 
