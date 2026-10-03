@@ -765,3 +765,12 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     m_PersistentCalls.m_Calls[i]`) and invoke them instead of setting the
     flag. A normal cave round trip was fine - test from a save loaded
     inside, not only from a walk in.
+
+88. **An image library's resize can read the alpha as coverage.**
+    (2026-10-03, site.) Pillow's RGBA `thumbnail` premultiplies by alpha;
+    the game's Standard-shader textures keep smoothness in the alpha (0 on
+    the lab's concrete, metal, rubber), so the export wrote 19 of them
+    solid black (the overlook, the boss room - the author noticed it after
+    the cave work). Resize colour and alpha apart, and after an export
+    count textures whose mean is ~0 (`world_pack.read_texture`) - 1 of 523
+    is meant to be black (`BlackFadeIntoCaves`).

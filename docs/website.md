@@ -269,7 +269,7 @@ chunks within 700 m of the camera's target, one InstancedMesh per model.
    `world/area-members.txt`, what each area switches on (below). Every
    `placed-*.txt` / `greebles-*.txt` in that folder goes into the export:
    keep diagnostic `Placed` dumps elsewhere (gotcha 78).
-2. **Export** (offline, ~1 min, `pip install UnityPy meshoptimizer`):
+2. **Export** (offline, ~5 min with the far copies, `pip install UnityPy meshoptimizer`):
    `python scripts/world-extract.py export` reads the scenes from the game's
    files (level2 main, 7 endgame, 11, 15-30 cave props) + spawned.txt ->
    `site/world-out/` (not in git): `world.json` (materials, meshes, models,
@@ -644,7 +644,14 @@ rock; not yet seen by the author. Caves not drawn on the 2D map:
 **fixed 2026-10-02** (*Caves on the 2D map* below); the photo map's
 "overlook's shadow" with no overlook: **fixed and recaptured
 (v0.24.221-222)** (*The photo map*, step 1); the south
-mountains' 3D textures: nice QoL, not a dealbreaker.
+mountains' 3D textures: **fixed 2026-10-03** - their maps kept at 1024 px
+(`BIG_MATERIALS`) and the Standard shader's detail albedo (`_DETAIL_MULX2`,
+116 materials: "detail" + "detailScale") multiplied in (`detailLayer`, x4.59
+in linear light). Same day: 19 lab textures (the overlook, the boss room)
+were solid black - Pillow's RGBA resize premultiplies by the alpha, where
+Standard textures keep smoothness (0); colour and alpha now shrink apart
+(gotcha 88). Live world build 1790991223; checked headless, not yet seen
+by the author.
 
 Open: the web replay as fast
 as possible (author, 2026-10-02) - **started**: the 3D view draws at one

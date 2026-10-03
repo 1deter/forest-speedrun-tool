@@ -564,6 +564,7 @@ One line each; the story, the version and the fix for every one are in [`docs/go
 85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material.
 86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer.
 87. **An exit is an event, not a flag** - our tp out of the endgame cleared `IsInEndgame` only; the game's `ExitEndgame` event also turns the sun back on. Invoke the trigger's UnityEvents; test from a save loaded inside.
+88. **An image library's resize can read the alpha as coverage** - Pillow's RGBA thumbnail premultiplies; Standard textures keep smoothness there (0) and 19 lab textures exported black. Resize colour and alpha apart; count black textures after an export.
 
 ---
 
@@ -734,8 +735,11 @@ one (a preset save as a start state, `run = <category name>`, in
    sinkhole's pool - author: "water is still missing"; not yet seen by the
    author). The 3D view's middle lake fixed (surface water by material,
    2026-10-03; not yet seen by the author). The load-order look: gone in
-   the current world (2026-10-03, docs/website.md). The south mountains' textures in 3D: QoL, not a
-   dealbreaker (author).
+   the current world (2026-10-03, docs/website.md). The south mountains'
+   textures in 3D and the black lab textures (overlook, boss room) fixed
+   and live (2026-10-03, world build 1790991223; not yet seen by the
+   author). *Next* 1 is done apart from texture arrays (only if frame
+   times call for them).
 2. **A session with the author** for what needs their eyes or hands
    (investigations *Not seen by the author / needs hands*, plus the run
    mode check above) and the decisions below.
