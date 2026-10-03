@@ -699,7 +699,12 @@ spot exists yet - making one is the author's call.
    private copy of Assembly-CSharp.dll, FSM lookup), confidence tags and
    sources, unanswered questions queued for research sessions, per-user
    rate limits, "busy" when the quota is out.
-4. Then the main *Next up* list below.
+4. Then the main *Next up* list below. **Ideas waiting (author,
+   2026-10-03):** a run audit log (every interaction, on the attempt
+   page's timeline) and richer replays (buildings as schematics,
+   first-person replays with animations, a trajectory / "grenade camera"
+   view for bomb boosts and ziplines) - [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md),
+   open questions there for the author.
 5. **Last, when every task is done** (author, 2026-10-03: "leave these for
    later when we're done with all tasks"): run mode by hand with the author
    - a real ESC + F2, the Runs tab section, End / Start run mode by
@@ -1133,7 +1138,8 @@ does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
 [`docs/investigations.md`](docs/investigations.md) (open threads across
 sessions, unverified items, test assets), [`docs/run-mode.md`](docs/run-mode.md)
 (run mode and anti-cheat: decisions, phases), [`docs/knowledge-bot.md`](docs/knowledge-bot.md)
-(the game-knowledge Discord bot). Before
+(the game-knowledge Discord bot), [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md)
+(audit log and replay ideas). Before
 adding a long block here, ask whether a session needs it on every turn
 or only when working on that area - the latter goes to `docs/`.
 

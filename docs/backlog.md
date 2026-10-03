@@ -77,7 +77,9 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   #general 2026-09-26; a second click is asked today only when attempts
   would be retired).
 - **A full replay system** (sxczurass + author, 2026-09-26: "lets go all
-  the way").
+  the way"). Expanded 2026-10-03 (author): audit log, buildings as
+  schematics, first-person replays, trajectory / grenade camera -
+  [`run-audit-and-replays.md`](run-audit-and-replays.md).
 - How to display all the events (author `1553860730900455527`) - the
   editor's picker groups for now (`first-input` exists since v0.24.193).
 - **Site: spots** (author, 2026-09-27): categories for runners' spots
