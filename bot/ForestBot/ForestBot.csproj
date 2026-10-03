@@ -24,7 +24,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>forest-bot</AssemblyName>
     <RootNamespace>ForestBot</RootNamespace>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Off: Discord.Net builds CultureInfo("en-US") from each server's locale and throws in invariant mode (first live run). -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
