@@ -245,9 +245,8 @@ Decided with the author (2026-10-02):
   log (author: "i'll leave it up to you"; 5-10 active runners - admin /
   moderator / verifier roles are not worth it yet).
 - **Banned moves are text** for now, shown on the attempt page; seeded
-  from speedrun.com's "No ..." rule lines. **Later** (author): research
-  the runners' tech (what the community calls a glitch, what is in
-  between) and detect what can be detected.
+  from speedrun.com's "No ..." rule lines. The tech is researched
+  (2026-10-03, *Banned moves: detection* below); detection not built yet.
 - **Reload save on death** is a feature like the others (default:
   runner's choice). **Later** (author): the check that both reload paths
   give the same game as a manual reload, then circle back.
@@ -310,6 +309,30 @@ the bridge against a local site):
   run spot's start, `_etag`; a change during a run is a notice + the Runs
   tab line "from the next attempt"); `WebRequest.Send` with headers and
   one response header back; the site's `Categories.ETag` / `Unchanged`.
+
+## Banned moves: detection (research 2026-10-03, nothing built)
+
+How each common move works is in [`game-notes.md`](game-notes.md) *Speedrun
+tech and the endgame gate*. Whether a move is a glitch is the community's
+call; this is what the plugin could see. Each would be a run event in the
+attempt log (time, place, numbers), shown on the attempt page and matched
+against the category's banned moves - a flag for a verifier, never an
+automatic reject.
+
+| Move | What the plugin would watch | Certainty |
+|---|---|---|
+| Bomb boost (pause during a knockback) | postfix on `PlayerStats.Explosion(float,bool)` (knockback started: `isExplode` rose) + `HudGui.TogglePauseMenu(true)` within its 0.5 s of game time; log the seconds paused and the speed after | exact - the boost cannot happen without both |
+| Any huge speed | the player's speed over ~150 m/s (a sprint is ~10, a knockback ~100) outside our own teleports / restores | exact as a number; says nothing about how |
+| Cave state force load | `InACave` sent by `playerEnterCaveAction.doCave` while the player is not under the terrain (the game's own rule: `SampleHeight - y > 3`); also cave state above the terrain for > 2 s away from a cave mouth | high |
+| Fall damage cancel | prefix on `FirstPersonCharacter.HandleLanded`: our own fastest downward speed over the last ~0.2 s > 28 m/s while the game's `prevVelocity` <= 28 (or > 3.8 s in the air and no death) | high for "a fast landing took no damage"; a long natural slide may show too - amber |
+| Wall / axe clip | a line from the capsule's last centre to the new one (each FixedUpdate) crossing a static, non-trigger collider, outside known movers (our teleports, cutscenes, elevators, the death warp) | medium - needs a filter list built from real runs |
+| Log boost | an upward speed spike not from a jump, explosion, ride or cutscene, with a log wall / structure within ~2 m | medium |
+
+Cost: the two exact ones are two Harmony postfixes and a comparison; the
+clip line is one `Physics.Linecast` per physics step. All read-only.
+Order to build, if wanted: the bomb boost and huge-speed flags (exact,
+cheap), the cave state flag, then fall damage, then clips / log boosts
+with recorded runs to tune them.
 
 ## Other uses of locked settings
 

@@ -89,7 +89,9 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
   on their desktop): an in-game 3D map of saved spots and routes (caves
   too), 1v1 on the website, tournament / practice / run mode indicators,
   a customisable info overlay (UI/UX overhaul), a knowledge-base Discord
-  bot on the game's internals, tech hunting (the game without a keycard),
+  bot on the game's internals, tech hunting (the game without a keycard:
+  closed in code for single player, 2026-10-03 - game-notes *Speedrun
+  tech*),
   archiving the conversation history, confirming the Megan boss AI notes.
 
 ## For the final exhaustive feature testing

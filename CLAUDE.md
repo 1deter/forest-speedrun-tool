@@ -625,7 +625,18 @@ updater (Slot 1). **536 tests** (+ 83 site tests).
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
 is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Latest session
-(2026-10-03, no code):** the author looked at the website work of the last
+(2026-10-03, research, no code):** the runners' tech read from IL and the
+bridge - docs/game-notes.md *Speedrun tech and the endgame gate*: the bomb
+boost is the knockback coroutine's per-frame `AddForce` piling up while the
+pause menu stops physics (live: 1 s paused = 1,564 m/s); fall damage is
+judged on the last collision ENTER's vertical speed (the slide cancel);
+the cave force load is `doCave`'s timed `InACave`; the keycard bounty is
+closed in code for single player (the end buttons live in
+`endgame_streaming`, loaded only after the vault door or from a save made
+inside the loaded lab). New-tech candidate: the swinging rock trap's
+knockback stacks like a bomb (IL, untested). Detection designs (not built):
+docs/run-mode.md *Banned moves: detection*. Before that (same day): the
+author looked at the website work of the last
 sessions and confirmed all of it (docs/confirmed.md, 2026-10-03): the photo
 map's lakes, the 3D middle lake, the south mountains' / lab textures, caves
 on the 2D map ("a little bit hard to read but it's fine"), Follow's camera
@@ -641,9 +652,11 @@ categories are drafts - publishing is the moderators' job. No community run
 spot exists yet - making one is the author's call.
 
 **Next, in order (one per session):**
-1. **From phase 4** (author, 2026-10-02): research the runners' tech for
-   banned moves (verdicts: glitch or not, in between) and detect what can
-   be; check *Reload save on death* gives the same game as a manual reload
+1. **From phase 4** (author, 2026-10-02): the tech is researched
+   (2026-10-03); **ask the author** whether to build the detection
+   (docs/run-mode.md *Banned moves: detection* - the bomb boost and huge
+   speed flags first) and whether to test the trap-boost candidate; then
+   check *Reload save on death* gives the same game as a manual reload
    (docs/run-mode.md *Decisions*), then circle back.
 2. Then the main *Next up* list below.
 3. **Last, when every task is done** (author, 2026-10-03: "leave these for
@@ -795,7 +808,11 @@ total playtime lines.
   flight, the areas left behind); **never restore elevators or other
   savestate state on a plain teleport** - "it sort of bleeds savestate
   functionality into a teleport". A ride under way is stopped on Go / tp
-  (ElevatorKeeper.StopRides), nothing is put back.
+  (ElevatorKeeper.StopRides), nothing is put back. The console's `goto
+  <target>` fires the endgame box's crossing within 150 m of it (sets the
+  endgame flag, never loads the lab without the door) - our Go keeps / sets
+  the flag in the vault entrance, the same in effect (game-notes *Speedrun
+  tech*).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.

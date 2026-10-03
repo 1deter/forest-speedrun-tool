@@ -2614,6 +2614,115 @@ v0.24.213 (now a run spot's Restart).
 
 ---
 
+## Speedrun tech and the endgame gate (IL + bridge, 2026-10-03)
+
+The runners' common tech, read from the code; what can be detected is in
+[`run-mode.md`](run-mode.md) *Banned moves: detection*. Marked **live** where
+the bridge reproduced it, otherwise IL only.
+
+**Bomb boost** (live). An explosion within 15 m (`Explode.RunExplode` ->
+`PlayerStats.ExplosionPlayer` / `Explosion(dist)`, ignored while the view is
+below `World`, in the enter-cave animation or a cutscene) does 25 damage,
+closes the inventory and sends the damage FSM `toHitFall` -> `gotHitFall`,
+which starts `playerHitReactions.enableExplodeCamera`. That coroutine runs
+`while (timer < 0.5) { timer += Time.deltaTime; rb.AddForce(-forward * 8,
+VelocityChange); yield null; }` - **8 m/s per rendered frame**, gated on game
+time. The pause menu (`HudGui.TogglePauseMenu(true)`, timeScale 0) stops
+physics and `deltaTime` but not coroutines: the timer never runs out and the
+push piles up each frame, all of it applied by the first physics step after
+the menu closes. Bridge, ~200 fps: a knockback alone peaked at ~95 m/s and
+moved the player 4 m; with 1.0 s in the pause menu the velocity after closing
+was **1,564 m/s** (8 x ~196 frames) - 270 m and 350 m up in 4 s. So the
+distance goes with fps x time paused (sxczurass's table,
+`Downloads\qa-reports\sxczurass\image.png`); the direction is the player's
+back at each frame (the mouse rotators are off during the knockback).
+`FirstPersonCharacter.Update` zeroes the horizontal velocity while the pause
+menu is up, but forces waiting for the physics step are untouched.
+Other senders of `Explosion` to the player start the same knockback, so the
+same stacking (IL, untested): the **large swinging rock trap**
+(`trapHit.registerTrapHit`: `largeSwingingRock`, rock speed > 11 m/s,
+`Explosion(-1)` to whatever it hits - `Player` / `playerHitDetect`
+included), enemy thrown rocks (`thrownRockDamage`), the fat creepy's charge
+(`fatCreepyCharger`), creepy-male / boss melee (`enemyWeaponMelee`). No other
+per-frame push on the player exists (every `AddForce` on its rigidbody
+checked: zipline exit, glider drop, raft are one-off or other bodies).
+
+**Fall damage and the slide cancel** (IL). `FirstPersonCharacter.HandleLanded`
+runs on the `Grounded` rising edge in `FixedUpdate`; damage =
+`0.9 * v * v / 27.5` (1000 if `jumpingTimer` > 3.8 s) only when `prevVelocity`
+> 28, `allowFallDamage`, `jumpingTimer` > 0.75 and not `jumpLand`.
+**`prevVelocity` is the `relativeVelocity.y` of the most recent
+`OnCollisionEnter`** of any collider - written nowhere else. A landing that
+is not a new collision enter (contact kept while sliding off a smooth edge),
+or one preceded by a new enter at low vertical speed (grazing a seam between
+colliders), is judged on that small value: no damage, and no 3.8 s death
+either. Likely the runners' slide cancel; not reproduced. `jumpingTimer`
+counts `Time.deltaTime` (stops in the pause menu; one 9 s frame counts 9 s).
+
+**Cave state force load** (IL). `playerEnterCaveAction.doCave` (crawl /
+climb entrances): locks the player, sets `enterCaveInt`, then sends
+`InACave` **on a timer** (2.5 s, then 0.5 s) and afterwards waits only while
+layer 0's tag is `enterCaveHash`. If the enter animation never plays (a
+smash in the air holds the animator) the player is not moved, the timer
+still sends `InACave` (terrain collision off, cave lighting, cave streaming)
+and the wait ends at once: released at the mouth, outside, in cave state -
+the runners' description exactly. Falling through the terrain from there is
+`InACave`'s terrain collision being ignored.
+
+**Axe / wall clips and log boosts** (not read in depth). Both look like
+PhysX depenetration: the capsule grows back from crouch
+(`DisableCrouch` / `ScaleCapsuleForCrouching`) or is squeezed by a log wall,
+and the solver pushes it out on the far side / upwards. No game script
+moves the player through.
+
+**The endgame gate - can the game be beaten without the vault keycard?**
+Beating it = Take twice on `Sections/ControlRoom/endPlaneCrashPrefab1/
+TriggerFINISHGAME` or `TriggerDEACTIVATE` (`activateEndCrash.Update`: no
+item, Megan or flag check - only in range, view `World`), at (-446, 707.5,
+-1757) / (-430, 705.7, -1766). Those exist only in **`endgame_streaming`**.
+It loads only through `EndgameEntrance/LoadEndgame` (`SceneLoadTrigger`):
+`ForceLoad` does nothing until `_canLoad`, and `SetCanLoad` has exactly two
+callers - the vault door's `onDoorOpen` (UnityEvent) and
+`LoadSave.Activation` when the save says `HasActiveEndgameArea`
+(`_isInEndgame` and an active area hash). The door: `activateKeypadDoor.Update`
+needs `Owns(210, allowFallback)` within 4.75 m; the Keycard (210) and
+KeycardElevator (242) have **no fallback items**; `Owns` asks an
+`ItemFilter` first, set only by the dev console's `itemhack` /
+`LocalPlayer.UnlimitedItems` (no caller; Creative leaves it null). The
+save path: `_isInEndgame` is set by crossing the box forwards (no keycard),
+but the active area only by `Area.OnEnter`, whose callers are the
+`AreaGate`s (all 23 inside `endgame_streaming`), `EndgameWakeUp` (boss
+fight), `Area.Awake` on a save with that hash, and the dev console. The two
+`Area`s in the main scene (`EndCollision/Collision_StairCase`,
+`Collision_StorageRoom`) are only entered by gates in the lab. So in single
+player the lab - and the buttons - load only after the vault door opened
+with keycard 210 in this save, or from a save made inside an already loaded
+lab. There is one keycard 210 in the world (`C6_Props/C6_secretRoom02/
+Keycard`, a world pickup that respawns on every save load). Not covered:
+multiplayer (a client of a host who opened it) and anything physical that
+reaches the buttons with the lab loaded.
+Facts on the way: **the lab's collision is in the main scene**
+(`EndCollision`, layer 25 `Blocker`, which the player collides with:
+artifact room, boss room, offices, corridors...) - always there, drawn or
+not (the "invisible section"); `ConsoleMacros/loadEndGame_macro` is the dev
+console's loader; `SceneLoadTrigger` with `DelayedLoad` forwards waits in
+`_runningAction` until a `ForceLoad`.
+
+**The game's own teleports** (for the 2026-10-03 teleport decision).
+`LocalPlayer.Goto(Vector3)`: cave state by terrain height, velocity zero,
+position - nothing else. `Goto(Transform)` (the console's `goto <target>`):
+also `GotoArea` (enters the target's `Area`) and, within 150 m on the lab
+side of `LoadEndgame`, invokes its `_onCrossingForwards` (`EnterEndgame` +
+`ForceLoad`, which still needs `_canLoad`). The console never loads the lab
+without the door either.
+
+**First death** (`PlayerStats.KillPlayer`, `DeadTimes == 1`, single player):
+in the endgame, `LoadEndgame.ForceUnload` + `ExitOverlookArea` /
+`ExitEndgame`; then a teleport to a random `DeadSpotController.DeadSpots`
+entry, cave state (`SetCurrentCave(1)`, `InACave`), `WakeInCave`, starvation
+0, thirst 0.35, `TimeOfDay` 1. In the endgame's boss fight it is
+`EndgameWakeUp` instead.
+
 ## How to extend this file
 
 1. **In-game dump (`F11`)** — reflection metadata: type names, field names and
