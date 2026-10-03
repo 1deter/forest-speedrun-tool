@@ -933,9 +933,15 @@ attack (`checkTurns` -> `chanceToDodge` -> `chooseAttack`) **as soon as
 the player is within 35 m**; only after 1-2 s still beyond 35 m does she
 reach `chooseAction`, the weighted roll `girlMutantAiManager.setAiParams`
 feeds (births 6, attack 0.5 + 5, walk forward 2 beyond 35 m). `chooseAttack`
-picks by `targetDist` alone (8 / 13 / 27 / 38 / 50 m bands). Dodge weight 0
-for 15 s after `activateGirlMutant`, then 0.25 : 1. A hit -> `gotHit` ->
-counter after 0.2 s (live). Explosion: flat 30 (live 370 -> 340), 25%
+picks by `targetDist` alone (8 / 13 / 27 / 38 / 50 m bands).
+`chanceToDodge` checks `gettingHit` (1.3 s after a hit) first: 1 : 0.4
+attack / walk back, no 15 s lock; else dodge weight 0 for 15 s after
+`activateGirlMutant`, then 0.25 : 1. A hit -> `gotHit` -> counter after
+0.2 s (live). `SendRandomEvent` normalises its weights
+(`ActionHelpers.GetRandomWeightedIndex`, IL): the spin roll (close / mid /
+counter only) is 0.03 / 0.63 = 4.76%. Co-op health: `Health + Health/3 x n`,
+n = every player within 350 m incl. you (616 / 739 / 800 cap). Thrown spear
+(plain and upgraded) `ArrowDamage.damage` 40 (live), no head bonus. Explosion: flat 30 (live 370 -> 340), 25%
 stagger for 10 s. 370 health on Normal (live). Births stop once
 `spawnedBabies` (the spawners, never destroyed) holds more than 2 - live 6
 spawners / 5 babies in `ruben-megan`. Melee 28 x `creepyDamageRatio`.

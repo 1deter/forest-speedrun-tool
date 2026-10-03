@@ -641,7 +641,7 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 **Latest session: the `megan-boss` card** (no plugin code, no release).
 Megan's FSMs exported live from the `ruben-megan` savestate (Full load,
 no slot swap) into `docs/fsm/megan-*.txt` and read with her code; card
-`knowledge/cards/megan-boss.md`, game-notes *Megan's boss AI*, 3 eval
+`knowledge/cards/megan-boss.md`, game-notes *Megan's boss AI*, 4 eval
 questions (replacing `unknown-megan`). The finding: within 35 m she
 attacks every cycle (picked by distance); the weighted roll (and every
 baby birth) comes only after 1-2 s beyond 35 m; births stop for good at
