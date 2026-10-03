@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.232 - 2026-10-03
+
+- Fewer false notes from the new lift and clip detection: being set down
+  by a teleport (and pushed out of whatever was there), and riding on
+  something that moves (the yacht bobbing on the water, a closing door),
+  no longer count.
+
 ## v0.24.231 - 2026-10-03
 
 - Run mode now notices two more moves: a **lift out of a solid** (the

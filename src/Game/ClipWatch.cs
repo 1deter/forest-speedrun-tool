@@ -30,11 +30,17 @@ namespace ForestOverlay.Game
     // out entirely: the game switches its collision per cave entrance, and a
     // contact from walking on it would outlive the switch (passing under it
     // is the cave force load's own detector). Triggers, moving bodies
-    // (non-kinematic rigidbodies) and the player's own colliders never count.
+    // (non-kinematic rigidbodies) and the player's own colliders never count,
+    // nor a solid that moved in the last MoverKeep seconds: each touched
+    // solid's pose is compared every step (live, v0.24.231: the yacht's hull
+    // bobs on a kinematic body and read as a clip and a lift while the player
+    // walked on it). A door that has closed counts again once it is still.
+    // A step while touching a mover is "carried" for the lift check.
     // ------------------------------------------------------------------
     public sealed class ClipWatch : MonoBehaviour
     {
         public const float TouchKeep = 1f;   // game seconds a left contact still counts
+        public const float MoverKeep = 1f;   // game seconds a solid that moved stays a mover
         private const float InsideRadius = 0.05f;
 
         public static string Status = "not installed";
@@ -50,6 +56,9 @@ namespace ForestOverlay.Game
         private const int Slots = 32;
         private static readonly Collider[] _touched = new Collider[Slots];
         private static readonly float[] _left = new float[Slots];   // < 0 = in contact now
+        private static readonly Vector3[] _pos = new Vector3[Slots];
+        private static readonly Quaternion[] _rot = new Quaternion[Slots];
+        private static readonly float[] _moved = new float[Slots];  // game time it last moved
         private static string _contactName = "";
 
         private readonly Collider[] _overlap = new Collider[16];
@@ -116,6 +125,12 @@ namespace ForestOverlay.Game
                     if (_left[i] >= 0f && (_left[oldest] < 0f || _left[i] < _left[oldest])) oldest = i;
                 }
                 if (free < 0) free = oldest;
+                if (_touched[free] != c)
+                {
+                    _pos[free] = c.transform.position;
+                    _rot[free] = c.transform.rotation;
+                    _moved[free] = -100f;
+                }
                 _touched[free] = c;
                 _left[free] = -1f;
                 _contactName = Describe(c);
@@ -140,8 +155,32 @@ namespace ForestOverlay.Game
         private static bool Touched(Collider c)
         {
             for (int i = 0; i < Slots; i++)
-                if (_touched[i] == c) return _left[i] < 0f || Time.time - _left[i] <= TouchKeep;
+                if (_touched[i] == c)
+                    return (_left[i] < 0f || Time.time - _left[i] <= TouchKeep) && Time.time - _moved[i] > MoverKeep;
             return false;
+        }
+
+        /// Notes which touched solids moved since the last step; true when
+        /// one the player is touching now moved recently (carried).
+        private static bool TrackMovers()
+        {
+            bool carried = false;
+            float now = Time.time;
+            for (int i = 0; i < Slots; i++)
+            {
+                Collider c = _touched[i];
+                if (c == null) continue;
+                bool recent = _left[i] < 0f || now - _left[i] <= TouchKeep;
+                if (!recent) continue;
+                Transform ct = c.transform;
+                Vector3 p = ct.position;
+                Quaternion r = ct.rotation;
+                if ((p - _pos[i]).sqrMagnitude > 1e-6f || Quaternion.Angle(r, _rot[i]) > 0.05f) _moved[i] = now;
+                _pos[i] = p;
+                _rot[i] = r;
+                if (_left[i] < 0f && now - _moved[i] <= MoverKeep) carried = true;
+            }
+            return carried;
         }
 
         /// A solid the clip check may count: touched, static or kinematic,
@@ -188,7 +227,8 @@ namespace ForestOverlay.Game
                 }
                 Steps++;
                 Vector3 c = t.TransformPoint(_capsule.center);
-                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName);
+                bool carried = TrackMovers();
+                bool plain = d.PhysicsStep(Time.fixedDeltaTime, true, _rb.isKinematic, c, _rb.velocity, _contactName, carried);
                 if (!plain) { _hasClear = false; _insideSteps = 0; }
 
                 int layer = t.gameObject.layer;

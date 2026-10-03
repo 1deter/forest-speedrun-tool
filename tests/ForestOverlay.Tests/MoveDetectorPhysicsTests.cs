@@ -21,13 +21,14 @@ namespace ForestOverlay.Tests
             public bool Kinematic;
             public string Contact = "'Log Wall' (a BoxCollider 0.5 m thick)";
             public bool LastPlain;
+            public bool Carried;
 
             /// One physics step: the body moved by its velocity plus `push`
             /// (what the solver moved it without leaving any velocity).
             public void Step(Vector3 push)
             {
                 Pos = Pos + Vel * Dt + push;
-                LastPlain = D.PhysicsStep(Dt, true, Kinematic, Pos, Vel, Contact);
+                LastPlain = D.PhysicsStep(Dt, true, Kinematic, Pos, Vel, Contact, Carried);
                 Moves.AddRange(D.Ready);
                 D.Ready.Clear();
             }
@@ -48,7 +49,7 @@ namespace ForestOverlay.Tests
         {
             var s = new Sim();
             s.Step(Vector3.zero);   // the first step only seeds
-            s.Run(0.1f);
+            s.Run(0.6f);            // and the player settles
             return s;
         }
 
@@ -131,7 +132,7 @@ namespace ForestOverlay.Tests
             Assert.False(s.LastPlain);
             s.Step(new Vector3(0f, -30f, 0f));
             Assert.False(s.LastPlain);
-            s.Run(0.5f);
+            s.Run(0.6f);
             Assert.True(s.LastPlain);
             Assert.Empty(s.Moves);
         }
@@ -146,6 +147,21 @@ namespace ForestOverlay.Tests
             s.Run(0.5f);
             Assert.Single(s.Moves);
             Assert.InRange(s.Moves[0].Distance, 1.5f, 1.7f);
+        }
+
+        [Fact]
+        public void Being_carried_up_by_something_that_moves_is_not_a_lift()
+        {
+            // Live, v0.24.231: the yacht's hull bobs (a kinematic body) and
+            // pushed the player up 1.0 m while they walked on it.
+            var s = Started();
+            s.Carried = true;
+            for (int i = 0; i < 20; i++) s.Step(new Vector3(0f, 0.1f, 0f));
+            Assert.True(s.LastPlain);   // a clip may still be judged (against still solids)
+            s.Carried = false;
+            s.Run(0.5f);
+            Assert.Empty(s.Moves);
+            Assert.Equal("", s.D.TakeSmallLift());
         }
 
         [Fact]
@@ -219,8 +235,26 @@ namespace ForestOverlay.Tests
             Assert.False(s.D.PhysicsStep(Dt, false, false, Vector3.zero, Vector3.zero, ""));
             s.Step(new Vector3(0f, 0f, 0f));
             Assert.False(s.LastPlain);   // seeds again
-            s.Step(Vector3.zero);
+            s.Run(0.6f);
             Assert.True(s.LastPlain);
+        }
+
+        [Fact]
+        public void Being_pushed_out_right_after_a_teleport_is_not_a_lift()
+        {
+            // Live, v0.24.231: a tp into the yacht read as a 1.2 m lift.
+            var s = Started();
+            s.Step(new Vector3(0f, 0f, 300f));   // tp
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            s.Step(new Vector3(0f, 0.6f, 0f));
+            Assert.False(s.LastPlain);           // no clip judged either
+            s.Run(0.6f);
+            Assert.True(s.LastPlain);
+            Assert.Empty(s.Moves);
+            Assert.Equal("", s.D.TakeSmallLift());
+            s.Step(new Vector3(0f, 1.2f, 0f));   // settled: a lift again
+            s.Run(0.5f);
+            Assert.Single(s.Moves);
         }
     }
 }

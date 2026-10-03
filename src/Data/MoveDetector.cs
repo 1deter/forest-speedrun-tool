@@ -79,7 +79,15 @@ namespace ForestOverlay.Data
     // rise beyond what the vertical speed (before or after the step) allows,
     // summed while it keeps coming (a gap of LiftQuiet ends an episode),
     // reported at LiftReport. A step rising more than LiftMaxStep unexplained,
-    // or moving further sideways than its speed allows, is a teleport.
+    // or moving further sideways than its speed allows, is a teleport; for
+    // SettleSeconds after one (or after the player appears) nothing counts:
+    // a teleport sets the player down overlapping whatever is there and the
+    // physics pushes them out (live, v0.24.231: a tp into the yacht read as a
+    // 1.2 m lift and a clip through its hull; tps beside a tree and into
+    // Cave 6 as 0.5 m lifts). A step while the player touches something that
+    // moved (`carried`: the yacht's hull bobs on a kinematic body, a raft, a
+    // closing door) is not a lift either: the mover pushed them (live,
+    // v0.24.231: walking on the yacht read as a 1.0 m lift).
     //
     // Clip through a solid. The capsule's centre ends up on the other side
     // of a solid collider the player had touched (Game/ClipWatch casts the
@@ -118,6 +126,7 @@ namespace ForestOverlay.Data
         public const float LiftQuiet = 0.25f;      // game seconds with no lift end an episode
         public const float LiftMaxStep = 4f;       // more unexplained rise in one step = a teleport
         public const float ClipRepeat = 2f;        // game seconds: the same collider again = the same clip
+        public const float SettleSeconds = 0.5f;   // game seconds after a teleport when nothing counts
 
         public sealed class Move
         {
@@ -173,6 +182,7 @@ namespace ForestOverlay.Data
         private Move _lift;
         private float _liftQuiet;
         private Vector3 _liftFrom;
+        private float _settle;
 
         // --- clips: the last one, to merge repeats ---
         private string _clipWhat = "";
@@ -353,7 +363,7 @@ namespace ForestOverlay.Data
         /// solid the player last touched (for the text). Returns true when it
         /// was a plain step (no teleport, not kinematic, not the first) - only
         /// then may a clip be judged across it.
-        public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact)
+        public bool PhysicsStep(float dt, bool hasPlayer, bool kinematic, Vector3 pos, Vector3 vel, string contact, bool carried = false)
         {
             if (!hasPlayer || kinematic || dt <= 0f)
             {
@@ -366,6 +376,7 @@ namespace ForestOverlay.Data
                 _stepHas = true;
                 _stepPos = pos;
                 _stepVel = vel;
+                _settle = SettleSeconds;
                 return false;
             }
             Vector3 d = pos - _stepPos;
@@ -380,9 +391,16 @@ namespace ForestOverlay.Data
             {
                 // A teleport: not the physics'.
                 if (_lift != null) EndLift();
+                _settle = SettleSeconds;
                 return false;
             }
-            if (rise > LiftStepMin)
+            if (_settle > 0f)
+            {
+                // Set down by a teleport: being pushed out of what is there.
+                _settle -= dt;
+                return false;
+            }
+            if (rise > LiftStepMin && !carried)
             {
                 if (_lift == null)
                 {
