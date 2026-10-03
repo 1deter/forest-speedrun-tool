@@ -12,6 +12,8 @@ code: PlayerStats.InACave, PlayerStats.NotInACave, CaveTriggers.Update, CaveDoor
 
 # Caves
 
+The caves lie under the terrain, so entering one switches the player into "cave state": the terrain stops being solid, cave lighting and audio come on, and the current cave decides which cave props stream in. Cave state comes from messages (`InACave` / `NotInACave`) sent by entrances and triggers - not from where you are - which is why it can end up wrong (the force load) and why teleports handle it themselves.
+
 ## Cave state
 
 The caves sit **under the terrain**. Entering one, the game sends the

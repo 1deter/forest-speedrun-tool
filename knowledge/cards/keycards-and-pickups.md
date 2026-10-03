@@ -12,6 +12,8 @@ code: PlayerInventory.Owns, activateKeypadDoor.Update, playerOpenKeypadDoorActio
 
 # Keycards and pickups
 
+Two keycards matter: the vault keycard (210, Cave 6) opens the endgame and is what lets the lab load; the gold keycard (242) opens only the gold door - the red elevator ignores it. Neither has a substitute item, and world pickups like the keycard come back on every save load.
+
 ## The keycards
 
 | Item | Id | Opens | Where |

@@ -1,0 +1,36 @@
+# The knowledge bot on the VPS: /opt/forest-bot/compose.yaml (setup.sh
+# puts it there). A gateway bot only connects OUT (Discord, the model
+# APIs) - no port, no Caddy, no shared network. Locked down like the site:
+# the image's non-root user, read-only filesystem but for the data folder,
+# no capabilities, memory / process caps.
+#
+# /var/lib/forest-bot (the container's /data):
+#   bot.db, vectors.db   conversations, feedback, research queue, vector cache
+#   embed/               model.onnx + vocab.txt (setup.sh downloads them)
+#   code/                the decompiled game code - private, copied by hand
+#                        (README *The game's code*); never served
+services:
+  forest-bot:
+    image: mcr.microsoft.com/dotnet/runtime:10.0
+    container_name: forest-bot
+    restart: unless-stopped
+    user: "1654:1654"
+    working_dir: /srv/current
+    entrypoint: ["dotnet", "/srv/current/forest-bot.dll"]
+    environment:
+      FOREST_BOT_DATA: /data
+      FOREST_BOT_CODE: /data/code
+      FOREST_BOT_EMBED_MODEL: /data/embed
+      DOTNET_EnableDiagnostics: "0"
+    env_file: .env            # tokens and keys (README) - never in the repo
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
+    volumes:
+      - /opt/forest-bot/app:/srv:ro
+      - /var/lib/forest-bot:/data

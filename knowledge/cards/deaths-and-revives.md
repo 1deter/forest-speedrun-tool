@@ -12,6 +12,8 @@ code: PlayerStats.KillPlayer, PlayerStats.CheckDeath, PlayerStats.DeathInWater, 
 
 # Deaths
 
+In single player your first death is not a game over: you wake up in a cave - always the same spot, `Cave2DeadPlace` - unless you died in water or in the boss fight. The second death ends the game. An enemy hit that would kill you while you are above the grey zone leaves you on just over 1 health instead (the last stand).
+
 ## The first death: always the same cave
 
 In single player, your **first** death (outside the boss fight) is not a

@@ -37,6 +37,13 @@ moved) -> the car and the player **teleported together** (relative offset
 kept) to the overlook (-542.44, 704.79, -1967.46) -> **25 s with the car
 door locked** -> the door opens.
 
+## One ride only
+
+`GotoRemotePoint` runs only `if (_useLimit <= 0 || _useCount < _useLimit)`,
+and every ride adds one to `_useCount`. The red elevator's use limit is **1**
+(game-notes: "Use limit 1") - a second ride does nothing until the lab is
+reloaded fresh [code; the value of 1 from the notes, not re-read live].
+
 ## Why the car is locked for 25 s
 
 During the ride an object `MovingDummy` is active; its `OnEnableProxy`

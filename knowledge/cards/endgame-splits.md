@@ -12,6 +12,8 @@ code: playerAnimatorControl.endGameCutScene, playerOpenKeypadDoorAction.openDoor
 
 # Splits, the autosplitter and timing
 
+The LiveSplit autosplitter splits every endgame event on one shared flag, `endGameCutScene`, the frame it turns on; the other splits (caves, clothing, passengers, the start) read their own fields. When a split fires is therefore when the game's cutscene routine sets that flag - for keypad doors, after the walk-up, not on the button press. ForestOverlay's timer splits on the same frames.
+
 ## The endgame splits: one shared flag
 
 The LiveSplit autosplitter (ASL) reads one bool,

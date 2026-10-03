@@ -1,0 +1,63 @@
+name: bot
+
+# The game-knowledge Discord bot (docs/knowledge-bot.md): test (incl. the
+# lint over knowledge/), publish for the VPS (arm64), ship over SSH to
+# bot/deploy/deploy.sh (the bot's deploy key can run nothing else). Runs on
+# knowledge changes too - the cards ship inside the release.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bot/**'
+      - 'knowledge/**'
+      - 'docs/game-notes.md'
+      - 'docs/savestates.md'
+      - 'docs/run-mode.md'
+      - 'docs/fsm/**'
+      - 'tools/BridgeMcp/DiscordText.cs'
+      - '.github/workflows/bot.yml'
+  pull_request:
+    paths: ['bot/**', 'knowledge/**']
+  workflow_dispatch:
+
+concurrency:
+  group: bot-deploy
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test bot/ForestBot.Tests -c Release --nologo
+
+      - name: Publish (linux-arm64)
+        run: |
+          dotnet publish bot/ForestBot -c Release -r linux-arm64 --self-contained false -o out
+          test -f out/kb/knowledge/glossary.md
+          tar czf bot.tgz -C out .
+          ls -l bot.tgz
+
+      - name: Deploy
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KEY: ${{ secrets.BOT_DEPLOY_KEY }}
+          HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$KEY" ] || [ -z "$HOST_KEY" ]; then
+            echo "::warning::Bot deploy secrets not set (bot/deploy/README.md) - built and tested only."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes -o BatchMode=yes forestbotdeploy@"$HOST" < bot.tgz

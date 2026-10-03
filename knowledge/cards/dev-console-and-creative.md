@@ -12,6 +12,8 @@ code: TheForest.DebugConsole, Cheats, TheForest.Player.GameMode_Creative, LocalP
 
 # The developer console, Creative and cheats
 
+The retail game ships a full developer console (256 commands: god mode, teleports, items, even runtime C#), and Creative mode is a game that turns three cheat switches on by itself (god mode, infinite energy, no survival). Neither can load the endgame lab without the vault door.
+
 ## The developer console
 
 The retail game ships a full developer console (`TheForest.DebugConsole`,

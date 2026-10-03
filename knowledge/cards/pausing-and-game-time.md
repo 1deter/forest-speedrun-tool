@@ -12,6 +12,8 @@ code: HudGui.TogglePauseMenu, PlayerInventory.PauseTimeInInventory, PlayerInvent
 
 # Pausing, the inventory and game time
 
+The pause menu stops game time in single player on every difficulty; the inventory only on Normal, Peaceful and Creative, and it caps you at 60 fps while open. Stopping game time stops physics and game-time timers but not code that runs once per frame - the root of the bomb boost - and a long frame (a load hitch) counts in full as game time.
+
 ## What stops time
 
 | | Pause menu (Esc) | Inventory |

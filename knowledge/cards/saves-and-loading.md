@@ -12,6 +12,8 @@ code: PlayerStats.OnSaveSlotSelectedRoutine, LevelSerializer.Checkpoint, LevelSe
 
 # Saving and loading
 
+You save at shelters only (never in the overlook), and a load reloads the game scene twice before restoring every saved object. What lies in the world as a pickup - the keycard included - is not in the save at all, so it comes back on every load.
+
 ## Saving
 
 - You save at **shelters** (and similar save points) - there is no

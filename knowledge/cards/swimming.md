@@ -12,6 +12,8 @@ code: FirstPersonCharacter.HandleSwimmingSpeed, FirstPersonCharacter.Update, Fir
 
 # Swimming, diving and water jumps
 
+Surface swimming is capped at 3 m/s even when sprinting - except while touching a wall at your side or with your head under water, where the cap is not applied. Diving has its own 6.5-7 m/s cap. Water also blocks the inventory and explosion knockbacks, and a death in water is a game over even the first time.
+
 ## Speed
 
 - **Surface swimming is capped at 3 m/s** (`maxSwimVelocity`), even when

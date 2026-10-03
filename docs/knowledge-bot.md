@@ -26,6 +26,12 @@ answer, then asks follow-ups by replying to it.
 - **The Gemini API key**: the author creates it (Google AI Studio) when
   the bot is built; store it as a User environment variable like the
   others, never printed.
+- **Retrieval is local; the model only writes** (author asked "is there a
+  better free model?", 2026-10-03; Claude's call, agreed): search runs on
+  the VPS (SQLite FTS5 + the bge-small embedding model through ONNX) - free,
+  private, no quota. The writer: **Gemini Flash first, Mistral's free
+  "Experiment" tier as the fallback** (any OpenAI-compatible provider is a
+  config line); the test questions decide the order with scores.
 - **The game's code, decompiled to C#, is kept privately on the server
   and quoted freely in answers** (author: "i'm not distributing it, i'm
   simply describing its functionality ... you don't need to limit how
@@ -75,8 +81,9 @@ cover.
   into cards (with the bridge, live) - the knowledge grows where runners
   ask.
 - **Retrieval:** hybrid - SQLite FTS5 (BM25: exact names like
-  `HandleLanded`, `waitForInput`) + Gemini embeddings (free; paraphrases
-  like "why do I fly when I pause"), merged by reciprocal rank. The
+  `HandleLanded`, `waitForInput`) + a local embedding model (bge-small-en-v1.5
+  via ONNX Runtime; paraphrases like "why do I fly when I pause"), merged by
+  reciprocal rank. The
   prompt carries the glossary and a one-line index of every card; tools
   fetch the rest (~10-20k tokens a question):
   - `search(query, kinds)` - cards, docs, FSMs, code
@@ -92,8 +99,8 @@ cover.
   (the free tier can change without notice). The current Flash model;
   Flash-Lite as the fallback when the quota is out; "busy - try again
   later" when both are.
-- **Answer cache:** keyed on the question's embedding + the knowledge
-  version - the same questions (bomb boost, clips) will come constantly.
+- **Answer cache:** keyed on the normalised question + the knowledge
+  version (a 👎 drops it) - the same questions (bomb boost, clips) will come constantly.
 - **Public use:** per-user rate limit, off-topic refused politely.
 - **Hosting:** its own container beside `forest-site` (no inbound port - a
   gateway bot only connects out), its own secrets, the decompiled code in
@@ -117,15 +124,19 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
 
 ## Build order
 
-1. **Knowledge base** - cards for the common tech, the glossary, the test
-   questions (session 2026-10-03, *Status* below). Then the rest of the
-   card list, and the FSMs not exported yet (Megan, the cannibals' motor /
-   vision) in a session that reaches them.
-2. **The bot**: Discord + cards / docs search + follow-ups + feedback.
-3. FSM and code tools, the research queue, the answer cache, the eval run.
+1. **Knowledge base** - done 2026-10-03: 23 cards, the glossary, 40 test
+   questions (`knowledge/README.md` *Cards*). Then the rest of the card list,
+   and the FSMs not exported yet (Megan, the cannibals' motor / vision) in a
+   session that reaches them.
+2. **The bot** - built 2026-10-03 (`bot/`, [`bot/README.md`](../bot/README.md)):
+   Discord gateway (/ask, mentions, DMs, replies = follow-ups), 👍 / 👎 with
+   a "what was wrong" box, the research queue (+ an optional channel), the
+   answer cache, rate limits, hybrid search, the card / doc / FSM / code
+   tools, Gemini + OpenAI-compatible providers with fallback, the eval run,
+   the deploy (`bot/deploy`, `.github/workflows/bot.yml`). 24 tests.
+   **Not yet run against a real model or Discord** - waits for the author's
+   keys (`bot/deploy/README.md` *One-time setup*).
+3. **First live run**: `forest-bot eval` with the real key - read the
+   answers, tune the prompt / cards on what fails; then the VPS and Discord.
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
-
-## Status
-
-See `knowledge/README.md` *Cards* for what exists and what is planned.

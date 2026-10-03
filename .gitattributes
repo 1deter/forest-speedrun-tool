@@ -2,3 +2,4 @@
 *.sh text eol=lf
 # Scripts that run on Linux keep LF on Windows checkouts.
 site/deploy/* text eol=lf
+bot/deploy/* text eol=lf

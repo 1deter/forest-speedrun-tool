@@ -50,6 +50,7 @@ dotnet build tools/BridgeMcp -c Release
 ```bash
 dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: preview "forest-site" (.claude/launch.json)
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
+dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
 ```
@@ -95,6 +96,7 @@ folders because it is the code that can break an install.
 | `tools/BridgeMcp/` | MCP server over the live test bridge (`.mcp.json`: `forest`). Dev-time only, never shipped |
 | `site/` | forest.deter.cloud: ASP.NET Core + SQLite + plain JS, links the pure `src/Data` format files; `site/deploy` + `.github/workflows/site.yml` deploy it to the author's VPS ([`docs/website.md`](docs/website.md)) |
 | `locations/`, `collectibles/` | Shipped data, embedded in the DLL and written out on startup (`Data/ShippedData.cs`) |
+| `bot/` | The game-knowledge Discord bot (`forest-bot`, .NET 10): gateway bot, hybrid search, tools into cards / docs / FSMs / decompiled code, Gemini + OpenAI-compatible models; `bot/README.md`, deploy in `bot/deploy` + `.github/workflows/bot.yml` (its own container on the site's VPS). Never shipped in the DLL |
 | `knowledge/` | The game-knowledge bot's knowledge base: `cards/` (one mechanic each, for runners), `glossary.md`, `eval/questions.md`; format in `knowledge/README.md`. Never shipped in the DLL |
 
 Modules never reach for globals or each other — shared services arrive via
@@ -629,25 +631,28 @@ identity.
 ## Current status
 
 **Released: v0.24.234** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **620 tests** (+ 85 site tests).
+updater (Slot 1). **620 tests** (+ 85 site tests, + 24 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**This session: the game-knowledge bot, part 1 - the knowledge base**
-(no plugin code, no release). The author's second round of decisions is in
-*Standing decisions* (gateway bot, follow-ups by reply, no site pages, the
-decompiled C# quoted freely); the design is rewritten in
-[`docs/knowledge-bot.md`](docs/knowledge-bot.md) (hybrid FTS5 + embeddings
-search, tools into cards / docs / FSMs / code, answer cache, 👍 / 👎 to a
-research queue, test questions). Built: `knowledge/` - 23 cards (every
-common tech + physics, deaths, caves, saves, splits, the tool), the
-glossary, 40 test questions; the decompiled source moved to
+**This session: the game-knowledge bot - the knowledge base and the
+bot** (no plugin code, no release). The author's second
+round of decisions is in *Standing decisions* (gateway bot, follow-ups by
+reply, no site pages, the decompiled C# quoted freely) and
+[`docs/knowledge-bot.md`](docs/knowledge-bot.md) (retrieval local - FTS5 +
+a bge-small ONNX model; Gemini Flash writes, Mistral's free tier as the
+fallback). Built: `knowledge/` - 23 cards, the glossary, 40 test questions;
+`bot/` - the whole bot (`bot/README.md`), 24 tests, CI + deploy
+(`.github/workflows/bot.yml`, `bot/deploy`; deploy skipped until
+`BOT_DEPLOY_KEY`). The decompiled source lives in
 `%LOCALAPPDATA%\ForestOverlay\game-src\` (+ ilspycmd, the DLL's hash).
 Writing the cards against the code corrected / added facts (game-notes
 *Knowledge base pass*): the fall cap is the speed cap, the pause menu
 stops time on Hard too, the zipline exit weakens braking 60x for 1 s,
-`doCave`'s 1.5 s / 3 s. **Next: the bot itself** (`bot/`, .NET 10,
-Discord.Net gateway, Gemini) - build order in docs/knowledge-bot.md.
+`doCave`'s 1.5 s / 3 s, the red elevator's use limit. **Next: the first
+live run** - needs the author's Gemini key (+ Mistral optional) and the
+Discord application (`bot/deploy/README.md` *One-time setup*); then
+`forest-bot eval`, read the answers, tune; then the VPS + Discord.
 Earlier the same day: banned-move detection finished (v0.24.227-234:
 bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
 gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
@@ -693,11 +698,10 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base's first 23 cards are done (`knowledge/`); next the bot
-   (`bot/`: Discord gateway + follow-ups by reply + 👍 / 👎, Gemini Flash
-   behind an interface, hybrid search, card / doc / FSM / code tools,
-   research queue, answer cache, the eval run), then more cards (Megan,
-   cannibal AI from `docs/fsm/`, categories, routes - `knowledge/README.md`).
+   knowledge base (23 cards) and the bot (`bot/`) are built; next its first
+   live run with the author's keys (eval, tune, deploy), then more cards
+   (Megan, cannibal AI from `docs/fsm/`, categories, routes -
+   `knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,
