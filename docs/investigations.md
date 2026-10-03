@@ -109,6 +109,12 @@ all up to him". Asked maks (QA `1555760732086476832`): still different on
 the current version? which move / spot, Quick or Full? else close it.
 No answer = leave it; "close" = delete this section.
 
+**Found 2026-10-03 (v0.24.226):** a Quick load did not put the endgame's
+sliding doors back - after one red elevator ride, every later Quick load
+into the car had its door open for the whole ride (a sprint walked out).
+Fixed (`Game/SlidingDoorKeeper`); worth telling maks - it may be what he saw
+(posted in QA).
+
 After a Quick load, movement tech reacts differently from a real run:
 - **Elevator boost**: trigger the red elevator, full swing / smash the axe
   into the door corner, release crouch and spam jump to clip through and

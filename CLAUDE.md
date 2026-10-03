@@ -107,7 +107,7 @@ Where things live:
 |---|---|
 | Window, tabs, player lock, cursor, **game input block** | `Core/ModuleHost`, `Modules/MainWindowModule`, `Core/CursorController`, `Game/GameInput` |
 | Variable text in panels, on-screen notice | `Core/UiText` (wraps, returns height), `Core/Notice` (`Ctx.Notice`, drawn by `Plugin.OnGUI`) |
-| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/BlueprintKeeper` + `Data/BlueprintState` (placed blueprints filled since rebuilt from the save, build HUD recounted, `blueprints` header, v0.24.203), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
+| Savestates, segment start states | `Modules/SavestateModule` (no tab since v0.24.106; its options + Memory section drawn in Debug views via `DrawOptions`), `Game/SavestateBridge` (incl. cross-save `AdoptPlayer`), `Game/PickupKeeper`, `Game/PanelKeeper` (cave panels), `Game/Stance` (crouched / standing, `stance` header), `Game/RopeClimb` (a cave rope climb, `rope` header; Go / tp let go), `Game/RideModes` + `Data/RideState` (zipline, sled, glider, cliff climb: ended on Go / tp / restore, put back from the `ride` header, v0.24.201), `Game/BlueprintKeeper` + `Data/BlueprintState` (placed blueprints filled since rebuilt from the save, build HUD recounted, `blueprints` header, v0.24.203), `Game/NatureKeeper` (trees, bushes, saplings), `Game/GreebleKeeper` + `Data/GreebleRecord` (sticks / rocks around pooled trees), `Game/BookPages` + `Data/BookPageState` (book page), `Game/BossHold` + `Game/MeganKeeper` (boss Megan), `Game/ElevatorKeeper` (endgame elevators; the red elevator's ride replayed; a ride stopped on Go / tp), `Game/SlidingDoorKeeper` (the endgame's sliding doors incl. the elevator car door, `doors` header, v0.24.226), `Game/EndgameLoader` (the endgame after a restore, loaded in the background - a transpiler on the game's trigger), `Game/FullCapacityWatch` (logs "can't carry any more"; hides the post-restore re-equip's one, v0.24.129), `Game/KeypadDoorKeeper` (a keypad door's cutscene replayed), `Game/AreaKeeper` (endgame active area; also on Go), `Game/CutsceneAudio` (fast-forward sounds), `Game/SunSync` (sun after a restore), `Data/SavestateFile`; restart flow in `Modules/PracticeModule` (`Restart`; `Teleport` is Go); retire warning via `Data/AttemptStore.CountOnRoute` |
 | Practice spots / segments, teleport, cave switch | `Modules/PracticeModule`, `Data/Segments`, `Data/SegmentLibrary`, `Game/GameBridge` (look angles, `SyncCaveState`) |
 | Sharing, community packs | `Data/SegmentBundle` (`.foseg`: segment + start state + attempts), Practice's Share row / Import view, `Modules/CommunityModule` + `Data/CommunityIndex` (fetch from the repo's `community/`), `scripts/community-index.py`, `community/README.md` |
 | 2D map caves (site) | `scripts/cave-bake.py` -> `site/ForestSite/wwwroot/terrain/caves.webp` + `caves.json`, drawn by `wwwroot/map.js` underground |
@@ -124,7 +124,7 @@ Where things live:
 | Logs in the inventory (gameplay mod) | `Game/LogStore` (patches + transpiled holder / repair reads; `logs` savestate header), Inventory tab (`Modules/InventoryModule`: toggle, cap, HUD `Logs n / cap`); game-notes *Logs* |
 | Timed run split order | `Data/SplitSequence` (pure, tested) |
 | QA team tooling | `Modules/QaModule` (QA tab: list, answers, log-line evidence, Mark, report zip), `Data/QaList` (list / answers format, tested), `Data/ZipWriter` (stored zip, tested), `qa/*.txt` (shipped lists), `Core/LogKeeper` + `Data/LogArchive` (last 3 sessions' logs in `config/ForestOverlay/logs`) |
-| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
+| **Live test bridge** (dev) | `Modules/BridgeModule` (file polling, queue, commands, `mark` / `shot` / `anim`), `Game/ObjectProbe` (generic reflection: find / inspect / get / set / call), `Game/AnimProbe` (player animator readout), `Game/DebugDraw` (`MarkerBehaviour`), `Game/InputInject` + `Data/InjectedInputs` (press / hold the game's controls, tested), `Game/FsmExport` (`fsm`), `Data/BridgeCommand` (parsing, tested), `scripts/bridge.sh` (this end), `tools/BridgeMcp` (the MCP server over it, incl. the QA Discord bot) |
 | **Run mode** (a run spot's Restart = a run, practice locked, integrity report, codes + receipts, categories) | `Core/RunMode` (`Ctx.Run`: `Refuse(feature, what)` at every practice entry point, `Locks` / `Forces` for gameplay switches, flags, `Use`), `Data/RunCategory` (the categories' text + features, tested, linked by the site), `Modules/RunModeModule.Categories` (fetch, cache, Runs tab pick), `site/ForestSite/Categories` (versions, speedrun.com sync, judging, tested), `Modules/RunModeModule` (attempts from a run spot / by hand; section at the top of the Runs tab; `EndRunMode`), `Modules/RunModeModule.Codes` (the hash chain, the on-screen code, the log), `Modules/RunUploadModule.Attempts` (nonce, checkpoints, outbox, links), `Data/AttemptChain` (log + chain, tested, linked by the site), `site/ForestSite/Attempts` (endpoints' logic + `Judge`, tested), `Game/RunIntegrity` (game hash, other plugins / patchers / code, foreign Harmony patches, `Cheats` statics), `Data/RunReport` (findings in plain words, tested), `run-reports/`; design and phases: [`docs/run-mode.md`](docs/run-mode.md) |
 | Cutting a player action on a reset | `Game/MenuClose` (the pause menu / inventory, before anything - they stop game time), `Game/BookClose` (the survival book, first), `Game/BuildMode` (a blueprint out: put away, the captured one back - `blueprint` header), `Game/AnimReset` (rest learned in `PracticeModule.Tick`; called after in-place restores and teleports) |
 
@@ -625,43 +625,38 @@ identity.
 
 ## Current status
 
-**Released: v0.24.225** (2026-10-03). The author runs it via the in-game
-updater (Slot 1). **543 tests** (+ 83 site tests).
+**Released: v0.24.226** (2026-10-03). The author runs it via the in-game
+updater (Slot 1). **544 tests** (+ 83 site tests).
 
-### Pick up here (2026-10-03, v0.24.225 released)
+### Pick up here (2026-10-03, v0.24.226 released)
 
-**This session (tech research round 2, items 2a + 2b done):** v0.24.223
-bridge input injection (`press` / `hold` / `release` / `axis` / `input`,
-confirmed live: a 1-frame Jump rose 2.4 m, Vertical 1 for 2 s walked
-12.6 m, + Run 25.7 m, Crouch held / released), v0.24.224-225 the `fsm`
-export; the player's six FSMs, the cannibals' four and rabbit / lizard
-AI are in [`docs/fsm/`](docs/fsm/README.md). Not tested live: a
-hold-to-take (`GetButtonAfterDelay`, rerouted - the log says 4 reads);
-Megan's / the boss FSMs need a session that visits her. **2c measured**
-(game-notes *Bomb boost, refined*): with real pauses the boost holds 8 m/s
-x frames paused for ~10 physics steps (0.163 s of game time from the blast),
-~1.3 m per paused frame, linear when nothing is hit; pausing 0.05 s late
-costs a third; the table's "less than linear" and the drift are terrain hits
-inside the window, which turn the speed sideways and UP (the vertical part
-is never zeroed: 500-1,100 m launches). Posted to QA. Turning the view with
-the bridge: `axis "Mouse X" v s` (+-2 for 0.1 s = ~60 deg; `set` on the
-rotation does not hold). **2d done** (game-notes *Position writers*): the
-climbing axe's cliff grab casts on ReflectBig + Terrain only, so it snaps
-through any other wall - confirmed live with a test cube; rope / keypad /
-rides surveyed. **Next: 2e.**
-
-**Handoff 2026-10-04 (from the overnight research session; the author
-switched session at ~500k context).** The overnight sweep (research, no code,
-docs/game-notes.md *Speedrun tech* -> *Overnight sweep*) found little new
-(author: "you didn't really find much"; the bomb boost's fps x time was
-already known - gotcha 89). Kept: why there is a "last usable frame" (the
-explode animation zeroes horizontal speed after ~0.13 s), CCD stopping boosts
-at objects, the keyless red elevator chain, collider shifts (looking down,
-the axe smash, the crouch-size capsule after uncrouching in a smash),
-diagonal = input clamped to 1.1. Dropped: the water wall jump (author: no way
-to jump in water). The swim cap is "might be gimmicky". **The author's next
-ask is *Next* item 2 (tech research, round 2) - do it in the next session**;
-item 1 (banned-move detection) stays open after it.
+**This session: tech research round 2 (*Next* item 2) done**, all live with
+the new bridge input (detail in game-notes; findings posted to QA):
+- **v0.24.223 input injection** - `press` / `hold` / `release` / `axis` /
+  `input seen` drive the game's own controls (Jump rose 2.4 m, sprint 2x
+  walk, Crouch, Esc opens the real pause menu). Turning: `axis "Mouse X" v
+  s` (+-2 for 0.1 s ~ 60 deg; the view yaw survives restores; `set` on the
+  rotation does not hold). **v0.24.224-225 `fsm` export** - player,
+  cannibals, animals in [`docs/fsm/`](docs/fsm/README.md).
+- **Bomb boost** (*Bomb boost, refined*): 8 m/s x frames paused held ~10
+  physics steps (0.163 s from the blast) = ~1.3 m per paused frame, linear
+  in the air; 0.05 s late costs a third; the table's sublinearity / drift =
+  terrain hits inside the window (sideways and UP, 500-1,100 m launches).
+- **Position writers** (*Position writers*): the climbing axe's cliff grab
+  ignores every layer but ReflectBig / Terrain - it snaps through other
+  walls (live, test cube); rope / keypad / rides / bench surveyed.
+- **Red elevator** (*Red elevator: no keycard anywhere*): the ride is a
+  teleport keeping the player's offset; **Quick load left the car door open
+  after any ride** (a sprint walked out of the "locked" car) - fixed in
+  v0.24.226 (`Game/SlidingDoorKeeper`, `doors` header), likely part of
+  maks's Quick load reports. With the door shut the scripted elevator-skip
+  recipe never clipped (the smash pushes the player back).
+- **Water**: the surface jump exists (6.3 m/s, ~0.3 m hop, blocked while
+  `Diving`). Jump spam up the sinkhole wall: no gain.
+Savestates made: `elevPre2` (in the red elevator car, door shut, `doors`
+header). Not done: the multi-thrower's rocks and the bodies slide (need a
+built thrower / the Cave 6 bodies), the elevator skip by hand (author or
+maks with `anim watch`), Megan's FSMs, a hold-to-take press.
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
@@ -699,26 +694,10 @@ spot exists yet - making one is the author's call.
    detection in the next session"): docs/run-mode.md *Banned moves:
    detection* - the bomb boost and huge-speed flags first, then cave
    state, fall damage, clips / log boosts.
-2. **Tech research, round 2** (author, 2026-10-04: "build the rewired
-   inputs, you can export the state machines ... go ahead"):
-   a. + b. done (v0.24.223-225): input injection, the FSM export
-      (docs/fsm/).
-   c. done (measured; the visualiser is designed in game-notes, not built -
-      the author's call).
-   d. done (game-notes *Position writers*). Was: **Position writers**: every script that moves / parents the player
-      directly instead of walking it (cutscenes, ropes, ladders, cliff
-      climb, sit, raft, sled, cave enter / exit, keypad walk-up, Timmy /
-      Megan pickups, the death warp; ~30, listed by grepping the decompiled
-      code for `LocalPlayer.Transform.position =` / `SetParent`): can one be
-      started, interrupted or cancelled so it leaves the player somewhere
-      useful (a free teleport, through a wall)?
-   e. **Panel / elevator clip** with real input (a) + `anim watch`, the
-      multi-thrower's rocks (same knockback as a bomb; the trap boost is
-      already confirmed by the author), and the fall-damage slide cancel on
-      bodies.
-   Check what the runners already know first (gotcha 89). Then check
-   *Reload save on death* gives the same game as a manual reload
-   (docs/run-mode.md *Decisions*).
+2. **Tech research, round 2** - done 2026-10-03 (*Pick up here*). Left
+   from it: check *Reload save on death* gives the same game as a manual
+   reload (docs/run-mode.md *Decisions*), the elevator skip done by hand
+   with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): first the knowledge base (Claude sessions write
    per-tech explainers - mechanism, why it works, evidence, the optimal

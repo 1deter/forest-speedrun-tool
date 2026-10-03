@@ -2900,15 +2900,20 @@ slope-angle check**, except for CapsuleColliders (normal steeper than 45° does
 not ground) and surfaces marked slippery (`getWalkableSurface`: there the jump
 is 1/9 high). Above 65° (`extremeAngleGroundedLimit`) friction drops to 0, so
 the player slides - but stays grounded and may jump. Live: sliding down an
-~80° terrain face read `Grounded` and `allowJump` true. Jump-climbing a steep
-face could not be tested (the bridge cannot press Jump).
+~80° terrain face read `Grounded` and `allowJump` true. Jump-climbing (bridge
+`press Jump` every 0.1 s, 2026-10-03): against the sinkhole's steep west wall
+(a mesh - terrain collision is off there) walking and jump spam both stopped
+at the same height (y 19.9): no gain. An open terrain face is not tested.
 
 **Water** (IL). `FirstPersonCharacter.Update` has a swim-jump branch
 (touching a wall at the side or a low mesh contact = 1.5x the land jump, no
-cooldown; else a small water jump with a 1 s block), but **the author: "there
-is no way to jump in water"** - something gates it in play (the FSM, the
-input map, or `swimming` meaning something narrower); not checked, treat the
-branch as dead until a real Jump press shows otherwise. Surface swimming is capped at 3 m/s
+cooldown; else a small water jump with a 1 s block). The author: "there is
+no way to jump in water". Live with a real Jump (bridge, 2026-10-03): at the
+surface the small jump works - 6.3 m/s up, a ~0.3 m hop, once a second -
+too small to notice; it is gated on `!Diving`, and `Diving` (head sensor
+0.25 m under the surface) only clears once the sensor is back above it, so
+after sinking (a fall in, a tp) no jump works until the player surfaces.
+The 1.5x wall-side jump is not tested. Surface swimming is capped at 3 m/s
 (`maxSwimVelocity`) even when sprinting (target 3.75 x 2.2 = 8.25), **except
 while touching a wall at the side or with the head under water** - the cap is
 not applied then (diving has its own 6.5-7 m/s cap). So sprint-swimming along
@@ -2968,7 +2973,23 @@ overlook (-542.44, 704.79, -1967.46) -> **25 s** with the car door
 `Lock`, `OnDisableProxy` `Unlock`) -> door opens. Entering the door's trigger
 mid-ride did nothing; after the ride it opened the door. The door leaves are
 0.1 m boxes - the runners' "elevator skip" clips out of the locked car early
-(up to 25 s). The keycard is checked only at the gold door
+(up to 25 s). The ride is a teleport (`ElevatorSystem.Goto`: the car is set
+to the top and the player put at the same offset from it, twice, a physics
+step apart): a player outside the door plane at that moment arrives outside
+the top door too (live). The door is `AutomatedDoorSystem` (`_alpha`,
+`_state`, `_locked`); `Lock()` only sets the flag - an already open door
+stays open while "locked" (the leaves move in `Update`, off once a door
+finishes). Live with real input (2026-10-03, v0.24.226, door shut): from the
+arrival spot a sprint stops at x -538.27 (capsule against the leaf); the
+runners' recipe scripted (crouch, look down, axe smash, uncrouch 0.25-0.55 s
+later, Jump every 0.05 s; at the seam and at the corner) never got through -
+the smash's head sphere pushes the player *back* ~1 m. A capsule set 0.07 m
+past the leaf's middle is pushed out the far side by depenetration, so the
+clip needs only a few cm past mid-leaf; how the runners get there (fps?
+the exact corner?) is still open - the author or maks doing it with `anim
+watch` and per-frame reads is the next step. **Before v0.24.226 a Quick load
+kept the door as the last ride left it (open): the car stayed open for the
+whole ride and a plain sprint left it** - fixed (`SlidingDoorKeeper`). The keycard is checked only at the gold door
 (`ArtifactRoom/ElevatorCardReader/Trigger`, `activateKeypadDoor`, 242), which
 unlocks `LabDoor_Door (4)` between the ArtifactRoom and the BrokenCorridor.
 Area gates (route order): ... GlassOffice_C -> ArtifactRoom -> CorridorBasic
