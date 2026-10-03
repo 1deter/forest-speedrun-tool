@@ -3186,6 +3186,15 @@ marked.
   (IsCreativeGame && !PlayerPreferences.AllowEnemiesCreative)`;
   `spawnMutants.Start` returns at once on Peaceful or NoEnemies (surface,
   caves, the boss-room babies), and the cave / worm spawns check it too.
+- **Stamina and building** (2026-10-03, live with InfiniteEnergy off):
+  sprint costs 3.5/s (`staminaCostPerSec`), regen 6/s from 0.4 s after the
+  sprint (`timeToRecoverFromRun`), never above Energy; `running` = Run held
+  and animator speed > 0.4 (no regen while it holds). Soda +50 stamina /
+  +80 energy (carry 10); EnergyMix (coneflower + chicory) +30 / +100, Plus
+  (+ aloe) +60 / +100 (carry 5). Creative blueprints: hold Build, one item
+  per 0.065 s, nothing taken. The hole cutter cuts holes only in floors /
+  roofs / rafts (`IHoleStructure`); any other building it touches is
+  destroyed on placing (`FloorHoleArchitect.OnPlaced`).
 - **The pause menu stops time on every single-player difficulty**
   (`HudGui.TogglePauseMenu`: `if (!BoltNetwork.isRunning) timeScale = 0`);
   only the inventory skips Hard / Hard Survival

@@ -6,7 +6,7 @@ tags: route, categories, caves, endgame
 confidence: runner
 checked: 2026-10-03
 sources: sxczurass, "How to speedrun The Forest Any% Creative No Explosive Glitch // Full Guide" (2025-11-24, YouTube qGNfvSwsdII, speedrun.com guide cnvd4); yirequ, "How To Speedrun TheForest Any%Glitchless [Full Guide]" (2026-03-30, YouTube MgwGW-FSje4, guide i3lic); fruich, "The Forest Creative Any% Speedrun Tutorial [2023]" (YouTube FglhdLKQZ8c, guide o74e9) - transcripts read 2026-10-03
-related: categories-and-rules, smash-clip, zipline-boost, wall-and-log-boost, fall-damage, keycards-and-pickups, caves-and-loading, endgame-gate, lab-skip, elevator-skip, megan-boss, movement-tricks, swimming, endgame-splits, pausing-and-game-time
+related: categories-and-rules, crafting-and-building, smash-clip, zipline-boost, wall-and-log-boost, fall-damage, keycards-and-pickups, caves-and-loading, endgame-gate, lab-skip, elevator-skip, megan-boss, movement-tricks, swimming, endgame-splits, pausing-and-game-time
 ---
 
 # Routes
@@ -90,7 +90,8 @@ does not pay.
 **The shift reset** - the one mechanic the run "is not going to work
 without": **release sprint before every animation the game plays** (cave
 entrances and exits, ropes, the vault door). Held through it, stamina
-does not regenerate during the animation; released, it does [runner].
+does not regenerate during the animation; released, it does [runner]. The
+code behind it, and the stamina numbers: `crafting-and-building`.
 
 1. **Start.** Eat the plane meal (the start; `endgame-splits`), look
    down, pick up the soda **second** (otherwise the hotkeys end up wrong),
@@ -104,7 +105,8 @@ does not regenerate during the animation; released, it does [runner].
    sprint only for the first part, then the scroll-wheel jump spammed until
    you are launched up (`wall-and-log-boost` for why rock pushes you up).
    Coins on the way; aim for ~620+ coins by the soda machine.
-3. **Cave 5 -> Cave 6.** Four flowers on the way (for the stamina mixes),
+3. **Cave 5 -> Cave 6.** Flowers on the way - coneflowers and chicory, one
+   of each per stamina mix (`crafting-and-building`),
    rocks for the endgame, files.
 4. **Cave 6 (keycard).** Fall damage avoided by landing on a rock, then on
    the "hole in the bodies" while spamming jump (`fall-damage`). On Peaceful
@@ -182,6 +184,6 @@ speedrun.com describes its route, and it has not been retraced here.
 ## Open questions
 
 - The unrestricted Any% route with bombs (where the boosts go).
-- The exact numbers behind the shift reset (stamina regeneration during an
-  animation with sprint held) - not checked in the code yet.
+- The shift reset measured through a real cave entrance (the code is in
+  `crafting-and-building`).
 - How much each wall climb's scroll-wheel launch depends on fps.

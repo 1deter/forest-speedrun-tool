@@ -445,3 +445,26 @@ cards: routes, categories-and-rules
 must:
 - the runners' name for the cave section leading to the vault door
 - glitchless bans clipping into it; the glitchless route walks in
+
+### stamina-numbers
+question: how fast does stamina drain and come back, and what do sodas do?
+cards: crafting-and-building
+must:
+- sprinting costs 3.5 stamina a second; it regenerates 6 a second, starting 0.4 s after you stop sprinting
+- stamina cannot go above the energy bar
+- a soda gives +50 stamina and +80 energy; an energy mix (coneflower + chicory) +30 stamina and +100 energy
+
+### shift-reset-why
+question: why do glitchless runners let go of shift before cave entrances?
+cards: crafting-and-building, routes
+must:
+- while Run is held and the animator moves faster than 0.4, the game counts you as running
+- while running, stamina does not regenerate, so a held sprint through the animation wastes the regen time
+- not yet measured live through a real cave entrance
+
+### creative-building
+question: why is building so fast in creative?
+cards: crafting-and-building
+must:
+- in Creative you hold Build and one ingredient is added every 0.065 s, and none are taken from the inventory
+- in other modes each ingredient needs its own press and must be carried

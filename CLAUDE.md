@@ -638,17 +638,21 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-03, v0.24.234 released)
 
-**Latest session: the `categories-and-rules` and `routes` cards** (no
-plugin code, no release). speedrun.com's API (game `w6j5341j`): every
-category's rules, subcategories, top 3, moderators. Unrestricted Any% is
-Creative only; "explosives glitch" = the bomb boost; Glitchless bans OOB
-+ wall clips; "Sahara" = the runners' cave section to the vault door.
-Peaceful = no enemies at all (`Cheats.NoEnemies`, game-notes). `routes`
-from three guides' transcripts (`yt-dlp --write-auto-subs`; the guides
-page needs the built-in browser - Cloudflare): sxczurass's NEG Creative,
-yirequ's Glitchless (stamina, sodas, the "shift reset"), fruich's 2023.
-The bot's glossary goes into search in parts now (`Corpus` AddParts; it
-hit the 6 KB chunk limit). 6 eval questions (55). Next: `crafting-and-building`.
+**Latest session: three cards - `categories-and-rules`, `routes`,
+`crafting-and-building`** (no plugin code, no release). speedrun.com's API
+(game `w6j5341j`): rules, subcategories, top 3, moderators. Unrestricted
+Any% is Creative only; "explosives glitch" = the bomb boost; Glitchless
+bans OOB + wall clips; "Sahara" = the runners' cave section to the vault
+door. Peaceful = no enemies at all. `routes` from three guides'
+transcripts (`yt-dlp --write-auto-subs`; the guides page needs the
+built-in browser - Cloudflare). Stamina live (InfiniteEnergy off): sprint
+3.5/s, regen 6/s after 0.4 s, capped by Energy; recipes and soda / mix
+effects read from `ReceipeDatabase` / `ItemDatabase`; the hole cutter
+destroys walls it touches (game-notes). The bot's glossary goes into
+search in parts now (`Corpus` AddParts; it hit the 6 KB chunk limit).
+9 eval questions (58). The planned cards are done; next is the bot's 👎
+queue and the research queue (knowledge/README.md). Slot 1's game was a
+Normal game with GodMode / InfiniteEnergy on (left as found).
 
 **Before that: the `cannibal-ai` card** (no plugin code, no release).
 A new Normal game over the bridge (Slot 1 is Peaceful Creative - no
@@ -741,10 +745,11 @@ spot exists yet - making one is the author's call.
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
    decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
-   knowledge base (28 cards) and the bot (`bot/`) are built and live in
+   knowledge base (29 cards) and the bot (`bot/`) are built and live in
    the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`,
-   `cannibal-ai`, `categories-and-rules`, `routes` done (2026-10-03);
-   next more cards (crafting - `knowledge/README.md`).
+   `cannibal-ai`, `categories-and-rules`, `routes`,
+   `crafting-and-building` done (2026-10-03); next the research queue
+   and the bot's queue (`knowledge/README.md`).
 4. Then the main *Next up* list below. **Ideas waiting (author,
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,

@@ -77,7 +77,7 @@ tunnelling-and-speed-cap, elevator-skip, lab-skip, endgame-gate,
 keycards-and-pickups, endgame-splits, caves-and-loading,
 saves-and-loading, deaths-and-revives, pausing-and-game-time,
 dev-console-and-creative, forestoverlay (+ timmy-forehead-skip, a
-runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API; routes, 2026-10-03, from three guides' transcripts). Each was checked against the
+runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API; routes, 2026-10-03, from three guides' transcripts; crafting-and-building, 2026-10-03, code + live recipe / stamina reads). Each was checked against the
 decompiled code while written (corrections made on the way: the pause menu
 stops time on Hard too; the fall cap is the speed cap; the zipline exit
 weakens braking).
@@ -99,11 +99,11 @@ to it):
 - Categories: whether a bomb without the pause menu is
   "the explosives glitch"; what the empty "Any% Bombs" board was for
   (`categories-and-rules`; questions for the moderators / runners).
-- Routes: the unrestricted Any% (bombs) route; the "shift reset" (stamina
-  during animations with sprint held) in code (`routes`).
+- Routes: the unrestricted Any% (bombs) route (`routes`).
+- Building: custom wall / zipline costs; the hole-cutter boost done for
+  real; the shift reset through a real cave entrance
+  (`crafting-and-building`).
 - Cannibals: weapon swing noise range, the bush bonus above 60 fps, the
   Stealth stat's sources, cave sight / noise live (`cannibal-ai`).
 
-Planned next - each needs research, not only writing:
-- `crafting-and-building` - what runners build (bomb traps, walls,
-  ziplines, gliders) and how long it takes.
+Planned next: none - take the bot's queue and the open questions above.

@@ -53,6 +53,8 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | Creative | god mode + infinite energy + no survival, set by the mode | dev-console-and-creative |
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
 | explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
-| route, K4 skip, Sahara, shift reset, sodas | the runs step by step; Sahara = the cave to the vault door | routes |
+| route, K4 skip, Sahara | the runs step by step; Sahara = the cave to the vault door | routes |
+| stamina, energy, sodas, stamina mix, shift reset | sprint 3.5/s, regen 6/s (not while sprint held), capped by energy | crafting-and-building |
+| building, blueprint, hole cutter, recipes | Creative: hold Build, an item per 0.065 s, free | crafting-and-building |
 | ForestOverlay, the tool, savestates, Quick load, run mode | this project's speedrun plugin | forestoverlay |
 | fps, uncapped fps | matters wherever the game pushes once per rendered frame (bomb boost) or samples per frame (smash clip) | player-physics |
