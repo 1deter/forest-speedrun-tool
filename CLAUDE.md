@@ -652,14 +652,22 @@ categories are drafts - publishing is the moderators' job. No community run
 spot exists yet - making one is the author's call.
 
 **Next, in order (one per session):**
-1. **From phase 4** (author, 2026-10-02): the tech is researched
-   (2026-10-03); **ask the author** whether to build the detection
-   (docs/run-mode.md *Banned moves: detection* - the bomb boost and huge
-   speed flags first) and whether to test the trap-boost candidate; then
-   check *Reload save on death* gives the same game as a manual reload
-   (docs/run-mode.md *Decisions*), then circle back.
-2. Then the main *Next up* list below.
-3. **Last, when every task is done** (author, 2026-10-03: "leave these for
+1. **Build the banned-move detection** (author, 2026-10-03: "build
+   detection in the next session"): docs/run-mode.md *Banned moves:
+   detection* - the bomb boost and huge-speed flags first, then cave
+   state, fall damage, clips / log boosts.
+2. **The rest of the tech sweep** (author asked "exhaustively tested all
+   avenues?" - no): other time-scale paths (inventory / crafting pause,
+   `maximumDeltaTime` 9 hitches) against every game-time timer; direct
+   position writers on the player (cutscenes, ropes, ladders, zipline
+   exit, the first-death warp); jump / grounding leniency (`FauxGrounded`,
+   `jumpFuzzyDelay`); rides and water speeds; saving / reloading mid-air;
+   the rest of the endgame (gold keycard, red elevator, Megan, overlook);
+   building as a tool; multiplayer; live tests of the trap boost and the
+   slide cancel. Then check *Reload save on death* gives the same game as
+   a manual reload (docs/run-mode.md *Decisions*), then circle back.
+3. Then the main *Next up* list below.
+4. **Last, when every task is done** (author, 2026-10-03: "leave these for
    later when we're done with all tasks"): run mode by hand with the author
    - a real ESC + F2, the Runs tab section, End / Start run mode by
    clicking, a run spot's F7, the run code on a real recording (`CodeSize`
