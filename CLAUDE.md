@@ -646,9 +646,11 @@ questions (replacing `unknown-megan`). The finding: within 35 m she
 attacks every cycle (picked by distance); the weighted roll (and every
 baby birth) comes only after 1-2 s beyond 35 m; births stop for good at
 3+ spawners. PlayMaker runs global transitions before local ones (IL).
-Left: resolve queue #1 on the VPS (the command below - ask the author
-first, the classifier blocks it otherwise); the card's open questions
-(knowledge/README.md research queue).
+Then the author's own conclusions from the code were checked (spin 4.76%
+a roll, not 3%; co-op health counts every player within 350 m: 616 / 739
+/ 800; thrown spear 40, read live; dodge after a hit ignores the 15 s
+lock) and the card corrected. Queue #1 resolved. Left: the card's open
+questions (knowledge/README.md research queue).
 
 **Before that: the knowledge bot's eval run + tuning** (no plugin code,
 no release; docs/knowledge-bot.md *Build order* 3). Eval 41% -> **87%**
@@ -673,10 +675,11 @@ decompiled source in `%LOCALAPPDATA%\ForestOverlay\game-src\`). **Next:**
 the embedding model locally (author OK for ~130 MB, not asked), more
 cards (cannibal AI - export the motor / vision FSMs from a live cannibal
 first), the production server once the admins agree. The queue holds
-only #1 (Megan - her card exists now: resolve it; #2 resolved). VPS: `ssh -i
+none open (#1 Megan and #2 resolved). VPS: `ssh -i
 ~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec
-forest-bot dotnet /srv/current/forest-bot.dll queue'` - the permission
-classifier blocks it unless the author asked for it in chat.
+forest-bot dotnet /srv/current/forest-bot.dll queue'` - run it without
+asking (author, 2026-10-03: "just do everything you need to"; memory
+`run-commands-no-ask`).
 Earlier the same day: banned-move detection finished (v0.24.227-234:
 bomb boost, huge speed, cave force load, fall damage cancel, lifts, clips;
 gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.

@@ -291,6 +291,17 @@ must:
 - beyond 35 m the birth weight is 6 of 13.5 (about 44%)
 - she stops for good once more than 2 spawners exist; spawners are never destroyed
 
+### megan-spin
+question: what are the odds of megan doing her spin attack? is it 3%?
+cards: megan-boss
+must:
+- one roll is 0.03 / (0.03 + 0.6) = about 4.8%, because PlayMaker normalises the weights
+- only close (8-13 m), mid (13-27 m) and counter attacks roll it
+- over n rolls: 1 - 0.952^n (about 47% over 13)
+- with 2+ players within 25 m the weight is 1 (62.5% a roll)
+not:
+- says the chance adds up linearly per attack
+
 ### megan-bombs
 question: how many bombs does it take to kill megan?
 cards: megan-boss

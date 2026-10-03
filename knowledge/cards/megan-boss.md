@@ -1,7 +1,7 @@
 ---
 id: megan-boss
 title: Megan's boss fight (how her AI works)
-aliases: megan, megan fight, megan boss, boss fight, final boss, girl boss, girl mutant, spider megan, megan ai, megan attacks, megan babies, boss babies, baby spawn, megan health, kill megan, bombing megan, megan stagger, girlMutant
+aliases: megan, megan fight, spear strat, spin attack, spin chance, megan boss, boss fight, final boss, girl boss, girl mutant, spider megan, megan ai, megan attacks, megan babies, boss babies, baby spawn, megan health, kill megan, bombing megan, megan stagger, girlMutant
 tags: endgame, boss, ai, combat
 confidence: code
 checked: 2026-10-03
@@ -52,21 +52,35 @@ One cycle, in the FSM's own state names [code; the order seen live over
 | 38-50 m | `doJumpAttack` | the leap (charge) attack, 2 s |
 | over 50 m | `runToPlayer 2` | runs at you for up to 7-10 s, leaps once you are within 35 m (50/50 a second run + an arm smash) |
 
-The spin attack (`longSpinAttack`, 4 s) has weight 0.03 against 0.6
-(about 5%) in single player. With two or more players within 25 m of her,
-the weight becomes 1 (about 63%) [code].
+The spin attack (`longSpinAttack`, 4 s) is rolled at the start of a close
+attack (8-13 m), a mid attack (13-27 m) and a counter (below): weight 0.03
+against 0.6. PlayMaker's `SendRandomEvent` divides by the total
+(`ActionHelpers.GetRandomWeightedIndex`, IL), so one roll is **0.03 / 0.63
+= 4.76%**, not 3%. The stomp, long, leap and run attacks never roll it. Over
+n rolls the chance of at least one spin is 1 - 0.9524^n: 21.6% for 5, 38.6%
+for 10, 47.0% for 13, 62.3% for 20 [code; arithmetic]. With two or more
+players within 25 m of her, the weight becomes 1 (1 / 1.6 = 62.5% a roll)
+[code].
+
+A runner measured "3% on the dot" per attack (QA, 2026-10-03). One
+explanation that fits [inferred, not tested]: only about 63% of her attacks
+roll at all, and 0.63 x 4.76% = 3.0%. Counting only close / mid / counter
+attacks should give 4.76%.
 
 ## The dodge
 
 `chanceToDodge` runs before every attack chosen from step 3:
 
-- **Never in the first 15 s** after she activates (`setInitialWeightParams`
-  sets the dodge weight to 0, then 0.25 after 15 s) [code].
-- After that: 0.25 against 1, so **20%** per cycle she "dodges" instead of
-  attacking. Within 15 m that is a walk back (2 s), half of those a real
-  dodge animation (2.5 s). Farther away, she attacks anyway [code].
-- If you hit her within the last 1.3 s (`gettingHit`), the roll is 1 against
-  0.4 instead: **71% she attacks, 29% she walks back** [code].
+- **If you hit her within the last 1.3 s** (`gettingHit`), that is checked
+  first and the roll is 1 against 0.4: **71% she attacks, 29% she walks
+  back** - from the very start of the fight, the 15 s lock does not apply
+  to this roll [code].
+- Otherwise the dodge weight is **0 for the first 15 s** after she activates
+  (`setInitialWeightParams`), then 0.25 against 1: **20%** per cycle [code].
+- A "dodge" is never a leap away: within 15 m it is a walk back (2 s), half
+  of those the dodge animation (2.5 s); farther than 15 m she attacks
+  anyway. A walk back that does not turn into the dodge animation ends in an
+  attack [code].
 
 ## When you hit her: the counter
 
@@ -88,8 +102,17 @@ farther away straight into `chooseAttack` [code; live: a hit at ~20 m went
 ## Health and damage
 
 - **370 health** (read live, Normal). No difficulty scaling of her health
-  was found in the code [code]. In multiplayer, `setupHealthParams` adds a
-  third per player within 350 m, capped at 800 [code].
+  was found in the code [code].
+- **Multiplayer** (`setupHealthParams`, once, when she activates, only with
+  2+ players in the game): `Health + Health / 3 x n`, where n counts **every**
+  player within 350 m of her, you included, and `Health / 3` is integer
+  division (123). So 2 players = 616, 3 = 739, 4 = 862 -> capped at 800
+  [code].
+- **A thrown spear does 40** (plain and upgraded; `ArrowDamage.damage` on
+  the spear's `Tip`, read live). Spears get no headshot bonus (that path
+  skips `spearType`) and no difficulty factor [code + live]. Throws to kill:
+  10 solo (370), 16 with 2 players (616), 19 with 3 (739), 20 with 4+ (800)
+  [arithmetic].
 - **She enters the "hurt" weights below half health (185)**, but see the
   next section for why that rarely matters.
 - Her melee hits use the creepy damage: **28 per hit on Normal, 42 on
@@ -141,7 +164,9 @@ in the boss room they died a moment after Megan [code; live, game-notes].
 **What this means for a fight** [inferred from the above, not timed]:
 
 - **Stay within 35 m and she never gives birth.** Every cycle is an attack
-  (or a 20% dodge), chosen by distance.
+  (or a dodge), chosen by distance. The spear strat (throwing from within
+  35 m) fits this: no births, and no leaps unless you stand 38-50 m away
+  [inferred].
 - **Backing off beyond 35 m is what brings the babies**, nearly one
   roll in two, until three or more spawners exist.
 - Bombs: 13 explosions, each a 1-in-4 chance of a free 10 s window.
@@ -182,4 +207,4 @@ in the boss room they died a moment after Megan [code; live, game-notes].
   read from live counts only).
 - Which path kills the babies when the boss-room Megan dies (the code's
   `killAllBossBabies` runs only for the overworld one).
-- Weapon damage to her by weapon (not read yet).
+- Melee weapon damage to her by weapon (the thrown spear's 40 is read).
