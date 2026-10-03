@@ -666,8 +666,18 @@ spot exists yet - making one is the author's call.
    building as a tool; multiplayer; live tests of the trap boost and the
    slide cancel. Then check *Reload save on death* gives the same game as
    a manual reload (docs/run-mode.md *Decisions*), then circle back.
-3. Then the main *Next up* list below.
-4. **Last, when every task is done** (author, 2026-10-03: "leave these for
+3. **The game-knowledge Discord bot** (author, 2026-10-03; decisions in
+   *Standing decisions*): first the knowledge base (Claude sessions write
+   per-tech explainers - mechanism, why it works, evidence, the optimal
+   version, live / IL - and extract the PlayMaker FSMs to text), then the
+   bot: `/ask` via Discord's interactions endpoint on the site's VPS, a
+   Gemini free-tier Flash model behind a swappable interface, a section
+   index in the prompt + tools (fetch a section, search, `ilscan` on a
+   private copy of Assembly-CSharp.dll, FSM lookup), confidence tags and
+   sources, unanswered questions queued for research sessions, per-user
+   rate limits, "busy" when the quota is out.
+4. Then the main *Next up* list below.
+5. **Last, when every task is done** (author, 2026-10-03: "leave these for
    later when we're done with all tasks"): run mode by hand with the author
    - a real ESC + F2, the Runs tab section, End / Start run mode by
    clicking, a run spot's F7, the run code on a real recording (`CodeSize`
@@ -808,6 +818,15 @@ total playtime lines.
   defined by the moderators on /admin, seeded from speedrun.com's rules.
   Nothing relies on secrecy (open source). Full list and phases:
   [`docs/run-mode.md`](docs/run-mode.md).
+- **Game-knowledge bot** (author, 2026-10-03): for the **wider runner
+  community**, a learning tool - "understand complex mechanics
+  exhaustively like bomb boosts, axe clips, and their deep technical
+  reasoning and why they work and what an optimal version would look
+  like". Runtime on the **Gemini API free tier** (operational cost ~0);
+  the author's two Claude Pro plans build the knowledge base and tools.
+  A private copy of the game's Assembly-CSharp.dll on the server is fine
+  ("as long as it's not being served and just used as an informational
+  lookup ... for educating speedrunners").
 - **Teleports and the endgame** (author, 2026-10-03): Go / tp behave
   like the game's own developer-console teleport - if the console does not
   load the endgame there, neither do we (a Go into the lab from a save
