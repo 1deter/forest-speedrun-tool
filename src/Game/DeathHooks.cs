@@ -246,6 +246,9 @@ namespace ForestOverlay.Game
             {
                 _log.LogInfo("Death (" + kind + "): quick-loading without the menu.");
                 _lastStats = stats;
+                // Counted as a revive: a reload in place keeps this body, so
+                // a fall death's hard landing is cancelled as a revive's is.
+                _revives++;
                 Revive(stats);
             }
             else

@@ -40,6 +40,16 @@ namespace ForestOverlay.Modules
     // Never: permadeath (the game deletes the save on death, nothing to
     // load) or multiplayer.
     //
+    // RELOAD IN PLACE (the author's idea, 2026-10-04; off by default - the
+    // game's own load stays the default): "Reload the save: in place" reads
+    // the slot's save and restores it like a start state's Quick load
+    // (SavestateModule.ReloadSlotInPlace) - no scene load, ~1 s instead of
+    // ~6 s (bridge, Slot 1). Not the game's load: never in run mode
+    // (docs/run-mode.md), marks practice, and falls back to the load below
+    // when it cannot apply (Data/DeathPlan.InPlaceRefusal: the endgame on
+    // one side only, the save unreadable, a savestate action running) or
+    // fails; the log line says which and why.
+    //
     // SKIPPING THE MENU (default since v0.20.3, author's call 2026-09-23:
     // "faster load with no compromise"). The death is skipped and the slot
     // is loaded from in game with LevelSerializer.Resume() - exactly what
@@ -71,6 +81,14 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent ReloadFallbackText = new GUIContent(
             "Reload save on death: used when the spot choice cannot apply (no current spot, run mode).");
         private static readonly GUIContent ChoiceTitle = new GUIContent("When I die:");
+        private static readonly GUIContent ReloadHowTitle = new GUIContent("Reload the save:");
+        private static readonly GUIContent ReloadWithLoad = new GUIContent(" with a load (as the game does)");
+        private static readonly GUIContent ReloadInPlaceLabel = new GUIContent(" in place (fast)");
+        private static readonly GUIContent ReloadInPlaceText = new GUIContent(
+            "In place restores the save without a scene load, the way a start state's Quick load does (about 1 s " +
+            "instead of 5-8 s). It is not the game's own load: it marks practice and is never used in run mode. " +
+            "The game's load is used instead in run mode, when only one of you and the save is past the vault door, " +
+            "or when the save cannot be read - the log line says why.");
         private static readonly GUIContent[] ChoiceLabels =
         {
             new GUIContent(" Automatic (default)"),
@@ -102,6 +120,8 @@ namespace ForestOverlay.Modules
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
         private ConfigEntry<bool> _skipMenuCfg;
+        private ConfigEntry<bool> _inPlaceCfg;
+        private SavestateModule _savestates;
         private ConfigEntry<bool> _noBloodCfg;
         private ConfigEntry<bool> _noStaggerCfg;
         private ConfigEntry<bool> _godModeCfg;
@@ -168,6 +188,10 @@ namespace ForestOverlay.Modules
             _skipMenuCfg = Ctx.Config.Bind("Deaths", "QuickLoadSkipMenu", true,
                 "Reload the save from in game (LevelSerializer.Resume) instead of through the title screen: " +
                 "the same load, one scene load fewer. Off uses the menu path.");
+            _inPlaceCfg = Ctx.Config.Bind("Deaths", "ReloadInPlace", false,
+                "Reload the save in place: the slot's save restored like a savestate's Quick load, no scene load " +
+                "(fast; marks practice). Never in run mode; falls back to the load when it cannot apply. Off = " +
+                "the game's own load (QuickLoadSkipMenu decides how).");
             // Practice toggles, separate from what a death does (author,
             // 2026-09-23): off by default, so survival keeps the game's
             // own feel; they also cover Creative, where nobody dies.
@@ -182,6 +206,7 @@ namespace ForestOverlay.Modules
 
             _practice = Host.Find<PracticeModule>();
             _runs = Host.Find<PracticeRunModule>();
+            _savestates = Host.Find<SavestateModule>();
 
             _hooks = new DeathHooks(ctx.Log);
             DeathHooks.Decide = Decide;
@@ -223,7 +248,8 @@ namespace ForestOverlay.Modules
                         _reviveOutcome = d.Outcome;
                         return DeathAction.Revive;
                     case DeathOutcome.ReloadSave:
-                        return _skipMenuCfg.Value ? DeathAction.QuickLoadInGame : DeathAction.QuickLoad;
+                        // In place starts from in game too (death skipped).
+                        return _skipMenuCfg.Value || _inPlaceCfg.Value ? DeathAction.QuickLoadInGame : DeathAction.QuickLoad;
                     default:
                         return DeathAction.Normal;
                 }
@@ -265,6 +291,8 @@ namespace ForestOverlay.Modules
             s.GoLocked = Ctx.Run.Locks("go");
             s.ReloadLocked = Ctx.Run.Locks("reload");
             s.ReloadForced = Ctx.Run.Forces("reload");
+            s.ReloadInPlace = _inPlaceCfg.Value;
+            s.RunActive = Ctx.Run.Active;
             return s;
         }
 
@@ -282,7 +310,7 @@ namespace ForestOverlay.Modules
             if (action == DeathAction.QuickLoadInGame)
             {
                 _pendingInGameLoad = true;
-                _status = "reloading slot " + _quickLoadSlot + " without the menu...";
+                _status = "reloading slot " + _quickLoadSlot + (_inPlaceCfg.Value ? "..." : " without the menu...");
             }
             if (action == DeathAction.QuickLoad)
             {
@@ -362,28 +390,77 @@ namespace ForestOverlay.Modules
         private void LoadInGame()
         {
             _pendingInGameLoad = false;
+            string note = "";
+            if (_inPlaceCfg.Value)
+            {
+                int slot = _quickLoadSlot;
+                float start = Time.realtimeSinceStartup;
+                string why = _savestates == null ? "the savestate engine is missing"
+                           : _savestates.ReloadSlotInPlace(slot, delegate(string error) { InPlaceDone(slot, start, error); });
+                if (why == null)
+                {
+                    // A restore can finish (or fail) before it returns.
+                    if (_status.StartsWith("reloading", StringComparison.Ordinal)) _status = "reloading slot " + slot + " in place...";
+                    return;
+                }
+                note = " - in place cannot apply: " + why;
+            }
+            LoadWithLoad(note);
+        }
+
+        // One log line per reload in place: done (and how long, death to
+        // playable), or failed and loading instead.
+        private void InPlaceDone(int slot, float start, string error)
+        {
+            float took = Time.realtimeSinceStartup - start;
+            if (error == null)
+            {
+                // No load follows: nothing for run mode to carry over (and
+                // run mode never reloads in place).
+                ReloadPending = false;
+                _status = "reloaded slot " + slot + " in place (" + took.ToString("0.0") + " s)";
+                Ctx.Log.LogInfo("Reload save on death: slot " + slot + " reloaded in place in " + took.ToString("0.00") +
+                                " s (a Quick load of the slot's save).");
+                return;
+            }
+            LoadWithLoad(" - in place failed after " + took.ToString("0.0") + " s: " + error);
+        }
+
+        /// The game's own load of the slot: from in game (Resume) or, with
+        /// Skip the title screen off, through the menu. `note`: why not in place.
+        private void LoadWithLoad(string note)
+        {
+            if (!_skipMenuCfg.Value)
+            {
+                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " via the title screen" + note + ".");
+                if (DeathHooks.GameOverNow()) StartMenuLoad("reloading slot " + _quickLoadSlot + "...");
+                else _status = "reload failed: the death's game is gone - load from the menu";
+                return;
+            }
+
             string err = _loader.LoadSlotWithoutMenu();
             if (err == null)
             {
                 _status = "reloaded slot " + _quickLoadSlot + " without the menu";
-                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " from in game (no menu).");
+                Ctx.Log.LogInfo("Quick-load: loading slot " + _quickLoadSlot + " from in game (no menu)" + note + ".");
                 return;
             }
 
             // Fall back to the menu path: the death was skipped, so end it
             // the game's way and let the title screen load the slot.
-            Ctx.Log.LogWarning("Quick-load without the menu failed (" + err + ") - using the menu.");
+            Ctx.Log.LogWarning("Quick-load without the menu failed (" + err + ") - using the menu" + note + ".");
             if (DeathHooks.GameOverNow())
-            {
-                _pendingQuickLoad = true;
-                _quickLoadStarted = Time.unscaledTime;
-                _titleSeenFrame = -1;
-                _status = "reloading slot " + _quickLoadSlot + " via the menu (in-game load failed)...";
-            }
+                StartMenuLoad("reloading slot " + _quickLoadSlot + " via the menu (in-game load failed)...");
             else
-            {
                 _status = "reload failed: " + err + " - load from the menu";
-            }
+        }
+
+        private void StartMenuLoad(string status)
+        {
+            _pendingQuickLoad = true;
+            _quickLoadStarted = Time.unscaledTime;
+            _titleSeenFrame = -1;
+            _status = status;
         }
 
         private void DriveTitleScreen()
@@ -539,10 +616,19 @@ namespace ForestOverlay.Modules
                 if (boss != _quickLoadBossCfg.Value) _quickLoadBossCfg.Value = boss;
                 y += 26f;
 
-                bool skip = GUI.Toggle(new Rect(20, y, w - 20, 22), _skipMenuCfg.Value,
+                GUI.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
+                y += 22f;
+                bool withLoad = GUI.Toggle(new Rect(30, y, w - 30, 22), !_inPlaceCfg.Value, ReloadWithLoad);
+                if (withLoad && _inPlaceCfg.Value) { _inPlaceCfg.Value = false; _nextDeathAt = 0f; }
+                y += 24f;
+                bool skip = GUI.Toggle(new Rect(50, y, w - 50, 22), _skipMenuCfg.Value,
                                        " Skip the title screen (faster; off = load through the menu)");
                 if (skip != _skipMenuCfg.Value) _skipMenuCfg.Value = skip;
-                y += 26f;
+                y += 24f;
+                bool inPlace = GUI.Toggle(new Rect(30, y, w - 30, 22), _inPlaceCfg.Value, ReloadInPlaceLabel);
+                if (inPlace && !_inPlaceCfg.Value) { _inPlaceCfg.Value = true; _nextDeathAt = 0f; }
+                y += 24f;
+                y += UiText.DrawDim(30, y, w - 30, ReloadInPlaceText) + 6f;
             }
 
             if (choice != DeathChoice.GameDeath) y += UiText.DrawDim(0, y, w, QuickLoadText) + 8f;

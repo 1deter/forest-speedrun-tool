@@ -212,5 +212,78 @@ namespace ForestOverlay.Tests
             Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
             Assert.Contains("forces Reload save on death", d.Text);
         }
+
+        [Fact]
+        public void ReloadInPlaceSaysSoExceptInARun()
+        {
+            DeathSituation s = Base();
+            s.ReloadInPlace = true;
+            Assert.Equal("reloads your save in place (a Quick load of the slot's save; marks practice) - Reload save on death is on",
+                         DeathPlan.Decide(DeathChoice.Automatic, s).Text);
+            s.RunActive = true;
+            DeathDecision d = DeathPlan.Decide(DeathChoice.Automatic, s);
+            Assert.Equal(DeathOutcome.ReloadSave, d.Outcome);
+            Assert.StartsWith("reloads your save (the game's own load - run mode never reloads in place)", d.Text);
+        }
+
+        // Slot 1's case (2026-10-04): saved in the lab, reloaded in the lab.
+        private static InPlaceCheck InLab()
+        {
+            InPlaceCheck c = new InPlaceCheck();
+            c.SlotRead = true;
+            c.FlagsKnown = true;
+            c.SaveInEndgame = true;
+            c.LiveInEndgame = true;
+            c.EndgameLoaded = true;
+            return c;
+        }
+
+        [Fact]
+        public void InPlaceAppliesOnTheSameSideOfTheVaultDoor()
+        {
+            Assert.Null(DeathPlan.InPlaceRefusal(InLab()));
+            InPlaceCheck c = new InPlaceCheck();
+            c.SlotRead = true;
+            c.FlagsKnown = true;
+            Assert.Null(DeathPlan.InPlaceRefusal(c));   // surface save, surface death, no lab loaded
+            c.EndgameLoaded = true;
+            Assert.Null(DeathPlan.InPlaceRefusal(c));   // a lab left loaded does not matter outside
+        }
+
+        [Fact]
+        public void InPlaceRefusesTheEndgameOnOneSideOnly()
+        {
+            // The bridge test: a tp out of the lab, then the lab's save in
+            // place - the lab was unloaded and IsInEndgame stayed false.
+            InPlaceCheck c = InLab();
+            c.LiveInEndgame = false;
+            c.EndgameLoaded = false;
+            Assert.Contains("the save is in the endgame and you are not", DeathPlan.InPlaceRefusal(c));
+            c = InLab();
+            c.EndgameLoaded = false;
+            Assert.Contains("the lab is not loaded", DeathPlan.InPlaceRefusal(c));
+            c = InLab();
+            c.SaveInEndgame = false;
+            Assert.Contains("you are in the endgame and the save is not", DeathPlan.InPlaceRefusal(c));
+        }
+
+        [Fact]
+        public void InPlaceRefusesRunModeFirstThenWhatItCannotRead()
+        {
+            InPlaceCheck c = InLab();
+            c.RunActive = true;
+            c.SlotRead = false;
+            Assert.Equal("run mode: a run reloads only with the game's own load", DeathPlan.InPlaceRefusal(c));
+            c = InLab();
+            c.Busy = true;
+            Assert.Equal("a savestate action is still running", DeathPlan.InPlaceRefusal(c));
+            c = InLab();
+            c.SlotRead = false;
+            c.ReadError = "the slot has no save";
+            Assert.Equal("the slot has no save", DeathPlan.InPlaceRefusal(c));
+            c = InLab();
+            c.FlagsKnown = false;
+            Assert.Contains("could not be read", DeathPlan.InPlaceRefusal(c));
+        }
     }
 }

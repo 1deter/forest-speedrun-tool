@@ -592,6 +592,44 @@ namespace ForestOverlay.Modules
             RestoreFile(LoadFile(_files[found]), load, done);
         }
 
+        // ------------------------------------------------------------------
+        // A death's Reload in place (Modules/DeathModule, the author's idea;
+        // a "Quick load the slot's save" button did it until v0.24.106):
+        // the slot's own save, the data LevelSerializer.Resume would load,
+        // restored like a savestate's Quick load - no scene load. Not the
+        // game's load, so never in run mode and it marks practice
+        // (RestoreInPlace). No file: nothing outside the game's data is put
+        // back (held items, Megan, elevators, weather) - the save's own
+        // state is what LoadNow gives; every pickup taken since comes back,
+        // as a load would bring it. The cave state is sent from the save's
+        // own flag (Data/SlotSaveFlags).
+
+        /// Null when the restore started (`done` then gets null, or why it
+        /// failed), else why it cannot be done in place.
+        public string ReloadSlotInPlace(int slot, Action<string> done)
+        {
+            InPlaceCheck c = new InPlaceCheck();
+            c.RunActive = Ctx.Run.Active;
+            c.AtTitle = PlayerRef.AtTitleScreen;
+            c.Busy = Busy;
+            string error = null;
+            string data = c.RunActive || c.AtTitle || c.Busy ? null : _bridge.ReadSlotData(out error);
+            c.SlotRead = data != null;
+            c.ReadError = error;
+            bool inEndgame = false, inCaves = false;
+            if (data != null) c.FlagsKnown = _bridge.ReadAreaFlags(data, out inEndgame, out inCaves);
+            c.SaveInEndgame = inEndgame;
+            c.LiveInEndgame = AreaReport.InEndgame();
+            c.EndgameLoaded = EndgameLoader.LabLoaded();
+
+            string refusal = DeathPlan.InPlaceRefusal(c);
+            if (refusal != null) return refusal;
+
+            RestoreInPlace(data, _bridge.MemorySafeSaveMode, null, "slot " + slot + "'s save",
+                           inCaves ? 1 : 0, null, done);
+            return null;
+        }
+
         /// A restore at the title screen deserialized the save into the
         /// menu scene (bridge, v0.24.72: `identifiers 0 -> 105`, no
         /// player); capture already refused there (v0.24.59).
