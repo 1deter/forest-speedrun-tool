@@ -71,6 +71,7 @@ namespace ForestOverlay.Core
             _input = new GameInput(ctx.Log);
             _perf = new PerfMonitor(ctx.Log);
             _hotkeys = new HotkeyMap(ctx.Config);
+            _hud.Settings = new HudSettings(ctx.Config);
         }
 
         public void Register(OverlayModule module)
@@ -348,9 +349,11 @@ namespace ForestOverlay.Core
             {
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
+                _hud.Source = m.Id;
                 try { m.ContributeHud(_hud); }
                 catch (Exception ex) { Disable(m, "ContributeHud", ex); }
             }
+            _hud.Source = null;
         }
 
         // ------------------------------------------------------------------

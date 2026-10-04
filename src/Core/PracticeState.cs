@@ -63,6 +63,15 @@ namespace ForestOverlay.Core
 
         public GUIContent Label { get { return _label; } }
 
+        // Settings -> HUD -> Compact: "clean" for "clean (info-only)". The
+        // PRACTICE and run lines keep every word (honest labelling).
+        private bool _compact;
+        public bool Compact
+        {
+            get { return _compact; }
+            set { if (value != _compact) { _compact = value; Rebuild(); } }
+        }
+
         // What changes the game RIGHT NOW (author, QA 2026-09-26: maks had No
         // stagger on and took it for a new lineup; v0.24.194). The marker
         // says a tool was used; this line says which are still on. Modules
@@ -85,7 +94,7 @@ namespace ForestOverlay.Core
         {
             if (_runText != null) { _label.text = _runText; return; }
             _label.text = _reason == null
-                ? "clean (info-only)"
+                ? (_compact ? "clean" : "clean (info-only)")
                 : "PRACTICE - " + _reason + " (x" + _useCount + ")";
         }
     }

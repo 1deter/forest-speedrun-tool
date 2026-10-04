@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -12,6 +13,10 @@ namespace ForestOverlay.Core
     // on the throttled Tick (10 Hz), OnGUI only reads the cached result,
     // and the GUIContent objects are reused between refreshes instead of
     // being reallocated.
+    //
+    // Each Pair is matched to its Settings switch (Data/HudLines) by the
+    // module writing it (Source, set by the host) and its label, so a
+    // module needs no change for its lines to be switchable.
     // ------------------------------------------------------------------
     public sealed class HudBuilder
     {
@@ -19,6 +24,22 @@ namespace ForestOverlay.Core
         private int _count;
 
         public int Count { get { return _count; } }
+
+        /// The [HUD] switches; null = everything shown, normal wording.
+        public HudSettings Settings;
+
+        /// Id of the module contributing now (ModuleHost sets it).
+        public string Source;
+
+        /// Fewer words: modules that word their lines read this.
+        public bool Compact { get { return Settings != null && Settings.Compact; } }
+
+        /// Whether a line of the contributing module is on - for a module
+        /// that would rather not build a line nobody sees.
+        public bool Shows(string label)
+        {
+            return Settings == null || Settings.Shows(HudLines.Find(Source, label));
+        }
 
         public void Begin()
         {
@@ -39,7 +60,8 @@ namespace ForestOverlay.Core
 
         public void Pair(string label, string value)
         {
-            Line(label.PadRight(7) + value);
+            if (!Shows(label)) return;
+            Line(HudLines.Pair(label, value, Compact));
         }
 
         public GUIContent At(int index)

@@ -139,7 +139,8 @@ namespace ForestOverlay.Modules
             // Mono predates TLS 1.2, so a silent absence here is
             // indistinguishable from a handshake failure. Seeing
             // "up to date (v0.7.0)" is what confirms it.
-            hud.Pair("Update", _checker.Message + "   [End]");
+            // (The old "[End]" after it named a key nothing is bound to.)
+            hud.Pair("Update", Data.HudLines.Update(_checker.Message, hud.Compact));
         }
 
         private float _tabW;

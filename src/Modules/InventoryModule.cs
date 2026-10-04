@@ -476,7 +476,9 @@ namespace ForestOverlay.Modules
         public override void ContributeHud(HudBuilder hud)
         {
             if (Ctx.Inventory.Available)
-                hud.Pair("Items", _total + "   (" + _stackCount + " stacks)");
+            {
+                if (hud.Shows("Items")) hud.Pair("Items", Data.HudLines.Items(_total, _stackCount, hud.Compact));
+            }
             else
                 hud.Pair("Items", "(inventory not resolved)");
             if (_logsHud != null) hud.Pair("Logs", _logsHud);

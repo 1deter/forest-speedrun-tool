@@ -183,6 +183,13 @@ namespace ForestOverlay.Modules
             }
         }
 
+        /// The 100% totals on the HUD: this tab's switch, also in Settings -> HUD.
+        public bool TotalsOnHud
+        {
+            get { return _pinSummary; }
+            set { if (value != _pinSummary) { _pinSummary = value; _pinSummaryCfg.Value = value; } }
+        }
+
         public override void ContributeHud(HudBuilder hud)
         {
             if (!_pinSummary) return;
