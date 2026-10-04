@@ -176,6 +176,7 @@ namespace ForestOverlay
             host.Register(new CommunityModule());    // community spots / segments (downloads, never the runner's own file)
             host.Register(new RunUploadModule());    // finished runs to forest.deter.cloud (drawn in the Runs tab)
             host.Register(new RunModeModule());      // run mode: a new game = a run, practice locked (drawn in the Runs tab)
+            host.Register(new TasModule());          // PRACTICE ONLY, experimental: input record / replay (drawn in the Runs tab; last, so bridge indexes stay)
         }
 
         // ------------------------------------------------------------------

@@ -24,8 +24,10 @@ namespace ForestOverlay.Game
     // transpiler makes GetButtonAfterDelay / GetButtonPress /
     // IsPastButtonPress read their button through those same patched
     // statics instead of Rewired, so hold-to-take works too. Installed on
-    // the first bridge input command, never otherwise; Seen counts every
-    // name the game asks for from then on.
+    // the first bridge input command or TAS record / replay, never otherwise; Seen counts every
+    // name the game asks for from then on. Game/TasInput records and
+    // replays through the same postfixes (after the bridge's injection:
+    // a recording holds what the game read; a replay replaces it all).
     // ------------------------------------------------------------------
     public static class InputInject
     {
@@ -97,6 +99,15 @@ namespace ForestOverlay.Game
             o.Add("axes the game read: " + Join(_seenAxes));
         }
 
+        /// Every name the game has read since the patches went in.
+        public static void SeenNames(List<string> buttons, List<string> axes)
+        {
+            buttons.Clear();
+            axes.Clear();
+            buttons.AddRange(_seenButtons.Keys);
+            axes.AddRange(_seenAxes.Keys);
+        }
+
         private static string Join(Dictionary<string, int> d)
         {
             if (d.Count == 0) return "none yet";
@@ -140,18 +151,21 @@ namespace ForestOverlay.Game
         {
             Count(_seenButtons, button);
             if (!__result && State.Any && State.Held(button, Time.frameCount, Time.realtimeSinceStartup)) __result = true;
+            if (TasInput.Current != TasInput.Mode.Off) TasInput.Button(button, 0, ref __result);
         }
 
         private static void DownPostfix(string button, ref bool __result)
         {
             Count(_seenButtons, button);
             if (!__result && State.Any && State.Down(button, Time.frameCount, Time.realtimeSinceStartup)) __result = true;
+            if (TasInput.Current != TasInput.Mode.Off) TasInput.Button(button, 1, ref __result);
         }
 
         private static void UpPostfix(string button, ref bool __result)
         {
             Count(_seenButtons, button);
             if (!__result && State.Any && State.Up(button, Time.frameCount, Time.realtimeSinceStartup)) __result = true;
+            if (TasInput.Current != TasInput.Mode.Off) TasInput.Button(button, 2, ref __result);
         }
 
         private static void AxisPostfix(string axis, ref float __result)
@@ -159,6 +173,7 @@ namespace ForestOverlay.Game
             Count(_seenAxes, axis);
             float v;
             if (State.Any && State.TryAxis(axis, Time.frameCount, Time.realtimeSinceStartup, out v)) __result = v;
+            if (TasInput.Current != TasInput.Mode.Off) TasInput.Axis(axis, false, ref __result);
         }
 
         private static void AxisDownPostfix(string axis, ref float __result)
@@ -166,6 +181,7 @@ namespace ForestOverlay.Game
             float v;
             if (State.Any && State.AxisDown(axis, Time.frameCount, Time.realtimeSinceStartup) &&
                 State.TryAxis(axis, Time.frameCount, Time.realtimeSinceStartup, out v)) __result = v;
+            if (TasInput.Current != TasInput.Mode.Off) TasInput.Axis(axis, true, ref __result);
         }
 
         // ldsfld Input::player; ldarg.0; callvirt Player::GetButton[Down|Up](string)

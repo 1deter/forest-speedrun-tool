@@ -247,6 +247,7 @@ namespace ForestOverlay.Modules
             Attempt cur = _recorder.Current;
             if (_recorder.State != RunRecorder.RunState.Running || cur == null || ReferenceEquals(cur, _recordedUnfinished)) return;
             if (Resumed) return;   // from a checkpoint: practice, not a run that started
+            if (TasRun) return;    // a TAS replay's run is not the runner's
             _recordedUnfinished = cur;
 
             UnfinishedAttempt u = new UnfinishedAttempt();
