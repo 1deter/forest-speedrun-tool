@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using ForestOverlay.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -716,6 +717,39 @@ public sealed class ApiTests : IDisposable
         root = Path.Combine(root, "ForestSite", "wwwroot");
         foreach (string js in Directory.GetFiles(root, "*.js"))
             Assert.DoesNotMatch(@"import[^;]*""https?://", File.ReadAllText(js));
+    }
+
+    // --- /compare: two YouTube runs side by side (maks, QA 1554074251831672943) ---
+
+    [Fact]
+    public async Task Compare_PageWithPreviewAndYouTubeFrameOnly()
+    {
+        var r = await _http.GetAsync("/compare?a=dQw4w9WgXcQ~60~1000~5000&n=Cave");
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        string html = await r.Content.ReadAsStringAsync();
+        Assert.Contains("<title>Compare runs", html);
+        Assert.Contains("og:title", html);
+        Assert.Matches(@"src=""/compare\.js\?v=[0-9a-f]{10}""", html);
+        Assert.Contains(@"href=""/compare""", html);   // in the nav
+
+        // The one frame allowed is YouTube's no-cookie player; its script
+        // is not (the player is driven by postMessage).
+        string csp = string.Join(";", r.Headers.GetValues("Content-Security-Policy"));
+        var frame = Regex.Match(csp, @"frame-src ([^;]*);");
+        Assert.True(frame.Success, csp);
+        Assert.Equal("https://www.youtube-nocookie.com", frame.Groups[1].Value.Trim());
+        Assert.Contains("script-src 'self';", csp);
+        Assert.DoesNotContain("youtube.com/iframe_api", csp);
+
+        string root = AppContext.BaseDirectory;
+        while (!Directory.Exists(Path.Combine(root, "ForestSite", "wwwroot"))) root = Path.GetDirectoryName(root);
+        string js = File.ReadAllText(Path.Combine(root, "ForestSite", "wwwroot", "compare.js"));
+        // Every YouTube address the script names is the no-cookie origin,
+        // and it never adds a script element.
+        foreach (Match m in Regex.Matches(js, @"https://[a-z0-9.-]*youtube[a-z0-9.-]*"))
+            Assert.Equal("https://www.youtube-nocookie.com", m.Value);
+        Assert.DoesNotContain("\"script\"", js);
+        Assert.DoesNotContain("innerHTML", js);
     }
 
     [Fact]

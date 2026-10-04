@@ -93,8 +93,11 @@ if (originSecret.Length > 0)
 // Security headers on every answer (docs/website.md *Security*). Scripts
 // are the site's own only - three.js is served from wwwroot/vendor, not a
 // CDN - so a script injected anywhere could not run, and the admin token
-// in localStorage stays out of reach. Fonts are Google's.
+// in localStorage stays out of reach. Fonts are Google's. The one frame
+// allowed is YouTube's no-cookie player (/compare, compare.js), driven by
+// postMessage - no YouTube script runs on the page.
 const string Csp = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
+                   "frame-src https://www.youtube-nocookie.com; " +
                    "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; " +
                    "worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 app.Use((c, next) =>
@@ -584,6 +587,15 @@ app.MapGet("/spot/{**rest}", SpotPage).RequireRateLimiting("read");
 app.MapGet("/admin/{**rest}", Page);
 app.MapGet("/attempt/{id}", AttemptPage).RequireRateLimiting("read");
 app.MapGet("/about", Page);
+// Two YouTube runs side by side (compare.js): the whole comparison is in
+// the query, nothing stored - the link preview says what the page is.
+app.MapGet("/compare", (HttpContext c) =>
+{
+    c.Response.Headers.CacheControl = "no-cache";
+    string url = "https://" + c.Request.Host.Value + "/compare";
+    return Results.Content(Pages.WithMeta(indexHtml, "Compare runs · Forest Practice Runs",
+        "Two YouTube runs side by side, frame-timed: each run's start, end and splits, played together.", url), "text/html; charset=utf-8");
+});
 api.MapFallback(() => Problem(404, "no such endpoint"));
 app.MapFallback(Page);
 

@@ -744,6 +744,55 @@ plugin change (Practice's Share row).
   https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
   *PbNews_Decisions*.
 
+## Compare: two YouTube runs side by side (2026-10-04)
+
+maks's request (QA `1554074251831672943`, with a retiming tool's panel as
+the picture): a separate tab, one run's YouTube link on each side, each
+run's real start and end frame set by hand, every segment timed, the two
+played next to each other. Site only, no plugin change.
+
+- **`/compare`** (nav: Spots / Compare / About; `wwwroot/compare.js`):
+  per side a link (youtube.com/watch, youtu.be, /shorts/, /live/, /embed/
+  or a bare id - anything else is refused under the box; a link's `t=`
+  opens there), runner name, frame rate (default 60), frame steps
+  +-1 / 10 / 100 / 1k / 10k, Start / End *Set to current* + *Go*, the run
+  time live, *Split here* (fills the next empty split). The table: one row
+  per split + End, each side's segment and running total (a click shows
+  that moment), *Set* / clear per cell, names editable, B - A per segment
+  and total (green = B faster; a split earlier than the one above is red).
+  *Play both from* Start / a split / where each is now: both seek there and
+  play; a buffering side holds the other, a drift over 0.25 s pulls the one
+  ahead back. Pause both, both +-1 frame, speed 0.25-2x. Keys `,` / `.`
+  (Shift = 10) step the last-used side.
+- **Frame-exact like the retiming tools:** the frame at time t is
+  floor(t x fps); a set time is snapped to its frame, a step / Go seeks to
+  the middle of the frame (checked live: +1 = exactly 1/60 s).
+- **The address is the comparison; nothing is stored** (no new write
+  endpoint, nothing to moderate): `?a=<id>~<fps>~<start ms>~<end ms>~<split
+  ms>...&b=...&n=<name>|<name>&an=<runner>&bn=<runner>`, rewritten as you
+  edit (`history.replaceState`), *Copy link* copies it. The server answers
+  `/compare` with a fixed link preview (`Program.cs`).
+- **Players:** `www.youtube-nocookie.com/embed/<id>?enablejsapi=1&origin=...`
+  driven by the IFrame API's own postMessage protocol (`listening`, then
+  `command` seekTo / playVideo / pauseVideo / setPlaybackRate / mute;
+  `infoDelivery` brings currentTime about 4 times a second, interpolated
+  between). **No YouTube script on the page**: the CSP gains only
+  `frame-src https://www.youtube-nocookie.com`; `script-src 'self'` stands
+  (test `Compare_PageWithPreviewAndYouTubeFrameOnly`). A video loaded with
+  a start is played muted and paused on its first frame (a cued video shows
+  no frame), then put back on the exact one. Player errors and a player
+  that never answers (an extension blocking the frame) show under the video.
+- Checked in the preview (Chromium, 1280 / 375 px): both play lined up
+  (1 frame apart after 15 s), steps, split here, a refused link, an
+  unavailable video's message, the share address round trip.
+- **Not built (ideas, if runners ask):** a run on the site carrying its
+  video (the owner sets the link from the game - a runner is their upload
+  token, so a Runs tab text field + `POST /api/runs/<id>/video` checked
+  like `DELETE /api/spots/<id>`), then *Compare videos* from a spot's board
+  prefilled with the split names and each run's start from its splits; the
+  run-mode attempt page beside its video (the run code ties the two); short
+  links stored on the server (a write endpoint to rate-limit and moderate).
+
 ## Item list (2026-10-02)
 
 `wwwroot/items.json`: the game's 231 items (`ItemDatabase` id + name) and
@@ -901,6 +950,10 @@ happens.
 like uploads, owner-only, never another runner's runs, logged; the
 Discord webhook's URL is a secret in `.env` and its posts carry no
 mentions (*Spot categories, owners deleting spots, Discord PB posts*).
+
+2026-10-04: the CSP's one frame, `frame-src https://www.youtube-nocookie.com`
+(/compare's players, driven by postMessage; no YouTube script, no new
+endpoint - *Compare: two YouTube runs side by side*).
 
 Re-check after admin features: new endpoints go under the `admin` group
 (its filter checks the token), owner-only ones check `IsOwner`, and any
