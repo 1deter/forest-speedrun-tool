@@ -358,7 +358,7 @@ the player stands, selects it, makes it current and writes it (id
 `set ..._selected.Start.Kind Zone` / `.Position x,y,z` / `.Radius 3` /
 `End.Shape Box` / `End.Yaw 45` write back - enough for a timed test
 segment (the zone preview draws a **timed** entry only, with
-`_showPreview`). A start state: copy a `capture`d file to
+`_zoneMode` = All / NextOnly / Off). A start state: copy a `capture`d file to
 `savestates/segments/<id>.fosave`; `set ..._current.StartRestoreWithLoad
 true` (memory only). **A test run that FINISHES uploads to the live site** (uploads on by default):
 delete the test spot there after (`DELETE /api/admin/spots/<id>`, header

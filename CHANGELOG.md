@@ -5,6 +5,17 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.235 - 2026-10-04
+
+- Exported spots now carry your name on every attempt, older ones included, so other runners see who ran them.
+- Attempts in an older shared file with no name show as "a runner" and no longer count as your own best times.
+- Capturing a start state over an existing one now asks for a second click and says which one it replaces.
+- Zones can be drawn all the time, only the next one during a run, or not at all; any checkpoint can be hidden in the editor without resetting your times.
+- A run going when you quit to the title screen now stops like a manual abort, keeps its red line and says why on screen.
+- The Runs tab shows when each attempt was run, and when your PB and each best segment were set.
+- Settings -> Info box (HUD): hide any line of the top-left info box (the practice marker and ON NOW always stay), a compact mode, a text size, and drag it anywhere while the window is open.
+- Zones can now be polygons: pick "poly" and add a point at each corner of the area - for bends, ledges and odd cave mouths. The preview and the website's 2D / 3D maps draw them.
+
 ## v0.24.234 - 2026-10-03
 
 - A clip is now only noted when it comes right after one of the two ways
