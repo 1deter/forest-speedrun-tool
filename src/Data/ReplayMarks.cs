@@ -22,9 +22,10 @@ namespace ForestOverlay.Data
     public static class ReplayMarks
     {
         /// Labels show for markers this close to the player (m), at most
-        /// MaxLabels of them, the nearest first.
+        /// MaxLabels of them, the nearest first (markers at one spot share
+        /// a label: Data/ReplayLabels).
         public const float LabelRadius = 25f;
-        public const int MaxLabels = 6;
+        public const int MaxLabels = 12;
 
         /// A placed blueprint and the finished structure at most this far
         /// apart (m) are one building.

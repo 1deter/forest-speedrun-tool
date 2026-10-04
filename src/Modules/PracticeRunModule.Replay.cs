@@ -29,7 +29,9 @@ namespace ForestOverlay.Modules
     // wireframe boxes from their time on, a marker at each interaction
     // along its line (behind the ghost in full colour, ahead faded), and
     // a label over the markers nearest the camera (Game/ReplayDraw; the
-    // labels in DrawScreen from cached text). Idle (no run going) it shows
+    // labels in DrawScreen from cached text: markers at one spot share one
+    // label, "Crafted: Bomb x2" a line, and labels that would overlap on
+    // screen stack upwards - Data/ReplayLabels). Idle (no run going) it shows
     // the whole run's end state. Runs tab: "Replay shows: buildings /
     // interaction markers" (persisted).
     // ------------------------------------------------------------------
@@ -44,9 +46,21 @@ namespace ForestOverlay.Modules
 
         private readonly int[] _labelIdx = new int[ReplayMarks.MaxLabels];
         private readonly float[] _labelDist = new float[ReplayMarks.MaxLabels];
+        // Per label (a group of markers at one spot, Data/ReplayLabels).
+        private readonly int[] _groupOf = new int[ReplayMarks.MaxLabels];
+        private readonly int[] _groupFirst = new int[ReplayMarks.MaxLabels];
         private readonly GUIContent[] _labelText = NewContents(ReplayMarks.MaxLabels);
         private readonly Vector3[] _labelPos = new Vector3[ReplayMarks.MaxLabels];
+        private readonly float[] _labelW = new float[ReplayMarks.MaxLabels];
+        private readonly float[] _labelH = new float[ReplayMarks.MaxLabels];
         private int _labelCount;
+        // The last pick, so the texts are rebuilt only when it changes.
+        private readonly int[] _pickedIdx = new int[ReplayMarks.MaxLabels];
+        private int _pickedCount = -1;
+        // Screen boxes, per repaint (no allocation).
+        private readonly float[] _boxX = new float[ReplayMarks.MaxLabels];
+        private readonly float[] _boxTop = new float[ReplayMarks.MaxLabels];
+        private readonly bool[] _boxShown = new bool[ReplayMarks.MaxLabels];
         private float _nextLabelPick;
         private GUIStyle _labelStyle, _labelShadow;
 
@@ -167,6 +181,7 @@ namespace ForestOverlay.Modules
                 if (_markerLabels.Length < n) _markerLabels = new string[n];
                 for (int i = 0; i < n; i++) _markerLabels[i] = ReplayMarks.Label(_reference.Events[i]);
                 _labelCount = 0;
+                _pickedCount = -1;
                 _nextLabelPick = 0f;
             }
 
@@ -179,26 +194,43 @@ namespace ForestOverlay.Modules
             _replay.ShowMarkers = _replayMarkersCfg.Value;
             _replay.Opacity = LineOpacity;
 
-            if (!_replayMarkersCfg.Value) { _labelCount = 0; return; }
+            if (!_replayMarkersCfg.Value) { _labelCount = 0; _pickedCount = -1; return; }
             if (Time.unscaledTime < _nextLabelPick) return;
             _nextLabelPick = Time.unscaledTime + LabelPickEvery;
 
             Camera cam = DrawTarget.View();
             Vector3 viewer = cam != null ? cam.transform.position : PlayerPosition();
             int count = ReplayMarks.Nearest(_reference.Events, _reference.Events.Count, viewer, ReplayMarks.LabelRadius, _labelIdx, _labelDist);
-            for (int k = 0; k < count; k++)
+            if (SamePick(count)) return;
+
+            int groups = ReplayLabels.Group(_reference.Events, _labelIdx, count, ReplayLabels.SameSpot, _groupOf, _groupFirst);
+            for (int g = 0; g < groups; g++)
             {
-                int i = _labelIdx[k];
-                _labelText[k].text = _markerLabels[i];
-                Vector3 p = _reference.Events[i].P;
-                _labelPos[k] = new Vector3(p.x, p.y + ReplayBehaviour.MarkerHeight + 0.5f, p.z);
+                int lines, longest;
+                _labelText[g].text = ReplayLabels.Text(_markerLabels, _labelIdx, _groupOf, count, g, ReplayLabels.MaxLines, out lines, out longest);
+                _labelW[g] = ReplayLabels.Width(longest);
+                _labelH[g] = ReplayLabels.Height(lines);
+                Vector3 p = _reference.Events[_labelIdx[_groupFirst[g]]].P;
+                _labelPos[g] = new Vector3(p.x, p.y + ReplayBehaviour.MarkerHeight + 0.4f, p.z);
             }
-            _labelCount = count;
+            _labelCount = groups;
+        }
+
+        /// The pick is the one already labelled (same markers, same order).
+        private bool SamePick(int count)
+        {
+            bool same = count == _pickedCount;
+            for (int k = 0; same && k < count; k++) same = _pickedIdx[k] == _labelIdx[k];
+            if (same) return true;
+            for (int k = 0; k < count; k++) _pickedIdx[k] = _labelIdx[k];
+            _pickedCount = count;
+            return false;
         }
 
         private void ClearReplay()
         {
             _labelCount = 0;
+            _pickedCount = -1;
             if (_replaySource == null || _replay == null) return;
             _replaySource = null;
             _replay.SetSource(null);
@@ -216,17 +248,31 @@ namespace ForestOverlay.Modules
             if (_labelStyle == null)
             {
                 _labelStyle = new GUIStyle(GUI.skin.label);
-                _labelStyle.alignment = TextAnchor.MiddleCenter;
+                _labelStyle.alignment = TextAnchor.LowerCenter;
                 _labelStyle.fontSize = 13;
+                _labelStyle.wordWrap = false;
+                _labelStyle.clipping = TextClipping.Overflow;
+                _labelStyle.padding = new RectOffset(0, 0, 0, 0);
                 _labelStyle.normal.textColor = Color.white;
                 _labelShadow = new GUIStyle(_labelStyle);
                 _labelShadow.normal.textColor = new Color(0f, 0f, 0f, 0.85f);
             }
+            // Each label's box sits on its marker; one that would cover a
+            // nearer one moves up above it (the nearest come first).
             for (int k = 0; k < _labelCount; k++)
             {
                 Vector3 sp = cam.WorldToScreenPoint(_labelPos[k]);
-                if (sp.z <= 0f) continue;
-                Rect r = new Rect(sp.x - 160f, Screen.height - sp.y - 11f, 320f, 22f);
+                _boxShown[k] = sp.z > 0f;
+                _boxX[k] = sp.x;
+                _boxTop[k] = Screen.height - sp.y - _labelH[k];
+            }
+            ReplayLabels.Stack(_boxX, _boxTop, _labelW, _labelH, _boxShown, _labelCount, ReplayLabels.Gap);
+            for (int k = 0; k < _labelCount; k++)
+            {
+                if (!_boxShown[k]) continue;
+                // Drawn wider than the estimate, centred: never clipped.
+                float w = _labelW[k] + 160f;
+                Rect r = new Rect(_boxX[k] - w * 0.5f, _boxTop[k], w, _labelH[k]);
                 GUI.Label(new Rect(r.x + 1f, r.y + 1f, r.width, r.height), _labelText[k], _labelShadow);
                 GUI.Label(r, _labelText[k], _labelStyle);
             }
