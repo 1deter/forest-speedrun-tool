@@ -215,8 +215,10 @@ namespace ForestOverlay.Modules
             if (texts == null) return null;
             string own = RunnerIdNow();
             List<string> mine = new List<string>(texts.Count);
+            string name = RunnerNameNow();
             for (int i = 0; i < texts.Count; i++)
-                if (AttemptOwners.IsOwn(AttemptOwners.RunnerIdOf(texts[i]), own)) mine.Add(texts[i]);
+                if (AttemptOwners.IsOwn(AttemptOwners.RunnerIdOf(texts[i]), own))
+                    mine.Add(AttemptFormat.WithRunner(texts[i], own, name));   // an old one: name it, as an export does
             return mine;
         }
 

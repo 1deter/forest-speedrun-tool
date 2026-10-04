@@ -199,5 +199,66 @@ namespace ForestOverlay.Tests
             Assert.Empty(b.Splits);
             Assert.Equal("", b.RunnerId);
         }
+
+        [Fact]
+        public void WithRunnerNamesAnOldAttemptInItsHeader()
+        {
+            string old = "anchor|x\r\nduration|12.000\r\nchannels|Health\r\ns|0.000|1.000|2.000|3.000|0.000\r\nv|0.000|100.000\r\n";
+            string named = AttemptFormat.WithRunner(old, "r-00112233aabbccdd", "de|ter\nx");
+
+            Assert.Equal("anchor|x\r\nduration|12.000\r\nrunner|r-00112233aabbccdd|de ter x\r\nchannels|Health\r\n" +
+                         "s|0.000|1.000|2.000|3.000|0.000\r\nv|0.000|100.000\r\n", named);
+            // The header is where the owner check looks (it stops at the samples).
+            Assert.Equal("r-00112233aabbccdd", AttemptOwners.RunnerIdOf(named));
+            Attempt b = AttemptFormat.Parse(named.Split('\n'));
+            Assert.Equal("r-00112233aabbccdd", b.RunnerId);
+            Assert.Equal("de ter x", b.RunnerName);
+            Assert.Single(b.Samples);
+            Assert.Equal(12f, b.Duration);
+        }
+
+        [Fact]
+        public void WithRunnerNeverRenamesAnAttempt()
+        {
+            Attempt a = new Attempt();
+            a.AnchorLabel = "x";
+            a.RunnerId = "r-aaaaaaaaaaaaaaaa";
+            a.RunnerName = "maks";
+            a.Samples.Add(new RunSample { T = 0f, P = new Vector3(1, 2, 3), Speed = 4f });
+            string text = AttemptFormat.Write(a);
+
+            Assert.Same(text, AttemptFormat.WithRunner(text, "r-bbbbbbbbbbbbbbbb", "deter"));
+            // A runner line anywhere counts (Parse reads lines in any order).
+            string late = "anchor|x\ns|0.000|1.000|2.000|3.000|0.000\nrunner|r-cc|Tom\n";
+            Assert.Same(late, AttemptFormat.WithRunner(late, "r-bbbbbbbbbbbbbbbb", "deter"));
+            // No id to give: unchanged.
+            string old = "anchor|x\ns|0.000|1.000|2.000|3.000|0.000\n";
+            Assert.Same(old, AttemptFormat.WithRunner(old, "", "deter"));
+            Assert.Same(old, AttemptFormat.WithRunner(old, null, "deter"));
+        }
+
+        [Fact]
+        public void WithRunnerOnAHeaderOnlyTextAppends()
+        {
+            Assert.Equal("anchor|x\nrunner|r-a|\n", AttemptFormat.WithRunner("anchor|x", "r-a", null));
+            Assert.Equal("anchor|x\nrunner|r-a|n\n", AttemptFormat.WithRunner("anchor|x\n", "r-a", "n"));
+        }
+
+        [Fact]
+        public void ANamedAttemptSurvivesABundle()
+        {
+            string old = "anchor|s-0123456789ab\nrecorded|2026-09-20T10:00:00.0000000Z\nduration|12.000\ns|0.000|1.000|2.000|3.000|0.000\n";
+            SegmentBundle bundle = new SegmentBundle();
+            bundle.Segment = new Segment { Id = "s-0123456789ab", Name = "test" };
+            bundle.Attempts.Add(AttemptFormat.WithRunner(old, "r-00112233aabbccdd", "deter"));
+
+            string error;
+            SegmentBundle back = SegmentBundle.Parse(bundle.Write(), out error, null);
+            Assert.Null(error);
+            Attempt b = AttemptFormat.Parse(back.Attempts[0].Split('\n'));
+            Assert.Equal("r-00112233aabbccdd", b.RunnerId);
+            Assert.Equal("deter", b.RunnerName);
+            Assert.False(AttemptOwners.IsOwn(b.RunnerId, "r-ffffffffffffffff"));   // the importer's comparison, not their PB
+        }
     }
 }
