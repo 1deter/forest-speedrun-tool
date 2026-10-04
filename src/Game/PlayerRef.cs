@@ -31,6 +31,18 @@ namespace ForestOverlay.Game
 
         public bool Found { get { return Transform != null; } }
 
+        /// Time.unscaledTime of the last placement by the overlay (a
+        /// teleport, Go, a restore's pin; AreaKeeper.ForTeleport sets it
+        /// first, as its area syncs fire the game's own endgame events).
+        /// Segment events the game raises just after are the placement's,
+        /// not the runner's (AuditWatch, WorldEvents' rides).
+        public static float PlacedAt = -10f;
+
+        /// A placement this recent: events are its side effects.
+        public const float PlacementSettle = 1.5f;
+
+        public static bool JustPlaced { get { return Time.unscaledTime - PlacedAt < PlacementSettle; } }
+
         /// At the title screen LocalPlayer is the menu's FakeCave, so Found
         /// is true there; anything that captures or moves the player asks this.
         public static bool AtTitleScreen
@@ -131,6 +143,7 @@ namespace ForestOverlay.Game
         public bool MoveTo(Vector3 position, Quaternion rotation)
         {
             if (Transform == null) return false;
+            PlacedAt = Time.unscaledTime;
 
             if (Rigidbody != null)
             {

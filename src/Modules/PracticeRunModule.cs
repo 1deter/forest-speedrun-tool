@@ -62,6 +62,7 @@ namespace ForestOverlay.Modules
         private TriggerState _startState;
         // Checkpoints in order, then the end - see Data/SplitSequence.
         private readonly SplitSequence _sequence = new SplitSequence();
+        private readonly OccurrenceGate _occurrence = new OccurrenceGate();
 
         private LiveItemCounts _live;
         private readonly ItemSnapshot _baseline = new ItemSnapshot();
@@ -426,10 +427,18 @@ namespace ForestOverlay.Modules
             if (_eventsSeen == events) EvaluateTriggers(pos, null);
             while (_eventsSeen < events)
             {
-                string fired = Ctx.Events.NameAt(_eventsSeen++);
+                // One occurrence under several names (cave-enter-cave06 +
+                // cave-enter, crafted-bomb-timed + crafted) moves the run
+                // on once (Data/SplitSequence OccurrenceGate).
+                int at = _eventsSeen++;
+                string fired = Ctx.Events.NameAt(at);
+                if (!_occurrence.Evaluate(Ctx.Events.CompanionAt(at))) continue;
+                RunRecorder.RunState stateBefore = _recorder.State;
+                int splitsBefore = _splits.Count;
                 EvaluateTriggers(pos, fired);
                 if (_auto.Any && _recorder.State == RunRecorder.RunState.Running && _auto.OnEvent(fired))
                     AutoSplit(pos, fired);
+                if (_recorder.State != stateBefore || _splits.Count != splitsBefore) _occurrence.Moved();
             }
             if (_auto.ItemIds.Count > 0 && _recorder.State == RunRecorder.RunState.Running && _auto.OnItems(_live))
                 AutoSplit(pos, "an item");

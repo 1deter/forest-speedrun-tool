@@ -131,6 +131,7 @@ namespace ForestOverlay.Game
         private static readonly List<string> Names = new List<string>();
         private static readonly List<string> Stamps = new List<string>();
         private static readonly List<string> Details = new List<string>();
+        private static readonly List<bool> Companions = new List<bool>();
         private static ManualLogSource _log;
 
         private static string _pendingEvent;
@@ -192,6 +193,13 @@ namespace ForestOverlay.Game
         /// What the event was about (a door, a cave id, a clothing name), or
         /// null - for the run audit log (Modules/RunModeModule.Audit).
         public string DetailAt(int i) { return Details[i]; }
+
+        /// True when event i is another name for the same occurrence as
+        /// event i - 1 (cave-enter after cave-enter-cave06, crafted after
+        /// crafted-bomb-timed, the named cutscene after endgame-cutscene):
+        /// a run moves on once per occurrence (Data/SplitSequence
+        /// OccurrenceGate).
+        public bool CompanionAt(int i) { return Companions[i]; }
 
         /// The door behind the last keypad event, for the Runs tab.
         public static string LastDoor { get; private set; }
@@ -366,10 +374,10 @@ namespace ForestOverlay.Game
             CutsceneStartedAt = Time.time;
             CutsceneStarts++;
 
-            Record(AnyCutscene, null);
+            Record(AnyCutscene, null, false);
 
             if (known)
-                Fire(_pendingEvent, _pendingDetail, _pendingKeycard);
+                Fire(_pendingEvent, _pendingDetail, _pendingKeycard, true);
             else
                 _log.LogInfo("Game event: endgame cutscene with no known routine pending.");
 
@@ -414,7 +422,7 @@ namespace ForestOverlay.Game
 
                 if (Hooks[hook].Immediate || !_flagAvailable)
                 {
-                    Fire(evt, detail, keycard);
+                    Fire(evt, detail, keycard, false);
                     return;
                 }
 
@@ -426,39 +434,39 @@ namespace ForestOverlay.Game
             catch (Exception) { }
         }
 
-        private static void Fire(string evt, string detail, int keycard)
+        // `companion`: evt is another name for the occurrence just recorded.
+        private static void Fire(string evt, string detail, int keycard, bool companion)
         {
-            Record(evt, detail);
+            Record(evt, detail, companion);
 
             if (evt == KeycardDoor && keycard > 0)
             {
-                Record(KeycardDoor + "-" + keycard, null);
+                Record(KeycardDoor + "-" + keycard, null, true);
                 for (int i = 0; i < DoorCards.Length; i++)
-                    if (DoorCards[i] == keycard) Record(DoorNames[i], null);
+                    if (DoorCards[i] == keycard) Record(DoorNames[i], null, true);
             }
-            if (evt == "end-crash" || evt == "end-shutdown") Record(GameEnd, null);
+            if (evt == "end-crash" || evt == "end-shutdown") Record(GameEnd, null, true);
         }
 
-        /// For WorldEvents: caves, clothing, passengers, starts. `log`
-        /// false for the frequent ones (moving, hold-interact).
-        internal static void RecordWorld(string evt, string detail, bool log)
+        /// For WorldEvents and AuditWatch: caves, clothing, passengers,
+        /// starts, the game's event bus, rides. `log` false for the
+        /// frequent ones (moving, hold-interact). `companion`: another name
+        /// for the occurrence recorded just before (cave-enter after
+        /// cave-enter-cave06).
+        internal static void RecordWorld(string evt, string detail, bool log, bool companion = false)
         {
             Names.Add(evt);
             Stamps.Add(DateTime.Now.ToString("HH:mm:ss"));
             Details.Add(detail);
+            Companions.Add(companion && Names.Count > 1);
             if (log && _log != null)
                 _log.LogInfo("Game event: " + evt + (detail != null ? " (" + detail + ")" : "") +
                              " frame " + Time.frameCount);
         }
 
-        private static void Record(string evt, string detail)
+        private static void Record(string evt, string detail, bool companion)
         {
-            Names.Add(evt);
-            Stamps.Add(DateTime.Now.ToString("HH:mm:ss"));
-            Details.Add(detail);
-            if (_log != null)
-                _log.LogInfo("Game event: " + evt + (detail != null ? " (" + detail + ")" : "") +
-                             " frame " + Time.frameCount);
+            RecordWorld(evt, detail, true, companion);
         }
 
         // Up to three levels - enough to tell doors apart in a log.

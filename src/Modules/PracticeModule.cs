@@ -209,6 +209,7 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
+            _eventItems = ctx.Inventory;
 
             _library = new SegmentLibrary(ctx.Log, ctx.ConfigDirectory);
             Reload();
@@ -1087,8 +1088,10 @@ namespace ForestOverlay.Modules
                         // Typed, or stepped through the known list - the
                         // names are ids, and a typo would never fire. The
                         // group button jumps between the kinds (endgame,
-                        // starts, caves, clothing, passengers); < > step
-                        // within the group shown.
+                        // starts, caves, clothing, passengers, rides,
+                        // building, crafting, eating, fights, story); < >
+                        // step within the group shown; the text field takes
+                        // any name (crafted-<item> for an item not listed).
                         int group = EventGroupOf(t.EventName);
                         if (GUI.Button(new Rect(x0, y - 2f, 92f, 22f), EventGroupNames[group]))
                         {
@@ -1122,42 +1125,123 @@ namespace ForestOverlay.Modules
             return y + 6f;
         }
 
-        // The event picker's groups. Built once (clothing reads the game's
-        // database; empty until it is loaded, then retried).
-        private static readonly string[] EventGroupNames = { "Endgame", "Starts", "Caves", "Clothing", "Passengers", "Autosplit", "Rope" };
-        private static readonly string[][] EventGroups = new string[7][];
+        // The event picker's groups. Built once; a group that reads the
+        // game (clothing, structures, items, story) is rebuilt every few
+        // seconds until the game has it (empty at the title screen).
+        private static readonly string[] EventGroupNames =
+        {
+            "Endgame", "Starts", "Caves", "Clothing", "Passengers", "Autosplit",
+            "Rides, rope", "Building", "Crafting", "Eat, drink", "Fights", "Story, sleep",
+        };
+        private const int GroupCaves = 2, GroupClothing = 3, GroupPassengers = 4, GroupRides = 6,
+                          GroupBuilding = 7, GroupCrafting = 8, GroupEating = 9, GroupFights = 10, GroupStory = 11;
+        private static readonly string[][] EventGroups = new string[EventGroupNames.Length][];
+        private static readonly float[] EventGroupRetryAt = new float[EventGroupNames.Length];
+        private const float EventGroupRetry = 5f;
+        // Name -> group, so drawing never walks the lists (crafting and
+        // eating list every item). Cleared when a group is rebuilt.
+        private static readonly Dictionary<string, int> EventGroupCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private static InventoryReader _eventItems;
 
         private static string[] EventGroup(int g)
         {
             string[] list = EventGroups[g];
-            if (list != null && list.Length > 0) return list;
+            float retry = EventGroupRetryAt[g];
+            if (list != null && (retry <= 0f || Time.unscaledTime < retry)) return list;
+
+            bool complete = true;
             switch (g)
             {
                 case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving, WorldEvents.FirstInput }; break;
-                case 2: list = WorldEvents.CaveEvents(); break;
-                case 3: list = WorldEvents.ClothingEvents(); break;
-                case 4: list = WorldEvents.PassengerEvents(); break;
+                case GroupCaves: list = WorldEvents.CaveEvents(); break;
+                case GroupClothing: list = WorldEvents.ClothingEvents(); complete = list.Length > 0; break;
+                case GroupPassengers: list = WorldEvents.PassengerEvents(); break;
                 case 5: list = new[] { Segment.AutoSplitEvent }; break;
-                case 6: list = new[] { WorldEvents.RopeGrab, WorldEvents.RopeLeave }; break;
-                default: list = GameEvents.RouteOrder; break;
+                case GroupRides: list = Join(new[] { WorldEvents.RopeGrab, WorldEvents.RopeLeave }, BusEvents.RideEvents()); break;
+                case GroupBuilding:
+                    {
+                        string[] s = AuditWatch.StructureNames();
+                        complete = s.Length > 0;
+                        list = BusEvents.Group(BusEvents.Built, s, BusEvents.TreeCut);
+                        break;
+                    }
+                case GroupCrafting:
+                case GroupEating:
+                    list = BusEvents.Group(g == GroupCrafting ? BusEvents.Crafted : BusEvents.Used, ItemNames(out complete));
+                    break;
+                case GroupFights: list = BusEvents.FightEvents(); break;
+                case GroupStory:
+                    {
+                        string[] s = AuditWatch.StoryNames();
+                        complete = s.Length > 0;
+                        list = BusEvents.Group(BusEvents.Story, s, BusEvents.Slept);
+                        break;
+                    }
+                default: list = Join(GameEvents.RouteOrder, new[] { BusEvents.EndgameEnter, BusEvents.EndgameLeave }); break;
             }
             if (list.Length == 0) list = new[] { WorldEvents.Clothing + "-1" };
             EventGroups[g] = list;
+            EventGroupRetryAt[g] = complete ? 0f : Time.unscaledTime + EventGroupRetry;
+            EventGroupCache.Clear();
             return list;
+        }
+
+        private static string[] Join(string[] a, string[] b)
+        {
+            string[] all = new string[a.Length + b.Length];
+            Array.Copy(a, all, a.Length);
+            Array.Copy(b, 0, all, a.Length, b.Length);
+            return all;
+        }
+
+        // The item database's names (crafted-<item>, used-<item>); empty
+        // until it is readable.
+        private static string[] ItemNames(out bool complete)
+        {
+            complete = false;
+            try
+            {
+                if (_eventItems == null || !_eventItems.CatalogReady) return new string[0];
+                IList<ItemInfo> catalog = _eventItems.Catalog;
+                string[] names = new string[catalog.Count];
+                for (int i = 0; i < names.Length; i++) names[i] = catalog[i].Name;
+                complete = true;
+                return names;
+            }
+            catch (Exception) { return new string[0]; }
         }
 
         private static int EventGroupOf(string name)
         {
             if (string.IsNullOrEmpty(name)) return 0;
+            int g;
+            if (EventGroupCache.TryGetValue(name, out g)) return g;
+            g = FindEventGroup(name);
+            if (EventGroupCache.Count > 256) EventGroupCache.Clear();
+            EventGroupCache[name] = g;
+            return g;
+        }
+
+        private static int FindEventGroup(string name)
+        {
             for (int g = 0; g < EventGroupNames.Length; g++)
             {
                 string[] list = EventGroup(g);
                 for (int i = 0; i < list.Length; i++)
                     if (string.Equals(list[i], name, StringComparison.OrdinalIgnoreCase)) return g;
             }
-            if (name.StartsWith(WorldEvents.Clothing + "-", StringComparison.OrdinalIgnoreCase)) return 3;
-            if (name.StartsWith(WorldEvents.Passenger, StringComparison.OrdinalIgnoreCase)) return 4;
-            if (name.StartsWith("cave-", StringComparison.OrdinalIgnoreCase)) return 2;
+            if (name.StartsWith(WorldEvents.Clothing + "-", StringComparison.OrdinalIgnoreCase)) return GroupClothing;
+            if (name.StartsWith(WorldEvents.Passenger, StringComparison.OrdinalIgnoreCase)) return GroupPassengers;
+            if (name.StartsWith("cave-", StringComparison.OrdinalIgnoreCase)) return GroupCaves;
+            switch (BusEvents.PrefixGroup(name))
+            {
+                case BusEvents.Built: return GroupBuilding;
+                case BusEvents.Crafted: return GroupCrafting;
+                case BusEvents.Used: return GroupEating;
+                case BusEvents.Story: return GroupStory;
+                case BusEvents.GroupFights: return GroupFights;
+                case BusEvents.GroupRides: return GroupRides;
+            }
             return 0;
         }
 
