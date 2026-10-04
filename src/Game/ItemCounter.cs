@@ -37,6 +37,12 @@ namespace ForestOverlay.Game
 
         private static int _version;
         private static Harmony _harmony;
+        private static bool _watching;
+
+        /// The hooks are in: Version moves whenever an item amount is
+        /// written, so a reader can skip work while it stands still. False
+        /// when they could not be installed (read on a clock instead).
+        public static bool Watching { get { return _watching; } }
 
         private int _seenVersion = -1;
         private float _lastRead = -1000f;
@@ -49,6 +55,7 @@ namespace ForestOverlay.Game
         private object _inventory;
         private FieldInfo _possessed;
         private FieldInfo _itemId;
+        private Func<object, int> _itemIdGet;
         private Func<int, bool, int> _amountOf;
         private bool _logged;
 
@@ -77,6 +84,7 @@ namespace ForestOverlay.Game
                 n += PatchAll(item, post, "Add", "Remove", "RemoveOverflow");
                 foreach (Type nested in inv.GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public))
                     if (nested.Name.StartsWith("<OnDeserialized>")) n += PatchAll(nested, post, "MoveNext");
+                _watching = n > 0;
                 log.LogInfo("Run item track: " + n + " inventory methods watched.");
             }
             catch (Exception e) { log.LogWarning("Run item track: " + e.Message + " - items re-read every 5 s instead."); }
@@ -123,11 +131,15 @@ namespace ForestOverlay.Game
             {
                 object item = list[i];
                 if (item == null) continue;
-                if (_itemId == null) _itemId = item.GetType().GetField("_itemId", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (_itemId == null)
+                {
+                    _itemId = item.GetType().GetField("_itemId", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _itemIdGet = FastField.Instance<int>(_itemId);   // no boxed id per entry
+                }
                 if (_itemId == null) return true;
 
                 int id;
-                try { id = (int)_itemId.GetValue(item); }
+                try { id = _itemIdGet(item); }
                 catch (Exception) { continue; }
                 if (!InventoryReader.IsRealItem(id)) continue;
 

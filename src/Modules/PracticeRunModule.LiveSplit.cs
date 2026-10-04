@@ -214,9 +214,15 @@ namespace ForestOverlay.Modules
             return _lssPick >= 0 && _lssPick < _lssCompareSplits.Count ? _lssCompareSplits[_lssPick] : null;
         }
 
+        // Asked every splits refresh; the joined text is kept per name.
+        private string _lssNameOf, _lssNameText;
+
         private string LssComparisonName()
         {
-            return _lssPick >= 0 && _lssPick < _lssCompareNames.Count ? "LiveSplit " + _lssCompareNames[_lssPick] : "LiveSplit";
+            if (_lssPick < 0 || _lssPick >= _lssCompareNames.Count) return "LiveSplit";
+            string n = _lssCompareNames[_lssPick];
+            if (!ReferenceEquals(n, _lssNameOf) || _lssNameText == null) { _lssNameOf = n; _lssNameText = "LiveSplit " + n; }
+            return _lssNameText;
         }
 
         private void RefreshLssPickText()

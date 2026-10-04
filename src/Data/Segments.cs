@@ -350,7 +350,21 @@ namespace ForestOverlay.Data
         {
             if (row >= Checkpoints.Count) return EndName.Length > 0 ? EndName : "End";
             string n = row < CheckpointNames.Count ? CheckpointNames[row] : null;
-            return string.IsNullOrEmpty(n) ? "Checkpoint " + (row + 1) : n;
+            return string.IsNullOrEmpty(n) ? DefaultName(row) : n;
+        }
+
+        // "Checkpoint n", made once per row number: the splits table asks
+        // for every row's name ten times a second while a run is on. A race
+        // between threads (the site links this file) only makes an equal
+        // string twice.
+        private static readonly string[] DefaultNames = new string[64];
+
+        private static string DefaultName(int row)
+        {
+            if (row < 0 || row >= DefaultNames.Length) return "Checkpoint " + (row + 1);
+            string s = DefaultNames[row];
+            if (s == null) { s = "Checkpoint " + (row + 1); DefaultNames[row] = s; }
+            return s;
         }
 
         public void SetCheckpointName(int index, string name)
