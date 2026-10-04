@@ -77,6 +77,36 @@ namespace ForestOverlay.Data
             else MakeCurrent(_end, ref _endState, true);
         }
 
+        /// A run resumed from a checkpoint state (Data/CheckpointStates):
+        /// the first `fired` checkpoints count as done, and the next one is
+        /// watched exactly as if checkpoint `fired` had just fired - armed as
+        /// next, so it fires at once if it already holds. That is what the
+        /// run that captured the state saw at that moment.
+        public void Resume(IList<Trigger> checkpoints, Trigger end, int fired)
+        {
+            _checkpoints = checkpoints;
+            _end = end;
+
+            if (_states.Length != Count) _states = new TriggerState[Count];
+            for (int i = 0; i < _states.Length; i++) TriggerEvaluator.Reset(ref _states[i]);
+            TriggerEvaluator.Reset(ref _endState);
+            TriggerEvaluator.Reset(ref _endWatch);
+
+            if (fired < 0) fired = 0;
+            if (fired > Count) fired = Count;
+            Next = fired;
+
+            if (fired == 0)
+            {
+                // Nothing fired: a plain start.
+                if (Count > 0) MakeCurrent(_checkpoints[0], ref _states[0], true);
+                else MakeCurrent(_end, ref _endState, true);
+                return;
+            }
+            if (OnlyEndLeft) MakeCurrent(_end, ref _endState, false);
+            else MakeCurrent(_checkpoints[Next], ref _states[Next], false);
+        }
+
         /// One evaluation pass; at most one thing happens per pass, so two
         /// splits due in the same frame land a frame apart.
         public SplitEvent Evaluate(Vector3 position, IItemCounts items, string firedEvent, IItemCounts baseline)
