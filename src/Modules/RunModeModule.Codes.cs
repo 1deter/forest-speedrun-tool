@@ -152,12 +152,33 @@ namespace ForestOverlay.Modules
             _chain.Split(_clock.ElapsedMilliseconds, row, (long)Math.Round(seconds * 1000.0));
         }
 
-        /// The timed run finished during the attempt: the attempt ends with it.
-        public void TimerFinished(Segment segment, float seconds)
+        /// The timed run finished during the attempt: the attempt ends with
+        /// it. Returns what the results panel shows of it (null = no attempt
+        /// was open).
+        public RunModeOutcome TimerFinished(Segment segment, float seconds)
         {
-            if (!_attemptOpen || _chain == null) return;
+            if (!_attemptOpen || _chain == null) return null;
             _finalTimerMs = (long)Math.Round(seconds * 1000.0);
+            _endedOutcome = null;
             EndAttempt("finished" + (segment != null ? " '" + segment.Name + "'" : "") + " in " + seconds.ToString("0.00") + " s", "finished");
+            return _endedOutcome;
+        }
+
+        private RunModeOutcome _endedOutcome;
+
+        // The attempt as it ended: its last code, online or not, the report.
+        private RunModeOutcome Outcome()
+        {
+            RunModeOutcome o = new RunModeOutcome();
+            o.Attempt = Ctx.Run.Attempt;
+            o.Label = Ctx.Run.Label ?? "";
+            o.AttemptId = _attemptId;
+            o.Code = _chain.Code ?? "";
+            o.Online = _online;
+            o.SendOn = _upload != null && _upload.AttemptsOn;
+            o.AntiSplice = Ctx.Run.Category == null || Ctx.Run.Category.AntiSplice;
+            o.Report = _report != null ? _report.Summary() : "";
+            return o;
         }
 
         private void EndChain(string reason)
@@ -179,6 +200,7 @@ namespace ForestOverlay.Modules
             }
             Ctx.Log.LogInfo("Run mode: " + _attemptId + " ended (" + reason + ") after " + _chain.Steps + " step(s), " +
                             (_online ? "online" : "offline") + "; last code " + _chain.Code + ".");
+            _endedOutcome = Outcome();
             _codeText.text = AttemptChain.NoCode;
         }
 

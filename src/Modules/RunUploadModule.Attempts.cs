@@ -47,6 +47,32 @@ namespace ForestOverlay.Modules
         /// Run mode's attempts reach the site (nonce, checkpoints, logs).
         public bool AttemptsOn { get { return _attemptsOn != null && _attemptsOn.Value && !_tokenBad; } }
 
+        // What became of each attempt's log this session, for the results
+        // panel (Modules/PracticeRunModule.Results): words per id, and a
+        // count that moves on every change so the panel rebuilds only then.
+        private readonly Dictionary<string, string> _attemptWords = new Dictionary<string, string>();
+
+        public int AttemptWordsVersion { get; private set; }
+
+        /// "" when this session has not queued that attempt's log.
+        public string AttemptUploadWords(string attemptId)
+        {
+            string w;
+            return attemptId != null && _attemptWords.TryGetValue(attemptId, out w) ? w : "";
+        }
+
+        /// The attempt's page on the site (exists once its log is in).
+        public string AttemptLink(string attemptId)
+        {
+            return SiteProtocol.AttemptUrl(_url.Value, attemptId);
+        }
+
+        private void SetAttemptWords(string attemptId, AttemptUpload state, string detail)
+        {
+            _attemptWords[attemptId] = RunResults.UploadWords(state, detail);
+            AttemptWordsVersion++;
+        }
+
         private void InitAttempts(ConfigFile config, string root)
         {
             _attemptsOn = config.Bind("Site", "SendAttempts", true,
@@ -178,6 +204,7 @@ namespace ForestOverlay.Modules
                 File.WriteAllText(Path.Combine(_attemptDir, name), text, new UTF8Encoding(false));
                 _nextAttemptTry = 0f;
                 _recentDirty = true;
+                SetAttemptWords(attemptId, AttemptUpload.Waiting, null);
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Attempts: could not queue " + attemptId + ": " + ex.Message); }
         }
@@ -238,12 +265,14 @@ namespace ForestOverlay.Modules
                     _attemptFailures = 0;
                     _nextAttemptTry = 0f;
                     _attemptState = "attempt " + id + " sent (" + verdict + ")";
+                    SetAttemptWords(id, AttemptUpload.Sent, verdict);
                     Ctx.Log.LogInfo("Attempts: " + id + " log sent - " + verdict + Why(answer) + ".");
                     break;
                 case UploadOutcome.TokenBad:
                     _tokenBad = true;
                     _attemptState = "the site does not know this install's token - clear Token in the config to register again";
                     Ctx.Log.LogWarning("Attempts: token refused (401); attempt logs wait.");
+                    SetAttemptWords(id, AttemptUpload.TokenBad, null);
                     break;
                 case UploadOutcome.RetryLater:
                     _attemptFailures++;
@@ -251,6 +280,7 @@ namespace ForestOverlay.Modules
                     _nextAttemptTry = Time.unscaledTime + wait;
                     _attemptState = "site not reachable (" + (error ?? "HTTP " + code) + ") - attempt logs wait, retrying in " + Mathf.RoundToInt(wait) + " s";
                     Ctx.Log.LogWarning("Attempts: " + id + " log not sent: " + (error ?? "HTTP " + code) + "; retry in " + Mathf.RoundToInt(wait) + " s.");
+                    SetAttemptWords(id, AttemptUpload.Retrying, "site not reachable (" + (error ?? "HTTP " + code) + "), retrying");
                     break;
                 default:
                     // 409 = another log is in for this id; 400 = it does not read.
@@ -267,6 +297,7 @@ namespace ForestOverlay.Modules
                     AppendSent(id, "refused");
                     _nextAttemptTry = 0f;
                     _attemptState = "the site refused attempt " + id + ": " + msg;
+                    SetAttemptWords(id, AttemptUpload.Refused, msg);
                     Ctx.Log.LogWarning("Attempts: " + id + " log refused - " + msg + " (moved to uploads/attempts/refused).");
                     break;
             }
@@ -329,14 +360,7 @@ namespace ForestOverlay.Modules
 
         private static string VerdictWords(string v)
         {
-            switch (v)
-            {
-                case "green": return "green: checked online";
-                case "amber": return "amber: parts checked by the video's codes only";
-                case "red": return "red: see its page";
-                case "refused": return "refused by the site (uploads/attempts/refused)";
-                default: return v;
-            }
+            return RunResults.VerdictWords(v);
         }
 
         /// Run mode's section: the switch, the state and the recent attempts'
