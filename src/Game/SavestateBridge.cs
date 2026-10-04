@@ -658,6 +658,7 @@ namespace ForestOverlay.Game
 
             if (!Resolve() || _loadNow == null) { r.Message = "LevelSerializer.LoadNow not found"; done(r); yield break; }
             if (IsDeserializing) { r.Message = "the game is already loading"; done(r); yield break; }
+            EnsurePrefabs("Savestate restore (in place)");
 
             string diffError;
             List<SavedObject> saved;
@@ -848,6 +849,7 @@ namespace ForestOverlay.Game
                 return title == null ? null : title + (prep != null ? " (" + prep + ")" : "");
             }
 
+            EnsurePrefabs("Savestate restore (load)");
             try
             {
                 _loadSavedLevel.Invoke(null, new object[] { data });
@@ -870,6 +872,7 @@ namespace ForestOverlay.Game
             if (IsDeserializing) return "the game is already loading";
 
             PrepareContinue(null, null);
+            EnsurePrefabs("Savestate slot load");
             try
             {
                 _resume.Invoke(null, null);
@@ -908,16 +911,66 @@ namespace ForestOverlay.Game
             }
 
             // Resume() sets the difficulty from the save's name; LoadSavedLevel
-            // does not. A Creative file names the mode, so the difficulty
-            // under it comes from its own line (none before v0.24.211: kept).
-            string diff = !string.IsNullOrEmpty(baseDifficulty) ? baseDifficulty
-                        : difficulty != "Creative" ? difficulty : null;
+            // does not. Its rule: Peaceful under Creative (also for files
+            // whose basedifficulty says otherwise, or have none), else the
+            // save's own. SetDifficulty publishes DifficultySet, which
+            // refreshes GameSettings (damage, survival, animals); the load
+            // sets up the enemies under it.
+            string diff = ForestOverlay.Data.SavestateFile.LoadDifficultyOf(difficulty, baseDifficulty);
             if (!string.IsNullOrEmpty(diff) && _setDifficulty != null && _difficultyType != null)
             {
-                try { _setDifficulty.Invoke(null, new[] { Enum.Parse(_difficultyType, diff) }); }
+                string was = BaseDifficultyName();
+                try
+                {
+                    _setDifficulty.Invoke(null, new[] { Enum.Parse(_difficultyType, diff) });
+                    if (was != diff)
+                        _log.LogInfo("Savestate restore (load): difficulty " + was + " -> " + diff + " for the load (the capture's" +
+                                     (difficulty == "Creative" ? ", Peaceful under Creative as the game loads it" : "") + ").");
+                }
                 catch (Exception) { note = "difficulty '" + diff + "' not applied"; }
             }
             return note;
+        }
+
+        /// In a launch whose first game was New the game's prefab list is
+        /// empty: a load in game hung, a Quick load could not rebuild what
+        /// was destroyed since the capture (Game/PrefabList). Not at the
+        /// title screen - the menu's load fills it there.
+        private void EnsurePrefabs(string what)
+        {
+            string prefabs = PrefabList.Ensure();
+            if (prefabs != null) _log.LogInfo(what + ": " + prefabs + ".");
+        }
+
+        /// The cheats a game mode owns (GameMode_Creative turns the first
+        /// four on and, destroyed, off; UnlimitedHairspray has no setter in
+        /// the game but the mod bridge). Statics: they outlive every load,
+        /// the game's own too - a console `_godmode` or a test bridge `set`
+        /// in a Normal game came through a Full load (bridge, 2026-10-04).
+        private static readonly string[] ModeCheats = { "GodMode", "InfiniteEnergy", "NoSurvival", "Creative", "UnlimitedHairspray" };
+
+        /// Turns the mode's cheats off, for a run's start from a start
+        /// state: called once the load has started, so a Creative capture's
+        /// GameMode_Creative turns its own back on as the game loads (a
+        /// fresh game of the capture's mode). "" when none was on, else
+        /// "cheats off for the run's start: GodMode, ...".
+        public string ResetModeCheats()
+        {
+            Type cheats = GameBridge.FindGameType("Cheats");
+            if (cheats == null) return "";
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < ModeCheats.Length; i++)
+            {
+                try
+                {
+                    FieldInfo f = cheats.GetField(ModeCheats[i], BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (f == null || f.FieldType != typeof(bool) || !(bool)f.GetValue(null)) continue;
+                    f.SetValue(null, false);
+                    sb.Append(sb.Length > 0 ? ", " : "").Append(ModeCheats[i]);
+                }
+                catch (Exception) { }
+            }
+            return sb.Length > 0 ? "cheats off for the run's start (as a fresh game; Creative's own come back with its load): " + sb : "";
         }
 
         /// Null when done or nothing to do, else why not.
@@ -1977,6 +2030,10 @@ namespace ForestOverlay.Game
                 catch (Exception) { return false; }
             }
         }
+
+        /// GameSetup.Difficulty ("Peaceful", "Normal", "Hard", "HardSurvival";
+        /// Peaceful under Creative), or "" when unknown.
+        public string CurrentBaseDifficulty { get { return BaseDifficultyName(); } }
 
         private string BaseDifficultyName()
         {

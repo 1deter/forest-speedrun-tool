@@ -2048,7 +2048,15 @@ namespace ForestOverlay.Modules
                 PickupKeeper.Armed = true;
                 CloseMenuBeforeLoad();
                 _greebles.Restore(f.Greebles, false);
-                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty), AfterLoad(f, done));
+                string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty);
+                // A run starts as a fresh game of the capture's mode: no
+                // cheat a console / bridge left on (statics outlive loads).
+                if (runStart && err == null)
+                {
+                    string cheats = _bridge.ResetModeCheats();
+                    if (cheats.Length > 0) Ctx.Log.LogInfo("Savestate: " + what + ": " + cheats + ".");
+                }
+                StartLoad(what + " with load", err, AfterLoad(f, done));
             }
             else
             {
@@ -2058,20 +2066,18 @@ namespace ForestOverlay.Modules
         }
 
         // A Quick load needs a game to restore into, and the game's mode:
-        // Creative is set up as the game loads and is not in the save. So
-        // from the title screen, or into the other mode (Creative <->
-        // survival), the restore is a Full load, whatever the setting -
-        // the load switches the mode (author, 2026-10-02; refused before).
+        // Creative and the difficulty are set up as the game loads and are
+        // not in the save. So from the title screen, or into another mode
+        // (Creative <-> survival, author 2026-10-02) or difficulty (Normal /
+        // Hard / Peaceful ...: a Quick load kept the live game's enemies and
+        // settings - bridge, 2026-10-04), the restore is a Full load,
+        // whatever the setting - the load switches them.
         private bool MustLoad(SavestateFile f, string what)
         {
             string why = null;
             if (PlayerRef.AtTitleScreen) why = "from the title screen";
             else if (_bridge.Resolve())
-            {
-                string here = _bridge.CurrentDifficulty;
-                if (here.Length > 0 && f.Difficulty.Length > 0 && (here == "Creative") != f.IsCreative)
-                    why = "captured in a " + f.Difficulty + " game, this one is " + here + " - the load switches the mode";
-            }
+                why = f.ModeMismatch(_bridge.CurrentDifficulty, _bridge.CurrentBaseDifficulty);
             if (why == null) return false;
             Ctx.Log.LogInfo("Savestate: " + what + " restores with a Full load - " + why + ".");
             return true;

@@ -200,6 +200,41 @@ namespace ForestOverlay.Data
         /// Captured in a Creative game.
         public bool IsCreative { get { return Difficulty == "Creative"; } }
 
+        /// The difficulty the game runs at once this file is loaded the
+        /// game's way: LevelSerializer.Resume sets Peaceful under Creative
+        /// (a new Creative game is Peaceful too), else the save's own.
+        public string LoadDifficulty { get { return LoadDifficultyOf(Difficulty, BaseDifficulty); } }
+
+        /// LoadDifficulty for a header's `difficulty` / `basedifficulty`;
+        /// "" when unknown.
+        public static string LoadDifficultyOf(string difficulty, string baseDifficulty)
+        {
+            if (difficulty == "Creative") return "Peaceful";
+            if (!string.IsNullOrEmpty(difficulty)) return difficulty;
+            return baseDifficulty ?? "";
+        }
+
+        /// Why a Quick load here would not give the game this file was
+        /// captured in, or null. `hereMode` is the live game in the
+        /// `difficulty` line's form ("Creative" or the difficulty),
+        /// `hereBase` GameSetup.Difficulty. The game mode and the
+        /// difficulty are set up as a game loads (enemy spawns, damage and
+        /// survival settings, Creative's cheats) and are not in the save,
+        /// so only a Full load switches them (bridge, 2026-10-04: a Normal
+        /// capture Quick-loaded in a Hard game stayed Hard, in a Peaceful
+        /// game had no cannibals).
+        public string ModeMismatch(string hereMode, string hereBase)
+        {
+            if (string.IsNullOrEmpty(hereMode) || string.IsNullOrEmpty(Difficulty)) return null;
+            if ((hereMode == "Creative") != IsCreative)
+                return "captured in a " + Difficulty + " game, this one is " + hereMode + " - the load switches the mode";
+            string want = LoadDifficulty;
+            if (want.Length == 0 || string.IsNullOrEmpty(hereBase) || want == hereBase) return null;
+            return IsCreative
+                ? "captured in Creative (Peaceful underneath, as the game loads it), this Creative game is " + hereBase + " underneath - the load sets the difficulty"
+                : "captured in a " + Difficulty + " game, this one is " + hereBase + " - the load sets the difficulty";
+        }
+
         public string Write()
         {
             StringBuilder sb = new StringBuilder(Data.Length + 256);
