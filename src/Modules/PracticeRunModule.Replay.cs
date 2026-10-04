@@ -170,8 +170,9 @@ namespace ForestOverlay.Modules
                 _nextLabelPick = 0f;
             }
 
-            bool running = _recorder.State == RunRecorder.RunState.Running;
-            float upTo = ReplayMarks.ShownUpTo(running, _recorder.Elapsed);
+            // The replay camera's clock is the replay time while it plays.
+            bool running = _recorder.State == RunRecorder.RunState.Running || _camOn;
+            float upTo = ReplayMarks.ShownUpTo(running, _camOn ? _clock.T : _recorder.Elapsed);
             _replay.UpTo = upTo;
             _replay.MarkersPassed = running ? ReplayMarks.UpTo(_reference.Events, upTo) : int.MaxValue;
             _replay.ShowBuildings = _replayBuildingsCfg.Value;

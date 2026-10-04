@@ -81,8 +81,8 @@ ziplines) - "maybe something similar to the CS grenade camera".
 stats at 5 Hz, the item changes and (2026-10-04) its interactions and
 buildings (`Data/RunRecorder`, below). Ghosts and run
 lines in game; on the site, the 2D / 3D map with lines, ghosts, a scrub
-bar and the *State* panel. **No look direction and no animation are
-recorded** - the ghost is a marker.
+bar and the *State* panel. Since the replay camera (below) the look
+direction is recorded too (`l|` lines); **no animation is recorded**.
 
 **What each part needs:**
 - **Interactions and buildings on the replay:** the audit log's events
@@ -143,12 +143,61 @@ the comparison run has. Site: `/api/runs/<id>` carries `events` and
 `buildings`; the State panel lists the last 5 things done up to the scrub
 time.
 
+**Built (2026-10-04, branch `ghost-camera`, not yet released or checked
+in game): a ghost with a body and the replay camera** (*Order* items 1,
+4's follow camera and 5's camera view, in game):
+- **Look track.** Every timed run records `l|t|yaw|pitch|eye` with each
+  position sample (30 Hz): the view camera's world yaw / pitch (Unity's
+  angles, pitch + = down) and its height above the recorded position
+  (`PracticeRunModule.ReadLook`; skipped while freecam / the replay
+  camera flies the view). `Data/AttemptFormat` (F2 numbers); older
+  readers and the site skip the lines, old runs parse with no looks.
+- **Ghost look** (Runs tab, `[Runs] GhostLook` = Figure | Marker, Figure
+  by default): `Data/GhostFigure` - a capsule body (rings, sides, rounded
+  ends), a head, an arrow out of the chest along the facing and a gaze
+  line along the look; 164 GL line vertices built in Tick into
+  `RunLineBehaviour.FigureVerts`. Height = the recorded eye + 0.13 m
+  (0.9 - 2.2; a crouch is shorter), else 1.8 m; feet at the recorded
+  position, as the marker. Older runs face where they moved
+  (`ReplayCamera.HeadingAt`, over +-0.25 s).
+- **Replay camera** (Runs tab *Watch the comparison run*, hotkey
+  `run.replayCamera` unbound; Experimental, practice - marks "replay
+  camera", run mode feature `replaycam`, locked by default): plays the
+  comparison run on its own clock (`Data/ReplayClock`: pause, seek, a
+  frame step, 0.1x - 2x, a scrub slider in the tab) and flies the game's
+  own camera through a second `FreeCamBehaviour` (gotchas 56 / 58: nothing
+  copied or switched off; `FreeCamBehaviour.InUse` refuses a second flyer,
+  so freecam and the replay camera exclude each other). Views
+  (`Data/ReplayCamera`, tested): **chase** (4.5 m behind, above, looking
+  at the chest, smoothed at rate 6), **first person** (the recorded eye
+  and look, not smoothed; no look track = the heading, level), and
+  **trajectory** (side-on to the path from 2 s before to 4 s after,
+  distance fitted to the camera's fov / aspect, smoothed at rate 2.5; the
+  framed stretch drawn white). The player is held (HoldsPlayer) and no
+  triggers are read while it is on, so no run arms or starts. Keys with
+  the window closed: Space, Left / Right (Shift 5 s), `,` / `.`, Up /
+  Down, 1 2 3 / V, R, Esc. Ends on Esc, its key, F9 off, run mode, a run
+  starting, or a load tearing the camera down. Log lines `Replay camera:
+  on / view / off`; HUD `Replay`.
+- **Bridge check:** a segment with a finished run (practice mode on, Go
+  to it), then `call BepInEx_Manager OverlayPlugin._host._modules[11].ToggleReplayCamera`,
+  `wait 2`, `shot replay-chase`; `set ..._modules[11]._camView FirstPerson`,
+  `shot replay-fp`; `set ..._camView Trajectory`, `wait 2`, `shot
+  replay-traj`; `set ..._clock.Paused true` + `set ..._clock.T <s>` to
+  pick the moment; `call ..._modules[11].ToggleReplayCamera` ends it
+  (check `_camOn` false and the view back on the player). A run recorded
+  on this version first, for the look track (`l|` lines in
+  `runs/<id>/*.run`).
+
 **Next steps (not built):** the buildings and markers on the site's 2D /
-3D map (the JSON is there); first-person replays with animations (needs
-look direction + animator in the recording, *Order* 1 and 5); the
-trajectory / "grenade camera" view; a ghost model instead of the marker;
-blueprints destroyed / cancelled after placing (the box stays until the
-end); the walls' chain placement checked live.
+3D map (the JSON is there); the look track on the site (a first-person
+view over the 3D world; `/api/runs/<id>` does not carry it yet); the
+arms / animations in first person (needs the animator in the recording,
+*Order* 5); the trajectory view's other variants (the predicted arc beside
+the real one, marks for blast / pause / unpause / peak / landing, a slow-
+motion follow of a boost, a zipline aim helper - *Order* 4); blueprints
+destroyed / cancelled after placing (the box stays until the end); the
+walls' chain placement checked live.
 
 **Decided (author, 2026-10-03):**
 1. The audit log is for verifiers and runners alike; its point is a
@@ -168,7 +217,8 @@ end); the walls' chain placement checked live.
 
 ## Order, if picked up
 
-1. Look direction in the recording (cheap, needed by everything else).
+1. Look direction in the recording (cheap, needed by everything else) -
+   built (the `l|` track, 2026-10-04).
 2. Audit `event` lines for what is already seen (run mode attempts) + the
    attempt page's rundown (summary first) and timeline.
 3. Buildings and interactions on the in-game and site replays.

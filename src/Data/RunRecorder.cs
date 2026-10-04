@@ -11,6 +11,23 @@ namespace ForestOverlay.Data
         public float Speed;      // horizontal speed at this sample
     }
 
+    /// Where the runner looked (replay camera, docs/run-audit-and-replays.md
+    /// part 2): the view camera's yaw and pitch (degrees; pitch positive =
+    /// down, as Unity) and its height above the recorded position (Eye),
+    /// taken with each position sample (30 Hz). An own track (`l|` lines):
+    /// older runs have none and older readers skip it.
+    public struct LookSample
+    {
+        public float T;
+        public float Yaw;
+        public float Pitch;
+        public float Eye;
+    }
+
+    /// Reads the look now; false = none this sample (no camera, or the
+    /// view is flown away by freecam / the replay camera).
+    public delegate bool LookReader(out float yaw, out float pitch, out float eye);
+
     /// One snapshot of the player's full numeric state.
     ///
     /// Kept on a SEPARATE track from the position samples, at a lower
@@ -129,6 +146,10 @@ namespace ForestOverlay.Data
 
         /// Structures placed / finished, in time order (see RunBuilding).
         public readonly List<RunBuilding> Buildings = new List<RunBuilding>();
+
+        /// Where the runner looked, in time order (see LookSample). Empty
+        /// for runs recorded before the look track.
+        public readonly List<LookSample> Looks = new List<LookSample>();
 
         /// An item's count at time t: its last change at or before t, 0
         /// before its first.
@@ -399,6 +420,9 @@ namespace ForestOverlay.Data
         /// first sample) must always fill. Only changes are recorded.
         public Func<Dictionary<string, int>, bool, bool> ItemSource;
 
+        /// Asked with each position sample (see LookSample); null = no look track.
+        public LookReader LookSource;
+
         /// A run keeps at most this many events / buildings: a long run
         /// cutting trees all the way must not grow the file without end.
         public const int MaxEvents = 2000;
@@ -456,7 +480,17 @@ namespace ForestOverlay.Data
             s.Speed = horizontalSpeed;
             Current.Samples.Add(s);
 
+            SampleLook();
             SampleState(state);
+        }
+
+        private void SampleLook()
+        {
+            if (LookSource == null) return;
+            LookSample l;
+            if (!LookSource(out l.Yaw, out l.Pitch, out l.Eye)) return;
+            l.T = Elapsed;
+            Current.Looks.Add(l);
         }
 
         private void SampleState(float[] state)

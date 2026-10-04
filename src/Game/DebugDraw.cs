@@ -410,6 +410,11 @@ namespace ForestOverlay.Game
         /// Set when Begin / End has something to say (logged by the module).
         public string LastReport = "";
 
+        /// The one flying the view (Debug views' freecam, or the replay
+        /// camera's own copy of this behaviour): a second Begin while one
+        /// is on is refused - both would park the same camera.
+        public static FreeCamBehaviour InUse;
+
         /// False while the overlay window is open: the mouse is then
         /// pointing at buttons and the keys are typing into fields.
         public bool InputEnabled = true;
@@ -420,11 +425,19 @@ namespace ForestOverlay.Game
         /// centres on this while it is active.
         public Camera Camera { get { return _camera; } }
 
-        public void Begin(Camera source)
+        /// False when it could not take the view (no camera, or another
+        /// one is flying it - LastReport says which).
+        public bool Begin(Camera source)
         {
-            if (_camera != null) return;
-            if (source == null) return;
+            if (_camera != null) return true;
+            if (source == null) { LastReport = "no camera"; return false; }
+            if (InUse != null && InUse != this && InUse.Active)
+            {
+                LastReport = "the view is already flown by " + InUse.Owner;
+                return false;
+            }
 
+            InUse = this;
             _camera = source;
             Transform t = source.transform;
             _homeLocalPos = t.localPosition;
@@ -464,9 +477,13 @@ namespace ForestOverlay.Game
             _pitch = e.x > 180f ? e.x - 360f : e.x;
 
             DrawTarget.FreeCam = _camera;
-            LastReport = "Freecam: flying '" + source.name + "', " + _moved.Count
+            LastReport = Owner + ": flying '" + source.name + "', " + _moved.Count
                 + " child(ren) left at the player, " + _paused.Count + " script(s) paused";
+            return true;
         }
+
+        /// Who flies the view, for messages ("Freecam", "the replay camera").
+        public string Owner = "Freecam";
 
         /// Puts the flown camera at a pose (the aerial capture, the bridge);
         /// held there by LateUpdate like a flown one.
@@ -484,7 +501,8 @@ namespace ForestOverlay.Game
 
         public void End()
         {
-            DrawTarget.FreeCam = null;
+            if (InUse == this) InUse = null;
+            if (_camera != null) DrawTarget.FreeCam = null;
             Camera cam = _camera;
             _camera = null;
 
@@ -645,12 +663,25 @@ namespace ForestOverlay.Game
         public bool HasGhost;
         public Vector3 GhostPosition;
 
+        /// The ghost as a body (Data/GhostFigure: capsule, head, facing
+        /// arrow, gaze) instead of the marker; FigureVerts is filled by the
+        /// module (FigureCount vertices, line pairs).
+        public bool DrawFigure;
+        public readonly Vector3[] FigureVerts = new Vector3[ForestOverlay.Data.GhostFigure.Vertices];
+        public int FigureCount;
+
+        /// The replay camera's trajectory view: the stretch of the
+        /// comparison it frames, drawn bright over the line.
+        public readonly Vector3[] PathWindow = new Vector3[96];
+        public int PathCount;
+
         private Material _material;
 
         private static readonly Color ReferenceColour = new Color(0.35f, 0.75f, 1f, 0.9f);
         private static readonly Color CurrentColour = new Color(1f, 0.95f, 0.35f, 0.9f);
         private static readonly Color GhostColour = new Color(1f, 0.35f, 0.75f, 1f);
         private static readonly Color FailedColour = new Color(1f, 0.3f, 0.25f, 0.75f);
+        private static readonly Color PathColour = new Color(1f, 1f, 1f, 0.95f);
 
         private void EnsureMaterial()
         {
@@ -670,7 +701,7 @@ namespace ForestOverlay.Game
         private void OnRenderObject()
         {
             if (!Show) return;
-            if (ReferenceCount < 2 && CurrentCount < 2 && FailedCount < 2 && !HasGhost) return;
+            if (ReferenceCount < 2 && CurrentCount < 2 && FailedCount < 2 && !HasGhost && PathCount < 2) return;
             if (!DrawTarget.ShouldDraw()) return;
 
             EnsureMaterial();
@@ -684,18 +715,30 @@ namespace ForestOverlay.Game
             DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour));
             DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour));
             DrawStrip(FailedLine, 0, FailedCount, Faded(FailedColour));
+            DrawStrip(PathWindow, 0, PathCount, PathColour);
 
+            int extra = PathCount > 1 ? 2 * (PathCount - 1) : 0;
             if (HasGhost)
             {
                 GL.Color(Faded(GhostColour));
-                // A small upright marker reads better than a dot at
-                // distance, and shows height difference at a glance.
-                DrawMarker(GhostPosition, 0.45f, 1.8f);
+                if (DrawFigure && FigureCount > 0)
+                {
+                    int n = Mathf.Min(FigureCount, FigureVerts.Length) & ~1;
+                    for (int i = 0; i < n; i++) GL.Vertex(FigureVerts[i]);
+                    extra += n;
+                }
+                else
+                {
+                    // A small upright marker reads better than a dot at
+                    // distance, and shows height difference at a glance.
+                    DrawMarker(GhostPosition, 0.45f, 1.8f);
+                    extra += 10;
+                }
             }
 
             GL.End();
             GL.PopMatrix();
-            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - ReferenceStart - 1) + Mathf.Max(0, CurrentCount - 1)));
+            DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - ReferenceStart - 1) + Mathf.Max(0, CurrentCount - 1)) + extra);
         }
 
         private Color Faded(Color c)

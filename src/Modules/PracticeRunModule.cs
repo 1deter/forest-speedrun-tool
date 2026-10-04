@@ -200,6 +200,7 @@ namespace ForestOverlay.Modules
             InitResults(ctx);
             InitCheckpoints(ctx);
             InitReplay(ctx);
+            InitCamera(ctx);
         }
 
         private RunUploadModule _upload;
@@ -265,10 +266,12 @@ namespace ForestOverlay.Modules
             map.Add("run.closeResults", KeyCode.None, "Close the results panel", CloseResultsKey);
             map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
+            map.Add("run.replayCamera", KeyCode.None, "Replay camera on / off (watch the comparison run)", ToggleReplayCamera);
         }
 
         public override void Shutdown()
         {
+            if (_camOn) EndReplayCamera("shutdown");
             if (_lineHost != null) Object.Destroy(_lineHost);
             ItemCounter.Uninstall();
             ShutdownReplay();
@@ -465,6 +468,14 @@ namespace ForestOverlay.Modules
 
             if (_segment != null && SceneManager.GetActiveScene().buildIndex != _armedScene) LeaveLevel();
             if (_armSource == ArmSource.RunMode && !Ctx.Run.Active) RunModeEnded();
+
+            // The replay camera plays the comparison back: no triggers are
+            // read meanwhile (the player is held; no run arms or starts).
+            if (_camOn)
+            {
+                TickReplayCamera();
+                if (_camOn) { _eventsSeen = Ctx.Events.Count; return; }
+            }
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
@@ -897,7 +908,7 @@ namespace ForestOverlay.Modules
             // Lines belong to the selected entry only when it is the one
             // being run (author, 2026-09-24): selecting another entry hid
             // its zones but left this segment's line drawn.
-            _lines.Show = _showLines && Enabled &&
+            _lines.Show = (_showLines || _camOn) && Enabled &&
                           (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
             if (!_lines.Show) return;
 
@@ -916,7 +927,7 @@ namespace ForestOverlay.Modules
             {
                 // Only the next few seconds of the comparison (author, QA
                 // 2026-09-26): from where its ghost is now, or its start.
-                float from = _recorder.State == RunRecorder.RunState.Running ? _recorder.Elapsed : 0f;
+                float from = _camOn ? _clock.T : _recorder.State == RunRecorder.RunState.Running ? _recorder.Elapsed : 0f;
                 int s, e;
                 _referenceLine.Window(from, from + LineAhead, out s, out e);
                 _lines.ReferenceStart = s;
@@ -932,15 +943,13 @@ namespace ForestOverlay.Modules
             _lines.FailedCount = _keepFailedCfg.Value ? _failedLine.Count : 0;
 
             _lines.HasGhost = false;
-            if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
+            if (_reference != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
+            else if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
             {
                 Vector3 ghost;
                 if (RunCompare.PositionAt(_reference.Samples, _reference.Duration, _recorder.Elapsed,
                                           ref _ghostHint, out ghost))
-                {
-                    _lines.GhostPosition = ghost;
-                    _lines.HasGhost = true;
-                }
+                    SetGhost(_recorder.Elapsed, ghost, false);
             }
         }
 
@@ -963,6 +972,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
+            if (_camOn && _camHud.Length > 0) hud.Pair("Replay", _camHud);
             if (!Timing) return;
 
             if (_segment == null)
@@ -1058,6 +1068,7 @@ namespace ForestOverlay.Modules
             if (_tas != null) y = _tas.DrawSection(y, cw);
             y = DrawLineOptions(y, cw);
             y = DrawReplayOptions(y, cw);
+            y = DrawCameraSection(y, cw);
             y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);
