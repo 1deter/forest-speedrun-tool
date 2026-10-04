@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using BepInEx.Configuration;
 using ForestOverlay.Core;
 using ForestOverlay.Data;
@@ -197,6 +198,7 @@ namespace ForestOverlay.Modules
             }
             WatchLoads();
             PathfindingWatch.Tick();
+            DrainWrites();
 
             // A reset that closed the book: free a pitch lock it left
             // (Game/BookClose), once no restore is running.
@@ -309,6 +311,11 @@ namespace ForestOverlay.Modules
         /// overwriting. `after` gets null on success or the reason.
         private void CaptureTo(string name, string path, Action<string> after)
         {
+            CaptureTo(name, path, null, after);
+        }
+
+        private void CaptureTo(string name, string path, CaptureOptions opts, Action<string> after)
+        {
             if (RefusedInRun("capture", after)) return;
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             if (PlayerRef.AtTitleScreen)
@@ -329,6 +336,13 @@ namespace ForestOverlay.Modules
             // so items on it would be lost, and an open one stops game time,
             // which the capture's frames need (it sat until the inventory
             // closed - audit, v0.24.203).
+            // A checkpoint capture mid-run skips instead: closing the
+            // runner's menu would be the overlay playing the game.
+            if (opts != null && opts.Background && MenuClose.AnyOpen())
+            {
+                if (after != null) after("the pause menu or the inventory is open");
+                return;
+            }
             string menu = MenuClose.IfOpen();
             if (menu.Length > 0) Ctx.Log.LogInfo("Savestate capture: " + menu + " first, as the game's save does.");
 
@@ -413,9 +427,13 @@ namespace ForestOverlay.Modules
             }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: panel description failed: " + ex.Message); }
 
-            Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
+            bool light = opts != null && opts.Light;
+            Ctx.Runner.StartCoroutine(_bridge.Capture(light, delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints, weather);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints, weather, opts);
+                // Written on a worker thread: `after` runs once the file is
+                // on disk (DrainWrites, main thread).
+                if (error == null && opts != null && opts.Queued) { opts.After = after; return; }
                 if (error == null && areaWarning.Length > 0)
                 {
                     Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
@@ -430,7 +448,7 @@ namespace ForestOverlay.Modules
                                   string cutscene, float cutsceneAt, string megan, string elevators, string slidingDoors, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
                                   List<string> greebles, string stance, string rope, string ride, int logs, string blueprints,
-                                  string weather)
+                                  string weather, CaptureOptions opts)
         {
             _busy = false;
             if (!r.Ok)
@@ -484,8 +502,18 @@ namespace ForestOverlay.Modules
                     path = UniquePath(SavestateFile.SafeFileName(name));
                 }
                 else Directory.CreateDirectory(Path.GetDirectoryName(path));
-                File.WriteAllText(path, f.Write(), new UTF8Encoding(false));
-                _lastCaptureHash = Segment.HashText(f.Data);
+                if (opts != null && opts.Background)
+                {
+                    // Serialized here, on the main thread (the game's
+                    // serializer is Unity's); building the text and the
+                    // disk write go to a worker thread.
+                    QueueWrite(f, path, opts, r);
+                }
+                else
+                {
+                    File.WriteAllText(path, f.Write(), new UTF8Encoding(false));
+                    _lastCaptureHash = Segment.HashText(f.Data);
+                }
 
                 string line = "captured '" + name + "' -> " + Path.GetFileName(path) + ": " + r.Message +
                               ", " + pickups.Count + " world pickups listed, " + bookNote +
@@ -1715,6 +1743,242 @@ namespace ForestOverlay.Modules
                 return null;
             }
             catch (Exception ex) { return ex.Message; }
+        }
+
+        // ------------------------------------------------------------------
+        // Checkpoint states (Data/CheckpointStates): one Quick-load state
+        // per checkpoint of a timed segment, captured as a practice run
+        // fires it (Modules/PracticeRunModule.Checkpoints) - newest wins.
+
+        private sealed class CaptureOptions
+        {
+            /// No memory clean-up frames (SavestateBridge.Capture light).
+            public bool Light;
+            /// The file's text built and written on a worker thread.
+            public bool Background;
+            /// Written after the savestate, by the same worker; built on the
+            /// main thread from the capture's result.
+            public string MetaPath;
+            public Func<SavestateBridge.Result, string> Meta;
+            /// For the one log line.
+            public string What = "";
+            internal bool Queued;
+            internal Action<string> After;
+        }
+
+        private sealed class PendingWrite
+        {
+            public string Path, MetaPath, MetaText, Error;
+            public SavestateFile File;
+            public CaptureOptions Opts;
+            public long SerializeMs, FramesMs, WriteMs;
+            public int Chars;
+        }
+
+        // Paths a worker is writing (main thread only), and the finished
+        // writes for DrainWrites (shared with the workers: locked).
+        private readonly HashSet<string> _writing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<PendingWrite> _written = new List<PendingWrite>();
+
+        private string SegmentsDir { get { return Path.Combine(_dir, "segments"); } }
+
+        public string CheckpointStatePath(Segment s, int index)
+        {
+            return Path.Combine(SegmentsDir, CheckpointFiles.BaseName(SavestateFile.SafeFileName(s.Id), index) + SavestateFile.Extension);
+        }
+
+        private string CheckpointMetaPath(Segment s, int index)
+        {
+            return Path.Combine(SegmentsDir, CheckpointFiles.BaseName(SavestateFile.SafeFileName(s.Id), index) + CheckpointState.Extension);
+        }
+
+        /// The checkpoints (0-based) with a complete state on disk, not
+        /// being written now. A folder listing: call on a change, not per
+        /// frame.
+        public List<int> CheckpointStatesOf(Segment s)
+        {
+            List<int> none = new List<int>();
+            if (s == null || string.IsNullOrEmpty(s.Id)) return none;
+            try
+            {
+                if (!Directory.Exists(SegmentsDir)) return none;
+                string safe = SavestateFile.SafeFileName(s.Id);
+                string[] paths = Directory.GetFiles(SegmentsDir, safe + ".cp*");
+                List<string> names = new List<string>(paths.Length);
+                for (int i = 0; i < paths.Length; i++)
+                    if (!_writing.Contains(paths[i])) names.Add(Path.GetFileName(paths[i]));
+                return CheckpointFiles.Complete(names, safe, SavestateFile.Extension);
+            }
+            catch (Exception ex)
+            {
+                Ctx.Log.LogWarning("Checkpoint states of '" + s.Id + "': could not list them: " + ex.Message);
+                return none;
+            }
+        }
+
+        /// The checkpoint's meta, or null and why.
+        public CheckpointState ReadCheckpointState(Segment s, int index, out string error)
+        {
+            try
+            {
+                string path = CheckpointMetaPath(s, index);
+                if (_writing.Contains(CheckpointStatePath(s, index))) { error = "still being written"; return null; }
+                if (!File.Exists(path)) { error = "no state captured"; return null; }
+                CheckpointState st = CheckpointState.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
+                if (st != null && st.Index != index) { error = "the file is for checkpoint " + (st.Index + 1); return null; }
+                return st;
+            }
+            catch (Exception ex) { error = ex.Message; return null; }
+        }
+
+        /// Captures checkpoint `index`'s state for `s` without disturbing the
+        /// run more than it must: never in run mode, skipped with a menu
+        /// open or another savestate action running, no memory clean-up,
+        /// and the file written on a worker thread. `meta` builds the
+        /// sidecar from the capture's result (main thread). `done` gets null
+        /// once both files are on disk, or why not - on the main thread.
+        public void CaptureCheckpointState(Segment s, int index, Func<SavestateBridge.Result, string> meta, Action<string> done)
+        {
+            // Run mode never captures (the caller checks too): quietly.
+            if (Ctx.Run.Active) { done("run mode is on"); return; }
+            if (Busy) { done("another savestate action is still running"); return; }
+            string path = CheckpointStatePath(s, index);
+            if (_writing.Contains(path)) { done("its last capture is still being written"); return; }
+
+            CaptureOptions opts = new CaptureOptions();
+            opts.Light = true;
+            opts.Background = true;
+            opts.MetaPath = CheckpointMetaPath(s, index);
+            opts.Meta = meta;
+            opts.What = "checkpoint " + (index + 1) + "/" + s.Checkpoints.Count + " of '" + s.Id + "'";
+            CaptureTo("checkpoint " + (index + 1) + " of " + s.Name + " (" + s.Id + ")", path, opts, done);
+        }
+
+        public int DeleteCheckpointStates(Segment s)
+        {
+            int n = 0;
+            if (s == null) return 0;
+            try
+            {
+                if (!Directory.Exists(SegmentsDir)) return 0;
+                string safe = SavestateFile.SafeFileName(s.Id);
+                string[] paths = Directory.GetFiles(SegmentsDir, safe + ".cp*");
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    string name = Path.GetFileName(paths[i]);
+                    if (_writing.Contains(paths[i])) continue;
+                    if (CheckpointFiles.IndexOf(name, safe, SavestateFile.Extension) < 0 &&
+                        CheckpointFiles.IndexOf(name, safe, CheckpointState.Extension) < 0) continue;
+                    File.Delete(paths[i]);
+                    n++;
+                }
+                Ctx.Log.LogInfo("Checkpoint states of '" + s.Id + "': " + n + " file(s) deleted.");
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Checkpoint states of '" + s.Id + "': delete failed: " + ex.Message); }
+            return n;
+        }
+
+        /// Restores checkpoint `index`'s state: a Quick load, or a Full load
+        /// where a Quick load cannot (MustLoad). `done` as RestoreStartState.
+        public void RestoreCheckpointState(Segment s, int index, Action<string> done)
+        {
+            if (Busy) { done("a savestate action is still running"); return; }
+            if (RefusedInRun("restore", done)) return;
+            string path = CheckpointStatePath(s, index);
+            if (_writing.Contains(path)) { done("its capture is still being written"); return; }
+
+            SavestateFile f;
+            try
+            {
+                string error;
+                f = SavestateFile.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
+                if (f == null) { done("checkpoint state unreadable: " + error); return; }
+            }
+            catch (Exception ex) { done("checkpoint state unreadable: " + ex.Message); return; }
+
+            string what = "checkpoint " + (index + 1) + " of '" + s.Name + "'";
+            if (MustLoad(f, what))
+            {
+                Ctx.Practice.Mark("savestate restore (load)");
+                PickupKeeper.Armed = true;
+                CloseMenuBeforeLoad();
+                _greebles.Restore(f.Greebles, false);
+                StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty), AfterLoad(f, done));
+                return;
+            }
+            HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
+            RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, f.InCave ? 1 : 0, f, done);
+        }
+
+        // The worker: the old meta goes first, so a write cut short (the
+        // game closed) leaves a state with no meta - never offered - rather
+        // than a new meta beside an old state.
+        private void QueueWrite(SavestateFile f, string path, CaptureOptions opts, SavestateBridge.Result r)
+        {
+            PendingWrite w = new PendingWrite();
+            w.Path = path;
+            w.MetaPath = opts.MetaPath;
+            w.File = f;
+            w.Opts = opts;
+            w.SerializeMs = r.SerializeMs;
+            w.FramesMs = r.TotalMs;
+            w.Chars = r.Data != null ? r.Data.Length : 0;
+            try { w.MetaText = opts.Meta != null ? opts.Meta(r) : null; }
+            catch (Exception ex) { w.Error = "could not build its meta: " + ex.Message; }
+            opts.Queued = true;
+            _writing.Add(path);
+
+            if (w.Error != null) { lock (_written) _written.Add(w); return; }
+            ThreadPool.QueueUserWorkItem(WriteOnWorker, w);
+        }
+
+        private void WriteOnWorker(object state)
+        {
+            PendingWrite w = (PendingWrite)state;
+            System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                if (w.MetaPath != null && File.Exists(w.MetaPath)) File.Delete(w.MetaPath);
+                string tmp = w.Path + ".tmp";
+                File.WriteAllText(tmp, w.File.Write(), new UTF8Encoding(false));
+                if (File.Exists(w.Path)) File.Delete(w.Path);
+                File.Move(tmp, w.Path);
+                if (w.MetaPath != null && w.MetaText != null) File.WriteAllText(w.MetaPath, w.MetaText, new UTF8Encoding(false));
+            }
+            catch (Exception ex) { w.Error = "could not write the file: " + ex.Message; }
+            sw.Stop();
+            w.WriteMs = sw.ElapsedMilliseconds;
+            lock (_written) _written.Add(w);
+        }
+
+        // Main thread: one log line per capture with its cost, then the
+        // caller's continuation.
+        private void DrainWrites()
+        {
+            if (_writing.Count == 0) return;
+            PendingWrite[] done;
+            lock (_written)
+            {
+                if (_written.Count == 0) return;
+                done = _written.ToArray();
+                _written.Clear();
+            }
+            for (int i = 0; i < done.Length; i++)
+            {
+                PendingWrite w = done[i];
+                _writing.Remove(w.Path);
+                if (w.Error == null)
+                    Ctx.Log.LogInfo("Checkpoint state " + w.Opts.What + " captured: " + w.FramesMs + " ms of frame work on the main thread (serialize " +
+                                    w.SerializeMs + " ms, no memory clean-up), " + SavestateBridge.Kb(w.Chars) + " written in " +
+                                    w.WriteMs + " ms on a worker thread -> " + Path.GetFileName(w.Path) + ".");
+                else
+                    Ctx.Log.LogWarning("Checkpoint state " + w.Opts.What + " not saved: " + w.Error + ".");
+                Action<string> after = w.Opts.After;
+                w.Opts.After = null;
+                if (after == null) continue;
+                try { after(w.Error); }
+                catch (Exception ex) { Ctx.Log.LogWarning("Checkpoint state: continuation failed: " + ex.Message); }
+            }
         }
 
         /// Restores the segment's start state the segment's way; `done` gets
