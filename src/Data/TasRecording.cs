@@ -22,8 +22,9 @@ namespace ForestOverlay.Data
     //   # ForestOverlay TAS recording
     //   version|1
     //   segment|<id>          name|<segment name>      recorded|<utc>
+    //   note|<how it ended>
     //   lockfps|<n>           0 = recorded at the game's own rate
-    //   frames|<N>
+    //   frames|<N>            seconds|<game time of the N frames>
     //   buttons|Jump|Run|...  axes|Horizontal|Mouse X|...  (index order)
     //   f|<frame>|<token> <token> ...
     //       +3 / -3   button 3 pressed / released
@@ -58,9 +59,13 @@ namespace ForestOverlay.Data
         public string SegmentId = "";
         public string SegmentName = "";
         public string RecordedUtc = "";
+        /// How it ended, in words ("run finished in 1:02.345", "stopped by hand").
+        public string Note = "";
         /// The fixed frame rate it was recorded at (0 = the game's own).
         public int LockFps;
         public int Frames;
+        /// Game time from frame 0 to the last frame, seconds.
+        public float Seconds;
 
         public readonly List<string> Buttons = new List<string>();
         public readonly List<string> Axes = new List<string>();
@@ -184,8 +189,10 @@ namespace ForestOverlay.Data
             sb.Append("segment|").Append(Clean(SegmentId)).Append('\n');
             sb.Append("name|").Append(Clean(SegmentName)).Append('\n');
             sb.Append("recorded|").Append(Clean(RecordedUtc)).Append('\n');
+            sb.Append("note|").Append(Clean(Note)).Append('\n');
             sb.Append("lockfps|").Append(LockFps).Append('\n');
             sb.Append("frames|").Append(Frames).Append('\n');
+            sb.Append("seconds|").Append(F(Seconds)).Append('\n');
             sb.Append("buttons");
             for (int i = 0; i < Buttons.Count; i++) sb.Append('|').Append(Clean(Buttons[i]));
             sb.Append('\n');
@@ -223,6 +230,22 @@ namespace ForestOverlay.Data
             return sb.ToString();
         }
 
+        /// The header only (no changes or samples): the lines before the
+        /// first `f|` / `p|` - enough for a list row, without reading a
+        /// long recording whole.
+        public static TasRecording ParseHeader(System.IO.TextReader reader, out string error)
+        {
+            StringBuilder sb = new StringBuilder();
+            string line;
+            int n = 0;
+            while ((line = reader.ReadLine()) != null && n++ < 64)
+            {
+                if (line.StartsWith("f|") || line.StartsWith("p|")) break;
+                sb.Append(line).Append('\n');
+            }
+            return Parse(sb.ToString(), out error);
+        }
+
         /// Null with `error` set when the text is not a recording.
         public static TasRecording Parse(string text, out string error)
         {
@@ -248,8 +271,10 @@ namespace ForestOverlay.Data
                     case "segment": r.SegmentId = p.Length > 1 ? p[1] : ""; break;
                     case "name": r.SegmentName = p.Length > 1 ? p[1] : ""; break;
                     case "recorded": r.RecordedUtc = p.Length > 1 ? p[1] : ""; break;
+                    case "note": r.Note = p.Length > 1 ? p[1] : ""; break;
                     case "lockfps": r.LockFps = p.Length > 1 ? Int(p[1]) : 0; break;
                     case "frames": r.Frames = p.Length > 1 ? Int(p[1]) : 0; break;
+                    case "seconds": r.Seconds = p.Length > 1 ? Flt(p[1]) : 0f; break;
                     case "buttons": for (int i = 1; i < p.Length; i++) r.ButtonChannel(p[i]); break;
                     case "axes": for (int i = 1; i < p.Length; i++) r.AxisChannel(p[i]); break;
                     case "f":

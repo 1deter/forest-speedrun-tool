@@ -16,6 +16,8 @@ namespace ForestOverlay.Tests
             r.SegmentId = "s-0123456789ab";
             r.SegmentName = "Cave 5 | entry";
             r.RecordedUtc = "2026-10-04T12:00:00Z";
+            r.Note = "run finished in 0:12.345";
+            r.Seconds = 1.25f;
             int jump = r.ButtonChannel("Jump");
             int run = r.ButtonChannel("Run");
             int mx = r.AxisChannel("Mouse X");
@@ -52,9 +54,17 @@ namespace ForestOverlay.Tests
             Assert.Null(err);
             Assert.Equal(text, back.Write());
             Assert.Equal("Cave 5 / entry", back.SegmentName);
+            Assert.Equal("run finished in 0:12.345", back.Note);
             Assert.Equal(new[] { "Jump", "Run" }, back.Buttons.ToArray());
             Assert.Equal(0.1f + 0.2f, new TasPlayback(back).Axis(back.FindAxis("mouse x"), 4));
             Assert.Equal(1000.125f, back.Samples[0].Z);
+            Assert.Equal(1.25f, back.Seconds);
+
+            TasRecording head = TasRecording.ParseHeader(new System.IO.StringReader(text), out err);
+            Assert.Null(err);
+            Assert.Equal(10, head.Frames);
+            Assert.Empty(head.Changes);
+            Assert.Equal("run finished in 0:12.345", head.Note);
         }
 
         [Fact]
