@@ -166,6 +166,8 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
             _tas = Host.Find<TasModule>();
+            // Load-removed time reads the game's load state (gotcha 16: say what it found).
+            Ctx.Log.LogInfo("Load-removed time: the game's load state from " + GameLoading.Resolve() + ".");
             if (_runMode != null)
             {
                 _runMode.TimerMs = TimerMsNow;

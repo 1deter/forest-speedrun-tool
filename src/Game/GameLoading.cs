@@ -75,8 +75,10 @@ namespace ForestOverlay.Game
             return false;
         }
 
-        private static void Resolve()
+        /// Binds the fields now and returns Status (for the startup log line).
+        public static string Resolve()
         {
+            if (_resolved) return Status;
             _resolved = true;
             const BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             string missing = "";
@@ -89,6 +91,7 @@ namespace ForestOverlay.Game
             if (op != null && !op.FieldType.IsValueType) _operation = FastField.Static<object>(op);
             else missing += " LevelSerializer.LevelLoadingOperation";
             Status = missing.Length == 0 ? "FinishGameLoad + LevelLoadingOperation" : "missing:" + missing;
+            return Status;
         }
     }
 }
