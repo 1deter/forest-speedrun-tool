@@ -560,6 +560,22 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void LoadsView_TheTimerWithoutTheLoads_NullForOlderLogs()
+    {
+        var c = new AttemptChain();
+        c.Header(AId(1), Runner, "Runner", "test", "Any%", "s-0123456789ab", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        c.Step(1000, 0, true, 0, 0, 0);
+        c.Load(12000, 10500, 9800);
+        c.End(20000, "finished", 19000);
+        var node = System.Text.Json.JsonSerializer.SerializeToNode(Attempts.LoadsView(AttemptChain.Read(c.Text)))!;
+        Assert.Equal(1, node["count"]!.GetValue<int>());
+        Assert.Equal(10500, node["realMs"]!.GetValue<long>());
+        Assert.Equal(9800, node["timedMs"]!.GetValue<long>());
+        Assert.Equal(9200, node["lrtMs"]!.GetValue<long>());
+        Assert.Null(Attempts.LoadsView(AttemptChain.Read(ResetLog(AId(2)))));
+    }
+
+    [Fact]
     public void DailyCaps_PerRunner_CountsAndBytes_ResetAfterADay()
     {
         string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));

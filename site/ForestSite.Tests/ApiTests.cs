@@ -231,6 +231,9 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(2.5, run["buildings"][1][11].GetValue<double>());
         Assert.Equal(0.5, run["buildings"][1][12].GetValue<double>());
         Assert.Equal(2.0, run["buildings"][1][13].GetValue<double>());
+        // A run from before load-removed time: no LRT to show.
+        Assert.Null(run["lrt"]);
+        Assert.Null(run["loads"]);
         var every = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + id + "?all=1");
         Assert.Equal(5, every["state"]["channels"].AsArray().Count);
 

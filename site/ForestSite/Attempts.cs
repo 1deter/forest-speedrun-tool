@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
             steps = row.Steps, flags = j?.Flags ?? 0, verdict = j?.Verdict ?? "running", why = j?.Why ?? Lines(row.Why),
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
-            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report,
+            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads,
         };
     }
 
@@ -261,7 +261,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report);
+                                 object Recording, string Report, object Loads);
 
     /// The logs' size the cache may hold (characters of log text); past it,
     /// it starts again.
@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
             RunAudit.Rundown(replay.Events), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
-            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report));
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay));
         lock (_judged)
         {
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
@@ -378,6 +378,22 @@ CREATE TABLE IF NOT EXISTS allowed_code (
 
     /// A filter on the timeline: a group of kinds and how many lines it has.
     public sealed record EventGroup(string Id, string Label, int Count);
+
+    /// The game's loads in the log (`load` lines, plugin load-removed time):
+    /// how many, their real time, their time on the timer and the timer
+    /// without them. Null for a log from before them (it has no line to
+    /// tell "no loads" from "not tracked").
+    public static object LoadsView(AttemptChain.Replay r)
+    {
+        if (r == null || r.Loads.Count == 0) return null;
+        long real = 0;
+        foreach (var l in r.Loads) real += l.LengthMs;
+        return new
+        {
+            count = r.Loads.Count, realMs = real, timedMs = r.LoadTimedMs, lrtMs = r.LrtMs,
+            list = r.Loads.Select(l => new { realMs = l.RealMs, lengthMs = l.LengthMs, timedMs = l.TimedMs }).ToList(),
+        };
+    }
 
     /// The events in plain words with their group, in log order. Never part
     /// of the verdict: like a move, an event is what the game saw.

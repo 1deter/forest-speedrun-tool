@@ -569,6 +569,8 @@ async function spotPage(id, routeId) {
   function renderSplits() {
     const run = r.board.find(b => b.id === state.focus);
     if (!run) { splits.replaceChildren(); return; }
+    const det = state.runs.get(run.id) || {};
+    if (!state.runs.has(run.id)) load(run.id, false).then(renderSplits);   // once: a failed fetch is cached too
     const first = r.board[0];
     let cmp, cmpName;
     if (state.compare === "golds") {
@@ -599,6 +601,10 @@ async function spotPage(id, routeId) {
         el("tbody", null, rows),
         el("tbody", { class: "summary" },
           el("tr", null, el("td", null, "Sum of best"), el("td"), el("td"), el("td", { class: "r" }, time(r.sumOfBest))),
+          // Load-removed time (runs that tracked loads, from the run's own
+          // JSON once fetched): shown when it differs from the time.
+          det.loads > 0 && det.lrt != null ? el("tr", null, el("td", null, "Load-removed"), el("td"),
+            el("td", { class: "r" }, det.loads + (det.loads === 1 ? " load" : " loads")), el("td", { class: "r" }, time(det.lrt))) : null,
           el("tr", null, el("td", null, "Compared to"), el("td", { colspan: 3, class: "r" }, cmpName))))),
       el("a", { class: "btn", href: "/api/runs/" + run.id + "/file", download: "" }, "Download .run"));
   }

@@ -363,6 +363,10 @@ public sealed class Runs
                                          R(e.P.x), R(e.P.y), R(e.P.z), RunAudit.Group(e.Kind)));
         o["events"] = events;
         o["buildings"] = a != null ? BuildingsJson(a.Buildings) : new JsonArray();
+        // Load-removed time (plugin load tracking): the time without the
+        // game's loads, and how many; null for runs from before it.
+        o["lrt"] = a != null && a.HasLoads ? Num(LoadClock.LrtOf(a)) : null;
+        o["loads"] = a != null && a.HasLoads ? JsonValue.Create(a.Loads) : null;
         // The save's plane (plugin v0.24.163+): [x, z, yaw], or null.
         o["plane"] = a != null && a.HasPlane ? new JsonArray(R(a.Plane.x), R(a.Plane.z), R(a.PlaneYaw)) : null;
         return o;

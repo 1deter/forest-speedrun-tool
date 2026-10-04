@@ -48,6 +48,9 @@ async function attemptPage(id) {
     ["Game", a.mode || "-"],
     ["Started", a.startedAt ? a.startedAt + " (the runner's clock)" : a.started || (when ? new Date(when).toLocaleString() : "-")],
     ["Timer", a.finalTimerMs > 0 ? time(a.finalTimerMs / 1000) : "-"],
+    // Load-removed time: the timer without the game's loads (logs with load lines).
+    ...(a.loads && a.finalTimerMs > 0 ? [["Load-removed", time(a.loads.lrtMs / 1000) + " (" + a.loads.count +
+      (a.loads.count === 1 ? " load, " : " loads, ") + time(a.loads.timedMs / 1000) + " on the timer)"]] : []),
     ["Length", a.durationMs > 0 ? clock(a.durationMs) + " real time" : "-"],
     ["Ended", a.ended ? a.endReason || "-" : "not yet"],
     ["Online", a.online ? "yes - " + a.checkpoints + " checkpoint(s) reached the site during the run" : "no - started offline"],

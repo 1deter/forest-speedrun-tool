@@ -180,6 +180,45 @@ limit `attempt`: 3000 an hour per address. Logs in
 **Not yet**: the full 30 Hz `.run` of a finished attempt still goes up
 as an ordinary run, not linked to the attempt.
 
+## Load-removed time (author + sxczurass, QA #general 2026-10-04)
+
+An extra timer beside the real-time one; **the real-time timer is
+unchanged** and stays what runs are ranked, compared and judged by.
+Nothing to follow: speedrun.com times every category in real time (loads
+and pauses count - `knowledge/cards/categories-and-rules.md`), and the
+LiveSplit autosplitter (1deter/auto-splitters, `The Forest.ASL`) has no
+`isLoading` / game time - it reads `Scene.FinishGameLoad` only to reset
+on the menu and to gate its starts. So the definition is ours:
+
+- **A load** = the game's own load state (`Game/GameLoading`, IL):
+  `LevelSerializer.LevelLoadingOperation` under way (set by
+  `LoadSavedLevel` to its `LoadSceneAsync`; the loading screen's progress
+  bar reads it; LevelLoader clears it) **or** `Scene.FinishGameLoad`
+  false (from the game scene's `LoadSave.Awake` to the end of the
+  activation sequence - the autosplitter's "loaded"). That is every save /
+  level load: Reload save on death (`Resume`, the menu path), the title's
+  Continue, a Full load restore.
+- **Not loads**: cave streaming and the endgame's streamed scenes
+  (additive, neither field moves, no loading screen - a hitch is not a
+  load), the cave door fade (`CaveTriggers.CaveDoorRoutine`, a fixed
+  1.5 s), Quick load (in place), the pause menu.
+- **LRT = the timer minus the time the timer counted during loads**
+  (`Data/LoadTimes` LoadClock, fed each frame the timer advances). It never
+  subtracts what the timer did not count: the timer pauses while the
+  player object does not exist (a scene swap), and that stays as it was.
+- **Where**: the splits' **LRT** column (off by default), the HUD's
+  *Load-removed time* line (off by default), the results panel (when the
+  run had loads, or the column is on), the finish log line, the `.run`
+  `loads|<n>|<s>|<s by checkpoint>...` line (no line = an older run, read
+  as no loads), the site's run splits ("Load-removed" when it differs) and
+  the attempt page. Run mode's attempt log gets a folded
+  `load|<end real ms>|<length ms>|<ms on the timer>` line per load
+  (`Data/AttemptChain`): the site's LRT is the final timer minus the
+  lines' timer ms; logs without them read and verify as before.
+- **Not done**: comparisons, PBs and golds in LRT (the column shows this
+  run's own LRT splits only); a category judged by LRT would be the
+  moderators' call.
+
 ## The report page (phase 3)
 
 **`/attempt/<id>`** (`wwwroot/attempt.js`; the server adds the verdict to
