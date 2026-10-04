@@ -341,6 +341,21 @@ public sealed class Runs
             foreach (ItemChange c in a.Items)
                 items.Add(new JsonArray(R(c.T), c.Name, c.Count));
         o["items"] = items;
+        // What the runner did (plugin replays): [t, kind, label, x, y, z],
+        // time order; the label in the run audit's words (Data/RunAudit).
+        var events = new JsonArray();
+        if (a != null)
+            foreach (RunEvent e in a.Events)
+                events.Add(new JsonArray(R(e.T), e.Kind, Clip(RunAudit.Label(e.Kind) + (string.IsNullOrEmpty(e.Detail) ? "" : ": " + e.Detail), 80),
+                                         R(e.P.x), R(e.P.y), R(e.P.z)));
+        o["events"] = events;
+        // Structures placed / finished: [t, state, kind, x, y, z, yaw, sx, sy, sz].
+        var buildings = new JsonArray();
+        if (a != null)
+            foreach (RunBuilding b in a.Buildings)
+                buildings.Add(new JsonArray(R(b.T), b.State, b.Kind, R(b.P.x), R(b.P.y), R(b.P.z), R(b.Euler.y),
+                                            R(b.Size.x), R(b.Size.y), R(b.Size.z)));
+        o["buildings"] = buildings;
         // The save's plane (plugin v0.24.163+): [x, z, yaw], or null.
         o["plane"] = a != null && a.HasPlane ? new JsonArray(R(a.Plane.x), R(a.Plane.z), R(a.PlaneYaw)) : null;
         return o;

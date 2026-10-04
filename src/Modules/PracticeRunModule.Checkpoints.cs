@@ -221,6 +221,7 @@ namespace ForestOverlay.Modules
             _auto.Begin(_live);
             Vector3 pos = PlayerPosition();
             _recorder.Resume(pos, st.ResumeAt);
+            ReplayRunStarted();
             _sequence.Resume(_segment.Checkpoints, _segment.End, st.Index + 1);
             ResetSplits();
             for (int i = 0; i < st.Splits.Length && i < _times.Length; i++) _times[i] = st.Splits[i];

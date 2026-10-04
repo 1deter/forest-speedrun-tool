@@ -1,8 +1,9 @@
 # Run audit log and replays (ideas, 2026-10-03)
 
 The author's ideas from the session that built banned-move detection
-(v0.24.227-229). Nothing here is built or scheduled yet. They sit after
-the current *Next* list (CLAUDE.md) unless the author moves them up.
+(v0.24.227-229). Parts are built since - each section's *Built*
+paragraph says what; the rest sit after the current *Next* list
+(CLAUDE.md) unless the author moves them up.
 Each idea comes with what the plugin already records, so the first
 session on it starts from facts.
 
@@ -77,7 +78,8 @@ point of view, and a way to see the trajectory of tech (bomb boosts,
 ziplines) - "maybe something similar to the CS grenade camera".
 
 **What exists today:** a run records position at 30 Hz, about 60 player
-stats at 5 Hz and the item changes (`Data/RunRecorder`). Ghosts and run
+stats at 5 Hz, the item changes and (2026-10-04) its interactions and
+buildings (`Data/RunRecorder`, below). Ghosts and run
 lines in game; on the site, the 2D / 3D map with lines, ghosts, a scrub
 bar and the *State* panel. **No look direction and no animation are
 recorded** - the ghost is a marker.
@@ -103,6 +105,50 @@ recorded** - the ghost is a marker.
   along it, and before placing, an aim helper showing where the rope
   would go (Next up 6, "placing ziplines precisely"). Works in game
   (`Game/DebugDraw` lines) and on the site (3D lines coloured by speed).
+
+**Built (2026-10-04, not yet released or checked in game):**
+interactions and buildings on the in-game replay (*Order* item 3, in
+game). Every timed run - practice or run mode - records two more tracks
+in its `.run` (`Data/AttemptFormat`; older readers and the site skip
+unknown lines, old runs parse with empty tracks; tested in
+`ReplayMarksTests`):
+- `e|t|kind|x|y|z|detail` - what the runner did, in the run audit's kinds
+  (`Data/RunAudit`, so labels and groups match the attempt log). Sources
+  (`Modules/PracticeRunModule.Replay`): `Ctx.Events`' general names
+  (caves, clothing, passengers, ropes, keycard doors, the endgame, and the
+  bus events from `Game/AuditWatch` - built, crafted, used, kills, hits,
+  trees, bombs, sleep, story, endgame area - and rides; the mapping is
+  `Data/ReplayMarks.KindFor`), the pause menu (`AuditWatch.PauseOpen` /
+  `PauseToggles`, every run) and deaths (`DeathHooks.Deaths`). At most
+  2,000 a run.
+- `b|t|state|kind|x|y|z|rx|ry|rz|cx|cy|cz|sx|sy|sz` - a blueprint placed
+  or a structure finished: place, rotation, and its box in its own frame
+  from the blueprint's meshes (`Game/BuildWatch`, read-only prefixes on
+  `Create.ClearReferences` and `Craft_Structure.Build`; game-notes *A
+  blueprint placed / a structure finished*), else a default box per kind
+  (`ReplayMarks.DefaultSize`). At most 500 a run. One `Replay:` log line
+  per structure.
+
+Playback (`Game/ReplayDraw`, GL lines, main view only): the comparison
+run's (the ghost's) buildings as wireframe boxes from their time on -
+blueprints pale blue until finished at the same place (1.5 m, same kind),
+finished ones orange; a marker (a post with a diamond, coloured by the
+audit group) at each interaction along its line - behind the ghost in full
+colour, ahead of it faded; labels ("Crafted: Bomb") over the 6 markers
+nearest the camera within 25 m (picked 5 times a second, cached text,
+drawn on Repaint). With no run going it shows the run's end state. Runs
+tab: *Replay shows: buildings / interaction markers* (config
+`[Runs] ReplayBuildings` / `ReplayMarkers`, on) and a line saying how many
+the comparison run has. Site: `/api/runs/<id>` carries `events` and
+`buildings`; the State panel lists the last 5 things done up to the scrub
+time.
+
+**Next steps (not built):** the buildings and markers on the site's 2D /
+3D map (the JSON is there); first-person replays with animations (needs
+look direction + animator in the recording, *Order* 1 and 5); the
+trajectory / "grenade camera" view; a ghost model instead of the marker;
+blueprints destroyed / cancelled after placing (the box stays until the
+end); the walls' chain placement checked live.
 
 **Decided (author, 2026-10-03):**
 1. The audit log is for verifiers and runners alike; its point is a

@@ -199,6 +199,7 @@ namespace ForestOverlay.Modules
             InitLineOptions(ctx);
             InitResults(ctx);
             InitCheckpoints(ctx);
+            InitReplay(ctx);
         }
 
         private RunUploadModule _upload;
@@ -270,6 +271,7 @@ namespace ForestOverlay.Modules
         {
             if (_lineHost != null) Object.Destroy(_lineHost);
             ItemCounter.Uninstall();
+            ShutdownReplay();
         }
 
         // ------------------------------------------------------------------
@@ -459,6 +461,8 @@ namespace ForestOverlay.Modules
                 }
             }
 
+            TickReplayRecording();
+
             if (_segment != null && SceneManager.GetActiveScene().buildIndex != _armedScene) LeaveLevel();
             if (_armSource == ArmSource.RunMode && !Ctx.Run.Active) RunModeEnded();
 
@@ -509,6 +513,7 @@ namespace ForestOverlay.Modules
                 // on once (Data/SplitSequence OccurrenceGate).
                 int at = _eventsSeen++;
                 string fired = Ctx.Events.NameAt(at);
+                RecordReplayEvent(at, pos);   // before the gate: the companion carries the detail
                 if (!_occurrence.Evaluate(Ctx.Events.CompanionAt(at))) continue;
                 RunRecorder.RunState stateBefore = _recorder.State;
                 int splitsBefore = _splits.Count;
@@ -533,6 +538,7 @@ namespace ForestOverlay.Modules
             else _hasDelta = false;
 
             UpdateLines();
+            UpdateReplay();
             UpdateRunPreview();
         }
 
@@ -596,6 +602,7 @@ namespace ForestOverlay.Modules
                 _store.SetStarted(_segment.Id, _started);
             }
             _recorder.ForceStart(pos);
+            ReplayRunStarted();
             _sequence.Begin(_segment.Checkpoints, _segment.End);
             ResetSplits();   // the last run's times stay up until now
         }
@@ -950,6 +957,7 @@ namespace ForestOverlay.Modules
             _referenceLine.Clear();
             _currentLine.Clear();
             _ghostHint = 0;
+            ClearReplay();
         }
 
         // ------------------------------------------------------------------
@@ -1049,6 +1057,7 @@ namespace ForestOverlay.Modules
             y = DrawCheckpointSection(y, cw);
             if (_tas != null) y = _tas.DrawSection(y, cw);
             y = DrawLineOptions(y, cw);
+            y = DrawReplayOptions(y, cw);
             y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);
@@ -1096,6 +1105,7 @@ namespace ForestOverlay.Modules
                                                  : "Pick a timed segment in the Practice tab";
             _diagnoseText.text = Diagnose();
             _eventText.text = _eventLine;
+            RefreshReplayText();
             // "today" / "yesterday" move on at midnight.
             if (TabShowing && _attempts.Count > 0 && System.DateTime.Now.Date != _rowsDay) _rowsDirty = true;
 

@@ -507,6 +507,7 @@ namespace ForestOverlay.Modules
 
         public override void DrawScreen()
         {
+            DrawReplayLabels();
             DrawResults();
             if (!PanelShowing) return;
             EnsureSplitStyles();

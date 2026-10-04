@@ -63,6 +63,20 @@ namespace ForestOverlay.Game
             return false;
         }
 
+        /// The camera the player looks through: the freecam while it is
+        /// on, else the main camera (null when there is none). For world
+        /// labels in OnGUI (the replay's markers).
+        public static Camera View()
+        {
+            if (FreeCam != null) return FreeCam;
+            if (Time.frameCount != _frame)
+            {
+                _frame = Time.frameCount;
+                _main = Camera.main;
+            }
+            return _main;
+        }
+
         /// Wraps a draw for the perf log: call with the Stopwatch
         /// timestamp taken before drawing and the vertices emitted.
         public static void Record(long startTicks, int vertices)
