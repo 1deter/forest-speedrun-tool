@@ -1105,6 +1105,9 @@ namespace ForestOverlay.Modules
                         y += 24f;
 
                         y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
+                        // The clock from the first input (maks): already an event.
+                        if (slot == -2 && !string.Equals(t.EventName, WorldEvents.FirstInput, StringComparison.OrdinalIgnoreCase))
+                            y += UiText.DrawDim(x0, y, w - x0 - 6f, FirstInputHint) + 2f;
                         break;
                     }
 
@@ -1177,6 +1180,8 @@ namespace ForestOverlay.Modules
         // LabelFor builds a string for keycard-door-<id>.
         private readonly Dictionary<string, GUIContent> _eventLabels = new Dictionary<string, GUIContent>();
         private static readonly GUIContent PickEventLabel = new GUIContent("pick an event with < >");
+        private static readonly GUIContent FirstInputHint = new GUIContent(
+            "Tip: Starts -> first-input starts the clock on your first button or move after a restart.");
 
         private GUIContent EventLabel(string name)
         {

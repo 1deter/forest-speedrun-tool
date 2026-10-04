@@ -217,6 +217,7 @@ namespace ForestOverlay.Modules
             if (_rowsData.Length != rows) _rowsData = new SplitRow[rows];
             _splitsDirty = true;
             _pbChanceDirty = true;
+            CloseResults();   // the next run started, or another segment / route
         }
 
         private void RecordSplit(int row, float t)
@@ -503,6 +504,7 @@ namespace ForestOverlay.Modules
 
         public override void DrawScreen()
         {
+            DrawResults();
             if (!PanelShowing) return;
             EnsureSplitStyles();
 
@@ -676,6 +678,9 @@ namespace ForestOverlay.Modules
 
             bool panel = GUI.Toggle(new Rect(0, y, w, 20), _splitsPanel.Value, " Show the splits panel on screen (F5 hides all overlay UI)");
             if (panel != _splitsPanel.Value) _splitsPanel.Value = panel;
+            y += 22f;
+            bool results = GUI.Toggle(new Rect(0, y, w, 20), _resultsCfg.Value, " Show a results panel when a run finishes (drag its title while ESC / F2 shows the cursor)");
+            if (results != _resultsCfg.Value) { _resultsCfg.Value = results; if (!results) CloseResults(); }
             y += 22f;
 
             y = FlowToggles(y, w, "Columns:", _cols, _colOptionText);

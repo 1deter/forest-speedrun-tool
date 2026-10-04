@@ -186,6 +186,7 @@ namespace ForestOverlay.Modules
 
             InitSplits(ctx);
             InitLineOptions(ctx);
+            InitResults(ctx);
         }
 
         private RunUploadModule _upload;
@@ -233,6 +234,7 @@ namespace ForestOverlay.Modules
             map.Add("run.manualSplit", KeyCode.F12, "Manual split / finish", ManualAdvance);
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
             map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
+            map.Add("run.closeResults", KeyCode.None, "Close the results panel", CloseResultsKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
         }
 
@@ -367,6 +369,7 @@ namespace ForestOverlay.Modules
             RefreshTabText();
             RefreshLss();
             RefreshSplits();
+            RefreshResults();
 
             if (_autoRestartAt > 0f && Time.unscaledTime >= _autoRestartAt)
             {
@@ -577,7 +580,8 @@ namespace ForestOverlay.Modules
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
             FinishSplits(done.Duration);
-            if (_runMode != null) _runMode.TimerFinished(_segment, done.Duration);
+            RunModeOutcome outcome = _runMode != null ? _runMode.TimerFinished(_segment, done.Duration) : null;
+            ShowResults(done, outcome);
 
             Attempt best = RunCompare.Best(_attempts);
             bool isPb = ReferenceEquals(best, done);

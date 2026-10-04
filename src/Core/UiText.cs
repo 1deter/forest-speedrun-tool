@@ -52,6 +52,14 @@ namespace ForestOverlay.Core
             return h + Gap;
         }
 
+        /// The height Draw would return, without drawing (a panel sizes its
+        /// background before its text goes on it).
+        public static float Height(float width, GUIContent content, GUIStyle wrapping)
+        {
+            if (content == null || string.IsNullOrEmpty(content.text) || width <= 0f) return 0f;
+            return Mathf.Max(LineHeight, wrapping.CalcHeight(content, width)) + Gap;
+        }
+
         /// Height a wrapped text box needs for this text at this width (one line at least).
         public static float BoxHeight(string text, float width)
         {
