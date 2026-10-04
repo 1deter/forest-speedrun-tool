@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.238 - 2026-10-04
+
+- Run mode: restarting a run spot now times the run even with practice mode (F9) off - split times in the attempt, the splits table and the results panel.
+- Runs tab: Capture at checkpoints (off by default; a short hitch at each checkpoint) and Restart from checkpoint N, with a hotkey you can bind. A run restarted from a checkpoint is practice: never a PB, but the segments you run from there can set golds.
+
 ## v0.24.237 - 2026-10-04
 
 - Practice -> Share -> Delete from the website removes your own spot and its runs from forest.deter.cloud (only if nobody else has runs on it).
