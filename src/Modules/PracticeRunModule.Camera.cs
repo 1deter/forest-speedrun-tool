@@ -56,6 +56,12 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _camStatusText = new GUIContent("");
         private readonly GUIContent _camTimeText = new GUIContent("");
         private string _camHud = "";
+        // What follows the replay time in the HUD: " / duration  x1 paused" -
+        // rebuilt when the duration, speed or play state moves, not every refresh.
+        private string _camTail = "";
+        private float _camTailDuration = -1f;
+        private int _camTailSpeed = -1;
+        private bool _camTailPaused, _camTailAtEnd;
 
         private static readonly GUIContent CameraHeading = new GUIContent(
             "Replay camera - Experimental, a practice view (it holds you still while it plays):");
@@ -249,9 +255,19 @@ namespace ForestOverlay.Modules
         {
             if (Time.unscaledTime < _nextCameraText) return;
             _nextCameraText = Time.unscaledTime + CameraTextEvery;
-            string time = Format(_clock.T) + " / " + Format(_clock.Duration) + "  x" + _clock.Speed.ToString("0.##") +
-                          (_clock.Paused ? (_clock.AtEnd ? "  (end - Space plays again)" : "  paused") : "");
-            _camHud = ReplayCamera.Label(_camView) + "  " + time;
+            if (_clock.Duration != _camTailDuration || _clock.SpeedIndex != _camTailSpeed ||
+                _clock.Paused != _camTailPaused || _clock.AtEnd != _camTailAtEnd)
+            {
+                _camTailDuration = _clock.Duration;
+                _camTailSpeed = _clock.SpeedIndex;
+                _camTailPaused = _clock.Paused;
+                _camTailAtEnd = _clock.AtEnd;
+                _camTail = " / " + Format(_clock.Duration) + "  x" + _clock.Speed.ToString("0.##") +
+                           (_clock.Paused ? (_clock.AtEnd ? "  (end - Space plays again)" : "  paused") : "");
+            }
+            _camHud = ReplayCamera.Label(_camView) + "  " + ClockText.Clock(_clock.T) + _camTail;
+            // The tab's line: only built while the tab shows it.
+            if (!TabShowing) return;
             _camTimeText.text = "Watching: " + _camHud +
                                 (_reference != null && _reference.Looks.Count == 0 && _camView == ReplayView.FirstPerson
                                     ? " - this run has no recorded look: the view faces where it moved." : "");

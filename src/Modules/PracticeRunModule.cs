@@ -501,11 +501,7 @@ namespace ForestOverlay.Modules
             Vector3 pos = Ctx.Player.Transform.position;
 
             // Item triggers read the live inventory, so it has to be fresh.
-            if (_referencedItemIds.Count > 0)
-            {
-                Ctx.Inventory.Resolve();
-                Ctx.Inventory.Refresh();
-            }
+            RefreshTriggerInventory();
 
             Ctx.PlayerState.Resolve();
 
@@ -551,6 +547,30 @@ namespace ForestOverlay.Modules
             UpdateLines();
             UpdateReplay();
             UpdateRunPreview();
+        }
+
+        // Refresh() rebuilds and sorts the stack list - garbage every call, and
+        // this ran every frame of a run with an item trigger (or an item
+        // autosplit). With the item hooks in (Game/ItemCounter) it runs when an
+        // item amount was written, or the inventory object is another one, and
+        // on a quarter-second clock besides for a write the hooks missed.
+        // Without the hooks it is every frame as before.
+        private const float InventoryRefreshEvery = 0.25f;
+        private int _invVersion = -1, _invGeneration = -1;
+        private float _invAt = -10f;
+
+        private void RefreshTriggerInventory()
+        {
+            if (_referencedItemIds.Count == 0) return;
+            Ctx.Inventory.Resolve();
+            float now = Time.unscaledTime;
+            if (ItemCounter.Watching && ItemCounter.Version == _invVersion && Ctx.Inventory.Generation == _invGeneration &&
+                now >= _invAt && now - _invAt < InventoryRefreshEvery)
+                return;
+            _invVersion = ItemCounter.Version;
+            _invGeneration = Ctx.Inventory.Generation;
+            _invAt = now;
+            Ctx.Inventory.Refresh();
         }
 
         private void EvaluateTriggers(Vector3 pos, string firedEvent)
@@ -988,9 +1008,11 @@ namespace ForestOverlay.Modules
             }
             else if (_recorder.State == RunRecorder.RunState.Running)
             {
-                hud.Pair("Run", Format(_recorder.Elapsed) +
-                                (_hasDelta ? "   " + SignedDelta(_delta) : "") +
-                                (Resumed ? "   (from checkpoint " + (_resumedFrom + 1) + ")" : ""));
+                // One string for the clock and the delta (Data/ClockText): this
+                // line changes every refresh while a run is on.
+                string run = _hasDelta ? ClockText.ClockWithDelta(_recorder.Elapsed, _delta) : ClockText.Clock(_recorder.Elapsed);
+                if (Resumed) run += "   (from checkpoint " + (_resumedFrom + 1) + ")";
+                hud.Pair("Run", run);
 
                 if (_sequence.OnlyEndLeft) hud.Pair("Next", "finish");
                 else
@@ -1304,11 +1326,6 @@ namespace ForestOverlay.Modules
             int m = (int)(seconds / 60f);
             float s = seconds - m * 60f;
             return m.ToString("00") + ":" + s.ToString("00.000");
-        }
-
-        private static string SignedDelta(float d)
-        {
-            return (d >= 0f ? "+" : "-") + Mathf.Abs(d).ToString("0.00");
         }
     }
 }

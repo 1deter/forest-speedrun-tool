@@ -19,6 +19,9 @@ namespace ForestOverlay.Game
     //
     // Channels are discovered ONCE and the FieldInfo array cached, so a
     // sample is an array walk rather than a reflection lookup per field.
+    // Each field also gets a typed getter delegate (Game/FastField) bound
+    // once: FieldInfo.GetValue boxed every one of the ~60 values (24-32
+    // bytes each, five times a second, for the whole of a run).
     //
     // Bools are stored as 0/1 so a sample is a flat float[] - one shape
     // for the file format, the comparison maths and the eventual viewer.
@@ -36,6 +39,16 @@ namespace ForestOverlay.Game
         private FieldInfo[] _fields;
         private string[] _channels;
         private float[] _values;
+
+        // One getter per channel, by the field's type (the others stay null).
+        private enum Kind : byte { Float, Int, Bool, Double, Short, Byte }
+        private Kind[] _kinds = new Kind[0];
+        private Func<object, float>[] _getFloat = new Func<object, float>[0];
+        private Func<object, int>[] _getInt = new Func<object, int>[0];
+        private Func<object, bool>[] _getBool = new Func<object, bool>[0];
+        private Func<object, double>[] _getDouble = new Func<object, double>[0];
+        private Func<object, short>[] _getShort = new Func<object, short>[0];
+        private Func<object, byte>[] _getByte = new Func<object, byte>[0];
 
         private const float RetryInterval = 1f;
         private float _nextResolve;
@@ -109,8 +122,31 @@ namespace ForestOverlay.Game
             _fields = usable.ToArray();
             _channels = names.ToArray();
             _values = new float[_channels.Length];
+            BindGetters();
 
             _log.LogInfo("PlayerStats bound: " + _channels.Length + " state channels.");
+        }
+
+        private void BindGetters()
+        {
+            int n = _fields.Length;
+            _kinds = new Kind[n];
+            _getFloat = new Func<object, float>[n];
+            _getInt = new Func<object, int>[n];
+            _getBool = new Func<object, bool>[n];
+            _getDouble = new Func<object, double>[n];
+            _getShort = new Func<object, short>[n];
+            _getByte = new Func<object, byte>[n];
+            for (int i = 0; i < n; i++)
+            {
+                Type t = _fields[i].FieldType;
+                if (t == typeof(float)) { _kinds[i] = Kind.Float; _getFloat[i] = FastField.Instance<float>(_fields[i]); }
+                else if (t == typeof(int)) { _kinds[i] = Kind.Int; _getInt[i] = FastField.Instance<int>(_fields[i]); }
+                else if (t == typeof(bool)) { _kinds[i] = Kind.Bool; _getBool[i] = FastField.Instance<bool>(_fields[i]); }
+                else if (t == typeof(double)) { _kinds[i] = Kind.Double; _getDouble[i] = FastField.Instance<double>(_fields[i]); }
+                else if (t == typeof(short)) { _kinds[i] = Kind.Short; _getShort[i] = FastField.Instance<short>(_fields[i]); }
+                else { _kinds[i] = Kind.Byte; _getByte[i] = FastField.Instance<byte>(_fields[i]); }
+            }
         }
 
         private static bool IsCapturable(Type t)
@@ -129,15 +165,15 @@ namespace ForestOverlay.Game
             {
                 try
                 {
-                    object v = _fields[i].GetValue(_stats);
-
-                    if (v is float) _values[i] = (float)v;
-                    else if (v is int) _values[i] = (int)v;
-                    else if (v is bool) _values[i] = ((bool)v) ? 1f : 0f;
-                    else if (v is double) _values[i] = (float)(double)v;
-                    else if (v is short) _values[i] = (short)v;
-                    else if (v is byte) _values[i] = (byte)v;
-                    else _values[i] = 0f;
+                    switch (_kinds[i])
+                    {
+                        case Kind.Float: _values[i] = _getFloat[i](_stats); break;
+                        case Kind.Int: _values[i] = _getInt[i](_stats); break;
+                        case Kind.Bool: _values[i] = _getBool[i](_stats) ? 1f : 0f; break;
+                        case Kind.Double: _values[i] = (float)_getDouble[i](_stats); break;
+                        case Kind.Short: _values[i] = _getShort[i](_stats); break;
+                        default: _values[i] = _getByte[i](_stats); break;
+                    }
                 }
                 catch (Exception)
                 {

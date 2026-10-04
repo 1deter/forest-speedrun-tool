@@ -114,6 +114,11 @@ namespace ForestOverlay.Game
         /// than _possessedItemsCount, which does not track reliably.
         public int TotalItems { get; private set; }
         public int TotalStacks { get; private set; }
+
+        /// Moves each time Resolve binds a different inventory object (a
+        /// load replaces it) - a reader that skips Refresh while nothing
+        /// changed uses it to know the list is another one's.
+        public int Generation { get; private set; }
         public int FilteredOut { get; private set; }
 
         // ------------------------------------------------------------------
@@ -366,6 +371,7 @@ namespace ForestOverlay.Game
             if (ReferenceEquals(comp, _inventory) && _inventory != null) return;
 
             _inventory = comp;
+            Generation++;
             _inventoryType = comp.GetType();
             BindFields();
         }
