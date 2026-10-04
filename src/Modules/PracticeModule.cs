@@ -439,6 +439,7 @@ namespace ForestOverlay.Modules
             z.Extents = t.Extents;
             z.IsBox = t.Shape == ZoneShape.Box;
             z.Yaw = t.Yaw;
+            z.Points = t.Shape == ZoneShape.Polygon ? t.Points : null;
             z.Kind = kind;
 
             _preview.Zones[n] = z;
@@ -994,11 +995,12 @@ namespace ForestOverlay.Modules
             GUI.Label(new Rect(0, y, labelW, 20), label);
 
             float x = x0;
-            x = KindButton(x, y, "zone", TriggerKind.Zone, ZoneShape.Sphere, ref t);
-            x = KindButton(x, y, "box", TriggerKind.Zone, ZoneShape.Box, ref t);
-            x = KindButton(x, y, "item", TriggerKind.Item, ZoneShape.Sphere, ref t);
-            x = KindButton(x, y, "event", TriggerKind.Event, ZoneShape.Sphere, ref t);
-            x = KindButton(x, y, "manual", TriggerKind.Manual, ZoneShape.Sphere, ref t);
+            x = KindButton(x, ref y, x0, w, "zone", TriggerKind.Zone, ZoneShape.Sphere, ref t);
+            x = KindButton(x, ref y, x0, w, "box", TriggerKind.Zone, ZoneShape.Box, ref t);
+            x = KindButton(x, ref y, x0, w, "poly", TriggerKind.Zone, ZoneShape.Polygon, ref t);
+            x = KindButton(x, ref y, x0, w, "item", TriggerKind.Item, ZoneShape.Sphere, ref t);
+            x = KindButton(x, ref y, x0, w, "event", TriggerKind.Event, ZoneShape.Sphere, ref t);
+            x = KindButton(x, ref y, x0, w, "manual", TriggerKind.Manual, ZoneShape.Sphere, ref t);
 
             y += 26f;
 
@@ -1006,10 +1008,14 @@ namespace ForestOverlay.Modules
             {
                 case TriggerKind.Zone:
                     {
+                        // A polygon's position is its middle: typing one or
+                        // Here moves the whole outline (and sets its height).
+                        bool poly = t.Shape == ZoneShape.Polygon;
                         Vector3 typed;
                         if (CoordsField(new Rect(x0, y - 1, w - x0 - 70f, 20), slot, 0, t.Position, true, out typed))
                         {
-                            t.Position = typed;
+                            if (poly) MovePolygon(ref t, typed);
+                            else t.Position = typed;
                             Touch();
                         }
 
@@ -1018,14 +1024,16 @@ namespace ForestOverlay.Modules
                             Vector3 p;
                             if (TryPlayerPosition(out p))
                             {
-                                t.Position = p;
+                                if (poly) MovePolygon(ref t, p);
+                                else t.Position = p;
                                 if (t.Shape == ZoneShape.Box) t.Yaw = PlayerYaw();
                                 Touch();
                             }
                         }
                         y += 24f;
 
-                        if (t.Shape == ZoneShape.Box) y = BoxFields(y, w, x0, ref t, slot);
+                        if (poly) y = PolygonFields(y, w, x0, ref t, slot);
+                        else if (t.Shape == ZoneShape.Box) y = BoxFields(y, w, x0, ref t, slot);
                         else y = SphereFields(y, w, x0, ref t, slot);
                         break;
                     }
@@ -1202,6 +1210,93 @@ namespace ForestOverlay.Modules
             return y;
         }
 
+        // --- polygon zones ----------------------------------------------------
+        private static readonly GUIContent PolygonHint = new GUIContent(
+            "Fires inside the outline, within the height around the middle (the position above; " +
+            "Here there moves the whole shape). Add a point at each corner, in order around the area.");
+
+        private float PolygonFields(float y, float w, float x0, ref Trigger t, int slot)
+        {
+            // Height, as a box's: the full size shown, the half kept.
+            // Written only when dragged (see SphereFields).
+            float shown = Mathf.Clamp(t.Extents.y <= 0f ? 3f : t.Extents.y, 0.5f, 30f);
+            float h = ExtentSlider(y, w, x0, slot, 3, "height", shown);
+            if (!Mathf.Approximately(h, shown)) { t.Extents = new Vector3(t.Extents.x, h, t.Extents.z); Touch(); }
+            y += 26f;
+
+            Vector2[] pts = t.Points;
+            int n = pts != null ? pts.Length : 0;
+            for (int i = 0; i < n; i++)
+            {
+                GUI.Label(new Rect(x0, y, 34f, 20), PointName(i));
+
+                Vector2 typed;
+                if (PointField(new Rect(x0 + 36f, y - 1, w - x0 - 36f - 100f, 20), slot, i, pts[i], out typed))
+                {
+                    t.Points = ZonePolygon.WithPoint(pts, i, typed);
+                    ZonePolygon.Recentre(ref t);
+                    Touch();
+                }
+
+                if (GUI.Button(new Rect(w - 92f, y - 2f, 54f, 22f), "Here"))
+                {
+                    Vector3 p;
+                    if (TryPlayerPosition(out p))
+                    {
+                        t.Points = ZonePolygon.WithPoint(pts, i, new Vector2(p.x, p.z));
+                        ZonePolygon.Recentre(ref t);
+                        Touch();
+                    }
+                }
+
+                // Three points is the least an outline can have.
+                bool was = GUI.enabled;
+                GUI.enabled = was && n > 3;
+                bool remove = GUI.Button(new Rect(w - 34f, y - 2f, 26f, 22f), "x");
+                GUI.enabled = was;
+                y += 24f;
+                if (remove)
+                {
+                    t.Points = ZonePolygon.Removed(pts, i);
+                    ZonePolygon.Recentre(ref t);
+                    Touch();
+                    break;
+                }
+            }
+
+            if (GUI.Button(new Rect(x0, y - 2f, 130f, 22f), "Add point here"))
+            {
+                Vector3 p;
+                if (TryPlayerPosition(out p))
+                {
+                    t.Points = ZonePolygon.Added(t.Points, new Vector2(p.x, p.z));
+                    ZonePolygon.Recentre(ref t);
+                    Touch();
+                }
+            }
+            y += 26f;
+
+            y += UiText.DrawDim(x0, y, w - x0 - 6f, PolygonHint) + 2f;
+            return y;
+        }
+
+        /// Moves a polygon so its middle is at `to` (x / z), its height
+        /// centred on to.y - the outline's shape kept.
+        private static void MovePolygon(ref Trigger t, Vector3 to)
+        {
+            t.Points = ZonePolygon.Translated(t.Points, to.x - t.Position.x, to.z - t.Position.z);
+            t.Position = new Vector3(t.Position.x, to.y, t.Position.z);
+            ZonePolygon.Recentre(ref t);
+        }
+
+        private readonly List<string> _pointNames = new List<string>();
+
+        private string PointName(int i)
+        {
+            while (_pointNames.Count <= i) _pointNames.Add("p" + (_pointNames.Count + 1));
+            return _pointNames[i];
+        }
+
         private float ExtentSlider(float y, float w, float x0, int slot, int field, string label, float value)
         {
             GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
@@ -1289,9 +1384,13 @@ namespace ForestOverlay.Modules
             return y + 4f;
         }
 
-        private float KindButton(float x, float y, string text, TriggerKind kind,
+        private float KindButton(float x, ref float y, float x0, float w, string text, TriggerKind kind,
                                  ZoneShape shape, ref Trigger t)
         {
+            // Onto the next row rather than past the edge (or under a
+            // checkpoint's x) on a narrow window.
+            if (x > x0 && x + 54f > w - 30f) { x = x0; y += 24f; }
+
             bool on = t.Kind == kind && (kind != TriggerKind.Zone || t.Shape == shape);
 
             if (GUI.Button(new Rect(x, y - 2f, 54f, 22f), text, on ? _selectedRowStyle : _rowStyle))
@@ -1312,6 +1411,19 @@ namespace ForestOverlay.Modules
                             t.Extents = new Vector3(3f, 3f, 3f);
                         // A new box faces the way you look (runners).
                         if (shape == ZoneShape.Box) t.Yaw = PlayerYaw();
+                        if (shape == ZoneShape.Polygon)
+                        {
+                            if (t.Extents.y <= 0f) t.Extents = new Vector3(t.Extents.x, 3f, t.Extents.z);
+                            // An outline kept from before moves here whole;
+                            // a new one starts as a 6 m square facing your way.
+                            if (t.Points != null && t.Points.Length >= 3)
+                            {
+                                Vector2 c = ZonePolygon.Centre(t.Points);
+                                t.Points = ZonePolygon.Translated(t.Points, t.Position.x - c.x, t.Position.z - c.y);
+                            }
+                            else t.Points = ZonePolygon.Square(t.Position.x, t.Position.z, 3f, PlayerYaw());
+                            ZonePolygon.Recentre(ref t);
+                        }
                     }
 
                     Touch();
@@ -2314,6 +2426,46 @@ namespace ForestOverlay.Modules
             // change - nothing to save.
             if (p == f.Value) return false;
             f.Value = p;
+            typed = p;
+            return true;
+        }
+
+        // A polygon point's "x z" text, cached as CoordsField's is: keyed by
+        // trigger slot and point index.
+        private readonly Dictionary<int, CoordField> _pointFields = new Dictionary<int, CoordField>();
+
+        /// True, with the value in `typed`, when the runner typed a new
+        /// valid point.
+        private bool PointField(Rect r, int slot, int index, Vector2 v, out Vector2 typed)
+        {
+            typed = v;
+            int key = (slot + 8) * 1024 + index;
+            Vector3 v3 = new Vector3(v.x, 0f, v.y);
+            CoordField f;
+            if (!_pointFields.TryGetValue(key, out f)) _pointFields[key] = f = new CoordField();
+            if (!f.Set || f.Value != v3)
+            {
+                f.Set = true;
+                f.Value = v3;
+                f.Text = TriggerParser.Num(v.x) + " " + TriggerParser.Num(v.y);
+                f.Bad = false;
+            }
+
+            Color before = GUI.color;
+            if (f.Bad) GUI.color = new Color(1f, 0.55f, 0.55f);
+            string text = GUI.TextField(r, f.Text);
+            GUI.color = before;
+            if (ReferenceEquals(text, f.Text) || text == f.Text) return false;
+
+            text = TriggerParser.TidyPoint(TriggerParser.FilterCoords(text));
+            if (text == f.Text) return false;
+            f.Text = text;
+            Vector2 p;
+            if (!TriggerParser.ParsePoint(text, out p)) { f.Bad = true; return false; }
+            f.Bad = false;
+            Vector3 p3 = new Vector3(p.x, 0f, p.y);
+            if (p3 == f.Value) return false;
+            f.Value = p3;
             typed = p;
             return true;
         }

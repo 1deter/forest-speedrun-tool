@@ -444,9 +444,18 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
         switch (t.Kind)
         {
             case TriggerKind.Zone:
-                o["kind"] = t.Shape == ZoneShape.Box ? "box" : "zone";
+                o["kind"] = t.Shape == ZoneShape.Box ? "box" : t.Shape == ZoneShape.Polygon ? "poly" : "zone";
                 o["at"] = Vec(t.Position);
                 if (t.Shape == ZoneShape.Box) { o["size"] = Vec(t.Extents); o["yaw"] = R(t.Yaw); }
+                else if (t.Shape == ZoneShape.Polygon)
+                {
+                    // [[x, z], ...] around the outline; "half" the half height
+                    // around at[1], as a box's size[1].
+                    var pts = new JsonArray();
+                    foreach (Vector2 p in t.Points ?? new Vector2[0]) pts.Add(new JsonArray(R(p.x), R(p.y)));
+                    o["points"] = pts;
+                    o["half"] = R(t.Extents.y);
+                }
                 else o["radius"] = R(t.Radius);
                 break;
             case TriggerKind.Item: o["kind"] = "item"; break;

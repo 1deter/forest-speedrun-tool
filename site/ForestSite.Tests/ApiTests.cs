@@ -147,6 +147,28 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task APolygonZoneReachesTheMapAsItsOutline()
+    {
+        Segment seg = TestSegment();
+        Assert.True(TriggerParser.Parse("poly 5 2 -3 18 3 18 3 22 -3 22", out Trigger poly));
+        seg.Checkpoints[0] = poly;
+        string ta = await Register(A);
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)))).StatusCode);
+
+        var detail = await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id);
+        JsonNode route = detail["routes"][0];
+        Assert.Equal(seg.RouteFingerprint(), route["route"].GetValue<string>());
+        JsonNode check = route["checks"][0];
+        Assert.Equal("poly", check["kind"].GetValue<string>());
+        Assert.Equal(4, check["points"].AsArray().Count);
+        Assert.Equal(3.0, check["points"][1][0].GetValue<double>());
+        Assert.Equal(18.0, check["points"][1][1].GetValue<double>());
+        Assert.Equal(2.0, check["half"].GetValue<double>());
+        Assert.Equal(5.0, check["at"][1].GetValue<double>());
+        Assert.Equal(20.0, check["at"][2].GetValue<double>());
+    }
+
+    [Fact]
     public async Task Upload_ThenBoardShowsEachRunnersBest()
     {
         Segment seg = TestSegment();

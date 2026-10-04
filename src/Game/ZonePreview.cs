@@ -9,6 +9,7 @@ namespace ForestOverlay.Game
         public Vector3 Extents;   // box half-size
         public bool IsBox;
         public float Yaw;         // box turn about the vertical, degrees
+        public Vector2[] Points;  // polygon outline (x, z), or null; height in Extents.y
         public int Kind;          // 0 start, 1 checkpoint, 2 end
     }
 
@@ -80,16 +81,18 @@ namespace ForestOverlay.Game
             for (int i = 0; i < n; i++)
             {
                 PreviewZone z = Zones[i];
-                if (!z.IsBox && z.Radius <= 0f) continue;
+                bool poly = z.Points != null;
+                if (poly ? z.Points.Length < 3 : (!z.IsBox && z.Radius <= 0f)) continue;
 
                 GL.Color(z.Kind == 0 ? StartColour : (z.Kind == 2 ? EndColour : CheckColour));
 
-                if (z.IsBox) WireBox(z.Center, z.Extents, z.Yaw);
+                if (poly) WirePrism(z.Points, z.Center.y - z.Extents.y, z.Center.y + z.Extents.y);
+                else if (z.IsBox) WireBox(z.Center, z.Extents, z.Yaw);
                 else WireSphere(z.Center, z.Radius);
 
                 // A post through the centre makes a zone findable when
                 // you are outside it and the outline is edge-on.
-                float height = z.IsBox ? z.Extents.y : z.Radius;
+                float height = poly || z.IsBox ? z.Extents.y : z.Radius;
                 GL.Vertex(new Vector3(z.Center.x, z.Center.y - height, z.Center.z));
                 GL.Vertex(new Vector3(z.Center.x, z.Center.y + height, z.Center.z));
             }
@@ -116,6 +119,22 @@ namespace ForestOverlay.Game
             Edge(p000, p001); Edge(p001, p011); Edge(p011, p010); Edge(p010, p000);
             Edge(p100, p101); Edge(p101, p111); Edge(p111, p110); Edge(p110, p100);
             Edge(p000, p100); Edge(p001, p101); Edge(p011, p111); Edge(p010, p110);
+        }
+
+        /// A polygon zone: the outline at its bottom and top, joined at
+        /// every corner - what Trigger's containment test fires inside.
+        private static void WirePrism(Vector2[] pts, float bottom, float top)
+        {
+            for (int i = 0, j = pts.Length - 1; i < pts.Length; j = i++)
+            {
+                Vector3 a0 = new Vector3(pts[j].x, bottom, pts[j].y);
+                Vector3 b0 = new Vector3(pts[i].x, bottom, pts[i].y);
+                Vector3 a1 = new Vector3(pts[j].x, top, pts[j].y);
+                Vector3 b1 = new Vector3(pts[i].x, top, pts[i].y);
+                Edge(a0, b0);
+                Edge(a1, b1);
+                Edge(b0, b1);
+            }
         }
 
         private static void Edge(Vector3 a, Vector3 b)
