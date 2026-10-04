@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.244** (2026-10-04). The author runs it via the in-game
+**Released: v0.24.245** (2026-10-04). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-04 overnight, unattended - author away)
@@ -461,8 +461,11 @@ monthly `docker compose pull` on the VPS for runtime patches). Bot
 `crafting-recipes`, `hundred-percent`, `top-runners`. **Usage note
 (author, 2026-10-04):** subagents burn usage fast - use `model: sonnet`
 for routine agents (checks, site, docs), Opus only for hard game work,
-2-3 at a time. **In progress:** an in-game Map tab (spots / routes on a
-relief of the island).
+2-3 at a time. v0.24.245 (the **Map tab**, `_modules[19]`: relief of the
+island cached in `config/ForestOverlay/map/`, spots / zones / the
+comparison run / the player; released from a branch cut at v0.24.244 so
+the held late pass stayed out - main carries both). **Next release from
+main includes the late pass** - only after the author has looked.
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
