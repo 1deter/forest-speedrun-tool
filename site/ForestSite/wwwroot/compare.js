@@ -50,8 +50,8 @@ const YT_ERRORS = {
   2: "YouTube says that is not a valid video.",
   5: "The browser's player could not play this video.",
   100: "The video was not found - removed or private.",
-  101: "The uploader does not allow this video on other sites. It only plays on YouTube itself.",
-  150: "The uploader does not allow this video on other sites. It only plays on YouTube itself.",
+  101: "YouTube will not play this video here: the uploader does not allow it on other sites, or it is unavailable (removed / private).",
+  150: "YouTube will not play this video here: the uploader does not allow it on other sites, or it is unavailable (removed / private).",
   153: "YouTube refused the player (no referrer reached it - a browser setting or an extension).",
 };
 
@@ -278,7 +278,7 @@ function comparePage() {
     const pane = el("section", { class: "cmpside" },
       head, label, el("div", { class: "cmpurl" }, url, el("button", { class: "chip", type: "button", onclick: loadUrl }, "Load")), urlMsg,
       video, status,
-      el("div", { class: "cmprow" }, el("label", { class: "k" }, "Frame rate ", fps), el("span", { class: "sub" }, "the video's fps (YouTube: 60 or 30)")),
+      el("div", { class: "cmprow" }, el("label", { class: "k" }, "Frame rate ", fps), el("span", { class: "sub" }, "fps - YouTube keeps 60 or 30")),
       steps, clock, runClock,
       start.row, end.row,
       el("div", { class: "cmppoint" }, el("span", { class: "k" }, "Total"), total, splitBtn),
@@ -473,7 +473,7 @@ function comparePage() {
       const s = p.s, pl = s.player, last = p.last;
       const status = !s.id ? "" : pl.error ? pl.error : !pl.heard ? "Starting the player…" : "";
       if (last.status !== status) p.status.textContent = last.status = status;
-      const t = s.id ? cur(s) : null;
+      const t = s.id && !pl.error ? cur(s) : null;
       const clock = t === null ? "" : "Video " + time(t) + "  ·  frame " + cmpFrame(s, pl.now());
       if (last.clock !== clock) p.clock.textContent = last.clock = clock;
       const run = t === null || s.start === null ? "" : "Run time " + time(t - s.start);
