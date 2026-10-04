@@ -246,7 +246,7 @@ async function spotPage(id, routeId) {
   const layerCtl = mapLayers(map, layer => { if (views && views.view) views.view.setLayer(layer); });
   let views = null;
   const zones = [];
-  const addZone = (t, role, label) => { if (t && (t.kind === "zone" || t.kind === "box")) zones.push(Object.assign({ role, label }, t)); };
+  const addZone = (t, role, label) => { if (t && (t.kind === "zone" || t.kind === "box" || t.kind === "poly")) zones.push(Object.assign({ role, label }, t)); };
   addZone(r.start, "start", "Start");
   r.checks.forEach((t, i) => addZone(t, "check", r.splitNames[i] || "Checkpoint " + (i + 1)));
   addZone(r.end, "end", r.splitNames[r.splitNames.length - 1] || "End");

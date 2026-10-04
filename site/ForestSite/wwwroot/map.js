@@ -143,7 +143,10 @@ window.RunMap = (function () {
   RunMap.prototype.fit = function () {
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     const add = (x, z, r) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); z0 = Math.min(z0, z - r); z1 = Math.max(z1, z + r); };
-    for (const zn of this.zones) add(zn.at[0], zn.at[2], zn.radius || Math.hypot(zn.size[0], zn.size[2]));
+    for (const zn of this.zones) {
+      if (zn.kind === "poly") { for (const [px, pz] of zn.points) add(px, pz, 0); continue; }
+      add(zn.at[0], zn.at[2], zn.radius || Math.hypot(zn.size[0], zn.size[2]));
+    }
     for (const run of this.runs) for (const s of run.path) add(s[1], s[3], 0);
     if (!isFinite(x0)) { this.view = { cx: 0, cz: 0, scale: 0.2 }; return; }
     const w = this.canvas.clientWidth || 800, h = this.canvas.clientHeight || 500;
@@ -406,6 +409,13 @@ window.RunMap = (function () {
       corners.forEach(([lx, lz], i) => {
         const [px, py] = this.toScreen(zn.at[0] + lx * cs + lz * sn, zn.at[2] - lx * sn + lz * cs);
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
+    } else if (zn.kind === "poly") {
+      // The outline as the game tests it (Data/Segments: ZonePolygon).
+      zn.points.forEach(([px, pz], i) => {
+        const [sx, sy] = this.toScreen(px, pz);
+        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
       });
       ctx.closePath();
     } else {

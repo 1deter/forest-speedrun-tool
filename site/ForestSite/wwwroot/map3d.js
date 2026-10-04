@@ -248,6 +248,19 @@ class Map3D {
         const box = new THREE.Mesh(g, fill), edges = new THREE.LineSegments(new THREE.EdgesGeometry(g), edge);
         for (const o of [box, edges]) { o.position.copy(at); o.rotation.y = -(zn.yaw || 0) * Math.PI / 180; o.renderOrder = ORDER.zone; this.zoneGroup.add(o); }
         top = zn.size[1];
+      } else if (zn.kind === "poly") {
+        // A prism over the outline, half high either side of at[1]. The
+        // shape is drawn in world x / z through P (the map's own axes),
+        // then lifted to the bottom.
+        const bottom = zn.at[1] - zn.half, h = zn.half * 2;
+        const corners = zn.points.map(([px, pz]) => P(px, bottom, pz));
+        const shape = new THREE.Shape(corners.map(c => new THREE.Vector2(c.x, -c.z)));
+        const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false });
+        g.rotateX(-Math.PI / 2);
+        g.translate(0, corners.length ? corners[0].y : 0, 0);
+        const prism = new THREE.Mesh(g, fill), edges = new THREE.LineSegments(new THREE.EdgesGeometry(g), edge);
+        for (const o of [prism, edges]) { o.renderOrder = ORDER.zone; this.zoneGroup.add(o); }
+        top = zn.half;
       } else {
         // A zone is a sphere in game (Data/Segments: distance <= radius).
         const s = new THREE.Mesh(new THREE.SphereGeometry(zn.radius, 32, 16), fill);

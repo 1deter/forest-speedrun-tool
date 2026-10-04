@@ -19,7 +19,10 @@ namespace ForestOverlay.Data
     /// A zone is a sphere by default. Boxes exist because doorways,
     /// ledges and corridors are not round, and forcing a sphere onto
     /// one either over-covers the approach or misses the edges.
-    public enum ZoneShape { Sphere, Box }
+    /// Polygons (prisms over an outline of x / z points) cover what
+    /// neither does: a bend in a path, a ledge, a cave's irregular
+    /// mouth. Appended last so the existing values keep their numbers.
+    public enum ZoneShape { Sphere, Box, Polygon }
 
     // ------------------------------------------------------------------
     // A named condition that can fire.
@@ -45,6 +48,14 @@ namespace ForestOverlay.Data
         /// depth runs along this heading, as a player facing it looks
         /// (runners: checkpoint boxes across diagonal paths, v0.24.75).
         public float Yaw;
+        /// Polygon outline, (x, z) world points in order around the area
+        /// (3 or more; Vector2.y is the world z). A prism: the outline,
+        /// between Position.y - Extents.y and Position.y + Extents.y, as a
+        /// box's height. Position.x / z is the points' mean - kept for
+        /// labels, the preview's post and the website's map, never written.
+        /// Shared between copies of the struct: replace the array, never
+        /// edit it in place (ZonePolygon's helpers return new ones).
+        public Vector2[] Points;
 
         // Item
         public int ItemId;
@@ -68,7 +79,7 @@ namespace ForestOverlay.Data
             switch (Kind)
             {
                 case TriggerKind.Zone:
-                    return (Shape == ZoneShape.Box ? "box (" : "zone (") +
+                    return (Shape == ZoneShape.Box ? "box (" : Shape == ZoneShape.Polygon ? "poly (" : "zone (") +
                            Position.x.ToString("F0") + ", " +
                            Position.y.ToString("F0") + ", " +
                            Position.z.ToString("F0") + ")";
@@ -128,6 +139,9 @@ namespace ForestOverlay.Data
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
+                    if (t.Shape == ZoneShape.Polygon)
+                        return Mathf.Abs(position.y - t.Position.y) <= t.Extents.y &&
+                               ZonePolygon.Contains(t.Points, position.x, position.z);
                     if (t.Shape == ZoneShape.Box)
                     {
                         Vector3 d = position - t.Position;
@@ -541,6 +555,31 @@ namespace ForestOverlay.Data
                 return true;
             }
 
+            if (kind == "poly")
+            {
+                // poly <middle y> <half height> x1 z1 x2 z2 x3 z3 ... - the
+                // height as a box writes it (centre and half-size).
+                float cy, ey;
+                if (p.Length < 9 || (p.Length - 3) % 2 != 0) return false;
+                if (!F(p[1], out cy) || !F(p[2], out ey) || ey <= 0f) return false;
+
+                Vector2[] pts = new Vector2[(p.Length - 3) / 2];
+                for (int i = 0; i < pts.Length; i++)
+                {
+                    float px, pz;
+                    if (!F(p[3 + i * 2], out px) || !F(p[4 + i * 2], out pz)) return false;
+                    pts[i] = new Vector2(px, pz);
+                }
+
+                t.Kind = TriggerKind.Zone;
+                t.Shape = ZoneShape.Polygon;
+                t.Points = pts;
+                t.Extents = new Vector3(0f, ey, 0f);
+                Vector2 c = ZonePolygon.Centre(pts);
+                t.Position = new Vector3(c.x, cy, c.y);
+                return true;
+            }
+
             if (kind == "item")
             {
                 if (p.Length < 4) return false;
@@ -589,6 +628,15 @@ namespace ForestOverlay.Data
             switch (t.Kind)
             {
                 case TriggerKind.Zone:
+                    if (t.Shape == ZoneShape.Polygon)
+                    {
+                        System.Text.StringBuilder sb = new System.Text.StringBuilder("poly ");
+                        sb.Append(Num(t.Position.y)).Append(' ').Append(Num(t.Extents.y));
+                        if (t.Points != null)
+                            for (int i = 0; i < t.Points.Length; i++)
+                                sb.Append(' ').Append(Num(t.Points[i].x)).Append(' ').Append(Num(t.Points[i].y));
+                        return sb.ToString();
+                    }
                     if (t.Shape == ZoneShape.Box)
                         // Yaw only when turned: an unturned box writes (and
                         // fingerprints) exactly as before, so no times retire.
@@ -679,6 +727,120 @@ namespace ForestOverlay.Data
             if (p.Length != 3 || !F(p[0], out x) || !F(p[1], out y) || !F(p[2], out z)) return false;
             v = new Vector3(x, y, z);
             return true;
+        }
+
+        /// A polygon point: two numbers (x z), separated as ParseCoords
+        /// separates three.
+        public static bool ParsePoint(string text, out Vector2 v)
+        {
+            v = new Vector2(0f, 0f);
+            if (text == null) return false;
+            string[] p = text.Trim().Trim('(', ')', '[', ']').Split(new[] { ' ', ',', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            float x, z;
+            if (p.Length != 2 || !F(p[0], out x) || !F(p[1], out z)) return false;
+            v = new Vector2(x, z);
+            return true;
+        }
+
+        /// TidyCoords for a point (two numbers).
+        public static string TidyPoint(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            string t = text.Trim(' ', ',');
+            Vector2 v;
+            return t.Length != text.Length && ParsePoint(t, out v) ? t : text;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Polygon zones' geometry. Pure: the containment test and the edits
+    // the editor makes, each returning a NEW array (a Trigger is a struct
+    // and copies share the array - an in-place edit would move the zone
+    // in every copy, a duplicated entry's too).
+    // ------------------------------------------------------------------
+    public static class ZonePolygon
+    {
+        /// Even-odd ray cast in the x / z plane: inside when a ray from the
+        /// point crosses the outline an odd number of times. Fewer than 3
+        /// points is never inside. A self-crossing outline counts its
+        /// overlaps as outside, as any fill rule must pick one.
+        public static bool Contains(Vector2[] pts, float x, float z)
+        {
+            if (pts == null || pts.Length < 3) return false;
+            bool inside = false;
+            for (int i = 0, j = pts.Length - 1; i < pts.Length; j = i++)
+            {
+                float zi = pts[i].y, zj = pts[j].y;
+                if ((zi > z) != (zj > z))
+                {
+                    float cross = pts[i].x + (z - zi) * (pts[j].x - pts[i].x) / (zj - zi);
+                    if (x < cross) inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        /// The points' mean: where the label, the preview's post and a
+        /// Here move are measured from.
+        public static Vector2 Centre(Vector2[] pts)
+        {
+            if (pts == null || pts.Length == 0) return new Vector2(0f, 0f);
+            double x = 0, z = 0;
+            for (int i = 0; i < pts.Length; i++) { x += pts[i].x; z += pts[i].y; }
+            return new Vector2((float)(x / pts.Length), (float)(z / pts.Length));
+        }
+
+        /// A square of side 2 * half around (x, z), turned by yaw degrees
+        /// as a box is - a new polygon starts as the box it replaces.
+        public static Vector2[] Square(float x, float z, float half, float yaw)
+        {
+            double a = yaw * Math.PI / 180.0;
+            float c = (float)Math.Cos(a), s = (float)Math.Sin(a);
+            float[] lx = { -half, half, half, -half };
+            float[] lz = { -half, -half, half, half };
+            Vector2[] pts = new Vector2[4];
+            for (int i = 0; i < 4; i++)
+                // Box frame to world: the inverse of TriggerEvaluator's turn.
+                pts[i] = new Vector2(x + lx[i] * c + lz[i] * s, z - lx[i] * s + lz[i] * c);
+            return pts;
+        }
+
+        public static Vector2[] Translated(Vector2[] pts, float dx, float dz)
+        {
+            if (pts == null) return null;
+            Vector2[] o = new Vector2[pts.Length];
+            for (int i = 0; i < pts.Length; i++) o[i] = new Vector2(pts[i].x + dx, pts[i].y + dz);
+            return o;
+        }
+
+        public static Vector2[] WithPoint(Vector2[] pts, int index, Vector2 p)
+        {
+            Vector2[] o = (Vector2[])pts.Clone();
+            o[index] = p;
+            return o;
+        }
+
+        public static Vector2[] Added(Vector2[] pts, Vector2 p)
+        {
+            int n = pts != null ? pts.Length : 0;
+            Vector2[] o = new Vector2[n + 1];
+            for (int i = 0; i < n; i++) o[i] = pts[i];
+            o[n] = p;
+            return o;
+        }
+
+        public static Vector2[] Removed(Vector2[] pts, int index)
+        {
+            Vector2[] o = new Vector2[pts.Length - 1];
+            for (int i = 0, k = 0; i < pts.Length; i++) if (i != index) o[k++] = pts[i];
+            return o;
+        }
+
+        /// Sets the trigger's Position.x / z to its points' mean, keeping y.
+        public static void Recentre(ref Trigger t)
+        {
+            Vector2 c = Centre(t.Points);
+            t.Position = new Vector3(c.x, t.Position.y, c.y);
         }
     }
 }
