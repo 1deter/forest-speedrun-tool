@@ -468,3 +468,65 @@ cards: crafting-and-building
 must:
 - in Creative you hold Build and one ingredient is added every 0.065 s, and none are taken from the inventory
 - in other modes each ingredient needs its own press and must be carried
+
+### log-wall-sticks
+question: how many sticks to craft a log wall?
+cards: building-costs
+must:
+- none - log walls take only logs
+- the wall, the wall with a doorway and the wall with a window are 5 logs each; a defensive wall piece 6 logs
+- a custom wall's long piece costs its height in logs (5) however long; a short piece one log per upright log
+
+### log-cabin-cost
+question: what do I need to build a log cabin?
+cards: building-costs
+must:
+- 82 logs and nothing else
+- the small log cabin is 13 logs
+
+### deer-skin-everything
+question: how much deer skin would I need to craft every item and build every structure once?
+cards: building-costs, crafting-recipes
+must:
+- 22 deer skins
+- buildings 12: couch 7, chair 2, wardrobe 2, deer skin rug 1
+- crafts 10: warm suit 6, waterskin 2, spear bag 2
+
+### hundred-percent-items
+question: what does the 100% category require?
+cards: hundred-percent
+must:
+- Normal or Hardmode, ending by crashing the plane
+- all story items, all unique items, plus the flashlight and the cooking pot
+- the nature guide, the passenger manifest (43 passengers) and the to-do list completed
+- the board has no runs yet
+not:
+- that the item list is not documented
+
+### top-runners
+question: who are the top 3 speedrunners of the forest?
+cards: top-runners
+must:
+- there is no single overall ranking; each category and difficulty is its own speedrun.com board
+- Cheesecake404, sxczurass and yirequ hold most top places
+- an example board with its top times (e.g. Any% Creative 3:31 Cheesecake404)
+
+### jump-speed
+question: is jumping faster than running on the ground?
+cards: movement-tricks
+must:
+- the air has no friction, the ground has friction 0.2 plus a speed-dependent grounding force
+- air steering only pulls toward the run speed, so a jump never exceeds it on flat ground
+- measured ground speeds sit about 4% under the target; how much a jump chain gains is not measured
+- runners report being in the air is optimal for speed
+
+### axe-clip-consistent
+question: how can I make axe clips more consistent?
+cards: smash-clip
+must:
+- the clip itself has not been reproduced; there is no tested optimal version
+- any angle that allows the smash (~43 degrees down) already gives the full 0.4 m forward shift
+- the crouch capsule changes 0.2-0.46 s after letting go of crouch, so the uncrouch has a wide window inside the ~1.5 s smash
+- physics stays at 60 Hz, so higher fps does not add collision checks
+not:
+- that physics or collision checks run once per rendered frame
