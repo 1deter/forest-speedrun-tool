@@ -315,7 +315,7 @@ api.MapPost("/runs", async (HttpRequest req) =>
     if (res.Added.Count == 0 && res.Existing.Count == 0) return Problem(422, string.Join("; ", res.Skipped));
     // Only queued: the webhook never fails or slows an upload.
     if (res.Pb is { } pb)
-        try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId))); }
+        try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId)), runner); }
         catch (Exception ex) { app.Logger.LogWarning("Discord webhook: {m}", ex.Message); }
     return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped });
 }).RequireRateLimiting("upload");

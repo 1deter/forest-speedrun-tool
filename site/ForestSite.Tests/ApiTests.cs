@@ -1043,6 +1043,31 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Webhook_CapsEachRunnersPostsAnHour()
+    {
+        FakeWebhook();
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        DateTime now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        hook.Now = () => now;
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-dddddddddddd");
+        MakeCommunity(seg);
+
+        // A sets a PB after PB: five posts, then nothing for the hour.
+        for (int i = 0; i < 7; i++)
+            Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 20f - i, 5f, i)))).StatusCode);
+        Assert.Equal(PbWebhook.PerRunnerPerHour, hook.Recent.Count);
+        // Another runner still posts.
+        await Upload(tb, Bundle(seg, RunText(seg, B, 30f, 5f, 1)));
+        Assert.Equal(PbWebhook.PerRunnerPerHour + 1, hook.Recent.Count);
+        Assert.Contains("Runner 0000", hook.Recent[^1]);
+        // An hour on, A posts again.
+        now = now.AddMinutes(61);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 13f, 2f, 20)));
+        Assert.Equal(PbWebhook.PerRunnerPerHour + 2, hook.Recent.Count);
+    }
+
+    [Fact]
     public async Task LinkPreview_NamesTheSitesAddress_NotTheHostHeader()
     {
         string ta = await Register(A);
