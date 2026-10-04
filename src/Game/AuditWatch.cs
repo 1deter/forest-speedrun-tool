@@ -81,6 +81,12 @@ namespace ForestOverlay.Game
         /// Item names for crafted / used items (set by the module).
         public static Func<int, string> ItemName;
 
+        /// The pause menu as the game last toggled it, and how many times
+        /// it was toggled - read by every timed run's replay track
+        /// (Modules/PracticeRunModule.Replay), run mode or not.
+        public static bool PauseOpen;
+        public static int PauseToggles;
+
         /// Time.unscaledTime until which a ride may still be changing.
         public static float RideDirtyUntil = -1f;
 
@@ -308,6 +314,8 @@ namespace ForestOverlay.Game
 
         private static void PausePostfix(bool on)
         {
+            PauseOpen = on;
+            PauseToggles++;
             if (!Recording || Pending.Count >= MaxPending) return;
             Pending.Add(new Raw(on ? RunAudit.PauseOpen : RunAudit.PauseClose, null));
         }
