@@ -24,6 +24,14 @@ namespace ForestOverlay.Data
     //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
     //   v|<t>|<v0>|<v1>|...                state,    5 Hz
     //   i|<t>|<item>:<count>|...           item counts that changed (v0.24.161)
+    //   e|<t>|<kind>|<x>|<y>|<z>|<detail>  what the runner did (replays;
+    //                                       kinds from Data/RunAudit)
+    //   b|<t>|<state>|<kind>|<x>|<y>|<z>|<rx>|<ry>|<rz>|<cx>|<cy>|<cz>|<sx>|<sy>|<sz>
+    //                                       a structure placed / built: its
+    //                                       place, rotation and local box
+    //
+    // Older readers skip lines they do not know, so e / b lines never
+    // break an older plugin or the site.
     //
     // Numbers use InvariantCulture: a comma-decimal machine would otherwise
     // silently reject them.
@@ -96,7 +104,28 @@ namespace ForestOverlay.Data
                 sb.Append(NL);
             }
 
+            for (int i = 0; i < attempt.Events.Count; i++)
+            {
+                RunEvent e = attempt.Events[i];
+                sb.Append("e|").Append(F(e.T)).Append('|').Append(Clean(e.Kind)).Append('|')
+                  .Append(F(e.P.x)).Append('|').Append(F(e.P.y)).Append('|').Append(F(e.P.z)).Append('|')
+                  .Append(Clean(e.Detail)).Append(NL);
+            }
+
+            for (int i = 0; i < attempt.Buildings.Count; i++)
+            {
+                RunBuilding b = attempt.Buildings[i];
+                sb.Append("b|").Append(F(b.T)).Append('|').Append(Clean(b.State)).Append('|').Append(Clean(b.Kind));
+                V(sb, b.P); V(sb, b.Euler); V(sb, b.Center); V(sb, b.Size);
+                sb.Append(NL);
+            }
+
             return sb.ToString();
+        }
+
+        private static void V(StringBuilder sb, Vector3 v)
+        {
+            sb.Append('|').Append(F(v.x)).Append('|').Append(F(v.y)).Append('|').Append(F(v.z));
         }
 
         /// Null when the text has no position samples (not an attempt).
@@ -168,6 +197,27 @@ namespace ForestOverlay.Data
                         a.Items.Add(ic);
                     }
                 }
+                else if (p[0] == "e" && p.Length >= 6)
+                {
+                    RunEvent e;
+                    e.T = P(p[1]);
+                    e.Kind = p[2];
+                    e.P = new Vector3(P(p[3]), P(p[4]), P(p[5]));
+                    e.Detail = p.Length > 6 ? p[6] : "";
+                    if (e.Kind.Length > 0) a.Events.Add(e);
+                }
+                else if (p[0] == "b" && p.Length >= 16)
+                {
+                    RunBuilding b;
+                    b.T = P(p[1]);
+                    b.State = p[2];
+                    b.Kind = p[3];
+                    b.P = new Vector3(P(p[4]), P(p[5]), P(p[6]));
+                    b.Euler = new Vector3(P(p[7]), P(p[8]), P(p[9]));
+                    b.Center = new Vector3(P(p[10]), P(p[11]), P(p[12]));
+                    b.Size = new Vector3(P(p[13]), P(p[14]), P(p[15]));
+                    a.Buildings.Add(b);
+                }
                 else if (p[0] == "s" && p.Length >= 6)
                 {
                     RunSample s;
@@ -206,7 +256,8 @@ namespace ForestOverlay.Data
                 while (s < next && (runText[s] == ' ' || runText[s] == '\t' || runText[s] == '\uFEFF')) s++;
                 if (StartsAt(runText, s, "runner|")) return runText;
                 if (insert < 0 && (StartsAt(runText, s, "channels") || StartsAt(runText, s, "s|") ||
-                                   StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|")))
+                                   StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|") ||
+                                   StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|")))
                     insert = at;
                 at = next;
             }

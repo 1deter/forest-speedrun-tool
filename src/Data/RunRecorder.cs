@@ -40,6 +40,42 @@ namespace ForestOverlay.Data
         public int Count;
     }
 
+    /// Something the runner did, at its time and place (replays: markers
+    /// along the ghost's line; docs/run-audit-and-replays.md part 2). The
+    /// kind is a run audit kind (Data/RunAudit: crafted, used, kill,
+    /// ride-start, pause-open, death, cave-enter ...), so its label is
+    /// RunAudit.Label; the detail is plain words ("Bomb", "Cave 6").
+    /// Every timed run records them, not only run mode attempts.
+    public struct RunEvent
+    {
+        public float T;
+        public Vector3 P;
+        public string Kind;
+        public string Detail;
+    }
+
+    /// A structure placed (a blueprint) or finished during the run - the
+    /// replay draws it as a wireframe box from its time on (the
+    /// "schematic"). The box is the structure's own: Center and Size in
+    /// its local frame (P + Euler), read from its meshes when it was
+    /// placed, else a default per kind (Data/ReplayMarks.DefaultSize).
+    public struct RunBuilding
+    {
+        public const string Placed = "placed";
+        public const string Built = "built";
+
+        public float T;
+        /// Placed or Built.
+        public string State;
+        /// The game's BuildingTypes name ("LogCabin"), or what is known.
+        public string Kind;
+        public Vector3 P;
+        /// Its rotation as Euler angles (degrees).
+        public Vector3 Euler;
+        public Vector3 Center;
+        public Vector3 Size;
+    }
+
     // ------------------------------------------------------------------
     // One recorded attempt: the path taken and how long it took.
     //
@@ -86,6 +122,13 @@ namespace ForestOverlay.Data
 
         /// Inventory count changes, in time order (see ItemChange).
         public readonly List<ItemChange> Items = new List<ItemChange>();
+
+        /// What the runner did, in time order (see RunEvent). Empty for
+        /// runs recorded before the replay track.
+        public readonly List<RunEvent> Events = new List<RunEvent>();
+
+        /// Structures placed / finished, in time order (see RunBuilding).
+        public readonly List<RunBuilding> Buildings = new List<RunBuilding>();
 
         /// An item's count at time t: its last change at or before t, 0
         /// before its first.
@@ -356,6 +399,11 @@ namespace ForestOverlay.Data
         /// first sample) must always fill. Only changes are recorded.
         public Func<Dictionary<string, int>, bool, bool> ItemSource;
 
+        /// A run keeps at most this many events / buildings: a long run
+        /// cutting trees all the way must not grow the file without end.
+        public const int MaxEvents = 2000;
+        public const int MaxBuildings = 500;
+
         private Dictionary<string, int> _itemsNow = new Dictionary<string, int>();
         private Dictionary<string, int> _itemsLast = new Dictionary<string, int>();
         private bool _itemsFirst;
@@ -458,6 +506,33 @@ namespace ForestOverlay.Data
             c.Name = name;
             c.Count = count;
             Current.Items.Add(c);
+        }
+
+        /// Something the runner did, now (see RunEvent). Only while
+        /// running; false when not recorded (not running, or full).
+        public bool RecordEvent(string kind, string detail, Vector3 position)
+        {
+            if (State != RunState.Running || Current == null || string.IsNullOrEmpty(kind)) return false;
+            if (Current.Events.Count >= MaxEvents) return false;
+            RunEvent e;
+            e.T = Elapsed;
+            e.P = position;
+            e.Kind = kind;
+            e.Detail = detail ?? "";
+            Current.Events.Add(e);
+            return true;
+        }
+
+        /// A structure placed / finished now (its T is set here).
+        public bool RecordBuilding(RunBuilding b)
+        {
+            if (State != RunState.Running || Current == null) return false;
+            if (Current.Buildings.Count >= MaxBuildings) return false;
+            b.T = Elapsed;
+            if (string.IsNullOrEmpty(b.State)) b.State = RunBuilding.Built;
+            if (b.Kind == null) b.Kind = "";
+            Current.Buildings.Add(b);
+            return true;
         }
 
         /// Overload for callers with no state source (and for tests).
