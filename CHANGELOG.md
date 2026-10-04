@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.243 - 2026-10-04
+
+- Website: a daily per-runner limit on run mode attempts (5,000 a day); past it an attempt is set aside with the reason instead of retried.
+- Fixed: run mode made garbage every frame, so the game's ~85 ms memory clean-ups kept landing in it (shown as "Slow tick: 'runmode'"). A slow-tick line now says when a clean-up caused it.
+- The ghost is now a figure that faces where the run looked (Runs tab: Ghost look); runs now record where you look.
+- Replay camera (Experimental): watch the comparison run from behind, through the runner's eyes, or side-on to see a boost's arc - with pause, seek and slow motion.
+- The website's 2D and 3D maps show a run's buildings and interaction markers (Buildings / Markers buttons).
+
 ## v0.24.242 - 2026-10-04
 
 - Replays show what happened: the comparison run's buildings appear as wireframe boxes at their time, with a marker (labelled when near) at each thing it did. Runs tab: "Replay shows: buildings / interaction markers".
