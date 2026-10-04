@@ -66,7 +66,7 @@ class YtPlayer {
   }
   reset() {
     this.state = -1; this.time = 0; this.at = performance.now(); this.rate = 1; this.duration = 0;
-    this.heard = false; this.error = null; this.hold = 0; this.pending = 0;
+    this.heard = false; this.error = null; this.hold = 0; this.pending = 0; this.cueing = false; this.cued = false;
   }
   /// t: show the video at this time once the player is up (paused there).
   load(id, t) {
@@ -111,8 +111,10 @@ class YtPlayer {
     }
     const info = m.info;
     if (m.event === "onReady" && this.pending > 0) {
-      // A seek on a cued video plays it: pause again at once, the frame stays.
-      this.seek(this.pending); this.pause(); this.pending = 0;
+      // A cued video shows no frame until it has played: play it muted
+      // from there (browsers allow that) and pause on the first frame.
+      this.cmd("mute"); this.seek(this.pending); this.cueing = this.pending; this.pending = 0;
+      this.cueUntil = performance.now() + 5000;
     }
     if (m.event === "onError") this.error = YT_ERRORS[info] || "YouTube could not play this video (error " + info + ").";
     else if (m.event === "onStateChange" && typeof info === "number") this.setState(info);
@@ -122,7 +124,9 @@ class YtPlayer {
       if (typeof info.duration === "number") this.duration = info.duration;
       // Right after a seek the player can still report the old place.
       if (typeof info.currentTime === "number" && isFinite(info.currentTime) && performance.now() > this.hold) {
-        this.time = info.currentTime; this.at = performance.now();
+        // currentTimeLastUpdated_: when the player read it (epoch seconds).
+        const age = typeof info.currentTimeLastUpdated_ === "number" ? Date.now() - info.currentTimeLastUpdated_ * 1000 : 0;
+        this.time = info.currentTime; this.at = performance.now() - (age > 0 && age < 1000 ? age : 0);
       }
     }
     this.onChange();
@@ -130,6 +134,13 @@ class YtPlayer {
   setState(s) {
     if (s === this.state) return;
     this.time = this.now(); this.at = performance.now(); this.state = s;
+    // Cueing: paused once it played, then back to the exact frame.
+    // (Not when it was blocked and the viewer pressed play much later.)
+    if (this.cueing !== false && !this.cued && performance.now() > this.cueUntil) { this.cueing = false; this.cmd("unMute"); }
+    if (s === 1 && this.cueing !== false && !this.cued) { this.cued = true; this.pause(); }
+    else if (s === 2 && this.cued) {
+      this.seek(this.cueing); this.cmd("unMute"); this.cueing = false; this.cued = false;
+    }
   }
   get ready() { return this.heard && !this.error; }
   get playing() { return this.state === 1; }
@@ -180,7 +191,8 @@ function cmpWrite(c) {
     if (s.label) q.set(k + "n", s.label);
   });
   if (c.names.length) q.set("n", c.names.map(x => x.replace(/\|/g, "/")).join("|"));
-  const text = q.toString();
+  // encodeURIComponent keeps ~ readable (URLSearchParams writes %7E).
+  const text = [...q].map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
   return "/compare" + (text ? "?" + text : "");
 }
 
@@ -402,7 +414,8 @@ function comparePage() {
       return el("td", { class: "r" },
         el("div", { class: "cmpcell" },
           t === null ? el("span", { class: "muted" }, "-")
-            : el("button", { class: "linkbtn cmptime", type: "button", title: "Show this moment in the video",
+            : el("button", { class: "linkbtn cmptime" + (x.seg < 0 ? " c-behind-lose" : ""), type: "button",
+              title: x.seg < 0 ? "Earlier in the video than the split above - set out of order?" : "Show this moment in the video",
               onclick: () => { c.active = i; goTo(s, t, msg, "time"); } }, time(x.seg)),
           el("button", { class: "chip small", type: "button", title: "Set to the video's current time",
             onclick: () => {

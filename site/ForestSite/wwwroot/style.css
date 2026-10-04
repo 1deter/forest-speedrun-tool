@@ -340,5 +340,6 @@ table.cmptable td.name { min-width: 9em; }
 .cmpname .search { max-width: none; flex: 1; min-width: 5em; padding: 2px 0; }
 .cmpcell { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
 .cmptime { color: var(--white); font-size: 15px; font-variant-numeric: tabular-nums; }
+.cmptime.c-behind-lose { color: var(--behind-lose); }
 .cmpcum { color: var(--muted); font-size: 12px; }
 .note.small { font-size: 12px; margin-top: 16px; }
