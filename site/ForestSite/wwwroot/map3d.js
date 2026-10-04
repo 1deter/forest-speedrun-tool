@@ -117,6 +117,84 @@ function lineMesh(path, color, xray) {
   return mesh;
 }
 
+// --- interaction markers -------------------------------------------------------------
+// One point per event, a diamond of a fixed pixel size in its group's colour:
+// full behind the scrub time, faded ahead of it (map.js's markers). Not
+// depth tested, as the ghosts: a marker in a cave shows through the hill.
+
+const MARK_VERT = `
+uniform float uTime; uniform float uSize;
+attribute vec3 aColor; attribute float aT; attribute float aPick;
+varying vec3 vColor; varying float vAlpha;
+void main() {
+  vColor = aColor;
+  vAlpha = aT <= uTime ? 1.0 : 0.35;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = uSize * (aPick > 0.5 ? 1.35 : 1.0);
+}`;
+
+const MARK_FRAG = `
+varying vec3 vColor; varying float vAlpha;
+void main() {
+  vec2 p = abs(gl_PointCoord - 0.5) * 2.0;
+  float d = p.x + p.y;
+  if (d > 1.0) discard;
+  gl_FragColor = vec4(d > 0.7 ? vec3(0.0) : vColor, vAlpha);
+  #include <colorspace_fragment>
+}`;
+
+function markPoints(events) {
+  const n = events.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), t = new Float32Array(n);
+  const c = new THREE.Color();
+  events.forEach((e, i) => {
+    pos[i * 3] = e[3]; pos[i * 3 + 1] = e[4] + 0.4; pos[i * 3 + 2] = -e[5];
+    c.set(RunMap.markColor(e[6]));
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    t[i] = e[0];
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("aColor", new THREE.BufferAttribute(col, 3));
+  g.setAttribute("aT", new THREE.BufferAttribute(t, 1));
+  g.setAttribute("aPick", new THREE.BufferAttribute(new Float32Array(n), 1));
+  const m = new THREE.ShaderMaterial({
+    vertexShader: MARK_VERT, fragmentShader: MARK_FRAG, transparent: true, depthTest: false, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uSize: { value: 11 } },
+  });
+  const p = new THREE.Points(g, m);
+  p.frustumCulled = false;
+  p.renderOrder = ORDER.xray + 0.5;
+  return p;
+}
+
+/// A building as a wireframe box at its place, turned by its recorded
+/// rotation: Unity's Euler (z, then x, then y) mirrored through P's -z is
+/// three's YXZ order with x and y negated. A finished structure also gets a
+/// faint fill ("solid"); a blueprint is lines only, pale.
+function buildingBox(b) {
+  const placed = b[1] === "placed";
+  const size = [Math.max(0.2, b[7] || 0), Math.max(0.2, b[8] || 0), Math.max(0.2, b[9] || 0)];
+  const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
+  const holder = new THREE.Group();
+  holder.position.set(b[3], b[4], -b[5]);
+  const d = Math.PI / 180;
+  holder.rotation.set(-(b[13] || 0) * d, -(b[6] || 0) * d, (b[14] || 0) * d, "YXZ");
+  const centre = new THREE.Vector3(b[10] || 0, b[11] || 0, -(b[12] || 0));
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: placed ? RunMap.PLACED : RunMap.BUILT, transparent: true, opacity: placed ? 0.75 : 1 }));
+  edges.position.copy(centre); edges.renderOrder = ORDER.zone;
+  holder.add(edges);
+  if (!placed) {
+    const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: RunMap.BUILT, transparent: true, opacity: 0.22, depthWrite: false }));
+    fill.position.copy(centre); fill.renderOrder = ORDER.zone;
+    holder.add(fill);
+  } else geo.dispose();
+  holder.updateMatrix();
+  holder.userData.b = b;
+  holder.userData.centre = centre.clone().applyMatrix4(holder.matrix);
+  return holder;
+}
+
 // --- sprites -----------------------------------------------------------------------
 
 /// A shaded ball: the ghost, tinted by the sprite's colour.
@@ -188,7 +266,12 @@ class Map3D {
     this.lines = []; this.ghosts = []; this.labels = [];
     this.zoneGroup = new THREE.Group(); this.scene.add(this.zoneGroup);
     this.runGroup = new THREE.Group(); this.scene.add(this.runGroup);
-    this.region = null;            // the detail patch, in samples: { i0, j0, i1, j1, step }
+    // The focused run's buildings and markers (setMarks): boxes, one Points.
+    this.markGroup = new THREE.Group(); this.scene.add(this.markGroup);
+    this.marks = null; this.boxes = []; this.points = null;
+    this.showBuildings = true; this.showMarkers = true;
+    this.tipAt = null; this.tipPinned = false; this.tip = null;
+    this.region = null;           // the detail patch, in samples: { i0, j0, i1, j1, step }
     this.islandGen = 0; this.detailGen = 0;   // texture generations: stale tile loads are dropped
     this.island = null;            // the island's photo: { layer, canvas } - the patch's first picture
     this.visible = false; this.dirty = true; this.last = 0;
@@ -307,6 +390,90 @@ class Map3D {
     o.yaw = -a; o.pitch = p; o.dist = dist;
     o.target.set(x + Math.sin(a) * Math.cos(p) * dist, y - Math.sin(p) * dist, -(z + Math.cos(a) * Math.cos(p) * dist));
     this.dirty = true;
+  }
+
+  /// One run's { run, events, buildings } (the spot page's focused run), or null.
+  setMarks(marks) {
+    if (marks === this.marks) return;
+    this.marks = marks;
+    for (const o of [...this.markGroup.children]) { this.markGroup.remove(o); o.traverse(c => dispose(c)); }
+    this.boxes = []; this.points = null; this.setTip(null, false);
+    if (marks) {
+      for (const b of marks.buildings) { const box = buildingBox(b); this.markGroup.add(box); this.boxes.push(box); }
+      if (marks.events.length) { this.points = markPoints(marks.events); this.markGroup.add(this.points); }
+    }
+    this.dirty = true;
+  }
+
+  /// The Buildings / Markers switches.
+  setMarkOptions(buildings, markers) {
+    this.showBuildings = buildings; this.showMarkers = markers;
+    if (this.tipAt && !(this.tipAt.kind === "building" ? buildings : markers)) this.setTip(null, false);
+    this.dirty = true;
+  }
+
+  /// The label beside a marker / building (null hides it); pinned = tapped,
+  /// kept until the next tap (hover does not move it).
+  setTip(mark, pinned) {
+    if (this.points) {
+      const a = this.points.geometry.getAttribute("aPick");
+      a.array.fill(0);
+      if (mark && mark.kind === "event") a.array[mark.index] = 1;
+      a.needsUpdate = true;
+    }
+    this.tipAt = mark; this.tipPinned = !!(mark && pinned);
+    this.dirty = true;
+  }
+
+  /// The tip box, placed at its marker on screen (each render: the camera moves).
+  placeTip() {
+    const a = this.tipAt;
+    if (!a) { if (this.tip) this.tip.hidden = true; return; }
+    if (!this.tip) {
+      this.tip = document.createElement("div");
+      this.tip.className = "maptip";
+      this.tip.setAttribute("role", "status");
+      this.canvas.insertAdjacentElement("afterend", this.tip);
+    }
+    const it = a.item, clock = RunMap.clock;
+    const text = a.kind === "event" ? clock(it[0]) + " · " + it[2] : clock(it[0]) + " · " + RunMap.buildingLabel(it) +
+      (it[1] === "placed" && it[15] !== null && it[15] !== undefined ? " · built at " + clock(it[15]) : "");
+    if (this.tip.textContent !== text) this.tip.textContent = text;
+    const s = this.screenOf(a.world);
+    if (!s) { this.tip.hidden = true; return; }
+    RunMap.placeTip(this.tip, this.canvas, s[0], s[1]);
+  }
+
+  /// A three.js point on screen (CSS px), or null behind the camera.
+  screenOf(v) {
+    const p = this.tmpV || (this.tmpV = new THREE.Vector3());
+    p.copy(v).project(this.camera);
+    if (p.z > 1 || p.z < -1) return null;
+    return [(p.x + 1) / 2 * this.canvas.clientWidth, (1 - p.y) / 2 * this.canvas.clientHeight];
+  }
+
+  /// The marker (or else the shown building) nearest a screen point within
+  /// maxPx: { kind, item, index, world }.
+  markAt(px, py, maxPx) {
+    if (!this.marks) return null;
+    this.camera.updateMatrixWorld();
+    let best = null, bestD = maxPx;
+    const v = new THREE.Vector3();
+    if (this.showMarkers) this.marks.events.forEach((e, i) => {
+      const s = this.screenOf(v.set(e[3], e[4] + 0.4, -e[5]));
+      if (!s) return;
+      const d = Math.hypot(s[0] - px, s[1] - py);
+      if (d < bestD) { bestD = d; best = { kind: "event", item: e, index: i, world: v.clone() }; }
+    });
+    if (best || !this.showBuildings) return best;
+    for (const box of this.boxes) {
+      if (!box.visible) continue;
+      const s = this.screenOf(box.userData.centre);
+      if (!s) continue;
+      const d = Math.hypot(s[0] - px, s[1] - py);
+      if (d < bestD) { bestD = d; best = { kind: "building", item: box.userData.b, world: box.userData.centre }; }
+    }
+    return best;
   }
 
   setTime(t) { this.time = t; this.dirty = true; }
@@ -682,6 +849,9 @@ class Map3D {
       under.push({ run: g.userData.run, under: ground !== null && s[2] < ground - UNDER });
     }
     for (const l of this.lines) l.material.uniforms.uTime.value = this.time;
+    for (const box of this.boxes) box.visible = this.showBuildings && RunMap.buildingShown(box.userData.b, this.time);
+    if (this.points) { this.points.visible = this.showMarkers; this.points.material.uniforms.uTime.value = this.time; }
+    if (this.tipAt && this.tipAt.kind === "building" && !this.boxes.some(b => b.visible && b.userData.b === this.tipAt.item)) this.setTip(null, false);
 
     // Underground: every ghost (orbit) or the followed one (follow) below
     // the ground fades the terrain and the sea, as the 2D map fades its relief.
@@ -802,7 +972,9 @@ class Map3D {
     const k = 2 / (this.camera.projectionMatrix.elements[5] * h);
     for (const g of this.ghosts) g.scale.set(14 * k, 14 * k, 1);
     for (const l of this.labels) l.scale.set(l.userData.px[0] * k, l.userData.px[1] * k, 1);
+    if (this.points) this.points.material.uniforms.uSize.value = 11 * r.getPixelRatio();
     r.render(this.scene, this.camera);
+    this.placeTip();
   }
 
   // --- input ---
@@ -825,9 +997,16 @@ class Map3D {
       pinch = 0; mid = null;
     });
     const end = e => {
-      if (e.type === "pointerup" && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && e.button === 0 && this.hooks.onPick) {
-        const r = c.getBoundingClientRect(), hit = this.nearest(e.clientX - r.left, e.clientY - r.top, 14);
-        if (hit) this.hooks.onPick(hit.run, hit.t);
+      if (e.type === "pointerup" && down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && e.button === 0) {
+        // A marker / building first: its label stays, the clock goes to its time.
+        const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+        const mark = this.markAt(px, py, e.pointerType === "mouse" ? 10 : 16);
+        this.setTip(mark, true);
+        if (mark && this.hooks.onPick && this.marks.run) this.hooks.onPick(this.marks.run, mark.item[0]);
+        else if (!mark && this.hooks.onPick) {
+          const hit = this.nearest(px, py, 14);
+          if (hit) this.hooks.onPick(hit.run, hit.t);
+        }
       }
       down = null; pinch = 0; mid = null;
       pointers.delete(e.pointerId);
@@ -835,7 +1014,15 @@ class Map3D {
     };
     on("pointerup", end);
     on("pointercancel", end);
+    on("pointerleave", e => { if (e.pointerType === "mouse" && !this.tipPinned && this.tipAt) this.setTip(null, false); });
     on("pointermove", e => {
+      if (!pointers.size && e.pointerType === "mouse" && this.marks) {
+        // Hover: the label of what is under the mouse, while nothing is tapped.
+        if (this.tipPinned) return;
+        const r = c.getBoundingClientRect(), mark = this.markAt(e.clientX - r.left, e.clientY - r.top, 10);
+        if (mark ? !this.tipAt || mark.item !== this.tipAt.item : this.tipAt) this.setTip(mark, false);
+        return;
+      }
       if (!pointers.has(e.pointerId)) return;
       const prev = pointers.get(e.pointerId);
       pointers.set(e.pointerId, [e.clientX, e.clientY]);
@@ -899,6 +1086,7 @@ class Map3D {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.note.remove();
+    if (this.tip) this.tip.remove();
     this.world.dispose();
     if (this.sea) this.sea.material.userData.mask.dispose();
     this.scene.traverse(dispose);

@@ -110,11 +110,32 @@ window.RunMap = (function () {
     return m.y0 + (top * (1 - fv) + bottom * fv) / 65535 * m.sizeY;
   }
 
+  // --- a run's buildings and interaction markers ------------------------------
+  // /api/runs/<id>: events [t, kind, label, x, y, z, group], buildings [t,
+  // state, kind, x, y, z, yaw, sx, sy, sz, cx, cy, cz, rx, rz, until]. The
+  // colours are the in-game replay's (Game/ReplayDraw): a marker by its run
+  // audit group, a blueprint pale blue until finished, a structure orange.
+  const GROUP_COLORS = {
+    progress: "#ffd933", caves: "#bf8cff", items: "#73ff80", building: "#ff9933", fights: "#ff4d4d",
+    deaths: "#ffffff", movement: "#4de6ff", menu: "#bfbfbf", world: "#e6e6e6",
+  };
+  const PLACED = "#8cccff", BUILT = "#ffb84d";
+  function markColor(group) { return GROUP_COLORS[group] || GROUP_COLORS.world; }
+  /// Building b shows at t: from its time on; a blueprint until finished.
+  function buildingShown(b, t) { return b[0] <= t && (b[15] === null || b[15] === undefined || t < b[15]); }
+  /// "LogCabin" -> "Log Cabin".
+  function spaced(s) { return String(s || "").replace(/([a-z])([A-Z])/g, "$1 $2"); }
+  /// What a building's label says: "Log Cabin (blueprint)" / "Log Cabin (built)".
+  function buildingLabel(b) { return spaced(b[2]) + (b[1] === "placed" ? " (blueprint)" : " (built)"); }
+
   function RunMap(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.zones = [];       // { kind, at, radius | size + yaw, label, role }
     this.runs = [];        // { color, path: [[t,x,y,z,speed]...] }
+    this.marks = null;     // one run's { run, events, buildings } (setMarks)
+    this.showBuildings = true; this.showMarkers = true;
+    this.tipAt = null;     // the marker / building under the pointer or last tapped: { kind, item }
     this.time = 0;
     this.view = null;      // { cx, cz, scale } - pixels per metre
     this.pointers = new Map();
@@ -128,6 +149,17 @@ window.RunMap = (function () {
   RunMap.prototype.setZones = function (zones) { this.zones = zones; };
   RunMap.prototype.setRuns = function (runs, refit) { this.runs = runs; if (refit || !this.view) this.fit(); this.draw(); };
   RunMap.prototype.setTime = function (t) { this.time = t; this.draw(); };
+  /// One run's buildings and markers ({ run, events, buildings }), or null.
+  RunMap.prototype.setMarks = function (marks) {
+    if (marks === this.marks) return;
+    this.marks = marks; this.tipAt = null; this.draw();
+  };
+  /// The Buildings / Markers switches.
+  RunMap.prototype.setMarkOptions = function (buildings, markers) {
+    this.showBuildings = buildings; this.showMarkers = markers;
+    if (this.tipAt && !(this.tipAt.kind === "building" ? buildings : markers)) this.tipAt = null;
+    this.draw();
+  };
   /// "canopy" / "ground" (the aerial photo, with or without trees; "-dry":
   /// the sea hidden) or "relief".
   RunMap.prototype.setLayer = function (layer) { this.layer = layer; this.draw(); };
@@ -216,6 +248,7 @@ window.RunMap = (function () {
     this.grid(w, h, relief);
     if (relief) this.planes();
     for (const zn of this.zones) this.zone(zn);
+    if (this.marks && this.showBuildings) this.buildings(this.marks.buildings);
 
     for (const run of this.runs) {
       const p = run.path;
@@ -232,6 +265,7 @@ window.RunMap = (function () {
       ctx.globalAlpha = 1; ctx.lineWidth = 2.2;
       this.line(p, this.time);
     }
+    if (this.marks && this.showMarkers) this.markers(this.marks.events);
     for (const run of this.runs) {
       const s = at(run.path, this.time);
       if (!s) continue;
@@ -241,7 +275,126 @@ window.RunMap = (function () {
       ctx.lineWidth = 1.5; ctx.strokeStyle = "#000"; ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    this.placeTip();
   };
+
+  /// The buildings shown at the scrub time as footprints (the box turned by
+  /// its yaw; a tilt is left out from above): a blueprint pale and dashed, a
+  /// finished structure solid. At least a few pixels, so a far one is seen.
+  RunMap.prototype.buildings = function (list) {
+    const ctx = this.ctx;
+    ctx.save();
+    for (const b of list) {
+      if (!buildingShown(b, this.time)) continue;
+      const placed = b[1] === "placed";
+      const corners = footprint(b).map(([x, z]) => this.toScreen(x, z));
+      let span = 0;
+      for (const [x, y] of corners) span = Math.max(span, Math.hypot(x - corners[0][0], y - corners[0][1]));
+      ctx.beginPath();
+      if (span < 5) { const [x, y] = this.toScreen(...centreOf(b)); ctx.rect(x - 2.5, y - 2.5, 5, 5); }
+      else corners.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.closePath();
+      ctx.setLineDash(placed ? [4, 3] : []);
+      ctx.fillStyle = placed ? "rgba(140,204,255,.16)" : "rgba(255,184,77,.42)";
+      ctx.strokeStyle = placed ? PLACED : BUILT;
+      ctx.lineWidth = placed ? 1.2 : 1.6;
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  /// A building's box centre in world x, z (its local centre turned by yaw).
+  function centreOf(b) {
+    const a = (b[6] || 0) * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a), cx = b[10] || 0, cz = b[12] || 0;
+    return [b[3] + cx * cs + cz * sn, b[5] - cx * sn + cz * cs];
+  }
+  /// A building's footprint corners in world x, z (Unity yaw, as a box zone).
+  function footprint(b) {
+    const a = (b[6] || 0) * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a);
+    const cx = b[10] || 0, cz = b[12] || 0, hx = (b[7] || 0) / 2, hz = (b[9] || 0) / 2;
+    return [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]].map(([lx, lz]) => {
+      lx += cx; lz += cz;
+      return [b[3] + lx * cs + lz * sn, b[5] - lx * sn + lz * cs];
+    });
+  }
+
+  /// The interaction markers along the line: a diamond in the group's
+  /// colour, full behind the scrub time and faded ahead of it (the in-game
+  /// replay's way); the one under the pointer / tapped ringed.
+  RunMap.prototype.markers = function (list) {
+    const ctx = this.ctx, tip = this.tipAt && this.tipAt.kind === "event" ? this.tipAt.item : null;
+    ctx.save();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "#000";
+    for (const e of list) {
+      const [x, y] = this.toScreen(e[3], e[5]), r = e === tip ? 6 : 4.5;
+      ctx.globalAlpha = e[0] <= this.time ? 1 : 0.35;
+      ctx.beginPath();
+      ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
+      ctx.fillStyle = markColor(e[6]); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  /// The marker or building nearest a screen point within maxPx, among the
+  /// switched-on kinds: { kind: "event" | "building", item }. A building
+  /// counts when its centre is close or the point is inside its footprint.
+  RunMap.prototype.markAt = function (px, py, maxPx) {
+    const m = this.marks;
+    if (!m) return null;
+    let best = null, bestD = maxPx;
+    if (this.showMarkers) for (const e of m.events) {
+      const [x, y] = this.toScreen(e[3], e[5]), d = Math.hypot(x - px, y - py);
+      if (d < bestD) { bestD = d; best = { kind: "event", item: e }; }
+    }
+    if (best) return best;
+    if (this.showBuildings) for (const b of m.buildings) {
+      if (!buildingShown(b, this.time)) continue;
+      const [x, y] = this.toScreen(...centreOf(b)), d = Math.hypot(x - px, y - py);
+      if (d < bestD || inside(footprint(b).map(([wx, wz]) => this.toScreen(wx, wz)), px, py)) { bestD = Math.min(bestD, d); best = { kind: "building", item: b }; }
+    }
+    return best;
+  };
+
+  function inside(poly, px, py) {
+    let yes = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) yes = !yes;
+    }
+    return yes;
+  }
+
+  /// The label of the marker / building under the pointer (or last tapped):
+  /// a small box over the map beside it, kept in place on pan and zoom.
+  RunMap.prototype.placeTip = function () {
+    const a = this.tipAt;
+    if (!a) { if (this.tip) this.tip.hidden = true; return; }
+    if (!this.tip) {
+      this.tip = document.createElement("div");
+      this.tip.className = "maptip";
+      this.tip.setAttribute("role", "status");
+      this.canvas.insertAdjacentElement("afterend", this.tip);
+    }
+    const it = a.item, text = a.kind === "event" ? clock(it[0]) + " · " + it[2] : clock(it[0]) + " · " + buildingLabel(it) +
+      (it[1] === "placed" && it[15] !== null && it[15] !== undefined ? " · built at " + clock(it[15]) : "");
+    if (this.tip.textContent !== text) this.tip.textContent = text;
+    const [x, y] = a.kind === "event" ? this.toScreen(it[3], it[5]) : this.toScreen(...centreOf(it));
+    placeTip(this.tip, this.canvas, x, y);
+  };
+
+  /// Puts a tip box beside a canvas point, inside the canvas.
+  function placeTip(tip, canvas, x, y) {
+    tip.hidden = false;
+    const w = canvas.clientWidth, h = canvas.clientHeight, tw = tip.offsetWidth, th = tip.offsetHeight;
+    const left = Math.max(4, Math.min(w - tw - 4, x + 10)), top = y - th - 10 < 40 ? y + 12 : y - th - 10;
+    tip.style.left = left + "px"; tip.style.top = Math.max(4, Math.min(h - th - 4, top)) + "px";
+  }
+
+  /// "1:02.3" - a short clock for the tips.
+  function clock(t) {
+    const m = Math.floor(t / 60), s = t - m * 60;
+    return m > 0 ? m + ":" + (s < 10 ? "0" : "") + s.toFixed(1) : s.toFixed(1) + " s";
+  }
 
   /// The ground: sea, the relief image at world coordinates, then the aerial
   /// photo tiles of `photo` (a layer name, or null). Faded while every ghost
@@ -454,16 +607,35 @@ window.RunMap = (function () {
     });
     const end = e => {
       // A click (no drag): the nearest point of a line, if one is close.
-      if (e.type === "pointerup" && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5 && this.onPick) {
-        const r = c.getBoundingClientRect(), hit = this.nearest(e.clientX - r.left, e.clientY - r.top, 14);
-        if (hit) this.onPick(hit.run, hit.t);
+      if (e.type === "pointerup" && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5) {
+        // A marker / building first: its label stays, the clock goes to its time.
+        const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+        const mark = this.markAt(px, py, e.pointerType === "mouse" ? 10 : 16);
+        this.tipAt = mark; this.tipPinned = !!mark;
+        if (mark && this.onPick && this.marks.run) this.onPick(this.marks.run, mark.item[0]);
+        else if (!mark && this.onPick) {
+          const hit = this.nearest(px, py, 14);
+          if (hit) this.onPick(hit.run, hit.t);
+        }
+        this.draw();
       }
       down = null;
       this.pointers.delete(e.pointerId); if (!this.pointers.size) c.classList.remove("drag"); this.pinch = 0;
     };
     c.addEventListener("pointerup", end);
     c.addEventListener("pointercancel", end);
+    c.addEventListener("pointerleave", e => {
+      if (e.pointerType === "mouse" && !this.tipPinned && this.tipAt) { this.tipAt = null; this.draw(); }
+    });
     c.addEventListener("pointermove", e => {
+      if (!this.pointers.size && e.pointerType === "mouse" && this.view && this.marks) {
+        // Hover: the label of what is under the mouse, while nothing is tapped.
+        if (this.tipPinned) return;
+        const r = c.getBoundingClientRect(), mark = this.markAt(e.clientX - r.left, e.clientY - r.top, 10);
+        const same = mark && this.tipAt && mark.item === this.tipAt.item;
+        if (!same && (mark || this.tipAt)) { this.tipAt = mark; this.draw(); }
+        return;
+      }
       if (!this.pointers.has(e.pointerId) || !this.view) return;
       const prev = this.pointers.get(e.pointerId);
       this.pointers.set(e.pointerId, [e.clientX, e.clientY]);
@@ -495,6 +667,12 @@ window.RunMap = (function () {
   };
 
   RunMap.at = at;
+  RunMap.markColor = markColor;
+  RunMap.buildingShown = buildingShown;
+  RunMap.buildingLabel = buildingLabel;
+  RunMap.placeTip = placeTip;
+  RunMap.clock = clock;
+  RunMap.PLACED = PLACED; RunMap.BUILT = BUILT;
   RunMap.groundAt = groundAt;
   RunMap.terrain = terrain;
   RunMap.terrainReady = terrainReady;

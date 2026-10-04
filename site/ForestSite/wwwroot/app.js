@@ -236,6 +236,36 @@ function mapLayers(map, onChange) {
   return box;
 }
 
+/// The Buildings / Markers switches: the focused run's structures and
+/// interaction markers on both maps (plugin replays). Each is shown only
+/// when that run has some; the choice is remembered in this browser.
+/// onChange(buildings, markers).
+function markSwitches(onChange) {
+  const KEYS = { buildings: "forest.mapBuildings", markers: "forest.mapMarkers" };
+  const on = { buildings: true, markers: true };
+  for (const k in KEYS) try { on[k] = localStorage.getItem(KEYS[k]) !== "off"; } catch (e) { /* private window: on */ }
+  const make = (k, label, title) => el("button", { type: "button", hidden: true, title, onclick: () => {
+    on[k] = !on[k];
+    try { localStorage.setItem(KEYS[k], on[k] ? "on" : "off"); } catch (e) { /* not kept: fine */ }
+    mark(); onChange(on.buildings, on.markers);
+  } }, label);
+  const buttons = {
+    buildings: make("buildings", "Buildings", "Show or hide the focused run's blueprints and structures"),
+    markers: make("markers", "Markers", "Show or hide what the focused run did along its line (crafting, caves, pause menu...)"),
+  };
+  const box = el("div", { class: "maplayers", role: "group", "aria-label": "Run details on the map", hidden: true }, buttons.buildings, buttons.markers);
+  function mark() { for (const k in buttons) { buttons[k].classList.toggle("on", on[k]); buttons[k].setAttribute("aria-pressed", on[k]); } }
+  mark();
+  return {
+    box, get buildings() { return on.buildings; }, get markers() { return on.markers; },
+    /// Which switches the focused run needs (it has buildings / events).
+    show(hasBuildings, hasMarkers) {
+      buttons.buildings.hidden = !hasBuildings; buttons.markers.hidden = !hasMarkers;
+      box.hidden = !hasBuildings && !hasMarkers;
+    },
+  };
+}
+
 /// The map's 2D / 3D switch and, in 3D, Follow (a camera behind the focused
 /// run's ghost). 2D is the default and not remembered. map3d.js (three.js) is
 /// loaded the first time 3D opens; its URL carries a version like the other
@@ -474,7 +504,30 @@ async function spotPage(id, routeId) {
 
   let shownRuns = [], emptyText = "";
   function showEmpty() { if (!mapEmpty.dataset.busy) mapEmpty.textContent = emptyText; }
-  function setFocus(id) { state.focus = id; if (views && views.view) views.view.setFocus(id); }
+  function setFocus(id) { state.focus = id; if (views && views.view) views.view.setFocus(id); updateMarks(); }
+
+  // The focused run's buildings and markers - that run only, and only while
+  // its line is on the map, to keep the map readable.
+  const marks = markSwitches((b, m) => {
+    map.setMarkOptions(b, m);
+    if (views && views.view) views.view.setMarkOptions(b, m);
+  });
+  map.setMarkOptions(marks.buildings, marks.markers);
+  let shownMarks = null;
+  function marksNow() {
+    const run = shownRuns.find(x => x.id === state.focus), data = run && state.runs.get(run.id);
+    if (!data) return null;
+    const events = data.events || [], buildings = data.buildings || [];
+    if (!events.length && !buildings.length) return null;
+    if (shownMarks && shownMarks.run === run && shownMarks.events === events) return shownMarks;
+    return { run, events, buildings };
+  }
+  function updateMarks() {
+    shownMarks = marksNow();
+    marks.show(!!(shownMarks && shownMarks.buildings.length), !!(shownMarks && shownMarks.events.length));
+    map.setMarks(shownMarks);
+    if (views && views.view) views.view.setMarks(shownMarks);
+  }
 
   async function refreshMap(refit) {
     const ids = [...state.shown.keys()];
@@ -482,6 +535,7 @@ async function spotPage(id, routeId) {
     shownRuns = ids.filter(id => state.shown.has(id)).map(id => ({ id, color: state.shown.get(id), path: pathOf(id), plane: (state.runs.get(id) || {}).plane }));
     map.setRuns(shownRuns, refit);
     if (views && views.view) views.view.setRuns(shownRuns, refit);
+    updateMarks();
     emptyText = ids.length ? "" : r.board.length ? "Tick a run to show its line." : "No runs on this route yet.";
     showEmpty();
     setTime(state.time);
@@ -582,7 +636,10 @@ async function spotPage(id, routeId) {
     onPick: (run, t) => map.onPick(run, t),
     empty: showEmpty,
     /// A new 3D view gets what the 2D map shows.
-    sync(v) { v.setLayer(map.layer); v.setZones(zones); v.setFocus(state.focus); v.setRuns(shownRuns, true); v.setTime(state.time); },
+    sync(v) {
+      v.setLayer(map.layer); v.setZones(zones); v.setFocus(state.focus); v.setRuns(shownRuns, true);
+      v.setMarkOptions(marks.buildings, marks.markers); v.setMarks(shownMarks); v.setTime(state.time);
+    },
   });
 
   const routeChips = spot.routes.length > 1 ? el("div", { class: "routes" }, spot.routes.map((x, i) =>
@@ -596,7 +653,7 @@ async function spotPage(id, routeId) {
     spot.notes ? el("p", { class: "note" }, spot.notes) : null,
     routeChips,
     el("div", { class: "mapwrap" }, canvas, views.canvas, mapEmpty,
-      el("div", { class: "maptools" }, views.box, layerCtl, hint),
+      el("div", { class: "maptools" }, views.box, layerCtl, marks.box, hint),
       el("div", { class: "scrub" }, play, slider, clock, speed)),
     statePanel,
     el("div", { class: "cols" },
