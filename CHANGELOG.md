@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.242 - 2026-10-04
+
+- Replays show what happened: the comparison run's buildings appear as wireframe boxes at their time, with a marker (labelled when near) at each thing it did. Runs tab: "Replay shows: buildings / interaction markers".
+
 ## v0.24.241 - 2026-10-04
 
 - Deaths tab: "Reload the save: in place (fast)" brings your save back in about a second instead of 6-10, without a load screen. It marks practice and is never used in run mode; across the vault door it uses the game's own load.
