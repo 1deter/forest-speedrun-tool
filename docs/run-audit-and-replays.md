@@ -189,8 +189,17 @@ in game): a ghost with a body and the replay camera** (*Order* items 1,
   on this version first, for the look track (`l|` lines in
   `runs/<id>/*.run`).
 
-**Next steps (not built):** the buildings and markers on the site's 2D /
-3D map (the JSON is there); the look track on the site (a first-person
+**Built (2026-10-04, site, not yet deployed or seen with a real run):
+buildings and markers on the site's maps.** The spot page's 2D / 3D maps
+draw the focused run's structures (footprints / wireframe boxes, a
+blueprint pale until finished, a finished one orange) and interactions
+(diamonds in the audit group's colour along the line, faded ahead of the
+scrub time; hover / tap for the label, a tap moves the clock there), with
+*Buildings* / *Markers* switches kept per browser. `/api/runs/<id>` gained
+each event's group and each building's box centre, tilt and blueprint end
+- docs/website.md *Buildings and interaction markers on the maps*.
+
+**Next steps (not built):** the look track on the site (a first-person
 view over the 3D world; `/api/runs/<id>` does not carry it yet); the
 arms / animations in first person (needs the animator in the recording,
 *Order* 5); the trajectory view's other variants (the predicted arc beside

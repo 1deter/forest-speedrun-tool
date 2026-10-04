@@ -66,6 +66,8 @@ public sealed class ApiTests : IDisposable
         a.Events.Add(new RunEvent { T = 1, Kind = RunAudit.Crafted, Detail = "Bomb", P = new Vector3(0, 0, 4) });
         a.Buildings.Add(new RunBuilding { T = 2, State = RunBuilding.Placed, Kind = "LogCabin", P = new Vector3(1, 2, 3),
                                           Euler = new Vector3(0, 90, 0), Size = new Vector3(7, 5, 7) });
+        a.Buildings.Add(new RunBuilding { T = 6, State = RunBuilding.Built, Kind = "LogCabin", P = new Vector3(1.5f, 2, 3),
+                                          Euler = new Vector3(2, 90, 0), Center = new Vector3(0, 2.5f, 0.5f), Size = new Vector3(7, 5, 7) });
         return AttemptFormat.Write(a);
     }
 
@@ -220,6 +222,15 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(4.0, run["events"][0][5].GetValue<double>());
         Assert.Equal("LogCabin", run["buildings"][0][2].GetValue<string>());
         Assert.Equal(90.0, run["buildings"][0][6].GetValue<double>());
+        // The maps' extras: the event's group (its colour), each box's centre,
+        // tilt, and a blueprint's end - when it was finished at that place.
+        Assert.Equal("items", run["events"][0][6].GetValue<string>());
+        Assert.Equal(2, run["buildings"].AsArray().Count);
+        Assert.Equal(6.0, run["buildings"][0][15].GetValue<double>());
+        Assert.Null(run["buildings"][1][15]);
+        Assert.Equal(2.5, run["buildings"][1][11].GetValue<double>());
+        Assert.Equal(0.5, run["buildings"][1][12].GetValue<double>());
+        Assert.Equal(2.0, run["buildings"][1][13].GetValue<double>());
         var every = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + id + "?all=1");
         Assert.Equal(5, every["state"]["channels"].AsArray().Count);
 

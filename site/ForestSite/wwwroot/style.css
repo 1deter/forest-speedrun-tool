@@ -136,6 +136,10 @@ h3.fold {
 .maplayers button:not([hidden]) ~ button { border-left: 1px solid var(--line); }
 .maplayers button:hover { color: var(--white); }
 .maplayers button.on { color: #000; background: var(--yellow); }
+/* A marker's / building's label beside it (map.js, map3d.js); placed by
+   script through the CSSOM. */
+.maptip { position: absolute; z-index: 1; max-width: min(320px, calc(100% - 8px)); padding: 3px 8px; background: rgba(0,0,0,.84); border: 1px solid var(--line); border-radius: var(--radius); color: var(--white); font-size: 12px; line-height: 1.35; pointer-events: none; }
+.maptip[hidden], canvas[hidden] + .maptip { display: none; }
 .mapempty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
 
 .scrub { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
