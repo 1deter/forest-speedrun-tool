@@ -1,0 +1,23 @@
+# The overnight v0.24.235-245 list (sent 2026-10-04 for v0.24.245), numbered as sent.
+# The sent text and what each item checks: docs/tests/2026-10-04-overnight.md
+# Format: src/Data/QaList.cs. "seen" = a log line that shows the item ran.
+
+id = qa-2026-10-04-v0.24.245
+title = Overnight batch (v0.24.235-245)
+
+intro = Update to v0.24.245 first. Answer by number: Pass, Fail or Skip, and a note where it helps. Skip anything you can't do.
+
+section = Deaths and Quick load
+1) Deaths tab: pick "Reload the save" under "When I die", die for real a few times, then try "Restart the current spot" and "Revive at the current spot". Does each do what the "Next death" line said?
+2) Deaths tab: tick "Reload the save: in place (fast)" and die. Does it feel the same as the game's own reload (same world, same state, nothing odd), just quicker?
+3) Runs tab: tick "Capture at checkpoints" on a long segment (several checkpoints) and run it. Is the hitch at each checkpoint noticeable? Then "Restart from checkpoint N" - are you where you expected?
+
+section = Runs and screen
+4) Finish a few timed runs and read the results panel. Is anything missing that you would want (or anything useless)?
+5) Settings -> Info box (HUD): drag it around with the window open, hide a few lines, try compact mode and the text size. Anything awkward or clipped?
+
+section = Experimental and maps
+6) Debug views: trajectory preview on. Do a REAL bomb boost (open the pause menu in the knockback). Does the prediction match where you land (distance, landing speed)?
+7) Open the Map tab: zoom, drag, click a spot, Go. Is it readable? Any spot in the wrong place?
+8) Runs tab: ghost look, and the replay camera (Experimental) on a comparison run - behind, through the eyes, side-on. Does the figure face the right way and the camera follow smoothly?
+9) Practice editor: make a zone with "poly" and a few corners (a ledge or a cave mouth). Does it fire where you expect when you walk in?
