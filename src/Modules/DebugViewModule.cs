@@ -325,7 +325,7 @@ namespace ForestOverlay.Modules
                 Camera cam = Camera.main;
                 if (cam == null) { _status = "no main camera"; return; }
 
-                _freeCam.Begin(cam);
+                if (!_freeCam.Begin(cam)) { _status = "freecam: " + _freeCam.LastReport; return; }
                 _freeCamOn = true;
                 Ctx.Log.LogInfo(_freeCam.LastReport);
 

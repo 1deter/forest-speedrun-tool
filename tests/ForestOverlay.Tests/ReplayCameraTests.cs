@@ -291,6 +291,13 @@ namespace ForestOverlay.Tests
             Assert.Equal(0f, c.T, 3);
         }
 
+        [Fact]
+        public void TheReplayCameraIsLockedInRunModeByDefault()
+        {
+            Assert.Equal("replaycam", RunCategory.FeatureOfMark("replay camera").Key);
+            Assert.Equal(RunCategory.Locked, new RunCategory().Policy("replaycam"));
+        }
+
         // --- the figure -------------------------------------------------------------
 
         [Fact]

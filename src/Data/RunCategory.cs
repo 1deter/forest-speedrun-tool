@@ -81,6 +81,7 @@ namespace ForestOverlay.Data
             new Feature("freecam", "Freecam", false, Locked, "freecam"),
             new Feature("aerial", "Aerial capture", false, Locked, "aerial capture"),
             new Feature("trajectory", "Trajectory preview", false, Locked, "trajectory preview"),
+            new Feature("replaycam", "Replay camera", false, Locked, "replay camera"),
             new Feature("bridge", "Test bridge (dev tool)", false, Locked, "test bridge"),
         };
 
