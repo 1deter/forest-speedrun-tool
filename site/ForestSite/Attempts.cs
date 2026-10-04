@@ -238,56 +238,97 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (row == null) return null;
         string name = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", row.Runner)) as string ?? "";
         var cps = Checkpoints(id);
-        string report = null, started = null, plugin = null, startedAt = null, mode = null;
-        int flags = 0;
-        AttemptChain.Replay replay = null;
-        if (row.LogMs != null)
-        {
-            var r = replay = AttemptChain.Read(LogText(id));
-            report = r.Report; started = r.Started; plugin = r.Plugin; flags = r.Flags.Count;
-            var parsed = RunReport.Parse(report);
-            startedAt = parsed.StartedAt; mode = parsed.Started;
-        }
-        string verdict = "running";
-        string[] why = Lines(row.Why);
-        object findings = null, recording = null, category = null, moves = null, events = null, eventGroups = null;
-        List<string> rundown = null;
-        if (row.LogMs != null)
-        {
-            var allowed = Allowed();
-            var parsedReport = RunReport.Parse(report);
-            var cat = CategoryOf(parsedReport);
-            category = Categories.View(cat);
-            moves = MoveNotes(replay.Moves, cat).Select(m => new
-            {
-                kind = m.Kind, label = m.Label, realMs = m.RealMs, detail = m.Detail,
-                pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
-            }).ToList();
-            // The audit log (run mode attempts since the audit log; none in
-            // older logs): the rundown first, the timeline behind it.
-            var notes = EventNotes(replay.Events);
-            events = notes.Select(e => new
-            {
-                kind = e.Kind, label = e.Label, group = e.Group, realMs = e.RealMs, timerMs = e.TimerMs, detail = e.Detail,
-                pos = e.HasPos ? new[] { e.X, e.Y, e.Z } : null,
-            }).ToList();
-            eventGroups = EventGroups(notes).Select(g => new { id = g.Id, label = g.Label, count = g.Count }).ToList();
-            rundown = RunAudit.Rundown(replay.Events);
-            var (v, all) = Overall(row.Verdict, why, report, allowed, cat);
-            var (_, list) = JudgeReport(report, allowed, null, cat);
-            verdict = v;
-            findings = list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList();
-            recording = new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice };
-            why = all.ToArray();
-        }
+        Judged j = row.LogMs != null ? JudgedLog(id, row) : null;
         return new
         {
-            id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started, startedAt, mode,
+            id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot,
+            plugin = j?.Plugin, started = j?.Started, startedAt = j?.StartedAt, mode = j?.Mode,
             online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
-            steps = row.Steps, flags, verdict, why, recording, findings, rules = category, moves, rundown, events, eventGroups,
-            report = ShownReport(report),
+            steps = row.Steps, flags = j?.Flags ?? 0, verdict = j?.Verdict ?? "running", why = j?.Why ?? Lines(row.Why),
+            recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
+            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report,
         };
+    }
+
+    // --- the judged log, cached (security audit, 2026-10-04) --------------------------
+
+    /// What a view works out from a stored log: the replay of up to 4 MB, the
+    /// report's findings, the verdict. Logs are never replaced, so it holds
+    /// until the allow-list changes, the category version the report names
+    /// reaches the site, or the attempt is deleted (Delete) - each page view
+    /// no longer replays the whole log.
+    private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
+                                 string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
+                                 List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
+                                 object Recording, string Report);
+
+    /// The logs' size the cache may hold (characters of log text); past it,
+    /// it starts again.
+    public const long MaxCachedLog = 64L * 1024 * 1024;
+
+    private readonly Dictionary<string, Judged> _judged = new();
+    private long _judgedWeight;
+    private int _allowedVersion;
+
+    /// How many times a view replayed and judged a log (tests).
+    public int LogsJudged;
+
+    private Judged JudgedLog(string id, AttemptRow row)
+    {
+        lock (_judged)
+        {
+            if (_judged.TryGetValue(id, out var hit) && hit.LogMs == row.LogMs && hit.AllowedVersion == _allowedVersion &&
+                (hit.CategoryFound || hit.CategoryId.Length == 0 || _categories?.Version(hit.CategoryId, hit.CategoryVersion) == null))
+                return hit;
+        }
+        int allowedVersion = Volatile.Read(ref _allowedVersion);
+        string text = LogText(id) ?? "";
+        Interlocked.Increment(ref LogsJudged);
+        var replay = AttemptChain.Read(text);
+        string report = replay.Report;
+        var parsed = RunReport.Parse(report);
+        var allowed = Allowed();
+        var cat = CategoryOf(parsed);
+        string[] why = Lines(row.Why);
+        var moves = MoveNotes(replay.Moves, cat).Select(m => new
+        {
+            kind = m.Kind, label = m.Label, realMs = m.RealMs, detail = m.Detail,
+            pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
+        }).ToList();
+        // The audit log (run mode attempts since the audit log; none in
+        // older logs): the rundown first, the timeline behind it.
+        var notes = EventNotes(replay.Events);
+        var events = notes.Select(e => new
+        {
+            kind = e.Kind, label = e.Label, group = e.Group, realMs = e.RealMs, timerMs = e.TimerMs, detail = e.Detail,
+            pos = e.HasPos ? new[] { e.X, e.Y, e.Z } : null,
+        }).ToList();
+        var eventGroups = EventGroups(notes).Select(g => new { id = g.Id, label = g.Label, count = g.Count }).ToList();
+        var (verdict, all) = Overall(row.Verdict, why, report, allowed, cat);
+        var (_, list) = JudgeReport(report, allowed, null, cat);
+        var j = new Judged(row.LogMs.Value, allowedVersion, parsed.Category ?? "", parsed.CategoryVersion, cat != null, text.Length,
+            replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
+            RunAudit.Rundown(replay.Events), events, eventGroups, verdict, all.ToArray(),
+            list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report));
+        lock (_judged)
+        {
+            if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
+            if (j.Weight <= MaxCachedLog)
+            {
+                if (_judgedWeight + j.Weight > MaxCachedLog) { _judged.Clear(); _judgedWeight = 0; }
+                _judged[id] = j;
+                _judgedWeight += j.Weight;
+            }
+        }
+        return j;
+    }
+
+    private void Forget(string id)
+    {
+        lock (_judged)
+            if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
     }
 
     // --- moves the game saw (pure, tested) -----------------------------------------
@@ -522,11 +563,16 @@ GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
         if (!Kinds.Contains(kind) || string.IsNullOrWhiteSpace(text) || text.Length > 200) return false;
         _store.Update("INSERT INTO allowed_code (kind, text, by, at) VALUES ($k, $t, $b, $a) ON CONFLICT DO NOTHING",
             ("$k", kind), ("$t", text), ("$b", by ?? "?"), ("$a", _now()));
+        Interlocked.Increment(ref _allowedVersion);   // every cached judgement is stale
         return true;
     }
 
-    public bool Disallow(string kind, string text) =>
-        _store.Update("DELETE FROM allowed_code WHERE kind = $k AND text = $t", ("$k", kind ?? ""), ("$t", text ?? "")) == 1;
+    public bool Disallow(string kind, string text)
+    {
+        bool had = _store.Update("DELETE FROM allowed_code WHERE kind = $k AND text = $t", ("$k", kind ?? ""), ("$t", text ?? "")) == 1;
+        Interlocked.Increment(ref _allowedVersion);
+        return had;
+    }
 
     /// Where a code shows in an attempt's log: the "check a code" box
     /// (phase 3's page). Empty when the log is not in yet.
@@ -550,6 +596,7 @@ GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
         _store.Update("DELETE FROM attempt_items WHERE attempt_id = $id", ("$id", id));
         bool had = _store.Update("DELETE FROM attempts WHERE id = $id", ("$id", id)) == 1;
         try { File.Delete(Path.Combine(_dir, id + ".log.gz")); } catch (IOException) { }
+        Forget(id);
         return had;
     }
 
