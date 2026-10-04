@@ -18,6 +18,11 @@ using Microsoft.AspNetCore.RateLimiting;
 //                       adds it, so a request straight to the VPS (past
 //                       Cloudflare, with a made-up CF-Connecting-IP) is
 //                       refused (site/deploy/README.md *Origin lock*).
+//   FOREST_DISCORD_WEBHOOK  a Discord webhook URL: a new PB on a community
+//                       spot or a run spot is posted there (PbWebhook).
+//                       Unset = off. Env or appsettings.json.
+//   FOREST_SITE_URL     the public address for links in those posts
+//                       (default https://forest.deter.cloud).
 // ------------------------------------------------------------------
 const int MaxBody = 4 * 1024 * 1024;
 
@@ -28,11 +33,13 @@ string dataDir = Environment.GetEnvironmentVariable("FOREST_DATA") ?? Path.Combi
 string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? "";
 string originSecret = Environment.GetEnvironmentVariable("FOREST_ORIGIN_SECRET") ?? "";
 var store = new Store(dataDir);
-var runs = new Runs(store);
 var categories = new Categories(store);
+var runs = new Runs(store, c => categories.IsPublished(c));
 var attempts = new Attempts(store, dataDir, null, categories);
+var webhook = new PbWebhook(builder.Configuration["FOREST_DISCORD_WEBHOOK"], builder.Configuration["FOREST_SITE_URL"]);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
+builder.Services.AddSingleton(webhook);
 
 // Cloudflare names the visitor; everything else sees Caddy's address.
 // The header is only as honest as the origin lock (FOREST_ORIGIN_SECRET):
@@ -66,6 +73,7 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
+webhook.Log = m => app.Logger.LogWarning("{m}", m);
 
 // The origin lock (above): nothing else runs for a request that did not
 // come through Cloudflare. Constant-time, like the admin token.
@@ -218,7 +226,8 @@ if (Environment.GetEnvironmentVariable("FOREST_SRC_SYNC") != "off")
 }
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
-app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}", dataDir, packs, adminToken.Length > 0 ? "on" : "off");
+app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}; Discord PB posts {hook}", dataDir, packs,
+                          adminToken.Length > 0 ? "on" : "off", webhook.On ? "on" : "off");
 // The world uploaded before Brotli has .gz copies only: its .br ones, once.
 _ = Task.Run(() =>
 {
@@ -296,7 +305,23 @@ api.MapPost("/runs", async (HttpRequest req) =>
     var res = runs.Upload(runner, await Body(req));
     if (res.Error != null) return Problem(400, res.Error);
     if (res.Added.Count == 0 && res.Existing.Count == 0) return Problem(422, string.Join("; ", res.Skipped));
+    // Only queued: the webhook never fails or slows an upload.
+    if (res.Pb is { } pb)
+        try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId))); }
+        catch (Exception ex) { app.Logger.LogWarning("Discord webhook: {m}", ex.Message); }
     return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped });
+}).RequireRateLimiting("upload");
+
+// A runner deleting their own spot (the game's Practice -> Share ->
+// Delete from the website): the same token as uploads proves who asks.
+// Logged in the admins' Activity tab as "runner <id>".
+api.MapDelete("/spots/{id}", (HttpRequest req, string id) =>
+{
+    string runner = store.RunnerOf(Bearer(req));
+    if (runner == null) return Problem(401, "unknown token");
+    var (status, message, n) = runs.DeleteOwnSpot(runner, id);
+    store.LogAdmin("runner " + runner, "DELETE /api/spots/" + (id.Length > 80 ? id.Substring(0, 80) : id) + " (" + message + ")", status);
+    return status == 200 ? Results.Json(new { runs = n }) : Problem(status, message);
 }).RequireRateLimiting("upload");
 
 // A spot for the author to approve.

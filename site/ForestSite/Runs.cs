@@ -22,8 +22,15 @@ public sealed class Runs
     public const int MaxOpenSubmissions = 20;
 
     private readonly Store _store;
+    private readonly Func<string, bool> _publishedCategory;
 
-    public Runs(Store store) { _store = store; }
+    /// publishedCategory: whether a run category (id or name) is published -
+    /// a spot naming one is a run spot, its PBs are announced (PbNews).
+    public Runs(Store store, Func<string, bool> publishedCategory = null)
+    {
+        _store = store;
+        _publishedCategory = publishedCategory;
+    }
 
     // --- uploads ----------------------------------------------------------
 
@@ -33,7 +40,11 @@ public sealed class Runs
         public readonly List<long> Added = new();
         public readonly List<long> Existing = new();
         public readonly List<string> Skipped = new();
+        /// A new PB on an announced spot (community / run spot); null when none.
+        public PbFound Pb;
     }
+
+    public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
     /// the runner `runnerId` (their token). The start state is not kept.
@@ -79,6 +90,8 @@ public sealed class Runs
         }
         _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, owner, copy);
         string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
+        float previousBest = RunnerBest(seg.Id, route, runnerId);
+        var fresh = new List<(float duration, bool flagged, long id, string name)>();
 
         foreach (var (a, runText) in good)
         {
@@ -90,8 +103,52 @@ public sealed class Runs
             var (id, added) = _store.AddRun(seg.Id, route, runnerId, name, a.Duration, a.Splits,
                                             a.RecordedUtc, runText, flagged);
             (added ? res.Added : res.Existing).Add(id);
+            if (added) fresh.Add((a.Duration, flagged, id, name));
+        }
+
+        // A new PB on a community spot or a run spot: Program posts it to
+        // Discord (PbWebhook). Re-uploads of runs already here never count.
+        bool community = Convert.ToInt64(_store.Scalar("SELECT community FROM routes WHERE segment_id = $s AND route = $r",
+                                                       ("$s", seg.Id), ("$r", route)) ?? 0L) == 1;
+        float? pb = PbNews.NewPb(previousBest, fresh.Select(f => (f.duration, f.flagged)));
+        if (pb != null && PbNews.Announces(community, seg.RunCategory, _publishedCategory))
+        {
+            var run = fresh.First(f => f.duration == pb.Value);
+            res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest);
         }
         return res;
+    }
+
+    /// A runner's best on a route so far (runs under review included, hidden
+    /// ones not); NaN when they have none.
+    private float RunnerBest(string segmentId, string route, string runnerId)
+    {
+        object best = _store.Scalar("SELECT MIN(duration) FROM runs WHERE segment_id = $s AND route = $r AND runner_id = $rid AND hidden = 0",
+                                    ("$s", segmentId), ("$r", route), ("$rid", runnerId));
+        return best is double d ? (float)d : float.NaN;
+    }
+
+    // --- a runner deleting their own spot ------------------------------------------
+
+    /// DELETE /api/spots/<id> with the runner's upload token: the spot goes
+    /// (every route, every run) when it is theirs - they first uploaded on it
+    /// - and nobody else has runs on it (those are other runners' times: an
+    /// admin decides). A community spot is the author's. The answer's status
+    /// and a sentence for the runner; runs = how many went.
+    public (int status, string message, int runs) DeleteOwnSpot(string runnerId, string segmentId)
+    {
+        var holder = _store.SpotHolder(segmentId);
+        if (holder == null) return (404, "no such spot on the site", 0);
+        if (holder.Value.community) return (403, "a community spot - only the author removes those", 0);
+        long others = Convert.ToInt64(_store.Scalar("SELECT COUNT(*) FROM routes WHERE segment_id = $s AND owner <> $r",
+                                                    ("$s", segmentId), ("$r", runnerId)));
+        if (others > 0) return (403, "not your spot - only the runner who first uploaded a run on it can delete it", 0);
+        long theirs = Convert.ToInt64(_store.Scalar("SELECT COUNT(*) FROM runs WHERE segment_id = $s AND runner_id <> $r",
+                                                    ("$s", segmentId), ("$r", runnerId)));
+        if (theirs > 0)
+            return (409, theirs + (theirs == 1 ? " run" : " runs") + " by other runners are on it - ask an admin to remove it", 0);
+        var (n, error) = _store.DeleteSpot(segmentId);
+        return error != null ? (404, error, 0) : (200, "deleted with " + n + (n == 1 ? " run" : " runs"), n);
     }
 
     /// Why an attempt is refused; null when it is fine.
@@ -172,6 +229,8 @@ public sealed class Runs
             {
                 ["id"] = r.Segment, ["name"] = r.Name, ["category"] = r.Category, ["community"] = r.Community,
                 ["by"] = r.Community ? "" : r.By, ["runs"] = r.Runs, ["runners"] = r.Runners, ["best"] = Num(r.Best), ["lastRun"] = r.LastRun,
+                // A community spot can be a plain teleport (no start / end).
+                ["timed"] = !r.Community || ParseBlock(r.Block).IsTimed,
             });
         }
         return list;

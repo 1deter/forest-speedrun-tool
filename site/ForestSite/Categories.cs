@@ -101,6 +101,12 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
 
     public RunCategory Current(string id) => Rows("WHERE id = $id", ("$id", id ?? "")).Select(r => Read(r.Text)).FirstOrDefault();
 
+    /// Whether a run spot's `run = ` (a category id or name) names a
+    /// published category.
+    public bool IsPublished(string idOrName) =>
+        !string.IsNullOrWhiteSpace(idOrName) && All().Any(c => c.Status == "published" &&
+            (c.Id == idOrName || string.Equals(c.Name, idOrName, StringComparison.OrdinalIgnoreCase)));
+
     /// The admin page's list: each category's text, who saved it last and
     /// what speedrun.com changed since.
     public List<object> AdminList() => Rows().Select(r =>
