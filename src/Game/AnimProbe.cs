@@ -21,6 +21,7 @@ namespace ForestOverlay.Game
     {
         private static PropertyInfo _animatorProp;
         private static FieldInfo _animatorField;
+        private static Func<Animator> _animatorGet;
         private static bool _resolved;
 
         private readonly Dictionary<string, string> _last = new Dictionary<string, string>();
@@ -41,8 +42,11 @@ namespace ForestOverlay.Game
             }
             try
             {
-                object a = _animatorProp != null ? _animatorProp.GetValue(null, null)
-                         : _animatorField != null ? _animatorField.GetValue(null) : null;
+                // Every frame (AnimReset.Track): the getter bound once -
+                // PropertyInfo.GetValue's Invoke allocated on each read.
+                if (_animatorGet == null && _animatorProp != null) _animatorGet = FastField.StaticProperty<Animator>(_animatorProp);
+                if (_animatorGet != null) return _animatorGet();
+                object a = _animatorField != null ? _animatorField.GetValue(null) : null;
                 return a as Animator;
             }
             catch (Exception) { return null; }

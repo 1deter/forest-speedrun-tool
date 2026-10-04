@@ -153,6 +153,7 @@ namespace ForestOverlay.Game
         // Flag polling.
         private FieldInfo _animControlField;
         private FieldInfo _endGameField;
+        private Func<object, bool> _endGame;   // the field, read without boxing (once a frame)
         private bool _flagResolved;
         private bool _lastFlag;
 
@@ -343,6 +344,7 @@ namespace ForestOverlay.Game
                 _endGameField = anim.GetField("endGameCutScene", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             _flagAvailable = _animControlField != null && _endGameField != null;
+            if (_flagAvailable) _endGame = FastField.Instance<bool>(_endGameField);
             if (!_flagAvailable)
                 _log.LogWarning("GameEvents: LocalPlayer.AnimControl.endGameCutScene not found - " +
                                 "endgame events will fire at routine start instead of on the flag.");
@@ -360,7 +362,7 @@ namespace ForestOverlay.Game
                 object anim = _animControlField.GetValue(null);
                 // A destroyed component (save load) reads as not in a cutscene.
                 UnityEngine.Object uo = anim as UnityEngine.Object;
-                if (anim != null && uo != null) flag = (bool)_endGameField.GetValue(anim);
+                if (anim != null && uo != null) flag = _endGame(anim);
             }
             catch (Exception) { flag = false; }
 

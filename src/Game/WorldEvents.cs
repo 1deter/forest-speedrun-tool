@@ -111,6 +111,10 @@ namespace ForestOverlay.Game
         private FieldInfo _manifest, _found;              // LocalPlayer.PassengerManifest._foundPassengersIdsCount
         private FieldInfo _delayedDown;                   // Input.DelayedActionIsDown (static)
         private FieldInfo _finishLoad;                    // Scene.FinishGameLoad (static)
+        // The value-type reads above as delegates: read every frame, the
+        // reflection reads boxed each answer (FastField).
+        private Func<bool> _finishLoadGet, _delayedDownGet;
+        private Func<object, int> _caveGet, _foundGet;
 
         // CaveNames value -> CaveIds index, built from the enum's names.
         private readonly Dictionary<int, int> _caveIndex = new Dictionary<int, int>();
@@ -202,6 +206,10 @@ namespace ForestOverlay.Game
                 if (_rewiredPlayer != null) _anyButton = _rewiredPlayer.FieldType.GetMethod("GetAnyButton", Type.EmptyTypes);
             }
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", any);
+            _finishLoadGet = FastField.Static<bool>(_finishLoad);
+            _delayedDownGet = FastField.Static<bool>(_delayedDown);
+            _caveGet = FastField.Instance<int>(_cave);
+            _foundGet = FastField.Instance<int>(_found);
 
             List<string> missing = new List<string>();
             if (_areaInfo == null || _cave == null || _caveIndex.Count != CaveIds.Length) missing.Add("caves");
@@ -223,7 +231,7 @@ namespace ForestOverlay.Game
             if (_finishLoad != null)
             {
                 bool loaded;
-                try { loaded = (bool)_finishLoad.GetValue(null); }
+                try { loaded = _finishLoadGet(); }
                 catch (Exception) { loaded = true; }
                 if (!loaded) { Forget(); return; }
             }
@@ -263,9 +271,8 @@ namespace ForestOverlay.Game
             UnityEngine.Object owner = _areaInfo.GetValue(null) as UnityEngine.Object;
             if (owner == null) { _areaOwner = null; return; }
 
-            object v = _cave.GetValue(owner);
             int at;
-            string now = _caveIndex.TryGetValue(Convert.ToInt32(v), out at) ? CaveIds[at] : null;
+            string now = _caveIndex.TryGetValue(_caveGet(owner), out at) ? CaveIds[at] : null;
 
             if (!ReferenceEquals(owner, _areaOwner))
             {
@@ -334,7 +341,7 @@ namespace ForestOverlay.Game
             UnityEngine.Object owner = _manifest.GetValue(null) as UnityEngine.Object;
             if (owner == null) { _manifestOwner = null; return; }
 
-            int found = (int)_found.GetValue(owner);
+            int found = _foundGet(owner);
             if (!ReferenceEquals(owner, _manifestOwner))
             {
                 _manifestOwner = owner;
@@ -353,7 +360,7 @@ namespace ForestOverlay.Game
         private void PollHold()
         {
             if (_delayedDown == null) return;
-            bool down = (bool)_delayedDown.GetValue(null);
+            bool down = _delayedDownGet();
             if (down && !_lastDelayed) GameEvents.RecordWorld(HoldInteract, null, false);
             _lastDelayed = down;
         }

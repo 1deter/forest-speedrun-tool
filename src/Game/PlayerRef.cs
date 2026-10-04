@@ -45,10 +45,27 @@ namespace ForestOverlay.Game
 
         /// At the title screen LocalPlayer is the menu's FakeCave, so Found
         /// is true there; anything that captures or moves the player asks this.
+        /// Asked many times a frame: Scene.name makes a new string on every
+        /// read, so the answer is kept per scene (its handle, a plain int -
+        /// GetHashCode returns it; `handle` is internal in Unity 5.6).
         public static bool AtTitleScreen
         {
-            get { return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TitleScene"; }
+            get
+            {
+                UnityEngine.SceneManagement.Scene s = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+                int handle = s.GetHashCode();
+                if (handle != _titleCheckedFor || !_titleChecked)
+                {
+                    _titleChecked = true;
+                    _titleCheckedFor = handle;
+                    _atTitle = s.name == "TitleScene";
+                }
+                return _atTitle;
+            }
         }
+
+        private static bool _titleChecked, _atTitle;
+        private static int _titleCheckedFor;
         public Vector3 Velocity { get; private set; }
         public float Speed { get { return Velocity.magnitude; } }
 
