@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.239 - 2026-10-04
+
+- Segments can split on more of the game: building, crafting, eating, kills, trees cut, bombs, sleeping, story moments, the endgame area, and getting on or off a zipline, sled, glider or cliff climb.
+- One thing happening (e.g. entering Cave 6) now moves a run on by one checkpoint only, even when it has several event names.
+- A savestate taken on the surface after leaving the lab no longer loads the lab when restored, and a Full load of one no longer waits 30 s for it.
+
 ## v0.24.238 - 2026-10-04
 
 - Run mode: restarting a run spot now times the run even with practice mode (F9) off - split times in the attempt, the splits table and the results panel.
