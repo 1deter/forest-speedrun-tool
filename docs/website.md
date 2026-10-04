@@ -902,6 +902,69 @@ like uploads, owner-only, never another runner's runs, logged; the
 Discord webhook's URL is a secret in `.env` and its posts carry no
 mentions (*Spot categories, owners deleting spots, Discord PB posts*).
 
+### Audit 2026-10-04 (everything since 2026-10-01)
+
+Checked: every endpoint again (run mode attempts / checkpoints / logs,
+categories + their /admin editor and speedrun.com sync, spot submissions,
+`DELETE /api/spots/<id>`, the Discord PB webhook, the attempt page's audit
+log timeline), `Store` / `Runs` / `Attempts` / `Categories` SQL, every
+`wwwroot/*.js` DOM sink, CSP / headers, rate limits, logs, the deploy,
+`dotnet list package --vulnerable` (none). Probed locally only: path
+traversal under `/world` / `/aerial` (404), a 5 MB chunked body (401
+before the body is read without a token, 413 with one), admin with an
+empty token (403). **Fine as it is:** all SQL parameterised (the
+`Routes` / `Rows` string joins add constants only); no `innerHTML` anywhere
+(the attempt page, timeline and admin categories build with `el()` /
+`textContent`); attempt ids are checked (`IsAttemptId`) before any file
+path; logs are never replaced and are someone else's only by a 409; the
+webhook URL is config only (no SSRF), posts carry `allowed_mentions: none`
+and escaped markdown, at most 30 an hour and only for community / run
+spots; the speedrun.com sync calls a fixed URL; no token or webhook URL is
+logged (startup says only on / off); reports name file names, not paths.
+
+**Fixed (site, `ApiTests` *security audit (2026-10-04)*):**
+- **Medium - a runner could wipe another spot's run files.** An owner's
+  delete removed the whole `runs/<SafeName(id)>` folder, and `.s-x` and
+  `s-x` share one (the dot is trimmed): upload a run on a look-alike id,
+  delete it, and the other spot's `.run` files were gone (its rows stayed,
+  its pages and downloads emptied). Files now go by run id; the folder
+  only when empty.
+- **Low - `$` in a spot or runner name broke the page.** `Pages.WithMeta`
+  used `Regex.Replace` replacement strings: a name holding `$_` / `` $` ``
+  pasted the page's own HTML into the description attribute (index.html
+  twice, app.js run twice) on its spot / attempt page. Site markup only, no
+  script of the attacker's (CSP); evaluators now.
+- **Low - a long spot name stopped its PB post.** An upload's spot name
+  reached `PbNews.Message` unclipped (Discord refuses > 2,000 characters):
+  runner 40, spot 80 now.
+- **Low - CI token.** `site.yml` had the default token permissions:
+  `permissions: contents: read`.
+
+**Open (not fixed - for the author):**
+- **Medium - the container's runtime is never updated.** `compose.yaml`
+  runs `mcr.microsoft.com/dotnet/aspnet:10.0`, and deploys only `docker
+  restart`: ASP.NET / Kestrel security patches arrive only on a pull. On
+  the VPS, monthly (Patch Tuesday): `cd /opt/forest-site && sudo docker
+  compose pull && sudo docker compose up -d`. (`dotnet list package
+  --vulnerable`: nothing in the app's own packages.)
+- **Low - disk.** Run mode logs: 3,000 requests / hour / address, up to
+  4 MB each (gzip-stored, any attempt id): with the runs' 600 / hour, one
+  address could write tens of GB in a day. Watch `/var/lib/forest-site`;
+  a per-runner byte budget per day would close it.
+- **Low - CPU per view.** `GET /api/attempts/<id>` replays the whole log
+  (up to 4 MB) and judges it on every read, at 600 reads / minute /
+  address; cache the view per log if it ever shows in CPU.
+- **Low - Discord spam.** Any registered runner (10 registrations / hour
+  / address) finishing a community / run spot posts one line with their
+  own 40-character name: 30 an hour at most, escaped, no pings. Revoke the
+  webhook (or ban) if it is abused.
+- **Info:** link previews build `og:url` from the request's `Host`
+  (encoded; the origin lock means only Cloudflare's host reaches it); a
+  segment id has no length cap (an overlong one fails its file write and
+  leaves an empty route row, never shown); GitHub actions are pinned by
+  tag, not SHA. The two 2026-10-01 decisions above (runner ids, token
+  reset) stand.
+
 Re-check after admin features: new endpoints go under the `admin` group
 (its filter checks the token), owner-only ones check `IsOwner`, and any
 new page text goes through `el()`.
