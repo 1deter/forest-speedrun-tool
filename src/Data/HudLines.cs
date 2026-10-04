@@ -183,9 +183,15 @@ namespace ForestOverlay.Data
             return message;
         }
 
+        // The format strings themselves, made once ("F" + n was two
+        // strings per number, ten times a second per HUD value).
+        private static readonly string[] Formats = { "F0", "F1", "F2", "F3", "F4", "F5", "F6" };
+
         private static string F(float v, int decimals)
         {
-            return v.ToString("F" + decimals.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+            string format = decimals >= 0 && decimals < Formats.Length ? Formats[decimals]
+                          : "F" + decimals.ToString(CultureInfo.InvariantCulture);
+            return v.ToString(format, CultureInfo.InvariantCulture);
         }
 
         // --- size and place ---------------------------------------------

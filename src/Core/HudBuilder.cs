@@ -23,6 +23,14 @@ namespace ForestOverlay.Core
         private readonly List<GUIContent> _lines = new List<GUIContent>();
         private int _count;
 
+        // What each slot's Pair text was built from: the same label, value
+        // and wording at the same slot keep the text as it is, so an
+        // unchanged line costs no string (the label padding was one new
+        // string per line, ten times a second).
+        private readonly List<string> _builtLabel = new List<string>();
+        private readonly List<string> _builtValue = new List<string>();
+        private readonly List<bool> _builtCompact = new List<bool>();
+
         public int Count { get { return _count; } }
 
         /// The [HUD] switches; null = everything shown, normal wording.
@@ -52,8 +60,18 @@ namespace ForestOverlay.Core
         {
             if (text == null) text = "";
 
-            if (_count < _lines.Count) _lines[_count].text = text;
-            else _lines.Add(new GUIContent(text));
+            if (_count < _lines.Count)
+            {
+                _lines[_count].text = text;
+                _builtLabel[_count] = null;   // not a Pair's text
+            }
+            else
+            {
+                _lines.Add(new GUIContent(text));
+                _builtLabel.Add(null);
+                _builtValue.Add(null);
+                _builtCompact.Add(false);
+            }
 
             _count++;
         }
@@ -61,7 +79,20 @@ namespace ForestOverlay.Core
         public void Pair(string label, string value)
         {
             if (!Shows(label)) return;
-            Line(HudLines.Pair(label, value, Compact));
+            if (label == null) label = "";
+            if (value == null) value = "";
+            bool compact = Compact;
+            int slot = _count;
+            if (slot < _lines.Count && _builtLabel[slot] != null && _builtCompact[slot] == compact &&
+                string.Equals(_builtLabel[slot], label) && string.Equals(_builtValue[slot], value))
+            {
+                _count++;
+                return;
+            }
+            Line(HudLines.Pair(label, value, compact));
+            _builtLabel[slot] = label;
+            _builtValue[slot] = value;
+            _builtCompact[slot] = compact;
         }
 
         public GUIContent At(int index)
