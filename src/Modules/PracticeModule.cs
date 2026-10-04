@@ -116,16 +116,20 @@ namespace ForestOverlay.Modules
         // Zone preview.
         private GameObject _previewHost;
         private ZonePreviewBehaviour _preview;
-        private bool _showPreview = true;
+        // Zones: all / next only / off (runner request; was the "show
+        // zones" tick before - its old key seeds the new one).
+        private ZoneMode _zoneMode = ZoneMode.NextOnly;
         private BepInEx.Configuration.ConfigEntry<bool> _showPreviewCfg;
+        private BepInEx.Configuration.ConfigEntry<string> _zoneModeCfg;
+        private int[] _zoneSlots = new int[8];
 
         // While a run is in progress the run module takes over the
-        // preview and shows only the NEXT objective - the whole route
-        // drawn at once is a field of overlapping spheres with no
-        // indication of where to go.
-        private bool _runPreviewActive;
-        private Trigger _runPreviewTrigger;
-        private int _runPreviewKind;
+        // preview: the run's segment and which trigger fires next. "Next
+        // only" (the default) draws just that one - the whole route drawn
+        // at once is a field of overlapping spheres with no indication of
+        // where to go; "all" draws the route (Data/ZoneDisplay).
+        private Segment _runPreviewSegment;
+        private int _runPreviewNext = -1;
 
         // Item search state. The target identifies which trigger is being
         // searched for: -2 start, -3 end, >= 0 a checkpoint index.
@@ -213,8 +217,18 @@ namespace ForestOverlay.Modules
             _runMode = Host.Find<RunModeModule>();
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
-            _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true, "Draw the selected segment's zones (Practice tab's 'show zones').");
-            _showPreview = _showPreviewCfg.Value;
+            _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true,
+                "Old setting, read once: false turns ZoneDisplay to Off. ZoneDisplay is the one used.");
+            _zoneModeCfg = ctx.Config.Bind("Practice", "ZoneDisplay", "",
+                "Which zones are drawn: All (the whole route, during runs too), NextOnly (during a run only the trigger that fires next) " +
+                "or Off. Checkpoints ticked 'hide' in the editor are never drawn during a run.");
+            ZoneMode? savedMode = ZoneDisplay.Parse(_zoneModeCfg.Value);
+            if (savedMode.HasValue) _zoneMode = savedMode.Value;
+            else
+            {
+                _zoneMode = _showPreviewCfg.Value ? ZoneMode.NextOnly : ZoneMode.Off;
+                _zoneModeCfg.Value = _zoneMode.ToString();
+            }
             _sharedDir = System.IO.Path.Combine(ctx.ConfigDirectory, "shared");
             _lssDir = System.IO.Path.Combine(ctx.ConfigDirectory, "livesplit");
             _importHeader = new GUIContent("Import a shared segment (.foseg) from " + _sharedDir +
@@ -371,59 +385,53 @@ namespace ForestOverlay.Modules
             RebuildVisible();
         }
 
-        /// Show a single trigger, overriding the editing preview. Used by
-        /// the run module to show only the next objective.
-        public void SetRunPreview(Trigger t, int kind)
+        /// A run is going on `s`: draw its zones per the Zones setting,
+        /// overriding the editing preview. `next` is the trigger that fires
+        /// next (a checkpoint index, or Checkpoints.Count for the end).
+        public void SetRunPreview(Segment s, int next)
         {
-            _runPreviewActive = true;
-            _runPreviewTrigger = t;
-            _runPreviewKind = kind;
+            _runPreviewSegment = s;
+            _runPreviewNext = next < 0 ? 0 : next;
         }
 
         public void ClearRunPreview()
         {
-            _runPreviewActive = false;
+            _runPreviewSegment = null;
+            _runPreviewNext = -1;
         }
 
         private void UpdatePreview()
         {
             if (_preview == null) return;
 
-            if (_runPreviewActive)
-            {
-                if (!_showPreview || _runPreviewTrigger.Kind != TriggerKind.Zone)
-                {
-                    _preview.Show = false;
-                    _preview.Count = 0;
-                    return;
-                }
-
-                if (_preview.Zones == null || _preview.Zones.Length < 1)
-                    _preview.Zones = new PreviewZone[8];
-
-                _preview.Count = AddZone(_runPreviewTrigger, _runPreviewKind, 0);
-                _preview.Show = _preview.Count > 0;
-                return;
-            }
-
-            if (!_showPreview || _selected == null || !_selected.IsTimed)
+            // The run's segment while one is going, else the selection.
+            bool running = _runPreviewSegment != null;
+            Segment s = running ? _runPreviewSegment : _selected;
+            if (_zoneMode == ZoneMode.Off || s == null || !s.IsTimed)
             {
                 _preview.Show = false;
                 _preview.Count = 0;
                 return;
             }
 
-            int needed = 2 + _selected.Checkpoints.Count;
+            int cps = s.Checkpoints.Count;
+            int needed = 2 + cps;
+            if (_zoneSlots.Length < needed) _zoneSlots = new int[needed + 8];
             if (_preview.Zones == null || _preview.Zones.Length < needed)
                 _preview.Zones = new PreviewZone[needed + 8];
 
+            // Hidden checkpoints show only where they are edited.
+            int slots = ZoneDisplay.Pick(_zoneMode, cps, running ? _runPreviewNext : -1, s.CheckpointHidden, TabShowing, _zoneSlots);
+
             int n = 0;
-            n = AddZone(_selected.Start, 0, n);
-
-            for (int i = 0; i < _selected.Checkpoints.Count; i++)
-                n = AddZone(_selected.Checkpoints[i], 1, n);
-
-            n = AddZone(_selected.End, 2, n);
+            for (int k = 0; k < slots; k++)
+            {
+                int slot = _zoneSlots[k];
+                int kind = ZoneDisplay.KindOf(slot, cps);
+                if (slot == ZoneDisplay.StartSlot) n = AddZone(s.Start, kind, n);
+                else if (slot < cps) n = AddZone(s.Checkpoints[slot], kind, n);
+                else n = AddZone(s.End, kind, n);
+            }
 
             _preview.Count = n;
             _preview.Show = n > 0;
@@ -669,8 +677,14 @@ namespace ForestOverlay.Modules
             if (filter != _filter) { _filter = filter; RebuildVisible(); }
             if (GUI.Button(new Rect(ListWidth - 38, 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
 
-            bool preview = GUI.Toggle(new Rect(ListWidth + 14, 30, 120, 20), _showPreview, " show zones");
-            if (preview != _showPreview) { _showPreview = preview; _showPreviewCfg.Value = preview; }
+            // Which zones are drawn (all / next only during a run / off).
+            float zx = ListWidth + 14;
+            GUI.Label(new Rect(zx, 30, 46, 20), "Zones");
+            ZoneMode mode = _zoneMode;
+            if (GUI.Toggle(new Rect(zx + 48, 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
+            if (GUI.Toggle(new Rect(zx + 96, 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
+            if (GUI.Toggle(new Rect(zx + 234, 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
+            if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
 
             // Over the spot panel it is about, wrapped to that panel and as
             // tall as it needs (UiText); the editor starts below it.
@@ -836,8 +850,16 @@ namespace ForestOverlay.Modules
                     // The splits table's name for it (v0.24.146).
                     string split = i < s.CheckpointNames.Count ? s.CheckpointNames[i] : "";
                     string before2 = split;
-                    y = Field(y, cw, "  split", ref split);
+                    y = Field(y, cw - 70f, "  split", ref split);
                     if (split != before2) s.SetCheckpointName(i, split);
+
+                    // Not drawn during runs (display only: no times retired).
+                    bool hidden = s.IsCheckpointHidden(i);
+                    if (GUI.Toggle(new Rect(cw - 76f, y - 26f, 72f, 20f), hidden, " hide") != hidden)
+                    {
+                        s.SetCheckpointHidden(i, !hidden);
+                        Touch();
+                    }
 
                     if (GUI.Button(new Rect(cw - 26f, before - 2f, 22f, 22f), "x"))
                     {
@@ -979,6 +1001,7 @@ namespace ForestOverlay.Modules
                 s.End = new Trigger();
                 s.Checkpoints.Clear();
                 s.CheckpointNames.Clear();
+                s.CheckpointHidden.Clear();
             }
 
             Touch();
@@ -1355,6 +1378,7 @@ namespace ForestOverlay.Modules
             s.End = src.End;
             s.Checkpoints.AddRange(src.Checkpoints);
             s.CheckpointNames.AddRange(src.CheckpointNames);
+            s.CheckpointHidden.AddRange(src.CheckpointHidden);
             s.EndName = src.EndName;
             s.AutoSplit.AddRange(src.AutoSplit);
 

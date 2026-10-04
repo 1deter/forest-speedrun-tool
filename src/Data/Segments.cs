@@ -307,6 +307,24 @@ namespace ForestOverlay.Data
         public readonly List<string> CheckpointNames = new List<string>();
         public string EndName = "";
 
+        /// Checkpoints not drawn during a run (runner request: hide zones
+        /// individually), index-aligned with Checkpoints; missing = shown.
+        /// Written as `hide = yes` under the checkpoint. Display only: not in
+        /// the route fingerprint, so hiding one retires nothing.
+        public readonly List<bool> CheckpointHidden = new List<bool>();
+
+        public bool IsCheckpointHidden(int index)
+        {
+            return index >= 0 && index < CheckpointHidden.Count && CheckpointHidden[index];
+        }
+
+        public void SetCheckpointHidden(int index, bool hidden)
+        {
+            if (index < 0) return;
+            while (CheckpointHidden.Count <= index) CheckpointHidden.Add(false);
+            CheckpointHidden[index] = hidden;
+        }
+
         /// Which trigger a `split =` line names while parsing: -1 none,
         /// a checkpoint index, or EndNameTarget.
         public int ParseNameTarget = -1;
@@ -327,11 +345,12 @@ namespace ForestOverlay.Data
             CheckpointNames[index] = name ?? "";
         }
 
-        /// Removes a checkpoint and its name together.
+        /// Removes a checkpoint and its name (and hide flag) together.
         public void RemoveCheckpoint(int index)
         {
             Checkpoints.RemoveAt(index);
             if (index < CheckpointNames.Count) CheckpointNames.RemoveAt(index);
+            if (index < CheckpointHidden.Count) CheckpointHidden.RemoveAt(index);
         }
 
         /// Where to place the player to attempt this segment. Optional -

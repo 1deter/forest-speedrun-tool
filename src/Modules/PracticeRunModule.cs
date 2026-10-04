@@ -634,19 +634,26 @@ namespace ForestOverlay.Modules
             _splitsDirty = true;
         }
 
+        // Recorded as an abort ([): an unfinished attempt (PB chance,
+        // playtime), its line kept as the failed one - and said on screen,
+        // since the runner did not ask for it (runner request: "runs
+        // continue at the main menu").
         private void LeaveLevel()
         {
             bool running = _recorder.State == RunRecorder.RunState.Running;
+            string where = PlayerRef.AtTitleScreen ? "the game went back to the title screen" : "the level unloaded";
             Ctx.Log.LogInfo("Run '" + _segment.Id + "': " + (running ? "aborted" : "disarmed") +
-                            " - left the level (not saved).");
+                            " - left the level, " + where + " (not saved).");
             _autoRestartAt = 0f;
+            KeepFailed();
             RecordUnfinished("left the level");
             _recorder.Abort();
             _hasDelta = false;
             _segment = null;
             ClearLines();
             ClearRunPreview();
-            _status = "left the level - go to the spot again to run it";
+            _status = (running ? "run aborted - " + where : "left the level") + " - go to the spot again to run it";
+            if (running) Ctx.Notice.Show("Run aborted: " + where + ". Kept as an unfinished attempt.", 6f);
         }
 
         private void LoadAttemptsFor(Segment s)
@@ -743,9 +750,10 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        // Only the NEXT objective is shown while running. Drawing every
-        // zone at once turns a route into a field of overlapping spheres
-        // with no indication of where to actually go.
+        // While running the Practice module draws the run's zones per its
+        // Zones setting - by default only the NEXT objective: every zone at
+        // once is a field of overlapping spheres with no indication of
+        // where to actually go.
         private void UpdateRunPreview()
         {
             if (_practice == null) return;
@@ -756,7 +764,7 @@ namespace ForestOverlay.Modules
                 return;
             }
 
-            _practice.SetRunPreview(_sequence.Current, _sequence.OnlyEndLeft ? 2 : 1);
+            _practice.SetRunPreview(_segment, _sequence.Next);
         }
 
         private void ClearRunPreview()
@@ -935,6 +943,7 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, cw, _eventText);
             if (_upload != null) y = _upload.DrawSection(y + 4f, cw);
             y = DrawSplitsSection(y + 4f, cw);
+            y += UiText.Draw(0, y, cw, _whenSetText);
 
             // The attempts keep their own scrolling list: the room left, or
             // at least 160 px below everything else.
@@ -954,6 +963,10 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _diagnoseText = new GUIContent("");
         private readonly GUIContent _eventText = new GUIContent("");
         private readonly GUIContent _emptyListText = new GUIContent("");
+        // When the PB and each gold were set (runner request; the .run
+        // files have always carried `recorded|`).
+        private readonly GUIContent _whenSetText = new GUIContent("");
+        private System.DateTime _rowsDay;
         private readonly List<GUIContent> _attemptRows = new List<GUIContent>();
         private bool _rowsDirty = true;
 
@@ -970,6 +983,8 @@ namespace ForestOverlay.Modules
                                                  : "Pick a timed segment in the Practice tab";
             _diagnoseText.text = Diagnose();
             _eventText.text = _eventLine;
+            // "today" / "yesterday" move on at midnight.
+            if (TabShowing && _attempts.Count > 0 && System.DateTime.Now.Date != _rowsDay) _rowsDirty = true;
 
         }
 
@@ -977,11 +992,15 @@ namespace ForestOverlay.Modules
         {
             _rowsDirty = false;
             Attempt best = RunCompare.Best(_attempts);
+            System.DateTime now = System.DateTime.Now;
+            _rowsDay = now.Date;
 
             for (int i = 0; i < _attempts.Count; i++)
             {
                 Attempt a = _attempts[i];
+                string when = RunDates.WhenUtc(a.RecordedUtc, now);
                 string row = "#" + (i + 1) + "   " + Format(a.Duration) +
+                             (when.Length > 0 ? "   " + when : "") +
                              "   max " + a.TopSpeed.ToString("F1") + " u/s" +
                              (ReferenceEquals(a, best) ? "   BEST" : "") +
                              (ReferenceEquals(a, _reference) ? "   [ref]" : "");
@@ -998,6 +1017,42 @@ namespace ForestOverlay.Modules
                 _emptyListText.text = _otherRouteCount > 0
                     ? _otherRouteCount + " older time(s) hidden - recorded before this route changed"
                     : "";
+
+            _whenSetText.text = WhenSetText(now);
+        }
+
+        /// "Personal best 1:23.45, set today 14:32. Golds: Cave 5 30.10
+        /// (3 Oct 14:32); End 12.00 (yesterday 20:01)." - "" with no
+        /// finished attempt.
+        private string WhenSetText(System.DateTime now)
+        {
+            if (_segment == null || _segment.Id != _loadedSegmentId || _attempts.Count == 0) return "";
+            int cps = _segment.Checkpoints.Count;
+            SplitStats st = SplitStats.Build(_attempts, cps);
+            if (st.Completed == 0) return "";
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.Append("Personal best ").Append(SplitTable.Time(st.Pb, 3));
+            string pbWhen = RunDates.WhenUtc(st.PbSetUtc, now);
+            if (pbWhen.Length > 0) sb.Append(", set ").Append(pbWhen);
+            sb.Append('.');
+
+            // Golds only mean something with more than one row.
+            if (st.Rows > 1)
+            {
+                bool any = false;
+                for (int r = 0; r < st.Rows; r++)
+                {
+                    if (float.IsNaN(st.BestSegments[r])) continue;
+                    sb.Append(any ? "; " : "  Golds: ");
+                    any = true;
+                    sb.Append(_segment.SplitName(r)).Append(' ').Append(SplitTable.Time(st.BestSegments[r], 3));
+                    string w = RunDates.WhenUtc(st.BestSegmentSetUtc[r], now);
+                    if (w.Length > 0) sb.Append(" (").Append(w).Append(')');
+                }
+                if (any) sb.Append('.');
+            }
+            return sb.ToString();
         }
 
         /// Says WHY a run is not progressing. A silent "nothing
