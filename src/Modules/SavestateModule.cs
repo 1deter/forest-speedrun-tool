@@ -1455,7 +1455,10 @@ namespace ForestOverlay.Modules
             float start = Time.realtimeSinceStartup;
             Vector3 at = new Vector3(f.X, f.Y, f.Z);
             bool pin = Ctx.Player.Found && at != Vector3.zero;
-            HashSet<string> needed = f.Areas.Length > 0 ? ScenesIn(f.Areas) : new HashSet<string>();
+            // The endgame's scenes only when the capture had the lab
+            // (Data/CapturedAreas): a lingering endgame_animPrefabs is not
+            // loaded again and would hold the player the full 30 s.
+            HashSet<string> needed = CapturedAreas.ScenesToWaitFor(f.Areas);
             string missing = "";
             while (Time.realtimeSinceStartup - start < 30f)
             {
@@ -1629,20 +1632,7 @@ namespace ForestOverlay.Modules
         /// The loaded scenes in an area line ("... | scenes: a, b (loading), c | ...").
         private static HashSet<string> ScenesIn(string areas)
         {
-            HashSet<string> set = new HashSet<string>();
-            int at = areas.IndexOf("| scenes: ", StringComparison.Ordinal);
-            if (at < 0) return set;
-            at += "| scenes: ".Length;
-            int end = areas.IndexOf(" |", at, StringComparison.Ordinal);
-            string list = end < 0 ? areas.Substring(at) : areas.Substring(at, end - at);
-            string[] parts = list.Split(',');
-            for (int i = 0; i < parts.Length; i++)
-            {
-                string s = parts[i].Trim();
-                if (s.Length == 0 || s.EndsWith(" (loading)", StringComparison.Ordinal)) continue;
-                set.Add(s);
-            }
-            return set;
+            return CapturedAreas.Scenes(areas, false);
         }
 
         private void StartLoad(string what, string error, Action<string> after)

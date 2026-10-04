@@ -784,6 +784,11 @@ namespace ForestOverlay.Modules
             string ride = RideModes.Leave();
             if (ride.Length > 0) cave += (cave.Length > 0 ? ", " : "") + ride;
             if (!Ctx.Player.MoveTo(to, Quaternion.Euler(0f, yaw, 0f))) return "could not move the player";
+            // As Go: the mouse rotator recomposes the view from its own
+            // base every frame, so the body's new rotation alone snapped
+            // back (the yaw never turned the camera). ApplyLook rebases it;
+            // the pitch stays as it is.
+            Ctx.Bridge.ApplyLook(Ctx.Player.Transform, yaw, Ctx.Bridge.GetLookPitch());
             string fall = Ctx.Bridge.EndFall();
             Mark("teleport");
             o.Add("at " + ObjectProbe.Vec(to) + (cave.Length > 0 ? ", " + cave : "") + (fall.Length > 0 ? ", " + fall : ""));

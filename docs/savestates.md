@@ -31,7 +31,11 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
     second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
     player is held at the captured spot until every scene loaded at
     capture is back, the endgame area is force-loaded if the capture had
-    it, placed pickups taken before the capture are removed, the captured
+    it (`endgame_streaming` loaded or loading, or `endgame_animPrefabs`
+    with `endgame yes` - the vault door's load caught mid-way; a lone
+    `endgame_animPrefabs` outlives a tp out of the lab and does not
+    count, nor is it waited for - `Data/CapturedAreas`, 2026-10-04; a
+    Quick load loads it first by the same rule), placed pickups taken before the capture are removed, the captured
     cannibal families are rebuilt, the held items are equipped again
     for the animator (v0.24.43), bushes / saplings cut at capture are cut
     again (`cutbushes`, v0.24.65-66).
