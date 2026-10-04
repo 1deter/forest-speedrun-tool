@@ -315,6 +315,8 @@ namespace ForestOverlay.Modules
         private float DrawCheckpointSection(float y, float w)
         {
             if (_segment == null || _cpCapture == null) return y;
+            // No checkpoints, nothing to capture: one line says why.
+            if (_cpRows == 0) return y + UiText.Draw(0, y, w, _cpHeader) + 4f;
 
             bool cap = GUI.Toggle(new Rect(0, y, w, 20), _cpCapture.Value, " Capture at checkpoints (practice runs)");
             if (cap != _cpCapture.Value) { _cpCapture.Value = cap; _cpDirty = true; }
