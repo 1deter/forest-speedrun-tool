@@ -46,6 +46,14 @@ namespace ForestOverlay.Core
     // blocks, not bytes, so treat the figures as rough - the ratio is what
     // matters.
     // ------------------------------------------------------------------
+    /// Who in the overlay made the garbage (ModuleHost: per module).
+    public interface IAllocBreakdown
+    {
+        /// The top `count` since the last Take / Reset, then from zero.
+        string TakeTop(double seconds, int count);
+        void ResetTop();
+    }
+
     public sealed class PerfMonitor
     {
         private const float Interval = 30f;
@@ -70,6 +78,9 @@ namespace ForestOverlay.Core
         private long _lastHeap = -1;
         private double _heapGrowth;
         private double _overlayGrowth;
+
+        /// Names the overlay's top allocators on the line (ModuleHost).
+        public IAllocBreakdown Breakdown;
 
         public PerfMonitor(ManualLogSource log)
         {
@@ -141,7 +152,7 @@ namespace ForestOverlay.Core
                          ((float)PerfCounters.SkippedPasses / _frames).ToString("0.0") + " skipped), " +
                          (PerfCounters.Vertices / _frames) + " verts/frame" +
                          " | heap +" + (_heapGrowth / 1024.0 / seconds).ToString("0") + " KB/s, overlay +" +
-                         (_overlayGrowth / 1024.0 / seconds).ToString("0.0") + " KB/s");
+                         (_overlayGrowth / 1024.0 / seconds).ToString("0.0") + " KB/s" + TopAllocators(seconds));
 
             // The machine and the settings, when first seen or changed:
             // a runner's log then carries its own specs.
@@ -157,8 +168,19 @@ namespace ForestOverlay.Core
             for (int i = 0; i < frame.Count; i++) _log.LogInfo(i == 0 ? frame[i] : "  " + frame[i]);
         }
 
+        // " (most: practicerun 3.2, collectibles 1.1 KB/s)" - by module, rough.
+        private string TopAllocators(float seconds)
+        {
+            if (Breakdown == null) return "";
+            string top;
+            try { top = Breakdown.TakeTop(seconds, 3); }
+            catch (Exception) { return ""; }
+            return top.Length > 0 ? " (most: " + top + ")" : "";
+        }
+
         private void Restart(float now)
         {
+            if (Breakdown != null) Breakdown.ResetTop();
             _windowStart = now;
             _frames = 0;
             _maxDt = 0f;
