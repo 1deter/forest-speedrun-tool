@@ -633,7 +633,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.241** (2026-10-04). The author runs it via the in-game
+**Released: v0.24.242** (2026-10-04). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-04 overnight, unattended - author away)
@@ -646,21 +646,21 @@ CHANGELOG and releases in batches; only one agent drives the game at a time.
 **Confirmed over the bridge** (docs/confirmed.md): everything in
 v0.24.235-236 (polygon zones, zones all / next / off, run dates, abort at
 the title, HUD control, runner names, start state overwrite confirm,
-"When I die", weather in savestates). **Released, not yet checked in game** (a bridge check agent is running
-over these): v0.24.237 (run audit log + the site's timeline; results
-panel; delete your own spot from the site + spot categories / folding
-groups + a Discord PB post that needs `FOREST_DISCORD_WEBHOOK` in the VPS
-`.env`, site/deploy/README), v0.24.238 (checkpoint savestates + Restart
-from checkpoint; run mode times a run spot with F9 off - it never armed
-before), v0.24.239 (more event checkpoints: `built-*`, `crafted-*`,
-`used-*`, kills, `tree-cut`, `slept`, rides, story, endgame area - one
-occurrence moves a run one checkpoint; a surface start state no longer
-loads the lab - `Data/CapturedAreas`; bridge tp yaw turns the view),
-v0.24.240 (trajectory preview, TAS record / replay `TasModule` =
-`_modules[18]`, both Experimental), v0.24.241 (Reload the save in place
-on death, ~1 s vs 6-10). Site only: `/compare` (maks's YouTube
-side-by-side, nothing stored server-side). **In progress:** replays with
-buildings as schematics + interaction markers, the site security audit.
+"When I die", weather in savestates). **Confirmed over the bridge** too: v0.24.237-241 (results panel,
+event checkpoints, checkpoint savestates ~295 ms a capture, reload in
+place 0.86 s, the endgame fix + tp yaw, trajectory 0.0-0.1 m off, TAS
+0.22 m max drift, run mode times with F9 off + audit lines). Released:
+v0.24.242 (replays: buildings as schematics + interaction markers, `.run`
+`e|` / `b|` tracks, Game/BuildWatch - in-game check running).
+**Merged, not released:** the ghost figure + replay camera (Experimental;
+`.run` `l|` look track; `replaycam` category feature), run mode's
+per-frame garbage fixed (the "Slow tick: 'runmode'" lines were GCs).
+Site (live): `/compare` (maks's YouTube side-by-side), the 2026-10-04
+security audit + fixes + per-runner daily limits (docs/website.md
+*Security*; open for the author: monthly `docker compose pull` on the VPS
+for runtime patches). Bot (deployed): 7 queue items fixed, new cards
+`building-costs`, `crafting-recipes`, `hundred-percent`, `top-runners`.
+**In progress:** an idle allocation audit (~150 KB/s idle garbage).
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
