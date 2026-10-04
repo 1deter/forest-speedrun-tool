@@ -614,6 +614,49 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void View_JudgesALogOnce_UntilTheAllowListOrTheAttemptChanges()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            string log = ResetLog(AId(1)) + AttemptChain.ReportMarker + "\n" + Report(r => r.OtherPlugins.Add("Other 1.0 (other.dll)"));
+            Assert.Equal(200, a.Log(Runner, AId(1), log).Status);
+
+            // A running attempt has no log to judge.
+            Assert.Equal(200, a.Start(Runner, AId(2), "Any%", "").Status);
+            a.View(AId(2));
+            Assert.Equal(0, a.LogsJudged);
+
+            string V(object view) => System.Text.Json.JsonSerializer.SerializeToNode(view)!["verdict"]!.GetValue<string>();
+            Assert.Equal("red", V(a.View(AId(1))));
+            for (int i = 0; i < 5; i++) Assert.Equal("red", V(a.View(AId(1))));
+            Assert.Equal(1, a.LogsJudged);
+
+            // The admins allow the mod: judged again, the verdict follows.
+            a.Allow("mod", "Other 1.0 (other.dll)", "admin");
+            Assert.Equal("amber", V(a.View(AId(1))));
+            Assert.Equal("amber", V(a.View(AId(1))));
+            Assert.Equal(2, a.LogsJudged);
+            a.Disallow("mod", "Other 1.0 (other.dll)");
+            Assert.Equal("red", V(a.View(AId(1))));
+            Assert.Equal(3, a.LogsJudged);
+
+            // Deleted, then the same id's log again: the new one is judged.
+            Assert.True(a.Delete(AId(1)));
+            Assert.Null(a.View(AId(1)));
+            Assert.Equal(200, a.Log(Runner, AId(1), ResetLog(AId(1))).Status);
+            Assert.Equal("amber", V(a.View(AId(1))));   // offline, no report
+            Assert.Equal(4, a.LogsJudged);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task DailyCap_AnsweredOverHttp_As413()
     {
         _factory.Services.GetRequiredService<Attempts>().MaxAttemptsPerDay = 1;
