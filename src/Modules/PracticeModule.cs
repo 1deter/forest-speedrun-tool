@@ -575,6 +575,21 @@ namespace ForestOverlay.Modules
             Restart(_current);
         }
 
+        /// A death's "Revive at the current spot" (Deaths tab): Go to the
+        /// current spot, its start state left alone.
+        public void TeleportToCurrent()
+        {
+            if (_current == null) { _status = "No entry selected."; return; }
+            Teleport(_current);
+        }
+
+        /// The current spot's Restart starts a run (a run spot with a start
+        /// state) - the one Restart run mode allows. A file check.
+        public bool CurrentIsRunSpot
+        {
+            get { return _runMode != null && _current != null && _current.RunCategory.Length > 0 && CurrentHasStartState; }
+        }
+
         // The test bridge (Modules/BridgeModule): null, or why not.
         public string BridgeGo(string id)
         {

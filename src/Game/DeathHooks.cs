@@ -83,6 +83,7 @@ namespace ForestOverlay.Game
         private static FieldInfo _animControl;
         private static FieldInfo _swimming;
         private static PropertyInfo _isInEndgame;
+        private static FieldInfo _localStats;      // static LocalPlayer.Stats
         private static PropertyInfo _isFightingBoss;
         private static PropertyInfo _boltRunning;
         private static MethodInfo _gameOver;
@@ -126,6 +127,7 @@ namespace ForestOverlay.Game
             {
                 _animControl = local.GetField("AnimControl", stat);
                 _isInEndgame = local.GetProperty("IsInEndgame", stat);
+                _localStats = local.GetField("Stats", stat);
             }
 
             Type anim = GameBridge.FindGameType("playerAnimatorControl");
@@ -457,6 +459,20 @@ namespace ForestOverlay.Game
             if (deadTimes < 1) return DeathKind.Capture;
 
             return PermaDeath() ? DeathKind.PermaDeath : DeathKind.Real;
+        }
+
+        /// The kind the next death would be, from the live player (the
+        /// Deaths tab's "Next death" line). Real when there is no player.
+        public static DeathKind PredictKind()
+        {
+            try
+            {
+                if (_localStats == null || _deadTimes == null) return ClassifyRealOnly();
+                UnityEngine.Object stats = _localStats.GetValue(null) as UnityEngine.Object;
+                if (stats == null) return ClassifyRealOnly();
+                return IsSwimming() ? ClassifyRealOnly() : Classify(stats);
+            }
+            catch (Exception) { return DeathKind.Real; }
         }
 
         private static DeathKind ClassifyRealOnly()
