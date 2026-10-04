@@ -29,8 +29,11 @@ namespace ForestOverlay.Data
     //   b|<t>|<state>|<kind>|<x>|<y>|<z>|<rx>|<ry>|<rz>|<cx>|<cy>|<cz>|<sx>|<sy>|<sz>
     //                                       a structure placed / built: its
     //                                       place, rotation and local box
+    //   l|<t>|<yaw>|<pitch>|<eye>          where the runner looked, 30 Hz
+    //                                       (the replay camera; eye = the
+    //                                       camera's height above s's point)
     //
-    // Older readers skip lines they do not know, so e / b lines never
+    // Older readers skip lines they do not know, so e / b / l lines never
     // break an older plugin or the site.
     //
     // Numbers use InvariantCulture: a comma-decimal machine would otherwise
@@ -118,6 +121,15 @@ namespace ForestOverlay.Data
                 sb.Append("b|").Append(F(b.T)).Append('|').Append(Clean(b.State)).Append('|').Append(Clean(b.Kind));
                 V(sb, b.P); V(sb, b.Euler); V(sb, b.Center); V(sb, b.Size);
                 sb.Append(NL);
+            }
+
+            // Two decimals: a hundredth of a degree / centimetre is plenty,
+            // and this is a line per position sample.
+            for (int i = 0; i < attempt.Looks.Count; i++)
+            {
+                LookSample l = attempt.Looks[i];
+                sb.Append("l|").Append(F(l.T)).Append('|').Append(F2(l.Yaw)).Append('|')
+                  .Append(F2(l.Pitch)).Append('|').Append(F2(l.Eye)).Append(NL);
             }
 
             return sb.ToString();
@@ -218,6 +230,15 @@ namespace ForestOverlay.Data
                     b.Size = new Vector3(P(p[13]), P(p[14]), P(p[15]));
                     a.Buildings.Add(b);
                 }
+                else if (p[0] == "l" && p.Length >= 5)
+                {
+                    LookSample l;
+                    l.T = P(p[1]);
+                    l.Yaw = P(p[2]);
+                    l.Pitch = P(p[3]);
+                    l.Eye = P(p[4]);
+                    a.Looks.Add(l);
+                }
                 else if (p[0] == "s" && p.Length >= 6)
                 {
                     RunSample s;
@@ -257,7 +278,8 @@ namespace ForestOverlay.Data
                 if (StartsAt(runText, s, "runner|")) return runText;
                 if (insert < 0 && (StartsAt(runText, s, "channels") || StartsAt(runText, s, "s|") ||
                                    StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|") ||
-                                   StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|")))
+                                   StartsAt(runText, s, "e|") || StartsAt(runText, s, "b|") ||
+                                   StartsAt(runText, s, "l|")))
                     insert = at;
                 at = next;
             }
@@ -289,6 +311,11 @@ namespace ForestOverlay.Data
         private static string F(float v)
         {
             return v.ToString("F3", CultureInfo.InvariantCulture);
+        }
+
+        private static string F2(float v)
+        {
+            return v.ToString("F2", CultureInfo.InvariantCulture);
         }
 
         private static float P(string s)
