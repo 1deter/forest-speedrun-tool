@@ -165,6 +165,7 @@ namespace ForestOverlay.Modules
             // Finished runs to the website (Modules/RunUploadModule).
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
+            _tas = Host.Find<TasModule>();
             if (_runMode != null) _runMode.TimerMs = TimerMsNow;
             if (_upload != null)
             {
@@ -202,6 +203,21 @@ namespace ForestOverlay.Modules
 
         private RunUploadModule _upload;
         private RunModeModule _runMode;
+        private TasModule _tas;
+
+        /// Runs finished since launch (Modules/TasModule stops a recording
+        /// on the next one) and the last one's time.
+        public int FinishedRuns { get; private set; }
+        public float LastFinishSeconds { get; private set; }
+
+        /// A timed segment is armed or running (TAS "Record timed runs").
+        public bool TimedRunArmed
+        {
+            get { return Timing && _segment != null && _recorder.State != RunRecorder.RunState.Idle; }
+        }
+
+        // A run a TAS replay plays: never the runner's attempt.
+        private bool TasRun { get { return _tas != null && _tas.Replaying; } }
 
         /// The running timer in ms, -1 when none (run mode's chain).
         private long TimerMsNow()
@@ -574,7 +590,7 @@ namespace ForestOverlay.Modules
         private void StartClock(Vector3 pos)
         {
             _auto.Begin(_live);   // what is held now is the ASL's baseline
-            if (_segment != null)
+            if (_segment != null && !TasRun)
             {
                 _started = Mathf.Max(_started, _attempts.Count) + 1;
                 _store.SetStarted(_segment.Id, _started);
@@ -644,6 +660,17 @@ namespace ForestOverlay.Modules
             Attempt done = _recorder.Finish();
             if (done == null) { _status = "no run in progress"; return; }
             _autoRestartCheckpoint = -1;
+            FinishedRuns++;
+            LastFinishSeconds = done.Duration;
+            // Played by a TAS replay: shown and logged, never saved.
+            if (TasRun)
+            {
+                _tas.ReplayRunFinished(done.Duration);
+                _status = "finished " + Format(done.Duration) + " (TAS replay - not saved)";
+                ClearRunPreview();
+                Ctx.Log.LogInfo("Run '" + done.AnchorLabel + "': finished in " + Format(done.Duration) + " by a TAS replay (not saved).");
+                return;
+            }
             // From a checkpoint state: practice, never a saved run.
             if (Resumed) { FinishResumedRun(done); return; }
 
@@ -1020,6 +1047,7 @@ namespace ForestOverlay.Modules
 
             float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
             y = DrawCheckpointSection(y, cw);
+            if (_tas != null) y = _tas.DrawSection(y, cw);
             y = DrawLineOptions(y, cw);
             y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
