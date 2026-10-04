@@ -44,6 +44,9 @@ namespace ForestOverlay.Game
         private float _nextSearch;
         private readonly List<FieldInfo> _taskFields = new List<FieldInfo>();
         private readonly List<FieldInfo> _doneFields = new List<FieldInfo>();
+        // _done of each task, once a second: no boxing (FastField).
+        private readonly List<Func<object, bool>> _doneGets = new List<Func<object, bool>>();
+        private int _statusDone = -1, _statusCount = -1;
         private readonly List<string> _taskNames = new List<string>();
 
         public IList<BookEntry> Todo { get { return _todo; } }
@@ -66,6 +69,10 @@ namespace ForestOverlay.Game
 
             ReadTodo();
 
+            // Rebuilt when a count moves, not every second.
+            if (TodoDone == _statusDone && _todo.Count == _statusCount) return;
+            _statusDone = TodoDone;
+            _statusCount = _todo.Count;
             Status = _todo.Count > 0
                 ? TodoDone + "/" + _todo.Count + " tasks done"
                 : "survival book not loaded (open a save first)";
@@ -101,7 +108,7 @@ namespace ForestOverlay.Game
                 entry.Name = _taskNames[i];
                 entry.UnlockLevel = 0;
 
-                try { entry.Done = (bool)_doneFields[i].GetValue(task); }
+                try { entry.Done = _doneGets[i](task); }
                 catch (Exception) { continue; }
 
                 _todo.Add(entry);
@@ -133,6 +140,7 @@ namespace ForestOverlay.Game
 
             _taskFields.Clear();
             _doneFields.Clear();
+            _doneGets.Clear();
             _taskNames.Clear();
 
             for (int i = 0; i < fields.Length; i++)
@@ -145,6 +153,7 @@ namespace ForestOverlay.Game
 
                 _taskFields.Add(fields[i]);
                 _doneFields.Add(doneField);
+                _doneGets.Add(FastField.Instance<bool>(doneField));
                 _taskNames.Add(Tidy(fields[i].Name));
             }
 

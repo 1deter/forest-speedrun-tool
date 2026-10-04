@@ -85,6 +85,10 @@ namespace ForestOverlay.Game
         private FieldInfo _itemIdField;
         private FieldInfo _amountField;
         private bool _itemFieldsResolved;
+        // The two reads per item, a few times a second: bound once, no
+        // boxing (FastField); the sort's comparer kept, not made per sort.
+        private Func<object, int> _itemIdGet, _amountGet;
+        private static readonly Comparison<ItemStack> StackOrder = CompareStacks;
 
         private object _itemDatabase;
         private MethodInfo _itemByIdMethod;
@@ -437,8 +441,8 @@ namespace ForestOverlay.Game
                 int id, amount;
                 try
                 {
-                    id = (int)_itemIdField.GetValue(item);
-                    amount = (int)_amountField.GetValue(item);
+                    id = _itemIdGet(item);
+                    amount = _amountGet(item);
                 }
                 catch (Exception) { continue; }
 
@@ -456,7 +460,7 @@ namespace ForestOverlay.Game
                 if (amount > 0) TotalItems += amount;
             }
 
-            _stacks.Sort(CompareStacks);
+            _stacks.Sort(StackOrder);
         }
 
         public static bool IsRealItem(int id)
@@ -496,6 +500,8 @@ namespace ForestOverlay.Game
             BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             _itemIdField = itemType.GetField("_itemId", flags);
             _amountField = itemType.GetField("_amount", flags);
+            _itemIdGet = FastField.Instance<int>(_itemIdField);
+            _amountGet = FastField.Instance<int>(_amountField);
 
             _log.LogInfo("InventoryItem fields. _itemId:" + (_itemIdField != null) +
                          " _amount:" + (_amountField != null));

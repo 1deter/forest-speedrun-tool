@@ -40,7 +40,18 @@ namespace ForestOverlay.Modules
 
         // Item names the HUD should always show, lowercased for matching.
         private readonly List<string> _watch = new List<string>();
+        // The HUD lines for them ("  name xN"), rebuilt only when a name or
+        // an amount changes; what each was built from beside it.
         private readonly List<string> _watchLines = new List<string>();
+        private readonly List<string> _watchShownName = new List<string>();
+        private readonly List<int> _watchShownAmount = new List<int>();
+
+        // The Items / Logs HUD values, rebuilt when their numbers change.
+        private string _itemsHud = "";
+        private int _itemsHudTotal = int.MinValue, _itemsHudStacks;
+        private bool _itemsHudCompact;
+        private int _logsHudStored = int.MinValue, _logsHudCap;
+        private bool _logsHudCfg;
 
         private Vector2 _scroll;
         private string _filter = "";
@@ -105,6 +116,7 @@ namespace ForestOverlay.Modules
         private string _capText;
         private bool _logsMarked;
         private string _logsHud;
+        private string _logsHudStatus;
         private readonly GUIContent _logsStatus = new GUIContent("");
         private static readonly GUIContent LogsText = new GUIContent(
             "Picked-up logs go into the inventory up to the cap instead of into your arms - hands stay free, " +
@@ -174,7 +186,7 @@ namespace ForestOverlay.Modules
 
             if (showing) RebuildRowLabels();
 
-            RefreshTitle();
+            if (showing) RefreshTitle();   // the tab's line only (refreshed at once when it opens)
             RebuildWatchLines();
         }
 
@@ -192,6 +204,13 @@ namespace ForestOverlay.Modules
             if (!LogsOn) _logsMarked = false;
 
             int stored = LogStore.Stored();
+            // Built when a number (or the status, while not storing) changes.
+            if (stored == _logsHudStored && LogStore.Cap == _logsHudCap && _logsCfg.Value == _logsHudCfg &&
+                (stored >= 0 || !_logsCfg.Value || ReferenceEquals(LogStore.Status, _logsHudStatus))) return;
+            _logsHudStored = stored;
+            _logsHudCap = LogStore.Cap;
+            _logsHudCfg = _logsCfg.Value;
+            _logsHudStatus = LogStore.Status;
             string hud = stored >= 0 ? stored + " / " + LogStore.Cap : null;
             if (hud != _logsHud) _logsHud = hud;
             string status = !_logsCfg.Value ? "" :
@@ -451,10 +470,21 @@ namespace ForestOverlay.Modules
 
         private void RebuildWatchLines()
         {
-            _watchLines.Clear();
-            if (_watch.Count == 0) return;
+            if (_watch.Count == 0)
+            {
+                _watchLines.Clear();
+                _watchShownName.Clear();
+                _watchShownAmount.Clear();
+                return;
+            }
 
             IList<ItemStack> stacks = Ctx.Inventory.Stacks;
+            while (_watchLines.Count > _watch.Count)
+            {
+                _watchLines.RemoveAt(_watchLines.Count - 1);
+                _watchShownName.RemoveAt(_watchShownName.Count - 1);
+                _watchShownAmount.RemoveAt(_watchShownAmount.Count - 1);
+            }
 
             for (int w = 0; w < _watch.Count; w++)
             {
@@ -464,12 +494,27 @@ namespace ForestOverlay.Modules
                 for (int i = 0; i < stacks.Count; i++)
                 {
                     if (stacks[i].Name == null) continue;
-                    if (stacks[i].Name.ToLowerInvariant() != _watch[w]) continue;
+                    // The pins are kept lower case (ToLowerInvariant) and the
+                    // names are plain ASCII: the same match, no string per stack.
+                    if (!string.Equals(stacks[i].Name, _watch[w], System.StringComparison.OrdinalIgnoreCase)) continue;
                     amount += stacks[i].Amount;
                     display = stacks[i].Name;
                 }
 
-                _watchLines.Add(display + " x" + amount);
+                if (w < _watchLines.Count && amount == _watchShownAmount[w] && string.Equals(display, _watchShownName[w])) continue;
+                string line = "  " + display + " x" + amount;
+                if (w < _watchLines.Count)
+                {
+                    _watchLines[w] = line;
+                    _watchShownName[w] = display;
+                    _watchShownAmount[w] = amount;
+                }
+                else
+                {
+                    _watchLines.Add(line);
+                    _watchShownName.Add(display);
+                    _watchShownAmount.Add(amount);
+                }
             }
         }
 
@@ -477,14 +522,25 @@ namespace ForestOverlay.Modules
         {
             if (Ctx.Inventory.Available)
             {
-                if (hud.Shows("Items")) hud.Pair("Items", Data.HudLines.Items(_total, _stackCount, hud.Compact));
+                if (hud.Shows("Items"))
+                {
+                    bool compact = hud.Compact;
+                    if (_total != _itemsHudTotal || _stackCount != _itemsHudStacks || compact != _itemsHudCompact)
+                    {
+                        _itemsHudTotal = _total;
+                        _itemsHudStacks = _stackCount;
+                        _itemsHudCompact = compact;
+                        _itemsHud = Data.HudLines.Items(_total, _stackCount, compact);
+                    }
+                    hud.Pair("Items", _itemsHud);
+                }
             }
             else
                 hud.Pair("Items", "(inventory not resolved)");
             if (_logsHud != null) hud.Pair("Logs", _logsHud);
 
             for (int i = 0; i < _watchLines.Count; i++)
-                hud.Pair("", "  " + _watchLines[i]);
+                hud.Pair("", _watchLines[i]);   // built with its indent
         }
 
         // ------------------------------------------------------------------
