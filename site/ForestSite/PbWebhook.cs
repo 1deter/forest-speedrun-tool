@@ -96,11 +96,17 @@ public sealed class PbWebhook
 {
     public const int QueueSize = 20;
     public const int PerHour = 30;
+    /// One runner's posts an hour, on top of PerHour (security audit,
+    /// 2026-10-04): any registered runner finishing community / run spots
+    /// could otherwise fill the channel with their own name. A real runner
+    /// sets a few PBs an hour at most.
+    public const int PerRunnerPerHour = 5;
     public static readonly TimeSpan Gap = TimeSpan.FromSeconds(2);
 
     private readonly Channel<string> _queue = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueSize)
         { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
     private readonly Queue<DateTime> _sent = new();
+    private readonly Dictionary<string, Queue<DateTime>> _byRunner = new();
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
 
     /// The webhook's URL; empty = off.
@@ -114,6 +120,8 @@ public sealed class PbWebhook
     public Func<string, Task<(int status, double retryAfter)>> Send { get; set; }
     /// The last messages queued, newest last (tests, diagnostics).
     public readonly List<string> Recent = new();
+    /// The clock for the per-runner cap (tests move it).
+    public Func<DateTime> Now { get; set; } = () => DateTime.UtcNow;
 
     public bool On => !string.IsNullOrWhiteSpace(Url);
 
@@ -125,10 +133,17 @@ public sealed class PbWebhook
         _ = Task.Run(Loop);
     }
 
-    /// Queues a post; false when off or the queue is full (dropped, logged).
-    public bool Enqueue(string message)
+    /// Queues a post; false when off, the runner (their id, when given)
+    /// has had PerRunnerPerHour posts in the last hour, or the queue is full
+    /// (dropped, logged).
+    public bool Enqueue(string message, string runner = null)
     {
         if (!On) return false;
+        if (runner != null && !RunnerSlot(runner))
+        {
+            Log("Discord webhook: runner " + runner + " had " + PerRunnerPerHour + " posts in the last hour, one dropped.");
+            return false;
+        }
         lock (Recent)
         {
             Recent.Add(message);
@@ -137,6 +152,23 @@ public sealed class PbWebhook
         if (_queue.Writer.TryWrite(message)) return true;
         Log("Discord webhook: queue full, a PB post dropped.");
         return false;
+    }
+
+    /// Takes one of the runner's posts this hour; false when they have none
+    /// left. Runners with nothing in the last hour are forgotten.
+    private bool RunnerSlot(string runner)
+    {
+        DateTime now = Now();
+        lock (_byRunner)
+        {
+            foreach (string r in _byRunner.Where(kv => now - kv.Value.Last() > TimeSpan.FromHours(1)).Select(kv => kv.Key).ToList())
+                _byRunner.Remove(r);
+            if (!_byRunner.TryGetValue(runner, out var times)) _byRunner[runner] = times = new Queue<DateTime>();
+            while (times.Count > 0 && now - times.Peek() > TimeSpan.FromHours(1)) times.Dequeue();
+            if (times.Count >= PerRunnerPerHour) return false;
+            times.Enqueue(now);
+            return true;
+        }
     }
 
     private async Task Loop()

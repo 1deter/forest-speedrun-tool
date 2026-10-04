@@ -239,7 +239,7 @@ public sealed class ApiTests : IDisposable
         Assert.Contains("<title>Dash &lt;to&gt; the rock - Forest Practice Runs</title>", html);
         Assert.Contains("<meta property=\"og:title\" content=\"Dash &lt;to&gt; the rock - Forest Practice Runs\">", html);
         Assert.Contains("1 run by 1 runner, best 1:15.500 by Runner 0000", html);
-        Assert.Contains("og:url\" content=\"https://localhost/spot/" + seg.Id, html);
+        Assert.Contains("og:url\" content=\"https://forest.deter.cloud/spot/" + seg.Id, html);
 
         string plain = await _http.GetStringAsync("/spot/s-nothere");
         Assert.DoesNotContain("og:title", plain);
@@ -1047,6 +1047,69 @@ public sealed class ApiTests : IDisposable
         string m = PbNews.Message(new string('r', 500), new string('s', 100_000), 59f, 60f, "https://x/spot/s-1/r?run=7");
         Assert.True(m.Length < 400, "post is " + m.Length + " characters");
         Assert.Contains(new string('s', 80) + ": 59.000", m);
+    }
+
+    [Fact]
+    public async Task Webhook_CapsEachRunnersPostsAnHour()
+    {
+        FakeWebhook();
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        DateTime now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        hook.Now = () => now;
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-dddddddddddd");
+        MakeCommunity(seg);
+
+        // A sets a PB after PB: five posts, then nothing for the hour.
+        for (int i = 0; i < 7; i++)
+            Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 20f - i, 5f, i)))).StatusCode);
+        Assert.Equal(PbWebhook.PerRunnerPerHour, hook.Recent.Count);
+        // Another runner still posts.
+        await Upload(tb, Bundle(seg, RunText(seg, B, 30f, 5f, 1)));
+        Assert.Equal(PbWebhook.PerRunnerPerHour + 1, hook.Recent.Count);
+        Assert.Contains("Runner 0000", hook.Recent[^1]);
+        // An hour on, A posts again.
+        now = now.AddMinutes(61);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 13f, 2f, 20)));
+        Assert.Equal(PbWebhook.PerRunnerPerHour + 2, hook.Recent.Count);
+    }
+
+    [Fact]
+    public async Task LinkPreview_NamesTheSitesAddress_NotTheHostHeader()
+    {
+        string ta = await Register(A);
+        var seg = TestSegment("s-0123456789ad");
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+        foreach (string path in new[] { "/spot/" + seg.Id, "/compare" })
+        {
+            var msg = new HttpRequestMessage(HttpMethod.Get, path);
+            msg.Headers.Host = "evil.example";
+            string html = await (await _http.SendAsync(msg)).Content.ReadAsStringAsync();
+            Assert.Contains("og:url\" content=\"https://forest.deter.cloud/", html);
+            Assert.DoesNotContain("evil.example", html);
+        }
+    }
+
+    [Fact]
+    public async Task Upload_SegmentIdsAreCapped_OldAndRandomOnesFit()
+    {
+        string ta = await Register(A);
+        // The plugin's ids - random (12 to 32 hex) and legacy slugs - go in.
+        foreach (string id in new[] { "s-0123456789ae", "s-" + new string('f', 32), "spot.my.new-spot-3",
+                                      "spot." + new string('c', 30) + "." + new string('n', 40) })
+        {
+            var seg = TestSegment(id);
+            Assert.True(id.Length <= Runs.MaxSegmentId, id);
+            Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)))).StatusCode);
+        }
+        // Past the cap: refused (400 - the plugin sets the file aside, no retry),
+        // and nothing is stored.
+        var tooLong = TestSegment("s-" + new string('a', Runs.MaxSegmentId));
+        var r = await Upload(ta, Bundle(tooLong, RunText(tooLong, A, 10f, 5f)));
+        Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
+        Assert.Contains("segment id", await r.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/spots/" + tooLong.Id)).StatusCode);
+        Assert.Equal(UploadOutcome.Refused, SiteProtocol.Classify(400));
     }
 
     [Theory]
