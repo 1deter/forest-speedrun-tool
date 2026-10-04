@@ -134,7 +134,11 @@ The physics runs at 60 Hz whatever your fps, but some game logic runs once
 per *rendered* frame (coroutines, `Update`). Where those push the player -
 the explosion knockback's 8 m/s per frame - a higher fps means more pushes.
 That is the whole reason fps matters for the bomb boost. Animation-driven
-actions (the axe smash) also sample once per frame.
+actions (the axe smash) also sample once per frame, and the colliders'
+look-down offset is set once per rendered frame (`LateUpdate`) - but
+collisions are still only resolved at the 60 Hz physics steps, so a higher
+fps never adds collision checks; it only changes how fresh the collider
+layout is at each step [code].
 
 ## Evidence
 
