@@ -16,6 +16,10 @@ namespace ForestSite;
 // upload of the same attempt must be the same text.
 //
 //   <data>/attempts/<id>.log.gz
+//
+// A runner's starts and logs are capped per day (MaxAttemptsPerDay,
+// MaxLogBytesPerDay): past them a 413, which the plugin sets aside and
+// never retries (Data/SiteProtocol.Classify).
 // ------------------------------------------------------------------
 public sealed class Attempts
 {
@@ -33,6 +37,16 @@ public sealed class Attempts
     public const double Drift = 0.01;
     public const long MinCheckpointGapMs = 20_000;
     public const int MaxCheckpoints = 600;
+    public const long DayMs = 86_400_000;
+
+    /// Per runner, over the last 24 hours (security audit, 2026-10-04: the
+    /// address limit alone let one address write tens of GB of logs a day).
+    /// Run mode sends a receipt for every attempt, resets included
+    /// (docs/run-mode.md): a runner resetting every 10 s for 8 hours makes
+    /// ~2,900 attempts, a reset's log is a few KB and an hour's run ~4 MB -
+    /// heavy real use stays far under both. Settable for the tests.
+    public int MaxAttemptsPerDay { get; set; } = 5_000;
+    public long MaxLogBytesPerDay { get; set; } = 2L * 1024 * 1024 * 1024;
 
     private readonly Store _store;
     private readonly string _dir;
@@ -51,7 +65,7 @@ public sealed class Attempts
 CREATE TABLE IF NOT EXISTS attempts (
   id TEXT PRIMARY KEY, runner_id TEXT NOT NULL, category TEXT NOT NULL, spot_id TEXT NOT NULL,
   nonce TEXT, issued_ms INTEGER, log_ms INTEGER, end_reason TEXT, end_ms INTEGER, final_timer_ms INTEGER,
-  steps INTEGER, verdict TEXT, why TEXT);
+  steps INTEGER, verdict TEXT, why TEXT, log_bytes INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_runner ON attempts (runner_id);
 CREATE TABLE IF NOT EXISTS checkpoints (
   attempt_id TEXT NOT NULL, step INTEGER NOT NULL, head TEXT NOT NULL, received_ms INTEGER NOT NULL,
@@ -61,6 +75,14 @@ CREATE TABLE IF NOT EXISTS attempt_items (
 CREATE TABLE IF NOT EXISTS allowed_code (
   kind TEXT NOT NULL, text TEXT NOT NULL, by TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (kind, text));";
         cmd.ExecuteNonQuery();
+        // The daily byte cap's count (older databases: the column; their
+        // logs count as attempts only).
+        if (!Store.HasColumn(c, "attempts", "log_bytes"))
+        {
+            using var alter = c.CreateCommand();
+            alter.CommandText = "ALTER TABLE attempts ADD COLUMN log_bytes INTEGER;";
+            alter.ExecuteNonQuery();
+        }
     }
 
     public sealed record Answer(int Status, object Body);
@@ -81,6 +103,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             if (row.Nonce == null || row.LogMs != null) return Fail(409, "this attempt has ended");
             return new(200, new { nonce = row.Nonce, again = true });
         }
+        long started = (long)_store.Scalar("SELECT COUNT(*) FROM attempts WHERE runner_id = $r AND issued_ms >= $since",
+                                           ("$r", runner), ("$since", _now() - DayMs));
+        if (started >= MaxAttemptsPerDay) return Fail(413, DailyLimit());
         string nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         _store.Update(@"INSERT INTO attempts (id, runner_id, category, spot_id, nonce, issued_ms)
                         VALUES ($id, $r, $c, $s, $n, $t)",
@@ -119,6 +144,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             return kept == text ? new(200, new { verdict = row.Verdict, why = Lines(row.Why), existing = true })
                                 : Fail(409, "this attempt's log is in already; logs are never replaced");
         }
+        long bytes = System.Text.Encoding.UTF8.GetByteCount(text ?? "");
+        var (logs, sent) = LogsToday(runner);
+        if (logs >= MaxAttemptsPerDay || sent + bytes > MaxLogBytesPerDay) return Fail(413, DailyLimit());
 
         var r = AttemptChain.Read(text);
         if (r.Error != null) return Fail(400, "the log does not read: " + r.Error);
@@ -134,9 +162,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             _store.Update(@"INSERT INTO attempts (id, runner_id, category, spot_id) VALUES ($id, $r, $c, $s)",
                 ("$id", id), ("$r", runner), ("$c", Short(r.Category, 60)), ("$s", Short(r.SpotId, 40)));
         _store.Update(@"UPDATE attempts SET log_ms = $t, end_reason = $e, end_ms = $em, final_timer_ms = $ft, steps = $n,
-                        verdict = $v, why = $w WHERE id = $id",
+                        verdict = $v, why = $w, log_bytes = $b WHERE id = $id",
             ("$id", id), ("$t", now), ("$e", r.Ended ? Short(r.EndReason, 80) : "no end"), ("$em", r.Ended ? r.EndMs : r.LastMs),
-            ("$ft", r.FinalTimerMs), ("$n", r.Steps.Count), ("$v", verdict), ("$w", string.Join("\n", why)));
+            ("$ft", r.FinalTimerMs), ("$n", r.Steps.Count), ("$v", verdict), ("$w", string.Join("\n", why)), ("$b", bytes));
         var report = RunReport.Parse(r.Report);
         foreach (var (kind, item) in Items(report))
             _store.Update("INSERT INTO attempt_items (attempt_id, kind, text) VALUES ($id, $k, $t) ON CONFLICT DO NOTHING",
@@ -144,6 +172,26 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         var (overall, all) = Overall(verdict, why, r.Report, Allowed(), CategoryOf(report));
         return new(200, new { verdict = overall, why = all });
     }
+
+    /// The runner's logs taken in the last 24 hours: how many, how many bytes.
+    private (long count, long bytes) LogsToday(string runner)
+    {
+        using var c = _store.Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*), COALESCE(SUM(log_bytes), 0) FROM attempts WHERE runner_id = $r AND log_ms >= $since";
+        cmd.Parameters.AddWithValue("$r", runner);
+        cmd.Parameters.AddWithValue("$since", _now() - DayMs);
+        using var r = cmd.ExecuteReader();
+        r.Read();
+        return (r.GetInt64(0), r.GetInt64(1));
+    }
+
+    /// The refusal past the daily caps (413: the plugin keeps the file in
+    /// uploads/attempts/refused with this reason and does not retry it).
+    private string DailyLimit() =>
+        "this runner reached the site's daily limit for run mode attempts (" + MaxAttemptsPerDay.ToString("N0", CultureInfo.InvariantCulture) +
+        " attempts or " + (MaxLogBytesPerDay / (1024.0 * 1024 * 1024)).ToString("0.#", CultureInfo.InvariantCulture) +
+        " GB of logs in 24 hours) - not stored";
 
     /// The category version an attempt's report names (null: none, or the
     /// site does not have it).

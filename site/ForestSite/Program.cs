@@ -45,6 +45,7 @@ string siteUrl = PbNews.SiteUrl(builder.Configuration["FOREST_SITE_URL"]);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 builder.Services.AddSingleton(webhook);
+builder.Services.AddSingleton(attempts);
 
 // Cloudflare names the visitor; everything else sees Caddy's address.
 // The header is only as honest as the origin lock (FOREST_ORIGIN_SECRET):

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using ForestOverlay.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace ForestSite.Tests;
@@ -542,6 +543,87 @@ public sealed class AttemptTests : IDisposable
         Assert.Contains("Problems found", page);
         Assert.Contains("/attempt.js?v=", page);
         Assert.Contains("<title>Forest Practice Runs</title>", await _http.GetStringAsync("/attempt/a-00000000000000fe"));
+    }
+
+    // --- security audit (2026-10-04) -------------------------------------------------
+
+    private static string AId(int n) => "a-" + n.ToString("x16");
+
+    /// A short reset's log (a few steps), offline, at a fixed time.
+    private static string ResetLog(string id, string runner = Runner)
+    {
+        var c = new AttemptChain();
+        c.Header(id, runner, "Runner", "test", "Any%", "s-0123456789ab", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        for (int s = 1; s <= 3; s++) c.Step(s * 1000L, -1, true, s, 0, 0);
+        c.End(3100, "reset", -1);
+        return c.Text;
+    }
+
+    [Fact]
+    public void DailyCaps_PerRunner_CountsAndBytes_ResetAfterADay()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            long now = Issued;
+            var a = new Attempts(new Store(dir), dir, () => now) { MaxAttemptsPerDay = 3 };
+            const string Other = "r-00000000000000bb";
+
+            // Three logs a day: the fourth is refused - 413, which the plugin
+            // sets aside without retrying - and nothing of it is stored.
+            for (int i = 1; i <= 3; i++) Assert.Equal(200, a.Log(Runner, AId(i), ResetLog(AId(i))).Status);
+            var refused = a.Log(Runner, AId(4), ResetLog(AId(4)));
+            Assert.Equal(413, refused.Status);
+            Assert.Contains("daily limit", System.Text.Json.JsonSerializer.Serialize(refused.Body));
+            Assert.Equal(UploadOutcome.Refused, SiteProtocol.Classify(refused.Status));
+            Assert.Null(a.View(AId(4)));
+            Assert.Null(a.LogText(AId(4)));
+            // A stored log sent again is still answered; another runner is not held.
+            Assert.Equal(200, a.Log(Runner, AId(1), ResetLog(AId(1))).Status);
+            Assert.Equal(200, a.Log(Other, AId(5), ResetLog(AId(5), Other)).Status);
+
+            // Starts are capped the same way (the attempt then runs offline).
+            for (int i = 6; i <= 8; i++) Assert.Equal(200, a.Start(Other, AId(i), "Any%", "").Status);
+            Assert.Equal(413, a.Start(Other, AId(9), "Any%", "").Status);
+            Assert.Equal(UploadOutcome.Refused, SiteProtocol.Classify(413));
+
+            // A day later there is room again.
+            now += Attempts.DayMs + 1;
+            Assert.Equal(200, a.Log(Runner, AId(4), ResetLog(AId(4))).Status);
+            Assert.Equal(200, a.Start(Other, AId(9), "Any%", "").Status);
+
+            // The byte cap: two logs' worth a day.
+            now += Attempts.DayMs + 1;
+            a.MaxAttemptsPerDay = 1000;
+            a.MaxLogBytesPerDay = Encoding.UTF8.GetByteCount(ResetLog(AId(10))) * 2;
+            Assert.Equal(200, a.Log(Runner, AId(10), ResetLog(AId(10))).Status);
+            Assert.Equal(200, a.Log(Runner, AId(11), ResetLog(AId(11))).Status);
+            Assert.Equal(413, a.Log(Runner, AId(12), ResetLog(AId(12))).Status);
+
+            // The defaults leave heavy real use far below: thousands of
+            // resets a day and gigabytes of logs.
+            var fresh = new Attempts(new Store(dir), dir);
+            Assert.True(fresh.MaxAttemptsPerDay >= 5_000);
+            Assert.True(fresh.MaxLogBytesPerDay >= 2L * 1024 * 1024 * 1024);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task DailyCap_AnsweredOverHttp_As413()
+    {
+        _factory.Services.GetRequiredService<Attempts>().MaxAttemptsPerDay = 1;
+        string token = await Register(Runner);
+        Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts/" + AId(1) + "/log", new StringContent(ResetLog(AId(1)), Encoding.UTF8, "text/plain"))).StatusCode);
+        var r = await Post(token, "/api/attempts/" + AId(2) + "/log", new StringContent(ResetLog(AId(2)), Encoding.UTF8, "text/plain"));
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, r.StatusCode);
+        Assert.Contains("daily limit", (await r.Content.ReadFromJsonAsync<JsonObject>())["error"].GetValue<string>());
+        Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts", JsonContent.Create(new { attempt = AId(3), category = "Any%", spot = "" }))).StatusCode);
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await Post(token, "/api/attempts", JsonContent.Create(new { attempt = AId(4), category = "Any%", spot = "" }))).StatusCode);
     }
 
     private async Task<JsonNode> AdminGet(string path)

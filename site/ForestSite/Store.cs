@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS admin_log (
             Exec(c, "ALTER TABLE submissions ADD COLUMN start_state INTEGER NOT NULL DEFAULT 0;");
     }
 
-    private static bool HasColumn(SqliteConnection c, string table, string column)
+    internal static bool HasColumn(SqliteConnection c, string table, string column)
     {
         using var cmd = c.CreateCommand();
         cmd.CommandText = "PRAGMA table_info(" + table + ")";
