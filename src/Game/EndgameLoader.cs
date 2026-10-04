@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -39,19 +40,18 @@ namespace ForestOverlay.Game
     // ------------------------------------------------------------------
     public static class EndgameLoader
     {
-        private const string Scene = "endgame_streaming";
-        private const string AnimScene = "endgame_animPrefabs";
+        private const string Scene = CapturedAreas.StreamingScene;
 
         /// The capture had the endgame and it is not loaded now.
         public static bool Needed(string capturedAreas)
         {
-            // Either scene: a capture during the trigger's own load (the
-            // vault door opening, v0.24.82) had endgame_animPrefabs and not
-            // yet endgame_streaming - the Full load then left both out and
-            // the hold waited 30 s for the first.
-            if (string.IsNullOrEmpty(capturedAreas) ||
-                (capturedAreas.IndexOf(Scene, StringComparison.Ordinal) < 0 &&
-                 capturedAreas.IndexOf(AnimScene, StringComparison.Ordinal) < 0)) return false;
+            // endgame_streaming at capture (loaded or loading), or
+            // endgame_animPrefabs with the endgame flag set - the vault
+            // door's own load caught mid-way (v0.24.82). endgame_animPrefabs
+            // alone outlives a teleport out of the lab: a surface capture
+            // with it loaded the lab on every restore (bridge, 2026-10-04,
+            // Data/CapturedAreas).
+            if (!CapturedAreas.HadEndgame(capturedAreas)) return false;
             try { return !SceneManager.GetSceneByName(Scene).isLoaded; }
             catch (Exception) { return false; }
         }
