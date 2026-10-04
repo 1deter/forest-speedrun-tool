@@ -154,6 +154,8 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent FullLoadHint =
             new GUIContent("Full load: the game's full reset with a scene load, slower. Quick load is in place and fastest.");
         private float _deleteStartArmedUntil;
+        private float _deleteSiteArmedUntil;
+        private Segment _deleteSiteFor;
         private float _captureStartArmedUntil;
 
         // --- sharing (Data/SegmentBundle): export / import .foseg files ---
@@ -1765,6 +1767,10 @@ namespace ForestOverlay.Modules
             {
                 GUI.enabled = s.Id.Length > 0 && !_upload.Submitting;
                 if (GUI.Button(new Rect(80, y - 2, 160, 22), "Submit to community")) SubmitToCommunity(s);
+                GUI.enabled = s.Id.Length > 0 && !_upload.Deleting && !SegmentLibrary.IsCommunity(s);
+                if (GUI.Button(new Rect(246, y - 2, 170, 22),
+                               Time.unscaledTime <= _deleteSiteArmedUntil && ReferenceEquals(_deleteSiteFor, s) ? "Sure? Click again"
+                               : "Delete from the website")) DeleteFromSite(s);
                 GUI.enabled = true;
                 y += 26f;
             }
@@ -1822,6 +1828,27 @@ namespace ForestOverlay.Modules
             // (DrawShare), as for Export.
             Segment shown = s;
             _upload.Submit(s, startState, delegate(string text)
+            {
+                if (_shareFor == null || ReferenceEquals(_shareFor, shown)) { _shareFor = shown; _shareForId = null; _shareStatus.text = text; }
+            });
+        }
+
+        /// Takes the runner's own spot off the website (its runs too); a
+        /// second click within 3 s confirms. The site refuses another
+        /// runner's spot and one other runners have times on.
+        private void DeleteFromSite(Segment s)
+        {
+            if (Time.unscaledTime > _deleteSiteArmedUntil || !ReferenceEquals(_deleteSiteFor, s))
+            {
+                _deleteSiteArmedUntil = Time.unscaledTime + 3f;
+                _deleteSiteFor = s;
+                _shareFor = s; _shareForId = null;
+                _shareStatus.text = "Removes this spot and all its runs from the website (not from the game). Click again within 3 s.";
+                return;
+            }
+            _deleteSiteArmedUntil = 0f;
+            Segment shown = s;
+            _upload.DeleteFromSite(s, delegate(string text)
             {
                 if (_shareFor == null || ReferenceEquals(_shareFor, shown)) { _shareFor = shown; _shareForId = null; _shareStatus.text = text; }
             });

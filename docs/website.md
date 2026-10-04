@@ -690,6 +690,60 @@ the walls, not the background). Headless shots only (Edge via
 Playwright); seen by the author 2026-10-03 ("a little bit hard to read but it's fine"). Some pieces sit kilometres off the
 map (x -17840): the bake keeps |x|, |z| <= 2500.
 
+## Spot categories, owners deleting spots, Discord PB posts (2026-10-04)
+
+From docs/backlog.md (*Site: spots*, *Discord webhooks*). Site + a small
+plugin change (Practice's Share row).
+
+- **Categories** are the segment's own `category` (the Practice editor's
+  Category field - a simple field, the runner's choice). The owner's next
+  upload carries a change (a finished run, or Runs tab -> *Upload this
+  spot's saved runs*). The spot list groups each section by it; the
+  plugin's defaults (`My spots`, `Segments`, `Spots`, empty) group as
+  *Other*, last. One category in a section = no sub-headings. Admin-set
+  categories: not built (later, if asked).
+- **Folding groups** (app.js `homePage`): *Runners' spots* first (the
+  timed ones with runs), *Community spots* after - folded by default while
+  none of them has a run (mostly teleports today; a community teleport
+  says "teleport", `/api/spots` has `timed`). Every section and category
+  folds; the viewer's choice is kept in localStorage `forest.folded`
+  (`{key: true|false}`, keys `runners`, `community`, `runners/<category>`;
+  read / written in try/catch). A search opens every group it finds.
+- **A runner deleting their own spot**: the site has no browser login -
+  a runner is their upload token (`/api/register`, kept by the plugin), so
+  the delete goes through the game. `DELETE /api/spots/<id>` with
+  `Authorization: Bearer <token>` (`Runs.DeleteOwnSpot`, rate limit
+  `upload`): the spot goes with all its runs when every route's `owner` is
+  this runner (the first uploader) and **no other runner has runs on it**
+  (409 - their times are not the owner's to delete; an admin can);
+  community spots 403, unknown 404, a bad / banned token 401. Each call is
+  in /admin's Activity as `runner <id>`. In game: Practice -> select ->
+  Share -> **Delete from the website** (second click within 3 s; the
+  answer under the buttons - `SiteProtocol.DeleteSpotMessage`;
+  `RunUploadModule.DeleteFromSite` drops the spot's queued upload files
+  first). The spot returns with the owner's next upload on it (uploads are
+  automatic) - the message says so. The spot page tells a runner where the
+  button is. A browser-side delete would need a login (e.g. a one-time
+  link the game opens) - not built.
+- **Discord PB posts** (`PbWebhook.cs`): `FOREST_DISCORD_WEBHOOK` (env or
+  appsettings; unset = off, nothing logged per upload) - on the VPS in
+  `/opt/forest-site/.env` (site/deploy/README.md *Day to day*). When an
+  upload adds a run that is the runner's new best on a **community route**
+  or on a **run spot** (`run = ` names a *published* category - none yet),
+  one plain-text line is queued: "<runner> set a new PB on <spot>: 1:02.345
+  (0.512 faster than 1:02.857)" or "<runner> finished <spot>: ... (their
+  first run)", then the link `/spot/<id>/<route>?run=<run id>` (the spot
+  page focuses that run). Not posted: a runner's own practice spot (anyone
+  can make one - a spam path), a run under review (flagged), a re-upload of
+  a run already there, a slower run. Names are markdown-escaped and the
+  post sets `allowed_mentions: none` (no @everyone). Sending: a queue of
+  20, one post at a time 2 s apart, at most 30 an hour, one retry after a
+  429's retry-after; any failure is logged (`Discord webhook: ...`) and
+  dropped - an upload never waits for or fails on it.
+  `FOREST_SITE_URL` changes the link's address (default
+  https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
+  *PbNews_Decisions*.
+
 ## Item list (2026-10-02)
 
 `wwwroot/items.json`: the game's 231 items (`ItemDatabase` id + name) and
@@ -842,6 +896,11 @@ happens.
   the admin would close it.
 - No disk quota per runner beyond the rate limits (600 uploads / hour /
   address, 4 MB each, gzip-stored): watch `/var/lib/forest-site`'s size.
+
+2026-10-04: one new runner write, `DELETE /api/spots/<id>` - token-checked
+like uploads, owner-only, never another runner's runs, logged; the
+Discord webhook's URL is a secret in `.env` and its posts carry no
+mentions (*Spot categories, owners deleting spots, Discord PB posts*).
 
 Re-check after admin features: new endpoints go under the `admin` group
 (its filter checks the token), owner-only ones check `IsOwner`, and any

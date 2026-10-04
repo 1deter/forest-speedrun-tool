@@ -365,6 +365,54 @@ namespace ForestOverlay.Modules
             }
         }
 
+        // --- deleting the runner's own spot from the site (Practice's Share row) ------
+
+        private bool _deleting;
+        public bool Deleting { get { return _deleting; } }
+
+        /// Asks the site to remove `segment` - only its owner's token can
+        /// (the runner who first uploaded on it). Its queued uploads are
+        /// dropped first, or the next send would bring it straight back.
+        public void DeleteFromSite(Segment segment, Action<string> report)
+        {
+            if (_deleting) { report("A delete is on its way already."); return; }
+            if (string.IsNullOrEmpty(_token.Value)) { report("This install has never uploaded - none of its spots are on the website."); return; }
+            int dropped = DropPending(segment.Id);
+            _deleting = true;
+            report("Deleting '" + segment.Name + "' from " + HostName() + "...");
+            Ctx.Runner.StartCoroutine(SendDelete(segment, dropped, report));
+        }
+
+        private IEnumerator SendDelete(Segment segment, int dropped, Action<string> report)
+        {
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+            long code = 0; string body = null, error = null;
+            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("DELETE", SiteProtocol.DeleteSpotUrl(baseUrl, segment.Id), null,
+                null, _token.Value, RequestTimeout, delegate(long c, string b, string e) { code = c; body = b; error = e; }));
+            _deleting = false;
+            if (code == 401) _tokenBad = true;
+            string text = SiteProtocol.DeleteSpotMessage(code, body, error);
+            if (dropped > 0) text += " " + dropped + " queued upload file(s) of it were dropped.";
+            report(text);
+            Ctx.Log.LogInfo("Delete: '" + segment.Id + "' on " + baseUrl + " - " + (code == 0 ? error : "HTTP " + code) +
+                            (dropped > 0 ? ", " + dropped + " queued file(s) dropped" : "") + ": " + text);
+        }
+
+        /// Deletes the queued upload files of one segment; how many.
+        private int DropPending(string segmentId)
+        {
+            int n = 0;
+            try
+            {
+                if (!Directory.Exists(_pendingDir)) return 0;
+                string tail = "_" + Safe(segmentId) + SegmentBundle.Extension;
+                foreach (string path in Directory.GetFiles(_pendingDir, "*" + SegmentBundle.Extension))
+                    if (Path.GetFileName(path).EndsWith(tail, StringComparison.Ordinal)) { TryDelete(path); n++; }
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Delete: could not clear the upload queue of '" + segmentId + "': " + ex.Message); }
+            return n;
+        }
+
         // --- the Runs tab's section ---------------------------------------------------
 
         private readonly GUIContent _stateText = new GUIContent("");

@@ -22,6 +22,10 @@ namespace ForestOverlay.Data
     //                       a spot for the author to approve as a community
     //                       spot; a runner's second submit of the same spot
     //                       replaces the one still waiting
+    //   DELETE /api/spots/<id>  Bearer token -> {"runs":n}: the runner's own
+    //                       spot off the site (they first uploaded on it);
+    //                       403 not theirs / a community spot, 404 not on
+    //                       the site, 409 other runners have runs on it
     //   POST /api/attempts  {"attempt":"a-...","category":"...","spot":"..."},
     //                       Bearer -> {"nonce":"..."}: a run mode attempt
     //                       starts (docs/run-mode.md phase 2)
@@ -202,6 +206,30 @@ namespace ForestOverlay.Data
         public static string SpotUrl(string baseUrl, string segmentId)
         {
             return TrimUrl(baseUrl) + "/spot/" + Uri.EscapeDataString(segmentId ?? "");
+        }
+
+        /// DELETE here removes the runner's own spot (docs/website.md).
+        public static string DeleteSpotUrl(string baseUrl, string segmentId)
+        {
+            return TrimUrl(baseUrl) + "/api/spots/" + Uri.EscapeDataString(segmentId ?? "");
+        }
+
+        /// What the runner reads under "Delete from the website" after the
+        /// site's answer (`code` 0 = no answer; `body` the JSON).
+        public static string DeleteSpotMessage(long code, string body, string error)
+        {
+            string why = Field(body, "error");
+            if (code >= 200 && code < 300)
+            {
+                long runs = Number(body, "runs");
+                return "Deleted from the website" + (runs >= 0 ? " with " + runs + (runs == 1 ? " run" : " runs") : "") +
+                       ". It comes back with your next upload on it - finished runs upload by themselves while uploads are on (Runs tab).";
+            }
+            if (code == 401) return "The site does not know this install's token - nothing deleted.";
+            if (code == 404) return "Not on the website - nothing to delete.";
+            if (code == 403 || code == 409) return "Not deleted: " + (why ?? "HTTP " + code) + ".";
+            if (code == 429) return "Not deleted - too many requests just now. Try again in a while.";
+            return "Not deleted - the site is not reachable (" + (code == 0 ? error ?? "no answer" : "HTTP " + code) + "). Try again later.";
         }
 
         public static string TrimUrl(string url)
