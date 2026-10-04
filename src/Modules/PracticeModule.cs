@@ -70,6 +70,11 @@ namespace ForestOverlay.Modules
         /// can arm without this module knowing the timer exists.
         public Action OnPlacedAtSpot;
 
+        /// True during OnPlacedAtSpot when the placement ends a run spot's
+        /// run start (its start state restored): run mode times it whatever
+        /// practice mode says (Data/RunTiming).
+        public bool PlacingRunStart { get; private set; }
+
         /// Raised when a start-state restore begins, before the world
         /// changes: a run in progress is void from here (author, v0.24.11:
         /// the clock ran on through a load restore until it finished).
@@ -492,7 +497,9 @@ namespace ForestOverlay.Modules
                 {
                     // A restored state has set the cave state from its file;
                     // the terrain guess below can be wrong at a cave mouth.
-                    PlaceAt(s, error != null);
+                    PlacingRunStart = runStart && error == null;
+                    try { PlaceAt(s, error != null); }
+                    finally { PlacingRunStart = false; }
                     if (runStart) _runMode.SpotRunReady(s, error);
                     if (error == null) return;
 

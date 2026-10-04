@@ -38,6 +38,15 @@ namespace ForestOverlay.Modules
         /// or not one was wanted.
         public bool Enabled;
 
+        /// Who armed the run: F9, or a run spot's run start in run mode,
+        /// which times it whatever F9 says (Data/RunTiming).
+        private ArmSource _armSource = ArmSource.None;
+
+        /// The timer works: F9 on, or a run mode run while run mode is on.
+        /// Gates the triggers, the HUD's Run line, splits and results - not
+        /// what else F9 does (run lines, auto-restart, the practice revive).
+        private bool Timing { get { return RunTiming.TimingOn(Enabled, _armSource, Ctx.Run.Active); } }
+
         private readonly RunRecorder _recorder = new RunRecorder();
 
         // Inventory counts, recorded as changes (the website's state panel).
@@ -250,11 +259,21 @@ namespace ForestOverlay.Modules
             Enabled = !Enabled;
             if (_practiceModeCfg != null && _practiceModeCfg.Value != Enabled) _practiceModeCfg.Value = Enabled;
 
+            // A run mode run keeps its timer either way: F9 off would abort
+            // the run, F9 on re-arm it mid-run.
+            if (!RunTiming.ToggleTouchesRun(_armSource, Ctx.Run.Active))
+            {
+                _status = Enabled ? "practice mode on - this run is timed by run mode"
+                                  : "practice mode off - run mode still times this run";
+                return;
+            }
+
             if (!Enabled)
             {
                 RecordUnfinished("practice mode off");
                 _recorder.Abort();
                 _hasDelta = false;
+                _armSource = ArmSource.None;
                 ClearLines();
                 ClearRunPreview();
                 _status = "practice mode off";
@@ -268,7 +287,10 @@ namespace ForestOverlay.Modules
         /// Called when the player is placed at the current entry.
         private void OnPlacedAtSpot()
         {
-            if (!Enabled || _practice == null) return;
+            if (_practice == null) return;
+            // A run spot's run start is timed whatever F9 says (run mode).
+            ArmSource source = RunTiming.Source(Enabled, _practice.PlacingRunStart);
+            if (source == ArmSource.None) return;
 
             // Before _segment / _splits move on to the new entry.
             RecordUnfinished("placed at a spot");
@@ -276,6 +298,7 @@ namespace ForestOverlay.Modules
 
             if (s == null || !s.IsTimed)
             {
+                _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
                 // A plain spot is a teleport, not a run.
                 _segment = null;
                 _recorder.Abort();
@@ -287,8 +310,34 @@ namespace ForestOverlay.Modules
             }
 
             _segment = s;
+            _armSource = source;
+            if (source == ArmSource.RunMode && !Enabled)
+                Ctx.Log.LogInfo("Run '" + s.Id + "': timed by run mode (practice mode is off).");
             LoadAttemptsFor(s);
             ArmRun();
+        }
+
+        // Run mode ended under a run it timed: back to the runner's own F9
+        // state - with F9 off the timer stops, as F9 off would stop it.
+        private void RunModeEnded()
+        {
+            if (RunTiming.DropOnRunModeEnd(Enabled, _armSource))
+            {
+                if (_segment != null)
+                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': " +
+                                    (_recorder.State == RunRecorder.RunState.Running ? "aborted" : "disarmed") +
+                                    " - run mode ended, practice mode (F9) is off.");
+                _autoRestartAt = 0f;
+                KeepFailed();
+                RecordUnfinished("run mode ended");
+                _recorder.Abort();
+                _hasDelta = false;
+                _segment = null;
+                ClearLines();
+                ClearRunPreview();
+                _status = "run mode ended - practice mode (F9) is off";
+            }
+            _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
         }
 
         private void ArmRun()
@@ -386,10 +435,11 @@ namespace ForestOverlay.Modules
             }
 
             if (_segment != null && SceneManager.GetActiveScene().buildIndex != _armedScene) LeaveLevel();
+            if (_armSource == ArmSource.RunMode && !Ctx.Run.Active) RunModeEnded();
 
             // Events that arrive while nothing is armed are not ours to
             // act on later.
-            if (!Enabled) { ClearLines(); _eventsSeen = Ctx.Events.Count; return; }
+            if (!Timing) { ClearLines(); _eventsSeen = Ctx.Events.Count; return; }
 
             // No segment = a plain spot: the last segment's lines went with
             // it (runner report, v0.22.6: they stayed until practice mode was
@@ -656,6 +706,8 @@ namespace ForestOverlay.Modules
             _recorder.Abort();
             _hasDelta = false;
             _segment = null;
+            // A run mode run's timing went with it; the next run start arms again.
+            if (_armSource == ArmSource.RunMode) _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
             ClearLines();
             ClearRunPreview();
             _status = (running ? "run aborted - " + where : "left the level") + " - go to the spot again to run it";
@@ -851,7 +903,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
-            if (!Enabled) return;
+            if (!Timing) return;
 
             if (_segment == null)
             {
@@ -1066,7 +1118,7 @@ namespace ForestOverlay.Modules
         /// debug, so the state is on screen.
         private string Diagnose()
         {
-            if (!Enabled) return "practice mode is off";
+            if (!Timing) return "practice mode is off";
             if (!Ctx.Player.Found) return "player not found";
             if (_segment == null) return "no timed segment - Go to one in the Practice tab";
 

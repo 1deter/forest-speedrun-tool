@@ -104,6 +104,7 @@ advantage.
   the next starts after the load. Only a run spot's Restart is allowed in
   run mode; every other one stays locked. The title screen is a reset too
   (Restart from it works - v0.24.212's title load).
+- **A run spot's timer runs whatever F9 says** - its run start arms the timed segment (splits in the attempt log, the splits panel, the results panel) with practice mode off; the saved F9 setting is untouched, nothing else F9 gates turns on (run lines, auto-restart, the practice revive), F9 mid-run leaves the run alone, and End run mode goes back to the runner's own F9 state (`Data/RunTiming`).
 - **A game loaded any other way** (the menu, a new game) ends run mode.
 - **The fallback: Start run mode** (Runs tab) for a category with no run
   spot - the attempt starts in the game as it is; after a reset, the next

@@ -99,7 +99,7 @@ namespace ForestOverlay.Modules
             if (_resultsOpen) CloseResults();
         }
 
-        private bool ResultsShowing { get { return _resultsOpen && Enabled && _segment != null && _result != null; } }
+        private bool ResultsShowing { get { return _resultsOpen && Timing && _segment != null && _result != null; } }
 
         // --- built once, at the finish -------------------------------------------
 

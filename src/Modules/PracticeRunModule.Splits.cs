@@ -463,7 +463,7 @@ namespace ForestOverlay.Modules
 
         private bool PanelShowing
         {
-            get { return _splitsPanel != null && _splitsPanel.Value && Enabled && _segment != null && _shownRows > 0; }
+            get { return _splitsPanel != null && _splitsPanel.Value && Timing && _segment != null && _shownRows > 0; }
         }
 
         private void EnsureSplitStyles()
