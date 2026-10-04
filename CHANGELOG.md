@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.240 - 2026-10-04
+
+- Debug views: a trajectory preview (Experimental, practice) draws where you'll land, with flight time, landing speed and fall damage; in the pause menu during a knockback it shows the bomb boost you're building.
+- Experimental TAS (Runs tab): record your inputs from a spot's Restart and replay them frame by frame; the end says how far the replay drifted.
+
 ## v0.24.239 - 2026-10-04
 
 - Segments can split on more of the game: building, crafting, eating, kills, trees cut, bombs, sleeping, story moments, the endgame area, and getting on or off a zipline, sled, glider or cliff climb.
