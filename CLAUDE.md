@@ -633,7 +633,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.238** (2026-10-04). The author runs it via the in-game
+**Released: v0.24.241** (2026-10-04). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-04 overnight, unattended - author away)
@@ -646,20 +646,21 @@ CHANGELOG and releases in batches; only one agent drives the game at a time.
 **Confirmed over the bridge** (docs/confirmed.md): everything in
 v0.24.235-236 (polygon zones, zones all / next / off, run dates, abort at
 the title, HUD control, runner names, start state overwrite confirm,
-"When I die", weather in savestates). **Released, not yet checked in
-game:** v0.24.237 (run audit log + the site's timeline - the site deploys
-before a plugin that writes `event` lines; results panel; delete your own
-spot from the site + spot categories / folding groups + a Discord PB post
-that needs `FOREST_DISCORD_WEBHOOK` in the VPS `.env`, site/deploy/README),
-v0.24.238 (checkpoint savestates + Restart from checkpoint; run mode now
-times a run spot with F9 off - it never armed before). **Merged, not
-released:** more event checkpoints (`built-*`, `crafted-*`, `used-*`,
-kills, `tree-cut`, `slept`, rides, story, endgame area; one occurrence
-moves a run one checkpoint). **In progress:** EndgameLoader.Needed fix (a
-surface start state loaded the lab because `endgame_animPrefabs` lingers
-after a tp out) + bridge tp yaw, reload the slot in place on death (game),
-YouTube side-by-side (site), trajectory preview (Experimental), TAS input
-record / replay (Experimental).
+"When I die", weather in savestates). **Released, not yet checked in game** (a bridge check agent is running
+over these): v0.24.237 (run audit log + the site's timeline; results
+panel; delete your own spot from the site + spot categories / folding
+groups + a Discord PB post that needs `FOREST_DISCORD_WEBHOOK` in the VPS
+`.env`, site/deploy/README), v0.24.238 (checkpoint savestates + Restart
+from checkpoint; run mode times a run spot with F9 off - it never armed
+before), v0.24.239 (more event checkpoints: `built-*`, `crafted-*`,
+`used-*`, kills, `tree-cut`, `slept`, rides, story, endgame area - one
+occurrence moves a run one checkpoint; a surface start state no longer
+loads the lab - `Data/CapturedAreas`; bridge tp yaw turns the view),
+v0.24.240 (trajectory preview, TAS record / replay `TasModule` =
+`_modules[18]`, both Experimental), v0.24.241 (Reload the save in place
+on death, ~1 s vs 6-10). Site only: `/compare` (maks's YouTube
+side-by-side, nothing stored server-side). **In progress:** replays with
+buildings as schematics + interaction markers, the site security audit.
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
