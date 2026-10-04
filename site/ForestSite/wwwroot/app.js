@@ -418,7 +418,9 @@ async function spotPage(id, routeId) {
     const st = data.state, s = st && sampleAt(st.samples, state.time);
     const pos = RunMap.at(data.path || [], state.time);
     const bagKey = data.items && data.items.length ? data.items.filter(c => c[0] <= state.time).length : 0;
-    const key = run.id + "|" + state.showAll + "|" + (s ? s[0] : "") + "|" + !!pos + "|" + bagKey;
+    // What the run did so far (plugin replays: [t, kind, label, x, y, z]).
+    const doneKey = data.events && data.events.length ? data.events.filter(e => e[0] <= state.time).length : 0;
+    const key = run.id + "|" + state.showAll + "|" + (s ? s[0] : "") + "|" + !!pos + "|" + bagKey + "|" + doneKey;
     if (key === stateKey && stateLive) {
       const clockText = "State · " + (run.name || run.runner) + " at " + time(state.time);
       if (stateLive.title.textContent !== clockText) stateLive.title.textContent = clockText;
@@ -453,6 +455,8 @@ async function spotPage(id, routeId) {
       for (const e of bagAt(data.items, state.time))
         bag.push(el("div", { class: "stat" + (e.n > 0 ? "" : " zero") },
           el("span", { class: "k" }, itemLabel(e.name)), el("span", { class: "v" }, e.n)));
+    const done = doneKey ? data.events.slice(Math.max(0, doneKey - 5), doneKey).reverse().map(e =>
+      el("div", { class: "stat" }, el("span", { class: "k" }, time(e[0])), el("span", { class: "v" }, e[2]))) : [];
     const more = st || state.showAll ? el("button", { class: "linkbtn", onclick: () => { state.showAll = !state.showAll; renderState(); } },
       state.showAll ? "Show fewer" : "Show all") : null;
     const title = el("h2", null, "State · " + (run.name || run.runner) + " at " + time(state.time));
@@ -462,6 +466,8 @@ async function spotPage(id, routeId) {
       el("div", { class: state.showAll ? "stats all" : "stats" }, items),
       bag.length ? el("h3", { class: "bagtitle" }, "Carrying") : null,
       bag.length ? el("div", { class: state.showAll ? "stats all" : "stats bag" }, bag) : null,
+      done.length ? el("h3", { class: "bagtitle" }, "Last done") : null,
+      done.length ? el("div", { class: "stats all" }, done) : null,
       s ? null : el("p", { class: "empty" }, data.failed ? "Could not load this run." : "This run has no player state recorded.")].filter(Boolean));
   }
 

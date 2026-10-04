@@ -62,6 +62,9 @@ public sealed class ApiTests : IDisposable
             a.States.Add(new StateSample { T = duration * i / 4, Values = new float[] { 70, 100 - 10 * i, 100, 12345, i / 2 } });
         a.Items.Add(new ItemChange { T = 0, Name = "Soda", Count = 3 });
         a.Items.Add(new ItemChange { T = duration / 2, Name = "Soda", Count = 2 });
+        a.Events.Add(new RunEvent { T = 1, Kind = RunAudit.Crafted, Detail = "Bomb", P = new Vector3(0, 0, 4) });
+        a.Buildings.Add(new RunBuilding { T = 2, State = RunBuilding.Placed, Kind = "LogCabin", P = new Vector3(1, 2, 3),
+                                          Euler = new Vector3(0, 90, 0), Size = new Vector3(7, 5, 7) });
         return AttemptFormat.Write(a);
     }
 
@@ -212,6 +215,10 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(2, run["items"].AsArray().Count);
         Assert.Equal("Soda", run["items"][1][1].GetValue<string>());
         Assert.Equal(2, run["items"][1][2].GetValue<int>());
+        Assert.Equal("Crafted: Bomb", run["events"][0][2].GetValue<string>());
+        Assert.Equal(4.0, run["events"][0][5].GetValue<double>());
+        Assert.Equal("LogCabin", run["buildings"][0][2].GetValue<string>());
+        Assert.Equal(90.0, run["buildings"][0][6].GetValue<double>());
         var every = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + id + "?all=1");
         Assert.Equal(5, every["state"]["channels"].AsArray().Count);
 
