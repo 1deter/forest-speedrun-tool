@@ -66,6 +66,10 @@ namespace ForestOverlay.Modules
         private int _finishSeen;
         private bool _t0Set;
         private float _t0;
+        // Set when the run finishes: the frame it finished on is committed
+        // at its end, then the recording is saved (the replay must hold the
+        // finishing frame's input too).
+        private string _stopAfterFrame;
 
         // replay
         private TasRecording _playRec;
@@ -201,6 +205,7 @@ namespace ForestOverlay.Modules
 
             InputInject.SeenNames(_seenB, _seenA);
             TasInput.StartRecording(rec, _seenB, _seenA);
+            _stopAfterFrame = null;
             _pending = Pending.None;
             _manual = manual;
             _t0Set = false;
@@ -422,7 +427,10 @@ namespace ForestOverlay.Modules
             {
                 TasRecording rec = TasInput.Recording;
                 if (_runs != null && _runs.FinishedRuns != _finishSeen)
-                    StopRecording(true, "run finished in " + PracticeRunModule.Format(_runs.LastFinishSeconds));
+                {
+                    _finishSeen = _runs.FinishedRuns;
+                    _stopAfterFrame = "run finished in " + PracticeRunModule.Format(_runs.LastFinishSeconds);
+                }
                 else if (rec != null && rec.Frames >= MaxFrames)
                     StopRecording(true, "stopped at the " + MaxFrames + "-frame cap");
             }
@@ -505,6 +513,12 @@ namespace ForestOverlay.Modules
                 float t = Time.time - _t0;
                 rec.Seconds = t;
                 if (rec.SampleDue(t)) rec.AddSample(SampleNow(i, t));
+                if (_stopAfterFrame != null)
+                {
+                    string note = _stopAfterFrame;
+                    _stopAfterFrame = null;
+                    StopRecording(true, note);
+                }
                 return;
             }
 
