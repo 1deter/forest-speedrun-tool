@@ -215,7 +215,8 @@ namespace ForestOverlay.Modules
             if (_attemptBusy || !AttemptsOn || Time.unscaledTime < _nextAttemptTry) return;
             _nextAttemptTry = Time.unscaledTime + 5f;
             string next = OldestAttempt();
-            if (next == null) return;
+            // Empty: again in a minute (QueueAttemptLog sets it back to 0).
+            if (next == null) { _nextAttemptTry = Time.unscaledTime + EmptyQueueRecheck; return; }
             _attemptBusy = true;
             Ctx.Runner.StartCoroutine(PumpAttempt(next));
         }

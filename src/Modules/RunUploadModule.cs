@@ -123,6 +123,7 @@ namespace ForestOverlay.Modules
                 string name = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + "_" + (_seq++).ToString("000") + "_" +
                               Safe(segment.Id) + SegmentBundle.Extension;
                 File.WriteAllText(Path.Combine(_pendingDir, name), b.Write(), new UTF8Encoding(false));
+                _nextTry = 0f;
             }
             catch (Exception ex)
             {
@@ -132,13 +133,18 @@ namespace ForestOverlay.Modules
 
         // --- sending ------------------------------------------------------------
 
+        private const float EmptyQueueRecheck = 60f;
+
         public override void Tick()
         {
             TickAttempts();
             if (_busy || !_enabled.Value || _tokenBad || Time.unscaledTime < _nextTry) return;
             _nextTry = Time.unscaledTime + 5f;
             string next = Oldest();
-            if (next == null) return;
+            // An empty queue is listed again in a minute, not every 5 s (a
+            // folder listing is garbage): every file written here sets
+            // _nextTry back to 0, so a new run still goes at once.
+            if (next == null) { _nextTry = Time.unscaledTime + EmptyQueueRecheck; return; }
             _busy = true;
             Ctx.Runner.StartCoroutine(Pump(next));
         }
