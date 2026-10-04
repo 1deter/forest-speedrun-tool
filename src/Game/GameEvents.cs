@@ -130,6 +130,7 @@ namespace ForestOverlay.Game
         private static readonly Dictionary<string, int> ByMethod = new Dictionary<string, int>();
         private static readonly List<string> Names = new List<string>();
         private static readonly List<string> Stamps = new List<string>();
+        private static readonly List<string> Details = new List<string>();
         private static ManualLogSource _log;
 
         private static string _pendingEvent;
@@ -187,6 +188,10 @@ namespace ForestOverlay.Game
 
         /// Wall-clock time of an event, "HH:mm:ss", for the UI.
         public string StampAt(int i) { return Stamps[i]; }
+
+        /// What the event was about (a door, a cave id, a clothing name), or
+        /// null - for the run audit log (Modules/RunModeModule.Audit).
+        public string DetailAt(int i) { return Details[i]; }
 
         /// The door behind the last keypad event, for the Runs tab.
         public static string LastDoor { get; private set; }
@@ -440,6 +445,7 @@ namespace ForestOverlay.Game
         {
             Names.Add(evt);
             Stamps.Add(DateTime.Now.ToString("HH:mm:ss"));
+            Details.Add(detail);
             if (log && _log != null)
                 _log.LogInfo("Game event: " + evt + (detail != null ? " (" + detail + ")" : "") +
                              " frame " + Time.frameCount);
@@ -449,6 +455,7 @@ namespace ForestOverlay.Game
         {
             Names.Add(evt);
             Stamps.Add(DateTime.Now.ToString("HH:mm:ss"));
+            Details.Add(detail);
             if (_log != null)
                 _log.LogInfo("Game event: " + evt + (detail != null ? " (" + detail + ")" : "") +
                              " frame " + Time.frameCount);

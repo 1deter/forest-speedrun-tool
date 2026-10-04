@@ -178,6 +178,44 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void Events_ReadWithTheChain_NeverChangeTheVerdict()
+    {
+        var c = new AttemptChain();
+        c.Header(Id, Runner, "Runner", "test", "Any%", "-", "-", "seed", DateTime.UtcNow);
+        c.Nonce(100, "n1");
+        c.Step(1000, -1, true, 0, 0, 0);
+        c.Event(1200, 50, "cave-enter", true, 1, 2, 3, "Cave 6 - Lawyer Cave");
+        c.Event(1300, 150, RunAudit.Death, true, 1, 2, 3, "died - Reload save on death loads the save");
+        c.Event(1400, 250, RunAudit.Items, false, 0, 0, 0, "+3 Stick");
+        c.Event(1500, 350, "brand-new-kind", false, 0, 0, 0, "from a newer plugin");
+        c.Step(2000, 800, true, 1, 1, 1);
+        c.End(2100, "reset", -1);
+        var r = AttemptChain.Read(c.Text);
+        Assert.Null(r.Error);
+        Assert.Equal(4, r.Events.Count);
+        var (v, why) = Attempts.Judge(r, "n1", Issued, new List<Attempts.Cp>(), Issued + 2100);
+        Assert.Equal("green", v);
+        Assert.DoesNotContain(why, w => w.Contains("Cave") || w.Contains("died"));
+
+        var notes = Attempts.EventNotes(r.Events);
+        Assert.Equal("Cave entered", notes[0].Label);
+        Assert.Equal("caves", notes[0].Group);
+        Assert.Equal(50, notes[0].TimerMs);
+        Assert.True(notes[0].HasPos);
+        Assert.Equal("brand-new-kind", notes[3].Label);   // an unknown kind still shows
+        Assert.Equal("world", notes[3].Group);
+        var groups = Attempts.EventGroups(notes);
+        Assert.Equal(new[] { "caves", "items", "deaths", "world" }, groups.Select(g => g.Id).ToArray());
+        Assert.All(groups, g => Assert.Equal(1, g.Count));
+        Assert.Equal("1 death", RunAudit.Rundown(r.Events)[0]);
+
+        // An edited event breaks the chain from there on.
+        var edited = AttemptChain.Read(c.Text.Replace("Cave 6 - Lawyer Cave", "Cave 1 - Dead Cave"));
+        Assert.Null(edited.Error);
+        Assert.NotEqual(r.Step(2).Head, edited.Step(2).Head);
+    }
+
+    [Fact]
     public void MoveNotes_NameTheBannedMoveTheyMayBe()
     {
         var cat = RunCategory.Parse("[category]\nid = any\nname = Any%\nbanned = No log boosting\nbanned = The Explosives glitch\n").Single();
@@ -402,6 +440,7 @@ public sealed class AttemptTests : IDisposable
 
         c.Step(3000, 1100, true, 1, 2, 5);
         c.Move(3050, "bomb-boost", true, 772.5f, 40f, 0f, "game time stopped 1.00 s");
+        c.Event(3060, 1110, "cave-enter", true, 10f, -20f, 30f, "Cave 1 - Dead Cave");
         c.End(3100, "finished", 1150);
         string log = c.Text + AttemptChain.ReportMarker + "\n" + Report();
         var up = await Post(token, "/api/attempts/" + Id + "/log", new StringContent(log, Encoding.UTF8, "text/plain"));
@@ -425,6 +464,14 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("Bomb boost", mv["label"].GetValue<string>());
         Assert.Equal(3050, mv["realMs"].GetValue<long>());
         Assert.Equal(772.5, mv["pos"][0].GetValue<double>(), 3);
+        // The audit log: the rundown and the timeline, never judged.
+        var ev = Assert.Single(view["events"].AsArray());
+        Assert.Equal("Cave entered", ev["label"].GetValue<string>());
+        Assert.Equal("caves", ev["group"].GetValue<string>());
+        Assert.Equal(1110, ev["timerMs"].GetValue<long>());
+        Assert.Equal(-20, ev["pos"][1].GetValue<double>(), 3);
+        Assert.Equal("1 cave entry: Cave 1 - Dead Cave", Assert.Single(view["rundown"].AsArray()).GetValue<string>());
+        Assert.Equal("caves", Assert.Single(view["eventGroups"].AsArray())["id"].GetValue<string>());
         Assert.All(view["findings"].AsArray(), f => Assert.Equal("ok", f["level"].GetValue<string>()));
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());

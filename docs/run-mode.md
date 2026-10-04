@@ -121,7 +121,9 @@ text, one record a line - a header (attempt id `a-<16 hex>`, runner,
 plugin, category, spot + start-state hash, a local random seed, the PC's
 start time), then a `step` a second (real ms since the start, the timer's
 ms, the player's position in whole cm), `nonce`, `split`, `flag` (run
-mode's flags as they happen) and `end` (reason, final timer). Every line
+mode's flags as they happen), `move` (detected moves), `event` (the run
+audit log - docs/run-audit-and-replays.md part 1) and `end` (reason,
+final timer). Every line
 before `[report]` is folded into a SHA-256 chain (head = SHA256(head +
 line)); the run report follows unfolded (it is the plugin's own claim).
 The **code** is the first 20 bits of the head after each step, as four

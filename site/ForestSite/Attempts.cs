@@ -202,7 +202,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         }
         string verdict = "running";
         string[] why = Lines(row.Why);
-        object findings = null, recording = null, category = null, moves = null;
+        object findings = null, recording = null, category = null, moves = null, events = null, eventGroups = null;
+        List<string> rundown = null;
         if (row.LogMs != null)
         {
             var allowed = Allowed();
@@ -214,6 +215,16 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                 kind = m.Kind, label = m.Label, realMs = m.RealMs, detail = m.Detail,
                 pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
             }).ToList();
+            // The audit log (run mode attempts since the audit log; none in
+            // older logs): the rundown first, the timeline behind it.
+            var notes = EventNotes(replay.Events);
+            events = notes.Select(e => new
+            {
+                kind = e.Kind, label = e.Label, group = e.Group, realMs = e.RealMs, timerMs = e.TimerMs, detail = e.Detail,
+                pos = e.HasPos ? new[] { e.X, e.Y, e.Z } : null,
+            }).ToList();
+            eventGroups = EventGroups(notes).Select(g => new { id = g.Id, label = g.Label, count = g.Count }).ToList();
+            rundown = RunAudit.Rundown(replay.Events);
             var (v, all) = Overall(row.Verdict, why, report, allowed, cat);
             var (_, list) = JudgeReport(report, allowed, null, cat);
             verdict = v;
@@ -226,7 +237,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             id, runner = row.Runner, runnerName = name, category = row.Category, spot = row.Spot, plugin, started, startedAt, mode,
             online = row.Nonce != null, issued = Iso(row.IssuedMs), received = Iso(row.LogMs), checkpoints = cps.Count,
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
-            steps = row.Steps, flags, verdict, why, recording, findings, rules = category, moves,
+            steps = row.Steps, flags, verdict, why, recording, findings, rules = category, moves, rundown, events, eventGroups,
             report = ShownReport(report),
         };
     }
@@ -268,6 +279,34 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             list.Add(new MoveNote(m.Kind, label, m.RealMs, m.Detail, m.HasPos, m.X, m.Y, m.Z, banned));
         }
         return list;
+    }
+
+    // --- the audit log (pure, tested) -----------------------------------------------
+
+    /// One `event` line for the attempt page's timeline (src/Data/RunAudit).
+    public sealed record EventNote(string Kind, string Label, string Group, long RealMs, long TimerMs, string Detail,
+                                   bool HasPos, double X, double Y, double Z);
+
+    /// A filter on the timeline: a group of kinds and how many lines it has.
+    public sealed record EventGroup(string Id, string Label, int Count);
+
+    /// The events in plain words with their group, in log order. Never part
+    /// of the verdict: like a move, an event is what the game saw.
+    public static List<EventNote> EventNotes(IEnumerable<AttemptChain.EventInfo> events)
+    {
+        var list = new List<EventNote>();
+        if (events == null) return list;
+        foreach (var e in events)
+            list.Add(new EventNote(e.Kind, RunAudit.Label(e.Kind), RunAudit.Group(e.Kind), e.RealMs, e.TimerMs, e.Detail,
+                                   e.HasPos, e.X, e.Y, e.Z));
+        return list;
+    }
+
+    /// The groups present, in RunAudit's order (the page's filter chips).
+    public static List<EventGroup> EventGroups(IEnumerable<EventNote> notes)
+    {
+        var counts = notes.GroupBy(n => n.Group).ToDictionary(g => g.Key, g => g.Count());
+        return RunAudit.Groups.Where(counts.ContainsKey).Select(g => new EventGroup(g, RunAudit.GroupLabel(g), counts[g])).ToList();
     }
 
     // --- what ran: the report's findings (pure, tested) ----------------------------

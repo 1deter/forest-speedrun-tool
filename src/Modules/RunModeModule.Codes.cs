@@ -204,6 +204,7 @@ namespace ForestOverlay.Modules
         public override void Shutdown()
         {
             MoveWatch.Uninstall();
+            AuditWatch.Uninstall();
             if (!_attemptOpen) return;
             try { EndAttempt("the game closed", "game closed"); }
             catch (Exception ex) { Ctx.Log.LogWarning("Run mode: attempt not closed on shutdown: " + ex.Message); }

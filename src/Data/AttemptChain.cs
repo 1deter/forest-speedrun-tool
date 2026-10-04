@@ -40,6 +40,9 @@ namespace ForestOverlay.Data
     //   flag|<real ms>|<why the attempt is not valid>
     //   move|<real ms>|<kind>|<x cm>|<y cm>|<z cm>|<what happened>   a move the
     //                               game saw (Data/MoveDetector): evidence, not a flag
+    //   event|<real ms>|<timer ms or ->|<kind>|<x cm>|<y cm>|<z cm>|<what happened>
+    //                               the run's audit log (Data/RunAudit): a cave
+    //                               entered, items picked up, a death... never a flag
     //   end|<real ms>|<reason>|<final timer ms or ->
     //   [report]                    the run report, not folded (a claim)
     // ------------------------------------------------------------------
@@ -133,6 +136,16 @@ namespace ForestOverlay.Data
         {
             LastMs = realMs;
             Add("move|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + Dash(kind) + "|" +
+                (hasPos ? Cm(x) + "|" + Cm(y) + "|" + Cm(z) : "-|-|-") + "|" + Clean(detail));
+        }
+
+        /// Something that happened in the run (Data/RunAudit kinds) - the
+        /// audit log the attempt page's timeline shows. Like a move, never a
+        /// reason the attempt is not valid.
+        public void Event(long realMs, long timerMs, string kind, bool hasPos, float x, float y, float z, string detail)
+        {
+            LastMs = realMs;
+            Add("event|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + Ms(timerMs) + "|" + Dash(kind) + "|" +
                 (hasPos ? Cm(x) + "|" + Cm(y) + "|" + Cm(z) : "-|-|-") + "|" + Clean(detail));
         }
 
@@ -247,6 +260,16 @@ namespace ForestOverlay.Data
             public string Detail;
         }
 
+        public sealed class EventInfo
+        {
+            public long RealMs;
+            public long TimerMs;     // -1 = no timer
+            public string Kind;
+            public bool HasPos;
+            public double X, Y, Z;   // metres
+            public string Detail;
+        }
+
         public sealed class Replay
         {
             public string Error;    // null = the log reads
@@ -268,6 +291,10 @@ namespace ForestOverlay.Data
 
             /// Moves the game saw (`move` lines), in order.
             public readonly List<MoveInfo> Moves = new List<MoveInfo>();
+
+            /// The audit log (`event` lines), in order. None in a log from
+            /// before the audit log - it still reads.
+            public readonly List<EventInfo> Events = new List<EventInfo>();
 
             /// Real time the log covers: its last record.
             public long LastMs;
@@ -360,6 +387,21 @@ namespace ForestOverlay.Data
                             mv.HasPos = p[3] != "-" && p[4] != "-" && p[5] != "-";
                             if (mv.HasPos) { mv.X = Metres(p[3]); mv.Y = Metres(p[4]); mv.Z = Metres(p[5]); }
                             r.Moves.Add(mv);
+                            break;
+                        }
+                        case "event":
+                        {
+                            long timer;
+                            if (p.Length != 8 || !Long(p[1], out ms) || !OptLong(p[2], out timer) || p[3].Length == 0 ||
+                                !Pos(p[4]) || !Pos(p[5]) || !Pos(p[6]))
+                            { r.Error = "bad event line at line " + (i + 1); return r; }
+                            if (ms < last) { r.Error = "time goes backwards at an event (line " + (i + 1) + ")"; return r; }
+                            last = ms;
+                            EventInfo ev = new EventInfo();
+                            ev.RealMs = ms; ev.TimerMs = timer; ev.Kind = p[3]; ev.Detail = p[7];
+                            ev.HasPos = p[4] != "-" && p[5] != "-" && p[6] != "-";
+                            if (ev.HasPos) { ev.X = Metres(p[4]); ev.Y = Metres(p[5]); ev.Z = Metres(p[6]); }
+                            r.Events.Add(ev);
                             break;
                         }
                         case "end":
