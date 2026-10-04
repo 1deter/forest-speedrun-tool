@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.241 - 2026-10-04
+
+- Deaths tab: "Reload the save: in place (fast)" brings your save back in about a second instead of 6-10, without a load screen. It marks practice and is never used in run mode; across the vault door it uses the game's own load.
+
 ## v0.24.240 - 2026-10-04
 
 - Debug views: a trajectory preview (Experimental, practice) draws where you'll land, with flight time, landing speed and fall damage; in the pause menu during a knockback it shows the bomb boost you're building.
