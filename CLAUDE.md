@@ -636,7 +636,24 @@ identity.
 **Released: v0.24.234** (2026-10-03). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
-### Pick up here (2026-10-03, v0.24.234 released)
+### Pick up here (2026-10-04 overnight, unattended - author away)
+
+**Overnight session (2026-10-04)**: the author left the session running
+("get all the features baked in"), then the PC shuts down. Method: one
+subagent per feature in its own worktree (`.claude/worktrees/`, now kept
+out of the plugin's compile globs), the main session merges, bumps,
+writes CHANGELOG and releases in batches. Batch 1 (code only, in
+progress): polygon zones (*Next up* 7), Deaths "When I die" selector,
+runs (zones shown all / next / off, abort at the menu, dates), runner
+names on shared attempts + confirm before a start state is overwritten,
+site (spot categories / groups, owner delete, PB webhook), HUD per-line
+control, run audit log (`event` lines + site timeline). Then: a release,
+in-game checks over the bridge, and batch 2 (weather in savestates,
+reload the slot in place on death, more event checkpoints, checkpoint
+savestates). A session picking this up mid-way: `git worktree list` /
+branches `worktree-*` show unmerged work.
+
+### Before that (2026-10-03, v0.24.234 released)
 
 **Latest session: three cards - `categories-and-rules`, `routes`,
 `crafting-and-building`** (no plugin code, no release). speedrun.com's API
