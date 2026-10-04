@@ -22,6 +22,7 @@ namespace ForestOverlay.Game
         private const float PollInterval = 0.2f;
 
         private FieldInfo _flag;
+        private Func<bool> _flagGet;
         private bool _resolved;
         private bool _last = true;
         private float _nextPoll;
@@ -44,11 +45,12 @@ namespace ForestOverlay.Game
                 _resolved = true;
                 Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
                 if (scene != null) _flag = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                _flagGet = FastField.Static<bool>(_flag);
             }
             if (_flag == null) return false;
 
             bool now;
-            try { now = (bool)_flag.GetValue(null); }
+            try { now = _flagGet(); }
             catch (Exception) { return false; }
 
             bool finished = false;

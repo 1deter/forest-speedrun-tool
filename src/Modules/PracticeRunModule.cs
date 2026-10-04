@@ -983,7 +983,8 @@ namespace ForestOverlay.Modules
 
             if (_recorder.State == RunRecorder.RunState.Armed)
             {
-                hud.Pair("Run", "armed - " + _segment.Name);
+                if (!ReferenceEquals(_hudArmedFor, _segment.Name)) { _hudArmedFor = _segment.Name; _hudArmed = "armed - " + _segment.Name; }
+                hud.Pair("Run", _hudArmed);
             }
             else if (_recorder.State == RunRecorder.RunState.Running)
             {
@@ -991,19 +992,51 @@ namespace ForestOverlay.Modules
                                 (_hasDelta ? "   " + SignedDelta(_delta) : "") +
                                 (Resumed ? "   (from checkpoint " + (_resumedFrom + 1) + ")" : ""));
 
-                hud.Pair("Next", !_sequence.OnlyEndLeft
-                    ? "checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count
-                    : "finish");
+                if (_sequence.OnlyEndLeft) hud.Pair("Next", "finish");
+                else
+                {
+                    int next = _sequence.Next, of = _segment.Checkpoints.Count;
+                    if (next != _hudNextAt || of != _hudNextOf || _hudNext == null)
+                    {
+                        _hudNextAt = next;
+                        _hudNextOf = of;
+                        _hudNext = "checkpoint " + (next + 1) + "/" + of;
+                    }
+                    hud.Pair("Next", _hudNext);
+                }
                 // The previous time stays in view while the next one runs
                 // (runners: the HUD showed only the current one).
-                if (_attempts.Count > 0) hud.Pair("Last", Format(_attempts[_attempts.Count - 1].Duration));
+                if (_attempts.Count > 0) hud.Pair("Last", HudLast());
             }
             else
             {
                 Attempt best = RunCompare.Best(_attempts);
-                hud.Pair("Run", AttemptsText() + (best != null ? "   best " + Format(best.Duration) : ""));
-                if (_attempts.Count > 0) hud.Pair("Last", Format(_attempts[_attempts.Count - 1].Duration));
+                int started = Mathf.Max(_started, _attempts.Count);
+                float bestTime = best != null ? best.Duration : float.NaN;
+                if (_hudIdle == null || started != _hudIdleStarted || _attempts.Count != _hudIdleCount ||
+                    !(bestTime == _hudIdleBest || (float.IsNaN(bestTime) && float.IsNaN(_hudIdleBest))))
+                {
+                    _hudIdleStarted = started;
+                    _hudIdleCount = _attempts.Count;
+                    _hudIdleBest = bestTime;
+                    _hudIdle = AttemptsText() + (best != null ? "   best " + Format(best.Duration) : "");
+                }
+                hud.Pair("Run", _hudIdle);
+                if (_attempts.Count > 0) hud.Pair("Last", HudLast());
             }
+        }
+
+        // The HUD's texts that only change with the run's state, kept until
+        // they do (the HUD refreshes ten times a second).
+        private string _hudArmedFor, _hudArmed, _hudNext, _hudIdle, _hudLast;
+        private int _hudNextAt = -1, _hudNextOf = -1, _hudIdleStarted, _hudIdleCount;
+        private float _hudIdleBest, _hudLastFor = float.NaN;
+
+        private string HudLast()
+        {
+            float d = _attempts[_attempts.Count - 1].Duration;
+            if (_hudLast == null || d != _hudLastFor) { _hudLastFor = d; _hudLast = Format(d); }
+            return _hudLast;
         }
 
         // ------------------------------------------------------------------
@@ -1106,9 +1139,14 @@ namespace ForestOverlay.Modules
         private void RefreshTabText()
         {
             if (_rowsDirty) RebuildAttemptRows();
-            if (_upload != null) _upload.RefreshText();
+            // The rest is drawn by the Runs tab only: not built behind a
+            // closed window (the upload line listed a folder twice a
+            // second), and at once when the tab opens.
+            bool showing = TabShowing;
+            if (_upload != null && showing) _upload.RefreshText();
             // At once: it answers a click.
             if (!ReferenceEquals(_statusText.text, _status)) _statusText.text = _status;
+            if (!showing) { _nextTabText = 0f; return; }
             if (Time.unscaledTime < _nextTabText) return;
             _nextTabText = Time.unscaledTime + TabTextInterval;
 
@@ -1118,7 +1156,7 @@ namespace ForestOverlay.Modules
             _eventText.text = _eventLine;
             RefreshReplayText();
             // "today" / "yesterday" move on at midnight.
-            if (TabShowing && _attempts.Count > 0 && System.DateTime.Now.Date != _rowsDay) _rowsDirty = true;
+            if (_attempts.Count > 0 && System.DateTime.Now.Date != _rowsDay) _rowsDirty = true;
 
         }
 

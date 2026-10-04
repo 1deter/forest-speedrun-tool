@@ -28,6 +28,7 @@ namespace ForestOverlay.Game
         private static FieldInfo _animControl;    // static LocalPlayer.AnimControl
         private static FieldInfo _specialActions; // static LocalPlayer.SpecialActions (GameObject)
         private static FieldInfo _onRope;         // playerAnimatorControl.onRope
+        private static Func<object, bool> _onRopeGet;   // the same, read without boxing (every frame)
         private static MethodInfo _exit;          // playerAnimatorControl.exitClimbMode()
         private static Type _ropeAction;          // PlayerClimbRopeAction
         private static FieldInfo _ropeRoot;       // PlayerClimbRopeAction._currentRopeRoot
@@ -94,7 +95,7 @@ namespace ForestOverlay.Game
         {
             if (!Resolve()) return false;
             object anim = _animControl.GetValue(null) as UnityEngine.Object;
-            return anim != null && (bool)_onRope.GetValue(anim);
+            return anim != null && _onRopeGet(anim);
         }
 
         private static Component Action()
@@ -129,6 +130,7 @@ namespace ForestOverlay.Game
             MethodInfo enter = _ropeAction.GetMethod("enterClimbRopeTop", inst, null, new[] { typeof(Transform) }, null);
             if (_animControl == null || _specialActions == null || _onRope == null || _exit == null || _ropeRoot == null)
                 return false;
+            _onRopeGet = FastField.Instance<bool>(_onRope);
             _enterTop = enter;
             return _enterTop != null;
         }

@@ -118,6 +118,12 @@ namespace ForestOverlay.Modules
             if (_pendingName != null) { _runnerName.Value = _pendingName; _pendingName = null; }
         }
         private readonly GUIContent _splitsHint = new GUIContent("");
+        // The table's texts by what they were made from (RefreshSplits).
+        private readonly TextMemo _cellText = new TextMemo();
+        private readonly TextMemo _lineText = new TextMemo();
+        private string _titleFor, _titleVs, _previousFor;
+        private bool _previousLive;
+        private int _attemptsLineStarted = -1, _attemptsLineCount = -1;
         private int _shownRows;
         private bool _splitsOptionsOpen;
 
@@ -413,12 +419,19 @@ namespace ForestOverlay.Modules
             {
                 _shownRows = 0;
                 _compareTitle.text = "";
+                _titleFor = null;   // set again when the table comes back
                 _splitsHint.text = _segment == null ? "" : "Splits appear once the segment is armed.";
                 return;
             }
 
             _summary = SplitTable.Fill(_stats, compare, _times, running, _recorder.Elapsed, _rowsData);
-            _compareTitle.text = _segment.Name + "  -  vs " + ComparisonName();
+            string compareName = ComparisonName();
+            if (!ReferenceEquals(_segment.Name, _titleFor) || !string.Equals(compareName, _titleVs))
+            {
+                _titleFor = _segment.Name;
+                _titleVs = compareName;
+                _compareTitle.text = _segment.Name + "  -  vs " + compareName;
+            }
             _splitsHint.text = _stats.Completed == 0 ? "No finished attempts yet: the columns fill in as you run it."
                              : _stats.WithSplits == 0 && rows > 1 ? "Your earlier times were recorded before split times were saved - only their totals show."
                              : "";
@@ -427,38 +440,53 @@ namespace ForestOverlay.Modules
             while (_rowNames.Count < rows) _rowNames.Add(new GUIContent(""));
             while (_cells.Count < rows * ColCount) _cells.Add(new GUIContent(""));
 
+            // While a run is on this is ten times a second: each cell's text
+            // comes from the memo, formatted only when its value moved.
             for (int r = 0; r < rows; r++)
             {
                 SplitRow d = _rowsData[r];
-                _rowNames[r].text = _segment.SplitName(r);
+                string rowName = _segment.SplitName(r);
+                if (!string.Equals(_rowNames[r].text, rowName)) _rowNames[r].text = rowName;
                 _rowColours[r] = d.Colour;
                 _rowCurrent[r] = d.Current;
                 bool reached = !float.IsNaN(d.Time);
                 // A row not reached shows the comparison's time in its split
                 // and segment columns, as LiveSplit does.
                 int td = _timeDecimals.Value, dd = _deltaDecimals.Value;
-                _cells[r * ColCount + (int)Col.Delta].text = SplitTable.Delta(d.Delta, dd);
-                _cells[r * ColCount + (int)Col.SplitTime].text = SplitTable.Time(reached ? d.Time : d.Compare, td);
-                _cells[r * ColCount + (int)Col.SegmentTime].text = SplitTable.Time(reached ? d.Segment : d.CompareSegment, td);
-                _cells[r * ColCount + (int)Col.SegmentDelta].text = SplitTable.Delta(d.SegmentDelta, dd);
-                _cells[r * ColCount + (int)Col.BestSegment].text = SplitTable.Time(d.BestSegment, td);
-                _cells[r * ColCount + (int)Col.TimeSave].text = float.IsNaN(d.TimeSave) ? "" : SplitTable.Time(d.TimeSave, td);
+                int c0 = r * ColCount;
+                _cells[c0 + (int)Col.Delta].text = _cellText.Delta(c0 + (int)Col.Delta, d.Delta, dd);
+                _cells[c0 + (int)Col.SplitTime].text = _cellText.Time(c0 + (int)Col.SplitTime, reached ? d.Time : d.Compare, td);
+                _cells[c0 + (int)Col.SegmentTime].text = _cellText.Time(c0 + (int)Col.SegmentTime, reached ? d.Segment : d.CompareSegment, td);
+                _cells[c0 + (int)Col.SegmentDelta].text = _cellText.Delta(c0 + (int)Col.SegmentDelta, d.SegmentDelta, dd);
+                _cells[c0 + (int)Col.BestSegment].text = _cellText.Time(c0 + (int)Col.BestSegment, d.BestSegment, td);
+                _cells[c0 + (int)Col.TimeSave].text = _cellText.TimeOrEmpty(c0 + (int)Col.TimeSave, d.TimeSave, td);
             }
             _shownRows = rows;
 
             int tdl = _timeDecimals.Value, ddl = _deltaDecimals.Value;
-            _lineValues[(int)Line.Previous].text = SplitTable.Delta(_summary.PreviousSegment, ddl) + (_summary.PreviousLive ? " (live)" : "");
+            string previous = _lineText.Delta(0, _summary.PreviousSegment, ddl);
+            if (!ReferenceEquals(previous, _previousFor) || _summary.PreviousLive != _previousLive)
+            {
+                _previousFor = previous;
+                _previousLive = _summary.PreviousLive;
+                _lineValues[(int)Line.Previous].text = previous + (_summary.PreviousLive ? " (live)" : "");
+            }
             _lineLabels[(int)Line.Previous].text = _summary.PreviousLive ? "Live segment" : "Previous segment";
-            _lineValues[(int)Line.SumOfBest].text = SplitTable.Time(_summary.SumOfBest, tdl);
-            _lineValues[(int)Line.BestPossible].text = SplitTable.Time(_summary.BestPossible, tdl);
-            _lineValues[(int)Line.Pace].text = SplitTable.Time(_summary.CurrentPace, tdl);
-            _lineValues[(int)Line.Save].text = SplitTable.Time(_summary.PossibleSave, tdl);
-            _lineValues[(int)Line.Pb].text = SplitTable.Time(_summary.Pb, tdl);
+            _lineValues[(int)Line.SumOfBest].text = _lineText.Time(1, _summary.SumOfBest, tdl);
+            _lineValues[(int)Line.BestPossible].text = _lineText.Time(2, _summary.BestPossible, tdl);
+            _lineValues[(int)Line.Pace].text = _lineText.Time(3, _summary.CurrentPace, tdl);
+            _lineValues[(int)Line.Save].text = _lineText.Time(4, _summary.PossibleSave, tdl);
+            _lineValues[(int)Line.Pb].text = _lineText.Time(5, _summary.Pb, tdl);
             // Started runs, as LiveSplit counts them (failed ones too); the
             // finished ones in brackets when they differ.
             int started = Mathf.Max(_started, _attempts.Count);
-            _lineValues[(int)Line.Attempts].text = started > _attempts.Count
-                ? started + " (" + _attempts.Count + " finished)" : _attempts.Count.ToString();
+            if (started != _attemptsLineStarted || _attempts.Count != _attemptsLineCount)
+            {
+                _attemptsLineStarted = started;
+                _attemptsLineCount = _attempts.Count;
+                _lineValues[(int)Line.Attempts].text = started > _attempts.Count
+                    ? started + " (" + _attempts.Count + " finished)" : _attempts.Count.ToString();
+            }
             RefreshHistoryLines(rows, running);
         }
 

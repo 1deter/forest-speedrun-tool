@@ -405,12 +405,15 @@ namespace ForestOverlay.Modules
             _excludeCfg.Value = _excludeText;
         }
 
+        private bool _builtFreeCam;
+
         private void BuildLabels()
         {
             int r = Mathf.RoundToInt(_radius);
-            if (r != _builtRadius)
+            if (r != _builtRadius || _freeCamOn != _builtFreeCam)
             {
                 _builtRadius = r;
+                _builtFreeCam = _freeCamOn;
                 _radiusLabel = "Radius " + r + " m" + (_freeCamOn ? " around the freecam" : " around you");
             }
 
@@ -424,9 +427,8 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime < _nextLabelBuild) return;
             _nextLabelBuild = Time.unscaledTime + 0.5f;
 
-            // Rebuilt on the draw's own refresh rate; the radius label also
-            // depends on freecam, so refresh it here too.
-            _builtRadius = -1;
+            // Rebuilt on the draw's own refresh rate (the radius label
+            // follows freecam above, not every half second).
 
             if (!_draw.ShowColliders && !_draw.ShowTriggers)
             {

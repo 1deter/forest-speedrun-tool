@@ -16,7 +16,7 @@ namespace ForestOverlay.Core
     // disabled, the failure is logged once, and everything else keeps
     // running.
     // ------------------------------------------------------------------
-    public sealed class ModuleHost
+    public sealed class ModuleHost : IAllocBreakdown
     {
         private const int BaseWindowId = 60_000;
         private const float HudRefreshInterval = 0.1f;
@@ -70,6 +70,7 @@ namespace ForestOverlay.Core
             _cursor = new CursorController(ctx.Log);
             _input = new GameInput(ctx.Log);
             _perf = new PerfMonitor(ctx.Log);
+            _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
             _hud.Settings = new HudSettings(ctx.Config);
         }
@@ -78,6 +79,24 @@ namespace ForestOverlay.Core
         {
             module.Host = this;
             _modules.Add(module);
+            _drawsScreen.Add(Overrides(module, "DrawScreen"));
+            _drawsAlways.Add(Overrides(module, "DrawScreenAlways"));
+        }
+
+        // Which modules draw on the screen: only those are sampled around
+        // their OnGUI hooks (several passes a frame).
+        private readonly List<bool> _drawsScreen = new List<bool>();
+        private readonly List<bool> _drawsAlways = new List<bool>();
+
+        private static bool Overrides(OverlayModule m, string method)
+        {
+            try
+            {
+                System.Reflection.MethodInfo mi = m.GetType().GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                                                                       null, Type.EmptyTypes, null);
+                return mi == null || mi.DeclaringType != typeof(OverlayModule);
+            }
+            catch (Exception) { return true; }
         }
 
         public int Count { get { return _modules.Count; } }
@@ -191,6 +210,58 @@ namespace ForestOverlay.Core
             if (d > 0) _guiBytes += d;
         }
 
+        // ------------------------------------------------------------------
+        // Rough heap growth per module, always on: the Perf line's "most:"
+        // names who makes the overlay's garbage without the tracker. The
+        // heap counter moves in blocks, so a module is charged when its
+        // allocation takes a new one - right on average over 30 s, not
+        // per frame. One cheap counter read before and after each hook.
+        private long[] _heapBytes = new long[0];
+
+        private static long Heap()
+        {
+            try { return GC.GetTotalMemory(false); }
+            catch (Exception) { return -1; }
+        }
+
+        private void CountHeap(int i, long before)
+        {
+            if (before < 0) return;
+            long d = Heap() - before;
+            if (d <= 0) return;   // nothing new, or a collection ran inside
+            if (_heapBytes.Length != _modules.Count) Array.Resize(ref _heapBytes, _modules.Count);
+            _heapBytes[i] += d;
+        }
+
+        private readonly List<KeyValuePair<string, long>> _heapTop = new List<KeyValuePair<string, long>>();
+
+        /// "practicerun 3.2, collectibles 1.1 KB/s" - the top `count` since
+        /// the last call, then from zero; "" when nothing grew.
+        public string TakeTop(double seconds, int count)
+        {
+            if (seconds <= 0.01) seconds = 0.01;
+            _heapTop.Clear();
+            for (int i = 0; i < _heapBytes.Length && i < _modules.Count; i++)
+            {
+                if (_heapBytes[i] > 0) _heapTop.Add(new KeyValuePair<string, long>(_modules[i].Id, _heapBytes[i]));
+                _heapBytes[i] = 0;
+            }
+            if (_heapTop.Count == 0) return "";
+            _heapTop.Sort(ByBytesDescending);
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            for (int i = 0; i < _heapTop.Count && i < count; i++)
+                sb.Append(i == 0 ? "" : ", ").Append(_heapTop[i].Key).Append(' ').Append((_heapTop[i].Value / 1024.0 / seconds).ToString("0.0"));
+            return sb.Append(" KB/s").ToString();
+        }
+
+        public void ResetTop()
+        {
+            for (int i = 0; i < _heapBytes.Length; i++) _heapBytes[i] = 0;
+        }
+
+        private static readonly Comparison<KeyValuePair<string, long>> ByBytesDescending =
+            delegate(KeyValuePair<string, long> a, KeyValuePair<string, long> b) { return b.Value.CompareTo(a.Value); };
+
         /// "overlay: OnGUI 1.2 KB/s, practice 0.8 KB/s, ..." over `seconds`,
         /// then from zero. Empty when nothing was counted.
         public string TakeAllocReport(double seconds)
@@ -232,8 +303,10 @@ namespace ForestOverlay.Core
                 long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 bool exact = ForestOverlay.Game.AllocationTracker.Counting;
                 long bytes0 = exact ? ForestOverlay.Game.AllocationTracker.MainBytes : 0;
+                long heap0 = Heap();
                 try { m.Tick(); }
                 catch (Exception ex) { Disable(m, "Tick", ex); }
+                CountHeap(i, heap0);
                 if (exact && ForestOverlay.Game.AllocationTracker.Counting) CountAlloc(i, ForestOverlay.Game.AllocationTracker.MainBytes - bytes0);
 
                 double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
@@ -361,8 +434,10 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
                 _hud.Source = m.Id;
+                long heap0 = Heap();
                 try { m.ContributeHud(_hud); }
                 catch (Exception ex) { Disable(m, "ContributeHud", ex); }
+                CountHeap(i, heap0);
             }
             _hud.Source = null;
         }
@@ -373,9 +448,11 @@ namespace ForestOverlay.Core
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
-                if (!IsLive(m)) continue;
+                if (!IsLive(m) || !_drawsScreen[i]) continue;
+                long heap0 = Heap();
                 try { m.DrawScreen(); }
                 catch (Exception ex) { Disable(m, "DrawScreen", ex); }
+                CountHeap(i, heap0);
             }
         }
 
@@ -384,9 +461,11 @@ namespace ForestOverlay.Core
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];
-                if (!IsLive(m)) continue;
+                if (!IsLive(m) || !_drawsAlways[i]) continue;
+                long heap0 = Heap();
                 try { m.DrawScreenAlways(); }
                 catch (Exception ex) { Disable(m, "DrawScreenAlways", ex); }
+                CountHeap(i, heap0);
             }
         }
 
@@ -396,7 +475,8 @@ namespace ForestOverlay.Core
             {
                 OverlayModule m = _modules[i];
                 if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
-                try { m.DrawPanel(BaseWindowId + i); }
+                long heap0 = Heap();
+                try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
                 catch (Exception ex)
                 {
                     m.PanelOpen = false;

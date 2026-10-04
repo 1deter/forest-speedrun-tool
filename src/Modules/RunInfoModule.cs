@@ -19,22 +19,59 @@ namespace ForestOverlay.Modules
         public override string Id { get { return "runinfo"; } }
         public override string DisplayName { get { return "Run info"; } }
 
+        // Each value's text and the numbers it was made from: standing
+        // still, nothing is formatted again (ten refreshes a second, eight
+        // numbers each). Exact float compares - the same input, the same text.
+        private float _speedH = float.NaN, _speedT;
+        private bool _speedCompact;
+        private string _speedText;
+        private Vector3 _velShown = new Vector3(float.NaN, 0f, 0f);
+        private string _velText;
+        private Vector3 _posShown = new Vector3(float.NaN, 0f, 0f);
+        private string _posText;
+        private string _lockFor, _lockText;
+
         public override void ContributeHud(HudBuilder hud)
         {
             PlayerRefView p = new PlayerRefView(Ctx);
             bool compact = hud.Compact;
 
             // Lines switched off in Settings are not built at all.
-            if (hud.Shows("Speed")) hud.Pair("Speed", HudLines.Speed(p.Horizontal, p.Total, compact));
+            if (hud.Shows("Speed"))
+            {
+                float h = p.Horizontal, t = p.Total;
+                if (_speedText == null || h != _speedH || t != _speedT || compact != _speedCompact)
+                {
+                    _speedH = h;
+                    _speedT = t;
+                    _speedCompact = compact;
+                    _speedText = HudLines.Speed(h, t, compact);
+                }
+                hud.Pair("Speed", _speedText);
+            }
 
-            if (hud.Shows("Vel")) hud.Pair("Vel", HudLines.Vector(p.X, p.Y, p.Z, 1));
+            if (hud.Shows("Vel"))
+            {
+                Vector3 v = Ctx.Player.Velocity;
+                if (_velText == null || !Same(v, _velShown))
+                {
+                    _velShown = v;
+                    _velText = HudLines.Vector(v.x, v.y, v.z, 1);
+                }
+                hud.Pair("Vel", _velText);
+            }
 
             if (hud.Shows("Pos"))
             {
                 if (Ctx.Player.Found)
                 {
                     Vector3 pos = Ctx.Player.Transform.position;
-                    hud.Pair("Pos", HudLines.Vector(pos.x, pos.y, pos.z, 0));
+                    if (_posText == null || !Same(pos, _posShown))
+                    {
+                        _posShown = pos;
+                        _posText = HudLines.Vector(pos.x, pos.y, pos.z, 0);
+                    }
+                    hud.Pair("Pos", _posText);
                 }
                 else
                 {
@@ -46,7 +83,21 @@ namespace ForestOverlay.Modules
             // invisible - the explorer toggle simply looked dead when the
             // controller had not been bound.
             if (Ctx.Bridge != null && !Ctx.Bridge.PlayerLockAvailable)
-                hud.Pair("Lock", "unavailable (" + Ctx.Bridge.LockStatus + ")");
+            {
+                string status = Ctx.Bridge.LockStatus;
+                if (_lockText == null || !string.Equals(status, _lockFor))
+                {
+                    _lockFor = status;
+                    _lockText = "unavailable (" + status + ")";
+                }
+                hud.Pair("Lock", _lockText);
+            }
+        }
+
+        // Component-wise, not Vector3's == (which is "closer than 1e-5").
+        private static bool Same(Vector3 a, Vector3 b)
+        {
+            return a.x == b.x && a.y == b.y && a.z == b.z;
         }
 
         // Tiny read-only view so the formatting above stays readable.

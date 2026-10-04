@@ -75,15 +75,18 @@ namespace ForestOverlay.Modules
             InitAudit(ctx);
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            _finishLoadGet = FastField.Static<bool>(_finishLoad);
             RunIntegrity.StartHashing(ctx.Log);
             RebuildText();
         }
 
+        private Func<bool> _finishLoadGet;   // once a frame: no boxing (FastField)
+
         private bool InLoadedGame()
         {
             if (!Ctx.Player.Found || PlayerRef.AtTitleScreen) return false;
-            if (_finishLoad == null) return true;
-            try { return (bool)_finishLoad.GetValue(null); }
+            if (_finishLoadGet == null) return true;
+            try { return _finishLoadGet(); }
             catch (Exception) { return true; }
         }
 

@@ -96,6 +96,14 @@ namespace ForestOverlay.Modules
 
         public override void Tick()
         {
+            // The rows (a few hundred strings) are only built while the tab
+            // shows - every second behind a closed window they were the
+            // overlay's biggest idle garbage. The first frame on the tab
+            // refreshes at once.
+            bool showing = TabShowing;
+            if (showing && !_wasShowing) _nextRefresh = 0f;
+            _wasShowing = showing;
+
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + RefreshInterval;
 
@@ -116,8 +124,10 @@ namespace ForestOverlay.Modules
             }
 
             UpdateSeen();
-            RebuildRows();
+            if (showing) RebuildRows();
         }
+
+        private bool _wasShowing;
 
         /// Exact name match first, then a unique substring. Deliberately
         /// refuses an ambiguous match rather than guessing, so a wrong tick
@@ -147,15 +157,26 @@ namespace ForestOverlay.Modules
         private string _drawingsText = "pieces: none found yet";
         private int _drawingsFound;
 
+        private int[] _drawingsShown;
+
         private void UpdateDrawings()
         {
             int[] found = DrawingsReader.Found();
+            if (SameIds(found, _drawingsShown)) return;   // the text only when they change
+            _drawingsShown = found;
             _drawingsFound = found.Length;
             if (found.Length == 0) { _drawingsText = "pieces: none found yet"; return; }
             var sb = new System.Text.StringBuilder("pieces found (held or on the wall): ");
             for (int i = 0; i < found.Length; i++) sb.Append(i == 0 ? "" : ", ").Append('#').Append(found[i]);
             sb.Append("  (").Append(found.Length).Append(')');
             _drawingsText = sb.ToString();
+        }
+
+        private static bool SameIds(int[] a, int[] b)
+        {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+            return true;
         }
 
         private void UpdateSeen()

@@ -57,6 +57,8 @@ namespace ForestOverlay.Game
         private Type _hostType;
         private FieldInfo _entriesField;
         private FieldInfo _typeField, _animalField, _itemField, _tickedField, _tickGoField;
+        private Func<object, bool> _tickedGet;   // every entry, once a second: no boxing
+        private int _statusTicked = -1, _statusCount = -1;
         private bool _typesResolved;
 
         private Component _host;
@@ -89,6 +91,7 @@ namespace ForestOverlay.Game
                 _entries.Clear();
                 _pages.Clear();
                 TickedCount = 0;
+                _statusCount = -1;   // Status is set below: the count line comes back with the guide
 
                 if (Time.unscaledTime < _nextSearch) return;
                 _nextSearch = Time.unscaledTime + SearchInterval;
@@ -104,6 +107,10 @@ namespace ForestOverlay.Game
             }
 
             UpdateTicks();
+            // Rebuilt when a count moves (once a second otherwise).
+            if (TickedCount == _statusTicked && _entries.Count == _statusCount) return;
+            _statusTicked = TickedCount;
+            _statusCount = _entries.Count;
             Status = _entries.Count == 0
                 ? "nature guide has no entries"
                 : TickedCount + "/" + _entries.Count + " discovered";
@@ -133,6 +140,7 @@ namespace ForestOverlay.Game
                          " ticked:" + (_tickedField != null) + " tickGo:" + (_tickGoField != null));
 
             if (_tickedField == null) { _entriesField = null; Status = "TickOffSystem entries have no _ticked"; return false; }
+            _tickedGet = FastField.Instance<bool>(_tickedField);
             return true;
         }
 
@@ -359,7 +367,7 @@ namespace ForestOverlay.Game
                 NatureEntry e = _entries[i];
 
                 bool ticked;
-                try { ticked = (bool)_tickedField.GetValue(e.Source); }
+                try { ticked = _tickedGet(e.Source); }
                 catch (Exception) { ticked = false; }
 
                 e.Ticked = ticked;
