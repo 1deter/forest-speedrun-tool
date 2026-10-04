@@ -51,6 +51,7 @@ namespace ForestOverlay.Modules
         private MeganKeeper _megan;
         private ElevatorKeeper _elevators;
         private SlidingDoorKeeper _slidingDoors;
+        private WeatherKeeper _weather;
         private KeypadDoorKeeper _doors;
         private AreaKeeper _area;
         private NatureKeeper _nature;
@@ -117,6 +118,7 @@ namespace ForestOverlay.Modules
             _megan = new MeganKeeper(ctx.Log);
             _elevators = new ElevatorKeeper(ctx.Log);
             _slidingDoors = new SlidingDoorKeeper(ctx.Log);
+            _weather = new WeatherKeeper(ctx.Log);
             _doors = new KeypadDoorKeeper(ctx.Log);
             _area = new AreaKeeper(ctx.Log);
             _nature = new NatureKeeper(ctx.Log);
@@ -380,6 +382,7 @@ namespace ForestOverlay.Modules
             float rideAge = Ctx.Events != null && Ctx.Events.RedElevatorAt >= 0f ? Time.time - Ctx.Events.RedElevatorAt : -1f;
             string elevators = _elevators.Capture(rideAge);
             string slidingDoors = _slidingDoors.Capture();
+            string weather = _weather.Capture();
             string keypadDoor = cutscene == GameEvents.KeycardDoor ? _doors.Capture(GameEvents.LastDoorPos) : "";
             string activeArea = _area.Capture();
             string areaWarning = activeArea == AreaKeeper.None ? _area.UnenteredSection(pos) : "";
@@ -412,7 +415,7 @@ namespace ForestOverlay.Modules
 
             Ctx.Runner.StartCoroutine(_bridge.Capture(delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints, weather);
                 if (error == null && areaWarning.Length > 0)
                 {
                     Ctx.Log.LogWarning("Savestate captured '" + name + "': " + areaWarning + ".");
@@ -426,7 +429,8 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string slidingDoors, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance, string rope, string ride, int logs, string blueprints)
+                                  List<string> greebles, string stance, string rope, string ride, int logs, string blueprints,
+                                  string weather)
         {
             _busy = false;
             if (!r.Ok)
@@ -465,6 +469,7 @@ namespace ForestOverlay.Modules
                 f.Rope = rope;
                 f.Ride = ride;
                 f.Blueprints = blueprints;
+                f.Weather = weather;
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
                 f.Greebles = greebles;
@@ -492,6 +497,7 @@ namespace ForestOverlay.Modules
                               (blueprint.Length > 0 ? ", blueprint " + blueprint + " out" : "") +
                               (stance == Stance.Crouched ? ", crouched" : "") +
                               (rope.Length > 0 ? ", on a rope" : "") +
+                              (weather.Length > 0 ? ", weather " + DescribeWeather(weather) : "") +
                               (enemyNote.Length > 0 ? ", " + enemyNote : "");
                 Ctx.Log.LogInfo("Savestate " + line);
                 Ctx.Log.LogInfo("Savestate areas at capture: " + areas);
@@ -749,6 +755,9 @@ namespace ForestOverlay.Modules
                 // And the endgame's sliding doors (the car door: open after
                 // a ride, it stayed open through the next one).
                 string slidingNote = r.Ok && file != null ? _slidingDoors.Restore(file.SlidingDoors) : "";
+                // Rain, clouds and fog are not in the save: the live
+                // weather stayed (maks's fog after a Quick load).
+                string weatherNote = r.Ok && file != null ? _weather.Restore(file.Weather) : "";
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
@@ -828,6 +837,7 @@ namespace ForestOverlay.Modules
                               (meganNote.Length == 0 ? "" : " | " + meganNote) +
                               (elevatorNote.Length == 0 ? "" : " | " + elevatorNote) +
                               (slidingNote.Length == 0 ? "" : " | " + slidingNote) +
+                              (weatherNote.Length == 0 ? "" : " | " + weatherNote) +
                               (areaNote.Length == 0 ? "" : " | " + areaNote) +
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (guideNote.Length == 0 ? "" : " | " + guideNote) +
@@ -1097,6 +1107,12 @@ namespace ForestOverlay.Modules
             string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
                             (positions.Length > 0 ? " | " + positions : "") + ".");
+        }
+
+        private static string DescribeWeather(string value)
+        {
+            WeatherState s;
+            return WeatherState.TryParse(value, out s) ? s.Describe() : "?";
         }
 
         // Half a second on, once the game's own snap (inventory off during
@@ -1455,6 +1471,9 @@ namespace ForestOverlay.Modules
                 catch (Exception ex) { greebles = "greebles: failed (" + ex.Message + ")"; }
                 Ctx.Log.LogInfo("Savestate after the load: " + greebles + " (" + late + " set as they spawned in the load).");
             }
+            // A load builds the weather afresh (clear); the capture's back.
+            string weatherNote = _weather.Restore(f.Weather);
+            if (weatherNote.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + weatherNote + ".");
             Ctx.Runner.StartCoroutine(SyncSun("after the load"));
             FullCapacityWatch.RestoreEnded();
             // A cutscene capture's hands are the fast-forward's business.

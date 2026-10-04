@@ -36,6 +36,7 @@ namespace ForestOverlay.Data
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
+    //   weather = state=Raining type=Heavy dice=4,1,0 overcast=1,1 ... fog=300,300
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
     //
@@ -73,7 +74,9 @@ namespace ForestOverlay.Data
     // before v0.24.65. `greebles` the greeble zones on pooled trees near
     // the player (Data/GreebleRecord: place, seed, taken flags), given
     // back by Game/GreebleKeeper; absent before v0.24.70, and then the
-    // sticks around trees are whatever the pool draws. None of these is
+    // sticks around trees are whatever the pool draws. `weather` the rain,
+    // clouds and fog distance (Data/WeatherState, Game/WeatherKeeper); absent
+    // before it was added, and then the weather is left as it is. None of these is
     // in the start-state hash (only
     // `data` is).
     //
@@ -185,6 +188,10 @@ namespace ForestOverlay.Data
         /// (Data/BlueprintState); "" for none, null before v0.24.203.
         public string Blueprints;
 
+        /// Game/WeatherKeeper's weather at capture (Data/WeatherState); ""
+        /// when absent (older files: the weather is left as it is).
+        public string Weather = "";
+
         /// AreaReport.Describe() at capture; "" before v0.24.4.
         public string Areas = "";
 
@@ -232,6 +239,7 @@ namespace ForestOverlay.Data
             if (Rope.Length > 0) Line(sb, "rope", Rope);
             if (Ride.Length > 0) Line(sb, "ride", Ride);
             if (Blueprints != null) Line(sb, "blueprints", Blueprints);
+            if (Weather.Length > 0) Line(sb, "weather", Weather);
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
@@ -300,6 +308,7 @@ namespace ForestOverlay.Data
                     case "rope": s.Rope = value; break;
                     case "ride": s.Ride = value; break;
                     case "blueprints": s.Blueprints = value; break;
+                    case "weather": s.Weather = value; break;
                     case "bushes": s.Bushes = value; break;
                     case "cutscene":
                         {
