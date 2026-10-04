@@ -121,6 +121,12 @@ public class KnowledgeTests
             Assert.Equal(card.Id, card.Id.ToLowerInvariant());
         }
         Assert.All(c.Chunks, ch => Assert.True(ch.Text.Length <= Corpus.MaxChunk + 10, ch.Id));
+        // read_card's answer is cut at the tool output cap: a longer card
+        // would lose its last sections (records, open questions) without
+        // the model knowing - split a card before it gets there.
+        foreach (Card card in c.Cards.Values)
+            Assert.True(card.Render().Length <= ForestBot.Agent.Tools.MaxOutput,
+                card.Id + " renders " + card.Render().Length + " chars, over read_card's " + ForestBot.Agent.Tools.MaxOutput + " - split it");
     }
 
     [Fact]
