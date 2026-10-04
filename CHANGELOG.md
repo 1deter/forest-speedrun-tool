@@ -5,6 +5,14 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.237 - 2026-10-04
+
+- Practice -> Share -> Delete from the website removes your own spot and its runs from forest.deter.cloud (only if nobody else has runs on it).
+- The website's spot list groups runners' spots by their category; every group folds.
+- Run mode attempts now keep an audit log: caves, items, deaths, rides, the pause menu, building, crafting, fights and endgame steps, each with its time and place. The Runs tab shows the last attempt's rundown.
+- The website's attempt page has a new section, "What happened in the run": a short rundown, then the full timeline, filterable by kind.
+- A results panel after every timed run: your time against your PB and the comparison, each split's delta and time saved or lost, golds, best possible time, PB chance, attempts and playtime. In run mode it also shows the attempt's code, report, upload state and page link. Splits options turn it off.
+
 ## v0.24.236 - 2026-10-04
 
 - Deaths tab: one "When I die" choice - Automatic (as before), Reload the save, Restart the current spot, Revive at the current spot, or the game's own death.
