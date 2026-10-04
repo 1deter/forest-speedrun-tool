@@ -166,7 +166,11 @@ namespace ForestOverlay.Modules
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
             _tas = Host.Find<TasModule>();
-            if (_runMode != null) _runMode.TimerMs = TimerMsNow;
+            if (_runMode != null)
+            {
+                _runMode.TimerMs = TimerMsNow;
+                _runMode.TimedLoadMs = TimedLoadMsNow;
+            }
             if (_upload != null)
             {
                 _upload.CurrentSegment = SegmentForUpload;
@@ -225,6 +229,13 @@ namespace ForestOverlay.Modules
         private long TimerMsNow()
         {
             return _recorder.State == RunRecorder.RunState.Running ? (long)System.Math.Round(_recorder.Elapsed * 1000.0) : -1;
+        }
+
+        /// Every ms of load the timer has counted, ever (run mode's `load`
+        /// lines take the difference over one load).
+        private long TimedLoadMsNow()
+        {
+            return (long)System.Math.Round(_recorder.LoadClock.Ever * 1000.0);
         }
 
         /// The spot the runner is on: the armed segment, else the Practice
@@ -535,6 +546,8 @@ namespace ForestOverlay.Modules
             // The first frame after a checkpoint resume holds the restore.
             float dt = _resumeSkipDt ? 0f : Time.unscaledDeltaTime;
             _resumeSkipDt = false;
+            // Load-removed time: the game's load state this frame (Game/GameLoading).
+            _recorder.LoadingNow = GameLoading.Now;
             _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, dt, null);
 
             if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
@@ -718,7 +731,7 @@ namespace ForestOverlay.Modules
             _store.Save(done);
             if (_upload != null && _segment != null)
                 _upload.Enqueue(_segment, AttemptFormat.Write(done), done.RunnerId, done.RunnerName);
-            FinishSplits(done.Duration);
+            FinishSplits(done);
             RunModeOutcome outcome = _runMode != null ? _runMode.TimerFinished(_segment, done.Duration) : null;
             ShowResults(done, outcome);
 
@@ -729,7 +742,8 @@ namespace ForestOverlay.Modules
             SelectReference();
             ClearRunPreview();
             Ctx.Log.LogInfo("Run '" + done.AnchorLabel + "': finished in " + Format(done.Duration) + (isPb ? " (best)" : "") +
-                            " - " + done.Splits.Length + " split time(s) saved, runner '" + done.RunnerName + "' (" + done.RunnerId + ").");
+                            " - " + done.Splits.Length + " split time(s) saved, runner '" + done.RunnerName + "' (" + done.RunnerId + ")" +
+                            "; load-removed " + Format(LoadClock.LrtOf(done)) + " (" + LoadClock.Describe(done.Loads, done.LoadTime) + ").");
 
             if (_autoRestart.Value && _segment != null)
             {
@@ -1005,6 +1019,7 @@ namespace ForestOverlay.Modules
             {
                 if (!ReferenceEquals(_hudArmedFor, _segment.Name)) { _hudArmedFor = _segment.Name; _hudArmed = "armed - " + _segment.Name; }
                 hud.Pair("Run", _hudArmed);
+                if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
             }
             else if (_recorder.State == RunRecorder.RunState.Running)
             {
@@ -1013,6 +1028,8 @@ namespace ForestOverlay.Modules
                 string run = _hasDelta ? ClockText.ClockWithDelta(_recorder.Elapsed, _delta) : ClockText.Clock(_recorder.Elapsed);
                 if (Resumed) run += "   (from checkpoint " + (_resumedFrom + 1) + ")";
                 hud.Pair("Run", run);
+                // Built only when shown (off by default): a string a refresh.
+                if (hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLrtRunning());
 
                 if (_sequence.OnlyEndLeft) hud.Pair("Next", "finish");
                 else
@@ -1045,7 +1062,39 @@ namespace ForestOverlay.Modules
                 }
                 hud.Pair("Run", _hudIdle);
                 if (_attempts.Count > 0) hud.Pair("Last", HudLast());
+                if (_attempts.Count > 0 && hud.Shows(LrtLabel)) hud.Pair(LrtLabel, HudLastLrt());
             }
+        }
+
+        // The HUD's load-removed time line (Data/HudLines "LRT").
+        private const string LrtLabel = "LRT";
+        private string _hudLrtLast;
+        private Attempt _hudLrtLastFor;
+        private int _hudLrtLoads = -1;
+        private string _hudLrtSuffix = "";
+
+        private string HudLrtRunning()
+        {
+            int loads = _recorder.LoadClock.Loads;
+            if (loads != _hudLrtLoads)
+            {
+                _hudLrtLoads = loads;
+                _hudLrtSuffix = loads == 0 ? "" : loads == 1 ? "   (1 load)" : "   (" + loads + " loads)";
+            }
+            string clock = ClockText.Clock(_recorder.Lrt);
+            return _hudLrtSuffix.Length == 0 ? clock : clock + _hudLrtSuffix;
+        }
+
+        // The last attempt's, kept until another attempt is the last.
+        private string HudLastLrt()
+        {
+            Attempt a = _attempts[_attempts.Count - 1];
+            if (_hudLrtLast == null || !ReferenceEquals(a, _hudLrtLastFor))
+            {
+                _hudLrtLastFor = a;
+                _hudLrtLast = "last " + Format(LoadClock.LrtOf(a)) + "   (" + LoadClock.Describe(a.Loads, a.LoadTime) + ")";
+            }
+            return _hudLrtLast;
         }
 
         // The HUD's texts that only change with the run's state, kept until

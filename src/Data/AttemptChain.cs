@@ -43,6 +43,12 @@ namespace ForestOverlay.Data
     //   event|<real ms>|<timer ms or ->|<kind>|<x cm>|<y cm>|<z cm>|<what happened>
     //                               the run's audit log (Data/RunAudit): a cave
     //                               entered, items picked up, a death... never a flag
+    //   load|<real ms>|<length ms>|<timer ms>   a load the game made (Data/LoadTimes):
+    //                               written when it ends (real ms = its end), its
+    //                               length in real time and how much of it the
+    //                               timer counted - the final timer minus the
+    //                               loads' timer ms is the load-removed time.
+    //                               Logs from before load-removed time have none.
     //   end|<real ms>|<reason>|<final timer ms or ->
     //   [report]                    the run report, not folded (a claim)
     // ------------------------------------------------------------------
@@ -147,6 +153,18 @@ namespace ForestOverlay.Data
             LastMs = realMs;
             Add("event|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + Ms(timerMs) + "|" + Dash(kind) + "|" +
                 (hasPos ? Cm(x) + "|" + Cm(y) + "|" + Cm(z) : "-|-|-") + "|" + Clean(detail));
+        }
+
+        /// A load that ended at `realMs`: `lengthMs` of real time, `timedMs`
+        /// of it on the run's timer (0 = no timer ran).
+        public void Load(long realMs, long lengthMs, long timedMs)
+        {
+            if (lengthMs < 0) lengthMs = 0;
+            if (lengthMs > realMs) lengthMs = realMs;
+            if (timedMs < 0) timedMs = 0;
+            LastMs = realMs;
+            Add("load|" + realMs.ToString(CultureInfo.InvariantCulture) + "|" + lengthMs.ToString(CultureInfo.InvariantCulture) + "|" +
+                timedMs.ToString(CultureInfo.InvariantCulture));
         }
 
         public void End(long realMs, string reason, long finalTimerMs)
@@ -270,6 +288,13 @@ namespace ForestOverlay.Data
             public string Detail;
         }
 
+        public sealed class LoadInfo
+        {
+            public long RealMs;      // the load's end
+            public long LengthMs;    // real time
+            public long TimedMs;     // of it on the run's timer
+        }
+
         public sealed class Replay
         {
             public string Error;    // null = the log reads
@@ -298,6 +323,22 @@ namespace ForestOverlay.Data
 
             /// Real time the log covers: its last record.
             public long LastMs;
+
+            /// The loads (`load` lines), in order. None in a log from before
+            /// load-removed time - it still reads.
+            public readonly List<LoadInfo> Loads = new List<LoadInfo>();
+
+            /// The loads' time on the timer, ms.
+            public long LoadTimedMs
+            {
+                get { long t = 0; for (int i = 0; i < Loads.Count; i++) t += Loads[i].TimedMs; return t; }
+            }
+
+            /// The final timer with the loads taken out; -1 = no final timer.
+            public long LrtMs
+            {
+                get { return FinalTimerMs < 0 ? -1 : Math.Max(0L, FinalTimerMs - LoadTimedMs); }
+            }
         }
 
         /// Reads a log and recomputes its chain. Strict: an unknown or
@@ -402,6 +443,18 @@ namespace ForestOverlay.Data
                             ev.HasPos = p[4] != "-" && p[5] != "-" && p[6] != "-";
                             if (ev.HasPos) { ev.X = Metres(p[4]); ev.Y = Metres(p[5]); ev.Z = Metres(p[6]); }
                             r.Events.Add(ev);
+                            break;
+                        }
+                        case "load":
+                        {
+                            long length, timed;
+                            if (p.Length != 4 || !Long(p[1], out ms) || !Long(p[2], out length) || !Long(p[3], out timed) || length > ms)
+                            { r.Error = "bad load line at line " + (i + 1); return r; }
+                            if (ms < last) { r.Error = "time goes backwards at a load (line " + (i + 1) + ")"; return r; }
+                            last = ms;
+                            LoadInfo ld = new LoadInfo();
+                            ld.RealMs = ms; ld.LengthMs = length; ld.TimedMs = timed;
+                            r.Loads.Add(ld);
                             break;
                         }
                         case "end":

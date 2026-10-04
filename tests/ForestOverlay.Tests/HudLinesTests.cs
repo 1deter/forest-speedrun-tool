@@ -46,7 +46,8 @@ namespace ForestOverlay.Tests
             {
                 if (!l.Switchable) continue;
                 Assert.True(keys.Add(l.ConfigKey), l.ConfigKey);
-                Assert.True(l.DefaultOn, l.Name);
+                // Lines added after the HUD settings are opt-in.
+                Assert.Equal(l.ConfigKey != "ShowLoadRemoved", l.DefaultOn);
                 Assert.False(string.IsNullOrEmpty(l.Description));
             }
             Assert.True(HudLines.IndexOfKey("ShowTitle") >= 0);

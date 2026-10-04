@@ -32,6 +32,7 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/LoadTimes.cs" Link="Linked/LoadTimes.cs" />
     <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
     <Compile Include="../../src/Data/RunHistory.cs" Link="Linked/RunHistory.cs" />

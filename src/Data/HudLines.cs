@@ -104,6 +104,10 @@ namespace ForestOverlay.Data
               "The last practice action's result (teleport, restart, save)."),
             L("practicerun", "Run", "ShowRunTimer", "Run timer",
               "The timed segment: timer and delta, or armed / attempts and best."),
+            // Off until ticked (added after the HUD settings: the old look stays).
+            new HudLine("practicerun", "LRT", "ShowLoadRemoved", "Load-removed time",
+              "The timer with the game's loads taken out (LRT), while a run is on; the last run's after it.",
+              false, false, false),
             L("practicerun", "Next", "ShowNextSplit", "Next split",
               "The next checkpoint while a run is on."),
             L("practicerun", "Last", "ShowLastTime", "Last time",

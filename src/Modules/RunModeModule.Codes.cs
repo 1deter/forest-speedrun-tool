@@ -47,6 +47,15 @@ namespace ForestOverlay.Modules
         /// The running timer in ms, -1 when none (set by the Runs module).
         public Func<long> TimerMs;
 
+        /// Every ms of load the timer ever counted (the Runs module's
+        /// LoadClock.Ever): a `load` line's timer ms is its growth over the load.
+        public Func<long> TimedLoadMs;
+
+        // The game's loads in real time: a `load` line each (Data/LoadTimes).
+        private readonly LoadSpan _loadSpan = new LoadSpan();
+        private long _loadTimedBefore;
+        private int _loadsLogged;
+
         // --- the code on screen ---
         private ConfigEntry<float> _codeX, _codeY, _codeSize;
         private readonly GUIContent _codeText = new GUIContent(AttemptChain.NoCode);
@@ -79,6 +88,9 @@ namespace ForestOverlay.Modules
             _offline = _upload == null || !_upload.AttemptsOn;
             _flagsFolded = 0;
             _finalTimerMs = -1;
+            _loadSpan.Reset();
+            _loadsLogged = 0;
+            _loadTimedBefore = TimedLoadMs != null ? TimedLoadMs() : 0;
             _clock.Reset();
             _clock.Start();
             _nextStepMs = 0;
@@ -118,6 +130,7 @@ namespace ForestOverlay.Modules
             long ms = _clock.ElapsedMilliseconds;
 
             for (; _flagsFolded < Ctx.Run.Flags.Count; _flagsFolded++) _chain.Flag(ms, Ctx.Run.Flags[_flagsFolded]);
+            TickLoads(ms);
 
             if (ms >= _nextStepMs) StepNow(ms);
 
@@ -131,6 +144,27 @@ namespace ForestOverlay.Modules
                 _nextSaveMs = ms + SaveMs;
                 SaveOpen();
             }
+        }
+
+        // A load's start and end by the game's own state (Game/GameLoading).
+        // The timer's load count only grows during a load, so its value on
+        // the last frame before one is the value at its start, whichever
+        // module ticks first.
+        private void TickLoads(long ms)
+        {
+            LoadSpanInfo span;
+            if (_loadSpan.Update(GameLoading.Now, ms, out span)) WriteLoad(span);
+            if (!_loadSpan.InLoad && TimedLoadMs != null) _loadTimedBefore = TimedLoadMs();
+        }
+
+        private void WriteLoad(LoadSpanInfo span)
+        {
+            long timed = TimedLoadMs != null ? Math.Max(0L, TimedLoadMs() - _loadTimedBefore) : 0;
+            long end = Math.Max(span.EndMs, _chain.LastMs);   // the chain's times never go back
+            _chain.Load(end, span.LengthMs, timed);
+            _loadsLogged++;
+            Ctx.Log.LogInfo("Run mode: load " + _loadsLogged + " of " + _attemptId + ": " + span.LengthMs + " ms real time, " +
+                            timed + " ms of it on the timer (load-removed time).");
         }
 
         private void StepNow(long ms)
@@ -186,6 +220,8 @@ namespace ForestOverlay.Modules
             if (_chain == null || _chain.Ended) return;
             long ms = _clock.ElapsedMilliseconds;
             for (; _flagsFolded < Ctx.Run.Flags.Count; _flagsFolded++) _chain.Flag(ms, Ctx.Run.Flags[_flagsFolded]);
+            LoadSpanInfo cut;
+            if (_loadSpan.Finish(ms, out cut)) WriteLoad(cut);   // ended during a load: up to now
             StepNow(ms);   // the last position, and a code for the end
             long timer = _finalTimerMs >= 0 ? _finalTimerMs : (TimerMs != null ? TimerMs() : -1);
             _chain.End(_clock.ElapsedMilliseconds, reason, timer);

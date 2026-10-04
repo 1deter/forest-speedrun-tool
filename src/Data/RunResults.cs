@@ -47,6 +47,7 @@ namespace ForestOverlay.Data
         public string CompareLine = "";   // "vs Best segments: +2.34" ("" when it is the PB)
         public string GoldLine = "";      // "Golds: Cave, End" ("" with one row)
         public string BestPossible = "";  // "1:20.00" (sum of best, this run's golds in)
+        public string LoadLine = "";      // "Load-removed time: 1:20.45 (1 load, 4.25 s)." (LoadLine)
         public ResultRow[] Rows = new ResultRow[0];
     }
 
@@ -147,6 +148,17 @@ namespace ForestOverlay.Data
             if (float.IsNaN(final)) return "";
             if (float.IsNaN(compareFinal)) return "vs " + who + ": no time to compare yet.";
             return "vs " + who + ": " + SplitTable.Delta(final - compareFinal, decimals);
+        }
+
+        /// The run's load-removed time (Data/LoadTimes): "Load-removed time:
+        /// 1:20.45 (1 load, 4.25 s)." - shown when the run had loads, or
+        /// `always` (the splits' LRT column is on); "" otherwise.
+        public static string LoadLine(float final, int loads, float loadTime, int timeDecimals, bool always)
+        {
+            if (float.IsNaN(final)) return "";
+            if (loads <= 0 && !always) return "";
+            float lrt = LoadClock.Without(final, loads > 0 ? loadTime : 0f);
+            return "Load-removed time: " + SplitTable.Time(lrt, Math.Max(2, timeDecimals)) + " (" + LoadClock.Describe(loads, loadTime) + ").";
         }
 
         /// A row's time against the comparison's: "saved 0.40", "lost 1.20",

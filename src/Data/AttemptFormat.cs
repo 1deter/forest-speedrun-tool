@@ -17,6 +17,13 @@ namespace ForestOverlay.Data
     //   duration|<seconds>
     //   route|<fingerprint>                 which version of the route
     //   splits|<t1>|<t2>|...                each checkpoint's time (v0.24.146)
+    //   loads|<n>|<seconds>|<s1>|<s2>|...   load-removed time: the loads the
+    //                                       timer counted, their seconds, and
+    //                                       their seconds before each
+    //                                       checkpoint (Data/LoadTimes; none
+    //                                       listed = none before any).
+    //                                       No line = an attempt from before
+    //                                       loads were tracked (no loads).
     //   runner|<id>|<name>                  who ran it (v0.24.146; older
     //                                       ones get it on export / upload)
     //   plane|<x>|<y>|<z>|<yaw>             the save's plane crash site (v0.24.163)
@@ -60,6 +67,17 @@ namespace ForestOverlay.Data
             {
                 sb.Append("splits");
                 for (int i = 0; i < attempt.Splits.Length; i++) sb.Append('|').Append(F(attempt.Splits[i]));
+                sb.Append(NL);
+            }
+
+            // Load-removed time: written for every attempt that tracked
+            // loads, none included, so "no loads" reads apart from "older".
+            if (attempt.HasLoads)
+            {
+                sb.Append("loads|").Append(Math.Max(0, attempt.Loads).ToString(CultureInfo.InvariantCulture))
+                  .Append('|').Append(F(attempt.LoadTime));
+                if (attempt.Loads > 0 && attempt.SplitLoads != null)
+                    for (int i = 0; i < attempt.SplitLoads.Length; i++) sb.Append('|').Append(F(attempt.SplitLoads[i]));
                 sb.Append(NL);
             }
 
@@ -167,6 +185,19 @@ namespace ForestOverlay.Data
                     float[] splits = new float[p.Length - 1];
                     for (int c = 1; c < p.Length; c++) splits[c - 1] = P(p[c]);
                     a.Splits = splits;
+                }
+                else if (p[0] == "loads" && p.Length >= 3)
+                {
+                    int n;
+                    if (int.TryParse(p[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out n) && n >= 0)
+                    {
+                        a.HasLoads = true;
+                        a.Loads = n;
+                        a.LoadTime = Math.Max(0f, P(p[2]));
+                        float[] at = new float[p.Length - 3];
+                        for (int c = 3; c < p.Length; c++) at[c - 3] = Math.Max(0f, P(p[c]));
+                        a.SplitLoads = at;
+                    }
                 }
                 else if (p[0] == "runner" && p.Length > 1)
                 {

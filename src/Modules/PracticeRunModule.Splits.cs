@@ -24,12 +24,13 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule
     {
-        private enum Col { Delta, SplitTime, SegmentTime, SegmentDelta, BestSegment, TimeSave }
-        private const int ColCount = 6;
-        private static readonly string[] ColTitles = { "Delta", "Split", "Segment", "Seg +/-", "Best seg", "Save" };
+        private enum Col { Delta, SplitTime, SegmentTime, SegmentDelta, BestSegment, TimeSave, Lrt }
+        private const int ColCount = 7;
+        private static readonly string[] ColTitles = { "Delta", "Split", "Segment", "Seg +/-", "Best seg", "Save", "LRT" };
         private static readonly string[] ColOptions =
         {
-            "Delta", "Split time", "Segment time", "Segment delta", "Best segment", "Possible time save"
+            "Delta", "Split time", "Segment time", "Segment delta", "Best segment", "Possible time save",
+            "Load-removed split time (LRT)"
         };
 
         private enum Line { Previous, SumOfBest, BestPossible, Pace, Save, Pb, Attempts, PbChance, Playtime }
@@ -49,6 +50,9 @@ namespace ForestOverlay.Modules
 
         private SplitStats _stats;
         private float[] _times = new float[0];
+        // The timer's load seconds when each row was reached (NaN = not
+        // reached / unknown): the LRT column, the attempt's SplitLoads.
+        private float[] _loadsAt = new float[0];
         private SplitRow[] _rowsData = new SplitRow[0];
         private SplitSummary _summary;
         private bool _splitsDirty = true;
@@ -142,7 +146,7 @@ namespace ForestOverlay.Modules
             _timeDecimals = c.Bind("Splits", "TimeDecimals", 2, "Decimal places for split times (0-3). Attempts always save milliseconds.");
             _deltaDecimals = c.Bind("Splits", "DeltaDecimals", 2, "Decimal places for deltas (0-3).");
             _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");
-            bool[] colDefaults = { true, true, false, false, false, false };
+            bool[] colDefaults = { true, true, false, false, false, false, false };
             for (int i = 0; i < ColCount; i++)
             {
                 _cols[i] = c.Bind("Splits", "Column" + (Col)i, colDefaults[i], "Splits column: " + ColOptions[i] + ".");
@@ -184,6 +188,14 @@ namespace ForestOverlay.Modules
         private void StampAttempt(Attempt done)
         {
             if (_segment != null && _splits.Count == _segment.Checkpoints.Count) done.Splits = _splits.ToArray();
+            // The loads before each checkpoint (Data/LoadTimes): only when
+            // there were any - none listed reads as none before any.
+            if (done.Loads > 0 && done.Splits.Length > 0 && _loadsAt.Length == done.Splits.Length + 1)
+            {
+                float[] at = new float[done.Splits.Length];
+                for (int i = 0; i < at.Length; i++) at[i] = float.IsNaN(_loadsAt[i]) ? 0f : _loadsAt[i];
+                done.SplitLoads = at;
+            }
             done.RunnerId = RunnerIdNow();
             done.RunnerName = RunnerNameNow();
             Vector3 plane;
@@ -221,6 +233,8 @@ namespace ForestOverlay.Modules
             ApplyPracticeGolds(_stats);   // golds from checkpoint practice
             if (_times.Length != rows) _times = new float[rows];
             for (int i = 0; i < rows; i++) _times[i] = float.NaN;
+            if (_loadsAt.Length != rows) _loadsAt = new float[rows];
+            for (int i = 0; i < rows; i++) _loadsAt[i] = float.NaN;
             if (_rowsData.Length != rows) _rowsData = new SplitRow[rows];
             _splitsDirty = true;
             _pbChanceDirty = true;
@@ -231,13 +245,15 @@ namespace ForestOverlay.Modules
         {
             if (_runMode != null) _runMode.TimerSplit(row, t);
             if (row >= 0 && row < _times.Length) _times[row] = t;
+            if (row >= 0 && row < _loadsAt.Length) _loadsAt[row] = _recorder.LoadClock.LoadTime;
             _splitsDirty = true;
             _pbChanceDirty = true;
         }
 
-        private void FinishSplits(float duration)
+        private void FinishSplits(Attempt done)
         {
-            if (_times.Length > 0) _times[_times.Length - 1] = duration;
+            if (_times.Length > 0) _times[_times.Length - 1] = done.Duration;
+            if (_loadsAt.Length > 0) _loadsAt[_loadsAt.Length - 1] = done.LoadTime;
             _splitsDirty = true;
             _pbChanceDirty = true;
         }
@@ -460,6 +476,9 @@ namespace ForestOverlay.Modules
                 _cells[c0 + (int)Col.SegmentDelta].text = _cellText.Delta(c0 + (int)Col.SegmentDelta, d.SegmentDelta, dd);
                 _cells[c0 + (int)Col.BestSegment].text = _cellText.Time(c0 + (int)Col.BestSegment, d.BestSegment, td);
                 _cells[c0 + (int)Col.TimeSave].text = _cellText.TimeOrEmpty(c0 + (int)Col.TimeSave, d.TimeSave, td);
+                // This run's split time with its loads taken out; blank until reached.
+                float lrt = reached && r < _loadsAt.Length ? LoadClock.Without(d.Time, _loadsAt[r]) : float.NaN;
+                _cells[c0 + (int)Col.Lrt].text = _cellText.TimeOrEmpty(c0 + (int)Col.Lrt, lrt, td);
             }
             _shownRows = rows;
 

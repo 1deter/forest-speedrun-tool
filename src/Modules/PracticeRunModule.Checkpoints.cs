@@ -224,7 +224,7 @@ namespace ForestOverlay.Modules
             ReplayRunStarted();
             _sequence.Resume(_segment.Checkpoints, _segment.End, st.Index + 1);
             ResetSplits();
-            for (int i = 0; i < st.Splits.Length && i < _times.Length; i++) _times[i] = st.Splits[i];
+            for (int i = 0; i < st.Splits.Length && i < _times.Length; i++) { _times[i] = st.Splits[i]; _loadsAt[i] = 0f; }
             _resumedFrom = st.Index;
             _resumeSkipDt = true;
             // The delta's search starts where the comparison was at this time.
@@ -243,7 +243,7 @@ namespace ForestOverlay.Modules
         /// itself is not kept.
         private void FinishResumedRun(Attempt done)
         {
-            FinishSplits(done.Duration);
+            FinishSplits(done);
             RecordPracticeSegment(_times.Length - 1);
             int from = _resumedFrom;
             _resumedFrom = -1;

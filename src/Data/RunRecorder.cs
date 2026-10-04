@@ -119,6 +119,16 @@ namespace ForestOverlay.Data
         /// Data/SplitTable shows those by their total only.
         public float[] Splits = new float[0];
 
+        /// Load-removed time (Data/LoadTimes): the loads the timer counted -
+        /// how many, their seconds in Duration, and their seconds before
+        /// each checkpoint (index-aligned with Splits; empty = none before
+        /// any). HasLoads false for attempts saved before loads were
+        /// tracked: they count as having none.
+        public bool HasLoads;
+        public int Loads;
+        public float LoadTime;
+        public float[] SplitLoads = new float[0];
+
         /// Who ran it: a stable id (a hash of the Steam id, never the id
         /// itself - author, 2026-09-27) and the name at the time. The id
         /// decides whose run it is; the newest name is what is shown.
@@ -395,6 +405,14 @@ namespace ForestOverlay.Data
         public float Elapsed { get; private set; }
         public Attempt Current { get; private set; }
 
+        /// The loads in Elapsed (load-removed time, Data/LoadTimes). The
+        /// caller sets LoadingNow before each Tick: the game is loading.
+        public readonly LoadClock LoadClock = new LoadClock();
+        public bool LoadingNow;
+
+        /// Elapsed with the loads taken out.
+        public float Lrt { get { return LoadClock.Lrt(Elapsed); } }
+
         private Vector3 _anchor;
         private string _anchorLabel = "";
         private float _nextSampleTime;
@@ -445,6 +463,7 @@ namespace ForestOverlay.Data
         {
             State = RunState.Idle;
             Elapsed = 0f;
+            LoadClock.Reset();
             Current = null;
         }
 
@@ -470,6 +489,7 @@ namespace ForestOverlay.Data
             if (State != RunState.Running) return;
 
             Elapsed += dt;
+            LoadClock.Tick(dt, LoadingNow);
 
             if (Elapsed < _nextSampleTime) return;
             _nextSampleTime = Elapsed + SampleInterval;
@@ -607,6 +627,7 @@ namespace ForestOverlay.Data
         {
             State = RunState.Running;
             Elapsed = 0f;
+            LoadClock.Reset();
             _nextSampleTime = 0f;
             _nextStateTime = 0f;
             _itemsLast.Clear();
@@ -632,6 +653,9 @@ namespace ForestOverlay.Data
 
             Current.Duration = Elapsed;
             Current.Completed = true;
+            Current.HasLoads = true;
+            Current.Loads = LoadClock.Loads;
+            Current.LoadTime = LoadClock.LoadTime;
 
             Attempt done = Current;
             State = RunState.Idle;

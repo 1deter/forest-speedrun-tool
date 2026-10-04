@@ -48,6 +48,7 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _resVerdict = new GUIContent("");
         private readonly GUIContent _resCompare = new GUIContent("");
         private readonly GUIContent _resGolds = new GUIContent("");
+        private readonly GUIContent _resLoads = new GUIContent("");
         private readonly GUIContent _resMore = new GUIContent("");
         private readonly GUIContent _resRunMode = new GUIContent("");
         private readonly GUIContent _resHint = new GUIContent(
@@ -124,6 +125,8 @@ namespace ForestOverlay.Modules
             _resVerdict.text = _result.Verdict;
             _resCompare.text = _result.CompareLine;
             _resGolds.text = _result.GoldLine;
+            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, td, _cols[(int)Col.Lrt].Value);
+            _resLoads.text = _result.LoadLine;
 
             // The table's cells: copied once, drawn every frame.
             _resRows = rows;
@@ -166,6 +169,7 @@ namespace ForestOverlay.Modules
             Ctx.Log.LogInfo("Results panel: " + _result.Headline + " - " + _result.Verdict +
                             (_result.CompareLine.Length > 0 ? " " + _result.CompareLine : "") +
                             (_result.Golds > 0 ? " " + _result.Golds + " gold(s)." : "") +
+                            (_result.LoadLine.Length > 0 ? " " + _result.LoadLine : "") +
                             (outcome != null ? " Run mode attempt " + outcome.Attempt + " (" + outcome.AttemptId + ")." : ""));
         }
 
@@ -227,6 +231,8 @@ namespace ForestOverlay.Modules
             y += draw ? UiText.Draw(x, y, w, _resVerdict, verdictStyle) : UiText.Height(w, _resVerdict, verdictStyle);
             y += draw ? UiText.Draw(x, y, w, _resCompare) : UiText.Height(w, _resCompare, UiText.Plain);
             y += draw ? UiText.Draw(x, y, w, _resGolds) : UiText.Height(w, _resGolds, UiText.Plain);
+            if (_resLoads.text.Length > 0)
+                y += draw ? UiText.Draw(x, y, w, _resLoads) : UiText.Height(w, _resLoads, UiText.Plain);
             y += 4f;
 
             // The splits: name, time, delta, segment, saved / lost.
