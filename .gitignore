@@ -28,3 +28,5 @@ site/aerial-out/
 site/world-*/
 scripts/site-look-shots/
 __pycache__/
+
+.claude/worktrees/
