@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.244 - 2026-10-04
+
+- Less stutter: the overlay makes far less garbage while idle, so the game's ~90 ms memory clean-ups come less often; the Perf log line now names the modules that allocate most.
+
 ## v0.24.243 - 2026-10-04
 
 - Website: a daily per-runner limit on run mode attempts (5,000 a day); past it an attempt is set aside with the reason instead of retried.
