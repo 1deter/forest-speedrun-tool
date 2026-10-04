@@ -21,8 +21,10 @@ using Microsoft.AspNetCore.RateLimiting;
 //   FOREST_DISCORD_WEBHOOK  a Discord webhook URL: a new PB on a community
 //                       spot or a run spot is posted there (PbWebhook).
 //                       Unset = off. Env or appsettings.json.
-//   FOREST_SITE_URL     the public address for links in those posts
-//                       (default https://forest.deter.cloud).
+//   FOREST_SITE_URL     the public address for links in those posts and
+//                       in link previews' og:url (default
+//                       https://forest.deter.cloud) - never the request's
+//                       Host header.
 // ------------------------------------------------------------------
 const int MaxBody = 4 * 1024 * 1024;
 
@@ -37,6 +39,9 @@ var categories = new Categories(store);
 var runs = new Runs(store, c => categories.IsPublished(c));
 var attempts = new Attempts(store, dataDir, null, categories);
 var webhook = new PbWebhook(builder.Configuration["FOREST_DISCORD_WEBHOOK"], builder.Configuration["FOREST_SITE_URL"]);
+// Link previews name the configured address, not the request's Host
+// (security audit, 2026-10-04: a Host header is the client's to choose).
+string siteUrl = PbNews.SiteUrl(builder.Configuration["FOREST_SITE_URL"]);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 builder.Services.AddSingleton(webhook);
@@ -568,7 +573,7 @@ IResult SpotPage(HttpContext c, string rest)
     JsonObject s = id.Length > 0 && id.Length <= 80 ? runs.Spot(id) : null;
     if (s == null) return Results.Content(indexHtml, "text/html; charset=utf-8");
     var (title, description) = Pages.SpotSummary(s);
-    string url = "https://" + c.Request.Host.Value + "/spot/" + Uri.EscapeDataString(id);
+    string url = siteUrl + "/spot/" + Uri.EscapeDataString(id);
     return Results.Content(Pages.WithMeta(indexHtml, title, description, url), "text/html; charset=utf-8");
 }
 // An attempt's page (run mode, phase 3): its verdict in the link preview.
@@ -579,7 +584,7 @@ IResult AttemptPage(HttpContext c, string id)
     if (a == null) return Results.Content(indexHtml, "text/html; charset=utf-8");
     var j = System.Text.Json.JsonSerializer.SerializeToNode(a)!.AsObject();
     var (title, description) = Pages.AttemptSummary(j);
-    string url = "https://" + c.Request.Host.Value + "/attempt/" + id;
+    string url = siteUrl + "/attempt/" + id;
     return Results.Content(Pages.WithMeta(indexHtml, title, description, url), "text/html; charset=utf-8");
 }
 app.MapGet("/", Page);
@@ -592,7 +597,7 @@ app.MapGet("/about", Page);
 app.MapGet("/compare", (HttpContext c) =>
 {
     c.Response.Headers.CacheControl = "no-cache";
-    string url = "https://" + c.Request.Host.Value + "/compare";
+    string url = siteUrl + "/compare";
     return Results.Content(Pages.WithMeta(indexHtml, "Compare runs · Forest Practice Runs",
         "Two YouTube runs side by side, frame-timed: each run's start, end and splits, played together.", url), "text/html; charset=utf-8");
 });

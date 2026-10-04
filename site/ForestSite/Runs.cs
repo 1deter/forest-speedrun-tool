@@ -20,6 +20,13 @@ public sealed class Runs
 
     /// Spot submissions one runner can have waiting at once.
     public const int MaxOpenSubmissions = 20;
+    /// The longest segment id an upload may bring (security audit,
+    /// 2026-10-04). The plugin's ids are `s-` + 12 hex (up to 34 chars) and
+    /// old ones `spot.<category>.<name>` slugs (~30); 80 leaves room for a
+    /// long legacy name, keeps a run folder's name (SafeName, up to 3 bytes a
+    /// letter) under the file system's 255 bytes and matches the spot page's
+    /// own limit. Ids already stored are still read and deletable.
+    public const int MaxSegmentId = 80;
 
     private readonly Store _store;
     private readonly Func<string, bool> _publishedCategory;
@@ -54,6 +61,11 @@ public sealed class Runs
         SegmentBundle b = SegmentBundle.Parse(text, out string error, null);
         if (b == null) { res.Error = error; return res; }
         Segment seg = b.Segment;
+        if (string.IsNullOrEmpty(seg.Id) || seg.Id.Length > MaxSegmentId)
+        {
+            res.Error = "the segment id must be 1-" + MaxSegmentId + " characters";
+            return res;
+        }
         if (!seg.IsTimed) { res.Error = "not a timed segment (no start or end)"; return res; }
         if (b.Attempts.Count == 0) { res.Error = "no [attempt] sections"; return res; }
 
