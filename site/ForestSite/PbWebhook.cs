@@ -43,7 +43,10 @@ public static class PbNews
     public static string Message(string runner, string spot, float time, float previousBest, string url)
     {
         var sb = new StringBuilder();
-        sb.Append(Escape(runner)).Append(float.IsNaN(previousBest) ? " finished " : " set a new PB on ").Append(Escape(spot)).Append(": ")
+        // Clipped as the site stores them (a spot's name in an upload is not
+        // clipped before this): a long one would push the post past
+        // Discord's 2,000 characters and it would be refused.
+        sb.Append(Escape(Clip(runner, 40))).Append(float.IsNaN(previousBest) ? " finished " : " set a new PB on ").Append(Escape(Clip(spot, 80))).Append(": ")
           .Append(Time(time));
         if (float.IsNaN(previousBest)) sb.Append(" (their first run)");
         else sb.Append(" (").Append(Time(previousBest - time)).Append(" faster than ").Append(Time(previousBest)).Append(')');
@@ -59,6 +62,12 @@ public static class PbNews
         string text = h > 0 ? h + ":" + m.ToString("00") + ":" + s.ToString("00")
                     : m > 0 ? m + ":" + s.ToString("00") : s.ToString(CultureInfo.InvariantCulture);
         return text + "." + frac.ToString("000");
+    }
+
+    private static string Clip(string s, int n)
+    {
+        s = (s ?? "").Trim();
+        return s.Length > n ? s.Substring(0, n) : s;
     }
 
     /// A runner's text as plain text in Discord: markdown and masked links
