@@ -2718,6 +2718,33 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   Setting both moves the fog at once. At the test spot / time (322, a
   heavy rain) 150 m and 2000 m looked alike from the forest floor - the
   fog shows in open views, not under trees.
+- **Overlay colours: the main camera's image effects** (bridge, 2026-10-04,
+  v0.24.242): `MainCamNew` is HDR (`allowHDR` true, deferred, linear colour
+  space) and its last image effect is Unity's post-processing stack v1
+  (`PostProcessingBehaviour`; `ScionPostProcess` is on the camera but
+  disabled; `RaymarchedClouds` and `CameraDepthFix` after it have no
+  `OnRenderImage`). Its profile: eye adaptation on (Progressive,
+  `keyValue` 0.25, `minLuminance` -7 / `maxLuminance` 1 EV - so up to x32
+  exposure in the dark), bloom on, colour grading on with the **Neutral**
+  tonemapper, antialiasing **TAA**. GL lines drawn in `OnRenderObject` go
+  through all of it: the bridge beacon (1, 0.2, 1) read **255,255,255** at
+  the line by day and at night, the hue only in the glow. Switching off
+  bloom or colour grading alone left it white; with the whole
+  `PostProcessingBehaviour` off (and `ImageEffectOptimizer`, which turns
+  it back on every frame) it read 254,124,254 - the exposure is what
+  whitens. A component added to the camera last runs its `OnRenderImage`
+  after the stack (component order); there `RenderTexture.active` captured
+  in `OnRenderObject` is the camera's scene target (`TempBuffer...`, same
+  size as the picture, 24-bit depth), and drawing into the picture with
+  that depth bound (`Graphics.SetRenderTarget(src.colorBuffer,
+  scene.depthBuffer)`, `GL.LoadProjectionMatrix(camera.projectionMatrix)`,
+  `GL.modelview = worldToCameraMatrix`) gives the exact colours (255,124,255;
+  day and night) with the right way up and depth-tested (a line behind a
+  trunk stays hidden). The picture there was ARGBHalf, not sRGB, at
+  1920x1200. Built as `Game/LatePass` (probe assembly loaded with
+  `Assembly.LoadFrom` over the bridge; reset the bridge's type list with
+  `set BepInEx_Manager OverlayPlugin._host._modules[14]._probe._allTypes
+  null` to reach a type loaded after the first `static:`).
 - **Eye adaptation can't be switched off** (2026-10-01): setting
   `PostProcessingBehaviour.profile.eyeAdaptation.enabled` false is undone
   by `PostProcessingBehaviour.OnGUI` (`EnableScionEyeAdaption(PostEffects

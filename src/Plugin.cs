@@ -97,6 +97,7 @@ namespace ForestOverlay
                 UpdateChecker.TidyPluginFolder(System.Reflection.Assembly.GetExecutingAssembly().Location, Logger);
 
                 _bridge = new GameBridge(Logger);
+                LatePass.Log = line => Logger.LogInfo(line);
                 _player = new PlayerRef(Logger);
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
