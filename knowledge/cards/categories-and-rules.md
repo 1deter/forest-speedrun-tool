@@ -6,7 +6,7 @@ tags: categories, rules, timing
 confidence: runner
 checked: 2026-10-03
 sources: speedrun.com API v1, game w6j5341j (The Forest): categories with rules and subcategories, leaderboards top 3, read 2026-10-03; site/ForestSite/Categories.cs (how the tool seeds them); docs/run-mode.md "Categories"
-related: routes, bomb-boost, smash-clip, lab-skip, elevator-skip, endgame-gate, wall-and-log-boost, dev-console-and-creative, pausing-and-game-time, endgame-splits, forestoverlay
+related: top-runners, hundred-percent, routes, bomb-boost, smash-clip, lab-skip, elevator-skip, endgame-gate, wall-and-log-boost, dev-console-and-creative, pausing-and-game-time, endgame-splits, forestoverlay
 code: Categories.Seeds, Categories.BannedOf, RunCategory
 ---
 
@@ -51,7 +51,8 @@ Things worth knowing about the list:
   Glitch)* but has no runs, and the category's rules ban the explosives
   glitch - read it as an empty board, not as permission. The tool keeps it
   as a draft with the game left open (it names no difficulty).
-- **100%** has no runs on the board.
+- **100%** has no runs on the board; its full item list and book parts
+  are in `hundred-percent`.
 - **Bathrobe% and Shark%** start at *player control*, not at movement, and
   are the only ones that let the runner pick any difficulty in one board.
 
@@ -120,45 +121,11 @@ a moderator for *Glitchless* - the rule names only OOB and wall clips.
 - Real time only: load times count, and so does any time spent paused
   (a bomb boost's seconds in the menu are on the clock).
 
-## Records (speedrun.com, 2026-10-03)
+## Records, top runners and moderators
 
-First place per board, to show the scale; the boards change, so check
-speedrun.com for the current ones.
-
-| Board | Time | Runner(s) |
-|---|---|---|
-| Any% - Creative | 3:31.000 | Cheesecake404 |
-| Any% (No Explosive Glitch) - Peaceful | 5:16.017 | sxczurass |
-| Any% (No Explosive Glitch) - Normal | 5:11.633 | sxczurass |
-| Any% (No Explosive Glitch) - Hardmode | 5:10.800 | sxczurass |
-| Any% (No Explosive Glitch) - Creative | 5:48.433 | yirequ |
-| Any% Glitchless - Peaceful | 18:59.966 | yirequ |
-| Any% Glitchless - Normal | 18:54.266 | yirequ |
-| Any% Glitchless - Hardmode | 18:54.300 | yirequ |
-| Any% Glitchless - Creative | 15:09.733 | yirequ |
-| Inbounds% - Creative | 9:04.617 | sxczurass |
-| Co-op Any% - Peaceful / Normal / Hardmode / Creative | 6:07.333 / 5:45.083 / 5:45.600 / 5:08.550 | yirequ, sxczurass |
-| Coop Glitchless any% - Peaceful | 15:59.867 | yirequ, sxczurass |
-| Coop Glitchless any% - Normal | 16:50.433 | yirequ, Swaggyswaggster |
-| Coop Glitchless any% - Hardmode | 17:12.967 | yirequ, buntstift |
-| Coop Glitchless any% - Creative | 13:55.100 | sxczurass, yirequ, Swaggyswaggster, buntstift |
-| VR% - Creative / Normal | 4:31.133 / 6:32.767 | Cheesecake404 |
-| Bathrobe% | 32.900 | Cheesecake404 |
-| Shark% | 20.383 | Cheesecake404 |
-| 100% | no runs | |
-
-What the gaps say [inferred]: bombs are worth ~1:40 in Creative (3:31
-vs 5:48); the clips and out-of-bounds routes are worth ~10-14 minutes
-(No Explosive Glitch ~5:10 vs Glitchless ~18:54); the survival
-difficulties are faster than Creative under *No Explosive Glitch* (5:10
-vs 5:48), so Creative's route there is a different one, not just the same
-route with god mode.
-
-## Moderators
-
-Cheesecake404, Killerkaz, Chazb, Gortern, sxczurass, fruich, yirequ
-(speedrun.com, 2026-10-03). Rule questions go to them, on speedrun.com or
-the speedrun Discord linked from the game's page.
+The top 3 of every board, who holds the most of them, what the gaps
+between categories say, and the moderators: `top-runners`. The full 100%
+item list: `hundred-percent`.
 
 ## How ForestOverlay uses them
 
