@@ -154,10 +154,11 @@ namespace ForestOverlay.Game
                 try { d.DrawLate(_camera); }
                 catch (Exception e)
                 {
-                    if (!_loggedFirst || _lastFailure != e.Message)
+                    // Once per message: this runs every frame.
+                    if (_lastFailure != e.Message)
                     {
                         _lastFailure = e.Message;
-                        Say("Late pass: an overlay threw: " + e.Message);
+                        Say("Late pass: " + d.GetType().Name + " threw: " + e.Message);
                     }
                 }
             }
@@ -168,7 +169,6 @@ namespace ForestOverlay.Game
             if (!_loggedFirst)
             {
                 _loggedFirst = true;
-                _lastFailure = null;
                 Say("Late pass: drawing on '" + _camera.name + "' after its image effects (picture " + src.width + "x" + src.height +
                     " " + src.format + (src.sRGB ? " sRGB" : " linear") + ", scene depth from '" + _scene.name + "' " +
                     _scene.width + "x" + _scene.height + ", " + _scene.depth + "-bit)");

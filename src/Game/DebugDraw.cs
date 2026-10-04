@@ -87,7 +87,7 @@ namespace ForestOverlay.Game
         }
     }
 
-    public sealed class DebugDrawBehaviour : MonoBehaviour
+    public sealed class DebugDrawBehaviour : MonoBehaviour, ILateDrawer
     {
         public bool ShowColliders;
         public bool ShowTriggers;
@@ -199,11 +199,24 @@ namespace ForestOverlay.Game
             Refresh();
         }
 
+        // Drawn after the camera's image effects when Game/LatePass can
+        // (true colours); OnRenderObject is the fallback.
+        private void OnEnable() { LatePass.Register(this); }
+        private void OnDisable() { LatePass.Unregister(this); }
+        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        public bool WantsLateDraw { get { return _found.Count > 0; } }
+        public void DrawLate(Camera camera) { DrawLines(); }
+
         private void OnRenderObject()
         {
-            if (_found.Count == 0) return;
+            if (!WantsLateDraw) return;
             if (!DrawTarget.ShouldDraw()) return;
+            if (LatePass.Covers(Camera.current)) return;
+            DrawLines();
+        }
 
+        private void DrawLines()
+        {
             EnsureMaterial();
             if (_material == null) return;
 
@@ -590,7 +603,7 @@ namespace ForestOverlay.Game
     // (`mark`): a tall post with a cross at its foot, drawn through
     // terrain and walls. Author, 2026-09-24: "I don't have a compass" -
     // told to pick up cash "7 m east", he could not tell where to look.
-    public sealed class MarkerBehaviour : MonoBehaviour
+    public sealed class MarkerBehaviour : MonoBehaviour, ILateDrawer
     {
         public const int Max = 16;
         public readonly Vector3[] Points = new Vector3[Max];
@@ -606,9 +619,24 @@ namespace ForestOverlay.Game
             return true;
         }
 
+        // Drawn after the camera's image effects when Game/LatePass can
+        // (true colours); OnRenderObject is the fallback.
+        private void OnEnable() { LatePass.Register(this); }
+        private void OnDisable() { LatePass.Unregister(this); }
+        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        public bool WantsLateDraw { get { return Count > 0; } }
+        public void DrawLate(Camera camera) { DrawLines(); }
+
         private void OnRenderObject()
         {
-            if (Count == 0 || !DrawTarget.ShouldDraw()) return;
+            if (!WantsLateDraw) return;
+            if (!DrawTarget.ShouldDraw()) return;
+            if (LatePass.Covers(Camera.current)) return;
+            DrawLines();
+        }
+
+        private void DrawLines()
+        {
             if (_material == null)
             {
                 Shader shader = Shader.Find("Hidden/Internal-Colored");
@@ -642,7 +670,7 @@ namespace ForestOverlay.Game
         }
     }
 
-    public sealed class RunLineBehaviour : MonoBehaviour
+    public sealed class RunLineBehaviour : MonoBehaviour, ILateDrawer
     {
         public bool Show = true;
 
@@ -698,12 +726,24 @@ namespace ForestOverlay.Game
             _material.SetInt("_ZWrite", 0);
         }
 
+        // Drawn after the camera's image effects when Game/LatePass can
+        // (true colours); OnRenderObject is the fallback.
+        private void OnEnable() { LatePass.Register(this); }
+        private void OnDisable() { LatePass.Unregister(this); }
+        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        public bool WantsLateDraw { get { return Show && (ReferenceCount >= 2 || CurrentCount >= 2 || FailedCount >= 2 || HasGhost || PathCount >= 2); } }
+        public void DrawLate(Camera camera) { DrawLines(); }
+
         private void OnRenderObject()
         {
-            if (!Show) return;
-            if (ReferenceCount < 2 && CurrentCount < 2 && FailedCount < 2 && !HasGhost && PathCount < 2) return;
+            if (!WantsLateDraw) return;
             if (!DrawTarget.ShouldDraw()) return;
+            if (LatePass.Covers(Camera.current)) return;
+            DrawLines();
+        }
 
+        private void DrawLines()
+        {
             EnsureMaterial();
             if (_material == null) return;
 

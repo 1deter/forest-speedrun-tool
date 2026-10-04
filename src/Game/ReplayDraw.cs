@@ -9,12 +9,14 @@ namespace ForestOverlay.Game
     // time, and a small marker at each thing it did (crafted, ate, kill,
     // ride, pause ...) along its line. GL lines in OnRenderObject, the
     // main view only (DrawTarget.ShouldDraw, gotcha 12) - like the run
-    // lines. Labels are drawn by the module in OnGUI (cached text).
+    // lines, and like them after the image effects (Game/LatePass) so
+    // the colours are not blown out to white. Labels are drawn by the
+    // module in OnGUI (cached text).
     //
     // Everything that needs maths (box corners from rotation, colours by
     // kind) is worked out once in SetSource; a frame only emits vertices.
     // ------------------------------------------------------------------
-    public sealed class ReplayBehaviour : MonoBehaviour
+    public sealed class ReplayBehaviour : MonoBehaviour, ILateDrawer
     {
         public bool ShowBuildings = true;
         public bool ShowMarkers = true;
@@ -116,12 +118,26 @@ namespace ForestOverlay.Game
             _material.SetInt("_ZWrite", 0);
         }
 
+        // Drawn after the camera's image effects when Game/LatePass can
+        // (true colours); OnRenderObject is the fallback.
+        private void OnEnable() { LatePass.Register(this); }
+        private void OnDisable() { LatePass.Unregister(this); }
+        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        public bool WantsLateDraw { get { return (ShowBuildings && _buildings > 0) || (ShowMarkers && _markCount > 0); } }
+        public void DrawLate(Camera camera) { DrawLines(); }
+
         private void OnRenderObject()
+        {
+            if (!WantsLateDraw) return;
+            if (!DrawTarget.ShouldDraw()) return;
+            if (LatePass.Covers(Camera.current)) return;
+            DrawLines();
+        }
+
+        private void DrawLines()
         {
             bool buildings = ShowBuildings && _buildings > 0;
             bool markers = ShowMarkers && _markCount > 0;
-            if (!buildings && !markers) return;
-            if (!DrawTarget.ShouldDraw()) return;
             EnsureMaterial();
             if (_material == null) return;
 
