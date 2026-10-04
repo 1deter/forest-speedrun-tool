@@ -56,6 +56,13 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
+        /// endgame_streaming (the lab) is loaded.
+        public static bool LabLoaded()
+        {
+            try { return SceneManager.GetSceneByName(Scene).isLoaded; }
+            catch (Exception) { return false; }
+        }
+
         /// endgame_streaming is loaded, and no scene is still loading.
         public static bool Settled()
         {

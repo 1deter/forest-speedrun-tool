@@ -58,6 +58,7 @@ namespace ForestOverlay.Data
         public bool ReloadOnCapture;   // "Also on the first death"
         public bool ReloadInBoss;      // "Also in the boss fight"
         public bool SlotKnown;         // a save slot to reload
+        public bool ReloadInPlace;     // "Reload the save: in place (fast)"
 
         // Run mode (Core/RunMode: the run's category locks / forces).
         public bool ReviveLocked;      // "revive"
@@ -65,6 +66,22 @@ namespace ForestOverlay.Data
         public bool GoLocked;          // "go"
         public bool ReloadLocked;      // "reload"
         public bool ReloadForced;      // "reload" forced on for the run
+        public bool RunActive;         // run mode: a reload is the game's own load only
+    }
+
+    /// What decides whether a reload can be done in place, gathered at the
+    /// death (Modules/DeathModule).
+    public struct InPlaceCheck
+    {
+        public bool RunActive;
+        public bool AtTitle;
+        public bool Busy;              // a savestate action is running
+        public bool SlotRead;          // the slot's save data was read
+        public string ReadError;       // ... or why not
+        public bool FlagsKnown;        // the save's area flags (Data/SlotSaveFlags)
+        public bool SaveInEndgame;
+        public bool LiveInEndgame;     // LocalPlayer.IsInEndgame now
+        public bool EndgameLoaded;     // endgame_streaming is loaded now
     }
 
     public struct DeathDecision
@@ -172,7 +189,33 @@ namespace ForestOverlay.Data
 
             string why = chosen ?? (s.ReloadForced ? "the run's category forces Reload save on death"
                                                    : "Reload save on death is on");
-            return Make(DeathOutcome.ReloadSave, "reloads your save (the game's own load)", lead + why);
+            string what = !s.ReloadInPlace ? "reloads your save (the game's own load)"
+                        : s.RunActive ? "reloads your save (the game's own load - run mode never reloads in place)"
+                        : "reloads your save in place (a Quick load of the slot's save; marks practice)";
+            return Make(DeathOutcome.ReloadSave, what, lead + why);
+        }
+
+        /// Null when a reload can be done in place (the slot's save restored
+        /// like a savestate's Quick load), else why the game's own load is
+        /// used instead. Run mode: the game's own load only (docs/run-mode.md:
+        /// Reload save on death stays in a run as "the game's own load of
+        /// the same save"). The endgame: an in-place restore loads no scenes
+        /// and does not send the game's enter / exit events, so the save and
+        /// the player must be on the same side of the vault door, with the
+        /// lab loaded when inside (bridge 2026-10-04: in place from the
+        /// surface put the player in the lab with endgame_streaming
+        /// unloaded and IsInEndgame false).
+        public static string InPlaceRefusal(InPlaceCheck c)
+        {
+            if (c.RunActive) return "run mode: a run reloads only with the game's own load";
+            if (c.AtTitle) return "no game loaded";
+            if (c.Busy) return "a savestate action is still running";
+            if (!c.SlotRead) return string.IsNullOrEmpty(c.ReadError) ? "the slot's save could not be read" : c.ReadError;
+            if (!c.FlagsKnown) return "the save's area (endgame / cave) could not be read";
+            if (c.SaveInEndgame && !c.LiveInEndgame) return "the save is in the endgame and you are not - the load brings the lab back";
+            if (!c.SaveInEndgame && c.LiveInEndgame) return "you are in the endgame and the save is not - the load leaves it the game's way";
+            if (c.SaveInEndgame && !c.EndgameLoaded) return "the save is in the endgame and the lab is not loaded";
+            return null;
         }
 
         private static DeathDecision Game(DeathSituation s, string why)

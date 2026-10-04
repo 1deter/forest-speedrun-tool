@@ -80,7 +80,15 @@ namespace ForestOverlay.Game
         private MethodInfo _resume;              // static void Resume()
         private PropertyInfo _isSuspended;
         private PropertyInfo _isDeserializing;
+        private FieldInfo _playerName;
         private Type _levelLoaderType;
+
+        // The slot's save (a Reload in place, Modules/DeathModule) - removed
+        // with the Savestates tab in v0.24.106, back for the death reload.
+        private MethodInfo _prefsGetString;      // PlayerPrefsFile.GetString(string, string, bool)
+        private MethodInfo _deserializeEntry;    // UnitySerializer.Deserialize<SaveEntry>(byte[])
+        private FieldInfo _entryData;
+        private FieldInfo _memorySafe;           // PlayerPreferences.MemorySafeSaveMode
 
         // Level data, for the delete step
         private MethodInfo _deserializeLevelData; // UnitySerializer.Deserialize<LevelData>(byte[])
@@ -204,6 +212,7 @@ namespace ForestOverlay.Game
                 _resume = ls.GetMethod("Resume", stat, null, Type.EmptyTypes, null);
                 _isSuspended = ls.GetProperty("IsSuspended", stat);
                 _isDeserializing = ls.GetProperty("IsDeserializing", stat);
+                _playerName = ls.GetField("PlayerName", stat);
 
                 if (_levelLoaderType != null)
                 {
@@ -211,6 +220,9 @@ namespace ForestOverlay.Game
                     _loadNow = ls.GetMethod("LoadNow", stat, null,
                         new[] { typeof(object), typeof(bool), typeof(bool), complete }, null);
                 }
+
+                Type entry = ls.GetNestedType("SaveEntry", BindingFlags.Public | BindingFlags.NonPublic);
+                if (entry != null) _entryData = entry.GetField("Data", inst);
 
                 Type levelData = ls.GetNestedType("LevelData", BindingFlags.Public | BindingFlags.NonPublic);
                 Type storedItem = ls.GetNestedType("StoredItem", BindingFlags.Public | BindingFlags.NonPublic);
@@ -232,6 +244,7 @@ namespace ForestOverlay.Game
                         ParameterInfo[] p = m.GetParameters();
                         if (p.Length == 1 && p[0].ParameterType == typeof(byte[]))
                         {
+                            if (entry != null) _deserializeEntry = m.MakeGenericMethod(entry);
                             if (levelData != null) _deserializeLevelData = m.MakeGenericMethod(levelData);
                             break;
                         }
@@ -242,6 +255,13 @@ namespace ForestOverlay.Game
                 if (compression != null)
                     _decompress = compression.GetMethod("Decompress", stat, null, new[] { typeof(string) }, null);
             }
+
+            Type prefs = GameBridge.FindGameType("PlayerPrefsFile");
+            if (prefs != null)
+                _prefsGetString = prefs.GetMethod("GetString", stat, null,
+                    new[] { typeof(string), typeof(string), typeof(bool) }, null);
+            Type pp = GameBridge.FindGameType("PlayerPreferences");
+            if (pp != null) _memorySafe = pp.GetField("MemorySafeSaveMode", stat);
 
             _uniqueIdType = GameBridge.FindGameType("UniqueIdentifier");
             if (_uniqueIdType != null)
@@ -391,6 +411,7 @@ namespace ForestOverlay.Game
                      " loadNow:" + (_loadNow != null) +
                      " loadSaved:" + (_loadSavedLevel != null) +
                      " resume:" + (_resume != null) +
+                     " slotRead:" + (_prefsGetString != null && _deserializeEntry != null && _entryData != null) +
                      " diff:" + (_deserializeLevelData != null && _storedObjectNames != null && _storedItemName != null && _decompress != null) +
                      " stash:" + (_stashWeapon != null && _stashLeftHand != null) +
                      " held:" + (_equipmentSlots != null && _viewItemId != null && _equipById != null && _leftHandSlot != null && _lighterBusy != null) +
@@ -427,6 +448,72 @@ namespace ForestOverlay.Game
 
         /// "Creative", the difficulty's name, or "" when unknown.
         public string CurrentDifficulty { get { return DifficultyName(); } }
+
+        /// The level data in the current slot's save file (what
+        /// LevelSerializer.Resume loads), or null with `error` set.
+        public string ReadSlotData(out string error)
+        {
+            error = null;
+            if (!Resolve() || _prefsGetString == null || _deserializeEntry == null || _entryData == null)
+            {
+                error = "the slot reader is not bound";
+                return null;
+            }
+
+            try
+            {
+                // Resume's own key: PlayerName + "__RESUME__", in the slot's
+                // folder (PlayerPrefsFile reads GameSetup.Slot's).
+                string key = (_playerName != null ? _playerName.GetValue(null) as string : "") + "__RESUME__";
+                string b64 = _prefsGetString.Invoke(null, new object[] { key, "", true }) as string;
+                if (string.IsNullOrEmpty(b64)) { error = "the slot has no save"; return null; }
+
+                object entry = _deserializeEntry.Invoke(null, new object[] { Convert.FromBase64String(b64) });
+                string data = entry != null ? _entryData.GetValue(entry) as string : null;
+                if (string.IsNullOrEmpty(data)) error = "the save entry held no data";
+                return data;
+            }
+            catch (Exception ex)
+            {
+                Exception inner = ex.InnerException ?? ex;
+                error = "could not read the slot's save: " + inner.Message;
+                return null;
+            }
+        }
+
+        /// The save's endgame / cave flags (Data/SlotSaveFlags); false when
+        /// they cannot be read.
+        public bool ReadAreaFlags(string data, out bool inEndgame, out bool inCaves)
+        {
+            inEndgame = false;
+            inCaves = false;
+            try
+            {
+                byte[] bytes = LevelBytes(data);
+                return bytes != null && ForestOverlay.Data.SlotSaveFlags.TryRead(bytes, out inEndgame, out inCaves);
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// A slot save is made the game's way: streaming unloaded only in
+        /// MemorySafeSaveMode.
+        public bool MemorySafeSaveMode
+        {
+            get
+            {
+                if (!Resolve() || _memorySafe == null) return false;
+                try { return (bool)_memorySafe.GetValue(null); }
+                catch (Exception) { return false; }
+            }
+        }
+
+        private byte[] LevelBytes(string data)
+        {
+            if (string.IsNullOrEmpty(data)) return null;
+            if (data.StartsWith("NOCOMPRESSION", StringComparison.Ordinal)) return Convert.FromBase64String(data.Substring(13));
+            if (_decompress != null) return _decompress.Invoke(null, new object[] { data }) as byte[];
+            return null;
+        }
 
         public int IdentifierCount
         {
@@ -870,10 +957,8 @@ namespace ForestOverlay.Game
 
             try
             {
-                byte[] bytes;
-                if (data.StartsWith("NOCOMPRESSION")) bytes = Convert.FromBase64String(data.Substring(13));
-                else if (_decompress != null) bytes = _decompress.Invoke(null, new object[] { data }) as byte[];
-                else { error = "compressed data and no CompressionHelper"; return null; }
+                byte[] bytes = LevelBytes(data);
+                if (bytes == null) { error = "compressed data and no CompressionHelper"; return null; }
 
                 object level = _deserializeLevelData.Invoke(null, new object[] { bytes });
                 IList items = level != null ? _storedObjectNames.GetValue(level) as IList : null;
