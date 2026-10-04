@@ -476,6 +476,24 @@ namespace ForestOverlay.Data
             BeginRun();
         }
 
+        /// Start the clock at `elapsed` seconds, from `position`: a run
+        /// resumed from a checkpoint state (Data/CheckpointStates). Samples
+        /// start there; nothing before it is recorded.
+        public void Resume(Vector3 position, float elapsed)
+        {
+            if (State != RunState.Armed) return;
+
+            _anchor = position;
+            BeginRun();
+            if (elapsed < 0f) elapsed = 0f;
+            Elapsed = elapsed;
+            _nextSampleTime = elapsed;
+            _nextStateTime = elapsed;
+            RunSample s = Current.Samples[0];
+            s.T = elapsed;
+            Current.Samples[0] = s;
+        }
+
         private void BeginRun()
         {
             State = RunState.Running;

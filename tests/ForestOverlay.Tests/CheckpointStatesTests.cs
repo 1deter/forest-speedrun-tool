@@ -215,6 +215,38 @@ namespace ForestOverlay.Tests
             Assert.Equal(1, s.Next);
         }
 
+        // --- the recorder, resumed -------------------------------------------------
+
+        [Fact]
+        public void RecorderResumesItsClockAtTheCheckpointTime()
+        {
+            RunRecorder rec = new RunRecorder();
+            rec.Arm(Vector3.zero, "s-1");
+            rec.Resume(new Vector3(5f, 0f, 0f), 41.25f);
+
+            Assert.Equal(RunRecorder.RunState.Running, rec.State);
+            Assert.Equal(41.25f, rec.Elapsed, 3);
+            Assert.Single(rec.Current.Samples);
+            Assert.Equal(41.25f, rec.Current.Samples[0].T, 3);
+            Assert.Equal(5f, rec.Current.Samples[0].P.x, 3);
+
+            rec.Tick(new Vector3(6f, 0f, 0f), 1f, 0.5f);
+            Assert.Equal(41.75f, rec.Elapsed, 3);
+            Assert.Equal(2, rec.Current.Samples.Count);
+            Assert.Equal(41.75f, rec.Current.Samples[1].T, 3);
+
+            Attempt done = rec.Finish();
+            Assert.Equal(41.75f, done.Duration, 3);
+        }
+
+        [Fact]
+        public void RecorderResumesOnlyWhenArmed()
+        {
+            RunRecorder rec = new RunRecorder();
+            rec.Resume(Vector3.zero, 10f);
+            Assert.Equal(RunRecorder.RunState.Idle, rec.State);
+        }
+
         // --- golds yes, a PB never ------------------------------------------------
 
         [Fact]
