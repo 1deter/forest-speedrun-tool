@@ -78,6 +78,8 @@
     <Compile Include="../../src/Data/LssAutoSplit.cs" Link="Linked/LssAutoSplit.cs" />
     <Compile Include="../../src/Data/AttemptOwners.cs" Link="Linked/AttemptOwners.cs" />
     <Compile Include="../../src/Data/ItemCaps.cs" Link="Linked/ItemCaps.cs" />
+    <Compile Include="../../src/Data/MapView.cs" Link="Linked/MapView.cs" />
+    <Compile Include="../../src/Data/ReliefImage.cs" Link="Linked/ReliefImage.cs" />
     <Compile Include="../../src/Data/Trajectory.cs" Link="Linked/Trajectory.cs" />
     <Compile Include="../../src/Data/MoveDetector.cs" Link="Linked/MoveDetector.cs" />
     <Compile Include="../../src/Data/HudLines.cs" Link="Linked/HudLines.cs" />
