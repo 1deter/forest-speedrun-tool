@@ -218,6 +218,45 @@ namespace ForestOverlay.Data
         private static float Ms(float t) { return (float)Math.Round(t * 1000.0) / 1000f; }
     }
 
+    // ------------------------------------------------------------------
+    // When a time was set, for the Runs tab (runner request: "when each
+    // time was set"). An attempt's .run file has carried `recorded|<utc>`
+    // (its start) from the first version, so nothing new is stored; this
+    // only words it, in the runner's local time: "today 14:32",
+    // "yesterday 09:05", "3 Oct 14:32", "3 Oct 2025 14:32". Both times are
+    // LOCAL - the caller converts, so the words do not depend on the
+    // machine's zone here.
+    // ------------------------------------------------------------------
+    public static class RunDates
+    {
+        private static readonly string[] Months =
+        {
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        };
+
+        /// "" when the time is unknown (an attempt with no `recorded` line).
+        public static string When(DateTime local, DateTime nowLocal)
+        {
+            if (local.Year < 2000) return "";
+            string clock = local.Hour.ToString("00", CultureInfo.InvariantCulture) + ":" +
+                           local.Minute.ToString("00", CultureInfo.InvariantCulture);
+            DateTime day = local.Date, today = nowLocal.Date;
+            if (day == today) return "today " + clock;
+            if (day == today.AddDays(-1)) return "yesterday " + clock;
+            string date = local.Day.ToString(CultureInfo.InvariantCulture) + " " + Months[local.Month - 1];
+            if (local.Year != nowLocal.Year) date += " " + local.Year.ToString(CultureInfo.InvariantCulture);
+            return date + " " + clock;
+        }
+
+        /// A UTC stamp (as attempts carry it) in local words; "" when unknown.
+        public static string WhenUtc(DateTime utc, DateTime nowLocal)
+        {
+            if (utc.Year < 2000) return "";
+            DateTime u = utc.Kind == DateTimeKind.Utc ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+            return When(u.ToLocalTime(), nowLocal);
+        }
+    }
+
     public static class Playtime
     {
         /// LiveSplit's Total Playtime: every attempt's time, finished or

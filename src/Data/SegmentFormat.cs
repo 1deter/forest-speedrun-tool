@@ -69,6 +69,18 @@ namespace ForestOverlay.Data
                     if (s.ParseNameTarget >= 0) { s.SetCheckpointName(s.ParseNameTarget, value); return null; }
                     return "split name before any checkpoint or end: " + value;
 
+                // Hides the checkpoint written just before it during runs
+                // (display only, not part of the route).
+                case "hide":
+                    {
+                        if (s.ParseNameTarget < 0 || s.ParseNameTarget == Segment.EndNameTarget)
+                            return "hide before any checkpoint: " + value;
+                        string v = value.ToLowerInvariant();
+                        if (v == "yes" || v == "true" || v == "1") { s.SetCheckpointHidden(s.ParseNameTarget, true); return null; }
+                        if (v == "no" || v == "false" || v == "0") { s.SetCheckpointHidden(s.ParseNameTarget, false); return null; }
+                        return "bad hide (yes or no): " + value;
+                    }
+
                 case "check":
                 case "checkpoint":
                     {
@@ -117,6 +129,7 @@ namespace ForestOverlay.Data
                 sb.Append("check    = ").Append(TriggerParser.Write(s.Checkpoints[i])).Append(nl);
                 string name = i < s.CheckpointNames.Count ? s.CheckpointNames[i] : "";
                 if (!string.IsNullOrEmpty(name)) sb.Append("split    = ").Append(name).Append(nl);
+                if (s.IsCheckpointHidden(i)) sb.Append("hide     = yes").Append(nl);
             }
 
             if (s.End.IsSet)

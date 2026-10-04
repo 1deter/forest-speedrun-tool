@@ -60,6 +60,11 @@ namespace ForestOverlay.Data
         public float[] BestSegmentSplits;
         public float Pb = float.NaN;
         public float SumOfBest = float.NaN;
+        /// When the PB and each gold were set: the attempt's recorded time
+        /// (its start, UTC); default (MinValue) = unknown. The first attempt
+        /// to reach a time keeps it - a tie is not a new gold.
+        public DateTime PbSetUtc;
+        public DateTime[] BestSegmentSetUtc;
         public int Completed;
         /// Completed attempts that carry a time for every row.
         public int WithSplits;
@@ -72,6 +77,7 @@ namespace ForestOverlay.Data
             st.BestSegments = Filled(rows);
             st.PbSplits = Filled(rows);
             st.LastSplits = Filled(rows);
+            st.BestSegmentSetUtc = new DateTime[rows];
 
             float[] segSum = new float[rows];
             int[] segN = new int[rows];
@@ -93,12 +99,16 @@ namespace ForestOverlay.Data
                     if (float.IsNaN(seg)) { full = false; continue; }
                     segSum[i] += seg;
                     segN[i]++;
-                    if (float.IsNaN(st.BestSegments[i]) || seg < st.BestSegments[i]) st.BestSegments[i] = seg;
+                    if (float.IsNaN(st.BestSegments[i]) || seg < st.BestSegments[i])
+                    {
+                        st.BestSegments[i] = seg;
+                        st.BestSegmentSetUtc[i] = at.RecordedUtc;
+                    }
                 }
                 if (full) st.WithSplits++;
             }
 
-            if (pb != null) { st.PbSplits = SplitsOf(pb, rows); st.Pb = pb.Duration; }
+            if (pb != null) { st.PbSplits = SplitsOf(pb, rows); st.Pb = pb.Duration; st.PbSetUtc = pb.RecordedUtc; }
             if (last != null) st.LastSplits = SplitsOf(last, rows);
 
             float[] avgSeg = Filled(rows);
