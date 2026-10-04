@@ -453,6 +453,26 @@ the console's `_selectBlueprint`): ghost instantiated under the placer,
 `RestoreEquipement`, `CanJump`), `CreateMode` off. `Game/BuildMode` puts
 it away on a Quick load and pulls the captured one out after the hands.
 
+### A blueprint placed / a structure finished (IL, 2026-10-04 - not yet seen live)
+
+For the replay's building track (`Game/BuildWatch`). **Placed**:
+`Create.PlaceGhost(bool)` starts the coroutine `PlaceGhostRoutine`; in
+single player it sends `OnPlaced` to `_currentGhost`, sets the ghost's
+`Trigger` child active (the `Craft_Structure` lives there) and its
+`LastBuiltLocation` child, then calls `ClearReferences(!chain)` while
+`_currentGhost` is still the placed blueprint. `CancelPlace` (Destroy the
+ghost, then `ClearReferences(true)`) and `OpenBookSequence` also call
+`ClearReferences` - on a ghost whose `Trigger` was never switched on. So a
+prefix on `ClearReferences` that sees `_currentGhost` with an active
+`Trigger` is a placement; the kind is `_currentBlueprint._type`
+(`BuildingBlueprint`, a `BuildingTypes`). **Finished**:
+`Craft_Structure.Build()` publishes `BuiltStructure` with `_type`, then
+sets `_type` = None, then instantiates `Built` at `_ghost`'s position /
+rotation (`_ghost` null = the `Craft_Structure`'s parent) and destroys the
+ghost in `DelayedDestroy` - a prefix reads `_type` / `_ghost` first.
+Unchecked: the walls' chain placement (`WallArchitect`, `MultiPlaceAction`)
+and the multiplayer branches (`PlaceFoundationEx` / `PlaceConstruction`).
+
 ### Nature guide — `TheForest.Player.TickOffSystem`
 
 The book's tick-off pages (animals, birds, fish, plants). A component on the
