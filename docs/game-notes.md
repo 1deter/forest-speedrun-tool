@@ -1804,6 +1804,52 @@ non-player objects with their parent path and candidate count
 Killed enemies do **not** come back with an in-place restore (author,
 v0.22.0). A load restore is the reference for what should.
 
+### A save slot's data, and restoring it in place (bridge + files, 2026-10-04)
+
+**The file.** `__RESUME__` is the base64 of a UnitySerializer `SaveEntry`
+(binary, starts `SerV10`); its `Data` string is the level data in the
+same form a savestate's `data` line holds: `NOCOMPRESSION` + base64 of the
+binary `LevelData`. So the slot's save can be fed to `LoadNow` like a
+`.fosave` - `SavestateBridge.ReadSlotData` reads it the way `Resume` does
+(`PlayerPrefsFile.GetString(PlayerName + "__RESUME__", "", true)`, then
+`UnitySerializer.Deserialize<SaveEntry>`). Slot 1 (the lab) and Slot 2 (a
+Normal game on the surface) both restored in place from it.
+
+**Where the save's player was, without deserializing.** Each component's
+data is UnitySerializer binary: the type's name (length byte), an int32
+field count, the field names, then per field `<index uint16> FF FF
+<value>` - a bool is `Y` / `N`. `TheForest.Player.ActiveAreaInfo` has 5
+fields (`_activeAreaHash` long, `_isInEndgame`, `_isInCaves`,
+`_currentCave` int, `IsLeavingCaves`); its two bools agreed with the
+`cave` / `areas` header of all 28 savestates and with Slot 1's live
+values (`Data/SlotSaveFlags`). `_activeAreaHash` was `long.MinValue`
+(no area) everywhere except the two Megan-room captures.
+
+**The endgame across an in-place restore.** `LoadNow` puts
+`ActiveAreaInfo._isInEndgame` back but not `LocalPlayer.IsInEndgame`, and
+loads no scenes: after a `tp` out of the lab (which unloads
+`endgame_streaming` and sends ExitEndgame), Slot 1's save restored in
+place put the player at the lab's spot with the lab unloaded and
+`IsInEndgame` false. Restored with the lab loaded and the player in it,
+everything matched a load. Hence the death reload's rule
+(`DeathPlan.InPlaceRefusal`): in place only when the save and the player
+are on the same side of the vault door, with the lab loaded when inside.
+
+**The mode is not in the save.** A bridge-driven title-screen load of
+Slot 2 (`OnLoad` + `OnSlotSelection`, no `OnSinglePlayer`) left the game
+Creative, though the slot is Normal; `Resume` and an in-place restore both
+keep the running game's mode, so a death reload in place cannot differ
+from the game's own reload there.
+
+**Timings (2026-10-04, v0.24.236 + the bridge, 7800X3D).** Reload save on
+death with the game's load (`Resume`, no menu), death to
+`Scene.FinishGameLoad`: Slot 1 (lab) ~6-10.5 s, Slot 2 (surface, Normal)
+~10 s. The same save in place (`restore` of a `.fosave` holding the slot's
+data): 0.68-0.92 s in the lab (0.45 s of it putting the held lighter
+away), 0.12-0.17 s on the surface, LoadNow itself 0.14-0.19 s. Health came
+back as saved (28 in Slot 2, as the load gave - with GodMode on the game
+holds it at 100); the families restarted (0 -> 14 active, 6 families).
+
 ---
 
 ## The load leak

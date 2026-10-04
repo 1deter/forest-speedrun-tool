@@ -114,6 +114,39 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   or `Savestate after the load: weather: ...` (Full). Not kept: a
   rainbow, a lightning flash, when the next roll comes (random anyway).
 
+## Reload the save in place on death (2026-10-04, unreleased)
+
+The author's idea (CLAUDE.md *Next up* 3). Deaths tab, under the reload:
+**Reload the save: with a load (as the game does) / in place (fast)** -
+`[Deaths] ReloadInPlace`, **off by default** (the game's own load stays
+the default: true to the game, and the only one run mode uses). A *Quick
+load the slot's save* button did the same until v0.24.106; it went with
+the Savestates test panel (author's call), not for a fault.
+
+- **How**: the death is skipped as for the in-game reload (health back,
+  `DeathAction.QuickLoadInGame`, now counted as a revive so a fall's hard
+  landing is cancelled), then `SavestateModule.ReloadSlotInPlace` reads the
+  slot's save (`SavestateBridge.ReadSlotData`, the data `Resume` loads) and
+  runs the Quick load path on it with no file: streaming as the game saved
+  it (`MemorySafeSaveMode`), every pickup taken since put back, the cave
+  state from the save's own flag (`Data/SlotSaveFlags`), enemies restarted,
+  nature / guide / to-do list as for any Quick load. Nothing outside the
+  game's data is put back (held items stay stowed until the game's own
+  re-equip, Megan, elevators, weather). Marks practice.
+- **The game's load instead** (`DeathPlan.InPlaceRefusal`, tested), with
+  the reason on the `Quick-load: loading slot N from in game (no menu) -
+  in place cannot apply: ...` line: run mode (docs/run-mode.md - a run's
+  reload is the game's own load), the save and the player on different
+  sides of the vault door or the lab not loaded (game-notes *A save slot's
+  data*), the save unreadable, a savestate action running; and when the
+  in-place restore itself fails (`... - in place failed after N s: ...`,
+  e.g. a cross-save adoption refused).
+- **Log**: `Reload save on death: slot N reloaded in place in 0.85 s (a
+  Quick load of the slot's save).` plus the usual `Savestate restore slot
+  N's save in place: ...` line.
+- **Timings** (bridge, game-notes): the game's reload ~6-10 s, in place
+  ~0.2-0.9 s.
+
 ## Checkpoint states and Restart from checkpoint (2026-10-04, unreleased)
 
 "Saveloc" for long timed segments (author, QA Discord 2026-09-26):
