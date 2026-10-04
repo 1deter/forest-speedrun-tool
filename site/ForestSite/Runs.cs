@@ -353,21 +353,16 @@ public sealed class Runs
             foreach (ItemChange c in a.Items)
                 items.Add(new JsonArray(R(c.T), c.Name, c.Count));
         o["items"] = items;
-        // What the runner did (plugin replays): [t, kind, label, x, y, z],
-        // time order; the label in the run audit's words (Data/RunAudit).
+        // What the runner did (plugin replays): [t, kind, label, x, y, z,
+        // group], time order; the label in the run audit's words and the
+        // group its colour on the maps (Data/RunAudit).
         var events = new JsonArray();
         if (a != null)
             foreach (RunEvent e in a.Events)
                 events.Add(new JsonArray(R(e.T), e.Kind, Clip(RunAudit.Label(e.Kind) + (string.IsNullOrEmpty(e.Detail) ? "" : ": " + e.Detail), 80),
-                                         R(e.P.x), R(e.P.y), R(e.P.z)));
+                                         R(e.P.x), R(e.P.y), R(e.P.z), RunAudit.Group(e.Kind)));
         o["events"] = events;
-        // Structures placed / finished: [t, state, kind, x, y, z, yaw, sx, sy, sz].
-        var buildings = new JsonArray();
-        if (a != null)
-            foreach (RunBuilding b in a.Buildings)
-                buildings.Add(new JsonArray(R(b.T), b.State, b.Kind, R(b.P.x), R(b.P.y), R(b.P.z), R(b.Euler.y),
-                                            R(b.Size.x), R(b.Size.y), R(b.Size.z)));
-        o["buildings"] = buildings;
+        o["buildings"] = a != null ? BuildingsJson(a.Buildings) : new JsonArray();
         // The save's plane (plugin v0.24.163+): [x, z, yaw], or null.
         o["plane"] = a != null && a.HasPlane ? new JsonArray(R(a.Plane.x), R(a.Plane.z), R(a.PlaneYaw)) : null;
         return o;
@@ -553,6 +548,40 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
     }
 
     private static JsonArray Vec(Vector3 v) => new(R(v.x), R(v.y), R(v.z));
+
+    /// A placed blueprint and its finished structure at most this far apart
+    /// (m) are one building (the plugin's ReplayMarks.SamePlace).
+    private const float SamePlace = 1.5f;
+
+    /// Structures placed / finished, for the spot page's maps:
+    /// [t, state, kind, x, y, z, yaw, sx, sy, sz, cx, cy, cz, rx, rz, until].
+    /// yaw / rx / rz: Unity's Euler angles (degrees); s: the box's size and
+    /// c its centre in the structure's own frame; until: when a placed
+    /// blueprint stops showing - the time the same kind is finished at the
+    /// same place after it (as the in-game replay, ReplayMarks.Until) - or
+    /// null (finished ones, blueprints never finished).
+    public static JsonArray BuildingsJson(IList<RunBuilding> list)
+    {
+        var buildings = new JsonArray();
+        for (int i = 0; i < list.Count; i++)
+        {
+            RunBuilding b = list[i];
+            JsonNode until = null;
+            if (b.State == RunBuilding.Placed)
+                for (int j = i + 1; j < list.Count; j++)
+                {
+                    RunBuilding f = list[j];
+                    if (f.State != RunBuilding.Built || f.T < b.T || f.Kind != b.Kind) continue;
+                    if ((f.P - b.P).sqrMagnitude > SamePlace * SamePlace) continue;
+                    until = R(f.T);
+                    break;
+                }
+            buildings.Add(new JsonArray(R(b.T), b.State, b.Kind, R(b.P.x), R(b.P.y), R(b.P.z), R(b.Euler.y),
+                                        R(b.Size.x), R(b.Size.y), R(b.Size.z), R(b.Center.x), R(b.Center.y), R(b.Center.z),
+                                        R(b.Euler.x), R(b.Euler.z), until));
+        }
+        return buildings;
+    }
 
     private static JsonArray Floats(float[] f)
     {
