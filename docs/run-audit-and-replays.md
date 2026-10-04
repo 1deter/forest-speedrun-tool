@@ -40,6 +40,25 @@ same shape: real ms, IGT, kind, place, plain-words detail):
 - Movement: falls with their landing speed (the fall-damage detector,
   *Next*), climbs, swims, each cave entered and how.
 
+**Built (2026-10-04, not yet released or checked in game):** run mode
+attempts write `event|ms|timer|kind|x|y|z|text` lines (`Data/AttemptChain`,
+folded; old logs without them still read). Kinds, labels, groups, the
+item merge, bursts and the rundown: `Data/RunAudit` (tested, linked by
+the site). Plugin: `Modules/RunModeModule.Audit` takes GameEvents /
+WorldEvents (cutscenes, keycard doors, caves, clothing, passengers, the
+first input, ropes), ItemCounter (merged: a line after 2 s quiet, at most
+every 10 s), DeathHooks (`Deaths` counter) and Reload save on death, and
+`Game/AuditWatch` - one postfix on the game's own event bus
+`EventRegistry.Publish` (built, crafted, used / eaten, enemy / animal
+kills, hits taken, trees, bombs, sleep, story, endgame area, settings
+changed), `HudGui.TogglePauseMenu(bool)`, and the rides' enter / exit
+methods (then `RideModes.Current()` for 3 s). At most 3,000 lines; one
+`audit-full` line counts the rest. Runs tab: the last attempt's rundown +
+its last 10 lines. Site: *What happened in the run* on the attempt page
+(rundown, then the timeline with filter chips per group). Not done:
+blueprints *placed* (only finished ones, via the bus), damage amounts,
+falls, climbs / swims.
+
 **Where it would show:** a timeline on the attempt page, each entry with
 its time on the video (real ms from the start - the run code already
 ties the video to the log), filterable by kind; the Runs tab shows the

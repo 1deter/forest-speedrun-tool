@@ -67,6 +67,7 @@ namespace ForestOverlay.Modules
             InitCodes(ctx);
             InitCategories(ctx);
             InitMoves(ctx);
+            InitAudit(ctx);
             Type scene = GameBridge.FindGameType("TheForest.Utils.Scene");
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             RunIntegrity.StartHashing(ctx.Log);
@@ -88,6 +89,7 @@ namespace ForestOverlay.Modules
             if (loaded && !_loaded) OnGameLoaded();
             bool reloading = _death != null && _death.ReloadPending;
             if (PlayerRef.AtTitleScreen && _attemptOpen && !reloading) EndAttempt("back to the title screen (a reset)", "title screen");
+            TickAudit(loaded);
             _loaded = loaded;
 
             // Only while the attempt plays: a save loading after a reset is
@@ -116,6 +118,7 @@ namespace ForestOverlay.Modules
                 if (Ctx.Run.Active)
                 {
                     Ctx.Log.LogInfo("Run mode: attempt " + Ctx.Run.Attempt + " goes on after Reload save on death.");
+                    AuditReloaded();
                     return;
                 }
             }
@@ -186,6 +189,7 @@ namespace ForestOverlay.Modules
             RunCategory cat = CategoryFor(_runSpot);
             Ctx.Run.Begin(started, label, cat);
             ResetMoves();
+            ResetAudit();
             _attemptOpen = true;
 
             _report = new RunReport();
@@ -219,6 +223,7 @@ namespace ForestOverlay.Modules
         private void EndAttempt(string why, string reason)
         {
             FlushMoves();   // a boost still being measured goes into this attempt's log
+            FlushAudit();   // items / bursts still being merged, likewise
             _attemptOpen = false;
             Ctx.Run.Reset();
             CheckCategoriesSoon();   // a new version is ready for the next attempt
@@ -352,6 +357,7 @@ namespace ForestOverlay.Modules
                 y += 28f;
             }
             if (_findingsText.text.Length > 0) y += UiText.Draw(0, y, w, _findingsText) + 4f;
+            y = DrawAudit(y, w);
             if (_upload != null) y = _upload.DrawAttempts(y, w);
             return y;
         }

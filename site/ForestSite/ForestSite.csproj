@@ -32,6 +32,7 @@
     <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
     <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />
+    <Compile Include="../../src/Data/RunAudit.cs" Link="Linked/RunAudit.cs" />
     <Compile Include="../../src/Data/RunReport.cs" Link="Linked/RunReport.cs" />
     <Compile Include="../../src/Data/RunCategory.cs" Link="Linked/RunCategory.cs" />
   </ItemGroup>

@@ -111,6 +111,39 @@ async function attemptPage(id) {
         (m.pos ? " (at " + m.pos.map(v => Math.round(v)).join(", ") + ")" : "") + "." +
         (m.maybeBanned ? " The category bans “" + m.maybeBanned + "” - this may be it." : "")]))) : null;
 
+  // What happened in the run (the audit log, src/Data/RunAudit): the
+  // rundown to skim first, the timeline behind it, filtered by kind. Like
+  // the moves, what the game saw - never part of the verdict.
+  let audit = null;
+  if (a.events && a.events.length) {
+    const rows = a.events.map(e => el("tr", { "data-group": e.group },
+      el("td", { class: "r" }, clock(e.realMs)),
+      el("td", { class: "r" }, e.timerMs >= 0 ? time(e.timerMs / 1000, 1) : ""),
+      el("td", null, e.label),
+      el("td", { class: "name" }, e.detail || "",
+        e.pos ? el("span", { class: "sub" }, " (at " + e.pos.map(v => Math.round(v)).join(", ") + ")") : null)));
+    const groups = [["", "All", a.events.length]].concat((a.eventGroups || []).map(g => [g.id, g.label, g.count]));
+    const chips = groups.map(([id, label, n]) => el("button", {
+      class: "chip" + (id === "" ? " on" : ""), type: "button", "aria-pressed": id === "" ? "true" : "false",
+      onclick: ev => pick(id, ev.currentTarget) }, label + " (" + n + ")"));
+    function pick(id, btn) {
+      for (const c of chips) { const yes = c === btn; c.classList.toggle("on", yes); c.setAttribute("aria-pressed", yes ? "true" : "false"); }
+      for (const r of rows) r.hidden = id !== "" && r.dataset.group !== id;
+    }
+    audit = el("section", null,
+      el("h2", null, "What happened in the run"),
+      el("p", { class: "note" }, "What the game saw during the attempt, as it happened. Times are real time from the attempt's start, " +
+        "the same clock as the codes, so a line can be found on the video. Not a verdict."),
+      a.rundown && a.rundown.length ? lineList(a.rundown.map(t => ["note", t])) : null,
+      el("details", { class: "raw", open: a.events.length <= 150 ? "" : null },
+        el("summary", null, "Timeline (" + a.events.length + " line" + (a.events.length === 1 ? "" : "s") + ")"),
+        el("div", { class: "chips", role: "group", "aria-label": "Show only" }, chips),
+        el("div", { class: "tablewrap" }, el("table", { class: "timeline" },
+          el("thead", null, el("tr", null, el("th", { class: "r" }, "Time"), el("th", { class: "r" }, "Timer"),
+            el("th", null, "What"), el("th", null, "Detail"))),
+          el("tbody", null, rows)))));
+  }
+
   const recording = a.recording && a.recording.judged === false && a.recording.verdict !== "red"
     ? el("p", { class: "sub" }, "Not judged: " + (cat ? cat.name : "this category") + " does not use the anti-splice codes. A log that contradicts the site would still show here.")
     : a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
@@ -128,6 +161,7 @@ async function attemptPage(id) {
       facts.map(([k, v]) => el("tr", null, el("th", null, k), el("td", null, v)))))),
     rules,
     moves,
+    audit,
     cat && !cat.antisplice ? null : el("section", null,
       el("h2", null, "Check a code"),
       el("p", { class: "note" }, "In run mode the game shows a four-letter code at the top of the screen that changes every second. " +

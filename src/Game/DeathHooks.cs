@@ -69,6 +69,13 @@ namespace ForestOverlay.Game
         /// module to finish (teleport / drive the title screen).
         public static Action<DeathKind, DeathAction> Handled;
 
+        /// Deaths the game decided since startup (whatever was done about
+        /// them), with the last one's kind and action - read by the run
+        /// audit log (Modules/RunModeModule.Audit), which keeps its own count.
+        public static int Deaths;
+        public static DeathKind LastKind;
+        public static DeathAction LastAction;
+
         private static ManualLogSource _log;
 
         // The PlayerStats of the last handled death, for GameOverNow().
@@ -221,6 +228,9 @@ namespace ForestOverlay.Game
             if (Decide == null) return true;
 
             DeathAction action = Decide(kind);
+            Deaths++;
+            LastKind = kind;
+            LastAction = action == DeathAction.QuickLoad && _gameOver == null ? DeathAction.Normal : action;
             if (action == DeathAction.Revive)
             {
                 _revives++;
