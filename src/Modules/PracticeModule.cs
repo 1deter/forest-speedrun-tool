@@ -1613,7 +1613,13 @@ namespace ForestOverlay.Modules
             if (_savestates == null) return y;
             if (!ReferenceEquals(_startStateFor, s) || _startStateForId != s.Id)
             {
-                if (!ReferenceEquals(_startStateFor, s)) StartStatus("");
+                if (!ReferenceEquals(_startStateFor, s))
+                {
+                    StartStatus("");
+                    // An armed "Sure?" belongs to the entry it was asked on.
+                    _captureStartArmedUntil = 0f;
+                    _deleteStartArmedUntil = 0f;
+                }
                 RefreshStartStateLabel(s);
             }
 
@@ -1671,15 +1677,21 @@ namespace ForestOverlay.Modules
         {
             if (!_library.IsIdAvailable(s.Id, s)) FreshId(s);   // the start state is named after it
 
-            // A new start state is a new route: times recorded from the old
-            // one are retired (author, 2026-09-23) - so say so first.
+            // A capture over an existing start state replaces it (maks: one
+            // click lost a good one), and a new start state is a new route:
+            // times recorded from the old one are retired (author,
+            // 2026-09-23) - so say both first.
             if (Time.unscaledTime > _captureStartArmedUntil)
             {
+                string replaces = _savestates.HasStartState(s)
+                    ? "This replaces the start state of '" + s.Name + "' (" + _savestates.DescribeStartState(s) + ")."
+                    : null;
                 string warning = RetireWarning(s);
-                if (warning != null)
+                if (replaces != null || warning != null)
                 {
                     _captureStartArmedUntil = Time.unscaledTime + 3f;
-                    StartStatus(warning + " Click Capture again within 3 s.");
+                    StartStatus((replaces != null ? replaces + " " : "") + (warning != null ? warning + " " : "") +
+                                "Click Capture again within 3 s.");
                     return;
                 }
             }
@@ -1784,7 +1796,24 @@ namespace ForestOverlay.Modules
                 b.PluginVersion = OverlayPlugin.PluginVersion;
                 b.Segment = s;
                 b.StartState = _savestates != null ? _savestates.ReadStartStateText(s) : null;
-                if (_exportAttempts) b.Attempts.AddRange(_attempts.RunTexts(s.Id));
+                int named = 0;
+                string runnerName = "";
+                if (_exportAttempts)
+                {
+                    // Every attempt goes out naming its runner: the ones
+                    // recorded before v0.24.146 carry no runner line and are
+                    // this runner's own, so they get theirs - otherwise the
+                    // importer would count them as their own times.
+                    string runnerId;
+                    OwnRunner(out runnerId, out runnerName);
+                    List<string> texts = _attempts.RunTexts(s.Id);
+                    for (int i = 0; i < texts.Count; i++)
+                    {
+                        string had = AttemptOwners.RunnerIdOf(texts[i]);
+                        if (AttemptOwners.IsOwn(had, runnerId)) named++;
+                        b.Attempts.Add(had.Length > 0 ? texts[i] : AttemptFormat.WithRunner(texts[i], runnerId, runnerName));
+                    }
+                }
 
                 if (!System.IO.Directory.Exists(_sharedDir)) System.IO.Directory.CreateDirectory(_sharedDir);
                 string file = ExportFileName(s);
@@ -1793,7 +1822,10 @@ namespace ForestOverlay.Modules
                 System.IO.File.WriteAllText(path, b.Write(), System.Text.Encoding.UTF8);
 
                 string what = (b.StartState != null ? "start state" : "no start state") + ", " +
-                              b.Attempts.Count + " attempt" + (b.Attempts.Count == 1 ? "" : "s");
+                              b.Attempts.Count + " attempt" + (b.Attempts.Count == 1 ? "" : "s") +
+                              (named == 0 ? "" : runnerName.Length > 0
+                                  ? ", yours under the name '" + runnerName + "'"
+                                  : ", yours with no name - set one in the Runs tab");
                 _shareStatus.text = (replaced ? "Exported again (replaced) " : "Exported ") + "to shared\\" + file + " (" + what +
                                     "). Send that file; the other player puts it in their shared folder and uses Import.";
                 Ctx.Log.LogInfo("Practice: exported '" + s.Id + "' to " + path + " (" + what + ").");
@@ -1803,6 +1835,17 @@ namespace ForestOverlay.Modules
                 _shareStatus.text = "Export failed: " + ex.Message;
                 Ctx.Log.LogWarning("Practice: export of '" + s.Id + "' failed: " + ex);
             }
+        }
+
+        /// The runner exports and uploads name: Runs' identity (the hashed
+        /// Steam id or the config's own, the name set there or the Steam
+        /// name), straight from Steam if that module is missing.
+        private void OwnRunner(out string id, out string name)
+        {
+            id = _upload != null && _upload.RunnerIdNow != null ? _upload.RunnerIdNow() : RunnerIdentity.SteamRunnerId();
+            name = _upload != null && _upload.RunnerNameNow != null ? _upload.RunnerNameNow() : RunnerIdentity.SteamName();
+            if (id == null) id = "";
+            if (name == null) name = "";
         }
 
         /// Sends the saved entry and its start state to the website for the
@@ -2102,12 +2145,23 @@ namespace ForestOverlay.Modules
                         _savestates.DeleteStartState(incoming);   // a replaced one's old state must not restore
                 }
 
-                int added = 0, had = 0, unreadable = 0;
+                int added = 0, had = 0, unreadable = 0, unnamed = 0;
+                // Attempts with no runner line (a file exported before
+                // runners were named) are someone else's all the same: they
+                // get an id of their own per file and compare as "a
+                // runner", never as the importer's own times.
+                string fileRunner = RunnerIdentity.HashId("foseg:" + b.Segment.Id + "|" + b.Exported + "|" + b.PluginVersion);
                 for (int i = 0; i < b.Attempts.Count; i++)
                 {
-                    string name = SegmentBundle.AttemptFileName(b.Attempts[i]);
+                    string text = b.Attempts[i];
+                    string name = SegmentBundle.AttemptFileName(text);
                     if (name == null) { unreadable++; continue; }
-                    if (_attempts.ImportRun(incoming.Id, name, b.Attempts[i])) added++;
+                    if (AttemptOwners.RunnerIdOf(text).Length == 0)
+                    {
+                        text = AttemptFormat.WithRunner(text, fileRunner, "");
+                        unnamed++;
+                    }
+                    if (_attempts.ImportRun(incoming.Id, name, text)) added++;
                     else had++;
                 }
 
@@ -2117,7 +2171,8 @@ namespace ForestOverlay.Modules
                 RebuildVisible();
 
                 string what = state + (b.Attempts.Count == 0 ? "" : ", " + added + " attempt(s) added" +
-                              (had > 0 ? ", " + had + " already there" : "") + (unreadable > 0 ? ", " + unreadable + " unreadable" : ""));
+                              (had > 0 ? ", " + had + " already there" : "") + (unreadable > 0 ? ", " + unreadable + " unreadable" : "") +
+                              (unnamed > 0 ? ", " + unnamed + " with no runner name (shown as 'a runner')" : ""));
                 _importStatus.text = (mine != null ? "Replaced '" : "Imported '") + incoming.Name + "' (" + what + ")" +
                                      (saved ? "." : " - but writing " + file + " failed, see the log.");
                 Ctx.Log.LogInfo("Practice: " + (mine != null ? "replaced" : "imported") + " '" + incoming.Id + "' from " +

@@ -17,7 +17,8 @@ namespace ForestOverlay.Data
     //   duration|<seconds>
     //   route|<fingerprint>                 which version of the route
     //   splits|<t1>|<t2>|...                each checkpoint's time (v0.24.146)
-    //   runner|<id>|<name>                  who ran it (v0.24.146)
+    //   runner|<id>|<name>                  who ran it (v0.24.146; older
+    //                                       ones get it on export / upload)
     //   plane|<x>|<y>|<z>|<yaw>             the save's plane crash site (v0.24.163)
     //   channels|Health|Stamina|Energy|...
     //   s|<t>|<x>|<y>|<z>|<speed>          position, 30 Hz
@@ -180,6 +181,45 @@ namespace ForestOverlay.Data
             if (a.Samples.Count == 0) return null;
             a.Completed = true;
             return a;
+        }
+
+        /// The .run text with a runner line: unchanged when it has one
+        /// already (anywhere - Parse reads any order) or `id` is empty,
+        /// else `runner|<id>|<name>` goes into the header, before the
+        /// first channels / sample line, in the text's own line endings.
+        /// Attempts recorded before v0.24.146 have no runner line; by
+        /// AttemptOwners' rule they are their holder's own, so an export
+        /// or upload names that runner (they read as the importer's own
+        /// otherwise). Never the plain Steam id: `id` is the hashed one.
+        public static string WithRunner(string runText, string id, string name)
+        {
+            string cleanId = Clean(id);
+            if (string.IsNullOrEmpty(runText) || cleanId.Length == 0) return runText;
+
+            int insert = -1;
+            int at = 0;
+            while (at < runText.Length)
+            {
+                int end = runText.IndexOf('\n', at);
+                int next = end < 0 ? runText.Length : end + 1;
+                int s = at;
+                while (s < next && (runText[s] == ' ' || runText[s] == '\t' || runText[s] == '\uFEFF')) s++;
+                if (StartsAt(runText, s, "runner|")) return runText;
+                if (insert < 0 && (StartsAt(runText, s, "channels") || StartsAt(runText, s, "s|") ||
+                                   StartsAt(runText, s, "v|") || StartsAt(runText, s, "i|")))
+                    insert = at;
+                at = next;
+            }
+
+            string nl = runText.IndexOf("\r\n", StringComparison.Ordinal) >= 0 ? "\r\n" : "\n";
+            string line = "runner|" + cleanId + "|" + Clean(name) + nl;
+            if (insert >= 0) return runText.Substring(0, insert) + line + runText.Substring(insert);
+            return runText.EndsWith("\n") ? runText + line : runText + nl + line;
+        }
+
+        private static bool StartsAt(string text, int at, string prefix)
+        {
+            return at + prefix.Length <= text.Length && string.CompareOrdinal(text, at, prefix, 0, prefix.Length) == 0;
         }
 
         /// A name or id as one field: no separators or line breaks.
