@@ -992,6 +992,30 @@ logged (startup says only on / off); reports name file names, not paths.
   runner 40, spot 80 now.
 - **Low - CI token.** `site.yml` had the default token permissions:
   `permissions: contents: read`.
+- **Low - disk.** Run mode logs were capped per address only (3,000 an
+  hour, up to 4 MB each). Now also per runner over 24 hours
+  (`Attempts.MaxAttemptsPerDay` 5,000 starts / logs,
+  `MaxLogBytesPerDay` 2 GB of log text; new `attempts.log_bytes`): past
+  it a 413, which the plugin already treats as refused (the file goes to
+  `uploads/attempts/refused` with the reason, never retried); a start
+  refused runs offline. A reset every 10 s for 8 hours is ~2,900 attempts
+  of a few KB. Left: a new runner id per registration (10 an hour per
+  address) gets its own budget - the address limits still bound that.
+- **Low - CPU per view.** The attempt view / page replayed and judged the
+  whole log on every read. The judged result is cached per attempt
+  (`Attempts.JudgedLog`, up to 64 MB of log text): logs are never
+  replaced, so it is rebuilt only when the allow-list changes, the
+  report's category version reaches the site, or the attempt is deleted.
+- **Low - Discord spam.** Any registered runner could post up to the
+  global 30 PB lines an hour: now at most 5 a runner an hour
+  (`PbWebhook.PerRunnerPerHour`) on top.
+- **Info - segment ids.** No length cap: now 1-80 characters on upload
+  (`Runs.MaxSegmentId`; the plugin's ids are `s-` + 12-32 hex or legacy
+  `spot.<category>.<name>` slugs of ~30, 80 matches the spot page's own
+  limit and keeps a run folder's name under 255 bytes). Stored ids stay
+  readable and deletable. 400 = the plugin sets the upload aside.
+- **Info - link previews.** `og:url` came from the request's `Host`: now
+  the configured `FOREST_SITE_URL` (default https://forest.deter.cloud).
 
 **Open (not fixed - for the author):**
 - **Medium - the container's runtime is never updated.** `compose.yaml`
@@ -1000,23 +1024,9 @@ logged (startup says only on / off); reports name file names, not paths.
   the VPS, monthly (Patch Tuesday): `cd /opt/forest-site && sudo docker
   compose pull && sudo docker compose up -d`. (`dotnet list package
   --vulnerable`: nothing in the app's own packages.)
-- **Low - disk.** Run mode logs: 3,000 requests / hour / address, up to
-  4 MB each (gzip-stored, any attempt id): with the runs' 600 / hour, one
-  address could write tens of GB in a day. Watch `/var/lib/forest-site`;
-  a per-runner byte budget per day would close it.
-- **Low - CPU per view.** `GET /api/attempts/<id>` replays the whole log
-  (up to 4 MB) and judges it on every read, at 600 reads / minute /
-  address; cache the view per log if it ever shows in CPU.
-- **Low - Discord spam.** Any registered runner (10 registrations / hour
-  / address) finishing a community / run spot posts one line with their
-  own 40-character name: 30 an hour at most, escaped, no pings. Revoke the
-  webhook (or ban) if it is abused.
-- **Info:** link previews build `og:url` from the request's `Host`
-  (encoded; the origin lock means only Cloudflare's host reaches it); a
-  segment id has no length cap (an overlong one fails its file write and
-  leaves an empty route row, never shown); GitHub actions are pinned by
-  tag, not SHA. The two 2026-10-01 decisions above (runner ids, token
-  reset) stand.
+- **Info:** GitHub actions are pinned by tag, not SHA. Still worth a look
+  at `/var/lib/forest-site` now and then (disk). The two 2026-10-01
+  decisions above (runner ids, token reset) stand.
 
 Re-check after admin features: new endpoints go under the `admin` group
 (its filter checks the token), owner-only ones check `IsOwner`, and any
