@@ -53,6 +53,32 @@ namespace ForestOverlay.Game
         public static int Pushes, StoppedPushes, Knockbacks;
 
         public static string Status = "not installed";
+
+        // The knockback under way, for the trajectory preview (Game/
+        // TrajectoryView): kept whether or not a detector listens.
+        /// True from a knockback's first call until its coroutine ends
+        /// (a load can kill it without an end: check KnockbackAt's age).
+        public static bool KnockbackOn;
+        /// Time.time (game time) at the blast.
+        public static float KnockbackAt;
+        /// Pushes this knockback made while game time was stopped.
+        public static int KnockbackPausedPushes;
+        private static Vector3 _pending;
+        private static int _pendingFrames;
+        private static float _pendingFixed = -1f;
+
+        /// The pushes not yet applied by a physics step (a VelocityChange
+        /// waits for the next step; the pause menu holds every step back,
+        /// so this is the bomb boost's pile-up). False = none waiting.
+        public static bool Pending(out Vector3 velocity, out int frames)
+        {
+            velocity = Vector3.zero;
+            frames = 0;
+            if (_pendingFrames == 0 || Time.fixedTime != _pendingFixed) return false;
+            velocity = _pending;
+            frames = _pendingFrames;
+            return true;
+        }
         public static string CaveStatus = "not installed";
 
         /// Cave entries seen / let go of since startup ("did it see anything").
@@ -288,7 +314,10 @@ namespace ForestOverlay.Game
                 {
                     Knockbacks++;
                     if (d != null) d.KnockbackStarted();
+                    KnockbackAt = Time.time;
+                    KnockbackPausedPushes = 0;
                 }
+                KnockbackOn = __result;
                 if (!__result) return;
                 int pc = (int)_pc.GetValue(__instance);
                 float dt = Time.deltaTime;
@@ -296,9 +325,13 @@ namespace ForestOverlay.Game
                 if (!pushed) return;
                 bool stopped = dt <= 0f;
                 Pushes++;
-                if (stopped) StoppedPushes++;
-                if (d == null) return;
+                if (stopped) { StoppedPushes++; KnockbackPausedPushes++; }
                 Transform t = _lpTransform != null ? _lpTransform.GetValue(null) as Transform : null;
+                // A physics step since the last push applied what waited.
+                if (Time.fixedTime != _pendingFixed) { _pending = Vector3.zero; _pendingFrames = 0; _pendingFixed = Time.fixedTime; }
+                if (t != null) _pending += t.forward * -8f;
+                _pendingFrames++;
+                if (d == null) return;
                 d.KnockbackPush(stopped, stopped && MenuClose.PauseMenuOpen(), t != null, t != null ? t.position : Vector3.zero);
             }
             catch (Exception) { }

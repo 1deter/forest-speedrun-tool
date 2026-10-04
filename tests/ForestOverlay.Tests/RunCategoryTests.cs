@@ -74,6 +74,8 @@ namespace ForestOverlay.Tests
             Assert.Equal("savestates", RunCategory.FeatureOfMark("savestate restore (in place)").Key);
             Assert.Equal("nostagger", RunCategory.FeatureOfMark("no blood, no stagger").Key);
             Assert.Equal("bridge", RunCategory.FeatureOfMark("test bridge: call x").Key);
+            Assert.Equal("trajectory", RunCategory.FeatureOfMark("trajectory preview").Key);
+            Assert.Equal(RunCategory.Locked, new RunCategory().Policy("trajectory"));
             Assert.Null(RunCategory.FeatureOfMark("something new"));
         }
 

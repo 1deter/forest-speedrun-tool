@@ -56,6 +56,10 @@ namespace ForestOverlay.Modules
         private WireframeBehaviour _wireframe;
         private FreeCamBehaviour _freeCam;
         private AerialCapture _aerial;
+        private TrajectoryView _trajectory;
+        private bool _trajectoryOn;          // the switch; never kept between launches
+        private bool _trajectoryLocked;      // run mode locks it
+        private string _trajectoryStatus = "";
 
         private bool _freeCamOn;
         private bool _wireOn;
@@ -96,6 +100,17 @@ namespace ForestOverlay.Modules
         private float _allocWindowStart;
         private string _allocReport = "";
 
+        private static readonly GUIContent TrajectoryHeading = new GUIContent(
+            "Experimental - off by default, a practice view (it only reads the game):");
+        private static readonly GUIContent TrajectoryLockedText = new GUIContent(
+            "Locked during a run - End run mode in the Runs tab to use it.");
+        private static readonly GUIContent TrajectoryHelp = new GUIContent(
+            "Draws where you come down if you let go now (blue; orange during an explosion knockback) and marks the landing " +
+            "(green, red = fall damage). From your live speed with the game's gravity (16 + the controller's 10), its 55 m/s cap and drag, " +
+            "swept with your body's capsule; your steering in the air is not simulated - it assumes you keep holding the way you move. " +
+            "In the pause menu during a knockback it shows the bomb boost the menu is piling up and what each more second adds. " +
+            "The HUD's Flight / Boost lines show the numbers with the window closed.");
+
         private Vector2 _scroll;
         private float _contentHeight = 600f;
 
@@ -112,6 +127,8 @@ namespace ForestOverlay.Modules
             _draw = _host.AddComponent<DebugDrawBehaviour>();
             _freeCam = _host.AddComponent<FreeCamBehaviour>();
             _aerial = _host.AddComponent<AerialCapture>();
+            _trajectory = _host.AddComponent<TrajectoryView>();
+            TrajectoryView.Log = Ctx.Log;
             AerialCapture.Log = Ctx.Log;
             _aerial.SetOverlayUi = on => { if (Host != null) Host.UiVisible = on; };
             _aerial.PlayerPosition = () => Ctx.Player.Found ? Ctx.Player.Transform.position : Vector3.zero;
@@ -206,6 +223,7 @@ namespace ForestOverlay.Modules
             // not rebound yet would get both.
             map.Add("tab.debugview", KeyCode.None, "Open Debug views tab", OpenMyTab);
             map.Add("debug.freecam", KeyCode.KeypadMultiply, "Toggle freecam", ToggleFreeCam);
+            map.Add("debug.trajectory", KeyCode.None, "Toggle trajectory preview", ToggleTrajectory);
         }
 
         public override void Tick()
@@ -251,6 +269,14 @@ namespace ForestOverlay.Modules
 
             if (_saveAt >= 0f && Time.unscaledTime >= _saveAt) SaveFilters();
 
+            // The trajectory preview: off in run mode (unless the category
+            // allows it), whatever the switch says.
+            _trajectoryLocked = _trajectoryOn && Ctx.Run.Locks("trajectory");
+            bool show = _trajectoryOn && !_trajectoryLocked;
+            if (_trajectory.Show != show) { _trajectory.Show = show; if (!show) _trajectory.Clear(); }
+            if (show && Ctx.Run.Active) Ctx.Run.Use("trajectory");   // a category that allows it: recorded, not a flag
+            if (show) _trajectory.Tick(Ctx.Player.Transform, Ctx.Player.Rigidbody);
+
             _profiler.Tick();
             _loadTiming.Tick();
             _perf.Tick(Ctx.Player, Ctx.Events);
@@ -265,6 +291,24 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
+        /// The trajectory preview on / off (Debug views, its hotkey; the
+        /// bridge calls this). Read-only, but a practice view: marked.
+        public void ToggleTrajectory()
+        {
+            if (_trajectoryOn)
+            {
+                _trajectoryOn = false;
+                _trajectoryStatus = "Trajectory preview off.";
+                Ctx.Log.LogInfo("Trajectory preview: off.");
+                return;
+            }
+            if (Ctx.Run.Refuse("trajectory", "the trajectory preview")) { _trajectoryStatus = Ctx.Run.RefusedText("The trajectory preview"); return; }
+            _trajectoryOn = true;
+            _trajectoryStatus = "";
+            Ctx.Practice.Mark("trajectory preview");
+            Ctx.Log.LogInfo("Trajectory preview: on.");
+        }
+
         private void ToggleFreeCam()
         {
             if (_freeCam == null) return;
@@ -407,6 +451,11 @@ namespace ForestOverlay.Modules
         public override void ContributeHud(HudBuilder hud)
         {
             if (_freeCamOn) hud.Pair("Cam", "FREECAM");
+            if (_trajectory != null && _trajectory.Show)
+            {
+                if (_trajectory.HudFlight.Length > 0) hud.Pair("Flight", _trajectory.HudFlight);
+                if (_trajectory.HudBoost.Length > 0) hud.Pair("Boost", _trajectory.HudBoost);
+            }
         }
 
         // One group of performance switches: the behaviour-preserving ones,
@@ -458,6 +507,20 @@ namespace ForestOverlay.Modules
             y += 20f;
             _radius = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
             y += Row + 6f;
+
+            // --- experimental: trajectory preview ---------------------------
+            y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
+            bool traj = GUI.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
+            if (traj != _trajectoryOn) ToggleTrajectory();
+            y += Row;
+            if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
+            y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
+            if (_trajectory.Show)
+            {
+                y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
+                y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
+            }
+            y += UiText.Draw(30, y, w - 42, TrajectoryHelp) + 6f;
 
             // --- filters ----------------------------------------------------
             bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
