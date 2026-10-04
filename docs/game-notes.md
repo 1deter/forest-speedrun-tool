@@ -3332,6 +3332,47 @@ marked.
   no animation - whether `endGameCutScene` rose (the ASL's split) is not
   checked. `_useCount` counts rides.
 
+### Bot queue pass (game files + decompiled C#, 2026-10-04)
+
+Read for the knowledge bot's research queue; offline, no live game.
+- **Blueprint costs are data in `resources.assets`**: 144
+  `Craft_Structure` components (MonoScript path id 6502 in
+  `globalgamemanagers.assets`) on the `Ghost_<X>/Trigger` prefabs; their
+  `_requiredIngredients` (item id + amount, then the renderer lists) read
+  with UnityPy from the raw data (the files carry no type trees; layout:
+  MonoBehaviour header, `manualLoading`, two Colors, `Built`, `_type`,
+  the list). Log cabin 82 logs, small cabin 13, wall 5, defensive wall
+  piece 6 ... - `knowledge/cards/building-costs.md`. No difficulty
+  multiplier; custom (`Ex_`) blueprints store 0 and their architects set
+  the count: `WallChunkArchitect.GetLogCost` = the upright logs drawn for
+  a piece up to 3.5 log widths, else `(int)_height` (5) for horizontal
+  logs scaled to any length; defensive / small walls, fences, rock path =
+  pieces drawn; `ZiplineArchitect` adds one rope per `_ziplineRoot` child
+  to the ghost's 10 logs.
+- **The recipe database** is a ScriptableObject in
+  `globalgamemanagers.assets` (MonoScript path id 5087, object 32960):
+  145 recipes, `_lastId` 263; parsed the same way (each `Receipe`: id,
+  type, name, batch flag, product type / id, `RandomRange`, ingredients,
+  `WeaponStatUpgrade[]` (type, float, item id), hidden, force unique) -
+  `knowledge/cards/crafting-recipes.md`. Item ids to names from the 100%
+  tab's item dump (`ForestOverlayDumps/items_*.txt`).
+- **Ground vs air friction**: `HandleFrictionParams` sets the player's
+  material to friction 0 off the ground, 0.2 (Minimum) on the ground with
+  input, 1 standing still, 0 above `extremeAngleGroundedLimit`;
+  `ApplyGroundingForce` adds a downward `speed x mass x groundStableForce`
+  on the ground with input. `HandleJumpSpeed` only steers toward input x
+  speed - the air never exceeds run speed but is not braked under it.
+- **Smash angle**: the ground smash needs the animator's `normCamX` above
+  `treeHitTrigger`'s `axeSmashAngle` (0.43; up to 0.63 facing downhill
+  within 0.5 m of terrain); with the axe `normCamX = pitch / 82 - 0.1`, so
+  ~43 deg down. `playerAnimatorControl.LateUpdate` sets the body capsule's
+  and head sphere's z to `Clamp(normCamX, 0, 0.4)` (full from 41 deg) - the
+  head's only when not `doingGroundChop` / `doingJumpCrouch`.
+- **Uncrouch timing**: `DisableCrouch` eases `crouch` 10 -> 0 with
+  `SmoothDamp(0.1)` and calls `ScaleCapsuleForCrouching(val)` with the raw
+  0-10 value (the `Lerp` clamps), so the capsule only changes below 1:
+  ~0.2-0.46 s after the release at a steady frame rate (computed).
+
 ## How to extend this file
 
 0. **Decompiled C#** (2026-10-03, the overnight sweep) - for reading whole
