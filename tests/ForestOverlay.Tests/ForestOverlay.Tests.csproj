@@ -42,6 +42,7 @@
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />
     <Compile Include="../../src/Data/SplitSequence.cs" Link="Linked/SplitSequence.cs" />
     <Compile Include="../../src/Data/CheckpointStates.cs" Link="Linked/CheckpointStates.cs" />
+    <Compile Include="../../src/Data/BusEvents.cs" Link="Linked/BusEvents.cs" />
     <Compile Include="../../src/Data/ZoneDisplay.cs" Link="Linked/ZoneDisplay.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />

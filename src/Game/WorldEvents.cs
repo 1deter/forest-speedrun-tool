@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -36,6 +37,13 @@ namespace ForestOverlay.Game
     //                                          overlay window) (v0.24.193)
     //   rope-grab / rope-leave                 a cave rope climb begins / ends
     //                                          (playerAnimatorControl.onRope)
+    //   <ride>-start / <ride>-end, and         zipline, sled, glider, cliff climb
+    //   ride-start / ride-end                  (RideModes.Current, read at 10 Hz
+    //                                          only for 3 s after a ride's enter /
+    //                                          exit method ran - AuditWatch marks
+    //                                          it; not within 1.5 s of a placement)
+    // The game's own event bus (built, crafted, eaten, kills, story ...) is
+    // raised from Game/AuditWatch's one postfix; names in Data/BusEvents.
     // <cave> is the game's CaveNames value in lower case (cave01 ...
     // cave10, hellcave, snowcave, underwatercave, underwatercave2/3).
     // NotInCaves is the surface AND the endgame lab: the ASL never splits
@@ -129,6 +137,19 @@ namespace ForestOverlay.Game
         private float _idleSince = -1f;
         private bool _inputFired = true;
         private int _rope = -1;                           // -1 unknown, 0 off, 1 on
+        private string _ride;                             // null = not read since a load
+        private bool _rideWasDirty;
+        private float _nextRideRead, _lastJumpAt = -10f;
+
+        private const float RideReadEvery = 0.1f;
+        /// A ride change this soon after a placement is the placement's
+        /// (Go / tp end a ride, a restore puts one back), not the runner's.
+        private const float RideAfterJump = 1.5f;
+
+        /// The game is loaded and in play (not the title screen, not a
+        /// load) as of this frame's Tick - AuditWatch raises the bus's
+        /// events only then.
+        public static bool Live { get; private set; }
 
         /// A move this far in one frame is a placement (teleport, restore,
         /// restart), not running (v0.24.188).
@@ -197,6 +218,7 @@ namespace ForestOverlay.Game
         public void Tick(PlayerRef player)
         {
             Resolve();
+            Live = false;
             if (PlayerRef.AtTitleScreen) { Forget(); return; }
             if (_finishLoad != null)
             {
@@ -205,6 +227,7 @@ namespace ForestOverlay.Game
                 catch (Exception) { loaded = true; }
                 if (!loaded) { Forget(); return; }
             }
+            Live = true;
 
             CheckJump(player);
             try { PollCave(); } catch (Exception) { }
@@ -214,6 +237,7 @@ namespace ForestOverlay.Game
             PollMoving(player);
             try { PollInput(); } catch (Exception) { }
             try { PollRope(); } catch (Exception) { }
+            try { PollRide(); } catch (Exception) { }
         }
 
         // Title screen / loading: the next reading is a baseline.
@@ -229,6 +253,8 @@ namespace ForestOverlay.Game
             _inputFired = true;
             _idleSince = -1f;
             _rope = -1;
+            _ride = null;
+            _rideWasDirty = false;
         }
 
         private void PollCave()
@@ -257,12 +283,12 @@ namespace ForestOverlay.Game
             if (was != null)
             {
                 GameEvents.RecordWorld(CaveExit + "-" + was, null, true);
-                GameEvents.RecordWorld(CaveExit, was, true);
+                GameEvents.RecordWorld(CaveExit, was, true, true);
             }
             if (now != null)
             {
                 GameEvents.RecordWorld(CaveEnter + "-" + now, null, true);
-                GameEvents.RecordWorld(CaveEnter, now, true);
+                GameEvents.RecordWorld(CaveEnter, now, true, true);
             }
         }
 
@@ -321,7 +347,7 @@ namespace ForestOverlay.Game
             _lastFound = found;
             if (!rose) return;
             GameEvents.RecordWorld(Passenger + "-" + found, null, true);
-            GameEvents.RecordWorld(Passenger, found.ToString(), true);
+            GameEvents.RecordWorld(Passenger, found.ToString(), true, true);
         }
 
         private void PollHold()
@@ -404,6 +430,41 @@ namespace ForestOverlay.Game
             _rope = on;
         }
 
+        // Read once after a load, then only while a ride's enter / exit
+        // method ran in the last 3 s (and once after): the zipline's flag
+        // is set later, in its StickToZipLine routine.
+        private void PollRide()
+        {
+            float now = Time.unscaledTime;
+            if (_jumped) _lastJumpAt = now;
+            bool dirty = now < AuditWatch.RideDirtyUntil;
+            if (_ride != null)
+            {
+                if (!dirty && !_rideWasDirty) return;
+                _rideWasDirty = dirty;
+                if (dirty && now < _nextRideRead) return;
+            }
+            _nextRideRead = now + RideReadEvery;
+
+            string ride = RideModes.Current() ?? "";
+            if (_ride == null) { _ride = ride; return; }
+            if (ride == _ride) return;
+            string was = _ride;
+            _ride = ride;
+            if (now - _lastJumpAt < RideAfterJump || PlayerRef.JustPlaced) return;
+
+            if (was.Length > 0)
+            {
+                GameEvents.RecordWorld(BusEvents.RideEvent(was, false), null, true);
+                GameEvents.RecordWorld(BusEvents.RideEnd, was, false, true);
+            }
+            if (ride.Length > 0)
+            {
+                GameEvents.RecordWorld(BusEvents.RideEvent(ride, true), null, true);
+                GameEvents.RecordWorld(BusEvents.RideStart, ride, false, true);
+            }
+        }
+
         // ------------------------------------------------------------------
         // Names for the segment editor.
 
@@ -484,7 +545,7 @@ namespace ForestOverlay.Game
             if (e == FirstInput) return "First input - a button or movement after a moment idle (the rules' \"takes control\")";
             if (e == RopeGrab) return "Grabbed a cave rope";
             if (e == RopeLeave) return "Let go of a cave rope";
-            return null;
+            return BusEvents.LabelFor(e);
         }
 
         // The game's clothing database (a ScriptableObject, loaded with the

@@ -149,4 +149,39 @@ namespace ForestOverlay.Data
             else TriggerEvaluator.ArmAsNext(ref state);
         }
     }
+
+    // ------------------------------------------------------------------
+    // One thing that happened, under several names: `cave-enter-cave06` +
+    // `cave-enter`, `keycard-door` + `keycard-door-210` + `vault-door`,
+    // `crafted-bomb-timed` + `crafted`. Each name is its own evaluation
+    // pass, and a checkpoint made current by a split is armed to fire at
+    // once if its event comes - so before this, one cave entry could
+    // split `cave-enter-cave06` AND then `cave-enter` on the next
+    // checkpoint. The later names are flagged as companions of the first
+    // (GameEvents.CompanionAt); once the run moved on (started, split,
+    // finished) on one name of an occurrence, its companions are skipped.
+    // A run waiting for the general name still gets it when the specific
+    // one moved nothing.
+    //
+    // Use: per event in order, Evaluate(companion) says whether to
+    // evaluate it; Moved() after an evaluation that moved the run on.
+    // ------------------------------------------------------------------
+    public sealed class OccurrenceGate
+    {
+        private bool _moved;
+
+        /// False to skip this event: a companion of an occurrence that
+        /// already moved the run on.
+        public bool Evaluate(bool companion)
+        {
+            if (!companion) _moved = false;
+            return !_moved;
+        }
+
+        /// The event just evaluated started, split or finished the run.
+        public void Moved()
+        {
+            _moved = true;
+        }
+    }
 }

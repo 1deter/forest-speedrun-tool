@@ -122,6 +122,7 @@ namespace ForestOverlay.Game
         /// nothing to do). Cheap when no area is active and no overlook.
         public string ForTeleport(Vector3 dest)
         {
+            PlayerRef.PlacedAt = Time.unscaledTime;
             // A ride under way first, wherever the teleport goes (ElevatorKeeper.StopRides).
             string ride = _rides.StopRides();
             string areas = Areas(dest);

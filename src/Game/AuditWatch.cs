@@ -47,6 +47,20 @@ namespace ForestOverlay.Game
     //
     // Everything else the audit writes comes from what the plugin already
     // watches (GameEvents, WorldEvents, ItemCounter, DeathHooks).
+    //
+    // SEGMENT EVENTS (the same postfix - one hook on Publish): the bus's
+    // events are also raised as named events through GameEvents.RecordWorld,
+    // in or out of run mode, while the game is in play (WorldEvents.Live)
+    // and not within 1.5 s of the overlay placing the player (a Go into
+    // the vault sends the game's EnterEndgame - PlayerRef.JustPlaced):
+    // built / built-<structure>, crafted / crafted-<item>, used /
+    // used-<item>, kill-enemy, kill-animal / kill-<animal>, hit-by-enemy,
+    // tree-cut, bomb, slept, story / story-<element>, endgame-area-enter /
+    // -leave (names in Data/BusEvents). The specific name first, the
+    // general one as its companion. One `Game event:` log line per
+    // general name at most every 2 s (hits and trees come in bursts).
+    // With no attempt running the postfix costs one dictionary lookup by
+    // reference per publish.
     // ------------------------------------------------------------------
     public static class AuditWatch
     {
@@ -77,33 +91,43 @@ namespace ForestOverlay.Game
 
         private enum Param { None, Item, Enum, Name, Fixed }
 
+        // How the segment event's specific name is made (Data/BusEvents).
+        private enum Seg { None, Plain, Item, Enum, Animal }
+
         private struct Entry
         {
             public string Field, Kind, Text;
             public Param Param;
-            public Entry(string field, string kind, Param param, string text) { Field = field; Kind = kind; Param = param; Text = text; }
+            /// The general segment event, or null for none.
+            public string Event;
+            public Seg Seg;
+            public Entry(string field, string kind, Param param, string text) : this(field, kind, param, text, null, Seg.None) { }
+            public Entry(string field, string kind, Param param, string text, string evt, Seg seg)
+            {
+                Field = field; Kind = kind; Param = param; Text = text; Event = evt; Seg = seg;
+            }
         }
 
         private static readonly Entry[] Table =
         {
-            new Entry("BuiltStructure", RunAudit.Built, Param.Enum, null),
-            new Entry("CraftedItem", RunAudit.Crafted, Param.Item, null),
-            new Entry("UsedItem", RunAudit.Used, Param.Item, null),
-            new Entry("KilledEnemy", RunAudit.Kill, Param.Name, null),
-            new Entry("EnemyContact", RunAudit.Hit, Param.Enum, null),
-            new Entry("KilledRabbit", RunAudit.Animal, Param.Fixed, "rabbit"),
-            new Entry("KilledLizard", RunAudit.Animal, Param.Fixed, "lizard"),
-            new Entry("KilledRaccoon", RunAudit.Animal, Param.Fixed, "raccoon"),
-            new Entry("KilledDeer", RunAudit.Animal, Param.Fixed, "deer"),
-            new Entry("KilledTurtle", RunAudit.Animal, Param.Fixed, "turtle"),
-            new Entry("KilledBird", RunAudit.Animal, Param.Fixed, "bird"),
-            new Entry("KilledShark", RunAudit.Animal, Param.Fixed, "shark"),
-            new Entry("CutTree", RunAudit.Tree, Param.None, null),
-            new Entry("UsedBomb", RunAudit.Bomb, Param.None, null),
-            new Entry("Slept", RunAudit.Sleep, Param.None, null),
-            new Entry("StoryProgress", RunAudit.Story, Param.Enum, null),
-            new Entry("EnterEndgame", RunAudit.Endgame, Param.Fixed, "entered the endgame area"),
-            new Entry("ExitEndgame", RunAudit.Endgame, Param.Fixed, "left the endgame area"),
+            new Entry("BuiltStructure", RunAudit.Built, Param.Enum, null, BusEvents.Built, Seg.Enum),
+            new Entry("CraftedItem", RunAudit.Crafted, Param.Item, null, BusEvents.Crafted, Seg.Item),
+            new Entry("UsedItem", RunAudit.Used, Param.Item, null, BusEvents.Used, Seg.Item),
+            new Entry("KilledEnemy", RunAudit.Kill, Param.Name, null, BusEvents.KillEnemy, Seg.Plain),
+            new Entry("EnemyContact", RunAudit.Hit, Param.Enum, null, BusEvents.HitByEnemy, Seg.Plain),
+            new Entry("KilledRabbit", RunAudit.Animal, Param.Fixed, "rabbit", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledLizard", RunAudit.Animal, Param.Fixed, "lizard", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledRaccoon", RunAudit.Animal, Param.Fixed, "raccoon", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledDeer", RunAudit.Animal, Param.Fixed, "deer", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledTurtle", RunAudit.Animal, Param.Fixed, "turtle", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledBird", RunAudit.Animal, Param.Fixed, "bird", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("KilledShark", RunAudit.Animal, Param.Fixed, "shark", BusEvents.KillAnimal, Seg.Animal),
+            new Entry("CutTree", RunAudit.Tree, Param.None, null, BusEvents.TreeCut, Seg.Plain),
+            new Entry("UsedBomb", RunAudit.Bomb, Param.None, null, BusEvents.Bomb, Seg.Plain),
+            new Entry("Slept", RunAudit.Sleep, Param.None, null, BusEvents.Slept, Seg.Plain),
+            new Entry("StoryProgress", RunAudit.Story, Param.Enum, null, BusEvents.Story, Seg.Enum),
+            new Entry("EnterEndgame", RunAudit.Endgame, Param.Fixed, "entered the endgame area", BusEvents.EndgameEnter, Seg.Plain),
+            new Entry("ExitEndgame", RunAudit.Endgame, Param.Fixed, "left the endgame area", BusEvents.EndgameLeave, Seg.Plain),
             new Entry("CheatAllowedSet", RunAudit.Setting, Param.Enum, "cheats allowed"),
             new Entry("DifficultySet", RunAudit.Setting, Param.Enum, "difficulty"),
             new Entry("GameTypeSet", RunAudit.Setting, Param.Enum, "game type"),
@@ -114,6 +138,9 @@ namespace ForestOverlay.Game
         };
 
         private static readonly Dictionary<object, int> ByEvent = new Dictionary<object, int>();
+        // General segment event -> Time.unscaledTime it was last logged.
+        private static readonly Dictionary<string, float> LoggedAt = new Dictionary<string, float>();
+        private const float LogEvery = 2f;
         private static Harmony _harmony;
         private static ManualLogSource _log;
 
@@ -200,15 +227,83 @@ namespace ForestOverlay.Game
 
         private static void PublishPostfix(object eventType, object eventParameter)
         {
-            if (!Recording || eventType == null) return;
+            if (eventType == null) return;
             try
             {
                 int at;
-                if (!ByEvent.TryGetValue(eventType, out at) || Pending.Count >= MaxPending) return;
+                if (!ByEvent.TryGetValue(eventType, out at)) return;
                 Entry e = Table[at];
-                Pending.Add(new Raw(e.Kind, Describe(e, eventParameter)));
+                if (Recording && Pending.Count < MaxPending) Pending.Add(new Raw(e.Kind, Describe(e, eventParameter)));
+                if (e.Event != null && WorldEvents.Live && !PlayerRef.JustPlaced) RaiseSegmentEvent(e, eventParameter);
             }
             catch (Exception) { }
+        }
+
+        // The segment events: the specific name (if any), then the general
+        // one as its companion - one occurrence.
+        private static void RaiseSegmentEvent(Entry e, object p)
+        {
+            string specific = null, detail = null;
+            switch (e.Seg)
+            {
+                case Seg.Item:
+                    if (p is int)
+                    {
+                        int id = (int)p;
+                        string name = ItemName != null ? ItemName(id) : null;
+                        specific = BusEvents.ItemEvent(e.Event, id, name);
+                        detail = string.IsNullOrEmpty(name) ? "item " + id : name;
+                    }
+                    break;
+                case Seg.Enum:
+                    if (p != null)
+                    {
+                        detail = p.ToString();
+                        specific = BusEvents.Specific(e.Event, detail);
+                    }
+                    break;
+                case Seg.Animal:
+                    specific = BusEvents.KillOf(e.Text);
+                    detail = e.Text;
+                    break;
+                default:
+                    detail = e.Param == Param.Name ? Describe(e, p) : null;
+                    break;
+            }
+
+            float now = Time.unscaledTime;
+            float last;
+            bool log = !LoggedAt.TryGetValue(e.Event, out last) || now - last >= LogEvery;
+            if (log) LoggedAt[e.Event] = now;
+
+            if (specific != null)
+            {
+                GameEvents.RecordWorld(specific, null, false);
+                GameEvents.RecordWorld(e.Event, detail, log, true);
+            }
+            else GameEvents.RecordWorld(e.Event, detail, log);
+        }
+
+        // --- names for the segment editor's picker ------------------------------
+
+        /// The BuildingTypes values (not None), for built-<structure>.
+        public static string[] StructureNames() { return EnumNames("TheForest.Buildings.Creation.BuildingTypes"); }
+
+        /// The GameStats.StoryElements values, for story-<element>.
+        public static string[] StoryNames() { return EnumNames("TheForest.Utils.GameStats+StoryElements"); }
+
+        private static string[] EnumNames(string typeName)
+        {
+            try
+            {
+                Type t = GameBridge.FindGameType(typeName);
+                if (t == null || !t.IsEnum) return new string[0];
+                List<string> names = new List<string>();
+                foreach (string n in Enum.GetNames(t))
+                    if (n != "None") names.Add(n);
+                return names.ToArray();
+            }
+            catch (Exception) { return new string[0]; }
         }
 
         private static void PausePostfix(bool on)

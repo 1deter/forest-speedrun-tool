@@ -323,6 +323,33 @@ polls the same fields once a frame:
 | `first-input` | Rewired `Input.player.GetAnyButton()` or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). |
 | `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` (`RopeClimb.IsOnRope`) | v0.24.193. |
 
+### Segment events from the game's event bus and the rides (IL, not yet seen live)
+
+`Game/AuditWatch`'s one postfix on `EventRegistry.Publish(object, object)`
+(the run audit log's) also raises these, in or out of run mode, while
+`WorldEvents.Live` and not within 1.5 s of an overlay placement
+(`PlayerRef.JustPlaced`: a Go into the vault entrance sends the game's
+`EnterEndgame`). Names in `Data/BusEvents`; a specific name fires first,
+the general one as its **companion** (one occurrence: a run moves on once,
+`OccurrenceGate` - the same now holds for `cave-enter-<cave>` + `cave-enter`,
+`passenger-<n>` + `passenger`, `keycard-door` + `keycard-door-<id>` +
+`vault-door`, `endgame-cutscene` + the named cutscene).
+
+| Event | `TfEvent` (publisher) | Specific part |
+|---|---|---|
+| `built`, `built-<structure>` | `BuiltStructure` (`Craft_Structure.Build`) | `BuildingTypes` value, e.g. `built-log-cabin` |
+| `crafted`, `crafted-<item>` | `CraftedItem` (`CraftingCog.DoCraft`, the product id) | ItemDatabase `_name`, e.g. `crafted-bomb-timed`; the id if no name |
+| `used`, `used-<item>` | `UsedItem` (`InventoryItemView.UseEdible`, the decaying view, `EdiblePickUp.MainEffect` - eating / drinking from the world too) | as crafted |
+| `kill-enemy` | `KilledEnemy` (`EnemyHealth.Die` / `dieExplode` / `DieTrap`) | - (the object name in the log) |
+| `kill-animal`, `kill-<animal>` | `KilledRabbit` / `Lizard` / `Raccoon` / `Deer` / `Turtle` / `Bird` / `Shark` | the animal |
+| `hit-by-enemy` | `EnemyContact` (`PlayerStats.hitFromEnemy`) | - |
+| `tree-cut` | `CutTree` (`TreeHealth.DoFallTree` / `DoFallTreeExplosion`) | - |
+| `bomb` | `UsedBomb` (`Bomb.Explode`) | - |
+| `slept` | `Slept` (`PlayerStats.GoToSleep`) | - |
+| `story`, `story-<element>` | `StoryProgress` (`releaseFromHanging`, `redmanSpawner.removeRedman`, `activateCliffClimbSheen`, Timmy, `activateGirlToMachine`) | `GameStats.StoryElements` value (hanging-scene, red-man-on-yacht, found-climb-wall, timmy-found, megan-found) |
+| `endgame-area-enter` / `-leave` | `EnterEndgame` / `ExitEndgame` | - |
+| `<ride>-start` / `-end`, `ride-start` / `ride-end` | `RideModes.Current()` (`zipline`, `sled`, `glider`, `cliff-climb`), read at 10 Hz for 3 s after a ride's enter / exit method ran | the ride |
+
 The ASL's settings as a segment (v0.24.186, `Data/LssAutoSplit`): a
 LiveSplit split is "the next thing the autosplitter splits on", so an
 imported spot's checkpoints are all `event autosplit` and its `autosplit
