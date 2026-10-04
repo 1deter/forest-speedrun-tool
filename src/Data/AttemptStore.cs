@@ -86,6 +86,30 @@ namespace ForestOverlay.Data
             catch (Exception ex) { _log.LogWarning("Could not count the attempt: " + ex.Message); }
         }
 
+        /// Segments run live after a "Restart from checkpoint" (gold
+        /// candidates, Data/CheckpointStates): checkpoint-segments.txt.
+        public List<PracticeSegment> LoadPracticeSegments(string anchorLabel)
+        {
+            try
+            {
+                string path = Path.Combine(FolderFor(anchorLabel), "checkpoint-segments.txt");
+                if (File.Exists(path)) return PracticeSegment.ParseAll(File.ReadAllText(path));
+            }
+            catch (Exception ex) { _log.LogWarning("Could not read checkpoint practice segments: " + ex.Message); }
+            return new List<PracticeSegment>();
+        }
+
+        public void AddPracticeSegment(string anchorLabel, PracticeSegment segment)
+        {
+            try
+            {
+                string dir = FolderFor(anchorLabel);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "checkpoint-segments.txt"), segment.Write() + "\n");
+            }
+            catch (Exception ex) { _log.LogWarning("Could not keep the checkpoint practice segment: " + ex.Message); }
+        }
+
         /// Runs that started and never finished (v0.24.204): one line each
         /// in unfinished.txt (Data/RunHistory). Empty when there are none.
         public List<UnfinishedAttempt> LoadUnfinished(string anchorLabel)

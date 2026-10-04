@@ -196,6 +196,7 @@ namespace ForestOverlay.Modules
             InitSplits(ctx);
             InitLineOptions(ctx);
             InitResults(ctx);
+            InitCheckpoints(ctx);
         }
 
         private RunUploadModule _upload;
@@ -244,6 +245,7 @@ namespace ForestOverlay.Modules
             map.Add("run.abort", KeyCode.LeftBracket, "Abort practice run", AbortRun);
             map.Add("run.cycleComparison", KeyCode.None, "Splits: next comparison", CycleComparison);
             map.Add("run.closeResults", KeyCode.None, "Close the results panel", CloseResultsKey);
+            map.Add("run.restartCheckpoint", KeyCode.None, "Restart from checkpoint (the last one used, else the latest)", RestartFromCheckpointKey);
             map.Add("tab.runs", KeyCode.None, "Open Runs tab", OpenMyTab);
         }
 
@@ -348,6 +350,8 @@ namespace ForestOverlay.Modules
             TriggerEvaluator.Reset(ref _startState);
 
             RecordUnfinished("re-armed");   // before its splits are cleared
+            _resumedFrom = -1;   // a full run unless ResumeFrom says otherwise
+            _resumeSkipDt = false;
             _splits.Clear();
             _deltaHint = 0;
             _eventsSeen = Ctx.Events.Count;
@@ -419,18 +423,22 @@ namespace ForestOverlay.Modules
             RefreshLss();
             RefreshSplits();
             RefreshResults();
+            RefreshCheckpointText();
 
             if (_autoRestartAt > 0f && Time.unscaledTime >= _autoRestartAt)
             {
                 _autoRestartAt = 0f;
+                int checkpoint = _autoRestartCheckpoint;
+                _autoRestartCheckpoint = -1;
                 // Only if nothing changed meanwhile: still on, still this
                 // segment, no new run started by hand.
                 if (Enabled && _segment != null && _practice != null &&
                     ReferenceEquals(_practice.CurrentSegment, _segment) &&
                     _recorder.State != RunRecorder.RunState.Running)
                 {
-                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart.");
-                    _practice.ReturnToSpot();
+                    Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart" + (checkpoint >= 0 ? " from checkpoint " + (checkpoint + 1) : "") + ".");
+                    if (checkpoint >= 0) RestartFromCheckpoint(checkpoint);
+                    else _practice.ReturnToSpot();
                 }
             }
 
@@ -487,7 +495,10 @@ namespace ForestOverlay.Modules
             if (_auto.ItemIds.Count > 0 && _recorder.State == RunRecorder.RunState.Running && _auto.OnItems(_live))
                 AutoSplit(pos, "an item");
 
-            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, Time.unscaledDeltaTime, null);
+            // The first frame after a checkpoint resume holds the restore.
+            float dt = _resumeSkipDt ? 0f : Time.unscaledDeltaTime;
+            _resumeSkipDt = false;
+            _recorder.Tick(pos, Ctx.Player.HorizontalSpeed, dt, null);
 
             if (_recorder.State == RunRecorder.RunState.Running && _reference != null)
             {
@@ -523,6 +534,7 @@ namespace ForestOverlay.Modules
                                   "  " + Format(_recorder.Elapsed);
                         Ctx.Log.LogInfo("Run '" + _segment.Id + "': checkpoint " + _splits.Count + "/" +
                                         _segment.Checkpoints.Count + " at " + Format(_recorder.Elapsed) + ".");
+                        OnCheckpointSplit(_splits.Count - 1);   // a gold from practice, a checkpoint state
                         break;
 
                     case SplitEvent.EndBlocked:
@@ -622,6 +634,9 @@ namespace ForestOverlay.Modules
         {
             Attempt done = _recorder.Finish();
             if (done == null) { _status = "no run in progress"; return; }
+            _autoRestartCheckpoint = -1;
+            // From a checkpoint state: practice, never a saved run.
+            if (Resumed) { FinishResumedRun(done); return; }
 
             StampAttempt(done);
             _attempts.Add(done);
@@ -756,6 +771,7 @@ namespace ForestOverlay.Modules
                 else others.Add(all[i]);
             }
             SetLocalOthers(others, s.Checkpoints.Count);
+            LoadPracticeSegments(s.Id);
             _started = Mathf.Max(_store.Started(s.Id), _attempts.Count);
             LoadPlaytime(s.Id, all, own);
 
@@ -918,7 +934,8 @@ namespace ForestOverlay.Modules
             else if (_recorder.State == RunRecorder.RunState.Running)
             {
                 hud.Pair("Run", Format(_recorder.Elapsed) +
-                                (_hasDelta ? "   " + SignedDelta(_delta) : ""));
+                                (_hasDelta ? "   " + SignedDelta(_delta) : "") +
+                                (Resumed ? "   (from checkpoint " + (_resumedFrom + 1) + ")" : ""));
 
                 hud.Pair("Next", !_sequence.OnlyEndLeft
                     ? "checkpoint " + (_sequence.Next + 1) + "/" + _segment.Checkpoints.Count
@@ -993,6 +1010,7 @@ namespace ForestOverlay.Modules
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
             float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
+            y = DrawCheckpointSection(y, cw);
             y = DrawLineOptions(y, cw);
             y = DrawRunnersSection(y, cw);
             y = DrawLiveSplitSection(y, cw);
@@ -1087,6 +1105,7 @@ namespace ForestOverlay.Modules
             if (_segment == null || _segment.Id != _loadedSegmentId || _attempts.Count == 0) return "";
             int cps = _segment.Checkpoints.Count;
             SplitStats st = SplitStats.Build(_attempts, cps);
+            ApplyPracticeGolds(st);
             if (st.Completed == 0) return "";
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();

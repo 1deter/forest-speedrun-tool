@@ -212,6 +212,7 @@ namespace ForestOverlay.Modules
             _statsKey = _segment == null ? "" : _segment.Id + "|" + _armedRoute + "|" + SplitRows;
             int rows = SplitRows;
             _stats = rows > 0 ? SplitStats.Build(_attempts, rows - 1) : null;
+            ApplyPracticeGolds(_stats);   // golds from checkpoint practice
             if (_times.Length != rows) _times = new float[rows];
             for (int i = 0; i < rows; i++) _times[i] = float.NaN;
             if (_rowsData.Length != rows) _rowsData = new SplitRow[rows];
@@ -245,6 +246,7 @@ namespace ForestOverlay.Modules
         {
             Attempt cur = _recorder.Current;
             if (_recorder.State != RunRecorder.RunState.Running || cur == null || ReferenceEquals(cur, _recordedUnfinished)) return;
+            if (Resumed) return;   // from a checkpoint: practice, not a run that started
             _recordedUnfinished = cur;
 
             UnfinishedAttempt u = new UnfinishedAttempt();

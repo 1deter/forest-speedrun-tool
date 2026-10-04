@@ -45,6 +45,22 @@ namespace ForestOverlay.Game
             catch (Exception) { return false; }
         }
 
+        /// True while the pause menu or the inventory is the current view
+        /// (what IfOpen would close) - a checkpoint capture skips rather
+        /// than close a menu in the middle of a run.
+        public static bool AnyOpen()
+        {
+            try
+            {
+                if (!Resolve()) return false;
+                object inv = _inventory.GetValue(null);
+                if (inv == null) return false;
+                object view = _view.GetValue(inv, null);
+                return view != null && (Equals(view, _pauseView) || Equals(view, _inventoryView) || Equals(view, _lootView));
+            }
+            catch (Exception) { return false; }
+        }
+
         /// Closes the pause menu or the inventory when one is open. Says
         /// what it did; "" when neither was.
         public static string IfOpen()

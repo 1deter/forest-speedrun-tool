@@ -110,6 +110,56 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   or `Savestate after the load: weather: ...` (Full). Not kept: a
   rainbow, a lightning flash, when the next roll comes (random anyway).
 
+## Checkpoint states and Restart from checkpoint (2026-10-04, unreleased)
+
+"Saveloc" for long timed segments (author, QA Discord 2026-09-26):
+`Data/CheckpointStates` (pure, tested), `Modules/PracticeRunModule.Checkpoints`,
+`SavestateModule.CaptureCheckpointState` / `RestoreCheckpointState`.
+
+- **Capture at checkpoints** (Runs tab, `[Runs] CaptureAtCheckpoints`,
+  **off** by default): each checkpoint a practice run fires by its trigger
+  (not an F12 split) is captured to
+  `savestates/segments/<safe id>.cp<N>.fosave` + `.cp<N>.meta` (N = 1 for
+  the first). The meta holds the route, the run's split times up to N,
+  its item baseline (relative item triggers) and the clock **when the
+  level was serialized** (a few frames after the split - a resumed run
+  counts them). **Newest wins**: holding every run's captures until a PB
+  is known would cost files and hitches, and the state you want is the
+  one you just played into.
+- **The hitch**: the level is still serialized on the main thread
+  (Unity's serializer). A checkpoint capture is "light" -
+  `SavestateBridge.Capture(light)` skips the save routine's
+  `UnloadUnusedAssets` and forced GC (memory only; streaming is still
+  force-unloaded and held items re-parented, as the data needs) - and
+  the file's text is built and written on a ThreadPool thread (the old
+  meta deleted first, the state via `.tmp` + move, the meta last, so a
+  cut write is never offered). Never in run mode (`Ctx.Run.Active`),
+  skipped with the pause menu / inventory open (`MenuClose.AnyOpen`, not
+  closed mid-run) or another savestate action running. One log line
+  each: `Checkpoint state checkpoint 2/5 of 's-...' captured: N ms of
+  frame work on the main thread (serialize N ms, no memory clean-up), N KB
+  written in N ms on a worker thread` (plus the usual `Savestate captured`
+  line); a skip logs `Run '<id>': checkpoint N state not captured - why`.
+- **Restart from checkpoint N** (Runs tab, a button per checkpoint; key
+  `run.restartCheckpoint`, unbound = the last one used, else the latest):
+  a Quick load of that state (a Full load only where `MustLoad` says),
+  then the run resumes: clock at the meta's time (the first frame after
+  the restore not counted), checkpoints 1..N fired
+  (`SplitSequence.Resume`: N+1 is armed as next - fires at once if it
+  already holds, as in the run that captured it), the splits table
+  filled with that run's times. A state from another route (a zone or the
+  start state changed) or for a checkpoint the segment no longer has is
+  not offered and says why. Auto-restart after a resumed run goes back to
+  its checkpoint.
+- **A resumed run is practice**: never saved as an attempt - no PB, last,
+  average, PB chance, unfinished entry, upload, run mode timer. The
+  segments it runs live (every split after the resume point, and the end)
+  are kept in `runs/<id>/checkpoint-segments.txt` and can be **golds**
+  (best segments, sum of best - `PracticeGolds`): a real time from a real
+  state on this route. Copied rows before the resume point never are.
+- Not done: a death during a resumed run restores the spot's start state
+  (Deaths tab rules), not the checkpoint; a Practice tab button.
+
 ## Quick load audit (2026-10-01, v0.24.187-188)
 
 What a Quick load leaves different from the capture, found by diffing the

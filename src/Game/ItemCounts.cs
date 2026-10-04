@@ -57,5 +57,13 @@ namespace ForestOverlay.Game
             int v;
             return _counts.TryGetValue(itemId, out v) ? v : 0;
         }
+
+        /// A run's start counts put back (a checkpoint state's baseline).
+        public void Load(IList<KeyValuePair<int, int>> counts)
+        {
+            _counts.Clear();
+            if (counts == null) return;
+            for (int i = 0; i < counts.Count; i++) _counts[counts[i].Key] = counts[i].Value;
+        }
     }
 }

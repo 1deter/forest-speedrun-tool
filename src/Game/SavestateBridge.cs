@@ -57,6 +57,13 @@ namespace ForestOverlay.Game
             public string Difficulty = "";
             public string BaseDifficulty = "";
             public bool StreamingUnloaded;
+            /// Time.realtimeSinceStartup when the level was serialized (a
+            /// checkpoint state resumes its run's clock from that moment).
+            public float SerializedAt = -1f;
+            /// The frame's work, ms: the serialize alone and the whole
+            /// capture's main-thread time (its frames, not the waits).
+            public long SerializeMs;
+            public long TotalMs;
         }
 
         private const float LoadTimeout = 120f;
@@ -440,6 +447,16 @@ namespace ForestOverlay.Game
         // over frames (asset unload, GC, the 0.3 s before UnParent).
         public IEnumerator Capture(Action<Result> done)
         {
+            return Capture(false, done);
+        }
+
+        /// `light` (a checkpoint state, taken mid-run): skips the game's
+        /// save-time memory clean-up - UnloadUnusedAssets and a forced GC,
+        /// the capture's longest frames, which only free memory - and keeps
+        /// everything the data depends on (streaming unloaded as the game's
+        /// save does, held items re-parented).
+        public IEnumerator Capture(bool light, Action<Result> done)
+        {
             Result r = new Result();
 
             if (!Resolve()) { r.Message = "LevelSerializer.SerializeLevel not found"; done(r); yield break; }
@@ -447,16 +464,28 @@ namespace ForestOverlay.Game
             if (ReadBool(_inOverlook)) { r.Message = "the game refuses to save in the overlook area"; done(r); yield break; }
 
             Stopwatch total = Stopwatch.StartNew();
+            // Main-thread work only, the frames' cost (not the waits).
+            Stopwatch work = Stopwatch.StartNew();
 
             bool unloaded = ForceUnloadStreaming(true, true);
+            work.Stop();
             yield return null;
-            Call(_unloadUnused);
-            yield return null;
-            yield return null;
-            Call(_gcCollect);
-            yield return null;
+            if (!light)
+            {
+                work.Start();
+                Call(_unloadUnused);
+                work.Stop();
+                yield return null;
+                yield return null;
+                work.Start();
+                Call(_gcCollect);
+                work.Stop();
+                yield return null;
+            }
 
+            work.Start();
             ReParentHeld(true);
+            work.Stop();
             yield return null;
 
             // The game's SaveGame defers a non-urgent save while serialization
@@ -465,7 +494,9 @@ namespace ForestOverlay.Game
             while (ReadBool(_isSuspended) && Time.realtimeSinceStartup - waitStart < 5f)
                 yield return null;
 
+            work.Start();
             Stopwatch serialize = Stopwatch.StartNew();
+            r.SerializedAt = Time.realtimeSinceStartup;
             RideModes.HeldGlider glider = null;
             try
             {
@@ -507,15 +538,21 @@ namespace ForestOverlay.Game
             if (unloaded)
             {
                 ForceUnloadStreaming(false, false);
+                work.Stop();
                 yield return new WaitForSeconds(0.3f);
+                work.Start();
             }
             ReParentHeld(false);
+            work.Stop();
 
             total.Stop();
+            r.SerializeMs = serialize.ElapsedMilliseconds;
+            r.TotalMs = work.ElapsedMilliseconds;
             if (r.Ok)
             {
                 r.Message = "serialized in " + serialize.ElapsedMilliseconds + " ms (total " +
-                            total.ElapsedMilliseconds + " ms), " + Kb(r.Data.Length) +
+                            total.ElapsedMilliseconds + " ms, frames' work " + work.ElapsedMilliseconds + " ms" +
+                            (light ? ", light: no memory clean-up" : "") + "), " + Kb(r.Data.Length) +
                             ", streaming " + (unloaded ? "force-unloaded" : "unload FAILED (kept)") +
                             ", " + IdentifierCount + " identifiers";
             }
