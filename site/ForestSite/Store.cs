@@ -289,11 +289,30 @@ ON CONFLICT DO NOTHING RETURNING id";
     {
         if (Convert.ToInt64(Scalar("SELECT COUNT(*) FROM routes WHERE segment_id = $s AND community = 1", ("$s", segmentId))) > 0)
             return (0, "a community spot - remove its file from community/ instead");
+        // The run ids first: their files go one by one. The folder is shared
+        // by every id with the same SafeName (".s-x" and "s-x"), so deleting
+        // it whole let a runner wipe another spot's run files by deleting
+        // their own look-alike spot (security audit, 2026-10-04).
+        var ids = new List<long>();
+        using (var c = Open())
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = "SELECT id FROM runs WHERE segment_id = $s";
+            cmd.Parameters.AddWithValue("$s", segmentId);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) ids.Add(r.GetInt64(0));
+        }
         int routes = Update("DELETE FROM routes WHERE segment_id = $s", ("$s", segmentId));
         int runs = Update("DELETE FROM runs WHERE segment_id = $s", ("$s", segmentId));
         if (routes == 0 && runs == 0) return (0, "no such spot");
+        foreach (long id in ids)
+        {
+            string path = RunPath(segmentId, id);
+            if (File.Exists(path)) File.Delete(path);
+        }
         string dir = Path.Combine(_dir, "runs", SafeName(segmentId));
-        if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        try { if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir); }
+        catch (IOException) { }
         return (runs, null);
     }
 

@@ -17,6 +17,10 @@ on:
     paths: ['site/**']
   workflow_dispatch:
 
+# The job only reads the repo; the deploy goes over SSH with its own key.
+permissions:
+  contents: read
+
 concurrency:
   group: site-deploy
   cancel-in-progress: false

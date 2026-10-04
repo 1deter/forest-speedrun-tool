@@ -665,8 +665,12 @@ public static class Pages
     public static string WithMeta(string html, string title, string description, string url)
     {
         string t = System.Net.WebUtility.HtmlEncode(title), d = System.Net.WebUtility.HtmlEncode(description), u = System.Net.WebUtility.HtmlEncode(url);
-        html = System.Text.RegularExpressions.Regex.Replace(html, "<title>[^<]*</title>", "<title>" + t + "</title>");
-        html = System.Text.RegularExpressions.Regex.Replace(html, "<meta name=\"description\" content=\"[^\"]*\">",
+        // Evaluators, not replacement strings: in a replacement string `$_`,
+        // `$`` or `$'` in a runner's spot or name (HtmlEncode keeps `$`) would
+        // paste the page's own HTML into the attribute (security audit,
+        // 2026-10-04).
+        html = System.Text.RegularExpressions.Regex.Replace(html, "<title>[^<]*</title>", _ => "<title>" + t + "</title>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, "<meta name=\"description\" content=\"[^\"]*\">", _ =>
             "<meta name=\"description\" content=\"" + d + "\">\n  " +
             "<meta property=\"og:type\" content=\"website\">\n  " +
             "<meta property=\"og:site_name\" content=\"Forest Practice Runs\">\n  " +

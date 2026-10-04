@@ -997,6 +997,51 @@ public sealed class ApiTests : IDisposable
                      PbNews.Message("deter", "Cave 5", 59f, 60f, PbNews.RunLink("https://x/", "s-1", "r", 7)));
     }
 
+    // --- security audit (2026-10-04) -------------------------------------------------
+
+    [Fact]
+    public async Task OwnerDelete_OfALookAlikeId_LeavesTheOtherSpotsRunFiles()
+    {
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-0123456789ab");
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+        long runId = (await _http.GetFromJsonAsync<JsonObject>("/api/spots/" + seg.Id))["routes"][0]["board"][0]["id"].GetValue<long>();
+
+        // B's own spot whose id makes the same folder name (the dot is trimmed).
+        var twin = TestSegment(".s-0123456789ab");
+        Assert.Equal(Store.SafeName(seg.Id), Store.SafeName(twin.Id));
+        Assert.Equal(HttpStatusCode.OK, (await Upload(tb, Bundle(twin, RunText(twin, B, 12f, 5f)))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await DeleteSpot(tb, twin.Id)).StatusCode);
+
+        // A's run is still downloadable: only B's file went.
+        var file = await _http.GetAsync("/api/runs/" + runId + "/file");
+        Assert.Equal(HttpStatusCode.OK, file.StatusCode);
+        Assert.Contains("duration", (await file.Content.ReadAsStringAsync()).ToLowerInvariant());
+        var detail = await _http.GetFromJsonAsync<JsonObject>("/api/runs/" + runId);
+        Assert.True(detail["path"].AsArray().Count > 0);
+    }
+
+    [Fact]
+    public async Task LinkPreview_DollarSignsInRunnerText_AreText()
+    {
+        string ta = await Register(A);
+        var seg = TestSegment("s-0123456789ac");
+        seg.Name = "$_ $` $' $$ $0";
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+        string html = await _http.GetStringAsync("/spot/" + seg.Id);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "<script src=\"/app\\.js"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(html, "<title>"));
+        Assert.Contains("<title>$_ $` $&#39; $$ $0 - Forest Practice Runs</title>", html);
+    }
+
+    [Fact]
+    public void PbPost_ClipsLongNames()
+    {
+        string m = PbNews.Message(new string('r', 500), new string('s', 100_000), 59f, 60f, "https://x/spot/s-1/r?run=7");
+        Assert.True(m.Length < 400, "post is " + m.Length + " characters");
+        Assert.Contains(new string('s', 80) + ": 59.000", m);
+    }
+
     [Theory]
     [InlineData("ground-dry/3/12_7.jpg", true)]
     [InlineData("ground/3/12_7.jpg\n", false)]
