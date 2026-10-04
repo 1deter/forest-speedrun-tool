@@ -209,6 +209,7 @@ function comparePage() {
   // = the side being waited for while the other is held for it.
   c.link = null;
   c.active = 0;
+  const last0 = {};
   let raf = 0, urlTimer = 0;
 
   function changed(rebuild) {
@@ -298,7 +299,8 @@ function comparePage() {
   function seekFrame(s, f) { s.player.seek((Math.max(0, f) + 0.5) / s.fps); }
   function step(s, n) {
     if (!s.id) return;
-    if (s.player.playing) { s.player.pause(); if (c.link) c.link.playing = false; }
+    if (c.link && c.link.mode !== "paused") pauseBoth();
+    else if (s.player.playing) s.player.pause();
     seekFrame(s, cmpFrame(s, s.player.now()) + n);
   }
   function needVideo(s, msg) {
@@ -309,6 +311,7 @@ function comparePage() {
   function setPoint(s, key, msg) {
     if (!needVideo(s, msg)) return;
     s[key] = cur(s); say(msg, "");
+    if (key === "start" && c.link && c.link.mode === "paused") c.link = null;   // run time counts from the new start
     changed(true);
   }
   function goTo(s, t, msg, what) {
@@ -341,6 +344,76 @@ function comparePage() {
   rate.addEventListener("change", () => { for (const s of c.sides) if (s.id) s.player.setRate(+rate.value); });
   const bothMsg = el("div", { class: "rowmsg" });
   function refOf(s, k) { return k === "start" ? s.start : k === "here" ? cur(s) : s.marks[+k]; }
+  // The master clock is RUN TIME: video time minus a reference per side
+  // (link.refs), so both videos are the same run time apart from a fixed
+  // offset. Everything below only ever moves the two together:
+  //  - paused:   nothing is watched.
+  //  - starting: after a seek, wait until neither side is buffering, then
+  //              play both in one go.
+  //  - playing:  a side buffering for 0.5 s holds the other (holding); a
+  //              drift over 0.25 s for 0.6 s moves the one ahead back (at most
+  //              once in 3 s); a pause inside a video pauses both.
+  //  - holding:  the buffering side plays again -> the other seeks to it and
+  //              plays: one coordinated resume.
+  // Whatever the page itself caused (every seek / play / pause it sends)
+  // opens a quiet window: the state changes that follow are not reacted to,
+  // so one side's reaction can never set the other off (the old ping-pong).
+  const DRIFT = 0.25;
+  function newLink(refs, auto) {
+    return { refs, auto, mode: "paused", quietUntil: 0, bufSince: [0, 0], driftSince: 0, driftCool: 0,
+      holdAt: 0, wait: [], okSince: 0, startAt: 0, since: 0 };
+  }
+  function ensureLink() {
+    // Not started from a split: run time counts from each side's Start (0 = the video's own time).
+    if (!c.link || (c.link.auto && c.link.mode === "paused")) {
+      const refs = c.sides.map(s => s.start !== null ? s.start : 0);
+      if (!c.link) c.link = newLink(refs, true); else c.link.refs = refs;
+    }
+    return c.link;
+  }
+  function quiet(L, ms) { L.quietUntil = performance.now() + ms; L.bufSince = [0, 0]; L.driftSince = 0; }
+  function usable() { return c.sides.map(s => !!(s.id && s.player.ready)); }
+  function runNow() {
+    const L = ensureLink(), ok = usable();
+    let sum = 0, n = 0;
+    c.sides.forEach((s, i) => { if (ok[i]) { sum += s.player.now() - L.refs[i]; n++; } });
+    return n ? sum / n : 0;
+  }
+  /// The longest run time both videos reach (the Ends when both are set).
+  function runMax() {
+    const L = ensureLink(), ends = c.sides.every(s => s.end !== null);
+    let m = Infinity;
+    c.sides.forEach((s, i) => {
+      const top = ends ? s.end : s.player.duration;
+      if (top > 0) m = Math.min(m, top - L.refs[i]);
+    });
+    return isFinite(m) && m > 0 ? m : 0;
+  }
+  /// Put each side at times[i] (video time; null = leave it). play: and play
+  /// both once both have settled.
+  function relocate(times, play) {
+    const L = ensureLink(), ok = usable(), now = performance.now();
+    c.sides.forEach((s, i) => {
+      if (!ok[i] || times[i] === null) return;
+      if (play) s.player.pause();
+      s.player.seek(times[i]);
+    });
+    L.wait = [];
+    L.mode = play ? "starting" : "paused";
+    L.since = now; L.startAt = now + 500;
+    quiet(L, 1000);
+  }
+  function wantsPlay() { return !!c.link && c.link.mode !== "paused"; }
+  function jump(R) {
+    const L = ensureLink(), max = runMax();
+    R = Math.max(0, max > 0 ? Math.min(R, max) : R);
+    relocate(c.sides.map((s, i) => L.refs[i] + R + 0.5 / s.fps), wantsPlay());
+  }
+  /// Skip both by dt seconds, keeping whatever offset the two have.
+  function jumpBy(dt) {
+    ensureLink();
+    relocate(c.sides.map(s => s.id && s.player.ready ? Math.max(0, s.player.now() + dt) : null), wantsPlay());
+  }
   function playBoth() {
     const k = from.value;
     for (const [i, s] of c.sides.entries()) {
@@ -352,17 +425,71 @@ function comparePage() {
     }
     say(bothMsg, "");
     const refs = c.sides.map(s => refOf(s, k));
-    c.sides.forEach((s, i) => { s.player.pause(); s.player.seek(refs[i] + 0.5 / s.fps); });
-    c.link = { refs, playing: true, waiting: -1, fixedAt: performance.now() + 1500 };
-    setTimeout(() => { if (c.link && c.link.playing) for (const s of c.sides) s.player.play(); }, 350);
+    c.link = newLink(refs, k === "start");
+    relocate(c.sides.map((s, i) => refs[i] + 0.5 / s.fps), true);
   }
   function pauseBoth() {
-    if (c.link) c.link.playing = false;
+    if (c.link) { c.link.mode = "paused"; quiet(c.link, 1000); }
     for (const s of c.sides) if (s.id) s.player.pause();
   }
+  /// Play / pause both from where they are now (space, k).
+  function togglePlay() {
+    if (wantsPlay()) { pauseBoth(); return; }
+    if (!c.sides.every(s => s.id && s.player.ready)) { say(bothMsg, "Load both videos first."); return; }
+    if (!c.link) { playBoth(); return; }
+    // Keep the offset the two are at now: run time is measured from here.
+    const R = runNow(), L = c.link;
+    L.refs = c.sides.map(s => s.player.now() - R); L.auto = false;
+    relocate(c.sides.map(() => null), true);
+  }
   function stepBoth(n) {
-    if (c.link) c.link.playing = false;
     for (const s of c.sides) step(s, n);
+  }
+  function syncTick(L) {
+    const now = performance.now(), P = c.sides.map(s => s.player), live = P.map(p => p.ready);
+    if (L.mode === "starting") {
+      if (now < L.startAt) return;
+      if (now < L.since + 8000 && P.some((p, i) => live[i] && p.state === 3)) return;
+      P.forEach((p, i) => { if (live[i]) p.play(); });
+      L.mode = "playing"; quiet(L, 1500);
+      return;
+    }
+    if (!live[0] || !live[1]) return;
+    if (P.some(p => p.state === 0)) { L.mode = "paused"; return; }   // a video ended
+    if (L.mode === "holding") {
+      const w = L.wait;
+      if (now > L.holdAt + 45000) { pauseBoth(); return; }
+      if (now > L.quietUntil && w.some(i => P[i].state === 2)) { pauseBoth(); return; }   // paused in the video itself
+      if (w.every(i => P[i].state === 1)) {
+        if (!L.okSince) L.okSince = now;
+        if (now - L.okSince < 300) return;
+        const R = w.reduce((a, i) => a + P[i].now() - L.refs[i], 0) / w.length;
+        P.forEach((p, i) => { if (!w.includes(i)) { p.seek(L.refs[i] + R + 0.15); p.play(); } });
+        L.mode = "playing"; quiet(L, 1500);
+      } else L.okSince = 0;
+      return;
+    }
+    // playing
+    if (now < L.quietUntil) return;
+    if (P.some(p => p.state === 2)) { pauseBoth(); return; }
+    P.forEach((p, i) => { L.bufSince[i] = p.state === 3 ? (L.bufSince[i] || now) : 0; });
+    const stuck = [0, 1].filter(i => L.bufSince[i] && now - L.bufSince[i] > 500);
+    if (stuck.length) {
+      P.forEach((p, i) => { if (!stuck.includes(i) && p.playing) p.pause(); });
+      L.mode = "holding"; L.wait = stuck; L.holdAt = now; L.okSince = 0; quiet(L, 500);
+      return;
+    }
+    if (P[0].playing && P[1].playing) {
+      const e = P.map((p, i) => p.now() - L.refs[i]);
+      if (Math.abs(e[0] - e[1]) > DRIFT) {
+        if (!L.driftSince) L.driftSince = now;
+        else if (now - L.driftSince > 600 && now > L.driftCool) {
+          const ahead = e[0] > e[1] ? 0 : 1;
+          P[ahead].seek(L.refs[ahead] + Math.min(e[0], e[1]) + 0.1);
+          L.driftCool = now + 3000; quiet(L, 1500);
+        }
+      } else L.driftSince = 0;
+    }
   }
   function fillFrom() {
     const keep = from.value;
@@ -379,6 +506,15 @@ function comparePage() {
     catch (e) { say(copyMsg, "Copy the address bar: it holds the whole comparison."); }
   }
 
+  // The shared scrub bar over run time (seeks both when released).
+  const scrub = el("input", { class: "cmpscrub", type: "range", min: "0", max: "0", step: "0.01", value: "0", disabled: "",
+    "aria-label": "Run time (both videos)" });
+  const scrubText = el("span", { class: "k cmpscrubtext" });
+  let scrubbing = false;
+  scrub.addEventListener("input", () => { scrubbing = true; scrubText.textContent = time(+scrub.value, 1) + " / " + time(+scrub.max, 1); });
+  scrub.addEventListener("change", () => { scrubbing = false; jump(+scrub.value); });
+  scrub.addEventListener("blur", () => { scrubbing = false; });
+
   const bar = el("div", { class: "cmpbar" },
     el("div", { class: "btnrow" },
       el("label", { class: "k" }, "Play both from ", from),
@@ -388,6 +524,10 @@ function comparePage() {
       el("button", { class: "chip", type: "button", title: "Both forward one frame", onclick: () => stepBoth(1) }, "+1 frame"),
       el("label", { class: "k" }, "Speed ", rate),
       el("button", { class: "chip", type: "button", onclick: copyLink }, "Copy link")),
+    el("div", { class: "btnrow cmpskip" },
+      [[-10, "−10 s"], [-1, "−1 s"], [1, "+1 s"], [10, "+10 s"]].map(([n, text]) =>
+        el("button", { class: "chip", type: "button", title: "Both " + (n < 0 ? "back " : "forward ") + Math.abs(n) + " s", onclick: () => jumpBy(n) }, text)),
+      scrub, scrubText),
     bothMsg, copyMsg);
 
   // --- the splits table -----------------------------------------------------------
@@ -462,7 +602,8 @@ function comparePage() {
     el("h2", null, "Splits"),
     tableBox, addBtn,
     el("p", { class: "note small" }, "Times are frame-exact for the frame rate given: the frame on screen at a time t is t × fps, rounded down. " +
-      "Keys (outside the videos): , and . step the last-used video one frame, with Shift ten."));
+      "Keys (outside the videos): , and . step the last-used video one frame, with Shift ten; space or k plays / pauses both; " +
+      "left / right (or j / l) skip both 1 s (Shift 10 s; j / l 10 s). The slider is the run time of both."));
   renderHeads();
   renderTable();
 
@@ -484,37 +625,23 @@ function comparePage() {
       if (last.en !== en) p.end.textContent = last.en = en;
       if (last.tot !== tot) p.total.textContent = last.tot = tot;
     }
-    const L = c.link;
-    if (!L || !L.playing) return;
-    const P = c.sides.map(s => s.player);
-    if (P.some(p => p.state === 0)) { L.playing = false; return; }
-    // One buffering: hold the other until it plays again.
-    if (L.waiting < 0) {
-      const w = P.findIndex(p => p.state === 3);
-      if (w >= 0 && P[1 - w].playing) { L.waiting = w; P[1 - w].pause(); return; }
-      // Paused in the video itself: pause the other too.
-      if (performance.now() > L.fixedAt && P.some(p => p.state === 2)) { pauseBoth(); return; }
-    } else {
-      const w = L.waiting;
-      if (P[w].playing) {
-        const e = P[w].now() - L.refs[w];
-        P[1 - w].seek(L.refs[1 - w] + e); P[1 - w].play();
-        L.waiting = -1; L.fixedAt = performance.now() + 1500;
-      }
-      return;
-    }
-    // Drifted apart (a stall shorter than a buffering state): pull the one
-    // ahead back to the other - it has that part already.
-    if (P[0].playing && P[1].playing && performance.now() > L.fixedAt) {
-      const e0 = P[0].now() - L.refs[0], e1 = P[1].now() - L.refs[1];
-      if (Math.abs(e0 - e1) > 0.25) {
-        const ahead = e0 > e1 ? 0 : 1;
-        P[ahead].seek(L.refs[ahead] + Math.min(e0, e1));
-        L.fixedAt = performance.now() + 1500;
-      }
-    }
   }
   raf = requestAnimationFrame(tick);
+  /// The shared scrub bar follows the run time.
+  function updateScrub() {
+    const mx = runMax();
+    if (last0.max !== mx) { scrub.max = String(mx); scrub.disabled = mx <= 0; last0.max = mx; }
+    if (scrubbing) return;
+    const R = Math.max(0, Math.min(runNow(), mx || Infinity));
+    const txt = time(R, 1) + " / " + time(mx, 1);
+    if (last0.scrub !== txt) { scrub.value = String(R); scrubText.textContent = last0.scrub = txt; }
+  }
+  // The keeping-together runs on its own timer, not the frame loop: a hidden tab stops frames, not timers.
+  const syncTimer = setInterval(() => {
+    const L = c.link;
+    if (L && L.mode !== "paused") syncTick(L);
+    updateScrub();
+  }, 100);
 
   function onMessage(e) {
     if (e.origin !== YT_ORIGIN) return;
@@ -523,6 +650,11 @@ function comparePage() {
   function onKey(e) {
     if (e.target.closest && e.target.closest("input, select, textarea")) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest && e.target.closest("button, a")) { if (e.key === " ") return; }
+    if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); return; }
+    const skip = e.key === "ArrowLeft" ? (e.shiftKey ? -10 : -1) : e.key === "ArrowRight" ? (e.shiftKey ? 10 : 1)
+      : e.key === "j" ? -10 : e.key === "l" ? 10 : 0;
+    if (skip) { e.preventDefault(); jumpBy(skip); return; }
     const n = e.key === "," || e.key === "<" ? -1 : e.key === "." || e.key === ">" ? 1 : 0;
     if (!n) return;
     e.preventDefault();
@@ -531,7 +663,7 @@ function comparePage() {
   window.addEventListener("message", onMessage);
   document.addEventListener("keydown", onKey);
   cleanup = () => {
-    cancelAnimationFrame(raf); clearTimeout(urlTimer);
+    cancelAnimationFrame(raf); clearInterval(syncTimer); clearTimeout(urlTimer);
     window.removeEventListener("message", onMessage);
     document.removeEventListener("keydown", onKey);
     for (const s of c.sides) s.player.dispose();

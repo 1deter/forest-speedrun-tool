@@ -761,9 +761,25 @@ played next to each other. Site only, no plugin change.
   that moment), *Set* / clear per cell, names editable, B - A per segment
   and total (green = B faster; a split earlier than the one above is red).
   *Play both from* Start / a split / where each is now: both seek there and
-  play; a buffering side holds the other, a drift over 0.25 s pulls the one
-  ahead back. Pause both, both +-1 frame, speed 0.25-2x. Keys `,` / `.`
-  (Shift = 10) step the last-used side.
+  play. Pause both, both +-1 frame, speed 0.25-2x. **Skip both** -10 / -1 /
+  +1 / +10 s and a **shared slider over run time** (video time minus each
+  side's Start; seeks both on release). Keys `,` / `.` (Shift = 10) step the
+  last-used side; space / `k` play-pause both, left / right (Shift: 10 s) and
+  `j` / `l` (10 s) skip both.
+- **Keeping the two together (2026-10-04, the author: desync, pause / replay
+  loop):** one run-time clock (a reference per side), driven by a 100 ms
+  timer (not rAF: a hidden tab stops frames). Modes: paused / starting
+  (after a seek: wait until neither side buffers, then play both in one go) /
+  playing / holding. Every command the page sends opens a 1-1.5 s quiet
+  window in which state changes are not reacted to (the old ping-pong:
+  a seek on a playing side buffers, which paused the other, whose pause
+  paused both...). Playing: a side buffering 0.5 s pauses the other; when it
+  plays again (stable 0.3 s) the other seeks to it and plays - one resume;
+  a drift over 0.25 s for 0.6 s moves the one ahead back, at most once in
+  3 s; a pause in a video's own controls pauses both. Checked live
+  (two public Forest videos, hidden-pane Chromium): play lines up after one
+  correction, forced pause / space, skips, slider, a forced seek of one side,
+  a forged buffering hold + resume - no loops.
 - **Frame-exact like the retiming tools:** the frame at time t is
   floor(t x fps); a set time is snapped to its frame, a step / Go seeks to
   the middle of the frame (checked live: +1 = exactly 1/60 s).

@@ -318,6 +318,9 @@ td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 /* Kept in view while scrolling, where it is one line (on a phone it would cover the video). */
 @media (min-width: 760px) { .cmpbar { position: sticky; top: 0; z-index: 2; } }
 .cmpbar .btnrow { align-items: center; }
+.cmpskip { margin-top: 6px; }
+.cmpscrub { flex: 1 1 200px; min-width: 120px; accent-color: var(--white); }
+.cmpscrubtext { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cmpbar select { background: #000; border: 1px solid var(--line); padding: 3px 4px; max-width: 14em; }
 .k { color: var(--muted); font-size: 12px; }
 .cmpgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 12px; }
