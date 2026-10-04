@@ -95,6 +95,20 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   blueprints. Capture and every restore close the game's inventory /
   pause menu first (`MenuClose`): the crafting cog is not in the save,
   and both run over game time.
+  **Weather** (`Game/WeatherKeeper`, `weather` header =
+  `Data/WeatherState`; 2026-10-04, unreleased): the game's save has no
+  weather (only `LastRainTime`), so a Quick load kept the live rain /
+  clouds / fog (maks's fog after a Quick load) and a Full load came back
+  clear. The capture writes the weather's state and rain type, the rain
+  rolls, every cloud value (current, target), the cloud materials as
+  drawn and `TheForestAtmosphere`'s fog distance (`FogCurrent`,
+  `Visibility`); a Quick load (with the other keepers) and a Full load
+  (after the hold) put them back - the rain objects through the game's
+  `AllOff()` / `TurnOn(type)`. Older files have no line and leave the
+  weather as it is. Log: `weather: Raining (Heavy), overcast 1, fog 300 m
+  put back (was Idle, overcast 0, fog 1294 m)` in the restore line (Quick)
+  or `Savestate after the load: weather: ...` (Full). Not kept: a
+  rainbow, a lightning flash, when the next roll comes (random anyway).
 
 ## Quick load audit (2026-10-01, v0.24.187-188)
 
@@ -149,7 +163,6 @@ tally: `static:TheForest.Buildings.Creation.BuildMission ActiveMissions`
 (per item, `_amountNeeded`).
 
 Not covered yet (no bridge call, or needs hands): achievements, the
-weather (not in the save: `WeatherSystem` keeps only `LastRainTime` -
-backlog *Weather in savestates*), the bestiary (same shape as the nature
+bestiary (same shape as the nature
 guide, not runner-facing), a built structure damaged or destroyed since
 (`BuildingHealth` is saved; untested).

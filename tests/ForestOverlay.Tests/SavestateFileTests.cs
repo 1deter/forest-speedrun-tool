@@ -247,6 +247,21 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void WeatherRoundTripsAndIsEmptyInOldFiles()
+        {
+            string error;
+            Assert.Equal("", SavestateFile.Parse(Sample().Write(), out error).Weather);
+            Assert.DoesNotContain("weather", Sample().Write());
+
+            SavestateFile s = Sample();
+            s.Weather = "state=Raining type=Heavy dice=4,1,0 overcast=1,1 mat=1,2.1684,2.5177 vclouds=0.574 fog=300,300";
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Weather, back.Weather);
+            Assert.Equal(s.Data, back.Data);
+        }
+
+        [Fact]
         public void RopeRoundTripsAndIsEmptyInOldFiles()
         {
             string error;

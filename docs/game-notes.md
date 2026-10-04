@@ -2590,9 +2590,41 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   (`CloudOvercastCurrentValue` 1, `State` Raining) lit the ground ~1.6x
   darker from above than a clear one (0.1). `AllOff()` stops the rain;
   in `Idle` the overcast does not ease back - set `CloudOvercastCurrentValue`
-  itself. `ForceRain(dice)` did not start rain at once (minutes later,
-  probably). `Game/AerialCapture` sets it clear and disables the component
+  itself. `Game/AerialCapture` sets it clear and disables the component
   for a capture (v0.24.179).
+  **Not in the save, and what holds the look** (decompiled source + bridge,
+  2026-10-04): the class is `[DoNotSerializePublic]`; only `LastRainTime`
+  is `[SerializeThis]`. A Quick load of a clear capture kept the live rain
+  (`State` Raining, `CurrentType` Heavy, overcast 1, fog 300 m); a Full load
+  builds it afresh (`Idle`, overcast 0, `FogCurrent` 1294 - the scene's
+  value). The look: `State` / `CurrentType` and the rain objects under
+  `Scene.RainTypes` (`RainLight` / `Medium` / `Heavy`, `Snow*`, switched by
+  `AllOff()` / `TurnOn(type)`, which picks snow by the player's place);
+  the private cloud floats (`Cloud{Overcast,OpacityScale,AlphaSaturation,
+  SkyColorMultiplyer}{Current,Target}Value`, `VCloudCoverage*`, each with a
+  `*Velocity` for its SmoothDamp); and what is drawn - the shared material
+  `CloudOvercastMat` (`Cloud_Blendable`: `OvercastAmount`,
+  `CloudOpacityScale`, `AlphaSaturation`; the easing reads these back every
+  frame) and `vClouds.materialUsed._Coverage` (`RaymarchedClouds` on
+  `MainCamNew`). `ForceRain(4)` went `GrowingClouds` at once and `Raining`
+  (Heavy, `RainDice` 4) ~40 s later, when the overcast reached its target
+  (`DoRain` from `GrowClouds`). `RandomClouds` re-rolls the Idle targets
+  every 30 s (from 30 s after `Awake`); `RainChance` rolls rain every 60 s
+  (from 150 s). Setting all of the above over the bridge turned a heavy
+  rain into a sky that matched a fresh Full load, and a clear sky into the
+  rain (darker ground, the dark cloud band) - shots `wx-p1/p2/p4/p5`,
+  `wx-q1/q2` in the bridge folder. Put back by `Game/WeatherKeeper`
+  (`weather` savestate header). `Wind` and `TerrainWetness` (which ease
+  with `Raining`) have no live instance in the forest scene.
+- **Fog distance** (`TheForestAtmosphere`, 2026-10-04, source + bridge):
+  `FogCurrent` (not saved) is re-rolled by `ChangeFogAmount` every 600 s
+  from 500 s after `Awake` - 700-2000 on the surface, 3000 in a cave, 900
+  in the endgame; `Visibility` (the drawn distance, a shader global) steps
+  1 per frame towards it (x1.2 in the overlook area, x0.5 in the snow), unless
+  `overrideVisibility` (the cave exit's fade sets it, then clears it).
+  Setting both moves the fog at once. At the test spot / time (322, a
+  heavy rain) 150 m and 2000 m looked alike from the forest floor - the
+  fog shows in open views, not under trees.
 - **Eye adaptation can't be switched off** (2026-10-01): setting
   `PostProcessingBehaviour.profile.eyeAdaptation.enabled` false is undone
   by `PostProcessingBehaviour.OnGUI` (`EnableScionEyeAdaption(PostEffects
