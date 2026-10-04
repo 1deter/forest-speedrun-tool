@@ -262,6 +262,19 @@ namespace ForestOverlay.Modules
         /// The ghost at `t` into RunLineBehaviour: position always, the
         /// figure's lines when the look is Figure. Hidden in first person
         /// (the camera is inside it).
+        /// The Map tab (Modules/MapModule): the comparison run, the segment
+        /// being timed, and where the ghost is - reads only.
+        public Attempt ComparisonRun { get { return _reference; } }
+        public Segment TimedSegment { get { return _segment; } }
+
+        public bool GhostOnMap(out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (_lines == null || !_lines.Show || !_lines.HasGhost) return false;
+            position = _lines.GhostPosition;
+            return true;
+        }
+
         private void SetGhost(float t, Vector3 position, bool exact)
         {
             GhostPose g;

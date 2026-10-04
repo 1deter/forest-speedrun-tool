@@ -630,6 +630,26 @@ namespace ForestOverlay.Modules
             return null;
         }
 
+        /// The Map tab (Modules/MapModule): select an entry as a click on
+        /// it in the list does.
+        public void SelectFromMap(Segment s)
+        {
+            if (s == null || ReferenceEquals(s, _selected)) return;
+            Select(s);
+        }
+
+        /// The Map tab's Go: this tab's own Go (refused in run mode the same
+        /// way, practice marked by the teleport). Returns the status line.
+        public string GoFromMap(Segment s)
+        {
+            _status = "";
+            Teleport(s);
+            return _status;
+        }
+
+        /// Opens the window on this tab (the Map tab's "Edit in Practice").
+        public void ShowTab() { OpenMyTab(); }
+
         /// Saves where you stand as a new entry and selects it.
         private void QuickSaveSpot()
         {
