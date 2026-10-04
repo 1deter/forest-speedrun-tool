@@ -793,6 +793,48 @@ played next to each other. Site only, no plugin change.
   run-mode attempt page beside its video (the run code ties the two); short
   links stored on the server (a write endpoint to rate-limit and moderate).
 
+## Buildings and interaction markers on the maps (2026-10-04)
+
+The spot page's 2D and 3D maps draw the **focused run's** structures and
+interactions (the plugin's replay tracks, docs/run-audit-and-replays.md
+part 2) - that run only, and only while its line is on the map, to keep
+it readable; nothing when it has none. `/api/runs/<id>` serves
+`events: [t, kind, label, x, y, z, group]` (group: `RunAudit.Group`, the
+colour) and `buildings: [t, state, kind, x, y, z, yaw, sx, sy, sz, cx,
+cy, cz, rx, rz, until]` (`Runs.BuildingsJson`: Unity Euler angles, the
+box's size and centre in the structure's own frame, `until` = when a
+placed blueprint is finished at the same place - 1.5 m, same kind, the
+in-game `ReplayMarks.Until` - else null); the extras were appended, so
+older readers' indices hold (`ApiTests` *Upload_ThenBoardShowsEachRunnersBest*).
+- **2D** (`map.js`): a building is a footprint turned by its yaw (tilt
+  left out from above), from its time on: a blueprint pale blue and
+  dashed until finished, a finished one orange and filled; at least 5 px.
+  An interaction is a diamond on the line in its group's colour (the
+  in-game replay's, `Game/ReplayDraw.GroupColour`), full behind the scrub
+  time, faded ahead. Hover (mouse) shows a label (`.maptip`, "11.0 s ·
+  Enemy killed: Cannibal", "Log Cabin (blueprint) · built at 13.5 s");
+  a click / tap pins it and moves the clock to its time; a tap elsewhere
+  clears it. Markers win over buildings when both are under the pointer.
+- **3D** (`map3d.js`): buildings as wireframe boxes with the full
+  rotation (Unity's ZXY Euler through the view's -z mirror = three's
+  `YXZ` with x and y negated), a finished one with a faint fill; markers
+  one `THREE.Points` (a diamond shader, fixed pixel size, not depth
+  tested - as the ghosts), hover / tap as in 2D (the label placed by
+  projecting the marker each render).
+- **Buildings / Markers** switches beside the map's other buttons
+  (`markSwitches` in app.js), shown only when the focused run has some,
+  kept per browser (`forest.mapBuildings` / `forest.mapMarkers`).
+- Checked on a local copy with a test run (`b|` / `e|` lines): desktop and
+  375 px, 2D and 3D, hover, tap, switches, hiding the run's line; no
+  console error or CSP report. Not seen with a real run from the game yet.
+- **Testing locally:** the `forest-site` preview runs the main checkout's
+  `site/ForestSite` (launch.json's relative path), not a worktree's: from a
+  worktree build to a scratch folder and run it on another port from the
+  worktree's `site/ForestSite` (`FOREST_DATA` a scratch folder), then
+  `preview_start` with its URL. A test run: register a runner, post a
+  `.foseg` whose `[attempt]` has the server's route (the first refusal
+  names it: "the segment is <route>").
+
 ## Item list (2026-10-02)
 
 `wwwroot/items.json`: the game's 231 items (`ItemDatabase` id + name) and
