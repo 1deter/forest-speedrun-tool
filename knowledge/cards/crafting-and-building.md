@@ -4,9 +4,9 @@ title: Crafting, building and stamina items (what runners make, and how fast)
 aliases: crafting, craft, building, build, blueprint, blueprints, ghost, place, survival book, book, custom wall, custom building, hole cutter, zipline placing, free standing zipline, spear, crafted spear, stamina mix, energy mix, energy mix plus, sodas, soda, stamina, energy, sprint, stamina bar, energy bar, shift reset, release shift, timed bomb, bomb recipe, fast building, hold to build, creative building, recipes, coneflower, chicory, flowers
 tags: building, crafting, stamina, route
 confidence: code
-checked: 2026-10-03
+checked: 2026-10-04
 sources: decompiled Craft_Structure.Update / AddIngredient, FloorHoleArchitect, PlayerStats, FirstPersonCharacter; live reads 2026-10-03 (ReceipeDatabase, ItemDatabase stat effects, sprint drain and regen measured with InfiniteEnergy off); src/Game/FastBuild.cs; the runners' guides (routes card)
-related: routes, wall-and-log-boost, zipline-boost, bomb-boost, knockback-sources, dev-console-and-creative, categories-and-rules
+related: building-costs, crafting-recipes, routes, wall-and-log-boost, zipline-boost, bomb-boost, knockback-sources, dev-console-and-creative, categories-and-rules
 code: Craft_Structure.Update, Craft_Structure.AddIngredient, FloorHoleArchitect.OnPlaced, PlayerStats.Update, FirstPersonCharacter.HandleRunningStaminaAndSpeed, ReceipeDatabase, ItemDatabase
 ---
 
@@ -42,9 +42,11 @@ slower **energy** bar; every soda and mix raises both.
 
 - **Custom wall** (custom building section). Placed and **extended** to a
   length, then built while standing in it so the push lands you on top
-  (sxczurass's Cave 6 route; `routes`). How many logs a given length costs
-  has not been read [inferred: the wall architects count logs per length].
-- **Free-standing zipline** (the custom building section's last page). Its
+  (sxczurass's Cave 6 route; `routes`). Cost: a short piece takes one log
+  per upright log drawn, a long piece its height in logs (5) however long
+  it is - `building-costs` [code].
+- **Free-standing zipline** (the custom building section's last page): 10
+  logs + one rope per piece of line (`building-costs`) [code]. Its
   use prompt sits at one end - placed too far, you cannot grab it from
   where you arrive. Speed, exit and the boost: `zipline-boost`.
 - **Hole cutter.** It cuts real holes only in **floors, roofs and rafts**
@@ -64,6 +66,8 @@ slower **energy** bar; every soda and mix raises both.
 ## Crafted items (recipes, read live)
 
 Crafting in the inventory is instant once the ingredients are on the mat.
+The runners' recipes are below; every recipe and upgrade is in
+`crafting-recipes`, every blueprint's cost in `building-costs`.
 
 | Item | Recipe | Notes |
 |---|---|---|
@@ -113,7 +117,8 @@ checked live [inferred].
 
 ## Open questions
 
-- Log / item counts for the custom wall per length and for the zipline.
+- The custom wall's maximum piece length and the zipline's rope piece
+  length (`building-costs`).
 - The hole-cutter boost done for real (which structure, what pushes).
 - The shift reset measured through a real cave entrance with sprint held
   and released.

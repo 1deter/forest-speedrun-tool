@@ -1,13 +1,13 @@
 ---
 id: smash-clip
 title: Axe ground smash clips (panel clip, plane clip, elevator clip)
-aliases: smash clip, axe clip, panel clip, plane clip, wall clip, door clip, ground smash, axe smash, crouch smash, uncrouch clip, elevator boost, lab skip clip, crouch jump smash, uncapped fps clip
+aliases: consistent clips, clip consistency, smash angle, smash clip, axe clip, panel clip, plane clip, wall clip, door clip, ground smash, axe smash, crouch smash, uncrouch clip, elevator boost, lab skip clip, crouch jump smash, uncapped fps clip
 tags: tech, clip, physics, fps, caves, endgame
 confidence: inferred
-checked: 2026-10-03
+checked: 2026-10-04
 sources: game-notes "Speedrun tech and the endgame gate" (Axe / wall clips; Overnight sweep: Looking down moves the player's colliders, The axe ground smash and the panel / elevator clip, Depenetration, the runners' words mapped); sxczurass's Creative Bombless Any% Guide (2025); docs/run-mode.md "Banned moves: detection" (clips)
 related: player-physics, wall-and-log-boost, elevator-skip, lab-skip, tunnelling-and-speed-cap
-code: FirstPersonCharacter.ScaleCapsuleForCrouching, FirstPersonCharacter.DisableCrouch, FirstPersonCharacter.EnableCrouch, playerAnimatorControl.OnAnimatorMove, playerAnimatorControl.Update
+code: playerAnimatorControl.LateUpdate, treeHitTrigger, FirstPersonCharacter.ScaleCapsuleForCrouching, FirstPersonCharacter.DisableCrouch, FirstPersonCharacter.EnableCrouch, playerAnimatorControl.OnAnimatorMove, playerAnimatorControl.Update
 ---
 
 # Axe ground smash clips
@@ -88,10 +88,61 @@ A small (crouch-size) body with its centre shifted forward by looking down,
 pressed against the wall by the run-crouch jump, then the collider layout
 changing in one frame (the mouse up pulling the 0.4 m offset back, the head
 sphere snapping back from 1.63 m, the stand-up) - if any frame leaves the
-capsule's centre past the wall's middle, depenetration resolves it to the
-far side. Higher fps would give more frames - more chances - inside the
-short window where the colliders move, which could be why runners need
-uncapped fps. **None of this combination has been reproduced live.**
+capsule's centre past the wall's middle at a physics step, depenetration
+resolves it to the far side. Physics steps stay at 60 Hz, so higher fps
+does not add chances; it updates the collider layout more often between
+steps (point 3 below), which could be why runners need uncapped fps.
+**None of this combination has been reproduced live.**
+
+## Making it more consistent: what the code pins down
+
+The clip itself has not been reproduced, so there is no tested "optimal
+version". What the code does fix are the angle, the uncrouch window and
+how frame rate enters - three things a runner can stop worrying about or
+aim for.
+
+**1. The angle: any pitch that smashes already has the full forward
+shift.** The smash is allowed only while the animator's `normCamX` is
+above `axeSmashAngle` (`playerAnimatorControl.Update`): **0.43** on flat
+ground, in caves and on structures, raised up to **0.63** when you face
+downhill within 0.5 m of the terrain (`treeHitTrigger`) [code]. With the
+axe out, `normCamX = pitch / 82 - 0.1` (pitch in degrees below level), so
+on flat ground the smash needs about **43° down** once the plane intro is
+over [code, computed]. The
+colliders' forward offset is `Clamp(normCamX, 0, 0.4)`: full **0.4 m from
+41° down** [code]. So looking further down than the smash needs adds no
+reach. Moving the mouse up takes the offset off the **body capsule** only
+(0.2 m left at ~25°, none at ~8°) - during a ground smash (and a jump
+crouch) the head sphere is not given that offset; it follows the head
+bone instead (`if (!doingGroundChop && !doingJumpCrouch)`) [code].
+
+**2. The uncrouch is a window, not a frame.** Standing up eases the
+`crouch` value from 10 to 0 with `SmoothDamp` (0.1 s), and the capsule
+only starts to change once that value is under 1 - the size is a clamped
+`Lerp` [code]. That works out to the capsule changing between about
+**0.2 s and 0.46 s after you let go of crouch** [inferred: computed from
+SmoothDamp's curve at a steady frame rate]. To keep the crouch-size body,
+that stretch has to fall inside `doingGroundChop` (on ~0.2 s after the
+swing, for ~1.5 s [live]) - so uncrouching anywhere from about the swing
+to ~1 s after it should freeze the capsule; earlier than the swing and it
+resizes normally [inferred]. The runners' "uncrouch as the axe hits the
+ground" sits inside that window.
+
+**3. Frame rate does not add physics checks.** The physics runs at a
+fixed 60 Hz whatever your fps; the colliders' offsets are set once per
+*rendered* frame (`LateUpdate`), and the physics only sees the layout that
+is there at its next step [code]. So uncapped fps does **not** give
+"more collision checks". What it does change: the collider layout is
+updated several times between physics steps, so the layout the physics
+sees is closer to where your mouse and the animation are at that instant;
+below 60 fps several physics steps see the same layout [code]. Whether
+that is why runners need uncapped fps is not known [inferred].
+
+**What is left to the runner** (none of it measured): where you stand
+against the wall, how hard the run-crouch jump presses you into it, and
+the mouse-up movement during the smash. The open question below (a
+frame-by-frame read of a successful clip) is what would turn this into a
+real optimal version.
 
 ## What has been tried and failed
 
@@ -125,7 +176,11 @@ are the missing part.
 
 - The exact frame-by-frame collider positions during a successful runner
   clip - needs the move done by hand with `anim watch` and per-frame reads.
-- Why fps matters (the "more frames in the window" idea is a guess).
+- Why fps matters: physics stays at 60 Hz, so it is not more collision
+  checks; the idea that it is the fresher collider layout at each step is a
+  guess.
+- The body capsule's radius (not recorded) - with it, how far past
+  mid-wall the centre can get from the 0.4 m look-down shift alone.
 - A runner reports a temporary **~50 m/s** after a good elevator or panel
   clip, bigger the better the clip [runner, the knowledge bot's feedback
   2026-10-03]. Not measured: the live depenetration test (a box lifting the

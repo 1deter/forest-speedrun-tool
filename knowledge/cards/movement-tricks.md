@@ -1,13 +1,13 @@
 ---
 id: movement-tricks
 title: Movement - diagonal running, air speed, jumps, slopes
-aliases: diagonal running, run diagonally, strafe running, straferun, air strafing, keep speed, speed in air, coyote time, coyote jump, jump buffer, jump cooldown, bunny hop, bhop, slope jump, slide, sliding, steep slope, wall jump, jump climb, sprint, stamina, run speed
+aliases: jumping, jump speed, jump while running, is jumping faster, faster in the air, ground friction, friction, diagonal running, run diagonally, strafe running, straferun, air strafing, keep speed, speed in air, coyote time, coyote jump, jump buffer, jump cooldown, bunny hop, bhop, slope jump, slide, sliding, steep slope, wall jump, jump climb, sprint, stamina, run speed
 tags: movement, physics, numbers
 confidence: live
-checked: 2026-10-03
+checked: 2026-10-04
 sources: game-notes "Speedrun tech and the endgame gate" (Overnight sweep: Player physics numbers, Diagonal running is 10% faster, Air keeps speed ~5x longer, Jump and grounding rules), "Crouch"
 related: player-physics, zipline-boost, bomb-boost, fall-damage, swimming
-code: FirstPersonCharacter.DetermineVelocityChange, FirstPersonCharacter.HandleJumpSpeed, FirstPersonCharacter.Update, FirstPersonCharacter.clampInput, FirstPersonCharacter.OnCollisionStay
+code: FirstPersonCharacter.HandleFrictionParams, FirstPersonCharacter.ApplyGroundingForce, FirstPersonCharacter.DetermineVelocityChange, FirstPersonCharacter.HandleJumpSpeed, FirstPersonCharacter.Update, FirstPersonCharacter.clampInput, FirstPersonCharacter.OnCollisionStay
 ---
 
 # Movement tricks
@@ -48,6 +48,42 @@ Extra speed (above your run speed - from a boost, a zipline, a slope):
 
 That is why runners jump right after a zipline exit or a boost, and keep
 jumping on landing: every moment on the ground costs a lot of speed.
+
+## Jumping while running (the runners' bunny hop)
+
+Runners keep jumping on open ground: being in the air is "essentially
+optimal for speed", a bit faster than running on the ground because there
+is no ground friction [runner, the bot's feedback 2026-10-04]. What the
+code says about it [code]:
+- **The ground brakes you a little all the time.** While you move on the
+  ground the player's physics material has friction 0.2
+  (`HandleFrictionParams`), and `ApplyGroundingForce` pushes you down with
+  a force that grows with your speed, which adds to that friction. Each
+  physics step the movement code sets your speed back to the target (input
+  x run speed, up to 4 m/s per step), and friction takes a little off
+  again [inferred]. Measured walking speeds sit about **4% under the target**: strafe
+  6.23 m/s for 6.5, diagonal 6.91 for 7.15 [live].
+- **The air has no friction.** Off the ground friction is 0, and the air
+  steering (`HandleJumpSpeed`) only pulls your velocity toward the same
+  target - it can bring you up to the target speed but never past it, and
+  nothing brakes you below it.
+- **The first 0.2 s of a jump keeps your take-off speed exactly** (all
+  input is zeroed, `clampInput`).
+
+So a jump cannot make you faster than your run speed on flat ground, but
+in the air you travel at the full target instead of a few percent under
+it, and any extra speed (a slope, a boost, a zipline exit) lasts far
+longer (above) [inferred from the code + the measured ground gap]. How
+much a jump chain gains over running on flat ground has **not been
+measured** - the landings (a moment of ground braking each time, the 0.2 s
+before the next jump is accepted) take some back. The C# gives a jump no stamina cost (only hunger: 2
+calories a second while airborne, `JumpingCaloriesPerSecond`), and holding
+Run in the air still drains the sprint bar [code]; whether the jump
+animation drains stamina through an animation event (`staminaDrain`) was
+not checked [inferred].
+
+Diagonal + jumping stack: the 1.1 input clamp applies in the air too
+(`DetermineVelocityChange` feeds both).
 
 ## Jump rules
 

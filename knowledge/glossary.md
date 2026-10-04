@@ -37,6 +37,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | zipline boost | keeping a zipline's exit speed (1 s of weak braking + air time) | zipline-boost |
 | diagonal running, run diagonally | input clamped to 1.1, so W+A / W+D is 10% faster | movement-tricks |
 | coyote time | a jump still works 0.21 s after leaving the ground | movement-tricks |
+| jumping, bhop, jump chain | the air has no friction and steering only pulls toward run speed: a few % faster than the ground, gain not measured | movement-tricks |
 | cliff climb clip, climbing axe clip | the climbing axe's 5 m ray ignores most walls, snapping you past them | position-snaps |
 | rope pull | grabbing a rope from up to 6.1 m pulls you to it | position-snaps |
 | tunnelling, speed clip | passing a wall by speed; blocked by the 55 m/s cap and the knockback's CCD | tunnelling-and-speed-cap |
@@ -52,9 +53,13 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | dev console, itemhack, goto | the game's built-in developer console | dev-console-and-creative |
 | Creative | god mode + infinite energy + no survival, set by the mode | dev-console-and-creative |
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
+| top runners, wr, records, leaderboard, top 3 | every board's top 3 on speedrun.com; Cheesecake404, sxczurass, yirequ hold most | top-runners |
+| 100%, hundo, all items, passenger manifest | the 100% rules and the full item list, nature guide, passengers, to-do list | hundred-percent |
 | explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
 | route, K4 skip, Sahara | the runs step by step; Sahara = the cave to the vault door | routes |
 | stamina, energy, sodas, stamina mix, shift reset | sprint 3.5/s, regen 6/s (not while sprint held), capped by energy | crafting-and-building |
-| building, blueprint, hole cutter, recipes | Creative: hold Build, an item per 0.065 s, free | crafting-and-building |
+| building, blueprint, hole cutter | Creative: hold Build, an item per 0.065 s, free | crafting-and-building |
+| build cost, how many logs, log cabin, log wall, deer skin for everything | every blueprint's ingredients; custom wall / zipline formulas; material totals | building-costs |
+| recipes, crafting, weapon upgrades, warmsuit, waterskin | every inventory recipe and upgrade from the recipe database | crafting-recipes |
 | ForestOverlay, the tool, savestates, Quick load, run mode | this project's speedrun plugin | forestoverlay |
-| fps, uncapped fps | matters wherever the game pushes once per rendered frame (bomb boost) or samples per frame (smash clip) | player-physics |
+| fps, uncapped fps | matters wherever the game pushes once per rendered frame (bomb boost) or samples per frame (smash clip); physics stays 60 Hz | player-physics |

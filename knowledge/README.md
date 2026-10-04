@@ -77,7 +77,9 @@ tunnelling-and-speed-cap, elevator-skip, lab-skip, endgame-gate,
 keycards-and-pickups, endgame-splits, caves-and-loading,
 saves-and-loading, deaths-and-revives, pausing-and-game-time,
 dev-console-and-creative, forestoverlay (+ timmy-forehead-skip, a
-runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API; routes, 2026-10-03, from three guides' transcripts; crafting-and-building, 2026-10-03, code + live recipe / stamina reads). Each was checked against the
+runner report only, 2026-10-03; megan-boss, 2026-10-03, from her FSMs; cannibal-ai, 2026-10-03, from the C# AI + live reads; categories-and-rules, 2026-10-03, from speedrun.com's API; routes, 2026-10-03, from three guides' transcripts; crafting-and-building, 2026-10-03, code + live recipe / stamina reads;
+from the bot's queue 2026-10-04: building-costs and crafting-recipes from
+the game's files, hundred-percent, top-runners from speedrun.com). Each was checked against the
 decompiled code while written (corrections made on the way: the pause menu
 stops time on Hard too; the fall cap is the speed cap; the zipline exit
 weakens braking).
@@ -100,9 +102,16 @@ to it):
   "the explosives glitch"; what the empty "Any% Bombs" board was for
   (`categories-and-rules`; questions for the moderators / runners).
 - Routes: the unrestricted Any% (bombs) route (`routes`).
-- Building: custom wall / zipline costs; the hole-cutter boost done for
-  real; the shift reset through a real cave entrance
+- Building: the custom wall's max piece length and the zipline's rope
+  piece length (prefab values), the floor / roof / foundation formulas,
+  which blueprints the book offers (`building-costs`); the hole-cutter
+  boost done for real; the shift reset through a real cave entrance
   (`crafting-and-building`).
+- Movement: a jump chain vs running on flat ground, timed live (the
+  runners say the air is faster; code: no air friction) (`movement-tricks`).
+- Smash clip: the body capsule's radius; a real clip read frame by frame
+  (`smash-clip`).
+- 100%: where each item lies (`hundred-percent`).
 - Cannibals: weapon swing noise range, the bush bonus above 60 fps, the
   Stealth stat's sources, cave sight / noise live (`cannibal-ai`).
 
