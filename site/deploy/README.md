@@ -45,6 +45,16 @@ New repository secret, three times:
   `X-Admin-Token` header to `/api/admin/...` (flagged runs, hide / delete a
   run, spot submissions, reset a runner's token, ban).
 - Back up: `/var/lib/forest-site` (the database and every uploaded run).
+- **Discord PB posts** (off until set): make a webhook in the Discord
+  channel (Channel settings -> Integrations -> Webhooks -> New Webhook ->
+  Copy Webhook URL), then on the VPS
+  `sudo sh -c 'echo FOREST_DISCORD_WEBHOOK=<the URL> >> /opt/forest-site/.env'`
+  and `cd /opt/forest-site && sudo docker compose up -d --force-recreate`
+  (a restart does not re-read `.env`). The log's startup line says
+  `Discord PB posts on`. Remove the line and recreate to switch it off.
+  Optional `FOREST_SITE_URL` sets the address the posts link to (default
+  `https://forest.deter.cloud`). The webhook URL is a secret: anyone with
+  it can post in that channel.
 - Roll back: `ls /opt/forest-site/app/releases`, then as root
   `ln -sfn releases/<older> /opt/forest-site/app/current && docker restart forest-site`.
 

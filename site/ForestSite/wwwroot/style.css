@@ -81,6 +81,24 @@ p { margin: 0 0 12px; }
 .spots .best { font-variant-numeric: tabular-nums; min-width: 6ch; text-align: right; }
 .empty { color: var(--muted); padding: 12px 0; }
 
+/* Foldable groups: the heading is the button. */
+.fold button {
+  all: unset; display: inline-flex; align-items: baseline; gap: 8px; cursor: pointer; max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.fold button:disabled { cursor: default; }
+.fold button:focus-visible { outline: 1px solid var(--yellow); outline-offset: 3px; }
+.fold button:not(:disabled):hover { color: var(--white); }
+.fold .caret { width: 1ch; color: var(--dim); }
+.fold .count { color: var(--dim); letter-spacing: .1em; }
+h3.fold {
+  font-weight: 600; font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--dim); margin: 18px 0 2px;
+}
+.group.folded h2 { margin-bottom: 0; }
+.subgroup.folded h3 { margin-bottom: 0; }
+.note.owner { color: var(--muted); font-size: 12px; margin-top: 28px; }
+
 /* --- a spot ---------------------------------------------------------- */
 .routes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .chip {

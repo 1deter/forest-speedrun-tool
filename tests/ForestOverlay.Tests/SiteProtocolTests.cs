@@ -89,6 +89,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DeleteSpot_UrlAndMessages()
+        {
+            Assert.Equal("https://forest.deter.cloud/api/spots/s-0123456789ab",
+                         SiteProtocol.DeleteSpotUrl("https://forest.deter.cloud/", "s-0123456789ab"));
+            Assert.StartsWith("Deleted from the website with 3 runs.", SiteProtocol.DeleteSpotMessage(200, "{\"runs\":3}", null));
+            Assert.StartsWith("Deleted from the website with 1 run.", SiteProtocol.DeleteSpotMessage(200, "{\"runs\":1}", null));
+            Assert.Equal("Not deleted: not your spot.", SiteProtocol.DeleteSpotMessage(403, "{\"error\":\"not your spot\"}", null));
+            Assert.Equal("Not deleted: 2 runs by other runners are on it.",
+                         SiteProtocol.DeleteSpotMessage(409, "{\"error\":\"2 runs by other runners are on it\"}", null));
+            Assert.StartsWith("Not on the website", SiteProtocol.DeleteSpotMessage(404, "{}", null));
+            Assert.Contains("token", SiteProtocol.DeleteSpotMessage(401, null, null));
+            Assert.Contains("timed out", SiteProtocol.DeleteSpotMessage(0, null, "timed out"));
+            Assert.Contains("HTTP 502", SiteProtocol.DeleteSpotMessage(502, "bad gateway", null));
+        }
+
+        [Fact]
         public void SpotUrl()
         {
             Assert.Equal("https://forest.deter.cloud/spot/s-0123456789ab",

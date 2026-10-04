@@ -63,6 +63,24 @@ function date(iso) {
   return d.toLocaleDateString(undefined, opts);
 }
 
+/// A spot's category as the list groups it: the plugin's defaults ("My
+/// spots", "Segments", "Spots") say nothing and group as "Other".
+const PLAIN_CATEGORIES = new Set(["", "my spots", "spots", "segments"]);
+function categoryOf(s) {
+  const c = (s.category || "").trim();
+  return PLAIN_CATEGORIES.has(c.toLowerCase()) ? "" : c;
+}
+
+/// The spot list's folded groups, kept in this browser only.
+const FOLDED_KEY = "forest.folded";
+function readFolded() {
+  try {
+    const v = JSON.parse(localStorage.getItem(FOLDED_KEY) || "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch (e) { return {}; }
+}
+function writeFolded(v) { try { localStorage.setItem(FOLDED_KEY, JSON.stringify(v)); } catch (e) { /* not kept: fine */ } }
+
 // --- router -------------------------------------------------------------------------
 
 let cleanup = null;
@@ -108,20 +126,62 @@ async function homePage() {
 
   const list = el("div");
   const search = el("input", { class: "search", type: "search", placeholder: "Search spots", "aria-label": "Search spots" });
+  // Folded groups, per viewer (this browser): { key: true / false }; a key
+  // missing = the group's default. Searching opens everything it finds.
+  const folded = readFolded();
   function render() {
     const q = search.value.trim().toLowerCase();
-    const shown = spots.filter(s => !q || (s.name + " " + s.category).toLowerCase().includes(q));
-    const groups = [["Community spots", shown.filter(s => s.community)], ["Runners' spots", shown.filter(s => !s.community)]];
-    list.replaceChildren(...groups.filter(([, g]) => g.length || !q).map(([title, g]) => el("section", null,
-      el("h2", null, title),
-      g.length ? el("ul", { class: "spots" }, g.map(s => el("li", null,
-        el("a", { href: "/spot/" + encodeURIComponent(s.id) },
-          el("span", { class: "name" }, s.name, el("span", { class: "sub" }, "  " + s.category + (s.by ? " · by " + s.by : ""))),
-          el("span", { class: "meta" }, s.runners ? s.runners + (s.runners === 1 ? " runner" : " runners") : "no runs yet"),
-          el("span", { class: "best" }, time(s.best)))))) :
-        el("p", { class: "empty" }, title === "Community spots" ? "None published yet." :
-          "No runs uploaded yet. Runs appear here once runners upload them from the game."))));
+    const shown = spots.filter(s => !q || (s.name + " " + s.category + " " + (s.by || "")).toLowerCase().includes(q));
+    // Runners' spots are the timed ones with runs - the site's point - and
+    // come first; community spots are mostly teleports (author, 2026-09-27),
+    // folded by default while none of them has a run.
+    const runners = shown.filter(s => !s.community), community = shown.filter(s => s.community);
+    const sections = [
+      { key: "runners", title: "Runners' spots", spots: runners, open: true,
+        empty: "No runs uploaded yet. Runs appear here once runners upload them from the game." },
+      { key: "community", title: "Community spots", spots: community, open: spots.some(s => s.community && s.runs > 0),
+        empty: "None published yet." },
+    ];
+    list.replaceChildren(...sections.filter(x => x.spots.length || !q).map(x => {
+      const open = q ? true : isOpen(x.key, x.open);
+      const body = !open ? null : x.spots.length ? spotGroups(x.key, x.spots, q) : el("p", { class: "empty" }, x.empty);
+      return el("section", { class: "group" + (open ? "" : " folded") },
+        foldHeading("h2", x.key, x.title, x.spots.length, open, !q), body);
+    }));
     if (q && !shown.length) list.append(el("p", { class: "empty" }, "Nothing matches “" + search.value + "”."));
+  }
+  function isOpen(key, def) { return key in folded ? !folded[key] : def; }
+  function foldHeading(tag, key, title, count, open, foldable) {
+    return el(tag, { class: "fold" }, el("button", {
+      type: "button", "aria-expanded": String(open), disabled: !foldable,
+      title: foldable ? (open ? "Hide" : "Show") + " " + title : null,
+      onclick: () => { folded[key] = open; writeFolded(folded); render(); },
+    }, el("span", { class: "caret", "aria-hidden": "true" }, open ? "▾" : "▸"), title, el("span", { class: "count" }, String(count))));
+  }
+  /// A section's spots by category (the runner's own, set in the game's
+  /// editor); one list when they all share one.
+  function spotGroups(section, list, q) {
+    const byCat = new Map();
+    for (const s of list) {
+      const c = categoryOf(s);
+      if (!byCat.has(c)) byCat.set(c, []);
+      byCat.get(c).push(s);
+    }
+    if (byCat.size < 2) return spotList(list, true);
+    const cats = [...byCat.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b, undefined, { sensitivity: "base" }));
+    return cats.map(c => {
+      const key = section + "/" + c, open = q ? true : isOpen(key, true);
+      return el("div", { class: "subgroup" + (open ? "" : " folded") },
+        foldHeading("h3", key, c || "Other", byCat.get(c).length, open, !q), open ? spotList(byCat.get(c), false) : null);
+    });
+  }
+  function spotList(list, withCategory) {
+    return el("ul", { class: "spots" }, list.map(s => el("li", null,
+      el("a", { href: "/spot/" + encodeURIComponent(s.id) },
+        el("span", { class: "name" }, s.name, el("span", { class: "sub" },
+          "  " + [withCategory ? s.category : "", s.by ? "by " + s.by : ""].filter(Boolean).join(" · "))),
+        el("span", { class: "meta" }, s.runners ? s.runners + (s.runners === 1 ? " runner" : " runners") : s.timed === false ? "teleport" : "no runs yet"),
+        el("span", { class: "best" }, time(s.best))))));
   }
   search.addEventListener("input", render);
   render();
@@ -240,6 +300,12 @@ async function spotPage(id, routeId) {
   const state = { shown: new Map(), focus: null, compare: "first", runs: new Map(), all: new Map(), showAll: false, time: 0, playing: false, speed: 1 };
   r.board.slice(0, 3).forEach((b, i) => state.shown.set(b.id, COLORS[i]));
   state.focus = r.board.length ? r.board[0].id : null;
+  // A link to one run (?run=<id>, the Discord PB posts): shown and focused.
+  const linked = Number(new URLSearchParams(location.search).get("run"));
+  if (linked && r.board.some(b => b.id === linked)) {
+    if (!state.shown.has(linked)) state.shown.set(linked, COLORS[state.shown.size % COLORS.length]);
+    state.focus = linked;
+  }
 
   const canvas = el("canvas", { "aria-label": "Map of the spot's zones and the runs shown" });
   const map = new RunMap(canvas);
@@ -531,7 +597,10 @@ async function spotPage(id, routeId) {
         el("div", { class: "tablewrap" }, el("table", null,
           el("thead", null, el("tr", null, el("th", null, "#"), el("th", { title: "Show on the map" }, ""), el("th", null, "Runner"), el("th", { class: "r" }, "Time"), el("th", { class: "r col-date" }, "Date"))),
           board))),
-      el("section", null, splits)));
+      el("section", null, splits)),
+    spot.community ? null : el("p", { class: "note owner" },
+      "Your spot? Delete it from the game: Practice → select it → Share → Delete from the website. " +
+      "Only the runner who uploaded it first can, and only while nobody else has runs on it."));
 
   renderBoard();
   renderSplits();

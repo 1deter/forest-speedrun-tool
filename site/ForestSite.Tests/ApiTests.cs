@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using ForestOverlay.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using UnityEngine;
 using Xunit;
 
@@ -799,6 +800,168 @@ public sealed class ApiTests : IDisposable
     [InlineData("/etc/m/1.bin", false)]
     [InlineData("m\\1.bin", false)]
     public void WorldUploadPaths(string path, bool allowed) => Assert.Equal(allowed, UploadPath.IsWorld(path));
+
+    // --- a runner deleting their own spot --------------------------------------------
+
+    private async Task<HttpResponseMessage> DeleteSpot(string token, string id)
+    {
+        var msg = new HttpRequestMessage(HttpMethod.Delete, "/api/spots/" + id);
+        if (token != null) msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await _http.SendAsync(msg);
+    }
+
+    [Fact]
+    public async Task Owner_DeletesTheirSpot_OthersCannot()
+    {
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-dddddddddddd");
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f), RunText(seg, A, 11f, 5f, 1)));
+
+        // No token, an unknown one, another runner: refused, the spot stays.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await DeleteSpot(null, seg.Id)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await DeleteSpot("ft_made-up", seg.Id)).StatusCode);
+        var notYours = await DeleteSpot(tb, seg.Id);
+        Assert.Equal(HttpStatusCode.Forbidden, notYours.StatusCode);
+        Assert.Contains("not your spot", await notYours.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/api/spots/" + seg.Id)).StatusCode);
+
+        // The owner: gone, with its runs; the admins see who did it.
+        var del = await DeleteSpot(ta, seg.Id);
+        Assert.Equal(HttpStatusCode.OK, del.StatusCode);
+        Assert.Equal(2, (await del.Content.ReadFromJsonAsync<JsonObject>())["runs"].GetValue<int>());
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/spots/" + seg.Id)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await DeleteSpot(ta, seg.Id)).StatusCode);
+        var log = (await Admin("/api/admin/log")).AsArray();
+        Assert.Contains(log, l => l["admin"].GetValue<string>() == "runner " + A && l["status"].GetValue<long>() == 200
+                                  && l["action"].GetValue<string>().StartsWith("DELETE /api/spots/" + seg.Id));
+
+        // A banned owner's token no longer works.
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+        await AdminSend(HttpMethod.Post, "/api/admin/runners/" + A + "/ban");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await DeleteSpot(ta, seg.Id)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Owner_CannotDeleteOtherRunnersTimes_OrACommunitySpot()
+    {
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-dddddddddddd");
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f)));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9f, 5f)));
+
+        var busy = await DeleteSpot(ta, seg.Id);
+        Assert.Equal(HttpStatusCode.Conflict, busy.StatusCode);
+        Assert.Contains("1 run by other runners", await busy.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/api/spots/" + seg.Id)).StatusCode);
+
+        var spots = await _http.GetFromJsonAsync<JsonArray>("/api/spots");
+        string community = spots.First(s => s["community"].GetValue<bool>())["id"].GetValue<string>();
+        Assert.Equal(HttpStatusCode.Forbidden, (await DeleteSpot(ta, community)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await DeleteSpot(ta, "s-nothinghere0")).StatusCode);
+    }
+
+    // --- PB posts to Discord ---------------------------------------------------------------
+
+    /// The webhook switched on with a fake sender; the messages it was handed.
+    private List<string> FakeWebhook()
+    {
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        var sent = new List<string>();
+        hook.Url = "https://discord.invalid/api/webhooks/test";
+        hook.SiteUrl = "https://forest.deter.cloud";
+        hook.Send = m => { lock (sent) sent.Add(m); return Task.FromResult((204, 0.0)); };
+        return sent;
+    }
+
+    private void MakeCommunity(Segment seg)
+    {
+        var sb = new StringBuilder();
+        SegmentFormat.WriteSegment(sb, seg, "\n");
+        _factory.Services.GetRequiredService<Store>().SeeRoute(seg.Id, seg.RouteFingerprint(), seg.Name, seg.Category, sb.ToString(), true);
+    }
+
+    [Fact]
+    public async Task Webhook_PostsANewPbOnACommunitySpot()
+    {
+        List<string> sent = FakeWebhook();
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        string ta = await Register(A);
+        var seg = TestSegment("s-cccccccccccc");
+        seg.Name = "Plane to *cave*";
+        MakeCommunity(seg);
+
+        // The first run: "finished", with the run's link.
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f, 1)));
+        Assert.Single(hook.Recent);
+        Assert.Contains("finished Plane to \\*cave\\*: 10.000 (their first run)", hook.Recent[0]);
+        Assert.Matches(@"https://forest\.deter\.cloud/spot/s-cccccccccccc/[^/?]+\?run=\d+$", hook.Recent[0]);
+
+        // Slower: nothing. The same attempt again: nothing.
+        await Upload(ta, Bundle(seg, RunText(seg, A, 11f, 5f, 2)));
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f, 1)));
+        Assert.Single(hook.Recent);
+
+        // Two new ones, one faster: the fastest, against the old PB.
+        await Upload(ta, Bundle(seg, RunText(seg, A, 9.5f, 5f, 3), RunText(seg, A, 8.75f, 4f, 4)));
+        Assert.Equal(2, hook.Recent.Count);
+        Assert.Contains("set a new PB on Plane to \\*cave\\*: 8.750 (1.250 faster than 10.000)", hook.Recent[1]);
+
+        // The queue delivers them (one post every couple of seconds).
+        for (int i = 0; i < 100 && sent.Count < 2; i++) await Task.Delay(100);
+        Assert.Equal(hook.Recent, sent);
+    }
+
+    [Fact]
+    public async Task Webhook_QuietForOwnSpotsFlaggedRunsAndWhenOff()
+    {
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        string ta = await Register(A), tb = await Register(B);
+
+        // Off (no URL): nothing queued, the upload is fine.
+        var com = TestSegment("s-bbbbbbbbbbbb");
+        MakeCommunity(com);
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f)))).StatusCode);
+        Assert.Empty(hook.Recent);
+
+        FakeWebhook();
+        // A runner's own practice spot is never posted.
+        var own = TestSegment("s-aaaaaaaaaaaa");
+        await Upload(ta, Bundle(own, RunText(own, A, 10f, 5f)));
+        Assert.Empty(hook.Recent);
+
+        // A run under review (far under the route's best of 3+) posts nothing.
+        await Upload(tb, Bundle(com, RunText(com, B, 10f, 5f, 1), RunText(com, B, 10.5f, 5f, 2)));
+        Assert.Single(hook.Recent);   // B's first run
+        await Upload(tb, Bundle(com, RunText(com, B, 3f, 1f, 3)));
+        Assert.Single(hook.Recent);
+
+        // A failing webhook never fails an upload.
+        hook.Send = _ => throw new HttpRequestException("down");
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 9f, 5f, 4)))).StatusCode);
+    }
+
+    [Fact]
+    public void PbNews_Decisions()
+    {
+        Assert.Equal(9f, PbNews.NewPb(float.NaN, new[] { (9f, false), (10f, false) }));
+        Assert.Equal(9f, PbNews.NewPb(9.5f, new[] { (9f, false) }));
+        Assert.Null(PbNews.NewPb(9f, new[] { (9f, false) }));          // a tie is not a PB
+        Assert.Null(PbNews.NewPb(8f, new[] { (9f, false) }));
+        Assert.Null(PbNews.NewPb(10f, new[] { (5f, true), (9f, false) }));   // the fastest is under review
+        Assert.Null(PbNews.NewPb(10f, Array.Empty<(float, bool)>()));
+
+        Assert.True(PbNews.Announces(true, "", null));
+        Assert.False(PbNews.Announces(false, "", _ => true));
+        Assert.False(PbNews.Announces(false, "Any%", _ => false));
+        Assert.True(PbNews.Announces(false, " Any% ", c => c == "Any%"));
+
+        Assert.Equal("1:02.345", PbNews.Time(62.345));
+        Assert.Equal("1:00:00.000", PbNews.Time(3600));
+        Assert.Equal("0.250", PbNews.Time(0.25));
+        Assert.Equal("@everyone \\[x\\]\\(http\\://e\\) \\_a\\_ b", PbNews.Escape("@everyone [x](http://e) _a_\nb"));
+        Assert.Equal("deter set a new PB on Cave 5: 59.000 (1.000 faster than 1:00.000)\nhttps://x/spot/s-1/r?run=7",
+                     PbNews.Message("deter", "Cave 5", 59f, 60f, PbNews.RunLink("https://x/", "s-1", "r", 7)));
+    }
 
     [Theory]
     [InlineData("ground-dry/3/12_7.jpg", true)]
