@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.236 - 2026-10-04
+
+- Deaths tab: one "When I die" choice - Automatic (as before), Reload the save, Restart the current spot, Revive at the current spot, or the game's own death.
+- A "Next death" line says what your next death will do and why, and what happens instead when no spot is selected or run mode locks the choice.
+- Savestates keep the weather: rain, clouds and fog come back as they were at capture, for Quick and Full load. Before, a Quick load kept whatever weather was live and a Full load always came back clear.
+
 ## v0.24.235 - 2026-10-04
 
 - Exported spots now carry your name on every attempt, older ones included, so other runners see who ran them.
