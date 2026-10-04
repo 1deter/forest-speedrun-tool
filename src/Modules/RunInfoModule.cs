@@ -1,4 +1,6 @@
 using ForestOverlay.Core;
+using ForestOverlay.Data;
+using UnityEngine;
 
 namespace ForestOverlay.Modules
 {
@@ -20,23 +22,24 @@ namespace ForestOverlay.Modules
         public override void ContributeHud(HudBuilder hud)
         {
             PlayerRefView p = new PlayerRefView(Ctx);
+            bool compact = hud.Compact;
 
-            hud.Pair("Speed", p.Horizontal.ToString("F2") + " u/s   (tot " +
-                              p.Total.ToString("F2") + ")");
+            // Lines switched off in Settings are not built at all.
+            if (hud.Shows("Speed")) hud.Pair("Speed", HudLines.Speed(p.Horizontal, p.Total, compact));
 
-            hud.Pair("Vel", p.X.ToString("F1") + ", " +
-                            p.Y.ToString("F1") + ", " +
-                            p.Z.ToString("F1"));
+            if (hud.Shows("Vel")) hud.Pair("Vel", HudLines.Vector(p.X, p.Y, p.Z, 1));
 
-            if (Ctx.Player.Found)
+            if (hud.Shows("Pos"))
             {
-                hud.Pair("Pos", Ctx.Player.Transform.position.x.ToString("F0") + ", " +
-                                Ctx.Player.Transform.position.y.ToString("F0") + ", " +
-                                Ctx.Player.Transform.position.z.ToString("F0"));
-            }
-            else
-            {
-                hud.Pair("Pos", "player not found yet");
+                if (Ctx.Player.Found)
+                {
+                    Vector3 pos = Ctx.Player.Transform.position;
+                    hud.Pair("Pos", HudLines.Vector(pos.x, pos.y, pos.z, 0));
+                }
+                else
+                {
+                    hud.Pair("Pos", compact ? "-" : "player not found yet");
+                }
             }
 
             // Lock state is reported because a failure here used to be

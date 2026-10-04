@@ -71,6 +71,7 @@
     <Compile Include="../../src/Data/AttemptOwners.cs" Link="Linked/AttemptOwners.cs" />
     <Compile Include="../../src/Data/ItemCaps.cs" Link="Linked/ItemCaps.cs" />
     <Compile Include="../../src/Data/MoveDetector.cs" Link="Linked/MoveDetector.cs" />
+    <Compile Include="../../src/Data/HudLines.cs" Link="Linked/HudLines.cs" />
     <!-- The bridge MCP server's pure text side (a dev tool, not the plugin). -->
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />

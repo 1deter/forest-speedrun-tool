@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -42,6 +43,24 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _prompt = new GUIContent();
         private string _message = "";
 
+        // Keys or the info box (HUD) below the global toggles.
+        private bool _hudView;
+        private Vector2 _hudScroll;
+        private float _hudContentH = 900f;   // measured on the last pass
+        private GUIContent[] _hudNames;
+        private GUIContent[] _hudDescriptions;
+        private static readonly GUIContent HudIntro = new GUIContent(
+            "The info box in the top left. Untick a line to hide it. To move the box, drag it with the mouse " +
+            "while this window is open.");
+        private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
+        private static readonly GUIContent CompactNote = new GUIContent(
+            "Shorter values (no stack count, no units), labels without column padding, a short title.");
+        private static readonly GUIContent LockedNote = new GUIContent("always shown");
+        private readonly GUIContent _sizeText = new GUIContent("");
+        private readonly GUIContent _placeText = new GUIContent("");
+        private int _sizeShown = -1;
+        private float _placeShownX = float.NaN, _placeShownY = float.NaN;
+
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("tab.settings", KeyCode.None, "Open Settings tab", OpenMyTab);
@@ -53,6 +72,22 @@ namespace ForestOverlay.Modules
             // the next key press the moment the window reopened. (This was
             // OnPanelToggled, which never fires for a tab.)
             if (Host.Hotkeys.AwaitingRebind != null && !TabShowing) Host.Hotkeys.AwaitingRebind = null;
+
+            // The HUD view's changing text, built here (not in OnGUI) and
+            // only when it changed.
+            if (!TabShowing || !_hudView) return;
+            HudSettings s = Host.Hud.Settings;
+            if (s.TextSize != _sizeShown)
+            {
+                _sizeShown = s.TextSize;
+                _sizeText.text = "Text size: " + HudLines.SizeText(_sizeShown);
+            }
+            if (s.X != _placeShownX || s.Y != _placeShownY)
+            {
+                _placeShownX = s.X;
+                _placeShownY = s.Y;
+                _placeText.text = "Position: " + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + " (from the top left)";
+            }
         }
 
         private float _tabW;
@@ -113,6 +148,19 @@ namespace ForestOverlay.Modules
                 y += UiText.DrawDim(12, y, w - 24, bridge.StatusText);
             }
 
+            // Keys | Info box (HUD)
+            bool keysView = GUI.Toggle(new Rect(12, y, 120, 22), !_hudView, "Keys", GUI.skin.button);
+            bool hudView = GUI.Toggle(new Rect(136, y, 160, 22), _hudView, "Info box (HUD)", GUI.skin.button);
+            if (keysView && _hudView) _hudView = false;
+            else if (hudView && !_hudView) { _hudView = true; map.AwaitingRebind = null; }
+            y += 28f;
+
+            if (_hudView)
+            {
+                DrawHudSettings(new Rect(8, y, w - 16, _tabH - y - 10f));
+                return;
+            }
+
             bool rebinding = map.AwaitingRebind != null;
             if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
             {
@@ -140,6 +188,81 @@ namespace ForestOverlay.Modules
             // the key event we are waiting for.
             if (map.AwaitingRebind != null) CaptureKey(map);
 
+        }
+
+        // --- the info box (HUD) -------------------------------------------
+        // Every line with a tick box and what it shows (Data/HudLines);
+        // the honest-labelling lines are listed as "always shown". Each
+        // click writes the config once (gotcha 60).
+        private void DrawHudSettings(Rect area)
+        {
+            HudSettings s = Host.Hud.Settings;
+            if (_hudNames == null)
+            {
+                _hudNames = new GUIContent[HudLines.All.Length];
+                _hudDescriptions = new GUIContent[HudLines.All.Length];
+                for (int i = 0; i < HudLines.All.Length; i++)
+                {
+                    _hudNames[i] = new GUIContent(" " + HudLines.All[i].Name);
+                    _hudDescriptions[i] = new GUIContent(HudLines.All[i].Description);
+                }
+            }
+
+            float cw = area.width - 20f;
+            _hudScroll = GUI.BeginScrollView(area, _hudScroll, new Rect(0, 0, cw, _hudContentH));
+            float y = 0f;
+            y += UiText.Draw(4, y, cw - 8, HudIntro) + 4f;
+
+            bool compact = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.Compact, CompactText);
+            if (compact != s.Compact) s.Compact = compact;
+            y += 22f;
+            y += UiText.DrawDim(28, y, cw - 32, CompactNote) + 4f;
+
+            GUI.Label(new Rect(4, y, 160, 22), _sizeText, _labelStyle);
+            if (GUI.Button(new Rect(168, y, 30, 22), "-")) s.TextSize = HudLines.StepTextSize(s.TextSize, -1);
+            if (GUI.Button(new Rect(202, y, 30, 22), "+")) s.TextSize = HudLines.StepTextSize(s.TextSize, +1);
+            if (GUI.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
+            y += 26f;
+
+            y += Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
+            if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
+            if (GUI.Button(new Rect(140, y, 150, 22), "Reset the info box"))
+            {
+                s.ResetLook();
+                CollectiblesModule totals = Host.Find<CollectiblesModule>();
+                if (totals != null) totals.TotalsOnHud = false;
+            }
+            y += 30f;
+
+            GUI.Label(new Rect(4, y, cw - 8, 22), "Lines", _labelStyle);
+            y += 22f;
+            for (int i = 0; i < HudLines.All.Length; i++)
+            {
+                HudLine l = HudLines.All[i];
+                if (l.Locked)
+                {
+                    GUI.Label(new Rect(8, y, 200, 22), _hudNames[i], _labelStyle);
+                    GUI.Label(new Rect(212, y, cw - 216, 22), LockedNote, _warnStyle);
+                }
+                else if (l.External)
+                {
+                    CollectiblesModule totals = Host.Find<CollectiblesModule>();
+                    bool on = totals != null && totals.TotalsOnHud;
+                    bool now = GUI.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
+                    if (now != on && totals != null) totals.TotalsOnHud = now;
+                }
+                else
+                {
+                    bool on = s.Shows(i);
+                    bool now = GUI.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
+                    if (now != on) s.SetShows(i, now);
+                }
+                y += 22f;
+                y += UiText.DrawDim(28, y, cw - 32, _hudDescriptions[i]) + 2f;
+            }
+
+            _hudContentH = y + 8f;
+            GUI.EndScrollView();
         }
 
         // Rebuilt only when the status text changes, not on every OnGUI pass.

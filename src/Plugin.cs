@@ -2,6 +2,7 @@
 using System.IO;
 using BepInEx;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using ForestOverlay.Game;
 using ForestOverlay.Modules;
 using UnityEngine;
@@ -49,11 +50,24 @@ namespace ForestOverlay
 
         private GUIStyle _hudLabelStyle;
         private GUIStyle _warnStyle;
+        private GUIStyle _hudBoxStyle;
+        private int _hudStyleVersion = -1;
 
         // Built once. Concatenating the title inside OnGUI would allocate
         // on every pass, several times per frame.
         private static readonly GUIContent HudTitle =
-            new GUIContent("Forest Overlay v" + PluginVersion);
+            new GUIContent(HudLines.Title(PluginVersion, false));
+        private static readonly GUIContent HudTitleCompact =
+            new GUIContent(HudLines.Title(PluginVersion, true));
+        private static readonly int HudTitleIndex = HudLines.IndexOfKey("ShowTitle");
+
+        // Dragging the info box (Settings -> HUD): only while the window is
+        // open (the cursor is free then). Kept here while dragging, clamped
+        // live, written once on release (gotchas 60-61).
+        private MainWindowModule _mainWindow;
+        private bool _hudDragging;
+        private Vector2 _hudDragOffset;
+        private float _hudDragX, _hudDragY;
 
         // ------------------------------------------------------------------
         private void Awake()
@@ -185,6 +199,7 @@ namespace ForestOverlay
                 }
 
                 _host.Tick();
+                _practice.Compact = _host.Hud.Compact;
 
                 // Unity's GUI layout pass allocates every frame; only our
                 // windows need it (Game/PerfPatches, fix 1). Set here,
@@ -270,6 +285,8 @@ namespace ForestOverlay
             _warnStyle.fontStyle = FontStyle.Bold;
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
 
+            _hudBoxStyle = new GUIStyle(GUI.skin.box);
+
             _noticeStyle = new GUIStyle(GUI.skin.box);
             _noticeStyle.fontSize = 14;
             _noticeStyle.wordWrap = true;
@@ -306,45 +323,114 @@ namespace ForestOverlay
                 _notice.Content, _noticeStyle);
         }
 
+        // Text size from Settings -> HUD; 0 = the skin's own (the old look).
+        private void ApplyHudStyle(HudSettings s)
+        {
+            _hudStyleVersion = s.Version;
+            int px = s.TextSize;
+            _hudLabelStyle.fontSize = px;
+            _warnStyle.fontSize = px;
+            _hudBoxStyle.fontSize = px;
+        }
+
         private void DrawHud()
         {
-            const float w = 330f;
-            const float lineHeight = 18f;
-            const float textW = w - 24f;
+            HudSettings s = _host.Hud.Settings;
+            if (_hudStyleVersion != s.Version) ApplyHudStyle(s);
+
+            int px = s.TextSize;
+            float w = HudLines.Width(px, Screen.width);
+            float lineHeight = HudLines.LineHeight(px);
+            float textW = w - 24f;
+            bool title = s.Shows(HudTitleIndex);
+            float top = title ? (px <= 0 ? 20f : lineHeight + 2f) : 6f;
 
             // Measured every pass (CalcHeight does not allocate) so the box
             // grows with a wrapped line instead of cutting it off.
             int lines = _host.Hud.Count;
             GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
-            float textH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
+            float markerH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
             float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, textW)) : 0f;
-            textH += onH;
+            float textH = markerH + onH;
             for (int i = 0; i < lines; i++)
                 textH += Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
 
-            GUI.Box(new Rect(10, 10, w, 34f + textH), HudTitle);
+            float boxH = top + textH + 14f;
+            float bx = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, w, Screen.width);
+            float by = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, boxH, Screen.height);
+            Rect box = new Rect(bx, by, w, boxH);
+            HandleHudDrag(box, s);
 
-            float y = 30f;
+            GUI.Box(box, title ? (s.Compact ? HudTitleCompact : HudTitle) : GUIContent.none, _hudBoxStyle);
+            if (_hudDragging) GUI.Box(box, GUIContent.none);   // an outline while moving
+
+            float x = bx + 10f;
+            float y = by + top;
             for (int i = 0; i < lines; i++)
             {
                 GUIContent line = _host.Hud.At(i);
                 float h = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(line, textW));
-                GUI.Label(new Rect(20, y, textW, h), line, _hudLabelStyle);
+                GUI.Label(new Rect(x, y, textW, h), line, _hudLabelStyle);
                 y += h;
             }
 
             // What changes the game now (no stagger, god mode, item caps...),
-            // above the marker.
+            // above the marker. Never switchable (honest labelling).
             if (_practice.AnyOn)
             {
-                GUI.Label(new Rect(20, y, textW, onH), _practice.OnLabel, _warnStyle);
+                GUI.Label(new Rect(x, y, textW, onH), _practice.OnLabel, _warnStyle);
                 y += onH;
             }
 
             // Sticky and last, so it is the line the eye lands on. A run
             // recording must make it obvious that a practice tool was used.
-            GUI.Label(new Rect(20, y, textW, Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW))),
-                      _practice.Label, practiceStyle);
+            // Never switchable either.
+            GUI.Label(new Rect(x, y, textW, markerH), _practice.Label, practiceStyle);
+        }
+
+        private void HandleHudDrag(Rect box, HudSettings s)
+        {
+            Event e = Event.current;
+            if (e == null) return;
+            if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
+            bool windowOpen = _mainWindow != null && _mainWindow.PanelOpen;
+
+            if (!windowOpen)
+            {
+                if (_hudDragging) EndHudDrag(box, s);
+                return;
+            }
+
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || !box.Contains(e.mousePosition) || _mainWindow.ScreenRect.Contains(e.mousePosition)) return;
+                    _hudDragging = true;
+                    _hudDragOffset = e.mousePosition - new Vector2(box.x, box.y);
+                    _hudDragX = box.x;
+                    _hudDragY = box.y;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (!_hudDragging) return;
+                    _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, box.width, Screen.width);
+                    _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, box.height, Screen.height);
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (!_hudDragging) return;
+                    EndHudDrag(box, s);
+                    e.Use();
+                    break;
+            }
+        }
+
+        private void EndHudDrag(Rect box, HudSettings s)
+        {
+            _hudDragging = false;
+            s.SetPosition(Mathf.Round(HudLines.Clamp(_hudDragX, box.width, Screen.width)),
+                          Mathf.Round(HudLines.Clamp(_hudDragY, box.height, Screen.height)));
+            Logger.LogInfo("Info box moved to (" + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + ").");
         }
     }
 }
