@@ -55,7 +55,12 @@ namespace ForestOverlay.Modules
         private float _confirmUntil;        // End run mode: the second click's window
         private readonly GUIContent _stateText = new GUIContent("");
         private readonly GUIContent _findingsText = new GUIContent("");
-        private string _builtFor;
+        // What the text was last built for, field by field (no key string:
+        // see _catBuilt in RunModeModule.Categories).
+        private bool _built;
+        private bool _builtActive, _builtConfirming, _builtReport;
+        private int _builtAttempt, _builtFlags, _builtHash, _builtForeign, _builtCheats, _builtMoves;
+        private string _builtEnded, _builtWatch;
         private float _nextText;
 
         public override void Initialise(ModuleContext ctx)
@@ -312,11 +317,20 @@ namespace ForestOverlay.Modules
             if (Time.unscaledTime < _nextText) return;
             _nextText = Time.unscaledTime + 0.25f;
             bool confirming = Time.unscaledTime < _confirmUntil;
-            string key = Ctx.Run.Active + "|" + Ctx.Run.Attempt + "|" + Ctx.Run.Flags.Count + "|" + Ctx.Run.EndedWhy + "|" +
-                         (_report != null ? _report.GameHash.Length + "|" + _report.ForeignPatches.Count + "|" + _report.Cheats.Count : "") + "|" + confirming +
-                         "|" + _attemptMoves.Count + "|" + MoveWatch.Status;
-            if (key == _builtFor) return;
-            _builtFor = key;
+            bool active = Ctx.Run.Active, hasReport = _report != null;
+            int attempt = Ctx.Run.Attempt, flags = Ctx.Run.Flags.Count, moveCount = _attemptMoves.Count;
+            int hash = hasReport ? _report.GameHash.Length : 0;
+            int foreign = hasReport ? _report.ForeignPatches.Count : 0;
+            int cheats = hasReport ? _report.Cheats.Count : 0;
+            string ended = Ctx.Run.EndedWhy, watch = MoveWatch.Status;
+            if (_built && active == _builtActive && attempt == _builtAttempt && flags == _builtFlags &&
+                string.Equals(ended, _builtEnded) && hasReport == _builtReport && hash == _builtHash &&
+                foreign == _builtForeign && cheats == _builtCheats && confirming == _builtConfirming &&
+                moveCount == _builtMoves && string.Equals(watch, _builtWatch)) return;
+            _built = true;
+            _builtActive = active; _builtAttempt = attempt; _builtFlags = flags; _builtEnded = ended;
+            _builtReport = hasReport; _builtHash = hash; _builtForeign = foreign; _builtCheats = cheats;
+            _builtConfirming = confirming; _builtMoves = moveCount; _builtWatch = watch;
 
             string state;
             if (Ctx.Run.Active)

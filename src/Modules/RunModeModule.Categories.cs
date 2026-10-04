@@ -41,7 +41,17 @@ namespace ForestOverlay.Modules
         private float _fetchAt = -1f;
         private readonly GUIContent _catText = new GUIContent("");
         private readonly GUIContent _catStatusText = new GUIContent("");
-        private string _catBuiltFor;
+        // What the category text was last built for - compared field by
+        // field, never as a key string: this runs every frame, and a string
+        // key built per frame was most of the overlay's idle garbage, so the
+        // game's ~85 ms garbage collection kept landing in this tick
+        // ("Slow tick: 'runmode'", v0.24.241).
+        private bool _catBuilt;
+        private bool _catBuiltActive;
+        private RunCategory _catBuiltShown;
+        private int _catBuiltVersion;
+        private int _catBuiltCount;
+        private string _catBuiltStatus;
 
         private void InitCategories(ModuleContext ctx)
         {
@@ -158,7 +168,7 @@ namespace ForestOverlay.Modules
             int i = _categories.IndexOf(Picked);
             i = i < 0 ? (step > 0 ? 0 : _categories.Count - 1) : (i + step + _categories.Count) % _categories.Count;
             _pickedCfg.Value = _categories[i].Id;
-            _catBuiltFor = null;
+            _catBuilt = false;
         }
 
         /// What a category allows, in a line or two.
@@ -204,9 +214,16 @@ namespace ForestOverlay.Modules
         private void RebuildCategoryText()
         {
             RunCategory shown = Ctx.Run.Active ? Ctx.Run.Category : Picked;
-            string key = Ctx.Run.Active + "|" + (shown != null ? shown.Id + shown.Version : "-") + "|" + _categories.Count + "|" + _catStatus;
-            if (key == _catBuiltFor) return;
-            _catBuiltFor = key;
+            bool active = Ctx.Run.Active;
+            int version = shown != null ? shown.Version : 0;
+            if (_catBuilt && active == _catBuiltActive && ReferenceEquals(shown, _catBuiltShown) && version == _catBuiltVersion &&
+                _categories.Count == _catBuiltCount && string.Equals(_catStatus, _catBuiltStatus)) return;
+            _catBuilt = true;
+            _catBuiltActive = active;
+            _catBuiltShown = shown;
+            _catBuiltVersion = version;
+            _catBuiltCount = _categories.Count;
+            _catBuiltStatus = _catStatus;
             if (Ctx.Run.Active)
                 _catText.text = shown != null ? "Category: " + shown.Label + ". " + Describe(shown)
                                               : "Category: none the site knows - every practice feature is locked, Reload save on death is yours.";

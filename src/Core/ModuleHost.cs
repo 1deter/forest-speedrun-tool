@@ -147,14 +147,24 @@ namespace ForestOverlay.Core
             _ctx.Log.LogError("Module '" + m.Id + "' disabled after throwing in " + where + ": " + ex);
         }
 
-        private void ReportSlowTick(OverlayModule m, double ms)
+        // A garbage collection runs inside whatever allocates when the heap
+        // fills: an ~85 ms tick with one in it is the game's heap, not the
+        // module's own work (v0.24.241's idle 'runmode' lines). Said so.
+        private void ReportSlowTick(OverlayModule m, double ms, bool gcInside)
         {
             float next;
             if (_nextSlowReport.TryGetValue(m, out next) && Time.unscaledTime < next) return;
             _nextSlowReport[m] = Time.unscaledTime + SlowReportInterval;
 
-            _ctx.Log.LogWarning("Slow tick: '" + m.Id + "' took " + ms.ToString("0.0") +
-                                " ms (a visible hitch if it repeats).");
+            _ctx.Log.LogWarning("Slow tick: '" + m.Id + "' took " + ms.ToString("0.0") + " ms" +
+                                (gcInside ? " - a garbage collection ran inside it (the whole heap's, charged to whoever allocated last)."
+                                          : " (a visible hitch if it repeats)."));
+        }
+
+        private static int GcCount()
+        {
+            try { return GC.CollectionCount(0); }
+            catch (Exception) { return 0; }
         }
 
         private bool IsLive(OverlayModule m)
@@ -218,6 +228,7 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!IsLive(m)) continue;
 
+                int gc0 = GcCount();
                 long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 bool exact = ForestOverlay.Game.AllocationTracker.Counting;
                 long bytes0 = exact ? ForestOverlay.Game.AllocationTracker.MainBytes : 0;
@@ -228,7 +239,7 @@ namespace ForestOverlay.Core
                 double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
                             System.Diagnostics.Stopwatch.Frequency;
                 tickTotal += ms;
-                if (ms >= SlowTickMs) ReportSlowTick(m, ms);
+                if (ms >= SlowTickMs) ReportSlowTick(m, ms, GcCount() != gc0);
             }
 
             _perf.Frame(tickTotal, _ctx.Player.Found);
