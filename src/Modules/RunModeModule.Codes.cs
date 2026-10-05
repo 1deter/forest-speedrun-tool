@@ -302,11 +302,7 @@ namespace ForestOverlay.Modules
             _subStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
             if (_boxStyle == null)
             {
-                _boxStyle = new GUIStyle(GUI.skin.box);
-                Texture2D bg = new Texture2D(1, 1);
-                bg.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.78f));
-                bg.Apply();
-                _boxStyle.normal.background = bg;
+                _boxStyle = new GUIStyle(UiKit.WidgetCard);   // the redesign's card
             }
         }
 
@@ -328,7 +324,7 @@ namespace ForestOverlay.Modules
             HandleCodeDrag(box, w);
 
             GUI.Box(box, GUIContent.none, _boxStyle);
-            if (_dragging) GUI.Box(box, GUIContent.none);
+            if (_dragging) GUI.Box(box, GUIContent.none, UiKit.Outline);
             GUI.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
             GUI.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
         }

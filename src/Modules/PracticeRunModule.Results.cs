@@ -212,9 +212,9 @@ namespace ForestOverlay.Modules
             _resHeadStyle.wordWrap = false;
             _resHeadStyle.clipping = TextClipping.Clip;
             _resHeadGold = new GUIStyle(_resHeadStyle);
-            _resHeadGold.normal.textColor = new Color(1f, 0.8f, 0.2f);
+            _resHeadGold.normal.textColor = UiKit.Accent;
             _resGoldWrap = new GUIStyle(UiText.Plain);
-            _resGoldWrap.normal.textColor = new Color(1f, 0.8f, 0.2f);
+            _resGoldWrap.normal.textColor = UiKit.Accent;
         }
 
         private float ResColW { get { return 52f + 6f * Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value); } }
@@ -332,7 +332,7 @@ namespace ForestOverlay.Modules
                 if (_goldName == null)
                 {
                     _goldName = new GUIStyle(_nameStyle);
-                    _goldName.normal.textColor = new Color(1f, 0.8f, 0.2f);
+                    _goldName.normal.textColor = UiKit.Accent;
                 }
                 return _goldName;
             }

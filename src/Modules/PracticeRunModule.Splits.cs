@@ -578,7 +578,7 @@ namespace ForestOverlay.Modules
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Opacity));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_dragging) GUI.Box(panel, GUIContent.none);   // an outline while moving
+            if (_dragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);   // an outline while moving
             DrawSplitsTable(x + 6f, y + 4f, w - 12f, _panelRows.Value, true);
         }
 

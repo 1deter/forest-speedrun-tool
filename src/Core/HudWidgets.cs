@@ -154,6 +154,7 @@ namespace ForestOverlay.Core
         private sealed class ScaleStyles
         {
             public GUIStyle Label, Value;
+            public GUIStyle Shadow;
             public float ValueScale, ValueSize;
         }
 
@@ -179,6 +180,8 @@ namespace ForestOverlay.Core
             s.Value.normal.textColor = UiKit.TextColour;
             s.Value.padding = new RectOffset(0, 0, 0, 0);
             s.Value.wordWrap = false;
+            s.Shadow = new GUIStyle(s.Value);
+            s.Shadow.normal.textColor = new Color(0f, 0f, 0f, 0.75f);
             _styles[key] = s;
             return s;
         }
@@ -290,7 +293,9 @@ namespace ForestOverlay.Core
                 rect = new Rect(x, y, width, height);
             }
 
-            GUI.Box(rect, GUIContent.none, UiKit.WidgetCard);
+            // No card (author, 2026-10-05: transparent, like Momentum Mod) - a soft
+            // shadow keeps the value readable over snow / bright lab walls.
+            if (Editing) GUI.Box(rect, GUIContent.none, UiKit.WidgetCard);
             float cy = rect.y + CardPad - 1f;
             float cx = rect.x + CardPad;
             if (slots == 0)
@@ -305,7 +310,9 @@ namespace ForestOverlay.Core
                     if (hud.LineIndex(j) != line) continue;
                     Matrix4x4 m = GUI.matrix;
                     GUIUtility.ScaleAroundPivot(new Vector2(st.ValueScale, st.ValueScale), new Vector2(cx, cy));
-                    GUI.Label(new Rect(cx, cy, width / st.ValueScale, valueH / st.ValueScale), hud.ValueAt(j), st.Value);
+                    Rect vr = new Rect(cx, cy, width / st.ValueScale, valueH / st.ValueScale);
+                    GUI.Label(new Rect(vr.x + 2f, vr.y + 2f, vr.width, vr.height), hud.ValueAt(j), st.Shadow);
+                    GUI.Label(vr, hud.ValueAt(j), st.Value);
                     GUI.matrix = m;
                     cy += valueH;
                 }
