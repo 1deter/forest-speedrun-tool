@@ -30,3 +30,4 @@ scripts/site-look-shots/
 __pycache__/
 
 .claude/worktrees/
+.claude/shots/

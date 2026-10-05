@@ -419,7 +419,7 @@ identity.
 
 ## Current status
 
-**Released: v0.24.245** (2026-10-04). The author runs it via the in-game
+**Released: v0.24.246** (2026-10-05). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-04 overnight, unattended - author away)
@@ -441,18 +441,13 @@ v0.24.242 (replays: buildings as schematics + interaction markers, `.run`
 Released since: v0.24.243 (ghost figure + replay camera, Experimental;
 `.run` `l|` look track; run mode's per-frame garbage), v0.24.244 (idle
 garbage audit: `Game/FastField`, `Data/TextMemo`, the Perf line names the
-top allocating modules). **Merged on main, NOT released - needs the
-author's eyes first (gotcha 51):** `Game/LatePass` draws every overlay
-(run lines, ghost, replay boxes / markers, colliders, beacons) after the
-camera's image effects - eye adaptation (post-processing stack, last on
-`MainCamNew`) was whitening them (game-notes *Overlay colours*; proven
-live with a test DLL loaded at runtime, not deployed) - plus merged replay
-labels (`Data/ReplayLabels`). Its CHANGELOG bullet for the next release:
-"Run lines, the ghost, replay buildings and markers keep their real
-colours instead of turning white, by day and at night; replay labels at
-one spot are merged ("Crafted: Bomb x2"), and labels that would overlap
-stack upwards." Check: `Late pass: drawing on 'MainCamNew'...` log line,
-shots by day / night (TimeOfDay 200) at (428, 78, -4) with a `mark`.
+top allocating modules). v0.24.246 (`Game/LatePass`: every overlay drawn after the camera's image
+effects - eye adaptation whitened them, game-notes *Overlay colours*;
+**approved by the author 2026-10-05** from the before / after shots; merged
+replay labels; run-path garbage; **load-removed time** - `Data/LoadTimes`,
+`Game/GameLoading`, a load = the game's save / level load, the decision in
+docs/run-mode.md; `.run` `loads|`, attempt log `load` lines, site shows it).
+v0.24.245 (the **Map tab**, `_modules[19]`; confirmed over the bridge).
 Site (live): `/compare` (maks's YouTube side-by-side), buildings /
 markers on the 2D / 3D maps, the 2026-10-04 security audit + fixes +
 per-runner daily limits (docs/website.md *Security*; open for the author:
@@ -461,11 +456,8 @@ monthly `docker compose pull` on the VPS for runtime patches). Bot
 `crafting-recipes`, `hundred-percent`, `top-runners`. **Usage note
 (author, 2026-10-04):** subagents burn usage fast - use `model: sonnet`
 for routine agents (checks, site, docs), Opus only for hard game work,
-2-3 at a time. v0.24.245 (the **Map tab**, `_modules[19]`: relief of the
-island cached in `config/ForestOverlay/map/`, spots / zones / the
-comparison run / the player; released from a branch cut at v0.24.244 so
-the held late pass stayed out - main carries both). **Next release from
-main includes the late pass** - only after the author has looked.
+2-3 at a time. **In progress:** category start states true to the game
+(Opus, in game). /compare got a sync fix (one clock, skip buttons).
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
