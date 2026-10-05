@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.248 - 2026-10-05
+
+- Practice, Import: a new "Website spots" button lists the spots other runners uploaded to forest.deter.cloud - one click adds one under "Website" to practise, and their best run shows up under Compare to. Duplicate makes your own copy.
+- Deleting a spot now clears it from the Runs tab too (it no longer stays "armed").
+- A spot you delete in game now comes off the website by itself, retrying later if you are offline.
+
 ## v0.24.247 - 2026-10-05
 
 - Restoring a savestate after starting a new game no longer hangs on LOADING, and a start state from another difficulty now loads that difficulty (enemies, damage, survival) instead of keeping this game's; a run spot's start turns cheat switches off (Creative's come back as it loads).
