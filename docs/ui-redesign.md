@@ -179,3 +179,20 @@ In the author's words where it matters; do these before anything else.
     (look, not function). Small UX niceties over words on the page.
 
 More will come as they test.
+
+### Progress on the list (2026-10-05, same evening)
+
+Done (in game: yellow + filled toggles + value-only speed widget seen in a
+shot): 1 yellow accent (`#F2C21B`, black text on it), 2 Attempts as tall as
+its rows (max 320 px, scrolls inside after that), 5 drag-out removed
+(`BoxLineEvent` is a no-op; the editor list's "own" toggle makes a widget),
+6 no widget titles (the label toggle is gone; `label=` in old layout files is
+ignored when drawing), 7 `Total speed` is its own line / widget
+(`ShowTotalSpeed`, off by default), 8 no check mark.
+Not reproduced: 3 (cursor after closing F2 in Settings - the bridge's close
+leaves the same cursor state from Settings as from Runs; the author's F2
+path differs - ask for the exact steps). Left: 3, 4 (info box out), 9 (cut
+the run mode paragraph and other body text to tooltips), 10 (toasts).
+Seen in the shot: text vanished where the window sat over a bright white
+scene (Inventory tab label, parts of rows) - check the panel's alpha /
+whether the window draws in two passes.
