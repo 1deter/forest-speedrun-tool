@@ -299,6 +299,35 @@ public sealed class Runs
         };
     }
 
+    /// The runners' spots for the plugin's "Website spots" list (Data/SiteSpots):
+    /// not the community ones (every runner has those), timed ones only.
+    public string SpotsText()
+    {
+        var list = new List<SiteSpot>();
+        foreach (JsonObject s in Spots())
+        {
+            if (s["community"].GetValue<bool>() || !s["timed"].GetValue<bool>()) continue;
+            list.Add(new SiteSpot
+            {
+                Id = s["id"].GetValue<string>(), Name = s["name"].GetValue<string>(), By = s["by"]?.GetValue<string>() ?? "",
+                Runs = s["runs"].GetValue<int>(), Best = s["best"] is null ? float.NaN : (float)s["best"].GetValue<double>(),
+            });
+        }
+        return SiteSpots.Write(list);
+    }
+
+    /// One spot's current route as a .foseg (segment only), or null.
+    public string SpotFoseg(string segmentId)
+    {
+        List<RouteRow> routes = Routes(segmentId);
+        if (routes.Count == 0) return null;
+        routes.Sort((a, b) => Newer(a, b) ? -1 : Newer(b, a) ? 1 : 0);
+        Segment seg = ParseBlock(routes[0].Block);
+        seg.Name = routes[0].Name;
+        seg.Category = routes[0].Category;
+        return new SegmentBundle { Segment = seg, Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"), PluginVersion = "website" }.Write();
+    }
+
     /// Each runner's best on one route, fastest first, for the plugin's
     /// comparisons (Data/SiteBoard). Runs under review are left out.
     public string BoardText(string segmentId, string route)
