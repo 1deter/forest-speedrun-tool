@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.246 - 2026-10-05
+
+- Run lines, the ghost, replay buildings and markers keep their real colours instead of turning white, by day and at night; replay labels at one spot are merged ("Crafted: Bomb x2"), and labels that would overlap stack upwards.
+- Timed runs and the replay camera make much less garbage, so fewer game hitches; item checkpoints no longer rebuild the inventory list every frame.
+- Load-removed time (LRT) beside the timer: a splits column, a HUD line, the results panel and the website show your time without the game's loading screens; the real-time timer is unchanged.
+
 ## v0.24.245 - 2026-10-04
 
 - New Map tab: the island from above with all your spots (cave spots marked, community ones hollow), segment zones, the comparison run's line and ghost, and you - zoom, drag, click a spot to select it, Go to teleport.
