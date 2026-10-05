@@ -147,6 +147,7 @@ namespace ForestOverlay.Modules
             {
                 _practice.OnPlacedAtSpot = OnPlacedAtSpot;
                 _practice.OnRestartStarting = OnRestartStarting;
+                _practice.OnSpotDeleted = OnSpotDeleted;
             }
             else ctx.Log.LogWarning("PracticeRunModule: no PracticeModule found.");
 
@@ -775,6 +776,25 @@ namespace ForestOverlay.Modules
             _status = "aborted";
 
             if (_segment != null) ArmRun();
+        }
+
+        // Practice deleted a spot: if it is the armed one, the run, the
+        // splits, the lines and the "armed" HUD line go with it.
+        private void OnSpotDeleted(Segment gone)
+        {
+            if (gone == null || _segment == null || !ReferenceEquals(_segment, gone)) return;
+            Ctx.Log.LogInfo("Run '" + gone.Id + "': " + (_recorder.State == RunRecorder.RunState.Running ? "aborted" : "disarmed") +
+                            " - the spot was deleted.");
+            _autoRestartAt = 0f;
+            _recorder.Abort();
+            _hasDelta = false;
+            _segment = null;
+            if (_armSource == ArmSource.RunMode) _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
+            ClearLines();
+            ClearRunPreview();
+            _splitsDirty = true;
+            _rowsDirty = true;
+            _status = "the spot was deleted";
         }
 
         // Left the level (title screen): the run is not finished and not

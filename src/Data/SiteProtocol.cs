@@ -232,6 +232,63 @@ namespace ForestOverlay.Data
             return "Not deleted - the site is not reachable (" + (code == 0 ? error ?? "no answer" : "HTTP " + code) + "). Try again later.";
         }
 
+        /// The site's answer to a delete settles it (nothing left to retry):
+        /// done, not there, or refused for good. A bad token, a busy site
+        /// and no answer stay queued.
+        public static bool DeleteSettled(long code)
+        {
+            return (code >= 200 && code < 300) || code == 404 || code == 403 || code == 409;
+        }
+
+        /// A delete that found nothing (no spot, or no runs on it) says
+        /// nothing: the runner only hears of one that took something off.
+        public static bool DeleteQuiet(long code, string body)
+        {
+            if (code == 404) return true;
+            return code >= 200 && code < 300 && Number(body, "runs") <= 0;
+        }
+
+        /// The deletes waiting for the site: one spot id per line.
+        public static string QueueAdd(string text, string id)
+        {
+            if (string.IsNullOrEmpty(id) || QueueHas(text, id)) return text ?? "";
+            return (text ?? "") + id + "\n";
+        }
+
+        public static string QueueRemove(string text, string id)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (string line in (text ?? "").Split('\n'))
+            {
+                string t = line.Trim();
+                if (t.Length > 0 && t != id) sb.Append(t).Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        public static bool QueueHas(string text, string id)
+        {
+            return Contains(text, id);
+        }
+
+        private static bool Contains(string text, string id)
+        {
+            foreach (string line in (text ?? "").Split('\n'))
+                if (line.Trim() == id) return true;
+            return false;
+        }
+
+        /// The oldest id waiting, null when none.
+        public static string QueueFirst(string text)
+        {
+            foreach (string line in (text ?? "").Split('\n'))
+            {
+                string t = line.Trim();
+                if (t.Length > 0) return t;
+            }
+            return null;
+        }
+
         public static string TrimUrl(string url)
         {
             return (url ?? "").Trim().TrimEnd('/');
