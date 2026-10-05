@@ -50,6 +50,8 @@ dotnet build tools/BridgeMcp -c Release
 ```bash
 dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: preview "forest-site" (.claude/launch.json)
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
+python scripts/bump.py 0.24.N "bullet" "bullet"   # release bump: csproj + Plugin.cs + CHANGELOG section (-f notes.md)
+python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches)
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
@@ -953,6 +955,24 @@ the docs on `main` must always be ready for it. With sessions running side
 by side: **`git fetch` and check `HEAD..origin/main` before bumping the
 version**, and `qa_read new_only` is shared - a message one session reads
 is gone from the other's new list (tell the author what belongs where).
+
+**Subagents (author, 2026-10-04/05: maximise usage).** Project agents in
+`.claude/agents/`, each with its model, effort, a trimmed tool list and a
+short brief naming the docs to read and the report to return:
+`forest-dev` (Sonnet: plugin features / fixes whose game side is known),
+`forest-researcher` (Opus, high: game internals, live research, hard
+restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
+over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
+`forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
+the QA Discord). Run 2-3 at a time (5+ Opus agents emptied a 5-hour window
+in under 15 minutes), one driving the game at a time; spawn with
+`isolation: worktree` for code (worktrees in `.claude/worktrees/`, outside
+the compile globs) and give the task in a few lines - the agent file holds
+the rules. The main session merges (`scripts/merge-keepboth.py` for
+add/add conflicts), releases (`scripts/bump.py`), keeps the handoff, and
+says in one line what each agent is doing when it starts it. Do the small
+things yourself: an agent costs a cold start (CLAUDE.md + reading),
+worth it only for work bigger than that.
 
 **When to switch session (author, 2026-09-26: "add those as rules").**
 Switch at a task boundary, not by habit or by a context number alone:
