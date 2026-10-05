@@ -50,8 +50,11 @@ namespace ForestOverlay.Modules
         private GUIContent[] _hudNames;
         private GUIContent[] _hudDescriptions;
         private static readonly GUIContent HudIntro = new GUIContent(
-            "The info box in the top left. Untick a line to hide it. To move the box, drag it with the mouse " +
-            "while this window is open.");
+            "Tick the lines you want. Hover one for what it shows.");
+        private static readonly GUIContent EditLayoutText = new GUIContent("Edit HUD layout");
+        private static readonly GUIContent EditLayoutTip = new GUIContent(
+            "Move, resize and show / hide each value; drag a value out of the box to make it a widget of its own " +
+            "(layout file: config/ForestOverlay/hud-layout.txt).");
         private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
         private static readonly GUIContent CompactNote = new GUIContent(
             "Shorter values (no stack count, no units), labels without column padding, a short title.");
@@ -211,7 +214,15 @@ namespace ForestOverlay.Modules
             float cw = area.width - 20f;
             _hudScroll = GUI.BeginScrollView(area, _hudScroll, new Rect(0, 0, cw, _hudContentH));
             float y = 0f;
-            y += UiText.Draw(4, y, cw - 8, HudIntro) + 4f;
+            Rect editR = new Rect(4, y, 170, 28);
+            if (UiKit.PrimaryButton(editR, EditLayoutText))
+            {
+                MainWindowModule main = Host.Find<MainWindowModule>();
+                if (main != null) main.BeginHudEdit();
+            }
+            UiKit.Hint(editR, EditLayoutTip);
+            y += 34f;
+            y += UiText.DrawDim(4, y, cw - 8, HudIntro) + 4f;
 
             bool compact = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.Compact, CompactText);
             if (compact != s.Compact) s.Compact = compact;
@@ -254,11 +265,12 @@ namespace ForestOverlay.Modules
                 else
                 {
                     bool on = s.Shows(i);
-                    bool now = GUI.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
+                    Rect row = new Rect(4, y, cw - 8, 22);
+                    bool now = GUI.Toggle(row, on, _hudNames[i]);
                     if (now != on) s.SetShows(i, now);
+                    UiKit.Hint(row, _hudDescriptions[i]);
                 }
-                y += 22f;
-                y += UiText.DrawDim(28, y, cw - 32, _hudDescriptions[i]) + 2f;
+                y += 24f;
             }
 
             _hudContentH = y + 8f;

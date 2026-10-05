@@ -41,6 +41,15 @@ namespace ForestOverlay.Modules
         private GUIStyle _tabStyle;
         private GUIStyle _activeTabStyle;
 
+        // HUD customiser: while editing, the window is a narrow widget list
+        // at the right; the normal rectangle comes back on Done.
+        private bool _wasEditing;
+        private Rect _normalRect;
+        private static readonly GUIContent EditHudText = new GUIContent("Edit HUD");
+        private static readonly GUIContent EditHudTip = new GUIContent(
+            "Move, resize and show / hide each info box value. Drag a value out of the box to make it its own widget.");
+        private static readonly GUIContent EditingTitle = new GUIContent("HUD layout");
+
         private readonly List<GUIContent> _tabLabels = new List<GUIContent>();
 
         public override void RegisterHotkeys(HotkeyMap map)
@@ -92,24 +101,75 @@ namespace ForestOverlay.Modules
             _windowRect.x = Mathf.Clamp(_windowRect.x, 40f - _windowRect.width, Screen.width - 40f);
             _windowRect.y = Mathf.Clamp(_windowRect.y, 0f, Screen.height - 30f);
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents,
-                                     "ForestOverlay v" + OverlayPlugin.PluginVersion);
+            HudWidgets hudw = Host.Hud.Widgets;
+            bool editing = hudw != null && hudw.Editing;
+            if (editing != _wasEditing)
+            {
+                _wasEditing = editing;
+                if (editing)
+                {
+                    _normalRect = _windowRect;
+                    float ew = Mathf.Min(430f, Screen.width - 40f);
+                    _windowRect = new Rect(Screen.width - ew - 16f, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
+                }
+                else _windowRect = _normalRect;
+            }
+
+            _windowRect = GUI.Window(windowId, _windowRect, DrawContents, _title);
         }
+
+        private readonly GUIContent _title = new GUIContent("");
+        private bool _titleBuilt;
 
         private void EnsureStyles()
         {
+            if (!_titleBuilt)
+            {
+                _titleBuilt = true;
+                _title.text = "ForestOverlay  v" + OverlayPlugin.PluginVersion;
+            }
             if (_tabStyle != null) return;
 
-            _tabStyle = new GUIStyle(GUI.skin.button);
-            _tabStyle.padding = new RectOffset(10, 10, 2, 2);
+            _tabStyle = UiKit.Tab;
+            _activeTabStyle = UiKit.TabActive;
+        }
 
-            _activeTabStyle = new GUIStyle(_tabStyle);
-            _activeTabStyle.fontStyle = FontStyle.Bold;
+        public override void OnPanelToggled(bool open)
+        {
+            // Closing the window ends the HUD edit (the handles need the cursor).
+            if (!open && Host != null && Host.Hud.Widgets != null && Host.Hud.Widgets.Editing)
+            {
+                Host.Hud.Widgets.StopEditing();
+                _wasEditing = false;
+                _windowRect = _normalRect;
+            }
+        }
+
+        /// Opens the HUD customiser (Settings, the window's HUD button).
+        public void BeginHudEdit()
+        {
+            if (Host.Hud.Widgets == null) return;
+            Host.Hud.Widgets.Editing = true;
+            if (!PanelOpen) TogglePanel();
         }
 
         private void DrawContents(int id)
         {
             EnsureStyles();
+
+            HudWidgets hudw = Host.Hud.Widgets;
+            if (hudw != null && hudw.Editing)
+            {
+                GUI.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 22f), EditingTitle, UiKit.Title);
+                Rect editArea = new Rect(Pad, 58f, _windowRect.width - Pad * 2f, _windowRect.height - 58f - 10f);
+                GUI.BeginGroup(editArea);
+                bool done = hudw.DrawEditor(new Rect(0f, 0f, editArea.width, editArea.height), Host.Hud.Settings, _windowRect);
+                GUI.EndGroup();
+                UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
+                if (done) hudw.StopEditing();
+                GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
+                return;
+            }
 
             List<OverlayModule> tabs = Host.Tabs();
             if (tabs.Count == 0)
@@ -134,6 +194,12 @@ namespace ForestOverlay.Modules
             GUI.BeginGroup(body);
             tabs[_active].DrawTab(new Rect(0f, 0f, body.width, body.height));
             GUI.EndGroup();
+
+            // Before DragWindow, so the click is the button's.
+            Rect hudBtn = new Rect(_windowRect.width - 86f, 4f, 78f, 20f);
+            if (GUI.Button(hudBtn, EditHudText) && hudw != null) hudw.Editing = true;
+            UiKit.Hint(hudBtn, EditHudTip);
+            UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
 
             GUI.DragWindow(new Rect(0, 0, _windowRect.width, 22));
         }
