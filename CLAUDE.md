@@ -446,7 +446,9 @@ released), design in `docs/ui-redesign.md` on that branch; `Core/UiKit`
 `hud-layout.txt`), HUD widgets + edit mode, window chrome, Runs tab
 regrouped, results panel no longer overlapped. **Never seen in game** - a
 build is on the author's Desktop (`ForestOverlay-ui-redesign-draft.dll`)
-for them to try; next: their verdict, then the other tabs, onboarding,
+for them to try. **First try (2026-10-05): a native d3d11 crash on a save
+load + clipped text top left** - fix both first (branch doc, *First in-game
+try*); then their verdict, then the other tabs, onboarding,
 saved section state, snapping. Author feedback of 2026-10-05 in
 docs/backlog.md.
 
