@@ -130,3 +130,19 @@ Updates) still use the old layouts under the new skin; onboarding card;
 section open / closed state is not persisted; widgets are not snapped / no
 stack groups; the run timer widget has no delta colouring yet; verify
 checkbox / window textures and tooltip placement in game.
+
+## First in-game try (author, 2026-10-05) - two bugs, fix before anything else
+
+1. **Native crash loading a save** with the draft DLL: the log ends after
+   `Load timing: game timer 'Query state'` (the window had been opened
+   earlier); `d3d11.dll` access violation reading `0xec` off a null pointer
+   (crash folder `<game>/2026-10-05_120832`, `crash.dmp`). Likely suspect: a
+   `UiKit` texture / the cloned `GUISkin` destroyed or invalidated by the load
+   while still drawn - check `HideAndDontSave` covers every style background,
+   re-create on null, never draw them mid-load (gotcha 58). Reproduce over the
+   bridge: open F2 at the title, load a save.
+2. **Clipped text at the top left** of the UI (author's report; likely the
+   title row / tab pills or the HUD info box under the new padding) - take a
+   `shot` and run the UiText sweep (gotcha 31).
+
+The author's install is back on v0.24.248; the draft DLL is still on the Desktop.
