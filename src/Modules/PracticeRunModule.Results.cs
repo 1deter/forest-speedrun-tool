@@ -116,8 +116,10 @@ namespace ForestOverlay.Modules
             for (int r = 0; r < rows; r++) names[r] = _segment.SplitName(r);
             float[] compare = ComparisonSplits();
             bool compareIsPb = ReferenceEquals(compare, _stats.PbSplits);
-            int td = _timeDecimals.Value, dd = _deltaDecimals.Value;
-            _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, td, dd);
+            // One precision for the whole panel (author, 2026-10-05: an 11.331 PB
+            // "by 0.03 (was 11.37)" read wrong): the finer of the two settings.
+            int p = Mathf.Max(_timeDecimals.Value, _deltaDecimals.Value);
+            _result = RunResults.Build(_stats, compare, compareIsPb, ComparisonName(), _times, names, p, p);
             _resOutcome = outcome;
 
             _resTitle.text = _segment.Name + "  -  results";
@@ -125,7 +127,7 @@ namespace ForestOverlay.Modules
             _resVerdict.text = _result.Verdict;
             _resCompare.text = _result.CompareLine;
             _resGolds.text = _result.GoldLine;
-            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, td, _cols[(int)Col.Lrt].Value);
+            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, p, _cols[(int)Col.Lrt].Value);
             _resLoads.text = _result.LoadLine;
 
             // The table's cells: copied once, drawn every frame.

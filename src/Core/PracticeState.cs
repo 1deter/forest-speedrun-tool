@@ -87,7 +87,8 @@ namespace ForestOverlay.Core
             int at = _on.IndexOf(what);
             if (on == (at >= 0)) return;
             if (on) _on.Add(what); else _on.RemoveAt(at);
-            _onLabel.text = _on.Count == 0 ? "" : "ON NOW: " + string.Join(", ", _on.ToArray());
+            // One feature per line under a heading, like a cheat menu's "enabled" list (author, 2026-10-05).
+            _onLabel.text = _on.Count == 0 ? "" : "ON NOW\n" + string.Join("\n", _on.ToArray());
         }
 
         private void Rebuild()

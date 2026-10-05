@@ -165,7 +165,7 @@ namespace ForestOverlay.Data
 
         public static string Speed(float speed, bool compact)
         {
-            return compact ? F(speed, 2) : F(speed, 2) + " u/s";
+            return F(speed, 2);   // the number only (author, 2026-10-05: no units on a run screen)
         }
 
         public static string Vector(float x, float y, float z, int decimals)

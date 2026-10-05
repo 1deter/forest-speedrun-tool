@@ -68,7 +68,7 @@ namespace ForestOverlay.Tests
         [Fact]
         public void CompactValuesUseFewerWords()
         {
-            Assert.Equal("4.20 u/s", HudLines.Speed(4.2f, false));
+            Assert.Equal("4.20", HudLines.Speed(4.2f, false));
             Assert.Equal("4.20", HudLines.Speed(4.2f, true));
             Assert.Equal("12   (3 stacks)", HudLines.Items(12, 3, false));
             Assert.Equal("12", HudLines.Items(12, 3, true));
