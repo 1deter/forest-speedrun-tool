@@ -115,6 +115,18 @@ bridge).
 
 ## Status of this branch
 
-See the last commit message and the final report of the session; the doc is
-the target, the code covers: style kit + skin, window chrome, HUD widgets +
-edit mode + layout file, Runs tab sections, timer / results overlap.
+Built and unit-tested (915 tests); **never run in the game** (no visuals checked -
+the skin's slider / scrollbar are deliberately left default).
+
+Done: `Core/UiKit` (palette, generated rounded textures, cloned skin applied
+around panel drawing, collapsible `Section`, `Hint` tooltip), window chrome
+and tab pills, `Data/HudLayout` (+ tests), `Core/HudWidgets` (free widgets,
+edit mode, editor list in the window), Settings -> Edit HUD layout, the
+window's *Edit HUD* button, Runs tab sections + tooltips, splits panel steps
+aside while the results panel shows, both in the card style.
+
+Left: other tabs (Practice, Deaths, Debug views, Inventory, 100%, QA,
+Updates) still use the old layouts under the new skin; onboarding card;
+section open / closed state is not persisted; widgets are not snapped / no
+stack groups; the run timer widget has no delta colouring yet; verify
+checkbox / window textures and tooltip placement in game.
