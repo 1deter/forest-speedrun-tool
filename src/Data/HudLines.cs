@@ -74,7 +74,10 @@ namespace ForestOverlay.Data
             L("update", "Update", "ShowUpdate", "Update check",
               "Whether a newer version is out (or that the check worked)."),
             L("runinfo", "Speed", "ShowSpeed", "Speed",
-              "Horizontal speed, with the total (falling included) after it."),
+              "Horizontal speed (u/s)."),
+            // One value per line (author, 2026-10-05: no "(tot x)" inside the speed).
+            new HudLine("runinfo", "Total", "ShowTotalSpeed", "Total speed",
+              "Speed including falling and jumping (u/s).", false, false, false),
             L("runinfo", "Vel", "ShowVelocity", "Velocity",
               "Velocity along x, y and z."),
             L("runinfo", "Pos", "ShowPosition", "Position",
@@ -160,11 +163,9 @@ namespace ForestOverlay.Data
             return compact ? "FO v" + version : "Forest Overlay v" + version;
         }
 
-        public static string Speed(float horizontal, float total, bool compact)
+        public static string Speed(float speed, bool compact)
         {
-            return compact
-                ? F(horizontal, 2) + " (" + F(total, 2) + ")"
-                : F(horizontal, 2) + " u/s   (tot " + F(total, 2) + ")";
+            return compact ? F(speed, 2) : F(speed, 2) + " u/s";
         }
 
         public static string Vector(float x, float y, float z, int decimals)

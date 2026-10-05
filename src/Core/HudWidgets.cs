@@ -197,17 +197,12 @@ namespace ForestOverlay.Core
         private int _pullLine = -1;        // a box line pressed, not yet dragged out
         private Vector2 _pullStart;
 
-        /// From the info box's draw, in edit mode: a press on one of its
-        /// lines starts pulling it out. Call before the box's own drag.
+        /// From the info box's draw, in edit mode. Pulling a line out by
+        /// dragging is off (author, 2026-10-05: lines popped out while the box
+        /// was dragged - "over-engineering simplicity"); widgets are made with
+        /// the editor list's "own" toggle. Kept as a no-op for the caller.
         public void BoxLineEvent(Rect lineRect, int lineIndex, Rect blocked)
         {
-            if (!Editing || lineIndex < 0 || HudLines.All[lineIndex].ConfigKey == null) return;
-            Event e = Event.current;
-            if (e == null || e.type != EventType.MouseDown || e.button != 0) return;
-            if (!lineRect.Contains(e.mousePosition) || blocked.Contains(e.mousePosition)) return;
-            _pullLine = lineIndex;
-            _pullStart = e.mousePosition;
-            e.Use();
         }
 
         /// Draws every free widget; in edit mode also its outline and handle,
@@ -260,18 +255,15 @@ namespace ForestOverlay.Core
             if (slots == 0)
             {
                 width = Mathf.Max(st.Label.CalcSize(NameOf(line)).x, st.Value.CalcSize(NotShowing).x);
-                height = (w.ShowLabel ? labelH : 0f) + valueH;
+                height = valueH;
             }
             else
             {
                 for (int j = 0; j < hud.Count; j++)
                 {
                     if (hud.LineIndex(j) != line) continue;
-                    GUIContent lab = single ? NameOf(line) : hud.LabelAt(j);
-                    bool showLab = w.ShowLabel && !string.IsNullOrEmpty(lab.text);
-                    if (showLab) width = Mathf.Max(width, st.Label.CalcSize(lab).x);
                     width = Mathf.Max(width, st.Value.CalcSize(hud.ValueAt(j)).x);
-                    height += (showLab ? labelH : 0f) + valueH;
+                    height += valueH;
                 }
             }
             width += CardPad * 2f;
@@ -295,7 +287,7 @@ namespace ForestOverlay.Core
             float cx = rect.x + CardPad;
             if (slots == 0)
             {
-                if (w.ShowLabel) { GUI.Label(new Rect(cx, cy, width, labelH), NameOf(line), st.Label); cy += labelH; }
+                
                 GUI.Label(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
             }
             else
@@ -303,12 +295,6 @@ namespace ForestOverlay.Core
                 for (int j = 0; j < hud.Count; j++)
                 {
                     if (hud.LineIndex(j) != line) continue;
-                    GUIContent lab = single ? NameOf(line) : hud.LabelAt(j);
-                    if (w.ShowLabel && !string.IsNullOrEmpty(lab.text))
-                    {
-                        GUI.Label(new Rect(cx, cy, width, labelH), lab, st.Label);
-                        cy += labelH;
-                    }
                     GUI.Label(new Rect(cx, cy, width, valueH), hud.ValueAt(j), st.Value);
                     cy += valueH;
                 }
@@ -475,9 +461,6 @@ namespace ForestOverlay.Core
                     if (GUI.Button(new Rect(xs, ry, 24f, rowH - 4f), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
                     GUI.Label(new Rect(xs + 26f, ry, 44f, rowH - 4f), ScaleText(wl.Scale));
                     if (GUI.Button(new Rect(xs + 70f, ry, 24f, rowH - 4f), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
-                    bool lab = GUI.Toggle(new Rect(xs + 98f, ry, 70f, rowH - 4f), wl.ShowLabel, LabelText);
-                    if (lab != wl.ShowLabel) { wl.ShowLabel = lab; Save(); }
-                    UiKit.Hint(new Rect(xs + 98f, ry, 70f, rowH - 4f), LabelTip);
                 }
                 ry += rowH;
             }

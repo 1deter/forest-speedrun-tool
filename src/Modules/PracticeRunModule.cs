@@ -1202,7 +1202,8 @@ namespace ForestOverlay.Modules
             // Attempts: open, and takes the room the closed sections leave.
             if (UiKit.Section(0f, ref y, cw, "runs.attempts", TextAttempts, null, null, true))
             {
-                float room = Mathf.Max(160f, viewH - y - 8f * (UiKit.HeaderH + 4f));
+                // As tall as its rows (no dead space, the page wheel works over it); long lists scroll inside.
+                float room = Mathf.Min(320f, Mathf.Max(24f, _attempts.Count * 20f + 4f));
                 DrawAttemptList(new Rect(0, y, cw, room));
                 y += room + 4f;
             }

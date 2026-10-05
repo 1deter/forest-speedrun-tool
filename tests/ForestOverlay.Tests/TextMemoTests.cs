@@ -72,7 +72,7 @@ namespace ForestOverlay.Tests
                 string f2 = v.ToString("F2", CultureInfo.InvariantCulture);
                 Assert.Equal(f0 + ", " + f0 + ", " + f0, HudLines.Vector(v, v, v, 0));
                 Assert.Equal(f1 + ", " + f1 + ", " + f1, HudLines.Vector(v, v, v, 1));
-                Assert.Equal(f2 + " u/s   (tot " + f2 + ")", HudLines.Speed(v, v, false));
+                Assert.Equal(f2 + " u/s", HudLines.Speed(v, false));
             }
         }
     }

@@ -47,7 +47,7 @@ namespace ForestOverlay.Tests
                 if (!l.Switchable) continue;
                 Assert.True(keys.Add(l.ConfigKey), l.ConfigKey);
                 // Lines added after the HUD settings are opt-in.
-                Assert.Equal(l.ConfigKey != "ShowLoadRemoved", l.DefaultOn);
+                Assert.Equal(l.ConfigKey != "ShowLoadRemoved" && l.ConfigKey != "ShowTotalSpeed", l.DefaultOn);
                 Assert.False(string.IsNullOrEmpty(l.Description));
             }
             Assert.True(HudLines.IndexOfKey("ShowTitle") >= 0);
@@ -68,8 +68,8 @@ namespace ForestOverlay.Tests
         [Fact]
         public void CompactValuesUseFewerWords()
         {
-            Assert.Equal("4.20 u/s   (tot 5.00)", HudLines.Speed(4.2f, 5f, false));
-            Assert.Equal("4.20 (5.00)", HudLines.Speed(4.2f, 5f, true));
+            Assert.Equal("4.20 u/s", HudLines.Speed(4.2f, false));
+            Assert.Equal("4.20", HudLines.Speed(4.2f, true));
             Assert.Equal("12   (3 stacks)", HudLines.Items(12, 3, false));
             Assert.Equal("12", HudLines.Items(12, 3, true));
             Assert.Equal("1.5, -2.0, 0.3", HudLines.Vector(1.5f, -2f, 0.26f, 1));

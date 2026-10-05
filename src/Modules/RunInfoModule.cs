@@ -22,9 +22,9 @@ namespace ForestOverlay.Modules
         // Each value's text and the numbers it was made from: standing
         // still, nothing is formatted again (ten refreshes a second, eight
         // numbers each). Exact float compares - the same input, the same text.
-        private float _speedH = float.NaN, _speedT;
-        private bool _speedCompact;
-        private string _speedText;
+        private float _speedH = float.NaN, _speedT = float.NaN;
+        private bool _speedCompact, _totalCompact;
+        private string _speedText, _totalText;
         private Vector3 _velShown = new Vector3(float.NaN, 0f, 0f);
         private string _velText;
         private Vector3 _posShown = new Vector3(float.NaN, 0f, 0f);
@@ -39,15 +39,25 @@ namespace ForestOverlay.Modules
             // Lines switched off in Settings are not built at all.
             if (hud.Shows("Speed"))
             {
-                float h = p.Horizontal, t = p.Total;
-                if (_speedText == null || h != _speedH || t != _speedT || compact != _speedCompact)
+                float h = p.Horizontal;
+                if (_speedText == null || h != _speedH || compact != _speedCompact)
                 {
                     _speedH = h;
-                    _speedT = t;
                     _speedCompact = compact;
-                    _speedText = HudLines.Speed(h, t, compact);
+                    _speedText = HudLines.Speed(h, compact);
                 }
                 hud.Pair("Speed", _speedText);
+            }
+            if (hud.Shows("Total"))
+            {
+                float t = p.Total;
+                if (_totalText == null || t != _speedT || compact != _totalCompact)
+                {
+                    _speedT = t;
+                    _totalCompact = compact;
+                    _totalText = HudLines.Speed(t, compact);
+                }
+                hud.Pair("Total", _totalText);
             }
 
             if (hud.Shows("Vel"))

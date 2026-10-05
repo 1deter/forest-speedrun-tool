@@ -29,9 +29,11 @@ namespace ForestOverlay.Core
         public static readonly Color Border = new Color(0.180f, 0.196f, 0.235f, 1f);
         public static readonly Color TextColour = new Color(0.90f, 0.91f, 0.92f, 1f);
         public static readonly Color DimColour = new Color(0.60f, 0.63f, 0.67f, 1f);
-        /// The one accent: forest green.
-        public static readonly Color Accent = new Color(0.30f, 0.78f, 0.56f, 1f);
-        public static readonly Color AccentDark = new Color(0.16f, 0.42f, 0.31f, 1f);
+        /// The one accent: The Forest's logo yellow (author, 2026-10-05: black on yellow).
+        public static readonly Color Accent = new Color(0.95f, 0.76f, 0.11f, 1f);
+        public static readonly Color AccentDark = new Color(0.42f, 0.33f, 0.05f, 1f);
+        public static readonly Color AccentHover = new Color(1f, 0.84f, 0.30f, 1f);
+        public static readonly Color OnAccent = new Color(0.05f, 0.05f, 0.04f, 1f);
         public static readonly Color Warn = new Color(1f, 0.55f, 0.2f, 1f);
 
         public const float Pad = 8f;
@@ -100,7 +102,7 @@ namespace ForestOverlay.Core
             Color[] px = new Color[w * w];
             for (int i = 0; i < px.Length; i++) px[i] = clear;
 
-            Color fill = on ? (hover ? new Color(0.38f, 0.85f, 0.63f, 1f) : Accent) : (hover ? CardHover : CardBg);
+            Color fill = on ? (hover ? AccentHover : Accent) : (hover ? CardHover : CardBg);
             Color edge = on ? Accent : (hover ? DimColour : new Color(0.33f, 0.36f, 0.42f, 1f));
             const int box = 16, ox = 3, oy = 4, r = 4;
             float inner = box * 0.5f - r;
@@ -118,12 +120,6 @@ namespace ForestOverlay.Core
                     c.a *= cover;
                     px[(y + oy) * w + x + ox] = c;
                 }
-            }
-            if (on)
-            {
-                // A check mark: two thick strokes (texture y runs upwards).
-                Stroke(px, w, ox + 4f, oy + 8f, ox + 7f, oy + 5f);
-                Stroke(px, w, ox + 7f, oy + 5f, ox + 12f, oy + 11.5f);
             }
             t.SetPixels(px);
             t.Apply(false, true);
@@ -172,7 +168,7 @@ namespace ForestOverlay.Core
             _tButtonHover = Rounded(24, 5, CardHover, new Color(0.34f, 0.37f, 0.43f, 1f), 1);
             _tButtonOn = Rounded(24, 5, AccentDark, Accent, 1);
             _tPrimary = Rounded(24, 5, Accent, Accent, 0);
-            _tPrimaryHover = Rounded(24, 5, new Color(0.40f, 0.86f, 0.64f, 1f), Accent, 0);
+            _tPrimaryHover = Rounded(24, 5, AccentHover, Accent, 0);
             _tField = Rounded(24, 4, new Color(0.065f, 0.07f, 0.09f, 1f), new Color(0.24f, 0.26f, 0.31f, 1f), 1);
             _tCheckOff = Check(false, false);
             _tCheckOffHover = Check(false, true);
@@ -317,9 +313,9 @@ namespace ForestOverlay.Core
             _tip.fontSize = 12;
 
             _primary = new GUIStyle(b);
-            StyleState(_primary.normal, _tPrimary, new Color(0.04f, 0.1f, 0.07f, 1f));
-            StyleState(_primary.hover, _tPrimaryHover, new Color(0.04f, 0.1f, 0.07f, 1f));
-            StyleState(_primary.active, _tPrimaryHover, new Color(0.04f, 0.1f, 0.07f, 1f));
+            StyleState(_primary.normal, _tPrimary, OnAccent);
+            StyleState(_primary.hover, _tPrimaryHover, OnAccent);
+            StyleState(_primary.active, _tPrimaryHover, OnAccent);
             _primary.fontStyle = FontStyle.Bold;
 
             _hint = new GUIStyle(_skin.label);
