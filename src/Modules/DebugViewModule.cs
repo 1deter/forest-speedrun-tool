@@ -473,7 +473,7 @@ namespace ForestOverlay.Modules
                 GUI.enabled = guiWas;
                 if (on != _perf.IsOn(i)) _perf.Toggle(i);
                 y += Row;
-                if (_perf.Note(i).Length > 0) y += UiText.Draw(30, y, w - 42, _perf.Note(i));
+                if (_perf.Note(i).Length > 0) UiText.Note(30, y, w - 42, _perf.Note(i));
                 if (_perf.Status(i) != (_perf.IsOn(i) ? "on" : "off"))
                     y += UiText.Draw(30, y, w - 42, _perf.Status(i));
             }
@@ -522,7 +522,8 @@ namespace ForestOverlay.Modules
                 y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
                 y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
             }
-            y += UiText.Draw(30, y, w - 42, TrajectoryHelp) + 6f;
+            UiText.Note(30, y, w - 42, TrajectoryHelp);
+            y += 6f;
 
             // --- filters ----------------------------------------------------
             bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
@@ -537,7 +538,7 @@ namespace ForestOverlay.Modules
                 y += Row;
             }
 
-            y += UiText.Draw(12, y, w - 24, FilterHelp);
+            UiText.Note(12, y, w - 24, FilterHelp);
             string text = GUI.TextField(new Rect(12, y, w - 24, 22), _excludeText);
             if (text != _excludeText) { _excludeText = text; FiltersChanged(); }
             y += Row + 2f;

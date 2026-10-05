@@ -49,6 +49,19 @@ namespace ForestOverlay.Core
             return 0f;
         }
 
+        private static readonly GUIContent NoteCache = new GUIContent("");
+
+        public static float Note(float x, float y, float width, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return 0f;
+            // One shared cache: set only for the row under the mouse.
+            Rect r = new Rect(0f, y - 24f, x + width, 24f);
+            Event e = Event.current;
+            if (e == null || !r.Contains(e.mousePosition)) return 0f;
+            UiKit.Hint(r, text, NoteCache);
+            return 0f;
+        }
+
         public static float DrawDim(float x, float y, float width, GUIContent content)
         {
             return Draw(x, y, width, content, Dim);
