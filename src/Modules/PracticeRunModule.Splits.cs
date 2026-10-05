@@ -545,18 +545,19 @@ namespace ForestOverlay.Modules
                 _colourStyles[i].normal.textColor = colours[i];
             }
 
-            _panelStyle = new GUIStyle(GUI.skin.box);
-            Texture2D bg = new Texture2D(1, 1);
-            bg.SetPixel(0, 0, new Color(0.06f, 0.06f, 0.06f, 0.82f));
-            bg.Apply();
-            _panelStyle.normal.background = bg;
+            // The kit's rounded dark card: the same look as the results panel
+            // and the HUD widgets (docs/ui-redesign.md).
+            _panelStyle = new GUIStyle(UiKit.WidgetCard);
         }
 
         public override void DrawScreen()
         {
             DrawReplayLabels();
             DrawResults();
-            if (!PanelShowing) return;
+            // The results panel has the splits in it and used to be drawn
+            // over this panel (author, 2026-10-05): this one steps aside
+            // until the next run starts.
+            if (ResultsShowing || !PanelShowing) return;
             EnsureSplitStyles();
 
             float w = Mathf.Clamp(_panelWidth.Value, 160f, Screen.width);
@@ -712,19 +713,21 @@ namespace ForestOverlay.Modules
         }
 
         /// The Runs tab's splits section: the table, then its options.
+        private static readonly GUIContent SplitsOptionsText = new GUIContent("Splits panel and table options");
+
         private float DrawSplitsSection(float y, float w)
         {
             EnsureSplitStyles();
             if (_shownRows > 0) y += DrawSplitsTable(0f, y, w, 0, true) + 4f;
             y += UiText.Draw(0, y, w, _splitsHint);
 
-            if (GUI.Button(new Rect(0, y, 150, 22), _splitsOptionsOpen ? "Splits options  ^" : "Splits options  v"))
+            bool optionsOpen = UiKit.Section(0f, ref y, w, "runs.splitsopts", SplitsOptionsText, null, null, false);
+            if (optionsOpen != _splitsOptionsOpen)
             {
-                _splitsOptionsOpen = !_splitsOptionsOpen;
+                _splitsOptionsOpen = optionsOpen;
                 _runnerEdit = null;    // re-read the Steam name and the setting
                 _splitsDirty = true;   // the runner and size lines are built on a refresh
             }
-            y += 26f;
             if (!_splitsOptionsOpen) return y;
 
             bool panel = GUI.Toggle(new Rect(0, y, w, 20), _splitsPanel.Value, " Show the splits panel on screen (F5 hides all overlay UI)");

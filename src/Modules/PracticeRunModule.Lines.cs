@@ -18,7 +18,6 @@ namespace ForestOverlay.Modules
     {
         private ConfigEntry<float> _lineOpacity, _lineAhead;
         private ConfigEntry<bool> _lineAheadOn, _keepFailedCfg;
-        private bool _lineOptionsOpen;
 
         private float _lineOpacityNow = -1f, _lineAheadNow = -1f;   // < 0 = the config's value
         private float _lineWriteAt;
@@ -50,8 +49,6 @@ namespace ForestOverlay.Modules
         /// At the top of the Runs tab's scroll area when open; returns the new y.
         private float DrawLineOptions(float y, float w)
         {
-            if (!_lineOptionsOpen) return y;
-
             // Text rebuilt only when the value moves (OnGUI runs often).
             if (LineOpacity != _lineOpacityShown) { _lineOpacityShown = LineOpacity; _lineOpacityText.text = Mathf.RoundToInt(LineOpacity * 100f) + "%"; }
             if (LineAhead != _lineAheadShown) { _lineAheadShown = LineAhead; _lineAheadText.text = LineAhead.ToString("0") + " s"; }

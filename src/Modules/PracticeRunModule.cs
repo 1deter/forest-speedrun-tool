@@ -1146,22 +1146,30 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
-            bool on = GUI.Toggle(new Rect(0, 2, 140, 20), Enabled, " Practice mode");
+            // --- the essentials, always in view ----------------------------------
+            Rect modeR = new Rect(0, 2, 140, 22);
+            bool on = GUI.Toggle(modeR, Enabled, " Practice mode");
             if (on != Enabled) ToggleMode();
+            UiKit.Hint(modeR, TipPracticeMode);
+            GUI.Label(new Rect(150, 2, w - 160, 22), _segmentText);
 
-            GUI.Label(new Rect(150, 2, w - 160, 20), _segmentText);
+            Rect restartR = new Rect(0, 30, 110, 26);
+            if (UiKit.PrimaryButton(restartR, TextRestart)) Restart();
+            UiKit.Hint(restartR, TipRestart);
+            Rect splitR = new Rect(116, 30, 120, 26);
+            if (GUI.Button(splitR, "Split / finish")) ManualAdvance();
+            UiKit.Hint(splitR, TipSplit);
+            Rect abortR = new Rect(242, 30, 80, 26);
+            if (GUI.Button(abortR, "Abort")) AbortRun();
+            UiKit.Hint(abortR, TipAbort);
 
-            if (GUI.Button(new Rect(0, 28, 120, 24), "Restart")) Restart();
-            if (GUI.Button(new Rect(126, 28, 120, 24), "Split / finish")) ManualAdvance();
-            if (GUI.Button(new Rect(252, 28, 90, 24), "Abort")) AbortRun();
-            if (GUI.Button(new Rect(w - 100, 28, 100, 24), "Clear times")) ClearTimes();
-
-            GUI.Label(new Rect(0, 58, 80, 20), "Compare to");
+            GUI.Label(new Rect(0, 62, 80, 20), "Compare to");
             Reference kind = _referenceKind;
-            if (GUI.Toggle(new Rect(84, 58, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
-            if (GUI.Toggle(new Rect(148, 58, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
-            if (GUI.Toggle(new Rect(212, 58, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
-            if (GUI.Toggle(new Rect(296, 58, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            if (GUI.Toggle(new Rect(84, 62, 60, 20), kind == Reference.Best, " best")) kind = Reference.Best;
+            if (GUI.Toggle(new Rect(148, 62, 60, 20), kind == Reference.Last, " last")) kind = Reference.Last;
+            if (GUI.Toggle(new Rect(212, 62, 80, 20), kind == Reference.Average, " average")) kind = Reference.Average;
+            if (GUI.Toggle(new Rect(296, 62, 120, 20), kind == Reference.BestSegments, " best segments")) kind = Reference.BestSegments;
+            UiKit.Hint(new Rect(0, 62, 420, 20), TipCompare);
             if (kind != _referenceKind)
             {
                 _referenceKind = kind;
@@ -1170,48 +1178,103 @@ namespace ForestOverlay.Modules
                 _splitsDirty = true;
             }
 
-            bool lines = GUI.Toggle(new Rect(0, 82, 110, 20), _showLines, " run lines");
-            if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
-
-            bool auto = GUI.Toggle(new Rect(114, 82, w - 114 - 130, 20), _autoRestart.Value,
-                                   " Auto-restart when a run finishes");
-            if (auto != _autoRestart.Value) _autoRestart.Value = auto;
-            if (GUI.Button(new Rect(w - 124, 81, 124, 22), _lineOptionsOpen ? "Line options  ^" : "Line options  v"))
-                _lineOptionsOpen = !_lineOptionsOpen;
-
             // Flowing, each line as tall as its text (UiText) - these
             // messages vary in length and clipped at fixed heights. The rest
-            // of the tab scrolls: with the splits table and its options open
-            // it outgrows the window (v0.24.147).
-            const float top = 106f;
+            // of the tab scrolls, in sections: what a runner needs is open,
+            // the advanced ones are closed behind a header (docs/ui-redesign.md).
+            const float top = 90f;
             float viewH = _tabH - top - 4f;
             bool scrolls = _pageH > viewH;
             float cw = scrolls ? w - 20f : w;
             _pageScroll = GUI.BeginScrollView(new Rect(0, top, w, viewH), _pageScroll, new Rect(0, 0, cw, Mathf.Max(_pageH, viewH)));
 
             float y = _runMode != null ? _runMode.DrawSection(0f, cw) + 4f : 0f;
-            y = DrawCheckpointSection(y, cw);
-            if (_tas != null) y = _tas.DrawSection(y, cw);
-            y = DrawLineOptions(y, cw);
-            y = DrawReplayOptions(y, cw);
-            y = DrawCameraSection(y, cw);
-            y = DrawRunnersSection(y, cw);
-            y = DrawLiveSplitSection(y, cw);
             y += UiText.Draw(0, y, cw, _statusText);
             y += UiText.Draw(0, y, cw, _diagnoseText);
             y += UiText.Draw(0, y, cw, _eventText);
-            if (_upload != null) y = _upload.DrawSection(y + 4f, cw);
-            y = DrawSplitsSection(y + 4f, cw);
-            y += UiText.Draw(0, y, cw, _whenSetText);
 
-            // The attempts keep their own scrolling list: the room left, or
-            // at least 160 px below everything else.
-            y += 4f;
-            float listH = Mathf.Max(160f, viewH - y - 4f);
-            DrawAttemptList(new Rect(0, y, cw, listH));
-            _pageH = y + listH + 4f;
+            if (UiKit.Section(0f, ref y, cw, "runs.splits", TextSplits, null, TipSplitsSection, true))
+            {
+                y = DrawSplitsSection(y, cw);
+                y += UiText.Draw(0, y, cw, _whenSetText);
+            }
+
+            // Attempts: open, and takes the room the closed sections leave.
+            if (UiKit.Section(0f, ref y, cw, "runs.attempts", TextAttempts, null, null, true))
+            {
+                float room = Mathf.Max(160f, viewH - y - 8f * (UiKit.HeaderH + 4f));
+                DrawAttemptList(new Rect(0, y, cw, room));
+                y += room + 4f;
+            }
+
+            if (_segment != null && _cpCapture != null &&
+                UiKit.Section(0f, ref y, cw, "runs.checkpoints", TextCheckpoints, _cpCapture.Value ? SummaryOn : SummaryOff, TipCheckpoints, false))
+                y = DrawCheckpointSection(y, cw);
+
+            if (_segment != null &&
+                UiKit.Section(0f, ref y, cw, "runs.sources", TextSources, null, TipSources, false))
+            {
+                y = DrawRunnersSection(y, cw);
+                y = DrawLiveSplitSection(y, cw);
+            }
+
+            if (UiKit.Section(0f, ref y, cw, "runs.options", TextOptions, null, TipOptions, false))
+            {
+                bool lines = GUI.Toggle(new Rect(0, y, cw, 22), _showLines, " Run lines");
+                if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
+                UiKit.Hint(new Rect(0, y, cw, 22), TipLines);
+                y += 24f;
+                bool auto = GUI.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
+                if (auto != _autoRestart.Value) _autoRestart.Value = auto;
+                y += 24f;
+                y = DrawLineOptions(y, cw);
+                if (GUI.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();
+                UiKit.Hint(new Rect(0, y, 120, 24), TipClear);
+                y += 30f;
+            }
+
+            if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))
+            {
+                y = DrawReplayOptions(y, cw);
+                y = DrawCameraSection(y, cw);
+            }
+
+            if (_tas != null && UiKit.Section(0f, ref y, cw, "runs.tas", TextTas, null, null, false))
+                y = _tas.DrawSection(y, cw);
+
+            if (_upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false))
+                y = _upload.DrawSection(y, cw);
+
+            _pageH = y + 4f;
             GUI.EndScrollView();
         }
+
+        // Section titles, summaries and hover tips of the Runs tab: made
+        // once (nothing is built in DrawTab).
+        private static readonly GUIContent TextRestart = new GUIContent("Restart");
+        private static readonly GUIContent TextSplits = new GUIContent("Splits");
+        private static readonly GUIContent TextAttempts = new GUIContent("Attempts");
+        private static readonly GUIContent TextCheckpoints = new GUIContent("Checkpoint states");
+        private static readonly GUIContent TextSources = new GUIContent("Compare to another runner or LiveSplit");
+        private static readonly GUIContent TextOptions = new GUIContent("Run options");
+        private static readonly GUIContent TextReplay = new GUIContent("Ghost and replay");
+        private static readonly GUIContent TextTas = new GUIContent("TAS");
+        private static readonly GUIContent TextUpload = new GUIContent("Upload to the website");
+        private static readonly GUIContent SummaryOn = new GUIContent("on");
+        private static readonly GUIContent SummaryOff = new GUIContent("off");
+        private static readonly GUIContent TipPracticeMode = new GUIContent("Practice mode makes the overlay's tools usable; the HUD says PRACTICE once one is used.");
+        private static readonly GUIContent TipRestart = new GUIContent("Back to the current spot with its start state (F7).");
+        private static readonly GUIContent TipSplit = new GUIContent("Split by hand, or finish the run (F12).");
+        private static readonly GUIContent TipAbort = new GUIContent("Throw the run away without saving a time ([).");
+        private static readonly GUIContent TipCompare = new GUIContent("What the delta, the ghost and the lines compare against.");
+        private static readonly GUIContent TipSplitsSection = new GUIContent("The splits of the selected segment against the comparison. Options: columns, panel size and position, runner name.");
+        private static readonly GUIContent TipCheckpoints = new GUIContent("Save the game at each checkpoint of a practice run, to restart from there.");
+        private static readonly GUIContent TipSources = new GUIContent("Another runner's times from the website, or a LiveSplit .lss file, as the comparison.");
+        private static readonly GUIContent TipOptions = new GUIContent("Run lines, auto-restart, line look, clear times.");
+        private static readonly GUIContent TipLines = new GUIContent("Draw the path of your run and the comparison in the world.");
+        private static readonly GUIContent TipClear = new GUIContent("Clears the attempts from view; the files are kept.");
+        private static readonly GUIContent TipReplay = new GUIContent("Watch the comparison run as a ghost, chase or first-person.");
+        private static readonly GUIContent TipUpload = new GUIContent("Finished runs go to forest.deter.cloud automatically; the queue and refused files are here.");
 
         // Tab text, rebuilt from Tick a few times a second - never in
         // DrawTab, which runs several times a frame (module rules).

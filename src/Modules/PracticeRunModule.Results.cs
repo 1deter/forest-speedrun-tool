@@ -360,7 +360,7 @@ namespace ForestOverlay.Modules
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Mathf.Max(Opacity, 0.85f)));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_resDragging) GUI.Box(panel, GUIContent.none);
+            if (_resDragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);
             ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
         }
 
