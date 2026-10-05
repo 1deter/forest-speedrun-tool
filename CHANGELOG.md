@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.247 - 2026-10-05
+
+- Restoring a savestate after starting a new game no longer hangs on LOADING, and a start state from another difficulty now loads that difficulty (enemies, damage, survival) instead of keeping this game's; a run spot's start turns cheat switches off (Creative's come back as it loads).
+
 ## v0.24.246 - 2026-10-05
 
 - Run lines, the ghost, replay buildings and markers keep their real colours instead of turning white, by day and at night; replay labels at one spot are merged ("Crafted: Bomb x2"), and labels that would overlap stack upwards.
