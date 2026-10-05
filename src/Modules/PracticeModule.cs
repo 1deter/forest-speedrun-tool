@@ -79,6 +79,8 @@ namespace ForestOverlay.Modules
         /// changes: a run in progress is void from here (author, v0.24.11:
         /// the clock ran on through a load restore until it finished).
         public Action OnRestartStarting;
+        /// A spot was deleted here (Runs clears it if it armed it).
+        public Action<Segment> OnSpotDeleted;
 
         private float _tabW;
         private float _tabH;
@@ -1735,13 +1737,28 @@ namespace ForestOverlay.Modules
 
             if (ReferenceEquals(_current, _selected)) _current = null;
 
+            Segment gone = _selected;
             _library.Remove(_selected);
             _unsaved.Remove(_selected);
             _selected = null;
+            if (ReferenceEquals(_shareFor, gone)) _shareFor = null;
+            if (ReferenceEquals(_deleteSiteFor, gone)) { _deleteSiteFor = null; _deleteSiteArmedUntil = 0f; }
+            try { if (OnSpotDeleted != null) OnSpotDeleted(gone); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Practice: clearing a deleted spot failed: " + ex.Message); }
 
             // Written straight through: a delete that only existed in memory
             // would reappear on reload and look like a bug.
             _status = WriteFile(file) ? "Deleted." : "Deleted here, but writing the file failed - see log.";
+
+            // Off the website too (the runner's own spot; quiet when it is not there).
+            if (_upload != null && !SegmentLibrary.IsCommunity(gone) && !string.IsNullOrEmpty(gone.Id))
+            {
+                string site = _upload.DeleteSpotQuietly(gone, delegate(string text)
+                {
+                    if (_selected == null) _status = "Deleted. " + text;
+                });
+                if (site != null) _status += " " + site;
+            }
         }
 
         /// Writes every unsaved entry. One that cannot be saved is selected

@@ -89,6 +89,32 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void DeleteQueue_AndSettling()
+        {
+            string q = SiteProtocol.QueueAdd("", "s-a");
+            q = SiteProtocol.QueueAdd(q, "s-b");
+            q = SiteProtocol.QueueAdd(q, "s-a");
+            Assert.Equal(2, q.Split((char)10).Length - 1);
+            q = SiteProtocol.QueueRemove(q, "s-a");
+            Assert.Equal("s-b", SiteProtocol.QueueFirst(q));
+            Assert.Null(SiteProtocol.QueueFirst(SiteProtocol.QueueRemove(q, "s-b")));
+            Assert.Null(SiteProtocol.QueueFirst(null));
+
+            Assert.True(SiteProtocol.DeleteSettled(200));
+            Assert.True(SiteProtocol.DeleteSettled(404));
+            Assert.True(SiteProtocol.DeleteSettled(409));
+            Assert.False(SiteProtocol.DeleteSettled(0));
+            Assert.False(SiteProtocol.DeleteSettled(502));
+            Assert.False(SiteProtocol.DeleteSettled(401));
+            Assert.False(SiteProtocol.DeleteSettled(429));
+
+            Assert.True(SiteProtocol.DeleteQuiet(404, "{}"));
+            Assert.True(SiteProtocol.DeleteQuiet(200, "{\"runs\":0}"));
+            Assert.False(SiteProtocol.DeleteQuiet(200, "{\"runs\":2}"));
+            Assert.False(SiteProtocol.DeleteQuiet(403, "{}"));
+        }
+
+        [Fact]
         public void DeleteSpot_UrlAndMessages()
         {
             Assert.Equal("https://forest.deter.cloud/api/spots/s-0123456789ab",
