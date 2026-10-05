@@ -159,3 +159,29 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
    a queue channel).
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
+
+## Bot settings page on /admin (planned, author 2026-10-05: "sure")
+
+Asked for so channels / limits change without editing `/opt/forest-bot/.env`
+and recreating the container. Until it exists: edit `.env`
+(`FOREST_BOT_CHANNELS=id,id`), then
+`cd /opt/forest-bot && sudo docker compose up -d --force-recreate`.
+
+Design (agreed in chat):
+- **Owner-only "Bot" tab on the site's /admin**, behind the existing admin
+  token. Settings: channels it answers in (**by name, checkboxes** - the bot
+  posts the channels it can see to the site), DMs on / off, per-user
+  limits (hour / day), model order, thinking level, research-queue channel.
+- **Live, no restart**: the bot polls the site for its settings about once a
+  minute (a bot-only token, its own header) and applies them; on a failed
+  fetch it keeps the last good settings (cached in its data dir). `.env`
+  values are the defaults / fallback.
+- **Secrets stay in `.env`** - the Discord token and model API keys never
+  pass through a web page (a stolen admin token can change channels, not
+  read keys).
+- The page shows **what the bot is running**: "applied hh:mm, bot vX" from
+  the bot's last poll, so a change that did not take is visible.
+- Work: site endpoint + store + /admin tab (forest-site), bot poller +
+  `BotConfig` live reload (bot/), tests on both sides. Medium-sized.
+- Alternative not chosen: owner-only Discord slash commands (no overview,
+  clumsy beyond channels).

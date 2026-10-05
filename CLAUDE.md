@@ -453,7 +453,9 @@ total speed its own line, toasts, info box off by default, font-size
 flicker and linear-texture colour fixes. Left: tooltips across the other
 tabs, the cursor re-check, then a release. The author runs the draft.
 
-**Next:** the author's look at the redesign; then the backlog (colliders
+**Next:** 1) the bot settings page on /admin (author, 2026-10-05;
+design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
+remaining items (branch doc); then the backlog (colliders
 that change between attempts, the Megan health check with the author, a
 maintainability review).
 A session picking this up mid-way: `git worktree list` / branches
