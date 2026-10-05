@@ -31,6 +31,13 @@ namespace ForestOverlay.Core
         private readonly List<string> _builtValue = new List<string>();
         private readonly List<bool> _builtCompact = new List<bool>();
 
+        // The HUD customiser's view of a slot (Core/HudWidgets): which
+        // HudLines entry wrote it (-1: not a switchable line) and its label
+        // and value apart, for a line that is its own widget.
+        private readonly List<int> _lineIndex = new List<int>();
+        private readonly List<GUIContent> _labelC = new List<GUIContent>();
+        private readonly List<GUIContent> _valueC = new List<GUIContent>();
+
         public int Count { get { return _count; } }
 
         /// The [HUD] switches; null = everything shown, normal wording.
@@ -64,6 +71,7 @@ namespace ForestOverlay.Core
             {
                 _lines[_count].text = text;
                 _builtLabel[_count] = null;   // not a Pair's text
+                _lineIndex[_count] = -1;
             }
             else
             {
@@ -71,6 +79,9 @@ namespace ForestOverlay.Core
                 _builtLabel.Add(null);
                 _builtValue.Add(null);
                 _builtCompact.Add(false);
+                _lineIndex.Add(-1);
+                _labelC.Add(new GUIContent(""));
+                _valueC.Add(new GUIContent(""));
             }
 
             _count++;
@@ -78,12 +89,13 @@ namespace ForestOverlay.Core
 
         public void Pair(string label, string value)
         {
-            if (!Shows(label)) return;
+            int idx = HudLines.Find(Source, label);
+            if (Settings != null && !Settings.Shows(idx)) return;
             if (label == null) label = "";
             if (value == null) value = "";
             bool compact = Compact;
             int slot = _count;
-            if (slot < _lines.Count && _builtLabel[slot] != null && _builtCompact[slot] == compact &&
+            if (slot < _lines.Count && _builtLabel[slot] != null && _builtCompact[slot] == compact && _lineIndex[slot] == idx &&
                 string.Equals(_builtLabel[slot], label) && string.Equals(_builtValue[slot], value))
             {
                 _count++;
@@ -93,7 +105,18 @@ namespace ForestOverlay.Core
             _builtLabel[slot] = label;
             _builtValue[slot] = value;
             _builtCompact[slot] = compact;
+            _lineIndex[slot] = idx;
+            _labelC[slot].text = label;
+            _valueC[slot].text = value.Trim();
         }
+
+        /// The HudLines index of the line a slot holds, or -1.
+        public int LineIndex(int index) { return _lineIndex[index]; }
+        public GUIContent LabelAt(int index) { return _labelC[index]; }
+        public GUIContent ValueAt(int index) { return _valueC[index]; }
+
+        /// The HUD customiser: which lines are their own widgets.
+        public HudWidgets Widgets;
 
         public GUIContent At(int index)
         {

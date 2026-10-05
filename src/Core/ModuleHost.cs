@@ -73,6 +73,7 @@ namespace ForestOverlay.Core
             _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
             _hud.Settings = new HudSettings(ctx.Config);
+            _hud.Widgets = new HudWidgets(ctx.ConfigDirectory, ctx.Log);
         }
 
         public void Register(OverlayModule module)
@@ -471,18 +472,25 @@ namespace ForestOverlay.Core
 
         public void DrawPanels()
         {
-            for (int i = 0; i < _modules.Count; i++)
+            // The overlay skin (Core/UiKit) only around the panels: the HUD,
+            // the notice and the game's own GUI keep the default one.
+            GUISkin previous = UiKit.Begin();
+            try
             {
-                OverlayModule m = _modules[i];
-                if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
-                long heap0 = Heap();
-                try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
-                catch (Exception ex)
+                for (int i = 0; i < _modules.Count; i++)
                 {
-                    m.PanelOpen = false;
-                    Disable(m, "DrawPanel", ex);
+                    OverlayModule m = _modules[i];
+                    if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
+                    long heap0 = Heap();
+                    try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
+                    catch (Exception ex)
+                    {
+                        m.PanelOpen = false;
+                        Disable(m, "DrawPanel", ex);
+                    }
                 }
             }
+            finally { UiKit.End(previous); }
         }
 
         // ------------------------------------------------------------------

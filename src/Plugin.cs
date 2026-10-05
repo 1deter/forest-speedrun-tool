@@ -355,22 +355,46 @@ namespace ForestOverlay
             float markerH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, textW));
             float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, textW)) : 0f;
             float textH = markerH + onH;
+            HudWidgets widgets = _host.Hud.Widgets;
+            bool editing = widgets != null && widgets.Editing;
             for (int i = 0; i < lines; i++)
+            {
+                if (widgets != null && widgets.IsDetached(_host.Hud.LineIndex(i))) continue;   // its own widget
                 textH += Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
+            }
 
             float boxH = top + textH + 14f;
             float bx = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, w, Screen.width);
             float by = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, boxH, Screen.height);
             Rect box = new Rect(bx, by, w, boxH);
+
+            // HUD customiser edit mode: a press on a line pulls it out as a
+            // widget (before the box's own drag sees the press).
+            if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
+            Rect blocked = _mainWindow != null ? _mainWindow.ScreenRect : new Rect();
+            if (editing)
+            {
+                float ly = by + top;
+                for (int i = 0; i < lines; i++)
+                {
+                    int li = _host.Hud.LineIndex(i);
+                    if (widgets.IsDetached(li)) continue;
+                    float lh = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(_host.Hud.At(i), textW));
+                    widgets.BoxLineEvent(new Rect(bx + 10f, ly, textW, lh), li, blocked);
+                    ly += lh;
+                }
+            }
             HandleHudDrag(box, s);
 
             GUI.Box(box, title ? (s.Compact ? HudTitleCompact : HudTitle) : GUIContent.none, _hudBoxStyle);
             if (_hudDragging) GUI.Box(box, GUIContent.none);   // an outline while moving
+            if (editing) GUI.Box(box, GUIContent.none, UiKit.Outline);
 
             float x = bx + 10f;
             float y = by + top;
             for (int i = 0; i < lines; i++)
             {
+                if (widgets != null && widgets.IsDetached(_host.Hud.LineIndex(i))) continue;
                 GUIContent line = _host.Hud.At(i);
                 float h = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(line, textW));
                 GUI.Label(new Rect(x, y, textW, h), line, _hudLabelStyle);
@@ -389,6 +413,9 @@ namespace ForestOverlay
             // recording must make it obvious that a practice tool was used.
             // Never switchable either.
             GUI.Label(new Rect(x, y, textW, markerH), _practice.Label, practiceStyle);
+
+            // The widgets taken out of the box (and, in edit mode, their handles).
+            if (widgets != null) widgets.Draw(_host.Hud, blocked);
         }
 
         private void HandleHudDrag(Rect box, HudSettings s)
