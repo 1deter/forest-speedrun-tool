@@ -450,8 +450,10 @@ for them to try. Author tried it 2026-10-05 and gave a 10-item list (branch doc,
 *Author's verdict*); the same evening most of it was built and seen in
 game: yellow accent, filled toggles, value-only widgets, no drag-out,
 total speed its own line, toasts, info box off by default, font-size
-flicker and linear-texture colour fixes. Left: tooltips across the other
-tabs, the cursor re-check, then a release. The author runs the draft.
+flicker and linear-texture colour fixes. Later: transparent widgets, toasts,
+tooltips (`UiText.Note`), opaque window, ON NOW as a list. Left (branch
+doc): a few Debug views / Map / 100% notes, the cursor re-check, QA, then
+merge + release (author's call). The author runs the draft.
 
 **Next:** 1) the bot settings page on /admin (author, 2026-10-05;
 design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
