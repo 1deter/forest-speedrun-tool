@@ -205,3 +205,18 @@ font size per scale (up to 96 px bold). Fix: values render at one size
 comes back, count the font sizes everything draws at (UiKit: 11-13, 26).
 Cursor bug steps from the author: Settings tab, F2 to close - "seems to be
 fixed now though?"
+
+**Later the same evening (all seen in game):** the yellow came out orange
+(`#E28903`, every channel ~ value^2.27): the game treated UiKit's textures
+as sRGB - they are now created linear and match the logo (`#F5C518`).
+**Toasts** (`Ctx.Notice`): a UiKit card at the top middle, slides down /
+back up (0.25 s, smoothstep), a 2 px yellow bar runs out over its time.
+**Info box off by default** (`HUD.InfoBox`, Settings -> Info box, with a
+tooltip): only widgets + the ON NOW / PRACTICE markers (honest labelling,
+two plain lines at the box position) draw. **Run mode text**: "Run mode:
+off" / "ON - attempt n", the explanations in tooltips; "Send attempts to the
+website" + tooltip.
+Left on the list: the rest of item 9 across the other tabs (Practice,
+Deaths, Debug views, Settings bodies still have paragraphs); widgets for
+the update line (a toast when an update is found would fit); the cursor
+check; snapping; saved section state.

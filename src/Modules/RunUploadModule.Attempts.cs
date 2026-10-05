@@ -28,6 +28,7 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     public sealed partial class RunUploadModule
     {
+        private static readonly GUIContent SendTip = new GUIContent("Each run mode attempt's codes and log go to forest.deter.cloud, where moderators check runs.");
         private const string AttemptExt = ".attempt";
         private const int RecentShown = 5;
 
@@ -368,7 +369,8 @@ namespace ForestOverlay.Modules
         /// links. Returns the new y.
         public float DrawAttempts(float y, float w)
         {
-            bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website (codes + log, for checking runs)");
+            bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send attempts to the website");
+            UiKit.Hint(new Rect(0, y, w, 20), SendTip);
             if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
             y += 22f;
             if (_attemptState.Length > 0)

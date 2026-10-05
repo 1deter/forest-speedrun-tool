@@ -56,6 +56,9 @@ namespace ForestOverlay.Modules
             "Move, resize and show / hide each value; drag a value out of the box to make it a widget of its own " +
             "(layout file: config/ForestOverlay/hud-layout.txt).");
         private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
+        private static readonly GUIContent InfoBoxText = new GUIContent(" Info box");
+        private static readonly GUIContent InfoBoxTip = new GUIContent(
+            "The old box of values at the top left. Off, values you want on screen are HUD widgets (Edit HUD layout); practice and ON NOW warnings always show.");
         private static readonly GUIContent CompactNote = new GUIContent(
             "Shorter values (no stack count, no units), labels without column padding, a short title.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
@@ -224,6 +227,10 @@ namespace ForestOverlay.Modules
             y += 34f;
             y += UiText.DrawDim(4, y, cw - 8, HudIntro) + 4f;
 
+            bool box = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.InfoBox, InfoBoxText);
+            if (box != s.InfoBox) s.InfoBox = box;
+            UiKit.Hint(new Rect(4, y, cw - 8, 22), InfoBoxTip);
+            y += 24f;
             bool compact = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.Compact, CompactText);
             if (compact != s.Compact) s.Compact = compact;
             y += 22f;

@@ -30,7 +30,7 @@ namespace ForestOverlay.Core
         public static readonly Color TextColour = new Color(0.90f, 0.91f, 0.92f, 1f);
         public static readonly Color DimColour = new Color(0.60f, 0.63f, 0.67f, 1f);
         /// The one accent: The Forest's logo yellow (author, 2026-10-05: black on yellow).
-        public static readonly Color Accent = new Color(0.95f, 0.76f, 0.11f, 1f);
+        public static readonly Color Accent = new Color(0.96f, 0.77f, 0.09f, 1f);   // #F5C518
         public static readonly Color AccentDark = new Color(0.42f, 0.33f, 0.05f, 1f);
         public static readonly Color AccentHover = new Color(1f, 0.84f, 0.30f, 1f);
         public static readonly Color OnAccent = new Color(0.05f, 0.05f, 0.04f, 1f);
@@ -43,6 +43,7 @@ namespace ForestOverlay.Core
         private static GUISkin _skin;
         private static GUIStyle _tab, _tabActive, _header, _headerSummary, _card, _widgetCard,
                                 _outline, _handle, _tip, _primary, _hint, _title;
+        private static Texture2D _tAccentFlat;
         private static Texture2D _tPanel, _tCard, _tCardHover, _tWidget, _tButton, _tButtonHover, _tButtonOn,
                                  _tPrimary, _tPrimaryHover, _tField, _tCheckOff, _tCheckOn, _tCheckOffHover,
                                  _tCheckOnHover, _tOutline, _tHandle, _tTip, _tTab, _tTabActive;
@@ -53,7 +54,7 @@ namespace ForestOverlay.Core
         /// 9-slice style (border = radius + 1). size: the texture's side.
         private static Texture2D Rounded(int size, int radius, Color fill, Color border, int borderPx)
         {
-            Texture2D t = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            Texture2D t = new Texture2D(size, size, TextureFormat.ARGB32, false, true);   // linear: as sRGB the game darkened them (yellow came out orange, #E28903)
             t.hideFlags = HideFlags.HideAndDontSave;
             t.wrapMode = TextureWrapMode.Clamp;
             t.filterMode = FilterMode.Bilinear;
@@ -82,7 +83,7 @@ namespace ForestOverlay.Core
 
         private static Texture2D Flat(Color c)
         {
-            Texture2D t = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+            Texture2D t = new Texture2D(1, 1, TextureFormat.ARGB32, false, true);
             t.hideFlags = HideFlags.HideAndDontSave;
             t.SetPixel(0, 0, c);
             t.Apply(false, true);
@@ -94,7 +95,7 @@ namespace ForestOverlay.Core
         private static Texture2D Check(bool on, bool hover)
         {
             const int w = 24;
-            Texture2D t = new Texture2D(w, w, TextureFormat.ARGB32, false);
+            Texture2D t = new Texture2D(w, w, TextureFormat.ARGB32, false, true);
             t.hideFlags = HideFlags.HideAndDontSave;
             t.wrapMode = TextureWrapMode.Clamp;
             t.filterMode = FilterMode.Bilinear;
@@ -178,6 +179,7 @@ namespace ForestOverlay.Core
             _tHandle = Rounded(16, 4, Accent, Accent, 0);
             _tTip = Rounded(24, 5, new Color(0.04f, 0.045f, 0.055f, 0.98f), new Color(0.3f, 0.33f, 0.39f, 1f), 1);
             _tTab = Flat(new Color(0f, 0f, 0f, 0f));
+            _tAccentFlat = Flat(Accent);
             _tTabActive = Rounded(24, 5, CardBg, Accent, 1);
 
             GUISkin src = GUI.skin;
@@ -330,6 +332,7 @@ namespace ForestOverlay.Core
 
         // --- styles --------------------------------------------------------------
         public static GUISkin Skin { get { Ensure(); return _skin; } }
+        public static Texture2D AccentTexture { get { Ensure(); return _tAccentFlat; } }
         public static GUIStyle Tab { get { Ensure(); return _tab; } }
         public static GUIStyle TabActive { get { Ensure(); return _tabActive; } }
         public static GUIStyle Card { get { Ensure(); return _card; } }

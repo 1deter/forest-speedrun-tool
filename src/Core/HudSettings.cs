@@ -17,7 +17,7 @@ namespace ForestOverlay.Core
         public const float DefaultX = 10f, DefaultY = 10f;
 
         private readonly ConfigEntry<bool>[] _show = new ConfigEntry<bool>[HudLines.All.Length];
-        private readonly ConfigEntry<bool> _compact;
+        private readonly ConfigEntry<bool> _compact, _infoBox;
         private readonly ConfigEntry<int> _textSize;
         private readonly ConfigEntry<float> _x, _y;
         private readonly ConfigFile _config;
@@ -34,6 +34,8 @@ namespace ForestOverlay.Core
                 if (!l.Switchable) continue;
                 _show[i] = config.Bind("HUD", l.ConfigKey, l.DefaultOn, "Info box: " + l.Name + " - " + l.Description);
             }
+            _infoBox = config.Bind("HUD", "InfoBox", false,
+                "The info box (top left). Off: only HUD widgets and the practice / ON NOW markers show (Settings -> Edit HUD layout).");
             _compact = config.Bind("HUD", "Compact", false,
                 "Info box: fewer words (shorter values, no column padding, a short title).");
             _textSize = config.Bind("HUD", "TextSize", 0,
@@ -56,6 +58,12 @@ namespace ForestOverlay.Core
             if (index < 0 || index >= _show.Length || _show[index] == null || _show[index].Value == on) return;
             _show[index].Value = on;
             Version++;
+        }
+
+        public bool InfoBox
+        {
+            get { return _infoBox.Value; }
+            set { if (_infoBox.Value != value) { _infoBox.Value = value; Version++; } }
         }
 
         public bool Compact

@@ -290,17 +290,13 @@ namespace ForestOverlay
 
             _hudBoxStyle = new GUIStyle(GUI.skin.box);
 
-            _noticeStyle = new GUIStyle(GUI.skin.box);
+            // The toast's text; its card is UiKit's (opaque, rounded).
+            _noticeStyle = new GUIStyle(GUI.skin.label);
             _noticeStyle.fontSize = 14;
             _noticeStyle.wordWrap = true;
-            _noticeStyle.alignment = TextAnchor.MiddleCenter;
-            _noticeStyle.normal.textColor = new Color(1f, 0.75f, 0.4f);
-            // Opaque: the skin's box is see-through, and over the window
-            // its text read through the notice.
-            Texture2D bg = new Texture2D(1, 1);
-            bg.SetPixel(0, 0, new Color(0.08f, 0.08f, 0.08f, 0.95f));
-            bg.Apply();
-            _noticeStyle.normal.background = bg;
+            _noticeStyle.alignment = TextAnchor.MiddleLeft;
+            _noticeStyle.padding = new RectOffset(0, 0, 0, 0);
+            _noticeStyle.normal.textColor = UiKit.TextColour;
         }
 
         // Upper middle: clear of the HUD box (top left) and of the game's
@@ -310,20 +306,32 @@ namespace ForestOverlay
         private const int NoticeWindowId = 59_999;
         private GUI.WindowFunction _noticeWindowFn;
 
+        // A toast (author, 2026-10-05): slides down from the top edge, a thin
+        // bar runs out while it shows, slides back up at the end.
+        private const float ToastSlide = 0.25f;
+        private float _toastW, _toastH;
+
         private void DrawNotice()
         {
-            const float w = 560f;
-            float h = Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, w) + 16f);
+            float w = Mathf.Min(520f, Screen.width - 32f);
+            float h = Mathf.Max(44f, _noticeStyle.CalcHeight(_notice.Content, w - 28f) + 22f);
+            float t = _notice.Elapsed, d = _notice.Duration;
+            float k = Mathf.Min(Mathf.Clamp01(t / ToastSlide), Mathf.Clamp01((d - t) / ToastSlide));
+            k = k * k * (3f - 2f * k);
+            _toastW = w;
+            _toastH = h;
             if (_noticeWindowFn == null) _noticeWindowFn = DrawNoticeWindow;
-            GUI.Window(NoticeWindowId, new Rect((Screen.width - w) * 0.5f, Screen.height * 0.18f, w, h),
+            GUI.Window(NoticeWindowId, new Rect((Screen.width - w) * 0.5f, Mathf.Lerp(-h - 4f, 28f, k), w, h),
                 _noticeWindowFn, GUIContent.none, GUIStyle.none);
             GUI.BringWindowToFront(NoticeWindowId);
         }
 
         private void DrawNoticeWindow(int id)
         {
-            GUI.Box(new Rect(0f, 0f, 560f, Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, 560f) + 16f)),
-                _notice.Content, _noticeStyle);
+            GUI.Box(new Rect(0f, 0f, _toastW, _toastH), GUIContent.none, UiKit.WidgetCard);
+            GUI.Label(new Rect(14f, 8f, _toastW - 28f, _toastH - 18f), _notice.Content, _noticeStyle);
+            float left = 1f - Mathf.Clamp01(_notice.Elapsed / Mathf.Max(0.01f, _notice.Duration));
+            GUI.DrawTexture(new Rect(8f, _toastH - 6f, (_toastW - 16f) * left, 2f), UiKit.AccentTexture);
         }
 
         // Text size from Settings -> HUD; 0 = the skin's own (the old look).
@@ -340,6 +348,8 @@ namespace ForestOverlay
         {
             HudSettings s = _host.Hud.Settings;
             if (_hudStyleVersion != s.Version) ApplyHudStyle(s);
+
+            if (!s.InfoBox) { DrawMarkersOnly(s); return; }
 
             int px = s.TextSize;
             float w = HudLines.Width(px, Screen.width);
@@ -415,6 +425,28 @@ namespace ForestOverlay
             GUI.Label(new Rect(x, y, textW, markerH), _practice.Label, practiceStyle);
 
             // The widgets taken out of the box (and, in edit mode, their handles).
+            if (widgets != null) widgets.Draw(_host.Hud, blocked);
+        }
+
+        // No info box (author, 2026-10-05: minimal on screen, widgets carry
+        // the values): what changes the game and the PRACTICE marker stay -
+        // honest labelling - as two small lines at the box position, no card.
+        private void DrawMarkersOnly(HudSettings s)
+        {
+            if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
+            Rect blocked = _mainWindow != null ? _mainWindow.ScreenRect : new Rect();
+            float w = Mathf.Min(420f, Screen.width - 20f);
+            float x = HudLines.Clamp(s.X, w, Screen.width), y = Mathf.Max(0f, s.Y);
+            GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
+            if (_practice.AnyOn)
+            {
+                float onH = _warnStyle.CalcHeight(_practice.OnLabel, w);
+                GUI.Label(new Rect(x, y, w, onH), _practice.OnLabel, _warnStyle);
+                y += onH;
+            }
+            if (_practice.Warn)
+                GUI.Label(new Rect(x, y, w, practiceStyle.CalcHeight(_practice.Label, w)), _practice.Label, practiceStyle);
+            HudWidgets widgets = _host.Hud.Widgets;
             if (widgets != null) widgets.Draw(_host.Hud, blocked);
         }
 
