@@ -1943,7 +1943,7 @@ namespace ForestOverlay.Modules
             if (quick && s.StartRestoreWithLoad) { s.StartRestoreWithLoad = false; Touch(); }
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
-            y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
+            y += UiText.Note(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
             y += 6f;
             return y;
         }
