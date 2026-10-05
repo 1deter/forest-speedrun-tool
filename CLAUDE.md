@@ -421,60 +421,38 @@ identity.
 
 ## Current status
 
-**Released: v0.24.247** (2026-10-05). The author runs it via the in-game
+**Released: v0.24.248** (2026-10-05). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
-### Pick up here (2026-10-04 overnight, unattended - author away)
+### Pick up here (2026-10-05 night, unattended - author asleep, PC shut down after)
 
-**Overnight session (2026-10-04)**: the author left the session running
-("get all the features baked in"); 2026-10-05 the author said not to
-shut the PC down after all. Method: one
-subagent per feature in its own worktree (`.claude/worktrees/`, kept out
-of the plugin's compile globs), the main session merges, bumps, writes
-CHANGELOG and releases in batches; only one agent drives the game at a time.
-**Confirmed over the bridge** (docs/confirmed.md): everything in
-v0.24.235-236 (polygon zones, zones all / next / off, run dates, abort at
-the title, HUD control, runner names, start state overwrite confirm,
-"When I die", weather in savestates). **Confirmed over the bridge** too: v0.24.237-241 (results panel,
-event checkpoints, checkpoint savestates ~295 ms a capture, reload in
-place 0.86 s, the endgame fix + tp yaw, trajectory 0.0-0.1 m off, TAS
-0.22 m max drift, run mode times with F9 off + audit lines). Released:
-v0.24.242 (replays: buildings as schematics + interaction markers, `.run`
-`e|` / `b|` tracks, Game/BuildWatch - in-game check running).
-Released since: v0.24.243 (ghost figure + replay camera, Experimental;
-`.run` `l|` look track; run mode's per-frame garbage), v0.24.244 (idle
-garbage audit: `Game/FastField`, `Data/TextMemo`, the Perf line names the
-top allocating modules). v0.24.246 (`Game/LatePass`: every overlay drawn after the camera's image
-effects - eye adaptation whitened them, game-notes *Overlay colours*;
-**approved by the author 2026-10-05** from the before / after shots; merged
-replay labels; run-path garbage; **load-removed time** - `Data/LoadTimes`,
-`Game/GameLoading`, a load = the game's save / level load, the decision in
-docs/run-mode.md; `.run` `loads|`, attempt log `load` lines, site shows it).
-v0.24.245 (the **Map tab**, `_modules[19]`; confirmed over the bridge).
-Site (live): `/compare` (maks's YouTube side-by-side), buildings /
-markers on the 2D / 3D maps, the 2026-10-04 security audit + fixes +
-per-runner daily limits (docs/website.md *Security*; open for the author:
-monthly `docker compose pull` on the VPS for runtime patches). Bot
-(deployed): 7 queue items fixed, new cards `building-costs`,
-`crafting-recipes`, `hundred-percent`, `top-runners`. **Usage note
-(author, 2026-10-04):** subagents burn usage fast - use `model: sonnet`
-for routine agents (checks, site, docs), Opus only for hard game work,
-2-3 at a time. v0.24.247 (**start states true to the game**: a Full load
-after a NEW game hung on LOADING - `LevelSerializer._allPrefabs` is empty
-until a menu load; `Game/PrefabList` fills it from `PreloadingPrefabs`
-before in-game loads incl. the death reload; a Quick load into another
-difficulty forces a Full load; Creative loads as Peaceful underneath; a
-run spot's start turns cheats off - docs/savestates.md, game-notes).
-**Not yet checked in game** (the session ended on the author's 7% weekly
-usage): v0.24.246 (late pass colours in a real run, LRT lines, run-path
-garbage in the Perf line) and v0.24.247 (new Normal game -> capture ->
-`restore <name> load` finishes with the prefab-list line; in a Hard game a
-Quick load of a Normal capture logs "the load sets the difficulty"; the
-death reload after a new game). QA list for testers posted 2026-10-04
-(`qa/2026-10-04-overnight.txt`, Discord `1556434312272805910`). **Next:**
-those two checks (Sonnet), then the backlog's remaining items (colliders
+**v0.24.248** (released, confirmed over the bridge): Practice -> Import ->
+*Website spots* (site `/api/spots.txt` + `/api/spots/{id}/foseg`,
+`Data/SiteSpots`, `Modules/CommunityModule.Website.cs`, entries in
+`segments/website.txt` under "Website"); a deleted spot disarms the run
+(`PracticeRunModule.OnSpotDeleted`) and is deleted from the site by itself
+(`uploads/deletes.txt` queue, `RunUploadModule.DeleteSpotQuietly`).
+v0.24.246-247 confirmed over the bridge (docs/confirmed.md) except the
+late pass at night and the ghost / replay overlays.
+The runner PBs Discord channel (`1556505548269027399`, webhook "PB
+Notifier") works: a test post went through 2026-10-05; real posts only for
+community / published-category spots.
+
+**UI / UX redesign DRAFT** (author, 2026-10-05: modern, UX friendly for
+new runners, a Momentum Mod style HUD customiser - isolate a value like
+speed, place and resize it): branch `ui-redesign` (pushed, NOT merged or
+released), design in `docs/ui-redesign.md` on that branch; `Core/UiKit`
+(palette, skin, sections, tooltips), `Data/HudLayout` (tested,
+`hud-layout.txt`), HUD widgets + edit mode, window chrome, Runs tab
+regrouped, results panel no longer overlapped. **Never seen in game** - a
+build is on the author's Desktop (`ForestOverlay-ui-redesign-draft.dll`)
+for them to try; next: their verdict, then the other tabs, onboarding,
+saved section state, snapping. Author feedback of 2026-10-05 in
+docs/backlog.md.
+
+**Next:** the author's look at the redesign; then the backlog (colliders
 that change between attempts, the Megan health check with the author, a
-maintainability review once features settle).
+maintainability review).
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
