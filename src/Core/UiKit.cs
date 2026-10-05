@@ -23,7 +23,7 @@ namespace ForestOverlay.Core
     public static class UiKit
     {
         // --- palette ---------------------------------------------------------
-        public static readonly Color PanelBg = new Color(0.090f, 0.098f, 0.122f, 0.96f);
+        public static readonly Color PanelBg = new Color(0.090f, 0.098f, 0.122f, 1f);   // opaque: HUD text read through it
         public static readonly Color CardBg = new Color(0.125f, 0.137f, 0.169f, 1f);
         public static readonly Color CardHover = new Color(0.165f, 0.180f, 0.220f, 1f);
         public static readonly Color Border = new Color(0.180f, 0.196f, 0.235f, 1f);
