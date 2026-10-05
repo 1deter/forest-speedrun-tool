@@ -31,6 +31,15 @@ unless critical.
   attempts (v0.24.196) and the last one's line stays, red (v0.24.200); shared runs
   show **the runner's name**
   (`.foseg` attempts carry none yet - matters for the website too).
+- **Author, QA 2026-10-05 (`1556477286872784999`-`1556478540319563867`;
+  report zips `1556483839889768519`):** deleting a spot leaves it armed
+  in the Runs tab (Practice says deleted); runners' website spots fetched
+  in game like community spots (today only a `.run` download) - less
+  manual downloading, more GUI / automatic; a spot deleted in game is
+  deleted from the website too; **UI / UX overhaul**: the Runs tab is
+  bloated, the timed segment's black box + yellow text overlaps the run
+  end panel (labskip jumping spot) - replace it with the results panel's
+  style; tooltips on hover instead of paragraphs, cut stray / verbose text.
 
 Shipped (summary): practice QoL (v0.17), endgame splits (v0.18), deaths
 and caves (v0.19), nature guide (v0.15), savestates and no-menu reload
