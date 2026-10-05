@@ -1,0 +1,120 @@
+# UI redesign (draft, branch `ui-redesign`)
+
+Author, 2026-10-05: "it's 2026 and i don't want the ui to look crap, i want it
+to be very UX friendly because it already has a lot of functionality that's
+going to be overwhelming when runners first interact with it."
+
+## Research, in short
+
+- **Momentum Mod 0.10.8 (2026-08-04) HUD Customizer**: an edit mode entered
+  from an icon; every HUD component can be moved, resized, restyled; layout
+  is a file; drag-and-drop with snapping, stack groups, an auto-generated
+  settings UI per component
+  ([issue #2158](https://github.com/momentum-mod/game/issues/2158),
+  [changelog](https://blog.momentum-mod.org/posts/changelog/0.10.8/)).
+  Take: **one widget = one value**, edit mode shows outlines + handles, the
+  layout is data.
+- **LiveSplit layouts**: components (timer, splits, delta, previous segment)
+  each with their own font / size / colour, stacked in one box, saved as a
+  `.lsl`. Take: the big readable timer is the thing runners look at; the
+  rest is secondary and small. Speedrun HUD convention: monospace-looking
+  digits, colour only for meaning (ahead green / behind red / gold).
+- **Progressive disclosure** (accordions, tooltip-on-demand, "make it clear
+  where advanced functions are"): essentials open, advanced collapsed behind
+  a labelled header, explanations on hover instead of paragraphs
+  ([IxDF](https://ixdf.org/literature/topics/progressive-disclosure)).
+
+## Principles
+
+1. **Essentials first, the rest one click away.** Each tab opens with what a
+   new runner needs; everything else is a collapsed section with a name that
+   says what is inside.
+2. **Say it once, short, where it is used.** A control has a short label; the
+   why / how is a hover tooltip (`UiKit.Hint`). No paragraphs in the body.
+3. **One accent colour**, used for the primary action, the active tab, the
+   open section marker and on-state toggles. Colour otherwise only means
+   something (green ahead, red behind, gold PB, orange = changes the game).
+4. **Honest labelling stays**: PRACTICE marker, ON NOW, run code are not
+   restyled away.
+5. **Nothing changes until the runner edits**: HUD defaults reproduce today's
+   info box.
+6. **Never allocate in OnGUI**: textures / styles / skin built once,
+   tooltips are cached `GUIContent`s.
+
+## Visual language
+
+| Token | Value |
+|---|---|
+| Window / panel | `#17191F` @ 96 % |
+| Card / section header | `#20232B` |
+| Hairline border | `#2E323C` |
+| Text / dim text | `#E6E8EB` / `#9AA0AA` |
+| **Accent** (forest green) | `#4CC790` |
+| Warn (changes the game) | `#FF8C33` (unchanged) |
+| Radius | 6 px (panels), 4 px (controls) |
+| Spacing | 4 / 8 / 12 px; 8 px window padding |
+| Type scale | 12 body, 11 dim / hints, 13 section title, 26 headline (results), widget value 16-48 by scale |
+
+Rounded boxes are 9-slice textures generated once (`UiKit`, anti-aliased
+corners) and kept alive with `HideAndDontSave`. A cloned `GUISkin` carries the
+styles, so every existing tab inherits the look the moment its panel is drawn
+with `GUI.skin = UiKit.Skin` (set around panel drawing only; the HUD and the
+game's own GUI are untouched).
+
+## HUD customiser
+
+- Every info-box line that has a switch (`Data/HudLines`) is a **widget**
+  with a key (its config key, e.g. `ShowSpeed`). Default: it lives inside the
+  info box as today.
+- **Edit mode** (Settings -> Info box -> *Edit layout*, or the HUD button on
+  the window's tab strip): the window collapses to a widget list (show
+  toggle, "own widget" toggle, size - / +, reset) and the screen shows an
+  outline on every widget and on the box. Drag a widget out of the box to
+  make it its own widget; drag its corner handle to resize (font scale
+  0.5 - 6x); right-click to put it back; drag the box to move it.
+- A free widget draws as a card: dim label above, the value big, in the
+  results panel's look (rounded dark card, optional). Label can be hidden.
+- Layout = `config/ForestOverlay/hud-layout.txt` (`Data/HudLayout`, tested):
+  ```
+  # ForestOverlay HUD layout
+  ShowSpeed: free, x=24, y=80, scale=2.5, label=off
+  ShowRunTimer: free, x=700, y=40, scale=3
+  ```
+  Only free widgets are listed; unknown tokens are ignored, numbers clamped.
+- The run timer as a widget replaces the old black box with yellow text:
+  the splits panel also steps aside while the results panel is up (they
+  overlapped on small screens).
+
+## Per-tab layout
+
+**Window chrome**: rounded window, title row (name + version, accent dot
+when an update is out), tab strip as pills (active = accent underline), body
+8 px padded, a hover tooltip layer drawn last. Footer-less.
+
+**Runs** (was a 30-control wall):
+```
+[x] Practice mode        Segment: Cave 5 -> Cave 6        (header, always)
+[ Restart ] [ Split / finish ] [ Abort ]      Compare to: [best v]
+-- Run mode ---------------------------------------- (open)
+-- Splits table ------------------------------------ (open)
+-- Attempts ---------------------------------------- (open, fills the rest)
+> Checkpoint states     > Comparison sources (runner / LiveSplit)
+> Run lines             > Ghost and replay            > Upload to the site
+> Splits panel options  > TAS                          > Clear times
+```
+Collapsed headers show a one-line summary on the right (e.g. "off",
+"3 states"). Descriptions move into tooltips.
+
+**Practice, Deaths, Debug views, Inventory, Settings** (next): same header /
+section / tooltip kit; Settings first splits into *Essentials* (hotkeys that
+matter, HUD, run mode) and *Advanced* (performance patches, diagnostics,
+bridge).
+
+**Onboarding**: first launch opens the window on Practice with a three-line
+"Start here" card (Save spot F6, Restart F7, Runs tab) that is dismissed once.
+
+## Status of this branch
+
+See the last commit message and the final report of the session; the doc is
+the target, the code covers: style kit + skin, window chrome, HUD widgets +
+edit mode + layout file, Runs tab sections, timer / results overlap.
