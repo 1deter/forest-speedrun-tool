@@ -220,3 +220,7 @@ Left on the list: the rest of item 9 across the other tabs (Practice,
 Deaths, Debug views, Settings bodies still have paragraphs); widgets for
 the update line (a toast when an update is found would fit); the cursor
 check; snapping; saved section state.
+**Then (seen in game):** ON NOW is a heading + one feature per line (cheat
+menu "enabled" list); the markers drag like the box did; speed shows the
+number only; the results panel uses one precision everywhere (the finer of
+the time / delta decimal settings - an 11.331 PB said "by 0.03 (was 11.37)").
