@@ -35,6 +35,11 @@ namespace ForestOverlay.Core
         private const float CardPad = 8f;
         private const float HandleSize = 12f;
         private const float ValueBase = 16f, LabelBase = 11f;
+        // Widget values render at ONE font size and are scaled by GUI.matrix:
+        // a font size per widget scale (up to 96 px bold) filled Unity's shared
+        // dynamic-font texture, which then rebuilt every frame and letters
+        // flickered out across the whole UI (author's video, 2026-10-05).
+        private const int ValueRender = 32;
 
         private readonly string _path;
         private readonly ManualLogSource _log;
@@ -149,6 +154,7 @@ namespace ForestOverlay.Core
         private sealed class ScaleStyles
         {
             public GUIStyle Label, Value;
+            public float ValueScale, ValueSize;
         }
 
         private readonly Dictionary<int, ScaleStyles> _styles = new Dictionary<int, ScaleStyles>();
@@ -161,12 +167,14 @@ namespace ForestOverlay.Core
             float sc = key / 4f;
             s = new ScaleStyles();
             s.Label = new GUIStyle(GUI.skin.label);
-            s.Label.fontSize = Mathf.Max(8, Mathf.RoundToInt(LabelBase * sc));
+            s.Label.fontSize = Mathf.RoundToInt(LabelBase);
             s.Label.normal.textColor = UiKit.DimColour;
             s.Label.padding = new RectOffset(0, 0, 0, 0);
             s.Label.wordWrap = false;
             s.Value = new GUIStyle(GUI.skin.label);
-            s.Value.fontSize = Mathf.Max(9, Mathf.RoundToInt(ValueBase * sc));
+            s.ValueSize = Mathf.Max(9f, ValueBase * sc);
+            s.ValueScale = s.ValueSize / ValueRender;
+            s.Value.fontSize = ValueRender;
             s.Value.fontStyle = FontStyle.Bold;
             s.Value.normal.textColor = UiKit.TextColour;
             s.Value.padding = new RectOffset(0, 0, 0, 0);
@@ -250,11 +258,11 @@ namespace ForestOverlay.Core
             if (slots == 0 && !Editing) return;
 
             bool single = slots <= 1;
-            float labelH = st.Label.fontSize + 5f, valueH = st.Value.fontSize + 7f;
+            float labelH = st.Label.fontSize + 5f, valueH = st.ValueSize + 7f;
             float width = 0f, height = 0f;
             if (slots == 0)
             {
-                width = Mathf.Max(st.Label.CalcSize(NameOf(line)).x, st.Value.CalcSize(NotShowing).x);
+                width = Mathf.Max(st.Label.CalcSize(NameOf(line)).x, st.Value.CalcSize(NotShowing).x * st.ValueScale);
                 height = valueH;
             }
             else
@@ -262,7 +270,7 @@ namespace ForestOverlay.Core
                 for (int j = 0; j < hud.Count; j++)
                 {
                     if (hud.LineIndex(j) != line) continue;
-                    width = Mathf.Max(width, st.Value.CalcSize(hud.ValueAt(j)).x);
+                    width = Mathf.Max(width, st.Value.CalcSize(hud.ValueAt(j)).x * st.ValueScale);
                     height += valueH;
                 }
             }
@@ -295,7 +303,10 @@ namespace ForestOverlay.Core
                 for (int j = 0; j < hud.Count; j++)
                 {
                     if (hud.LineIndex(j) != line) continue;
-                    GUI.Label(new Rect(cx, cy, width, valueH), hud.ValueAt(j), st.Value);
+                    Matrix4x4 m = GUI.matrix;
+                    GUIUtility.ScaleAroundPivot(new Vector2(st.ValueScale, st.ValueScale), new Vector2(cx, cy));
+                    GUI.Label(new Rect(cx, cy, width / st.ValueScale, valueH / st.ValueScale), hud.ValueAt(j), st.Value);
+                    GUI.matrix = m;
                     cy += valueH;
                 }
             }

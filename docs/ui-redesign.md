@@ -196,3 +196,12 @@ the run mode paragraph and other body text to tooltips), 10 (toasts).
 Seen in the shot: text vanished where the window sat over a bright white
 scene (Inventory tab label, parts of rows) - check the panel's alpha /
 whether the window draws in two passes.
+
+**Flickering letters (author's video, 2026-10-05)** - letters vanished
+across the whole UI (and the author saw glitches in game too). Cause taken
+as Unity's shared dynamic-font texture thrashing: widgets drew values at a
+font size per scale (up to 96 px bold). Fix: values render at one size
+(32 px) scaled by `GUI.matrix`. Two shots after the fix: text intact. If it
+comes back, count the font sizes everything draws at (UiKit: 11-13, 26).
+Cursor bug steps from the author: Settings tab, F2 to close - "seems to be
+fixed now though?"
