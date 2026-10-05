@@ -436,16 +436,21 @@ namespace ForestOverlay
             if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
             Rect blocked = _mainWindow != null ? _mainWindow.ScreenRect : new Rect();
             float w = Mathf.Min(420f, Screen.width - 20f);
-            float x = HudLines.Clamp(s.X, w, Screen.width), y = Mathf.Max(0f, s.Y);
             GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
-            if (_practice.AnyOn)
+            float onH = _practice.AnyOn ? _warnStyle.CalcHeight(_practice.OnLabel, w) : 0f;
+            float markH = _practice.Warn ? practiceStyle.CalcHeight(_practice.Label, w) : 0f;
+            if (onH + markH > 0f)
             {
-                float onH = _warnStyle.CalcHeight(_practice.OnLabel, w);
-                GUI.Label(new Rect(x, y, w, onH), _practice.OnLabel, _warnStyle);
-                y += onH;
+                // Dragged like the box was, while the window is open (the box's position).
+                float x = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, w, Screen.width);
+                float y = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, onH + markH, Screen.height);
+                Rect area = new Rect(x - 4f, y - 2f, w + 8f, onH + markH + 4f);
+                HandleHudDrag(area, s);
+                bool windowOpen = _mainWindow != null && _mainWindow.PanelOpen;
+                if (windowOpen || _hudDragging) GUI.Box(area, GUIContent.none, UiKit.Outline);
+                if (onH > 0f) GUI.Label(new Rect(x, y, w, onH), _practice.OnLabel, _warnStyle);
+                if (markH > 0f) GUI.Label(new Rect(x, y + onH, w, markH), _practice.Label, practiceStyle);
             }
-            if (_practice.Warn)
-                GUI.Label(new Rect(x, y, w, practiceStyle.CalcHeight(_practice.Label, w)), _practice.Label, practiceStyle);
             HudWidgets widgets = _host.Hud.Widgets;
             if (widgets != null) widgets.Draw(_host.Hud, blocked);
         }
