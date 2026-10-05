@@ -446,11 +446,12 @@ released), design in `docs/ui-redesign.md` on that branch; `Core/UiKit`
 `hud-layout.txt`), HUD widgets + edit mode, window chrome, Runs tab
 regrouped, results panel no longer overlapped. **Never seen in game** - a
 build is on the author's Desktop (`ForestOverlay-ui-redesign-draft.dll`)
-for them to try. Author tried it 2026-10-05 (title overlap fixed, one d3d11 crash not
-reproduced): **their verdict is a 10-item work list in the branch doc**
-(*Author's verdict*) - yellow accent, no info box, value-only widgets,
-one function per widget, toasts, the cursor lost on closing F2 in
-Settings, dead padding under Attempts. Start there.
+for them to try. Author tried it 2026-10-05 and gave a 10-item list (branch doc,
+*Author's verdict*); the same evening most of it was built and seen in
+game: yellow accent, filled toggles, value-only widgets, no drag-out,
+total speed its own line, toasts, info box off by default, font-size
+flicker and linear-texture colour fixes. Left: tooltips across the other
+tabs, the cursor re-check, then a release. The author runs the draft.
 
 **Next:** the author's look at the redesign; then the backlog (colliders
 that change between attempts, the Megan health check with the author, a
