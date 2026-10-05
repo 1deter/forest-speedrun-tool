@@ -228,7 +228,9 @@ namespace ForestOverlay.Data
         /// A community pack's entry (Data/CommunityIndex): read-only.
         public static bool IsCommunity(Segment s)
         {
-            return s != null && string.Equals(s.SourceFile, CommunityIndex.SegmentFile, StringComparison.OrdinalIgnoreCase);
+            // The website spots a runner added (Data/SiteSpots) are read-only the same way.
+            return s != null && (string.Equals(s.SourceFile, CommunityIndex.SegmentFile, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(s.SourceFile, SiteSpots.SegmentFile, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool LoadFile(string path)

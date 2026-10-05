@@ -206,6 +206,8 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _communityStatus = new GUIContent("");
         private string _communityStatusFor;
         private CommunityModule _community;
+        private readonly GUIContent _webStatus = new GUIContent("");
+        private string _webStatusFor;
 
         // Only to count what a start-state change would retire.
         private AttemptStore _attempts;
@@ -1669,6 +1671,7 @@ namespace ForestOverlay.Modules
             string selectedId = SegmentLibrary.IsCommunity(_selected) ? _selected.Id : null;
             string currentId = SegmentLibrary.IsCommunity(_current) ? _current.Id : null;
             _library.ReloadFile(CommunityIndex.SegmentFile);
+            _library.ReloadFile(SiteSpots.SegmentFile);
             if (selectedId != null) _selected = _library.ById(selectedId);
             if (currentId != null) _current = _library.ById(currentId);
             _communityFor = null;
@@ -2360,6 +2363,19 @@ namespace ForestOverlay.Modules
                 GUI.enabled = true;
                 y += 28f;
                 y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
+
+                // Runners' spots on the website: the list on a click, one
+                // click adds one (read-only, "Website").
+                GUI.enabled = !_community.WebBusy;
+                if (GUI.Button(new Rect(0, y + 2, 160, 22), "Website spots")) _community.WebRefresh();
+                GUI.enabled = true;
+                y += 28f;
+                if (!ReferenceEquals(_webStatusFor, _community.WebStatus))
+                {
+                    _webStatusFor = _community.WebStatus;
+                    _webStatus.text = _community.WebStatus;
+                }
+                if (_community.WebStatus.Length > 0) y += UiText.Draw(0, y, w - 10, _webStatus) + 4f;
             }
             y += UiText.Draw(0, y, w - 10, _importStatus) + 4f;
 
@@ -2370,6 +2386,18 @@ namespace ForestOverlay.Modules
             Rect content = new Rect(0, 0, w - 20f, Mathf.Max(_importListHeight, 40f));
             _importScroll = GUI.BeginScrollView(list, _importScroll, content);
             float ry = 2f;
+            if (_community != null)
+            {
+                for (int i = 0; i < _community.WebSpots.Count; i++)
+                {
+                    CommunityModule.WebEntry we = _community.WebSpots[i];
+                    GUI.enabled = !_community.WebBusy;
+                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Added ? "Update" : "Add")) { _community.WebAdd(we); break; }
+                    if (we.Added && GUI.Button(new Rect(78f, ry, 66f, 22f), "Remove")) { _community.WebRemove(we); GUI.enabled = true; break; }
+                    GUI.enabled = true;
+                    ry += Mathf.Max(24f, UiText.Draw(150f, ry + 2f, content.width - 154f, we.Label) + 4f) + 4f;
+                }
+            }
             for (int i = 0; i < _imports.Count; i++)
             {
                 ImportEntry e = _imports[i];
