@@ -579,8 +579,9 @@ namespace ForestOverlay.Modules
                                    " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
             if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
             y += Row;
-            y += UiText.Draw(12, y, w - 24, "Tells whether your processor's main game thread or its drawing thread limits your frame " +
-                                            "rate: the log's Frame lines with and without it. Never kept on between launches.") + 8f;
+            UiText.Note(12, y, w - 24, "Tells whether your processor's main game thread or its drawing thread limits your frame " +
+                                            "rate: the log's Frame lines with and without it. Never kept on between launches.");
+            y += 8f;
 
             bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
                                     " Allocation tracker (what the game allocates, by type; by method with the profiler)");
@@ -590,11 +591,11 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
 
             // --- performance patches -----------------------------------------
-            y += UiText.Draw(12, y, w - 24, "Performance patches - less work for the game each frame, and less garbage to collect (fewer hitches); " +
-                                            "each one keeps what the game does. Untick one to get the game's own code back.");
+            { float hh = UiText.Draw(12, y, w - 24, "Performance patches"); UiText.Note(12, y + hh, w - 24, "Performance patches - less work for the game each frame, and less garbage to collect (fewer hitches); " +
+                                            "each one keeps what the game does. Untick one to get the game's own code back."); y += hh; }
             y = DrawPerf(y, w, false);
-            y += UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
-                                            "not only how fast it runs; each one says what under it.");
+            { float hh = UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering"); UiText.Note(12, y + hh, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
+                                            "not only how fast it runs; each one says what under it."); y += hh; }
             y = DrawPerf(y, w, true);
             y += 8f;
 
