@@ -202,7 +202,7 @@ namespace ForestOverlay.Core
             w.border = new RectOffset(10, 10, 10, 10);
             w.padding = new RectOffset(10, 10, 28, 10);
             w.alignment = TextAnchor.UpperLeft;
-            w.contentOffset = new Vector2(2f, 6f);
+            w.contentOffset = new Vector2(2f, -22f);   // the title draws inside padding.top (28): pull it into the header band, above the tab strip (y 26)
             w.fontStyle = FontStyle.Bold;
             w.fontSize = 13;
 

@@ -131,18 +131,17 @@ section open / closed state is not persisted; widgets are not snapped / no
 stack groups; the run timer widget has no delta colouring yet; verify
 checkbox / window textures and tooltip placement in game.
 
-## First in-game try (author, 2026-10-05) - two bugs, fix before anything else
+## First in-game try (author, 2026-10-05)
 
-1. **Native crash loading a save** with the draft DLL: the log ends after
-   `Load timing: game timer 'Query state'` (the window had been opened
-   earlier); `d3d11.dll` access violation reading `0xec` off a null pointer
-   (crash folder `<game>/2026-10-05_120832`, `crash.dmp`). Likely suspect: a
-   `UiKit` texture / the cloned `GUISkin` destroyed or invalidated by the load
-   while still drawn - check `HideAndDontSave` covers every style background,
-   re-create on null, never draw them mid-load (gotcha 58). Reproduce over the
-   bridge: open F2 at the title, load a save.
-2. **Clipped text at the top left** of the UI (author's report; likely the
-   title row / tab pills or the HUD info box under the new padding) - take a
-   `shot` and run the UiText sweep (gotcha 31).
+- **Title over the tab pills** - fixed: the window style drew the title
+  inside `padding.top` (28) at y 34, on the tab strip (y 26); `contentOffset`
+  y -22 puts it in the header band. Checked in game (shot after a Slot 1 load).
+- **One native crash loading a save** (`d3d11.dll` access violation, crash
+  folder `<game>/2026-10-05_120832`). Not reproduced: two Slot 1 loads over the
+  bridge with the draft (window opened before) were fine. Every texture the
+  draft draws is its own, `HideAndDontSave`; that session also changed
+  resolution (1366x768 -> 2560x1664) before the load, and the author says the
+  PC has been acting up. Watch for a second one before blaming the draft.
 
-The author's install is back on v0.24.248; the draft DLL is still on the Desktop.
+The author is running the draft build (their v0.24.248 is
+`BepInEx/plugins/ForestOverlay.dll.mine`).
