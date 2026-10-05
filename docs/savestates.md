@@ -53,8 +53,9 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   save) the restore is a Full load that switches the game to the
   capture's mode first (v0.24.211, author 2026-10-02; refused before, and
   the `AllowCrossModeRestore` testing switch is gone). Captures since
-  v0.24.211 also write `basedifficulty` (Peaceful under Creative); older
-  Creative files keep the game's difficulty. Confirmed over the bridge:
+  v0.24.211 also write `basedifficulty`; a Creative file loads Peaceful
+  underneath, as the game does (2026-10-05). Another difficulty is a
+  Full load too (*Category start states* below). Confirmed over the bridge:
   Normal -> Creative (GodMode / InfiniteEnergy / NoSurvival on) and back
   (all off).
   The file header lists the world pickups at capture and whether streaming
@@ -113,6 +114,41 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   put back (was Idle, overcast 0, fog 1294 m)` in the restore line (Quick)
   or `Savestate after the load: weather: ...` (Full). Not kept: a
   rainbow, a lightning flash, when the next roll comes (random anyway).
+
+## Category start states true to the game (2026-10-05, unreleased)
+
+Backlog item (QA `1553867722964607110`): a start state - a run spot's
+above all - must give the game it was captured in, as the game's own
+load of that save would. Method (bridge, v0.24.245): a new game per mode
+(Normal, Hard, Peaceful, Creative), captured in the plane right after the
+intro; GameSetup, `Cheats`, `GameSettings.Survival / Animals / Ai`,
+`Clock`, the player's stats, `mutantSpawnManager` and `mutantController`
+read after each restore and diffed against the fresh game of the
+capture's mode. Found:
+
+| Restore | Before | Now |
+|---|---|---|
+| **Any Full load in a launch whose first game was New** (same mode or not) | **hung on LOADING for good** - the game's prefab list was empty (game-notes *The prefab list*) | the list is filled as the menu's load does (`Game/PrefabList`); a Full load from that state came up in 11 s (proved over the bridge) |
+| A Quick load in such a launch | an object destroyed since the capture came back as empty `CreatedObject`s (a blueprint: identifiers +2, no `Craft_Structure`, its build HUD share missing) | the same list; with it the blueprint came back whole (bridge control) |
+| Quick load into another difficulty (Normal capture in a Hard / Peaceful game, Peaceful capture in a Normal one) | kept the live game's difficulty: its `GameSettings` (Hard: cannibal damage x2, health regen 0.5, ...), spawn caps (Hard 4 skinny + 2 regular, Normal 6 skinny), Peaceful's no enemies (`Cheats.NoEnemies`, 0 spawners) | a Full load (`MustLoad`, `SavestateFile.ModeMismatch`), as for Creative <-> survival |
+| Full load across Normal / Hard / Peaceful / Creative, either way | as the fresh game of the capture's mode (only `Init` Continue, as any saved game, and the clock's few seconds) | unchanged |
+| Full load of a Creative file without `basedifficulty` (before v0.24.211) | kept the live game's difficulty under Creative (e.g. Hard) | Peaceful, the game's own rule for Creative (`LevelSerializer.Resume`) |
+| A cheat left on by the console / bridge / a mod (`GodMode`, `InfiniteEnergy`, `NoSurvival`, `Creative`, `UnlimitedHairspray`) | came through any Full load (statics; the game's own load keeps them too) | **a run spot's start** turns them off once its load has started; a Creative capture's `GameMode_Creative` turns its four back on as it loads |
+
+Log: `Savestate restore (load): difficulty Hard -> Normal for the load
+(the capture's).`, `Savestate restore (load): prefab list filled as the
+menu's load does (352 prefabs; empty after a new game this launch).` (also
+`(in place)` and `Savestate slot load` - the death reload's `Resume` in
+game), `Savestate: start state of '<spot>': cheats off for the run's start
+...: GodMode, InfiniteEnergy.`, and `Savestate: ... restores with a Full
+load - captured in a Normal game, this one is Hard - the load sets the
+difficulty.`
+
+Not changed (vanilla does the same): `PermaDeath`, `NoEnemiesInternal`,
+`NoEnemiesDuringDay` (the cheat codes, kept in PlayerPrefs), `DebugConsole`
+(the report flags it), Creative's *Allow enemies* preference. Not tested
+live: the death reload's `Resume` from a new-game launch (same hang
+expected - the same list now filled first).
 
 ## Reload the save in place on death (2026-10-04, unreleased)
 

@@ -291,6 +291,48 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void CreativeLoadsPeacefulUnderneathAsTheGameDoes()
+        {
+            // LevelSerializer.Resume: a "Creative" save is Peaceful, whatever
+            // the file's own line says (older files have none).
+            Assert.Equal("Peaceful", SavestateFile.LoadDifficultyOf("Creative", ""));
+            Assert.Equal("Peaceful", SavestateFile.LoadDifficultyOf("Creative", "Hard"));
+            Assert.Equal("Hard", SavestateFile.LoadDifficultyOf("Hard", "Hard"));
+            Assert.Equal("Normal", SavestateFile.LoadDifficultyOf("Normal", ""));
+            Assert.Equal("", SavestateFile.LoadDifficultyOf("", ""));
+            Assert.Equal("", SavestateFile.LoadDifficultyOf(null, null));
+        }
+
+        [Fact]
+        public void QuickLoadNeedsTheSameModeAndDifficulty()
+        {
+            SavestateFile s = Sample();
+            s.Difficulty = "Normal";
+            s.BaseDifficulty = "Normal";
+
+            Assert.Null(s.ModeMismatch("Normal", "Normal"));
+            Assert.Contains("this one is Hard", s.ModeMismatch("Hard", "Hard"));
+            Assert.Contains("this one is Peaceful", s.ModeMismatch("Peaceful", "Peaceful"));
+            Assert.Contains("switches the mode", s.ModeMismatch("Creative", "Peaceful"));
+            // Unknown on either side: nothing to compare.
+            Assert.Null(s.ModeMismatch("", ""));
+            s.Difficulty = "";
+            Assert.Null(s.ModeMismatch("Hard", "Hard"));
+        }
+
+        [Fact]
+        public void CreativeFilesCompareThePeacefulUnderneath()
+        {
+            SavestateFile s = Sample();
+            s.Difficulty = "Creative";
+            s.BaseDifficulty = "";   // before v0.24.211
+
+            Assert.Null(s.ModeMismatch("Creative", "Peaceful"));
+            Assert.Contains("Peaceful underneath", s.ModeMismatch("Creative", "Hard"));
+            Assert.Contains("switches the mode", s.ModeMismatch("Normal", "Normal"));
+        }
+
+        [Fact]
         public void OlderFilesHaveNoDifficultyUnderneath()
         {
             SavestateFile s = Sample();

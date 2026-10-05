@@ -1781,6 +1781,44 @@ writes "Creative" or the difficulty on every save). So a Full load after
 `OnDestroy` / `RestoreSettings` puts the three cheats back (v0.24.211,
 bridge: both ways clean).
 
+**The prefab list is empty after a new game** (bridge, 2026-10-05).
+`LevelSerializer._allPrefabs` (ClassId -> prefab; `AllPrefabs` drops
+destroyed entries each frame) is what `LevelLoader` makes a saved object
+from when the scene lacks it - with no entry it makes an empty
+`CreatedObject` at (0, 2000, 2000). Only two places fill it:
+`LoadAsync` (the title screen's load of a save: instantiate Resources
+`PreloadingPrefabs`, whose `SaveGameManager.requiredObjects` holds 352
+prefabs, then `InitPrefabList`) and `PlayerSpawn.LoadMpCharacterDelayed`
+(a client). A new game does neither and the game scene's own
+`SaveGameManager` has no `requiredObjects`, so in a launch whose first
+game was New the list stays at 0 (read live) - and stays filled once
+filled (it survives the title screen). Then `LoadSavedLevel` in game made
+the player an empty object: `Activation` waited for
+`LocalPlayer.Rigidbody` and the screen stayed on LOADING (three captures,
+same mode and across, in the plane and outside). Instantiating
+`PreloadingPrefabs` in game would replace the scene's `SaveGameManager`
+(its `Awake` destroys the one with fewer `requiredObjects` - and its id
+table), so the plugin reads the asset's list without instantiating it
+(`Game/PrefabList`); over the bridge, pointing `SaveGameManager.instance`
+at the asset for one `InitPrefabList` call gave 352 and the load worked.
+
+**Game mode and difficulty are set up as the game loads** (decompiled +
+bridge, 2026-10-05). `GameSetup.SetDifficulty` publishes `DifficultySet`;
+`GameSettings` refreshes `Survival`, `Animals` and `Ai` from it (Hard vs
+Normal, live: cannibal damage x2 / health x1.5-2.25, attack chance 2.5,
+health regen 0.5 / s vs 2, frost x3, polluted water 20, animals 0.4 vs
+0.6). `mutantSpawnManager` sets its caps by `IsHardMode` (Hard 4 skinny +
+2 regular; Normal 6 skinny; Peaceful 8 + 2 with no sleeping spawns), and
+`Cheats.NoEnemies` is `Peaceful && !Creative` or `Creative && !Allow
+enemies` - Peaceful starts no spawners. `PlayerInventory` does not pause
+time in the inventory on Hard / Hard Survival. None of this is in the save:
+`LevelSerializer.Resume` sets the difficulty from the save's name
+(`Creative` -> Peaceful + `SetGameType(Creative)`; it never sets Standard),
+`TitleScreen.Awake` resets Standard / Normal, `OnNewCreativeGame` is
+Peaceful too - so a Creative game is always Peaceful underneath. The
+`Cheats` statics outlive every load; only `GameMode_Creative` (its
+`Awake` / `OnDestroy`) and the console write the mode's four.
+
 **Loading from the title screen needs the menu's loader** (v0.24.211-212).
 `LoadSavedLevel` called at the title screen loads the game scene and hangs
 on LOADING: `Activation` waits for `LocalPlayer.Rigidbody` and the player
