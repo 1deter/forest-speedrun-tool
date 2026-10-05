@@ -145,3 +145,37 @@ checkbox / window textures and tooltip placement in game.
 
 The author is running the draft build (their v0.24.248 is
 `BepInEx/plugins/ForestOverlay.dll.mine`).
+
+## Author's verdict after trying it (2026-10-05) - the work list
+
+"The concept of the overhaul is not bad, it just needs some more work."
+In the author's words where it matters; do these before anything else.
+
+1. **Accent: The Forest's yellow, not green** - black on the logo's yellow
+   (sample the logo / key art; roughly `#F2C21B`, confirm against the game's
+   own UI). Replaces `#4CC790` everywhere.
+2. **Attempts section leaves dead padding** under "No attempts yet", and the
+   scroll wheel does nothing while the mouse is over that region. A section
+   takes the height of its content; the whole body scrolls everywhere.
+3. **Cursor lost** after closing F2 while on the Settings tab - the same bug
+   as the early ESC-menu one, now in another pane. Reproduce (Settings tab,
+   F2 close), read `CursorController` / `GameInput` hand-back.
+4. **Remove the top-left info box** (or refactor it away): the HUD customiser
+   replaces it. On-screen UI is **minimal but informative**. The update line,
+   ON NOW, PRACTICE etc. go elsewhere, each on its own.
+5. **No drag-out-of-the-box magic**: dragging the box popped every line out
+   as the mouse passed over them - "over-engineering simplicity". Widgets are
+   added / placed explicitly; the box is not a container that sheds them.
+6. **A widget shows its value only - no title** ("runners should know what
+   they put on their screen").
+7. **One function per display**: speed's "(tot x)" is two things in one -
+   make them separate widgets / modes (Momentum Mod's speedometer: one
+   mode per widget). Same rule everywhere (author's design doc).
+8. **Toggles: a filled box, no check mark inside.**
+9. **Feature = name + toggle; the rest on hover** (brief description). No
+   paragraphs on the page (the Runs tab's run mode text is the example).
+10. **Notifications as toasts**: slide in / out smoothly, a thin progress bar
+    depleting while it shows. Aesthetic reference: polished cheat-menu UIs
+    (look, not function). Small UX niceties over words on the page.
+
+More will come as they test.
