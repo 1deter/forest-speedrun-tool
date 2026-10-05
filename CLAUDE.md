@@ -419,13 +419,14 @@ identity.
 
 ## Current status
 
-**Released: v0.24.246** (2026-10-05). The author runs it via the in-game
+**Released: v0.24.247** (2026-10-05). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-04 overnight, unattended - author away)
 
 **Overnight session (2026-10-04)**: the author left the session running
-("get all the features baked in"), then the PC shuts down. Method: one
+("get all the features baked in"); 2026-10-05 the author said not to
+shut the PC down after all. Method: one
 subagent per feature in its own worktree (`.claude/worktrees/`, kept out
 of the plugin's compile globs), the main session merges, bumps, writes
 CHANGELOG and releases in batches; only one agent drives the game at a time.
@@ -456,8 +457,22 @@ monthly `docker compose pull` on the VPS for runtime patches). Bot
 `crafting-recipes`, `hundred-percent`, `top-runners`. **Usage note
 (author, 2026-10-04):** subagents burn usage fast - use `model: sonnet`
 for routine agents (checks, site, docs), Opus only for hard game work,
-2-3 at a time. **In progress:** category start states true to the game
-(Opus, in game). /compare got a sync fix (one clock, skip buttons).
+2-3 at a time. v0.24.247 (**start states true to the game**: a Full load
+after a NEW game hung on LOADING - `LevelSerializer._allPrefabs` is empty
+until a menu load; `Game/PrefabList` fills it from `PreloadingPrefabs`
+before in-game loads incl. the death reload; a Quick load into another
+difficulty forces a Full load; Creative loads as Peaceful underneath; a
+run spot's start turns cheats off - docs/savestates.md, game-notes).
+**Not yet checked in game** (the session ended on the author's 7% weekly
+usage): v0.24.246 (late pass colours in a real run, LRT lines, run-path
+garbage in the Perf line) and v0.24.247 (new Normal game -> capture ->
+`restore <name> load` finishes with the prefab-list line; in a Hard game a
+Quick load of a Normal capture logs "the load sets the difficulty"; the
+death reload after a new game). QA list for testers posted 2026-10-04
+(`qa/2026-10-04-overnight.txt`, Discord `1556434312272805910`). **Next:**
+those two checks (Sonnet), then the backlog's remaining items (colliders
+that change between attempts, the Megan health check with the author, a
+maintainability review once features settle).
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
