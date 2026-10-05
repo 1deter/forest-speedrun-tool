@@ -30,7 +30,7 @@ namespace ForestOverlay.Modules
     // WHY its own download code, not UpdateChecker's: the updater is the
     // one path that must never break, so it is not refactored for this.
     // ------------------------------------------------------------------
-    public sealed class CommunityModule : OverlayModule
+    public sealed partial class CommunityModule : OverlayModule
     {
         public const string DefaultUrl = "https://raw.githubusercontent.com/1deter/forest-speedrun-tool/main/community/";
         private const float StartupDelay = 5f;

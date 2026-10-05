@@ -269,6 +269,13 @@ var api = app.MapGroup("/api");
 
 api.MapGet("/spots", () => Results.Json(runs.Spots())).RequireRateLimiting("read");
 
+// The plugin's "Website spots" (src/Data/SiteSpots): the list as text, one
+// spot's segment as a .foseg. Read-only, no start state (the site keeps none).
+api.MapGet("/spots.txt", () => Results.Text(runs.SpotsText(), "text/plain; charset=utf-8")).RequireRateLimiting("read");
+
+api.MapGet("/spots/{id}/foseg", (string id) =>
+    runs.SpotFoseg(id) is { } t ? Results.Text(t, "text/plain; charset=utf-8") : Problem(404, "no such spot")).RequireRateLimiting("read");
+
 api.MapGet("/spots/{id}", (string id) =>
     runs.Spot(id) is { } s ? Results.Json(s) : Problem(404, "no such spot")).RequireRateLimiting("read");
 

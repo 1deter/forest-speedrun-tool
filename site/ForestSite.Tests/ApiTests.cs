@@ -131,6 +131,29 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task WebsiteSpots_ListAndFoseg_ForThePlugin()
+    {
+        Segment seg = TestSegment();
+        string ta = await Register(A);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)));
+
+        List<SiteSpot> list = SiteSpots.Parse(await _http.GetStringAsync(SiteSpots.ListUrl("")));
+        SiteSpot spot = Assert.Single(list);
+        Assert.Equal(seg.Id, spot.Id);
+        Assert.Equal(1, spot.Runs);
+
+        // The spot as a .foseg: the same route, so the board matches in game.
+        string text = await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id));
+        SegmentBundle b = SegmentBundle.Parse(text, out string error, null);
+        Assert.NotNull(b);
+        Assert.Equal(seg.RouteFingerprint(), b.Segment.RouteFingerprint());
+        Assert.Empty(b.Attempts);
+
+        var none = await _http.GetAsync(SiteSpots.FileUrl("", "s-none"));
+        Assert.Equal(HttpStatusCode.NotFound, none.StatusCode);
+    }
+
+    [Fact]
     public async Task OwnersRenameReachesTheSite_OthersDoNot()
     {
         Segment seg = TestSegment();
