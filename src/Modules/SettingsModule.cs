@@ -225,7 +225,7 @@ namespace ForestOverlay.Modules
             }
             UiKit.Hint(editR, EditLayoutTip);
             y += 34f;
-            y += UiText.DrawDim(4, y, cw - 8, HudIntro) + 4f;
+            y += UiText.Note(4, y, cw - 8, HudIntro) + 4f;
 
             bool box = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.InfoBox, InfoBoxText);
             if (box != s.InfoBox) s.InfoBox = box;
@@ -234,7 +234,7 @@ namespace ForestOverlay.Modules
             bool compact = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.Compact, CompactText);
             if (compact != s.Compact) s.Compact = compact;
             y += 22f;
-            y += UiText.DrawDim(28, y, cw - 32, CompactNote) + 4f;
+            y += UiText.Note(28, y, cw - 32, CompactNote) + 4f;
 
             GUI.Label(new Rect(4, y, 160, 22), _sizeText, _labelStyle);
             if (GUI.Button(new Rect(168, y, 30, 22), "-")) s.TextSize = HudLines.StepTextSize(s.TextSize, -1);

@@ -850,7 +850,7 @@ namespace ForestOverlay.Modules
 
             y = Field(y, cw, "Notes", ref s.Notes);
             y = Field(y, cw, "Run", ref s.RunCategory);
-            y += UiText.DrawDim(80, y, cw - 90, RunHint);
+            y += UiText.Note(80, y, cw - 90, RunHint);
             y += 6f;
 
             // --- spawn -----------------------------------------------------
@@ -1141,7 +1141,7 @@ namespace ForestOverlay.Modules
                         y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
                         // The clock from the first input (maks): already an event.
                         if (slot == -2 && !string.Equals(t.EventName, WorldEvents.FirstInput, StringComparison.OrdinalIgnoreCase))
-                            y += UiText.DrawDim(x0, y, w - x0 - 6f, FirstInputHint) + 2f;
+                            y += UiText.Note(x0, y, w - x0 - 6f, FirstInputHint) + 2f;
                         break;
                     }
 
@@ -1436,7 +1436,7 @@ namespace ForestOverlay.Modules
             }
             y += 26f;
 
-            y += UiText.DrawDim(x0, y, w - x0 - 6f, PolygonHint) + 2f;
+            y += UiText.Note(x0, y, w - x0 - 6f, PolygonHint) + 2f;
             return y;
         }
 

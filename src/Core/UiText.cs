@@ -39,6 +39,16 @@ namespace ForestOverlay.Core
             return Draw(x, y, width, Scratch, Plain);
         }
 
+        /// An explanation of the control just above (redesign, author 2026-10-05:
+        /// "a feature, its name and a toggle - hover for a brief description"):
+        /// shown as that row's tooltip, takes no space.
+        public static float Note(float x, float y, float width, GUIContent content)
+        {
+            if (content == null || string.IsNullOrEmpty(content.text)) return 0f;
+            UiKit.Hint(new Rect(0f, y - 24f, x + width, 24f), content);
+            return 0f;
+        }
+
         public static float DrawDim(float x, float y, float width, GUIContent content)
         {
             return Draw(x, y, width, content, Dim);

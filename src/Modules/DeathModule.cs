@@ -590,7 +590,7 @@ namespace ForestOverlay.Modules
                 }
                 y += 24f;
             }
-            y += UiText.DrawDim(10, y, w - 10, ChoiceHints[ci]) + 4f;
+            y += UiText.Note(10, y, w - 10, ChoiceHints[ci]) + 4f;
             if (Ctx.Run.Active) y += UiText.Draw(10, y, w - 10, RunModeChoiceText) + 4f;
             y += UiText.Draw(0, y, w, _nextDeathText) + 10f;
 
@@ -601,7 +601,7 @@ namespace ForestOverlay.Modules
                 bool ql = GUI.Toggle(new Rect(0, y, w, 22), _quickLoadCfg.Value, " Reload save on death");
                 if (ql != _quickLoadCfg.Value) { _quickLoadCfg.Value = ql; _nextDeathAt = 0f; }
                 y += 26f;
-                if (choice != DeathChoice.Automatic) y += UiText.DrawDim(20, y, w - 20, ReloadFallbackText) + 4f;
+                if (choice != DeathChoice.Automatic) y += UiText.Note(20, y, w - 20, ReloadFallbackText) + 4f;
             }
 
             if (choice != DeathChoice.GameDeath && (_quickLoadCfg.Value || reloadPicked))
@@ -628,10 +628,10 @@ namespace ForestOverlay.Modules
                 bool inPlace = GUI.Toggle(new Rect(30, y, w - 30, 22), _inPlaceCfg.Value, ReloadInPlaceLabel);
                 if (inPlace && !_inPlaceCfg.Value) { _inPlaceCfg.Value = true; _nextDeathAt = 0f; }
                 y += 24f;
-                y += UiText.DrawDim(30, y, w - 30, ReloadInPlaceText) + 6f;
+                y += UiText.Note(30, y, w - 30, ReloadInPlaceText) + 6f;
             }
 
-            if (choice != DeathChoice.GameDeath) y += UiText.DrawDim(0, y, w, QuickLoadText) + 8f;
+            if (choice != DeathChoice.GameDeath) y += UiText.Note(0, y, w, QuickLoadText) + 8f;
 
             // Practice toggles - not tied to dying, so they work in Creative.
             bool guiWas = GUI.enabled;

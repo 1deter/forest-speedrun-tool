@@ -371,7 +371,7 @@ namespace ForestOverlay.Modules
             if (on != _fastBuildCfg.Value) _fastBuildCfg.Value = on;
             y += 24f;
             if (!_fastBuildCfg.Value) return y + 4f;
-            y += UiText.DrawDim(30, y, w - 20f, FastBuildText) + 8f;
+            y += UiText.Note(30, y, w - 20f, FastBuildText) + 8f;
             return y;
         }
 
@@ -396,7 +396,7 @@ namespace ForestOverlay.Modules
                 }
                 GUI.enabled = guiWas;
                 if (_runCapsStatus.text.Length > 0) y += UiText.Draw(30, y, w - 20f, _runCapsStatus) + 2f;
-                y += UiText.DrawDim(30, y, w - 20f, RunCapsText) + 8f;
+                y += UiText.Note(30, y, w - 20f, RunCapsText) + 8f;
                 return y;
             }
             if (!_capsOnCfg.Value) return y + 4f;
@@ -436,7 +436,7 @@ namespace ForestOverlay.Modules
                 y += 22f;
             }
             y += UiText.Draw(30, y, w - 20f, _capsStatus) + 2f;
-            y += UiText.DrawDim(30, y, w - 20f, CapsText) + 8f;
+            y += UiText.Note(30, y, w - 20f, CapsText) + 8f;
             return y;
         }
 
@@ -653,7 +653,7 @@ namespace ForestOverlay.Modules
             }
             y += 26f;
             y += UiText.Draw(30, y, w - 20f, _logsStatus) + 2f;
-            y += UiText.DrawDim(30, y, w - 20f, LogsText) + 8f;
+            y += UiText.Note(30, y, w - 20f, LogsText) + 8f;
             return y;
         }
 
