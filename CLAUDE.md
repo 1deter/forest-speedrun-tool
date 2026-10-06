@@ -455,6 +455,8 @@ tooltips (`UiText.Note`), opaque window, ON NOW as a list. Left (branch
 doc): the tooltips are done (Map / 100% keep live statuses); the cursor re-check, QA, then
 merge + release (author's call). The author runs the draft.
 
+**Read first:** the author's QA notes of 2026-10-05/06 (redesign fixes, run lines, trajectory, bot, two report zips) are sorted in docs/backlog.md *Author's notes in QA* - the redesign ones belong before its merge. Branches other than `ui-redesign` are all merged.
+
 **Next:** 1) the bot settings page on /admin (author, 2026-10-05;
 design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
 remaining items (branch doc); then the backlog (colliders
