@@ -457,6 +457,8 @@ merge + release (author's call). The author runs the draft.
 
 **Read first:** the author's QA notes of 2026-10-05/06 (redesign fixes, run lines, trajectory, bot, two report zips) are sorted in docs/backlog.md *Author's notes in QA* - the redesign ones belong before its merge. Branches other than `ui-redesign` are all merged.
 
+**Harness / autonomy plan** (author, 2026-10-06: "truly fully autonomous ... minimal human input aside from when new features are being added"): [`docs/harness.md`](docs/harness.md) - the 12 harness-engineering principles scored, work items with checks, a roadmap (tasks file first). The author will do a deeper pass on the course before step 1.
+
 **Next:** 1) the bot settings page on /admin (author, 2026-10-05;
 design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
 remaining items (branch doc); then the backlog (colliders
@@ -986,7 +988,8 @@ does), [`docs/backlog.md`](docs/backlog.md) (deferred runner feedback),
 sessions, unverified items, test assets), [`docs/run-mode.md`](docs/run-mode.md)
 (run mode and anti-cheat: decisions, phases), [`docs/knowledge-bot.md`](docs/knowledge-bot.md)
 (the game-knowledge Discord bot), [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md)
-(audit log and replay ideas). Before
+(audit log and replay ideas), [`docs/harness.md`](docs/harness.md)
+(harness engineering: autonomy plan). Before
 adding a long block here, ask whether a session needs it on every turn
 or only when working on that area - the latter goes to `docs/`.
 
