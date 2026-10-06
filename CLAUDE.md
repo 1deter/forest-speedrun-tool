@@ -426,19 +426,30 @@ updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
 ### Pick up here (2026-10-06, short session on a near-empty weekly quota)
 
-**Start here, in order:**
-1. `qa_read new_only`, then the author's two report zips (QA
-   `1556842694758760559`, 2026-10-06 01:57 / 02:36) - not read yet.
-2. The redesign fixes in docs/backlog.md *Author's notes in QA* (on
+**Start here, in order** (author, 2026-10-06: the harness work first -
+"it will benefit all following tasks in the long term"):
+1. `qa_read new_only` (the standing session start; file anything new,
+   act on it after the harness unless it is critical).
+2. **The harness plan, docs/harness.md**: first the deeper pass on the
+   course (https://walkinglabs.github.io/learn-harness-engineering/en/ -
+   every lecture, the projects, the templates `AGENTS.md` /
+   `feature_list.json` / `claude-progress.md`, the frontier breakdowns),
+   correcting the doc as its *Source caveat* says; then its roadmap from
+   step 1 (the tasks file). Questions for the author go in the session,
+   not into guesses (*Ground rule*). Needs high effort for the design
+   parts - say so (memory `effort-level-switching`).
+3. The author's two report zips (QA `1556842694758760559`, 2026-10-06
+   01:57 / 02:36) - not read yet (the harness's report reader, 9b, would
+   make this cheap).
+4. The redesign fixes in docs/backlog.md *Author's notes in QA* (on
    `ui-redesign`, worktree `.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
    clean + pushed), then the cursor re-check, QA, merge + release (the
    author's call, see below).
-3. **Unreleased on main:** `706ac88` run lines off now stop drawing
+5. **Unreleased on main:** `706ac88` run lines off now stop drawing
    (`Game/LatePass`); ships with the next release - check in game with
    run lines off and a marker / replay up.
-4. The bot settings page (*Next* below), then the harness plan
-   (docs/harness.md) once the author has done the deeper pass on the
-   course. **No guessing** applies throughout (*Standing decisions*).
+6. The bot settings page (*Next* below). Once the tasks file exists,
+   these items move into it.
 
 Worktrees / branches: only `ui-redesign` is left; the merged ones were
 removed 2026-10-06.
@@ -478,7 +489,7 @@ merge + release (author's call). The author runs the draft.
 
 **Harness / autonomy plan** (author, 2026-10-06: "truly fully autonomous ... minimal human input aside from when new features are being added"): [`docs/harness.md`](docs/harness.md) - the 12 harness-engineering principles scored, work items with checks, a roadmap (tasks file first). The author will do a deeper pass on the course before step 1.
 
-**Next:** 1) the bot settings page on /admin (author, 2026-10-05;
+**Next:** 0) the harness plan (docs/harness.md, author 2026-10-06: first); 1) the bot settings page on /admin (author, 2026-10-05;
 design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
 remaining items (branch doc); then the backlog (colliders
 that change between attempts, the Megan health check with the author, a
