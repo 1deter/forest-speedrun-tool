@@ -150,7 +150,9 @@ namespace ForestOverlay.Game
             for (int i = 0; i < Drawers.Count; i++)
             {
                 ILateDrawer d = Drawers[i];
-                if (d == null) continue;
+                // Each drawer's own switch: one wanting the pass drew them all
+                // (run lines off still drawn while markers were up, 2026-10-06).
+                if (d == null || !d.WantsLateDraw) continue;
                 try { d.DrawLate(_camera); }
                 catch (Exception e)
                 {
