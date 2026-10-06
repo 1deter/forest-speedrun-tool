@@ -424,7 +424,26 @@ identity.
 **Released: v0.24.248** (2026-10-05). The author runs it via the in-game
 updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
 
-### Pick up here (2026-10-05 night, unattended - author asleep, PC shut down after)
+### Pick up here (2026-10-06, short session on a near-empty weekly quota)
+
+**Start here, in order:**
+1. `qa_read new_only`, then the author's two report zips (QA
+   `1556842694758760559`, 2026-10-06 01:57 / 02:36) - not read yet.
+2. The redesign fixes in docs/backlog.md *Author's notes in QA* (on
+   `ui-redesign`, worktree `.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
+   clean + pushed), then the cursor re-check, QA, merge + release (the
+   author's call, see below).
+3. **Unreleased on main:** `706ac88` run lines off now stop drawing
+   (`Game/LatePass`); ships with the next release - check in game with
+   run lines off and a marker / replay up.
+4. The bot settings page (*Next* below), then the harness plan
+   (docs/harness.md) once the author has done the deeper pass on the
+   course. **No guessing** applies throughout (*Standing decisions*).
+
+Worktrees / branches: only `ui-redesign` is left; the merged ones were
+removed 2026-10-06.
+
+*Earlier (2026-10-05 night):*
 
 **v0.24.248** (released, confirmed over the bridge): Practice -> Import ->
 *Website spots* (site `/api/spots.txt` + `/api/spots/{id}/foseg`,
