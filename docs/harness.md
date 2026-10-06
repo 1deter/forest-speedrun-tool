@@ -52,6 +52,8 @@ The loop works around this rule, not against it:
   docs, and the gap that allowed the guess (a missing rule, a vague task)
   is fixed too.
 
+The author notes the course covers this too: the deeper pass should merge what it says into this section, not add a second copy.
+
 This changes the roadmap in two places: the task record gets a
 `question` field and an `author-present` value for `needs` (6a), and
 Stage B (12) only ever takes tasks with no open question.
