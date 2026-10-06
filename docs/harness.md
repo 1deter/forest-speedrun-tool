@@ -19,6 +19,43 @@ template, correct this doc where the course says something different, and
 add what it teaches that this summary missed. Mark each change "from lecture
 N". The scores below are a baseline, not a verdict.
 
+## Ground rule: no guessing (author, 2026-10-06)
+
+"The model should absolutely minimise (to ideally 0) the amount of things it
+guesses. If it cannot infer something that's already obvious from the given
+context and instructions, it should ask me."
+
+The loop works around this rule, not against it:
+- **An unknown is a question, never a default.** That covers intent, a
+  design choice, a runner-facing word, scope, and which of two readings of
+  a request is meant. A fact the code, the docs, a log or the bridge can
+  settle is not a question: look it up (gotcha 25 still holds - a live
+  read beats an IL theory). This rule is about what only the author knows.
+- **Unattended, a question parks the task, not the work.** The task gets
+  `status: blocked`, `needs: author-decision` and the question written out
+  in full, with the options seen and what each would change. The loop
+  takes the next task that needs no answer. A half-built guess is never
+  committed as if it were decided.
+- **With the author present, questions come first.** A session the author
+  is in starts by listing the parked questions (`tasks.py list --needs
+  author-decision`). Each one asked is a chance to build further: the
+  author has said a question can spark an idea. So record the answer
+  *and* any idea it led to as new tasks, with "author, date" on the
+  decision (as `CLAUDE.md` already does).
+- **Feature design happens with the author.** New features, and any task
+  whose spec leaves choices open, are `needs: author-present` and are not
+  started unattended. Autonomous work is the well-specified rest: fixes
+  with a clear expected behaviour, checks, tests, docs, cleanup and
+  research that reports back.
+- **A guess that slipped through is a defect.** When the author corrects
+  something that was assumed, the correction becomes a decision in the
+  docs, and the gap that allowed the guess (a missing rule, a vague task)
+  is fixed too.
+
+This changes the roadmap in two places: the task record gets a
+`question` field and an `author-present` value for `needs` (6a), and
+Stage B (12) only ever takes tasks with no open question.
+
 ---
 
 ## Scorecard (2026-10-06)
@@ -184,7 +221,8 @@ line, easy to merge), owned by scripts. Each record looks like this:
 {"id":"T-0142","title":"Run lines off leaves the line drawn","area":"plugin",
  "source":"qa:1556808081755603048","priority":2,
  "status":"built",          // todo | in-progress | built | released | confirmed | wontfix | blocked
- "needs":"bridge",          // none | bridge | author-eyes | tester | moderators | author-decision
+ "needs":"bridge",          // none | bridge | author-eyes | tester | moderators | author-decision | author-present
+ "question":null,           // set when parked: the question, the options, what each changes
  "verify":"bridge: run lines off + marker up -> no RunLine draw (shot + log)",
  "commits":["706ac88"],"release":null,"evidence":null,
  "blocked_by":[],"notes":"docs/backlog.md"}
@@ -374,3 +412,4 @@ should shape the task file's format rather than this doc's guess.
 ## Status log
 
 - 2026-10-06: baseline written from the course index; nothing built yet.
+- 2026-10-06: *Ground rule: no guessing* added (author).

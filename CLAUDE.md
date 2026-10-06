@@ -701,6 +701,13 @@ total playtime lines.
   endgame flag, never loads the lab without the door) - our Go keeps / sets
   the flag in the vault entrance, the same in effect (game-notes *Speedrun
   tech*).
+- **No guessing** (author, 2026-10-06): minimise guesses to ideally
+  zero. If something is not obvious from the context and instructions -
+  intent, a design choice, a runner-facing word, scope - **ask**; facts
+  the code / docs / logs / bridge can settle are looked up, not asked.
+  Unattended work parks the task with the question written out
+  (docs/harness.md *Ground rule*); new features are built with the
+  author present, and questions are welcome (they can spark ideas).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
