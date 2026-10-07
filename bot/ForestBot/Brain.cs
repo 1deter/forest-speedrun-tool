@@ -60,7 +60,7 @@ public sealed class Brain : IDisposable
     {
         if (Models == null) return;
         BotConfig.LiveSettings live = Config.Live;
-        Models.Replace(ModelChain.FromSpec(live.Models, _http, Config.Get, live.ThinkingLevel, Log).Models);
+        Models.ReplaceIfAny(ModelChain.FromSpec(live.Models, _http, Config.Get, live.ThinkingLevel, Log).Models, live.Models);
     }
 
     /// `followUpOf`: the answer being replied to (null = a new question).

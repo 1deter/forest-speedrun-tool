@@ -130,8 +130,14 @@ public sealed class BotSettings
         // When the bot applied that revision (its own clock); anything unparsable = unknown.
         string applied = DateTimeOffset.TryParse(Text(o["appliedAt"]), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var when)
             ? when.UtcDateTime.ToString("o", CultureInfo.InvariantCulture) : "";
+        var answersIn = new JsonArray();
+        if (o["answersIn"] is JsonArray ans)
+            foreach (var a in ans.Take(MaxReported))
+                if (Text(a) is { } aid && Snowflake.IsMatch(aid)) answersIn.Add(aid);
+        bool allChannels = o["allChannels"] is JsonValue av && av.TryGetValue(out bool all) && all;
         var report = new JsonObject
         {
+            ["allChannels"] = allChannels, ["answersIn"] = answersIn,
             ["at"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture), ["version"] = version, ["rev"] = rev,
             ["appliedAt"] = applied, ["channels"] = channels,
         };

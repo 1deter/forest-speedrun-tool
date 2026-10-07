@@ -118,6 +118,8 @@ public sealed class SiteSettings
             var body = new
             {
                 version = _version, rev = Rev,
+                // What it answers in right now (the applied set: the .env ones when never saved).
+                allChannels = _cfg.Live.AllChannels, answersIn = _cfg.Live.Channels.Select(id => id.ToString()).ToList(),
                 appliedAt = AppliedAt?.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 channels = channels.Select(c => new { id = c.Id.ToString(), name = c.Name, guild = c.Guild }).ToList(),
             };

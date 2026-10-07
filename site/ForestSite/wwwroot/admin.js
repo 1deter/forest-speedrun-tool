@@ -554,12 +554,16 @@ function adminsView(list) {
 function botView(data) {
   const s = data.settings || {}, report = data.report;
   const seen = (report && report.channels) || [];
-  const chosen = new Set((s.channels || []).map(String));
+  // Stored channels, or - never saved - what the bot really answers in now (its .env ones).
+  const stored = Array.isArray(s.channels);
+  const answering = report && !report.allChannels ? (report.answersIn || []) : [];
+  const chosen = new Set((stored ? s.channels : answering).map(String));
+  let touched = false;
   const known = new Set(seen.map(c => c.id));
   const label = c => (c.guild ? c.guild + " / " : "") + "#" + c.name;
 
   const boxes = seen.map(c => {
-    const box = el("input", { type: "checkbox", value: c.id });
+    const box = el("input", { type: "checkbox", value: c.id, onchange: () => { touched = true; } });
     box.checked = chosen.has(c.id);
     return el("label", { class: "check" }, box, " " + label(c));
   });
@@ -591,7 +595,9 @@ function botView(data) {
     // With no boxes (the bot has not listed its channels) the channels stay as stored, or absent:
     // sending [] would silence the bot.
     const body = {
-      channels: boxes.length ? boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value) : s.channels, dms: dms.checked,
+      channels: !boxes.length ? s.channels
+        : !stored && !touched && !answering.length ? undefined   // never saved, bot answers everywhere: stay that way
+        : boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value), dms: dms.checked,
       perHour: perHour.value ? Number(perHour.value) : null, perDay: perDay.value ? Number(perDay.value) : null,
       models: models.value.trim(), thinking: thinking.value, queueChannel: queue.value,
     };
@@ -620,7 +626,7 @@ function botView(data) {
     el("div", { class: "catform" },
     el("h3", null, "Channels it answers in"),
     boxes.length ? el("div", null, boxes) : el("p", { class: "sub" }, "The bot has not listed its channels yet."),
-    el("p", { class: "sub" }, "Once saved here, the ticked channels are the whole list: none ticked = the bot answers in no channel (direct messages follow the setting below). Before the first save the bot uses its .env channels."),
+    el("p", { class: "sub" }, "Once saved here, the ticked channels are the whole list: none ticked = the bot answers in no channel (direct messages follow the setting below). Before the first save the bot uses its .env channels (ticked here when it has reported them; with none, it answers in every channel until you tick some)."),
     el("label", { class: "check" }, dms, " Answer direct messages"),
     field("Questions per user per hour", perHour),
     field("Questions per user per day", perDay),

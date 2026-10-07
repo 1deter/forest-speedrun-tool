@@ -223,6 +223,53 @@ public class SiteSettingsTests : IDisposable
     }
 
     [Fact]
+    public void Unusable_model_order_keeps_the_current_chain()
+    {
+        Func<string, string> keys = n => n == "GEMINI_API_KEY" ? "k" : null;
+        ModelChain chain = ModelChain.FromSpec("gemini:a,gemini:b", new HttpClient(), keys, null, _log.Add);
+        string[] before = chain.Models.Select(m => m.Name).ToArray();
+
+        // A typo / unknown provider / missing key: nothing usable.
+        ModelChain bad = ModelChain.FromSpec("nonesuch:x,mistral:m", new HttpClient(), keys, null, _log.Add);
+        Assert.Empty(bad.Models);
+        Assert.False(chain.ReplaceIfAny(bad.Models, "nonesuch:x,mistral:m"));
+        Assert.Equal(before, chain.Models.Select(m => m.Name));
+        Assert.Contains(_log, l => l.Contains("model order 'nonesuch:x,mistral:m' has no usable model - keeping"));
+
+        // A usable one replaces it.
+        ModelChain good = ModelChain.FromSpec("gemini:c", new HttpClient(), keys, null, _log.Add);
+        Assert.True(chain.ReplaceIfAny(good.Models, "gemini:c"));
+        Assert.Single(chain.Models);
+    }
+
+    [Fact]
+    public async Task Report_names_the_channels_it_answers_in_now()
+    {
+        BotConfig c = Config();   // .env: 100,200, never saved
+        FakeSite fake = new FakeSite { Body = """{"rev":0,"settings":{}}""" };
+        SiteSettings site = Site(c, fake);
+        await site.PollAsync(CancellationToken.None);
+        await site.ReportAsync(new[] { new SeenChannel(100, "a", "G") }, CancellationToken.None);
+        JsonObject body = (JsonObject)JsonNode.Parse(fake.Seen.Last().body);
+        Assert.False((bool)body["allChannels"]);
+        Assert.Equal(new[] { "100", "200" }, body["answersIn"].AsArray().Select(x => (string)x).OrderBy(x => x));
+
+        // Saved on the site: the applied set; everywhere when .env has none and nothing is saved.
+        fake.Body = """{"rev":2,"settings":{"channels":["7"]}}""";
+        await site.PollAsync(CancellationToken.None);
+        await site.ReportAsync(new[] { new SeenChannel(7, "a", "G") }, CancellationToken.None);
+        body = (JsonObject)JsonNode.Parse(fake.Seen.Last().body);
+        Assert.Equal(new[] { "7" }, body["answersIn"].AsArray().Select(x => (string)x));
+        _env["FOREST_BOT_CHANNELS"] = "";
+        fake.Body = """{"rev":3,"settings":{}}""";
+        await site.PollAsync(CancellationToken.None);
+        await site.ReportAsync(new[] { new SeenChannel(7, "a", "G") }, CancellationToken.None);
+        body = (JsonObject)JsonNode.Parse(fake.Seen.Last().body);
+        Assert.True((bool)body["allChannels"]);
+        Assert.Empty(body["answersIn"].AsArray());
+    }
+
+    [Fact]
     public async Task Report_carries_the_time_the_revision_was_applied()
     {
         BotConfig c = Config();
