@@ -74,6 +74,9 @@ worth it only for work bigger than that.
 Switch at a task boundary, not by habit or by a context number alone:
 - **Small, self-contained items**: one per session, then hand off (the
   author's usual plan).
+  **One session, one task** (author, 2026-10-07): once the task is done
+  and handed off, stop - name the next task for a new session, never
+  offer to carry on with it in this one.
 - **An investigation stays in one session** (a performance item, a
   heap / physics lead, a multi-release bug): what has been read - IL,
   log lines, a dropped theory - is worth more than a fresh start reading
