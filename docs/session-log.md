@@ -2,6 +2,32 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Before that (2026-10-07, before the first loop run)
+
+- **Start:** skill `session-start` (the SessionStart hook's report is
+  its first step).
+- **Harness roadmap** (docs/harness.md, author 2026-10-06: first; what
+  each step built: its *Status log*): steps 1-5 done (5: the e2e suite,
+  `scripts/e2e.py`, T-0010 - the release skill runs its smoke), 3e
+  skills, 8c, 9a, 9b, 10d (T-0013), **12 Stage A (T-0015): the assisted
+  loop**, `scripts/loop.py` + skill `work-loop`, not yet run on real
+  tasks; T-0007 / T-0113 built. Left: T-0014 cleanup loop + review,
+  T-0016 Stage B (after Stage A runs a week without a fix), 14 small
+  lint / test checks (T-0122..T-0135). Bot direction (author,
+  2026-10-07): the author out of the feedback loop - T-0141, T-0140.
+  **Order (author, 2026-10-07):** harness first, the redesign after (the
+  redesign tasks are `author-present`, so the loop skips them).
+  **Next: the first loop run** - skill `work-loop`; it takes T-0026,
+  T-0028, T-0090, T-0140, T-0141 by priority.
+- **New from the 2026-10-07 game session:** T-0143 native crash on a
+  title load (P2, bridge); T-0049 is a real bug (another segment's Go
+  keeps the red line); T-0144 Runs-tab dead links (question parked);
+  T-0027 marker half and T-0052 tally confirmed, their other halves open.
+- **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
+  pushed; tasks T-0018..T-0025). **Released:** v0.24.249. Nothing unreleased.
+- **Nothing is published yet:** all live categories are drafts (the
+  moderators publish); no community run spot exists (the author's call).
+
 ## Before that (2026-10-03, v0.24.234 released)
 
 **Latest session: three cards - `categories-and-rules`, `routes`,

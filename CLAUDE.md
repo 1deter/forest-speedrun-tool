@@ -189,26 +189,27 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **Start:** skill `session-start` (the SessionStart hook's report is
-  its first step).
-- **Harness roadmap** (docs/harness.md, author 2026-10-06: first; what
-  each step built: its *Status log*): steps 1-5 done (5: the e2e suite,
-  `scripts/e2e.py`, T-0010 - the release skill runs its smoke), 3e
-  skills, 8c, 9a, 9b, 10d (T-0013), **12 Stage A (T-0015): the assisted
-  loop**, `scripts/loop.py` + skill `work-loop`, not yet run on real
-  tasks; T-0007 / T-0113 built. Left: T-0014 cleanup loop + review,
-  T-0016 Stage B (after Stage A runs a week without a fix), 14 small
-  lint / test checks (T-0122..T-0135). Bot direction (author,
-  2026-10-07): the author out of the feedback loop - T-0141, T-0140.
-  **Order (author, 2026-10-07):** harness first, the redesign after (the
-  redesign tasks are `author-present`, so the loop skips them).
-  **Next: the first loop run** - skill `work-loop`; it takes T-0026,
-  T-0028, T-0090, T-0140, T-0141 by priority.
-- **New from the 2026-10-07 game session:** T-0143 native crash on a
-  title load (P2, bridge); T-0049 is a real bug (another segment's Go
-  keeps the red line); T-0144 Runs-tab dead links (question parked);
-  T-0027 marker half and T-0052 tally confirmed, their other halves open.
+- **Start:** skill `session-start` (its report's *bot feedback* line
+  says when skill `bot-review` is due).
+- **First loop run done** (R-0001, 2026-10-07: 5 rounds, 5 progressed,
+  3 author interventions - `python scripts/loop.py report`): T-0026 (your
+  report zips -> T-0148..T-0153), T-0028 (the /admin Bot tab, live),
+  T-0090 (answer length, deployed; waits on T-0157), T-0140 (the
+  knowledge-testing channel -> T-0158..T-0166), T-0141 (bot review: CI
+  full eval by hand, first review 81.5%, docs/bot-reviews/).
+- **Harness roadmap** (docs/harness.md, its *Status log*): steps 1-5, 3e,
+  8c, 9a, 9b, 10d, 12 Stage A done. Left: T-0014 cleanup loop + review,
+  T-0016 Stage B (after Stage A runs a week without a fix), T-0154
+  (loop.py: no release for a docs-only round), 14 small lint / test
+  checks (T-0122..T-0135). **Order (author, 2026-10-07):** harness first,
+  the redesign after (its tasks are `author-present`).
+- **Next loop run** would take, by priority: T-0156 / T-0157 (bot eval:
+  timeout crash, failed checks in the log - then T-0090 can confirm),
+  T-0158 / T-0163 (knowledge P2s), T-0150. With the game up (`--bridge`):
+  T-0148, T-0149, T-0151, T-0143 (crashes / hitches from your zips).
+- **Parked for you:** T-0152 (other runners' spots read-only?), T-0153
+  (a settings lock per spot?), T-0144 (Runs-tab dead links).
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Released:** v0.24.249. Nothing unreleased.
+  pushed; tasks T-0018..T-0025). **Released:** v0.24.249, nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).

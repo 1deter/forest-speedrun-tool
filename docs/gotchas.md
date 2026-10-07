@@ -870,3 +870,21 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     object at its scene path (`find <name>` without `all`, path
     `Nature_Spawned/<name>`), and assert it is found before the action
     that should remove it.
+
+97. **A merged branch rides along with the next push to main - and a push
+    to main deploys.** (2026-10-07, loop R-0001 round 2, T-0028.) main
+    merged the maker's branch, the checker came back *revise*, and the next
+    commit - only a task-file note - was pushed "to keep the repo in
+    sync". The push carried the unchecked site and bot code with it, and
+    both deployed (inert only because the new token was not set yet). Until
+    the checker accepts, keep the merge local (or merge only after accept);
+    the Stop hook's "commits not pushed" is answered with the reason, not
+    with a push. A revise after a local merge: `git revert -m 1` the merge
+    on main, and `git revert` that revert before merging the fixed branch.
+
+98. **Commit the contract before spawning the maker.** (2026-10-07, loop
+    R-0001 round 2.) `isolation: worktree` branches from HEAD: a contract
+    written with `tasks.py start` but not committed is not in the
+    worktree, and the maker reported "verify / scope are empty" and built
+    from the prompt instead. Commit (and push) the task file after
+    `tasks.py start`, then spawn.
