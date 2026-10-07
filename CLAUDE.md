@@ -20,7 +20,7 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
    the game leaves Unity 5.6 / Mono 2.0)*
 2. **Never deploy a DLL into the game by hand** - the author's install
    updates through the real release path. *(author; while the updater ships
-   releases - docs/areas/release.md)*
+   releases - docs/areas/release.md; the PreToolUse hook asks)*
 3. **Release with `scripts/bump.py`** (csproj + `Plugin.PluginVersion` + a
    `CHANGELOG.md` section, which CI requires), after `git fetch` and a look
    at `HEAD..origin/main`; chain a script edit to the bump with `&&`
@@ -28,7 +28,7 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
    *(author, 2026-09-23; gotcha 65; while sessions tag releases)*
 4. **Never poll `api.github.com`** - poll the release asset URL (60 calls an
    hour per IP, shared with the author's game). *(locked the author's
-   update check out once; permanent)*
+   update check out once; permanent; the PreToolUse hook refuses it)*
 5. **No guessing.** Intent, a design choice, a runner-facing word, scope:
    ask the author; unattended, park the task with the question
    (`tasks.py set T-n --question`). Facts the code, docs, logs or bridge can
@@ -40,7 +40,7 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
    before building on it. *(gotchas 4, 25; permanent)*
 8. **Never round-trip text through PowerShell 5.1**; multi-line edits go
    through Edit or a Python script that keeps BOM and line endings
-   (docs/areas/workflow.md *Editing*). *(gotchas 9, 19; while the shell is PS 5.1)*
+   (docs/areas/workflow.md *Editing*). *(gotchas 9, 19; while the shell is PS 5.1; the hook warns)*
 9. **Open work lives in the task file** (`scripts/tasks.py`): `start` writes
    the contract, `evidence` records proof; no prose to-do lists.
    *(author, 2026-10-07; until the harness replaces it)*
@@ -113,6 +113,7 @@ python scripts/merge-keepboth.py <files>          # resolve add/add merge confli
 python scripts/session-start.py                 # where things stand (the SessionStart hook runs it; --baseline forces local tests)
 python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (local + origin), __pycache__, scratch > 7 days
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
+python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread

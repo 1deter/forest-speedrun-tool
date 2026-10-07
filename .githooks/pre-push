@@ -1,0 +1,16 @@
+#!/bin/sh
+# A v* tag about to be pushed must match its commit's csproj <Version>,
+# Plugin.PluginVersion and a CHANGELOG section - CI publishes the release
+# from it (router rule 3, gotcha 65). Stdin: <local ref> <sha> <remote ref> <sha>.
+PY=$(command -v python || command -v python3)
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_ref" in
+    refs/tags/v*)
+      [ "$local_sha" = "$zero" ] && continue
+      "$PY" scripts/lint.py --tag "${local_ref#refs/tags/}" --rev "$local_sha^{commit}" || status=1
+      ;;
+  esac
+done
+exit $status

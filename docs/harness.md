@@ -691,3 +691,13 @@ Asked after the deeper pass; each replaces an "open question" above.
   (every old unit in one file) and a fresh Sonnet checker (5 questions +
   4 lookups in one hop; its faults fixed: moved links, the gotcha index
   map, rule 10's e2e wording). Next: step 3e (T-0004, skills).
+- 2026-10-07: roadmap step 4, gates built (T-0005): `scripts/lint.py`
+  (versions, CHANGELOG section, csproj Remove lines, UI heuristics against
+  `scripts/lint-baseline.txt` - 30 hits on day one) in CI and git hooks
+  (`.githooks/` pre-commit, pre-push tag check); PreToolUse hook
+  (`scripts/hooks/pre_tool.py`: refuses api.github.com and a forced push
+  to main, asks before a deploy into the author's install, warns on
+  Get-Content | Set-Content); Stop hook (`scripts/hooks/stop.py`, blocks
+  once). 32 tests. Author's calls: baseline the heuristics, the
+  log-prefix lint waits for 9a, the deploy asks (an unattended loop must
+  refuse instead). Left of step 4: the gotcha audit (5d).

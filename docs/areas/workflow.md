@@ -13,6 +13,32 @@ The SessionStart hook (`.claude/settings.json`, startup + /clear) prints
 baseline (CI badges, or local tests when HEAD is not origin/main),
 release, site, VPS, tasks.
 
+## Gates (machine checks, docs/harness.md 5a, 5b, 7b)
+
+Every failure says WHAT / WHY / FIX; follow the FIX line.
+- **`scripts/lint.py`** - the csproj version = `Plugin.PluginVersion` = a
+  `CHANGELOG.md` section; every top-level folder with C# in the csproj's
+  three `Remove` lines (gotcha 92); a fixed 20 px `GUI.Label` with
+  variable text and allocations in `OnGUI` / `DrawTab` bodies (heuristics:
+  the hits that existed on 2026-10-07 sit in `scripts/lint-baseline.txt`,
+  only new ones fail; `--update-baseline` accepts a false positive or drops
+  fixed ones). Runs in CI, before every commit (`.githooks/pre-commit`) and
+  before a `v*` tag is pushed (`.githooks/pre-push`: the tag's commit
+  carries that version). `session-start.py` turns the git hooks on
+  (`core.hooksPath .githooks`). The community index: `CommunityPacksTests`.
+  The log-prefix lint waits for the log catalogue (9a, author 2026-10-07).
+- **PreToolUse** (`scripts/hooks/pre_tool.py`, Bash / PowerShell /
+  WebFetch): refuses `api.github.com` fetches and a forced push to main;
+  **asks** before a deploy into the author's install (`deploy.ps1` with
+  no / the `FOREST_ROOT` game root, or a copy into its `BepInEx/plugins`
+  - author 2026-10-07: "just ask me"; a test install passes; bridge tests
+  use `update_game` and never hit it); warns on `Get-Content | Set-Content`.
+- **Stop** (`scripts/hooks/stop.py`): at the end of a turn, lists
+  uncommitted / unpushed work, a csproj version with no (pushed) tag,
+  in-progress tasks with no `tasks/notes/` file, and an unpushed changelog
+  line with a number and no "measured" (gotcha 44). It blocks the stop
+  once; finish them, or end the turn saying why each one stays.
+
 ## The task file
 
 **Open work lives in the task file** ([`docs/harness.md`](../harness.md) 6, built

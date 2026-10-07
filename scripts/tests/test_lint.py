@@ -1,0 +1,143 @@
+"""Tests for scripts/lint.py: each lint fails on a planted violation with its fix text.
+
+    python scripts/tests/test_lint.py
+"""
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
+import lint as L  # noqa: E402
+
+CSPROJ = """<Project><PropertyGroup>
+<Version>0.24.9</Version><AssemblyVersion>0.24.9.0</AssemblyVersion><FileVersion>0.24.9.0</FileVersion>
+</PropertyGroup><ItemGroup>
+<Compile Remove="tools/**;tests/**;bot/**" />
+<None Remove="tools/**;tests/**;bot/**" />
+<EmbeddedResource Remove="tools/**;tests/**" />
+</ItemGroup></Project>"""
+PLUGIN = 'public const string PluginVersion = "0.24.9";'
+CHANGELOG = "# Changelog\n\n## v0.24.9 - 2026-10-07\n\n- a line\n\n## v0.24.8 - 2026-10-06\n"
+
+
+def text(probs):
+    return "\n".join(str(p) for p in probs)
+
+
+class Versions(unittest.TestCase):
+    def test_agreeing_versions_pass(self):
+        self.assertEqual(L.check_versions(CSPROJ, PLUGIN, CHANGELOG), [])
+        self.assertEqual(L.check_versions(CSPROJ, PLUGIN, CHANGELOG, tag="v0.24.9"), [])
+
+    def test_plugin_version_differs(self):
+        out = text(L.check_versions(CSPROJ, PLUGIN.replace("0.24.9", "0.24.8"), CHANGELOG))
+        self.assertIn("ERROR: src/Plugin.cs PluginVersion is 0.24.8", out)
+        self.assertIn("WHY:", out)
+        self.assertIn("FIX: release with scripts/bump.py", out)
+
+    def test_assembly_version_differs(self):
+        out = text(L.check_versions(CSPROJ.replace("0.24.9.0</File", "0.24.8.0</File"), PLUGIN, CHANGELOG))
+        self.assertIn("FileVersion is 0.24.8.0", out)
+
+    def test_no_changelog_section(self):
+        out = text(L.check_versions(CSPROJ, PLUGIN, CHANGELOG.replace("## v0.24.9", "## v0.24.7")))
+        self.assertIn('has no "## v0.24.9" section', out)
+        self.assertIn("FIX: python scripts/bump.py 0.24.9", out)
+
+    def test_section_prefix_is_not_enough(self):
+        self.assertFalse(L.changelog_has("## v0.24.90 - x\n", "0.24.9"))
+
+    def test_tag_differs(self):
+        out = text(L.check_versions(CSPROJ, PLUGIN, CHANGELOG, tag="v0.24.10"))
+        self.assertIn("tag v0.24.10 points at a commit whose ForestOverlay.csproj <Version> is 0.24.9", out)
+        self.assertIn("gotcha 65", out)
+
+
+class Removes(unittest.TestCase):
+    def test_listed_folders_pass(self):
+        removed = L.removed_folders(CSPROJ)
+        self.assertEqual(removed["Compile"], {"tools", "tests", "bot"})
+        self.assertEqual(L.check_removes(CSPROJ, ["tools", "tests"]), [])
+
+    def test_new_project_folder_fails(self):
+        out = text(L.check_removes(CSPROJ, ["tools", "bot", "newproj"]))
+        self.assertIn("bot/ holds C# but is not in ForestOverlay.csproj's EmbeddedResource Remove line(s)", out)
+        self.assertIn("newproj/ holds C# but is not in ForestOverlay.csproj's Compile, None, EmbeddedResource", out)
+        self.assertIn("gotcha 92", out)
+        self.assertIn("FIX: add newproj/** to the Compile, None and EmbeddedResource Remove lines", out)
+
+    def test_project_folders_finds_cs(self):
+        d = tempfile.mkdtemp()
+        try:
+            for sub in ("a/deep", "b", "src", "c/bin"):
+                os.makedirs(os.path.join(d, sub))
+            open(os.path.join(d, "a", "deep", "X.cs"), "w").close()
+            open(os.path.join(d, "b", "readme.md"), "w").close()
+            open(os.path.join(d, "src", "Y.cs"), "w").close()
+            open(os.path.join(d, "c", "bin", "Z.cs"), "w").close()
+            self.assertEqual(L.project_folders(d), ["a"])
+        finally:
+            shutil.rmtree(d)
+
+
+DRAW = '''class M {
+    public override void DrawTab(Rect area)
+    {
+        GUI.Label(new Rect(0, y, w, 20), "Constant");
+        GUI.Label(new Rect(0, y, w - 4, 20), _status);
+        GUI.Label(new Rect(0, Mathf.Max(1f, y), w, 20f), _status);
+        y += UiText.Draw(0, y, w, "Installed: v" + _version);
+        var r = new Rect(0, 0, 1, 1);
+        float h = Mathf.Max(1f, y);
+        string s = "joined " +
+                   "constant";   // a constant
+        // _x = "a" + b; in a comment
+        _list = _items.Where(i => i.On).ToList();
+        _style = new GUIStyle(GUI.skin.label);
+    }
+    void Tick() { _status = "made here " + n; }
+}
+'''
+
+
+class Ui(unittest.TestCase):
+    def test_label20_with_variable_text(self):
+        hits = L.label_hits("src/M.cs", DRAW)
+        self.assertEqual([h[2] for h in hits], [5, 6])
+
+    def test_alloc_only_inside_draw_bodies(self):
+        hits = L.alloc_hits("src/M.cs", DRAW)
+        self.assertEqual([h[2] for h in hits], [7, 13, 14])
+
+    def test_planted_hit_fails_with_fix_text(self):
+        probs, stale = L.check_ui(L.label_hits("src/M.cs", DRAW) + L.alloc_hits("src/M.cs", DRAW), {})
+        out = text(probs)
+        self.assertEqual(len(probs), 5)
+        self.assertIn("ERROR: GUI.Label at a fixed 20 px with variable text in src/M.cs:5", out)
+        self.assertIn("FIX: y += UiText.Draw(x, y, w, text)", out)
+        self.assertIn("ERROR: an allocation inside an OnGUI / DrawTab body in src/M.cs:7", out)
+        self.assertIn("FIX: build the string in Tick", out)
+
+    def test_baseline_counts_and_stale(self):
+        hits = L.label_hits("src/M.cs", DRAW)
+        base = {L.baseline_key(hits[0]): 1, "label20\tsrc/Gone.cs\tGUI.Label(x)": 1}
+        probs, stale = L.check_ui(hits, base)
+        self.assertEqual(len(probs), 1)       # the second, different line is new
+        self.assertEqual(stale, 1)            # Gone.cs was fixed
+        # the same line twice needs two entries
+        twice = [hits[0], hits[0]]
+        self.assertEqual(len(L.check_ui(twice, {L.baseline_key(hits[0]): 1})[0]), 1)
+
+    def test_empty_virtual_body_is_skipped(self):
+        self.assertEqual(L.draw_bodies("public virtual void DrawTab(Rect area) { }\n"), [])
+
+    def test_repo_passes(self):
+        # The real tree against the committed baseline - what CI and the pre-commit hook run.
+        self.assertEqual(L.main([]), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

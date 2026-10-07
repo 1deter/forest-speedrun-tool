@@ -44,6 +44,14 @@ jobs:
           python3 scripts/tests/test_session.py
           python3 scripts/tasks.py check
 
+      # The machine gates (docs/harness.md 5a, 5b, 7b): the lints over the
+      # tree (WHAT / WHY / FIX on failure), then the lint and hook tests.
+      - name: Lint
+        run: |
+          python3 scripts/lint.py
+          python3 scripts/tests/test_lint.py
+          python3 scripts/tests/test_hooks.py
+
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:

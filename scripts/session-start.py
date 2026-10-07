@@ -225,6 +225,10 @@ def report(force_local=False):
     if dirty:
         g += ", %s uncommitted" % plural(len(dirty), "file")
     lines.append(g)
+    # The lints' git hooks (docs/harness.md 5a) live in .githooks/; a fresh clone needs them turned on.
+    if cleanup.git("config", "--get", "core.hooksPath") != ".githooks":
+        subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=ROOT, capture_output=True)
+        lines.append("git hooks: turned on (core.hooksPath .githooks - lints before commit, tag check before push)")
 
     s = f_survey.result()
     live = [wt for wt, st in s["worktrees"] if st in ("live", "dirty")]

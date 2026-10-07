@@ -1,0 +1,6 @@
+#!/bin/sh
+# The project's lints before every commit (docs/harness.md 5a): versions,
+# the csproj Remove lines, the UI heuristics. Each failure says WHAT / WHY / FIX.
+# Turned on by scripts/session-start.py (git config core.hooksPath .githooks).
+PY=$(command -v python || command -v python3)
+exec "$PY" scripts/lint.py

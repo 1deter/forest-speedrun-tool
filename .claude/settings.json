@@ -12,6 +12,30 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/hooks/pre_tool.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/hooks/stop.py\"",
+            "timeout": 30,
+            "statusMessage": "Checking for unfinished work (git, tags, tasks)"
+          }
+        ]
+      }
     ]
   }
 }
