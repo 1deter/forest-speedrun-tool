@@ -387,7 +387,7 @@ namespace ForestOverlay.Game
         private static string World()
         {
             if (_manager == null) return "";
-            UnityEngine.Object m = UnityEngine.Object.FindObjectOfType(_manager);
+            UnityEngine.Object m = SceneCache.One(_manager);
             return m == null ? "" : Launch + "-" + m.GetInstanceID().ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
@@ -424,20 +424,23 @@ namespace ForestOverlay.Game
         private string RegrowTrees()
         {
             if (_refresh == null || _currentView == null || _id == null || _cutIds == null || _dontSpawn == null) return "";
-            UnityEngine.Object manager = UnityEngine.Object.FindObjectOfType(_manager);
+            // Scene searches kept between restores (SceneCache, T-0148):
+            // four walks of the scene were ~90 ms of the restore's frame.
+            UnityEngine.Object manager = SceneCache.One(_manager);
             if (manager == null) return "";
             HashSet<int> cut = new HashSet<int>();
             int[] ids = _cutIds.GetValue(manager) as int[];
             if (ids != null) for (int i = 0; i < ids.Length; i++) if (ids[i] >= 0) cut.Add(ids[i]);
 
-            UnityEngine.Object grid = _regrowth != null ? UnityEngine.Object.FindObjectOfType(_grid) : null;
+            UnityEngine.Object grid = _regrowth != null && _grid != null ? SceneCache.One(_grid) : null;
             int regrown = 0, midChop = 0;
-            UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_treeId);
+            UnityEngine.Object[] all = SceneCache.All(_treeId);
+            Behaviour[] lods = TreeLods(all);
             for (int i = 0; i < all.Length; i++)
             {
                 Component idc = all[i] as Component;
                 if (idc == null) continue;
-                Behaviour lod = idc.GetComponent(_lodTrees) as Behaviour;
+                Behaviour lod = lods[i];
                 if (lod == null || lod.enabled) continue;
                 if (cut.Contains((int)_id.GetValue(idc))) continue;
 
@@ -482,6 +485,25 @@ namespace ForestOverlay.Game
 
             if (regrown == 0) return "";
             return "trees: " + regrown + " regrown (not cut at capture" + (midChop > 0 ? "; " + midChop + " half-chopped or falling" : "") + ")";
+        }
+
+        // Each tree's LOD_Trees, for the cached tree list it was read for
+        // (8628 GetComponent calls once a scene, not every restore).
+        private UnityEngine.Object[] _lodsFor;
+        private Behaviour[] _lods;
+
+        private Behaviour[] TreeLods(UnityEngine.Object[] all)
+        {
+            if (ReferenceEquals(all, _lodsFor) && _lods != null) return _lods;
+            Behaviour[] lods = new Behaviour[all.Length];
+            for (int i = 0; i < all.Length; i++)
+            {
+                Component idc = all[i] as Component;
+                if (idc != null) lods[i] = idc.GetComponent(_lodTrees) as Behaviour;
+            }
+            _lodsFor = all;
+            _lods = lods;
+            return lods;
         }
 
         /// Puts back the copies of cuts after number `since` (-1: all).

@@ -91,7 +91,7 @@ namespace ForestOverlay.Game
             {
                 if (!Bind()) return "";
                 StringBuilder sb = new StringBuilder();
-                UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
+                UnityEngine.Object[] all = SceneCache.All(_type);   // the endgame's own (T-0148)
                 for (int i = 0; i < all.Length; i++)
                 {
                     Component c = all[i] as Component;
@@ -128,7 +128,7 @@ namespace ForestOverlay.Game
             {
                 if (!Bind()) return "";
                 Dictionary<string, Component> live = new Dictionary<string, Component>();
-                UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
+                UnityEngine.Object[] all = SceneCache.All(_type);   // the endgame's own (T-0148)
                 for (int i = 0; i < all.Length; i++)
                 {
                     Component c = all[i] as Component;
@@ -202,7 +202,7 @@ namespace ForestOverlay.Game
             {
                 if (!Bind() || _moving == null) return "";
                 int stopped = 0;
-                UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
+                UnityEngine.Object[] all = SceneCache.All(_type);   // the endgame's own (T-0148)
                 for (int i = 0; i < all.Length; i++)
                 {
                     Component c = all[i] as Component;

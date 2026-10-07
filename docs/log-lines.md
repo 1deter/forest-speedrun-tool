@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-214 prefixes from 659 log calls.
+216 prefixes from 663 log calls.
 
 ## `Aerial capture`
 
@@ -1088,6 +1088,14 @@ Written by PlaneSite.cs; warning.
 - warning `Plane site: <e.Message>`
 - warning `Plane site: PlaneCrashController not found - runs will not record the plane.`
 
+## `Plane wreck`
+
+Meaning: An in-place restore's re-created plane wreck started where a wreck already stands, and its crash clearing (CrashClearing.OnCrash, ~0.2 s) was skipped - the path was cleared by the first one (T-0148).
+Written by WreckClearing.cs; info / warning.
+
+- warning `Plane wreck: clearing check failed (<ex.Message>) - the game's clearing runs.`
+- info `Plane wreck: the restore's new wreck skipped the game's crash clearing - the wreck already at <..> cleared that path (trees and grass), ~0.2 s saved.`
+
 ## `Player acquired via`
 
 Meaning: How the player object was found.
@@ -1881,6 +1889,14 @@ Meaning: The autosplitter's other events (caves, clothing ...): hooks installed 
 Written by WorldEvents.cs; info.
 
 - info `WorldEvents: <_status>.`
+
+## `WreckClearing`
+
+Meaning: The wreck-clearing patch could not hook CrashClearing.Start: every restore's new wreck clears its crash path again (the ~0.2 s hitch stays).
+Written by WreckClearing.cs; warning.
+
+- warning `WreckClearing: <ex.Message>`
+- warning `WreckClearing: CrashClearing.Start not found - a restore's new plane wreck clears its crash path again.`
 
 ## `Wrote`
 

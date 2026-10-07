@@ -131,6 +131,10 @@ namespace ForestOverlay.Modules
             TitleLoad.Install(ctx.Log, OverlayPlugin.PluginGuid);
             NatureGuideKeeper.Install(ctx.Log, OverlayPlugin.PluginGuid);
             PathfindingWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            // The keepers' scene searches, kept between restores, and the
+            // re-created plane wreck's crash clearing skipped (T-0148).
+            SceneCache.Install();
+            WreckClearing.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             RefreshFiles();
 
@@ -179,6 +183,8 @@ namespace ForestOverlay.Modules
             TitleLoad.Uninstall();
             NatureGuideKeeper.Uninstall();
             PathfindingWatch.Uninstall();
+            WreckClearing.Uninstall();
+            SceneCache.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }
 
@@ -727,6 +733,10 @@ namespace ForestOverlay.Modules
             _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
+                // The steps below share one frame (T-0148: theirs was the
+                // first hitch after a restart) - the line says what it took.
+                System.Diagnostics.Stopwatch steps = System.Diagnostics.Stopwatch.StartNew();
+                int searchesBefore = SceneCache.Searches, keptBefore = SceneCache.Hits;
                 _busy = false;
                 FullCapacityWatch.RestoreEnded();
                 PathfindingWatch.RestoreEnded();
@@ -908,7 +918,9 @@ namespace ForestOverlay.Modules
                               (natureNote.Length == 0 ? "" : " | " + natureNote) +
                               (guideNote.Length == 0 ? "" : " | " + guideNote) +
                               (greebleNote.Length == 0 ? "" : " | " + greebleNote) +
-                              (enemyNote.Length == 0 ? "" : " | " + enemyNote);
+                              (enemyNote.Length == 0 ? "" : " | " + enemyNote) +
+                              " | after the load: " + steps.ElapsedMilliseconds + " ms, " +
+                              (SceneCache.Searches - searchesBefore) + " scene search(es), " + (SceneCache.Hits - keptBefore) + " kept";
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));

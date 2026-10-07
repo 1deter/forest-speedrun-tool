@@ -101,7 +101,7 @@ namespace ForestOverlay.Game
         {
             Type t = T("setupGirlMutant");
             if (t == null) return null;
-            return UnityEngine.Object.FindObjectOfType(t) as Component;
+            return SceneCache.One(t);   // twice a restore (T-0148)
         }
 
         private static string Pose(Transform t)
