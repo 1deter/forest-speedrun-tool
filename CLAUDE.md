@@ -204,11 +204,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   **Order (author, 2026-10-07):** harness first, the redesign after.
 - **First cleanup** (T-0014, 2026-10-07) filed T-0170..T-0183 (P4: dead
   session-log links, unused members, one unused function).
-- **Next loop run** would take: T-0150, then the P3 harness checks; with
-  the game up (`--bridge`): T-0148, T-0149, T-0151, T-0143. Built and
+- **Next loop run** would take: the P3 harness checks; with the game up
+  (`--bridge`): T-0148 (lead noted: each scene scan is 22-25 ms), T-0149,
+  T-0151, T-0143. `tasks.py next` offers T-0016 first, but Stage B waits
+  for a week of Stage A without a fix (harness.md) - skip it until then. Built and
   waiting on the next full eval: T-0158, T-0163. Loop history:
   `python scripts/loop.py report`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; T-0018..T-0025). **Released:** v0.24.249, nothing unreleased.
+  pushed; T-0018..T-0025). **Released:** v0.24.250 (T-0150, the run-finish stutter; in-game
+  check by forest-tester pending), nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
