@@ -53,7 +53,13 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     once, keep it, re-search only when it goes fake-null, and rate-limit the
     search (there is nothing to find at the main menu). `ModuleHost` logs any
     module Tick over 5 ms as `Slow tick: '<id>'` — check the log for it before
-    guessing at a hitch.
+    guessing at a hitch. Plain `FindObjectOfType` / `FindObjectsOfType`
+    walk the scene too: **22-25 ms each in ForestMain** (measured
+    2026-10-07, T-0150: one per run finish was most of a 26-33 ms
+    `Slow tick: 'practicerun'`; the comment over it said "a few ms").
+    Measure a suspect with the bridge (every reply ends in its own ms;
+    `type <Type>` times the scan) and look for the game's static handle
+    first (`TheForest.Utils.Scene.*`, ilscan `writes`).
 
 12. **`OnRenderObject` runs once per camera**, reflections and UI included.
     GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn

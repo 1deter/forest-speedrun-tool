@@ -198,7 +198,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 
 ### Performance and rendering
 
-11. **`Resources.FindObjectsOfTypeAll` is a stutter** - find once, keep, rate-limit re-searches; check `Slow tick:` lines first. [check: T-0125]
+11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep, rate-limit re-searches; check `Slow tick:` lines first. [check: T-0125]
 42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch. [judgement]
 45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic. [judgement]
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control. [judgement]
