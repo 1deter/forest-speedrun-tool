@@ -1,11 +1,11 @@
 ---
 id: top-runners
 title: Top runners, records and leaderboards (speedrun.com)
-aliases: top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates
+aliases: top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates, d.eter, deter, 1deter
 tags: categories, community
 confidence: runner
 checked: 2026-10-04
-sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04
+sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04; d.eter: the author's own account, 2026-10-07
 related: categories-and-rules, hundred-percent, routes
 code: Categories.Seeds
 ---
@@ -91,6 +91,11 @@ with yirequ, and with the co-op boards counted yirequ has the most
 - **Monsterkar_** - 3rd Glitchless Normal 19:15.833. **ef1n** - 2nd VR%
   Creative 7:36.317. **A21Z** - 3rd VR% Creative 8:06.076. **God667** -
   2nd VR% Normal 31:17.440.
+- **d.eter** (GitHub 1deter) - the developer of ForestOverlay, the
+  speedrun tool, and of forest.deter.cloud and this bot (`forestoverlay`).
+  A former world-record holder in the old Any% Normal category, from
+  before today's category split; not on the current top 3s. (Their own
+  account; no time or date for that record here.)
 
 ## Top 3 per board
 

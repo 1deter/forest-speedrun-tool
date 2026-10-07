@@ -590,6 +590,16 @@ must:
 not:
 - says the knowledge base has no record of him
 
+### who-is-deter
+question: can u tell me something about d.eter?
+cards: top-runners
+must:
+- the developer of ForestOverlay (the speedrun tool) and forest.deter.cloud
+- a former world-record holder in the old Any% Normal category
+not:
+- says the knowledge base has no record of them
+- invents a time or date for his record
+
 ### who-holds-neg-creative
 question: who holds the Any% No Explosive Glitch Creative record?
 cards: top-runners

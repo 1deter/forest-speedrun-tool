@@ -14,7 +14,7 @@ code:
 
 A BepInEx plugin for The Forest: speedrun information, practice tools, and a
 timer with segments, ghosts and comparisons. Free and open source
-(github.com/1deter/forest-speedrun-tool); runs and spots are shared on
+(github.com/1deter/forest-speedrun-tool), made by d.eter (`top-runners`); runs and spots are shared on
 forest.deter.cloud.
 
 ## Install and update

@@ -299,6 +299,11 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   items and knowledge-testing messages since the last review; any new one
   makes the review due (Claude's default for the threshold - the author
   can raise it).
+- **Scope: any Forest-related question** (author, 2026-10-07): "it can
+  answer any forest-related question, whether it's tech, routing, or
+  information about a specific runner" - everything around speedrunning
+  the game, the community and its people included. The author will feed
+  context from the Discord channels to fill out the community side.
 - **Spots: their author's rules** (author, 2026-10-07, T-0152 / T-0153).
   A downloaded or community spot is **read-only** for everyone but its
   author; a runner can still add their own checkpoints on top, for their
