@@ -16,8 +16,8 @@ Every full-game board's top 3 (solo and co-op), world-record counts, and
 each runner's places - Cheesecake404, yirequ, sxczurass, itsSlack,
 CrypticAurum, SetzSpeed, fruich, buntstift, Swaggyswaggster and others.
 Nothing below 3rd place. The Forest's boards live on speedrun.com
-(speedrun.com/the_forest). There is no single overall ranking - each category and difficulty is its own
-board - so "the top runners" means who holds the top places across them.
+(speedrun.com/the_forest). There is no single overall ranking - each
+category and difficulty is its own board - so "the top runners" means who holds the top places across them.
 Snapshot of 2026-10-04; the boards change, so check speedrun.com for the
 current ones.
 
