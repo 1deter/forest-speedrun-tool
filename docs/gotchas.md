@@ -894,3 +894,20 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     worktree, and the maker reported "verify / scope are empty" and built
     from the prompt instead. Commit (and push) the task file after
     `tasks.py start`, then spawn.
+
+99. **An agent that does not know where a file lives crawls the whole
+    drive - and the crawl outlives it.** (2026-10-07, T-0150's in-game
+    check.) The prompt named `BepInEx/config/.../my-segments.txt` as a
+    relative path; forest-tester ran `tasks.py show ...; find / -path
+    "*my-segments.txt"`, the call timed out into the background, the
+    agent re-ran the `show` alone and finished - and the `find` kept
+    walking every drive for 22 min until the author asked what was
+    running ("noticed it a couple of times"). The transcripts held two
+    more: `find /c/Users/deter -maxdepth 4` for a file in Temp. Prompts
+    give absolute paths; the PreToolUse hook (`wide_search`) refuses a
+    search from `/`, a drive root, the home folder or C:/Users deeper
+    than 2 (find, ls -R, grep -r, rg, Get-ChildItem -Recurse, dir /s,
+    where /r, a Python walk) and its reason lists the real paths: the
+    game, the plugin's config folder, the log, the saves, the QA zips,
+    the repo. Replayed over the 10,963 commands in the transcripts it
+    refuses exactly those three.

@@ -97,6 +97,44 @@ class PowerShell(unittest.TestCase):
         self.assertIsNone(decide("Get-Content a.md -TotalCount 5"))
 
 
+class WideSearch(unittest.TestCase):
+    HOME = "c:/users/deter"
+
+    def wide(self, cmd):
+        return P.wide_search(cmd, ROOT, home=self.HOME)
+
+    def test_a_crawl_of_a_drive_or_the_home_folder_is_refused_with_the_places(self):
+        for cmd in ('python scripts/tasks.py show T-0150 | head -40; find / -path "*BepInEx/config/x.txt" 2>/dev/null',
+                    "find /c -name x", "find /g/ -iname '*.foseg'", "find ~ -name x", "find $HOME -name x",
+                    'find /c/Users/deter -maxdepth 4 -iname "quality-document*"', "ls -R /", "grep -rn Slot1 ~",
+                    'Get-ChildItem C:\\ -Recurse -Filter my-segments.txt', "gci -r $env:USERPROFILE -Filter *.run",
+                    "Get-ChildItem -Path G:\\ -Recurse", "dir /s C:\\", "where /r C:\\ ForestOverlay.dll",
+                    "rg --files / | grep x", "cd x && find \"/\" -name y", "timeout 5 find / -name x",
+                    "timeout -k 2 30 find /c -name x", "nohup find ~ -name x &", "xargs find / -name",
+                    "python - <<'EOF'\nimport os\nfor d, _, f in os.walk('/'): pass\nEOF"):
+            d = self.wide(cmd)
+            self.assertIsNotNone(d, cmd)
+            self.assertEqual(d[0], "deny", cmd)
+            self.assertIn("22 min", d[1])
+            self.assertIn("ForestOverlay", d[1])  # where the plugin's files are
+        self.assertEqual(decide("find / -name x")[0], "deny")
+
+    def test_searches_where_the_file_lives_pass(self):
+        for cmd in ("find . -name x", "find src -name '*.cs'", "find ~/Downloads/qa-reports -name '*.zip'",
+                    "find / -maxdepth 0", "find /c/Users/deter -maxdepth 2 -name x", "Get-ChildItem C:\\",
+                    "find /c/Users/deter/AppData/Local/Temp -maxdepth 6 -iname x",
+                    "Get-ChildItem (Join-Path $root 'BepInEx\\plugins') -Recurse -File", "gci -r ~ -Depth 1",
+                    'find "/g/SteamLibrary/steamapps/common/The Forest/BepInEx/config/ForestOverlay" -name x',
+                    "grep -rn x src", "grep -n x / 2>/dev/null", "ls ~", "find . -name x -exec cat {} \\;",
+                    # quoted text is not a command
+                    'python scripts/tasks.py add "t" --behavior "lines; find / anything | find ~ else"',
+                    'grep -rn "a\\|b" --include=*.cs . | grep -v x',
+                    "cat > f.md <<'EOF'\nfind / inspect / get\nEOF",
+                    "Get-Process | Where-Object { $_.Name -eq 'find' }",
+                    "python -c \"import glob; glob.glob('**/*.cs', recursive=True)\""):
+            self.assertIsNone(self.wide(cmd), cmd)
+
+
 class HookProcess(unittest.TestCase):
     def run_hook(self, script, payload):
         p = subprocess.run([sys.executable, os.path.join(HERE, "..", "hooks", script)],

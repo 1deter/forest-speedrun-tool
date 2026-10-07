@@ -46,7 +46,10 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   **asks** before a deploy into the author's install (`deploy.ps1` with
   no / the `FOREST_ROOT` game root, or a copy into its `BepInEx/plugins`
   - author 2026-10-07: "just ask me"; a test install passes; bridge tests
-  use `update_game` and never hit it); warns on `Get-Content | Set-Content`.
+  use `update_game` and never hit it); refuses a search over a whole
+  drive, `/` or the home folder deeper than 2 (`find /`, `Get-ChildItem C:\
+  -Recurse`, ...) and names the real paths (gotcha 99); warns on
+  `Get-Content | Set-Content`.
 - **Stop** (`scripts/hooks/stop.py`): at the end of a turn, lists
   uncommitted / unpushed work, a csproj version with no (pushed) tag,
   in-progress tasks with no `tasks/notes/` file, and an unpushed changelog
@@ -260,3 +263,4 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled"). [check: T-0133]
 97. **Push main only after the checker accepts** - a merged branch rides along with any push, and a push deploys. [judgement]
 98. **Commit the contract before spawning the maker** - a worktree branches from HEAD. [judgement]
+99. **Never search a whole drive or the home folder** - give agents absolute paths; a `find /` crawled 22 min after its agent finished. [check: pre_tool.py wide_search]

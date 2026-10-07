@@ -9,6 +9,9 @@ with the call as JSON on stdin. It answers with a permission decision:
   author, 2026-10-07: "just ask me"). Bridge tests install releases with
   update_game and never come here; an unattended loop must turn this ask
   into a refusal so it never waits on the author (Stage A, docs/harness.md 12),
+- refuse a search over a whole drive, the filesystem root or the home folder
+  (find / ls -R / grep -r / rg / Get-ChildItem -Recurse / dir /s / where /r /
+  a Python walk, deeper than 2) and name where the files are (gotcha 99),
 - warn on Get-Content | Set-Content (router rule 8, gotcha 9).
 
 Anything else passes silently. A crash here must never block work, so
@@ -136,6 +139,100 @@ def ps_round_trip(command, tool="PowerShell"):
     return None
 
 
+# A search over a whole drive or the home folder: an agent that did not know
+# where a file lives ran `find / -path ...` (2026-10-07, T-0150's in-game
+# check); it timed out into the background and crawled every drive for 22 min
+# after the agent had finished. The refusal names where the files are.
+HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1[^\n]*\n.*?\n\s*\2\b", re.S)
+QUOTED = re.compile(r"\"(?:\\.|[^\"\\])*\"|'[^']*'")
+SEGMENT = re.compile(r"\|\||&&|[;|\n]|\$\(|`")
+SEARCHERS = re.compile(r"^(?:(?:sudo|xargs|exec|nohup|nice|time|command|env|timeout(?:\s+-\S+(?:\s+\d\S*)?)*\s+\S+)\s+|&\s*)*(find|ls|grep|egrep|rg|tree|du|Get-ChildItem|gci|dir|where(?:\.exe)?)(?=\s|$)(.*)$",
+                       re.I | re.S)
+SHALLOW = 2  # -maxdepth / -Depth up to this is a look, not a crawl
+
+
+def home_dir():
+    return norm(os.path.expanduser("~"))
+
+
+def wide_path(token, home):
+    """True for the filesystem root, a drive root, the home folder or C:/Users."""
+    t = token.strip().strip("'\"")
+    if not t.strip("\\") or t.startswith("-"):  # `\` of a `-exec ... \;`
+        return False
+    t = re.sub(r"^(\$\{?HOME\}?|\$env:USERPROFILE|%USERPROFILE%|~)(?=$|[/\\])", lambda m: home, t, flags=re.I)
+    if t == "/":
+        return True
+    if re.fullmatch(r"/[a-zA-Z]/?", t):  # Git Bash's /c
+        return True
+    n = norm(t)
+    return n == "" or re.fullmatch(r"[a-z]:", n) is not None or n == home or n == "c:/users"
+
+
+def depth_of(args):
+    m = re.search(r"-(?:max)?depth\s+(\d+)", args, re.I)
+    return int(m.group(1)) if m else None
+
+
+def known_places(root):
+    home = os.path.expanduser("~")
+    saves = os.path.join(home, "AppData", "LocalLow", "SKS", "TheForest")
+    try:
+        ids = [d for d in os.listdir(saves) if d.isdigit()]
+        if ids:
+            saves = os.path.join(saves, ids[0])
+    except OSError:
+        pass
+    game = root or r"G:\SteamLibrary\steamapps\common\The Forest"
+    return ("the game (FOREST_ROOT) %s; the plugin's files (segments, runs, savestates, uploads, logs) %s; "
+            "the BepInEx log %s; the saves %s; testers' report zips %s; the repo %s" %
+            (game, os.path.join(game, "BepInEx", "config", "ForestOverlay"), os.path.join(game, "BepInEx", "LogOutput.log"),
+             os.path.join(saves, "SinglePlayer", "SlotN"), os.path.join(home, "Downloads", "qa-reports", "<tester>"),
+             os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()))
+
+
+def wide_search(command, root, home=None):
+    home = home if home is not None else home_dir()
+    text = HEREDOC.sub("", command)
+    # Quoted text out first: a `|` or `;` inside a grep pattern or a task's
+    # text is not a new command ("... ; find the work" in a --behavior).
+    quoted = []
+
+    def keep(m):
+        quoted.append(m.group(0))
+        return " \x00%d\x00 " % (len(quoted) - 1)
+    masked = QUOTED.sub(keep, text)
+    for seg in SEGMENT.split(masked):
+        m = SEARCHERS.match(seg.strip())
+        if not m:
+            continue
+        word, args = m.group(1).lower(), m.group(2)
+        if word in ("ls", "tree") and not re.search(r"(^|\s)-[a-zA-Z]*R", args):
+            continue
+        if word in ("grep", "egrep") and not re.search(r"(^|\s)(-[a-zA-Z]*[rR]|--recursive)", args):
+            continue
+        if word in ("get-childitem", "gci", "dir") and not re.search(r"-r(ecurse)?\b|(^|\s)/s\b", args, re.I):
+            continue
+        if word in ("where", "where.exe") and not re.search(r"(^|\s)/r\b", args, re.I):
+            continue
+        d = depth_of(args)
+        if d is not None and d <= SHALLOW:
+            continue
+        tokens = [re.sub(r"\x00(\d+)\x00", lambda q: quoted[int(q.group(1))], t) for t in args.split()]
+        hit = next((t for t in tokens if wide_path(t, home)), None)
+        if hit:
+            return ("deny", "A search from %s walks a whole drive or the home folder: one (`find / -path ...`, "
+                            "2026-10-07) timed out into the background and crawled every drive for 22 min after "
+                            "the agent had finished. Search where the file lives - %s - or cap it with "
+                            "-maxdepth / -Depth %d." % (hit.strip("'\""), known_places(root), SHALLOW))
+    # A Python walk usually sits in a heredoc: the whole command.
+    m = re.search(r"os\.walk\(\s*(['\"])(.*?)\1", command) or re.search(r"glob\(\s*r?(['\"])(.*?)\*\*", command)
+    if m and m.group(2) and wide_path(m.group(2).rstrip("/\\") or "/", home):
+        return ("deny", "A Python walk from %s covers a whole drive or the home folder (the 2026-10-07 `find /` "
+                        "crawled 22 min). Walk where the file lives - %s." % (m.group(2) or "/", known_places(root)))
+    return None
+
+
 def decide(payload, root=None, branch=None):
     """(decision, reason) or None. decision: deny | ask | warn."""
     tool = payload.get("tool_name", "")
@@ -149,7 +246,7 @@ def decide(payload, root=None, branch=None):
         return None
     cwd = payload.get("cwd")
     return (github_api(command) or force_push(command, cwd, branch) or dll_deploy(command, root)
-            or ps_round_trip(command, tool))
+            or wide_search(command, root) or ps_round_trip(command, tool))
 
 
 def answer(decision):
