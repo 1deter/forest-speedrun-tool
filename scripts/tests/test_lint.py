@@ -379,5 +379,28 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(L.lifecycle_hits(), [])
 
 
+class Mojibake(unittest.TestCase):
+    EM_DASH_GARBLED = "\u00e2\u20ac\u201d"
+
+    def test_clean_text_passes(self):
+        self.assertEqual(L.check_mojibake({"a.md": "plain \u2014 dash, caf\u00e9, \u00c9cole\n"}), [])
+
+    def test_garbled_dash_fails_with_fix_text(self):
+        out = text(L.check_mojibake({"docs/x.md": "ok\nthe %s here\n" % self.EM_DASH_GARBLED}))
+        self.assertIn("ERROR: docs/x.md has PowerShell mojibake on line(s) 2", out)
+        self.assertIn("gotcha 9", out)
+        self.assertIn("FIX: restore the file from git (git checkout -- docs/x.md)", out)
+
+    def test_garbled_accent_and_nbsp_fail(self):
+        for bad in ("caf\u00c3\u00a9", "a\u00c2\u00a0b"):
+            self.assertEqual(len(L.check_mojibake({"a.cs": bad})), 1, bad)
+
+    def test_quoting_docs_are_allowed(self):
+        self.assertEqual(L.check_mojibake({"docs/gotchas.md": self.EM_DASH_GARBLED}), [])
+
+    def test_repo_has_none(self):
+        self.assertEqual(text(L.check_mojibake(L.tracked_text())), "")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -24,6 +24,7 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+Text files (gotcha 9): no tracked file holds PowerShell 5.1 mojibake.
 """
 import argparse
 import importlib.util
@@ -675,6 +676,57 @@ def write_baseline(hits, path=BASELINE):
             f.write(k + "\n")
 
 
+# ---------------------------------------------------------------- PowerShell mojibake
+
+# What Windows PowerShell 5.1 leaves when it reads BOM-less UTF-8 as cp1252 and
+# writes it back (gotcha 9, T-0123): an em dash becomes a-circumflex, euro, quote.
+# Spelled with escapes so this file does not trip its own check.
+MOJIBAKE = re.compile("\u00e2\u20ac"
+                      "|\u00c3[\u0080-\u00bf\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u0192\u02c6\u02dc\u2013-\u203a\u20ac\u2122]"
+                      "|\u00c2[\u00a0-\u00bf]")
+# Files that quote the garbled form to warn about it.
+MOJIBAKE_QUOTED = {
+    "CLAUDE.md": "the rule that names it",
+    "docs/gotchas.md": "gotcha 9 shows the garbled form and the grep that finds it",
+    "docs/areas/workflow.md": "the gotcha 9 index line shows the garbled form",
+}
+
+
+def tracked_text(root=ROOT):
+    """{path: text} of every tracked file that is UTF-8 text."""
+    out = {}
+    for f in tracked_files(root):
+        try:
+            with open(os.path.join(root, f), "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            continue
+        if b"\0" in raw:
+            continue
+        try:
+            out[f] = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+    return out
+
+
+def check_mojibake(files):
+    """No tracked text file holds the garbled UTF-8 a PowerShell 5.1 round trip leaves (gotcha 9)."""
+    probs = []
+    for path, text in sorted(files.items()):
+        if path in MOJIBAKE_QUOTED:
+            continue
+        lines = [n for n, l in enumerate(text.splitlines(), 1) if MOJIBAKE.search(l)]
+        if lines:
+            probs.append(Problem(
+                "%s has PowerShell mojibake on line(s) %s" % (path, ", ".join(str(n) for n in lines[:6]) + (" ..." if len(lines) > 6 else "")),
+                "Windows PowerShell 5.1 read the UTF-8 file as cp1252 and wrote it back: every em dash became "
+                "three garbled characters (gotcha 9)",
+                "restore the file from git (git checkout -- %s) and redo the edit with the Edit tool or a Python script "
+                "with encoding=\"utf-8\"; never Get-Content | Set-Content" % path))
+    return probs
+
+
 # ---------------------------------------------------------------- main
 
 def git_show(rev, path):
@@ -711,6 +763,7 @@ def main(argv=None):
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
+    probs += check_mojibake(tracked_text())
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:
