@@ -40,6 +40,8 @@ NEEDS = ["none", "bridge", "author-eyes", "tester", "moderators", "author-decisi
 AREAS = ["plugin", "site", "bot", "knowledge", "harness", "docs", "release", "research"]
 LAYERS = ["spec", "context", "environment", "verification", "state"]
 DONE = ("confirmed", "wontfix")
+# Areas whose behaviour changes get a fresh-context checker (author, 2026-10-07).
+CHECKED_AREAS = ("plugin", "site", "bot")
 # Tasks an agent can take alone (docs/harness.md 6a); bridge ones need the game up.
 ALONE = ("none",)
 ALONE_BRIDGE = ("none", "bridge")
@@ -258,9 +260,9 @@ def confirm_gate(t):
         maker = t.get("maker")
         if not any(e.get("by") and e.get("by") != maker for e in ev):
             raise TaskError("%s has evidence only from its maker (%s)" % (tid, maker or "?"),
-                            "a task with in-game or visual effects is confirmed by a fresh-context "
-                            "checker (author, 2026-10-07; docs/harness.md 7d)",
-                            "run the e2e script or forest-tester and record it: "
+                            "a behaviour change is confirmed by a fresh-context checker, never its maker "
+                            "(author, 2026-10-07; docs/harness.md 7d)",
+                            "run a checker agent (in game: the e2e script or forest-tester) and record it: "
                             "`tasks.py evidence %s \"...\" --by forest-tester`" % tid)
 
 
@@ -350,7 +352,7 @@ def cmd_add(tasks, a):
     t = {"id": new_id(tasks), "title": a.title.strip(), "area": a.area, "priority": a.priority,
          "status": "todo", "needs": a.needs, "question": a.question, "behavior": a.behavior,
          "scope": a.scope, "verify": a.verify or [], "keep": a.keep,
-         "checker": a.checker if a.checker is not None else a.area == "plugin",
+         "checker": a.checker if a.checker is not None else a.area in CHECKED_AREAS,
          "source": a.source, "commits": [], "release": None, "evidence": [], "layer": None,
          "blocked_by": [normalise_id(x) for x in a.blocked_by or []], "notes": a.notes,
          "created": today(), "updated": today(), "log": []}

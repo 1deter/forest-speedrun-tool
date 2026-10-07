@@ -413,8 +413,8 @@ nothing would have stopped a "done".
   fresh context that did not write the change - the e2e script (8a),
   `forest-tester`, or a review agent briefed with the task's `verify`
   and `keep` only, told to find faults (T: checker prompt). How often to
-  pay for an extra agent: **decided** - tasks with in-game or visual
-  effects (see *Decisions*).
+  pay for an extra agent: **decided** - every behaviour change, a lean
+  checker (see *Decisions*).
 - 7e. **Done has three layers** (L9): the task's `verify` names which of
   static (build), runtime (tests, the game loads the plugin) and system
   (the in-game path, the live page) it needs; a plugin behaviour change
@@ -613,10 +613,13 @@ Asked after the deeper pass; each replaces an "open question" above.
 1. **Router size** (3): a router of **~100-200 lines**; every other fact
    moves one hop away (area docs, `docs/decisions.md`, folder
    `CLAUDE.md` files) - moved, not deleted.
-2. **The checker** (7d): a fresh-context checker for **tasks with in-game
-   or visual effects** (plugin behaviour: the e2e script or
-   `forest-tester`); docs / tests / site-only tasks rely on the machine
-   gates.
+2. **The checker** (7d): first "in-game / visual tasks only", then
+   widened the same day (author: a one-task subagent with one purpose and
+   little context "could be pretty efficient"): **every behaviour change**
+   (plugin, site, bot) gets a lean fresh-context checker - Sonnet, given
+   only the task record and the diff, told to find faults; in-game
+   behaviour goes through the e2e script or `forest-tester`. Docs and
+   harness tasks rely on the machine gates.
 3. **Unattended publishing** (12, Stage B): the loop **may commit to main
    and tag releases** once build, tests and the post-release in-game
    smoke (8b) pass; anything visual waits in the `author-eyes` queue.
