@@ -107,10 +107,10 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 
 ## Gotchas
 
-One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to.
+One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
-10. **What only `deploy.ps1` copies is missing for runners** - ship data inside the DLL.
-15. **Unity 5.6's `UnityWebRequest` ignores 404** - check `responseCode` yourself.
-44. **Measure before the changelog claims a number.**
-65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty).
-92. **The plugin's SDK project compiles every `.cs` under the repo** - a new top-level project folder goes into `ForestOverlay.csproj`'s `Remove` lines in the same commit; build the plugin before pushing.
+10. **What only `deploy.ps1` copies is missing for runners** - ship data inside the DLL. [check: T-0124]
+15. **Unity 5.6's `UnityWebRequest` ignores 404** - check `responseCode` yourself. [check: T-0127]
+44. **Measure before the changelog claims a number.** [check: stop.py changelog number]
+65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty). [check: lint.py versions + pre-push]
+92. **The plugin's SDK project compiles every `.cs` under the repo** - a new top-level project folder goes into `ForestOverlay.csproj`'s `Remove` lines in the same commit; build the plugin before pushing. [check: lint.py removes]

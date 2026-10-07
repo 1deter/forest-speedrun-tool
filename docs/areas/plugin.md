@@ -137,83 +137,83 @@ item caps, logs in the inventory, fast building) under the HUD's "ON NOW".
 
 ## Gotchas
 
-One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to.
+One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
 ### Game and engine
 
-1. **The game re-asserts state every frame** - set its own flag (`IsMouseLocked`, `LockView`), never "win the frame".
-2. **`OnGUI` runs several times per frame** - never allocate in it.
-3. **A throwing `Awake` silently kills the plugin** - try/catch every lifecycle method.
-4. **Don't trust assumed names** - everything in `src/Game/` comes from a dump or IL.
-5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers).
-6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics.
-7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry.
-12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`.
-13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`.
-14. **Labels from memory are guesses** - confirm runner-visible names against a log.
-16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on.
-17. **A library method may do X in one mode only** - read the whole body (`ilscan body`).
-18. **Static or instance: check before binding** - `ilscan type` marks statics.
-22. **A hook runs mid-method; the caller carries on** - read the caller past the call; apply a sequence's end state.
-23. **Whose lock is it?** - note what the game already held; hand back only what you took.
-24. **A static walk cannot see every root** - count threads, read `OnDestroy`, ask what the title screen clears.
-25. **A theory from IL alone is a guess** - ship the log line that proves it first.
-27. **Read the whole "removed" line** - check every item a removal names was really taken.
-29. **A value the game fills in later reads as a default** - wait for the value, not a count; test several kinds.
-30. **Check when a file is created before planning to copy it** - BepInEx truncates the log first.
-32. **Look for the game's reverse operation first** - `Regrow` / `Respawn` / `Reset` / `Restore`.
-33. **Copying a scene object** - copy under an inactive holder, local values, reset runtime flags.
-39. **A pool object carries its first user's state** - compare handles / clone names across visits.
-41. **Where in the frame a call runs matters** - look for one-frame guards (`LockPlace`); bridge `call` runs in `Update`.
-43. **A switch can be latched off before you arrive** - ship a "did it see anything" count with a runtime hook.
-46. **A symptom that appears later can be a coroutine finishing** - look again after every pending timer.
-52. **A hook can run twice before the Destroy lands** - key "do once" on the instance; pairs of identical log lines are the tell.
-53. **A game's own database can be wrong** - spot-check it against live objects before building on it.
-54. **Drive a UI the way the game does** - `SetActive` pokes skip the game's teardown; show things through its own click path.
-55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom.
-56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one.
-57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player".
-58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB.
-62. **Record what changed, when the game changes it** - not a fixed list per sample: `ilscan writes` finds every writer to hook (v0.24.161 items).
+1. **The game re-asserts state every frame** - set its own flag (`IsMouseLocked`, `LockView`), never "win the frame". [judgement]
+2. **`OnGUI` runs several times per frame** - never allocate in it. [check: lint.py alloc]
+3. **A throwing `Awake` silently kills the plugin** - try/catch every lifecycle method. [check: T-0122]
+4. **Don't trust assumed names** - everything in `src/Game/` comes from a dump or IL. [judgement]
+5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers). [judgement]
+6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics. [judgement]
+7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry. [check: CrossingTests]
+12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: T-0126]
+13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`. [judgement]
+14. **Labels from memory are guesses** - confirm runner-visible names against a log. [judgement]
+16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on. [check: T-0012]
+17. **A library method may do X in one mode only** - read the whole body (`ilscan body`). [judgement]
+18. **Static or instance: check before binding** - `ilscan type` marks statics. [judgement]
+22. **A hook runs mid-method; the caller carries on** - read the caller past the call; apply a sequence's end state. [judgement]
+23. **Whose lock is it?** - note what the game already held; hand back only what you took. [judgement]
+24. **A static walk cannot see every root** - count threads, read `OnDestroy`, ask what the title screen clears. [judgement]
+25. **A theory from IL alone is a guess** - ship the log line that proves it first. [judgement]
+27. **Read the whole "removed" line** - check every item a removal names was really taken. [judgement]
+29. **A value the game fills in later reads as a default** - wait for the value, not a count; test several kinds. [judgement]
+30. **Check when a file is created before planning to copy it** - BepInEx truncates the log first. [judgement]
+32. **Look for the game's reverse operation first** - `Regrow` / `Respawn` / `Reset` / `Restore`. [judgement]
+33. **Copying a scene object** - copy under an inactive holder, local values, reset runtime flags. [judgement]
+39. **A pool object carries its first user's state** - compare handles / clone names across visits. [judgement]
+41. **Where in the frame a call runs matters** - look for one-frame guards (`LockPlace`); bridge `call` runs in `Update`. [judgement]
+43. **A switch can be latched off before you arrive** - ship a "did it see anything" count with a runtime hook. [judgement]
+46. **A symptom that appears later can be a coroutine finishing** - look again after every pending timer. [judgement]
+52. **A hook can run twice before the Destroy lands** - key "do once" on the instance; pairs of identical log lines are the tell. [judgement]
+53. **A game's own database can be wrong** - spot-check it against live objects before building on it. [judgement]
+54. **Drive a UI the way the game does** - `SetActive` pokes skip the game's teardown; show things through its own click path. [judgement]
+55. **Read what the fallback changes, not only why it fires** - a harmless fallback's message can be the whole symptom. [judgement]
+56. **`Camera.CopyFrom` copies the Camera only** - a game camera's look lives in its sibling components; move the real one. [judgement]
+57. **The player's things are not all under the player** - the inventory's views are their own root (`INVENTORY`); list the player's roots before deleting "outside the player". [judgement]
+58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB. [judgement]
+62. **Record what changed, when the game changes it** - not a fixed list per sample: `ilscan writes` finds every writer to hook (v0.24.161 items). [judgement]
 
 ### Restores (savestates)
 
-20. **A restore can bring back a flag without its effects** - send the game's message for the state (`InACave`).
-21. **Ids are per game, not per scene** - cross-save work maps ids (`AdoptPlayer`).
-26. **A restore runs frames** - judge the "before" state when the restore starts.
-34. **One teleport, many callers** - `grep MoveTo(` and cover every caller.
-35. **Parity with Full load stops where the save stops** - decide against the capture.
-36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later.
-37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore.
-38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore.
-40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them.
-47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider).
-48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze.
-79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back.
-80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects.
-81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore.
-84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`).
-87. **An exit is an event, not a flag** - our tp out of the endgame cleared `IsInEndgame` only; the game's `ExitEndgame` event also turns the sun back on. Invoke the trigger's UnityEvents; test from a save loaded inside.
+20. **A restore can bring back a flag without its effects** - send the game's message for the state (`InACave`). [judgement]
+21. **Ids are per game, not per scene** - cross-save work maps ids (`AdoptPlayer`). [judgement]
+26. **A restore runs frames** - judge the "before" state when the restore starts. [judgement]
+34. **One teleport, many callers** - `grep MoveTo(` and cover every caller. [check: T-0128]
+35. **Parity with Full load stops where the save stops** - decide against the capture. [judgement]
+36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later. [judgement]
+37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore. [judgement]
+38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore. [check: T-0137]
+40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them. [check: T-0138]
+47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider). [judgement]
+48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze. [judgement]
+79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back. [judgement]
+80. **Serializing has side effects** - `OnSerializing` writes live fields (the book open: hands recorded as stowed); decide what a capture records from live objects. [judgement]
+81. **A carried object is saved where its parent puts it** - a pushed sled is the player's child (restored near the origin); read what an action parents / destroys and look at the object after a restore. [judgement]
+84. **The same game call can need setup only one entry path does** - `LoadSavedLevel` from the title screen hung (no prefab list); drive the menu's own path (`Game/TitleLoad`). [judgement]
+87. **An exit is an event, not a flag** - our tp out of the endgame cleared `IsInEndgame` only; the game's `ExitEndgame` event also turns the sun back on. Invoke the trigger's UnityEvents; test from a save loaded inside. [judgement]
 
 ### Performance and rendering
 
-11. **`Resources.FindObjectsOfTypeAll` is a stutter** - find once, keep, rate-limit re-searches; check `Slow tick:` lines first.
-42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch.
-45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic.
-49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control.
-50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw.
-51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release.
-59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared.
+11. **`Resources.FindObjectsOfTypeAll` is a stutter** - find once, keep, rate-limit re-searches; check `Slow tick:` lines first. [check: T-0125]
+42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch. [judgement]
+45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic. [judgement]
+49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control. [judgement]
+50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw. [judgement]
+51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release. [judgement]
+59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared. [judgement]
 
 ### UI
 
-31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through.
-60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release.
-61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting.
+31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through. [check: lint.py label20, T-0136]
+60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: T-0129]
+61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
 
 ### Run mode and detectors
 
-82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK".
-89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes.
-90. **A speed and a distance in the same window can belong to different things** - a tp landing while the body held 300 m/s read as huge speed; a step longer than the speed allows is a teleport. Test detectors with tp / set mixed in.
-91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports.
+82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK". [check: T-0139]
+89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes. [judgement]
+90. **A speed and a distance in the same window can belong to different things** - a tp landing while the body held 300 m/s read as huge speed; a step longer than the speed allows is a teleport. Test detectors with tp / set mixed in. [check: MoveDetectorTests teleport cases]
+91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports. [check: MoveDetectorPhysicsTests teleport cases]

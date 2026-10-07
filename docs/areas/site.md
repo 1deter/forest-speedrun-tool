@@ -101,24 +101,24 @@ Read the section for what you change:
 
 ## Gotchas
 
-One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to.
+One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
-63. **An image read at the same path can be the old picture** - name every test shot uniquely before comparing.
-64. **A Unity PPtr's file id is relative to the file holding it** - resolve through the referencing file's externals (`ref_key`).
-66. **Uploaded files cached for a day need a version in their URL** - build stamp in the json, `?v=` on every file.
-67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`.
-68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done.
-69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder.
-70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there.
-71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open.
-72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one.
-73. **Diff a switch's two outputs before shipping it** - the "-dry" photo layer was the wet one (the ocean never draws in the capture) and "eye adaptation off" did not hold; compare on / off results and read a setting back before building on it.
-74. **A check against a clamped result must clamp its input too** - the 3D patch, clamped inside the map, never "covered" a centre near the edge and was rebuilt every 0.4 s (the white flicker).
-75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model. Corrected 2026-10-03: those pits ARE water in game (only the sinkhole is dry) - check a "dry" verdict in game.
-76. **A game can have more than one distance switch** - LOD_Manager's ranges and 963 `LOD_GroupToggle`s with their own; a shape cut at a tile edge = a switch on the tile's centre (`ilscan refs PlayerCamLocation::PlayerLoc`).
-77. **A scene object can be moved at run time** - the yacht stands 130 m from its scene position (a positive handle under a spawned root); check an exported object against `find` before chasing its look.
-78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places.
-83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change.
-85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material.
-86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer.
-88. **An image library's resize can read the alpha as coverage** - Pillow's RGBA thumbnail premultiplies; Standard textures keep smoothness there (0) and 19 lab textures exported black. Resize colour and alpha apart; count black textures after an export.
+63. **An image read at the same path can be the old picture** - name every test shot uniquely before comparing. [judgement]
+64. **A Unity PPtr's file id is relative to the file holding it** - resolve through the referencing file's externals (`ref_key`). [judgement]
+66. **Uploaded files cached for a day need a version in their URL** - build stamp in the json, `?v=` on every file. [check: T-0130]
+67. **Scene files hold placeholders, not the world** - LOD-spawned trees / rocks / cave walls need the in-game dump; a look can come from more than `_MainTex`. [judgement]
+68. **Texture size = UVs x the material's tiling** - export `m_Scale`; render the local site at the spot and compare with a game `shot` before calling a render fix done. [judgement]
+69. **A subclass can override the spawn's scale** - `LOD_Cave.SetLOD` scales the piece like its placeholder; read every override (`ilscan refs set_localScale`) and check a spawned object live against its placeholder. [judgement]
+70. **An object's origin is not where its mesh is** - cave grounds / mountains sit at 0,0,0 with world-space vertices; chunk by the mesh's bounds. For a hole, `call static:UnityEngine.Physics OverlapSphere x,y,z r` names what is there. [judgement]
+71. **A `?v=` the server ignores protects nothing** - index-named files + a page holding the old json = a mixed world (Cave 6's "leaves"); the server refuses another build. Reproduce on a fresh load before blaming the data; ask how long the page was open. [check: ApiTests.WorldFilesOfAnotherBuildAreRefused]
+72. **A check per row is not a check per thing** - a spot is many routes and shows the newest one's labels: a new row could rename it. Ask who can create the row that wins, not only who can edit one. [judgement]
+73. **Diff a switch's two outputs before shipping it** - the "-dry" photo layer was the wet one (the ocean never draws in the capture) and "eye adaptation off" did not hold; compare on / off results and read a setting back before building on it. [judgement]
+74. **A check against a clamped result must clamp its input too** - the 3D patch, clamped inside the map, never "covered" a centre near the edge and was rebuilt every 0.4 s (the white flicker). [judgement]
+75. **Switch layers off before fixing what a symptom looks like** - the "lakes over land" were the sea plane in inland pits, not the lake models; hide models / sea / patch in turn, and a raycast that hits nothing is not a model. Corrected 2026-10-03: those pits ARE water in game (only the sinkhole is dry) - check a "dry" verdict in game. [judgement]
+76. **A game can have more than one distance switch** - LOD_Manager's ranges and 963 `LOD_GroupToggle`s with their own; a shape cut at a tile edge = a switch on the tile's centre (`ilscan refs PlayerCamLocation::PlayerLoc`). [judgement]
+77. **A scene object can be moved at run time** - the yacht stands 130 m from its scene position (a positive handle under a spawned root); check an exported object against `find` before chasing its look. [judgement]
+78. **A folder read whole turns a diagnostic dump into data** - test `placed-*.txt` dumps went into the export (and the diff matched them against themselves); keep them out, check against a clean input; key "the game lists it" on paths, not places. [check: T-0134]
+83. **A picture can depend on load order** - a diff that bisects to something unrelated: rerun the old build with delayed files (`site-measure.py DELAY`) before blaming the change. [judgement]
+85. **Count what a batch would merge before building it** - BatchedMesh by material was slower: ANGLE's multi-draw is a loop (an item ~ a draw call) and 623 distinct textures meant almost nothing shared a material. [judgement]
+86. **A shadow with no object: the object is behind the camera's clip** - the capture camera sat by the terrain inside the south mountains' models; place it by the tallest renderer. [judgement]
+88. **An image library's resize can read the alpha as coverage** - Pillow's RGBA thumbnail premultiplies; Standard textures keep smoothness there (0) and 19 lab textures exported black. Resize colour and alpha apart; count black textures after an export. [check: T-0135]

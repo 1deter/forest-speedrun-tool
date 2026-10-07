@@ -13,8 +13,11 @@ constant from a bug, so the hits that existed when they were added sit in
 scripts/lint-baseline.txt and only new ones fail (author, 2026-10-07).
 Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
+Every gotcha index line in docs/areas/*.md ends with [check: <name>],
+[check: T-n] (the task building it) or [judgement] (docs/harness.md 5d).
 """
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -144,6 +147,86 @@ def check_removes(csproj, folders):
                 "%s/ holds C# but is not in %s's %s Remove line(s)" % (folder, CSPROJ, ", ".join(missing)),
                 "the net35 plugin project globs every .cs under the repo; CI broke on bot/ this way (gotcha 92)",
                 "add %s/** to the Compile, None and EmbeddedResource Remove lines in %s, then build the plugin" % (folder, CSPROJ)))
+    return probs
+
+
+# ---------------------------------------------------------------- gotcha markers
+
+GOTCHAS = "docs/gotchas.md"
+AREAS = "docs/areas"
+TASKS = "tasks/tasks.jsonl"
+MARKER = re.compile(r"\[(check: ([^\]]+)|judgement)\]\s*$")
+CLOSED = ("confirmed", "wontfix")
+
+
+def gotcha_numbers(text):
+    return [int(n) for n in re.findall(r"^(\d+)\. \*\*", text, re.M)]
+
+
+def index_lines(root=ROOT):
+    """[(path, number, line)] - the numbered lines of every area doc's ## Gotchas section."""
+    out = []
+    folder = os.path.join(root, AREAS)
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(".md"):
+            continue
+        path = "%s/%s" % (AREAS, name)
+        sec = read(path, root).split("\n## Gotchas", 1)
+        if len(sec) < 2:
+            continue
+        for line in re.split(r"\n## ", sec[1])[0].splitlines():
+            m = re.match(r"(\d+)\. ", line)
+            if m:
+                out.append((path, int(m.group(1)), line.rstrip()))
+    return out
+
+
+def task_statuses(root=ROOT):
+    out = {}
+    with open(os.path.join(root, TASKS), encoding="utf-8-sig") as f:
+        for line in f:
+            if line.strip():
+                t = json.loads(line)
+                out[t["id"]] = t["status"]
+    return out
+
+
+def check_gotchas(numbers, index, statuses):
+    """Every gotcha has one index line, and every index line says how it is checked (docs/harness.md 5d)."""
+    probs = []
+    where = {}
+    for path, n, line in index:
+        where.setdefault(n, []).append(path)
+        m = MARKER.search(line)
+        if not m:
+            probs.append(Problem(
+                "gotcha %d's index line in %s has no [check: ...] or [judgement] marker" % (n, path),
+                "a lesson a lint, test or log assertion can catch ships with that check (docs/harness.md 5d)",
+                "end the line with [check: <lint / test name>], [check: T-n] after tasks.py add for the check, or [judgement]"))
+            continue
+        for tid in re.findall(r"T-\d{4}", m.group(2) or ""):
+            st = statuses.get(tid)
+            if st is None:
+                probs.append(Problem("gotcha %d's marker names %s, which is not in %s" % (n, tid, TASKS),
+                                     "the marker points at the task that builds the check",
+                                     "fix the id, or file the check: python scripts/tasks.py add ..."))
+            elif st in CLOSED:
+                probs.append(Problem("gotcha %d's marker names %s, which is %s" % (n, tid, st),
+                                     "a done task has built its check (or dropped it); the index names the check itself",
+                                     "replace %s with the check's name (lint.py <check> / <TestName>), or [judgement] if it was dropped" % tid))
+    for n in numbers:
+        if n not in where:
+            probs.append(Problem("gotcha %d has no index line in %s/*.md" % (n, AREAS),
+                                 "the area indexes are how a session finds a lesson (one line each)",
+                                 "add \"%d. **<lesson>** - <one line> [check: ...]\" under ## Gotchas in its area doc" % n))
+    for n, paths in sorted(where.items()):
+        if len(paths) > 1:
+            probs.append(Problem("gotcha %d is indexed %d times (%s)" % (n, len(paths), ", ".join(paths)),
+                                 "one home per fact (router rule 11)", "keep the line in the area it belongs to"))
+        if n not in numbers:
+            probs.append(Problem("%s indexes gotcha %d, which %s does not have" % (paths[0], n, GOTCHAS),
+                                 "numbers are stable and cited; an index line points at a full entry",
+                                 "add the entry to %s or fix the number" % GOTCHAS))
     return probs
 
 
@@ -332,6 +415,7 @@ def main(argv=None):
     csproj = read(CSPROJ)
     probs = check_versions(csproj, read(PLUGIN), read(CHANGELOG))
     probs += check_removes(csproj, project_folders())
+    probs += check_gotchas(gotcha_numbers(read(GOTCHAS)), index_lines(), task_statuses())
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

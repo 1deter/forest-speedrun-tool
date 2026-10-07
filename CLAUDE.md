@@ -189,7 +189,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   the four skills above); step 4's gates built (T-0005: lints, git hooks,
   PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*) and the
   checker (T-0006: `forest-checker`, `tasks.py brief` / `review`);
-  left of step 4: the gotcha audit (T-0009); 9b built (T-0008:
+  step 4 closed by the gotcha audit (T-0009: every index line marked,
+  28 checkable / 67 judgement, 18 check tasks T-0122..T-0139, `lint.py`
+  keeps the markers); 9b built (T-0008:
   `scripts/read-report.py`, checker accepted); T-0114 triaged the
   migrated list (13 closed); T-0113 re-cut the agent briefs (first
   spawns check the new frontmatter loads: its notes).

@@ -24,7 +24,9 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   only new ones fail; `--update-baseline` accepts a false positive or drops
   fixed ones). Runs in CI, before every commit (`.githooks/pre-commit`) and
   before a `v*` tag is pushed (`.githooks/pre-push`: the tag's commit
-  carries that version). `session-start.py` turns the git hooks on
+  carries that version). Every gotcha has one index line in an area doc,
+  ending with `[check: <name>]`, `[check: T-n]` (an open task) or
+  `[judgement]` (5d, T-0009). `session-start.py` turns the git hooks on
   (`core.hooksPath .githooks`). The community index: `CommunityPacksTests`.
   The log-prefix lint waits for the log catalogue (9a, author 2026-10-07).
 - **PreToolUse** (`scripts/hooks/pre_tool.py`, Bash / PowerShell /
@@ -106,7 +108,8 @@ again. **Keep the handoff current without being asked** (author,
 2026-09-25: "so i don't have to keep asking before i switch session"):
 after every release or finished piece of work, in the same push,
 update the router's *Where we are* and the task file, move confirmed items, add any lesson as a
-gotcha (`docs/gotchas.md` + its area doc's index line). The author may switch session at any moment;
+gotcha (`docs/gotchas.md` + its area doc's index line) - with its check
+when a lint, test or log assertion can catch it (or a task for one), else `[judgement]`. The author may switch session at any moment;
 the docs on `main` must always be ready for it. With sessions running side
 by side, `qa_read new_only` is shared - a message one session reads
 is gone from the other's new list (tell the author what belongs where).
@@ -208,10 +211,10 @@ tool break on quoting (a long Python heredoc failed again this session); a
 
 ## Gotchas
 
-One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to.
+One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
-8. **Test against real payloads** - a trimmed real response, not a remembered one.
-9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`).
-19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs.
-28. **Compare both sides the same way** - same dedup and filters before pairing lists.
-95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled").
+8. **Test against real payloads** - a trimmed real response, not a remembered one. [check: ReleaseJsonTests]
+9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`). [check: pre_tool.py warning, T-0123]
+19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs. [judgement]
+28. **Compare both sides the same way** - same dedup and filters before pairing lists. [judgement]
+95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled"). [check: T-0133]

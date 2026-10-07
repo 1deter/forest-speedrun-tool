@@ -83,6 +83,55 @@ class Removes(unittest.TestCase):
             shutil.rmtree(d)
 
 
+class Gotchas(unittest.TestCase):
+    NUMBERS = [1, 2, 3]
+    STATUS = {"T-0001": "todo", "T-0002": "confirmed"}
+
+    def index(self, *lines):
+        return [("docs/areas/a.md", int(l.split(".")[0]), l) for l in lines]
+
+    def test_marked_lines_pass(self):
+        idx = self.index("1. **a** - x [check: lint.py alloc]", "2. **b** [judgement]", "3. **c** [check: T-0001]")
+        self.assertEqual(L.check_gotchas(self.NUMBERS, idx, self.STATUS), [])
+
+    def test_planted_unmarked_line_fails_with_fix_text(self):
+        out = text(L.check_gotchas(self.NUMBERS, self.index("1. **a** [judgement]", "2. **b** - no marker",
+                                                            "3. **c** [judgement]"), self.STATUS))
+        self.assertIn("ERROR: gotcha 2's index line in docs/areas/a.md has no [check: ...] or [judgement] marker", out)
+        self.assertIn("WHY:", out)
+        self.assertIn("FIX: end the line with [check: <lint / test name>]", out)
+
+    def test_task_markers_must_be_open_tasks(self):
+        out = text(L.check_gotchas([1, 2], self.index("1. **a** [check: T-0002]", "2. **b** [check: x, T-0099]"),
+                                   self.STATUS))
+        self.assertIn("names T-0002, which is confirmed", out)
+        self.assertIn("FIX: replace T-0002 with the check's name", out)
+        self.assertIn("names T-0099, which is not in tasks/tasks.jsonl", out)
+
+    def test_missing_repeated_and_unknown_numbers(self):
+        idx = self.index("1. **a** [judgement]", "1. **a again** [judgement]", "4. **d** [judgement]")
+        out = text(L.check_gotchas(self.NUMBERS, idx, self.STATUS))
+        self.assertIn("gotcha 2 has no index line", out)
+        self.assertIn("gotcha 3 has no index line", out)
+        self.assertIn("gotcha 1 is indexed 2 times", out)
+        self.assertIn("indexes gotcha 4, which docs/gotchas.md does not have", out)
+
+    def test_index_stops_at_the_next_section(self):
+        d = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(d, "docs", "areas"))
+            with open(os.path.join(d, "docs", "areas", "x.md"), "w", encoding="utf-8") as f:
+                f.write("# X\n\n1. not an index\n\n## Gotchas\n\n### Sub\n\n5. **e** [judgement]\n\n## After\n\n6. no\n")
+            self.assertEqual(L.index_lines(d), [("docs/areas/x.md", 5, "5. **e** [judgement]")])
+        finally:
+            shutil.rmtree(d)
+
+    def test_repo_has_95_or_more_markers(self):
+        idx = L.index_lines()
+        self.assertGreaterEqual(len(idx), 95)
+        self.assertTrue(all(L.MARKER.search(l) for _, _, l in idx))
+
+
 DRAW = '''class M {
     public override void DrawTab(Rect area)
     {

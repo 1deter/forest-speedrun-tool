@@ -734,3 +734,16 @@ Asked after the deeper pass; each replaces an "open question" above.
   accept gates, the game confirms; re-running the suites left to Claude
   (yes). First real run: T-0027 accepted, 909 tests re-run, 2 minor
   notes, 37 s / ~65k tokens. Left of step 4: the gotcha audit (T-0009).
+- 2026-10-07: roadmap step 4 done with the gotcha audit (T-0009, 5d):
+  every one of the 95 index lines in `docs/areas/*.md` ends with
+  `[check: <name>]`, `[check: T-n]` or `[judgement]` - 28 checkable (10
+  with a check already: lint.py versions / removes / alloc / label20,
+  pre-push, the Stop hook, ReleaseJsonTests, CrossingTests, the move
+  detector's teleport tests, the site's other-build refusal; gotcha 16
+  waits on the log catalogue, T-0012), 67 judgement (research method:
+  read the IL, test live, look before claiming). 18 check tasks filed
+  (T-0122..T-0139: 10 lints, 2 tests, 2 world-export assertions, 4 e2e
+  cases blocked by T-0010). `lint.py` now fails on an unmarked line, a
+  missing / repeated number and a `[check: T-n]` whose task is closed,
+  so a new gotcha ships with its marker. Next (author's order): T-0012,
+  the log catalogue, then step 5 (T-0010).
