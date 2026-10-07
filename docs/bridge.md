@@ -136,6 +136,15 @@ Posts are in **the bot's own voice**, not the author's (author,
 2026-09-25: lists and questions come from the bot; the author still
 chats in the channel as themselves - their messages there are data too).
 
+**Tester lists** (memory `tester-lists-plain-text`): only what cannot be
+checked over the bridge and nothing [`confirmed.md`](confirmed.md)
+already lists; light (volunteers); a plain ``` code block numbered `1)`
+`2)` so it pastes unchanged; `qa_post` it in #general (`@username`
+pings the testers it names). Save it verbatim as `qa/<date>-<name>.txt`
+and as `docs/tests/<date>-<name>.md` with what each item checks, link
+it from the #qa-todo-list message (`qa_todo`), and poll `qa_read
+new_only` while a tester is active.
+
 ## Working with the game (bridge recipes)
 
 Durable how-tos for driving the game from a session; the tools are

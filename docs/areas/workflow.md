@@ -109,19 +109,37 @@ by side, `qa_read new_only` is shared - a message one session reads
 is gone from the other's new list (tell the author what belongs where).
 
 **Subagents (author, 2026-10-04/05: maximise usage).** Project agents in
-`.claude/agents/`, each with its model, effort, a trimmed tool list and a
-short brief naming the docs to read and the report to return:
+`.claude/agents/`, each with its model, effort, a turn cap, a trimmed tool
+list and a short brief naming the docs to read and the report to return:
 `forest-dev` (Sonnet: plugin features / fixes whose game side is known),
 `forest-researcher` (Opus, high: game internals, live research, hard
 restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
 over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
 `forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
-the QA Discord), `forest-checker` (Sonnet: reviews a built task, *The
-checker* above). Run 2-3 at a time (5+ Opus agents emptied a 5-hour window
-in under 15 minutes), one driving the game at a time; spawn with
-`isolation: worktree` for code (worktrees in `.claude/worktrees/`, outside
-the compile globs) and give the task in a few lines - the agent file holds
-the rules. The main session merges (`scripts/merge-keepboth.py` for
+the QA Discord), `forest-checker` (Sonnet, high - author, 2026-10-07: the
+only independent review; reviews a built task, *The checker* above).
+Run 2-3 at a time (5+ Opus agents emptied a 5-hour window in under 15
+minutes), one driving the game at a time; give the task in a few lines -
+the agent file holds the rules. The code agents (dev, researcher, site,
+knowledge) set `isolation: worktree` themselves (worktrees in
+`.claude/worktrees/`, outside the compile globs; a fresh branch from main,
+or the existing worktree the task names).
+
+**How a brief is kept short (T-0113, 2026-10-07).** A subagent already
+loads the root `CLAUDE.md` and the memory index (seen in its transcript),
+and a folder `CLAUDE.md` when it opens a file there with Read (not
+`cat`); so a brief never repeats the hard rules, the build commands or a
+folder's rules - it names what to read, the boundaries of its job (what
+the main session does instead) and the report. A procedure is preloaded
+(`skills:` - the tester gets `bridge-test`), not restated. Turn caps
+(`maxTurns`, author, 2026-10-07: about 2-3x the longest measured run -
+checker 30, qa 30, tester 100, dev / site / knowledge 150, researcher 250)
+stop a stuck agent with partial work, which can be resumed. Measure a
+change with `python scripts/agent-cost.py [--since D] [--runs]` (per
+agent: calls, the start context, cache reads, output, active minutes);
+on 2026-10-07 a check cost ~5 calls from a 14k start, a dev run ~22 calls
+/ 1.5M cache reads, a tester run ~47 / 3.3M, the old general-purpose Opus
+runs ~60 / 10M. The main session merges (`scripts/merge-keepboth.py` for
 add/add conflicts), releases (`scripts/bump.py`), keeps the handoff, and
 says in one line what each agent is doing when it starts it. Do the small
 things yourself: an agent costs a cold start (CLAUDE.md + reading),

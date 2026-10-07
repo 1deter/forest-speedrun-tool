@@ -153,6 +153,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `bridge-test` - an in-game test over the bridge (backup, uploads off, notices, proof, clean-up) and QA lists.
 - `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
 
+## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
+`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
+
 ## Where everything else lives
 
 | Doc | Read it when |
@@ -188,8 +191,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   checker (T-0006: `forest-checker`, `tasks.py brief` / `review`);
   left of step 4: the gotcha audit (T-0009); 9b built (T-0008:
   `scripts/read-report.py`, checker accepted); T-0114 triaged the
-  migrated list (13 closed; partial tasks' notes say what is left).
-  **Order (author, 2026-10-07):** harness first (T-0113, T-0007, T-0012,
+  migrated list (13 closed); T-0113 re-cut the agent briefs (first
+  spawns check the new frontmatter loads: its notes).
+  **Order (author, 2026-10-07):** harness first (T-0007, T-0012,
   T-0009, T-0010, T-0015), the redesign after; next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027, checker accepted).

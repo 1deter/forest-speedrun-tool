@@ -13,14 +13,21 @@ how features behave: [`docs/areas/plugin-concepts.md`](../docs/areas/plugin-conc
 Modules never reach for globals or each other — shared services arrive via
 `ModuleContext`; `Host.Find<T>()` covers the rare genuine collaboration.
 Every module is individually try/caught at every hook: one that throws is
-disabled and logged, the rest keep running.
+disabled and logged, the rest keep running. **A new module is registered
+last** in `BuildModules()`: the bridge reaches modules by index
+(`_modules[9]`, `_modules[16]` in docs/bridge.md), so inserting one shifts them.
 
 ## Rules for modules
 
-- **Never allocate in `DrawTab`/`OnGUI`.** Build strings in `Tick` (throttled)
-  and cache `GUIContent`. Long lists must be virtualised.
+- **Never allocate in `DrawTab`/`OnGUI`** or a per-frame `Tick` path. Build
+  strings when their value changes (`Data/TextMemo`), read hot game fields
+  through `Game/FastField`, and cache `GUIContent`. Long lists must be
+  virtualised.
 - **Declare `IsPracticeOnly`** if it writes game state, and call
-  `Ctx.Practice.Mark(...)` at each entry point that does.
+  `Ctx.Practice.Mark(...)` at each entry point that does; run mode refuses
+  practice features through `Ctx.Run.Refuse(...)` at the same entry points.
+- **Pure logic goes in `src/Data`** with tests (`tests/CLAUDE.md`).
+- **One log line per action** a runner takes, so a report zip tells the story.
 - **Lay panels out vertically**, not packed across a row at fixed offsets —
   that clips on narrow widths.
 - **If it can fail invisibly, show why on screen.** A dead toggle, an empty
