@@ -291,3 +291,11 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   2026-10-07, T-0090: "Add to CI subset"): short-bomb-fps (with its
   "tell me more" follow-up) and one more short item join bot.yml's
   `EVAL_SUBSET`; still no local live model runs (bot/CLAUDE.md).
+- **Bot review (T-0141): the full eval runs on CI by hand, the review is
+  triggered by the session-start report** (author, 2026-10-07: "CI, manual
+  trigger", "Session-start line"). A `workflow_dispatch` input on bot.yml
+  runs the full set or a named list; local live-model runs stay off
+  (bot/CLAUDE.md). The session-start report counts new 👎 / partial queue
+  items and knowledge-testing messages since the last review; any new one
+  makes the review due (Claude's default for the threshold - the author
+  can raise it).
