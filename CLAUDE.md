@@ -188,15 +188,19 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Start:** skill `session-start` (the SessionStart hook's report is
   its first step).
 - **Harness roadmap** (docs/harness.md, author 2026-10-06: first; what
-  each step built: its *Status log*): steps 1-4 done, 3e skills, 8c site
-  smoke + bot eval (T-0011), 9a log catalogue (T-0012), 9b report reader
-  (T-0008); T-0007 built (`bump.py` releases tasks, #qa-todo-list from
-  `needs: tester` tasks). Bot direction (author, 2026-10-07): the author
-  out of the feedback loop - T-0141, T-0140; a paid model later.
-  **Order (author, 2026-10-07):** harness first (T-0010, T-0015), the
-  redesign after; next: `tasks.py next` (T-0010 needs the game).
+  each step built: its *Status log*): steps 1-5 done (5: the e2e suite,
+  `scripts/e2e.py`, T-0010 - the release skill runs its smoke), 3e
+  skills, 8c, 9a, 9b; T-0007 / T-0113 built. Left: T-0013 quality doc,
+  T-0015 Stage A, T-0014 cleanup loop + review, T-0016 Stage B, 14 small
+  lint / test checks (T-0122..T-0135). Bot direction (author,
+  2026-10-07): the author out of the feedback loop - T-0141, T-0140.
+  **Order (author, 2026-10-07):** harness first, the redesign after;
+  next: `tasks.py next` (T-0013).
+- **New from the 2026-10-07 game session:** T-0143 native crash on a
+  title load (P2, bridge); T-0049 is a real bug (another segment's Go
+  keeps the red line); T-0144 Runs-tab dead links (question parked);
+  T-0027 marker half and T-0052 tally confirmed, their other halves open.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Released:** v0.24.249 (T-0027 run lines off - in-game check
-  still to do, `forest-tester`; T-0012's log prefixes). Nothing unreleased.
+  pushed; tasks T-0018..T-0025). **Released:** v0.24.249. Nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).

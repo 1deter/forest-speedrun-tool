@@ -186,6 +186,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later. [judgement]
 37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore. [judgement]
 38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore. [check: e2e restores]
+96. **An absence check needs a presence control** - assert the object is there before the cut; `find all` also sees the keepers' inactive copies (NatureKeeper's cut bushes): look for the live object at its scene path. [check: e2e restores]
 40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them. [check: e2e restores]
 47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider). [judgement]
 48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze. [judgement]

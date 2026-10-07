@@ -857,3 +857,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `tasks.py`'s git calls `stdin=DEVNULL`, and a timeout kills the
     child and says so. A "cancelled" from a forest tool: look for a hung
     child of the `forest-bridge-mcp` process first.
+
+96. **A "still gone" check needs a "there before" control - and the
+    plugin's keepers hold inactive copies.** (2026-10-07, T-0010, the e2e
+    restores journey.) The check "the cut bush is still cut after a Full
+    load" was `find GreenBush_40 all` returning nothing. Run alone it
+    passed; after a journey that had used savestates it failed right
+    after the cut: NatureKeeper keeps each cut bush's copy under an
+    inactive holder once savestates are armed, and `find ... all` sees
+    inactive objects. Had the lookup been broken the other way, every
+    "still cut" would have passed with nothing tested. Look for the live
+    object at its scene path (`find <name>` without `all`, path
+    `Nature_Spawned/<name>`), and assert it is found before the action
+    that should remove it.
