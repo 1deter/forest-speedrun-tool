@@ -43,7 +43,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0134, T-0135 | 2026-10-07 |
-| Bot | C | A | A | A | C | T-0090, T-0157 | 2026-10-07 |
+| Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | B | B | T-0147, T-0122 | 2026-10-07 |
 
@@ -249,15 +249,16 @@ The photo map, caves, the 3D world and the export / bake pipeline.
 
 Paths: `bot/` `.github/workflows/bot.yml` `docs/knowledge-bot.md` `docs/areas/bot.md`
 
-- Verification **A**: 48 tests; the CI eval on 7 questions after each
+- Verification **A**: 53 tests; the CI eval on 7 questions after each
   deploy, the full eval by hand (bot.yml dispatch, T-0141); deploy-watch's
   live check; the /admin Bot tab's live settings confirmed (T-0028).
 - Legibility **A**: bot/README.md, bot/CLAUDE.md, docs/areas/bot.md;
   files under 320 lines.
 - Stability **A**: the tests are deterministic; the eval is warn-only and
   skips busy answers (gotcha 94).
-- Gaps **C**: short-answer length not yet proved in the eval (T-0090,
-  waits on T-0157: failed checks only in the CI step summary). A model
+- Gaps **C**: short-answer length not yet proved in the eval (T-0090:
+  the CI log now lists each failed check, T-0157, but quota left the
+  length questions busy so far). A model
   timeout now rests the model like a 503 (T-0156, confirmed live).
 
 ### Knowledge
