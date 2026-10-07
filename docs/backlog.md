@@ -206,4 +206,6 @@ Sorted by area. The QA message id is in brackets.
 - Ways to improve it: efficiency, usefulness, self-learning [same]; how to scrape / learn from all the Forest Discords [1556657503456985291].
 - Research: similar LLM community projects - https://proto.bar/ftesurf/, https://jrik.dev/ [1556988625281884160].
 
+**Community / Discord ideas (author, QA 2026-10-06 19:34-19:45, not scheduled):** challenge someone to a 1v1 from Discord (bot or webhook) - they click a link to join / sync, like jrik.dev; minigames hosted through the bot with a link out to the page, e.g. a Forest-themed Wordle and a Forest GeoGuessr (photo map) - to keep the community active when it goes quiet [1557098847816384553, 1557101594296983602].
+
 **Later (after all features, on top of TAS / tech research):** a route optimiser - points in, fastest order / path out, with collisions, stamina, sodas and sprint timing as runner-given rules (itsSlack's idea [1556792528622059542]; the author's C5 / C6 vector maths from the speedrun Discord, 2026-01-28 [1556848901829558312]; [1556849581491224608]).
