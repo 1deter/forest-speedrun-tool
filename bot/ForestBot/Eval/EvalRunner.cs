@@ -64,7 +64,7 @@ public sealed class EvalRunner
             if (detail == null)
             {
                 score.Busy++;
-                string why = a.Busy ? "no model had quota" : "no model had quota for the judge";
+                string why = a.Busy ? "no model available (quota / overloaded / timeout)" : "no model available for the judge";
                 _out(q.Id + ": busy - skipped (" + why + ")");
                 report.Append("## ").Append(q.Id).Append(": busy - skipped (").Append(why).Append(")\n**Q:** ").Append(q.Question).Append("\n\n");
                 continue;
