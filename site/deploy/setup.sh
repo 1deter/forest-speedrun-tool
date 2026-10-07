@@ -27,8 +27,6 @@ chmod 700 /var/lib/forest-site
 if [ ! -f /opt/forest-site/.env ]; then
   umask 077
   echo "FOREST_ADMIN_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > /opt/forest-site/.env
-  # The knowledge bot's token (the same value in /opt/forest-bot/.env): its live settings, /admin Bot tab.
-  echo "FOREST_BOT_TOKEN=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> /opt/forest-site/.env
   umask 022
 fi
 

@@ -150,68 +150,13 @@ public class SiteSettingsTests : IDisposable
     public void Unusable_values_keep_the_env_ones()
     {
         BotConfig c = Config();
-        c.ApplySettings((JsonObject)JsonNode.Parse("""{"channels":"x","perHour":0,"perDay":-1,"queueChannel":"abc","models":" "}"""), 6);
+        c.ApplySettings((JsonObject)JsonNode.Parse("""{"channels":["x"],"perHour":0,"perDay":-1,"queueChannel":"abc","models":" "}"""), 6);
         Assert.Equal(new ulong[] { 100, 200 }, c.Channels.OrderBy(x => x));
         Assert.Equal(15, c.PerHour);
         Assert.Equal(60, c.PerDay);
         Assert.Equal(0UL, c.QueueChannel);
         Assert.Equal("gemini:flash", c.Models);
         Assert.Equal(6, c.SettingsRev);
-    }
-
-    [Fact]
-    public void Saved_channels_are_the_whole_list_never_saved_keeps_env()
-    {
-        BotConfig c = Config();
-        // Never saved: the site has nothing - the .env channels.
-        c.ApplySettings(new JsonObject(), 0);
-        Assert.False(c.AllChannels);
-        Assert.Equal(new ulong[] { 100, 200 }, c.Channels.OrderBy(x => x));
-
-        // Saved with none ticked: no channel at all (not the .env ones, not everywhere); DMs follow dms.
-        c.ApplySettings((JsonObject)JsonNode.Parse("""{"channels":[],"dms":true}"""), 1);
-        Assert.False(c.AllChannels);
-        Assert.Empty(c.Channels);
-        Assert.True(c.AllowDms);
-        c.ApplySettings((JsonObject)JsonNode.Parse("""{"channels":[],"dms":false}"""), 2);
-        Assert.False(c.AllowDms);
-
-        // Empty .env channels and nothing saved: everywhere it can read.
-        _env["FOREST_BOT_CHANNELS"] = "";
-        c.ApplySettings(new JsonObject(), 3);
-        Assert.True(c.AllChannels);
-    }
-
-    [Fact]
-    public async Task Apply_swaps_one_snapshot_readers_never_see_a_mix()
-    {
-        BotConfig c = Config();   // .env: channels 100,200, 15 an hour
-        JsonObject site = (JsonObject)JsonNode.Parse("""{"channels":["7"],"perHour":3,"dms":false}""");
-        using CancellationTokenSource stop = new CancellationTokenSource();
-        string bad = null;
-        Task reader = Task.Run(() =>
-        {
-            while (!stop.IsCancellationRequested)
-            {
-                BotConfig.LiveSettings l = c.Live;
-                bool env = l.Channels.Contains(100), sitev = l.Channels.Contains(7);
-                // a snapshot is either all .env (100,200 / 15 / dms on) or all the site's (7 / 3 / dms off)
-                if (!(env && !sitev && l.PerHour == 15 && l.AllowDms && l.Channels.Count == 2 && !l.AllChannels)
-                    && !(sitev && !env && l.PerHour == 3 && !l.AllowDms && l.Channels.Count == 1 && !l.AllChannels))
-                { bad = "mixed: " + string.Join(",", l.Channels) + " " + l.PerHour + " dms=" + l.AllowDms + " all=" + l.AllChannels; return; }
-            }
-        });
-        for (int i = 0; i < 20000 && bad == null; i++)
-            c.ApplySettings(i % 2 == 0 ? site : new JsonObject(), i);
-        stop.Cancel();
-        await reader;
-        Assert.Null(bad);
-    }
-
-    [Fact]
-    public void Build_id_names_the_deploy_or_dev()
-    {
-        Assert.False(string.IsNullOrWhiteSpace(ForestBot.Gateway.DiscordBot.BuildId()));
     }
 
     [Fact]

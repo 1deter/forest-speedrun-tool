@@ -33,7 +33,7 @@ public sealed class DiscordBot
         _log = log;
         // Live settings from the site (FOREST_BOT_TOKEN set): the cached last good ones apply now.
         _site = SiteSettings.FromConfig(_cfg, new HttpClient { Timeout = TimeSpan.FromSeconds(20) },
-            BuildId() + " / kb " + brain.Corpus.Version, log);
+            typeof(DiscordBot).Assembly.GetName().Version + " / kb " + brain.Corpus.Version, log);
         if (_site != null)
         {
             _site.Applied = _brain.ReloadModels;
@@ -61,16 +61,6 @@ public sealed class DiscordBot
         try { await Task.Delay(Timeout.Infinite, ct); }
         catch (TaskCanceledException) { }
         await _client.StopAsync();
-    }
-
-    /// What identifies the running build: the commit the deploy published (bot.yml passes it as
-    /// SourceRevisionId, which the SDK appends to the informational version after a +); "dev" locally.
-    public static string BuildId()
-    {
-        string v = typeof(DiscordBot).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "";
-        int plus = v.IndexOf('+');
-        return plus >= 0 && v.Length > plus + 1 ? v.Substring(plus + 1, Math.Min(12, v.Length - plus - 1)) : "dev";
     }
 
     /// The text channels the bot can see, for the site's Bot tab (empty until connected).
@@ -254,20 +244,18 @@ public sealed class DiscordBot
     private bool AllowedId(ulong? channelId, bool dm)
     {
         if (dm) return _cfg.AllowDms;
-        BotConfig.LiveSettings live = _cfg.Live;   // one snapshot for the whole decision
-        if (live.AllChannels) return true;
-        if (channelId is ulong id && live.Channels.Contains(id)) return true;
-        return channelId is ulong tid && _client.GetChannel(tid) is SocketThreadChannel t && t.ParentChannel != null && live.Channels.Contains(t.ParentChannel.Id);
+        if (_cfg.Channels.Count == 0) return true;
+        if (channelId is ulong id && _cfg.Channels.Contains(id)) return true;
+        return channelId is ulong tid && _client.GetChannel(tid) is SocketThreadChannel t && t.ParentChannel != null && _cfg.Channels.Contains(t.ParentChannel.Id);
     }
 
     private bool Allowed(IChannel channel)
     {
         if (channel == null) return false;
         if (channel is IDMChannel) return _cfg.AllowDms;
-        BotConfig.LiveSettings live = _cfg.Live;
-        if (live.AllChannels) return true;
-        if (live.Channels.Contains(channel.Id)) return true;
-        return channel is SocketThreadChannel t && t.ParentChannel != null && live.Channels.Contains(t.ParentChannel.Id);
+        if (_cfg.Channels.Count == 0) return true;
+        if (_cfg.Channels.Contains(channel.Id)) return true;
+        return channel is SocketThreadChannel t && t.ParentChannel != null && _cfg.Channels.Contains(t.ParentChannel.Id);
     }
 
     private string LimitText() =>
