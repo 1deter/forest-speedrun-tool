@@ -62,7 +62,12 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `Slow tick: 'practicerun'`; the comment over it said "a few ms").
     Measure a suspect with the bridge (every reply ends in its own ms;
     `type <Type>` times the scan) and look for the game's static handle
-    first (`TheForest.Utils.Scene.*`, ilscan `writes`).
+    first (`TheForest.Utils.Scene.*`, ilscan `writes`). Six of them in one
+    restore frame were a 216 ms hitch after every spot restart (T-0148);
+    the restore keepers go through `Game/SceneCache`. To find which frame
+    a hitch is, `get static:UnityEngine.Time realtimeSinceStartup` once a
+    frame after a `call` that starts the action (one bridge line a frame);
+    to find whose code, the game profiler with `*::Start` hooked.
 
 12. **`OnRenderObject` runs once per camera**, reflections and UI included.
     GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn

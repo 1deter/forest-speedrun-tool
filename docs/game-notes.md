@@ -1256,6 +1256,51 @@ destroyed. Nothing is left, but a pickup listing in that window reads
 `Axe Plane x2` - since v0.24.63 the "not at capture" listing waits for
 the wreck clear.
 
+**The new wreck clears its crash path again** (bridge + IL, 2026-10-07,
+v0.24.251, T-0148): `Hull(Clone)/PlaneReal/Hull` carries `CrashClearing`
+(Radius 15, Length 70, PreferBurning false); its `Start` calls `OnCrash`:
+`FindObjectsOfType<LOD_Base>()` over the world, `Destroy` of every
+`LOD_Base` within Radius of 5 steps along the path (or `Burn()` with
+PreferBurning), and `NeoGrassCutter.Cut` per step (firstpass: one
+`TerrainData.SetDetailLayer` per grass cell per detail prototype).
+`OnCrash` is otherwise called only by `TriggerCutScene` (the opening).
+Cost: `call ... CrashClearing.OnCrash` on the live wreck 191-195 ms every
+time; the game profiler (`*::Start` hooked) showed `CrashClearing.Start`
+max 195 ms, once per restore - the second of the two hitches after a spot
+restart. A repeat finds nothing of the scene's own trees (`LOD_Base`
+within 100 m stayed 407 across a repeat); what it does find is pooled
+greeble plants spawned near the player since (`Pooling/Pool_Greebles/
+Chicory(Clone)004`: 415 -> 407 on the first repeat after a teleport
+there) - their `LOD_Base` destroyed on a pooled object.
+
+## The frames of an in-place restore (bridge, 2026-10-07, v0.24.251, T-0148)
+
+Measured with one `get static:UnityEngine.Time realtimeSinceStartup` a
+frame after `call ..._modules[9].BridgeRestart <id>` (maks's Labskip
+Jumping Section, Slot 1, 1366x768 and 2560x1440 alike): the start frame
+~70 ms, ~22 short frames (the restore's waits before LoadNow), LoadNow's frames
+150 + 170 ms, 33 ms (streaming back), **216 ms** (the continuation: every
+keeper), 7 short frames, **209 ms** (the new wreck's `Start`s: the crash
+clearing and its nav cut). The two bold frames are the two `Load timing:
+hitch` lines (205 / 204 ms in the log; the author's longer session:
+~380 / ~255).
+- Each `FindObjectOfType` / `FindObjectsOfType` walks the scene: 20-25 ms
+  in ForestMain whatever the type (`type <T>` timings; `CoopTreeId` 8628
+  objects 37-41 ms, `LOD_Trees` 12570 55 ms). In the continuation:
+  NatureKeeper 93 ms (the tree manager twice, `TreeLodGrid`, every
+  `CoopTreeId`), Megan's `setupGirlMutant` 25, the `ElevatorSystem`s 24,
+  the nature guide's `TickOffSystem` 26 - 168 of the 216 ms; in the start
+  frame the to-do list's `SurvivalBookTodo` 24 and Megan again 25.
+- Between two in-place restores in the lab every one of those objects is
+  the same instance (handles unchanged: both `ElevatorSystem`s,
+  `girlTransformPrefab1`, `MassDestructionSaveManager`, the player's
+  `TickOff` / `TodoList`, both `TreeLodGrid`s - `AiMaster` and `LOD
+  Manager`); a restart from the surface reloads the endgame scenes and the
+  elevators are new objects. All 8628 `CoopTreeId` are active, in a cave
+  too (`type ... all` = the active count).
+- `TheForest.Utils.Scene.GreebleZonesManager` is the
+  `MassDestructionSaveManager` GameObject (same handle).
+
 ## Blood on the player (bridge + IL, 2026-09-24)
 
 `PlayerStats.IsBloody` (a plain auto-property) set by `GotBloody()`,

@@ -114,6 +114,18 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   put back (was Idle, overcast 0, fog 1294 m)` in the restore line (Quick)
   or `Savestate after the load: weather: ...` (Full). Not kept: a
   rainbow, a lightning flash, when the next roll comes (random anyway).
+  **The frames after a Quick load** (T-0148, 2026-10-07, unreleased): every
+  spot restart was followed by two `Load timing: hitch` lines (the author:
+  ~380 + ~255 ms). The first is the restore's continuation (all the keepers
+  in one frame): six scene walks (`FindObjectOfType` / `FindObjectsOfType`,
+  20-37 ms each) - now kept between restores in `Game/SceneCache` (until a
+  scene loads / unloads or a kept object dies or goes inactive). The second
+  is the plane wreck the Quick load re-creates running the game's crash
+  clearing again (~195 ms) - skipped when a wreck already stands at that
+  spot (`Game/WreckClearing`, `Plane wreck:` line). The restore line ends
+  `after the load: N ms, S scene search(es), K kept`. Left: LoadNow's own
+  frames (150 + 170 ms on the Labskip spot) - the game's deserializer
+  (game-notes *The frames of an in-place restore*).
 
 ## Category start states true to the game (2026-10-05, unreleased)
 
