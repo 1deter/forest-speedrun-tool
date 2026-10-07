@@ -144,13 +144,14 @@ the mouse-up movement during the smash. The open question below (a
 frame-by-frame read of a successful clip) is what would turn this into a
 real optimal version.
 
-## What has been tried and failed
+## What our tests tried [dev]
 
-At the red elevator door, scripted with the game's real inputs (crouch,
-look down, axe smash, uncrouch 0.25-0.55 s later, jump every 0.05 s, at the
-seam and at the corner) the clip never happened: the smash's head sphere
-pushes the player *back* ~1 m [live]. The runners' exact timing and angle
-are the missing part.
+Our own test setup, not advice for runners: at the red elevator door, a
+script sent the game's real inputs (crouch, look down, axe smash, uncrouch
+0.25-0.55 s later, jump every 0.05 s, at the seam and at the corner) and
+the clip never happened - the smash's head sphere pushed the player *back*
+~1 m. For a runner this means only: the clip has not been reproduced in
+our tests, and the runners' exact timing and angle are the missing part.
 
 ## Where it is used
 
@@ -165,9 +166,10 @@ are the missing part.
 
 - Code: `ScaleCapsuleForCrouching`, `DisableCrouch` (above),
   `playerAnimatorControl`'s collider offsets.
-- Live (bridge, 2026-10-03): the frozen resize, the head sphere's path,
+- Live (2026-10-03): the frozen resize, the head sphere's path,
   `doingGroundChop` timing, the look-down shift, depenetration at 0.07 m past
-  mid-leaf, the failed scripted attempts.
+  mid-leaf.
+- Our failed scripted attempts at the elevator door (above) [dev].
 - ForestOverlay's run mode reports a capsule entering a solid through a
   front face within 1.5 s of a ground smash (or of touching a built
   structure).
@@ -175,7 +177,7 @@ are the missing part.
 ## Open questions
 
 - The exact frame-by-frame collider positions during a successful runner
-  clip - needs the move done by hand with `anim watch` and per-frame reads.
+  clip - needs the move done by hand with `anim watch` and per-frame reads [dev].
 - Why fps matters: physics stays at 60 Hz, so it is not more collision
   checks; the idea that it is the fresher collider layout at each step is a
   guess.

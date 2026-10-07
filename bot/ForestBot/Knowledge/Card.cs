@@ -109,6 +109,12 @@ public sealed class Card
             b.Append("NOT CONFIRMED - if your answer uses any of these, say so in it (\"runners report\", \"not tested in game\", \"a guess\"):\n");
             foreach (string u in unconfirmed) b.Append("- ").Append(u).Append('\n');
         }
+        List<string> dev = DevNotes();
+        if (dev.Count > 0)
+        {
+            b.Append("DEV NOTES - our own test notes, background only: never tell the runner how we tested (scripts, the bridge, automated tests) and never give these as advice; at most say it was not reproduced in our tests:\n");
+            foreach (string d in dev) b.Append("- ").Append(d).Append('\n');
+        }
         if (Aliases.Count > 0) b.Append("aliases: ").Append(string.Join(", ", Aliases)).Append('\n');
         if (!string.IsNullOrEmpty(Confidence)) b.Append("confidence: ").Append(Confidence).Append('\n');
         if (!string.IsNullOrEmpty(Checked)) b.Append("checked: ").Append(Checked).Append('\n');
@@ -146,6 +152,23 @@ public sealed class Card
         }
         return list;
     }
+
+    /// The card's dev-only test notes: every sentence or bullet tagged
+    /// [dev] (a heading tagged so covers its section) - how our own tests
+    /// were set up, which a runner answer must not pass on (T-0163).
+    public List<string> DevNotes()
+    {
+        List<string> list = new List<string>();
+        foreach ((string heading, string text) in Sections)
+        {
+            if (heading.Contains(DevMark)) { Add(list, "The section '" + heading + "' as a whole."); continue; }
+            foreach (string unit in Units(text))
+                if (unit.Contains(DevMark)) Add(list, unit);
+        }
+        return list;
+    }
+
+    public const string DevMark = "[dev]";
 
     private static bool HasMark(string s)
     {

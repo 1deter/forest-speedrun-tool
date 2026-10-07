@@ -536,6 +536,7 @@ must:
 - physics stays at 60 Hz, so higher fps does not add collision checks
 not:
 - that physics or collision checks run once per rendered frame
+- tells the runner how we tested it (scripted / automated testing, the test bridge) or gives our test setup as advice
 
 ### short-coyote
 question: coyote time?
@@ -635,6 +636,7 @@ not:
 - explains how the skip works as if it were known
 then: here is a video of it, please learn from the forest discords
 must:
+- says it cannot watch the video, and does not describe or explain what the video shows
 - does not claim it will queue, learn or note anything; says the way to flag a gap is a thumbs-down with a comment
 
 ### bot-learns
@@ -680,3 +682,11 @@ must:
 - a runner report says the fall damage slide is allowed in Glitchless
 not:
 - says the rules ban body slides or fall damage cancels in Glitchless
+
+### theoretical-fastest
+question: what's the theoretical fastest time for any%?
+cards: top-runners, categories-and-rules
+must:
+- no theoretical best time is documented; gives the current records it has instead
+not:
+- an estimated best-possible time (e.g. "under 2 minutes") stated without a source

@@ -64,6 +64,13 @@ Inside the body, mark claims whose confidence differs from the card's with
 `[live]`, `[code]`, `[runner]` or `[inferred]` at the end of the sentence or
 bullet. Sections that do not apply are left out; a card may add its own.
 
+`[dev]` marks our own test setup (scripts, the bridge, `anim watch`): the
+bot reads it as background only and never passes it on to a runner or
+gives it as advice; at most it says the thing was not reproduced in our
+tests (T-0163, author 2026-10-07). A tagged heading covers its section.
+A tag's first word must be one of live, code, runner, inferred, dev,
+arithmetic (the knowledge lint checks it).
+
 **When a card changes the knowledge** (a test, a correction), update
 `docs/game-notes.md` too - it stays the reference for sessions; cards are
 the explained version for runners.

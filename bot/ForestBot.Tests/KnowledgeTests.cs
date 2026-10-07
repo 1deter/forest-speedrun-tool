@@ -41,6 +41,36 @@ public class KnowledgeTests
         Card live = Card.Parse(Sample, "x");
         Assert.Empty(live.Unconfirmed());
         Assert.DoesNotContain("NOT CONFIRMED", live.Render());
+        Assert.DoesNotContain("DEV NOTES", live.Render());
+    }
+
+    [Fact]
+    public void Card_lists_dev_notes_on_top()
+    {
+        string text = "---\nid: clip\ntitle: Clip\nconfidence: code\n---\n\n# Clip\n\nA clip.\n\n## Why\n\n" +
+            "It works [code]. A script pressed crouch at 0.25 s [dev]. Done.\n\n" +
+            "## What our tests tried [dev]\n\nScripted inputs.\n";
+        Card c = Card.Parse(text, "clip");
+        Assert.Equal(new[]
+        {
+            "A script pressed crouch at 0.25 s [dev].",
+            "The section 'What our tests tried [dev]' as a whole.",
+        }, c.DevNotes());
+        Assert.Empty(c.Unconfirmed());
+        string r = c.Render();
+        Assert.True(r.IndexOf("DEV NOTES", StringComparison.Ordinal) < r.IndexOf("# Clip", StringComparison.Ordinal));
+    }
+
+    private static readonly string[] KnownTags = { "live", "code", "runner", "inferred", "dev", "arithmetic" };
+
+    [Fact]
+    public void Card_tags_are_known()
+    {
+        // [word ...] not followed by "(" (a link): the first word is a confidence tag
+        var tag = new System.Text.RegularExpressions.Regex(@"\[([a-z]+)[^\]\n]*\](?!\()");
+        foreach (string file in Directory.GetFiles(Path.Combine(RepoRoot(), "knowledge", "cards"), "*.md"))
+            foreach (System.Text.RegularExpressions.Match m in tag.Matches(File.ReadAllText(file)))
+                Assert.True(KnownTags.Contains(m.Groups[1].Value), Path.GetFileName(file) + ": unknown tag " + m.Value);
     }
 
     [Fact]
