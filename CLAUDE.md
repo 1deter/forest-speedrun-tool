@@ -195,8 +195,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   spawns check the new frontmatter loads: its notes).
   T-0007 built: `bump.py` releases its tasks, #qa-todo-list rendered
   from `needs: tester` tasks' `qa` lines (only what testers still do;
-  the old list pruned to 2 items - first `qa_todo from_tasks` post
-  not made yet: the author's call).
+  the old list pruned to 2 items, posted live; gotcha 95).
   **Order (author, 2026-10-07):** harness first (T-0012, T-0009,
   T-0010, T-0015), the redesign after; next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
