@@ -159,7 +159,8 @@ jobs:
           fi
           ids="$EVAL_IDS"
           if [ "$ids" = "all" ]; then ids=""; fi
-          if ! printf '%s' "$ids" | grep -Eq '^[A-Za-z0-9_ -]*$'; then
+          # (an empty list - "all" - passes: grep sees no line for it)
+          if [ -n "$ids" ] && ! printf '%s\n' "$ids" | grep -Eq '^[A-Za-z0-9_ -]+$'; then
             echo "::error::eval_ids must be 'all' or space-separated question ids."
             exit 1
           fi
