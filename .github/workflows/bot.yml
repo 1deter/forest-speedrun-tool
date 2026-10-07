@@ -21,13 +21,13 @@ on:
     paths: ['bot/**', 'knowledge/**']
   workflow_dispatch:
 
-concurrency:
-  group: bot-deploy
-  cancel-in-progress: false
-
 jobs:
   bot:
     runs-on: ubuntu-latest
+    # On the job, not the workflow: the eval job below must not hold it.
+    concurrency:
+      group: bot-deploy
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v5
@@ -62,14 +62,31 @@ jobs:
           echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes -o BatchMode=yes forestbotdeploy@"$HOST" < bot.tgz
 
-      # A small eval subset on the live bot's key (author 2026-10-07: it
-      # shares the free daily quota, so few questions, one cheap model).
-      # Warn-only: never fails the job or holds back a deploy; busy
-      # questions are skipped, not scored (gotcha 94). Without code tools
-      # or the embedding model here, so it checks the cards and the prompt.
+  # A small eval subset on the live bot's key (author 2026-10-07: it
+  # shares the free daily quota, so few questions, one cheap model).
+  # Warn-only, in its own job and concurrency group: it never fails the
+  # run and the next push's deploy never queues behind it (a newer push
+  # cancels a running eval). Busy questions are skipped, not scored
+  # (gotcha 94). No code tools or embedding model here, so it checks the
+  # cards and the prompt.
+  eval:
+    needs: bot
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    concurrency:
+      group: bot-eval
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Eval subset (warn-only)
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        continue-on-error: true
         timeout-minutes: 20
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

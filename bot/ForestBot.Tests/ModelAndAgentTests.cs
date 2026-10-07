@@ -233,6 +233,57 @@ public class ModelAndAgentTests
         Assert.Null(chain.Pick());
     }
 
+    // ---- the eval: busy (no quota) is skipped, never scored (gotcha 94) ----
+
+    private static async Task<(ForestBot.Eval.EvalScore score, string report)> RunEval(ScriptedModel model)
+    {
+        Corpus corpus = SmallCorpus();
+        using HybridSearch search = new HybridSearch(corpus, null, null, null);
+        string dir = Path.Combine(Path.GetTempPath(), "forest-bot-eval-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string questions = Path.Combine(dir, "questions.md");
+            File.WriteAllText(questions, "### bb\nquestion: why bb?\ncards: bomb-boost\nmust:\n- pushes pile up\n- 8 m/s per frame\n");
+            ModelChain chain = new ModelChain(new[] { model }, null);
+            var runner = new ForestBot.Eval.EvalRunner(chain, new Answerer(chain, new Tools(corpus, search, new CodeIndex()), "sys", null),
+                                                       "v", dir, _ => { }) { Pause = TimeSpan.Zero, MaxWait = TimeSpan.Zero };
+            string summary = Path.Combine(dir, "summary.md");
+            var score = await runner.RunAsync(questions, null, CancellationToken.None, summary);
+            return (score, File.ReadAllText(summary));
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    [Fact]
+    public async Task Eval_scores_an_answered_and_judged_question()
+    {
+        ScriptedModel model = new ScriptedModel();
+        model.Steps.Enqueue(_ => new ChatResult { Text = "Pushes pile up, 8 m/s per frame.\nSOURCES: card:bomb-boost\nSTATUS: answered" });
+        model.Steps.Enqueue(_ => new ChatResult { Text = "{\"must\":[true,false],\"not\":[]}" });
+        var (score, report) = await RunEval(model);
+        Assert.Equal((2, 3, 1, 0), (score.Passed, score.Total, score.Answered, score.Busy));   // card read + 1 of 2 facts
+        Assert.Contains("- [ ] 8 m/s per frame", report);
+    }
+
+    [Fact]
+    public async Task Eval_skips_a_question_no_model_could_answer()
+    {
+        var (score, report) = await RunEval(new ScriptedModel());   // no steps: out of quota at once
+        Assert.Equal((0, 0, 0, 1), (score.Passed, score.Total, score.Answered, score.Busy));
+        Assert.Contains("busy - skipped (no model had quota)", report);
+    }
+
+    [Fact]
+    public async Task Eval_skips_a_question_the_judge_had_no_quota_for()
+    {
+        ScriptedModel model = new ScriptedModel();
+        model.Steps.Enqueue(_ => new ChatResult { Text = "Pushes pile up.\nSOURCES: card:bomb-boost\nSTATUS: answered" });
+        var (score, report) = await RunEval(model);   // the judge's call finds no step left
+        Assert.Equal((0, 0, 0, 1), (score.Passed, score.Total, score.Answered, score.Busy));
+        Assert.Contains("no model had quota for the judge", report);
+    }
+
     [Fact]
     public void Tools_never_throw_and_cap_per_source()
     {

@@ -20,17 +20,29 @@ namespace ForestBot.Eval;
 // ------------------------------------------------------------------
 public sealed class EvalRunner
 {
-    private readonly Brain _brain;
+    private readonly ModelChain _models;
+    private readonly Answerer _answerer;
+    private readonly string _knowledgeVersion, _dataDir;
     private readonly Action<string> _out;
     public TimeSpan Pause = TimeSpan.FromSeconds(8);
     /// The longest quota rest waited out; a longer one (a daily quota) is busy.
     public TimeSpan MaxWait = TimeSpan.FromMinutes(5);
 
     public EvalRunner(Brain brain, Action<string> output)
+        : this(brain.Models, brain.Answerer, brain.Corpus.Version, brain.Config.DataDir, output) { }
+
+    /// The parts it uses (tests pass a scripted model).
+    public EvalRunner(ModelChain models, Answerer answerer, string knowledgeVersion, string dataDir, Action<string> output)
     {
-        _brain = brain;
+        _models = models;
+        _answerer = answerer;
+        _knowledgeVersion = knowledgeVersion;
+        _dataDir = dataDir;
         _out = output;
     }
+
+    /// No model had quota left for the judge: the question is busy, not wrong.
+    private sealed class JudgeBusyException : Exception { }
 
     /// Runs the questions, writes the report to the data folder (and to
     /// `summaryPath` too when given, e.g. $GITHUB_STEP_SUMMARY) and returns
@@ -38,32 +50,38 @@ public sealed class EvalRunner
     public async Task<EvalScore> RunAsync(string questionsPath, ICollection<string> only, CancellationToken ct, string summaryPath = null)
     {
         List<EvalQuestion> questions = EvalQuestions.Select(EvalQuestions.Parse(File.ReadAllText(questionsPath)), only);
-        StringBuilder report = new StringBuilder("# Eval " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + "Z, knowledge " + _brain.Corpus.Version + "\n\n");
+        StringBuilder report = new StringBuilder("# Eval " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + "Z, knowledge " + _knowledgeVersion + "\n\n");
         EvalScore score = new EvalScore();
 
         foreach (EvalQuestion q in questions)
         {
             Answer a = await AskAsync(q.Question, new List<Turn>(), ct);
-            if (a.Busy)
+            (int ok, int n, string detail) = (0, 0, null);
+            if (!a.Busy)
+                try { (ok, n, detail) = await JudgeAsync(q.Question, a, q.Must, q.Not, q.Cards, ct); }
+                catch (JudgeBusyException) { detail = null; }
+            if (detail == null)
             {
                 score.Busy++;
-                _out(q.Id + ": busy - skipped");
-                report.Append("## ").Append(q.Id).Append(": busy - skipped (no model had quota)\n**Q:** ").Append(q.Question).Append("\n\n");
+                string why = a.Busy ? "no model had quota" : "no model had quota for the judge";
+                _out(q.Id + ": busy - skipped (" + why + ")");
+                report.Append("## ").Append(q.Id).Append(": busy - skipped (").Append(why).Append(")\n**Q:** ").Append(q.Question).Append("\n\n");
                 continue;
             }
-            (int ok, int n, string detail) = await JudgeAsync(q.Question, a, q.Must, q.Not, q.Cards, ct);
             string thenDetail = "";
             if (q.Then != null)
             {
                 await Task.Delay(Pause, ct);
                 Answer b = await AskAsync(q.Then, new List<Turn> { new Turn { Question = q.Question, Answer = a.Text } }, ct);
-                if (b.Busy) thenDetail = "\n**Follow-up:** " + q.Then + "\n- busy - skipped\n";
-                else
-                {
-                    (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
-                    ok += ok2; n += n2;
-                    thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
-                }
+                thenDetail = "\n**Follow-up:** " + q.Then + "\n- busy - skipped\n";
+                if (!b.Busy)
+                    try
+                    {
+                        (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
+                        ok += ok2; n += n2;
+                        thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
+                    }
+                    catch (JudgeBusyException) { }
             }
             score.Passed += ok; score.Total += n; score.Answered++;
             string line = q.Id + ": " + ok + "/" + n + "  (" + a.Model + ", " + a.ToolCalls + " lookups, " + a.Status + ")";
@@ -74,11 +92,11 @@ public sealed class EvalRunner
             await Task.Delay(Pause, ct);
         }
 
-        string summary = score.Line() + "  (models: " + string.Join(" -> ", _brain.Models.Models.Select(m => m.Name)) + ")";
+        string summary = score.Line() + "  (models: " + string.Join(" -> ", _models.Models.Select(m => m.Name)) + ")";
         _out(summary);
         report.Insert(0, summary + "\n\n");
-        string path = Path.Combine(_brain.Config.DataDir, "eval-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm") + ".md");
-        Directory.CreateDirectory(_brain.Config.DataDir);
+        string path = Path.Combine(_dataDir, "eval-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm") + ".md");
+        Directory.CreateDirectory(_dataDir);
         File.WriteAllText(path, report.ToString());
         if (!string.IsNullOrEmpty(summaryPath)) File.AppendAllText(summaryPath, report.ToString());
         _out("Report: " + path);
@@ -90,7 +108,7 @@ public sealed class EvalRunner
     {
         for (int attempt = 0; ; attempt++)
         {
-            Answer a = await _brain.Answerer.AskAsync(question, history, ct);
+            Answer a = await _answerer.AskAsync(question, history, ct);
             if (!a.Busy || attempt >= 5 || !await WaitForModelAsync(ct)) return a;
         }
     }
@@ -99,7 +117,7 @@ public sealed class EvalRunner
     /// longer than MaxWait.
     private async Task<bool> WaitForModelAsync(CancellationToken ct)
     {
-        TimeSpan wait = _brain.Models.NextAvailable();
+        TimeSpan wait = _models.NextAvailable();
         if (wait > MaxWait) return false;
         _out("  (quota rest - waiting " + (int)wait.TotalSeconds + " s)");
         await Task.Delay(wait + TimeSpan.FromSeconds(2), ct);
@@ -136,10 +154,10 @@ public sealed class EvalRunner
             ChatResult r = null;
             for (int attempt = 0; r == null; attempt++)
             {
-                IChatModel judge = _brain.Models.Pick();
+                IChatModel judge = _models.Pick();
                 if (judge == null)
                 {
-                    if (attempt >= 5 || !await WaitForModelAsync(ct)) throw new InvalidOperationException("no model for the judge");
+                    if (attempt >= 5 || !await WaitForModelAsync(ct)) throw new JudgeBusyException();
                     continue;
                 }
                 try
@@ -147,7 +165,7 @@ public sealed class EvalRunner
                     r = await judge.CompleteAsync("You are a strict, fair grader. Output JSON only.",
                         new List<ChatMessage> { ChatMessage.User(prompt.ToString()) }, null, 1024, ct);
                 }
-                catch (ModelUnavailableException u) { _brain.Models.Rest(judge, u.RetryAfter, u.Message); }
+                catch (ModelUnavailableException u) { _models.Rest(judge, u.RetryAfter, u.Message); }
             }
             string json = r.Text.Trim();
             int s = json.IndexOf('{'), e = json.LastIndexOf('}');
@@ -155,7 +173,7 @@ public sealed class EvalRunner
             for (int i = 0; i < m.Length; i++) m[i] = node?["must"]?[i]?.GetValue<bool>() == true;
             for (int i = 0; i < n.Length; i++) n[i] = node?["not"]?[i]?.GetValue<bool>() == true;
         }
-        catch (Exception ex) { detail.Append("- judge failed: ").Append(ex.Message).Append('\n'); }
+        catch (Exception ex) when (ex is not JudgeBusyException) { detail.Append("- judge failed: ").Append(ex.Message).Append('\n'); }
 
         for (int i = 0; i < m.Length; i++) { total++; if (m[i]) ok++; detail.Append(m[i] ? "- [x] " : "- [ ] ").Append(must[i]).Append('\n'); }
         for (int i = 0; i < n.Length; i++) { total++; if (!n[i]) ok++; detail.Append(!n[i] ? "- [x] did not: " : "- [ ] DID: ").Append(not[i]).Append('\n'); }
