@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-215 prefixes from 660 log calls.
+214 prefixes from 659 log calls.
 
 ## `Aerial capture`
 
@@ -1812,13 +1812,6 @@ Meaning: An update request timed out after 30 s.
 Written by UpdateChecker.cs; warning.
 
 - warning `Update request timed out: <url>`
-
-## `Update() threw`
-
-Meaning: The plugin's per-frame Update threw.
-Written by Plugin.cs; error.
-
-- error `Update() threw: <ex>`
 
 ## `Updater`
 

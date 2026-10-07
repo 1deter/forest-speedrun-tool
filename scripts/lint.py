@@ -390,8 +390,16 @@ UNITY_BASE = re.compile(r":.*\b(MonoBehaviour|BaseUnityPlugin)\b")
 GUARD = re.compile(r"^if\s*\(([\w.!=<>&|\s]*)\)\s*return\s*;\s*")
 
 
+STRING_LIT = re.compile(r'@"(?:[^"]|"")*"|\$?"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)+\'')
+
+
+def blank_strings(line):
+    """The line with every string / char literal's inside blanked (same length), so a '{' in one is not a brace."""
+    return STRING_LIT.sub(lambda m: m.group(0)[0] + " " * (len(m.group(0)) - 2) + m.group(0)[-1], line)
+
+
 def _block_end(code, i):
-    """Index just past the {...} block starting at code[i] == '{' (string-unaware; -1 if unbalanced)."""
+    """Index just past the {...} block starting at code[i] == '{' (code with strings blanked; -1 if unbalanced)."""
     depth = 0
     for j in range(i, len(code)):
         if code[j] == "{":
@@ -439,24 +447,37 @@ def body_wrapped(body):
 
 def message_methods(text):
     """(class, method, line) of every Unity message method on a MonoBehaviour / BaseUnityPlugin, and its body text (None: no block body)."""
-    lines = text.splitlines()
-    code = [strip_comment(l) for l in lines]
+    code = [blank_strings(strip_comment(l)) for l in text.splitlines()]
     out = []
-    unity = None
+    # (class name, or None when not a MonoBehaviour; the brace depth of its body):
+    # a method belongs to the class whose body it sits directly in, so a
+    # nested class neither hides nor takes over the outer class's methods.
+    classes = []
+    pending = False
+    depth = 0
     for i, line in enumerate(code):
         c = CLASS_DECL.search(line)
         if c:
-            unity = c.group(1) if UNITY_BASE.search(c.group(2)) else None
+            pending, name = True, (c.group(1) if UNITY_BASE.search(c.group(2)) else None)
         m = MESSAGE_SIG.search(line)
-        if not m or unity is None:
-            continue
-        joined = "\n".join(code[i:])
-        tail = joined[len(m.group(0)):].lstrip()
-        if not tail.startswith("{"):
-            out.append((unity, m.group(1), i + 1, None))   # => expression body or abstract
-            continue
-        end = _block_end(tail, 0)
-        out.append((unity, m.group(1), i + 1, tail[1:end - 1] if end > 0 else None))
+        if m and classes and classes[-1][0] is not None and classes[-1][1] == depth:
+            joined = "\n".join(code[i:])
+            tail = joined[len(m.group(0)):].lstrip()
+            if not tail.startswith("{"):
+                out.append((classes[-1][0], m.group(1), i + 1, None))   # => expression body or abstract
+            else:
+                end = _block_end(tail, 0)
+                out.append((classes[-1][0], m.group(1), i + 1, tail[1:end - 1] if end > 0 else None))
+        for ch in line:
+            if ch == "{":
+                depth += 1
+                if pending:
+                    classes.append((name, depth))
+                    pending = False
+            elif ch == "}":
+                if classes and classes[-1][1] == depth:
+                    classes.pop()
+                depth -= 1
     return out
 
 

@@ -348,6 +348,18 @@ class Lifecycle(unittest.TestCase):
         self.assertIn("gotcha 3", out)
         self.assertIn('FIX: put the whole body in try { ... } catch (Exception ex) { Lifecycle.Fail("Bad.LateUpdate", ex); }', out)
 
+    def test_nested_class_keeps_the_outer_scope(self):
+        src = ("public class A : MonoBehaviour\n{\n    private class Inner\n    {\n        void Update() { Go(); }\n    }\n"
+               "    private void Update() { Go(); }\n}\n")
+        self.assertEqual([(c, m, n) for c, m, n, b in L.message_methods(src)], [("A", "Update", 7)])
+
+    def test_brace_in_a_string_is_not_a_brace(self):
+        src = ("public class A : MonoBehaviour\n{\n    private void OnGUI()\n    {\n"
+               "        try { var s = \"}\"; var c = '{'; var v = @\"a\"\"}\"; }\n"
+               "        catch (Exception ex) { Lifecycle.Fail(\"A.OnGUI\", ex); }\n    }\n}\n")
+        (c, m, n, body), = L.message_methods(src)
+        self.assertTrue(L.body_wrapped(body))
+
     def test_repo_has_no_unwrapped_method(self):
         self.assertEqual(L.lifecycle_hits(), [])
 

@@ -211,10 +211,7 @@ namespace ForestOverlay
                 useGUILayout = !PerfPatches.OverlayLayout ||
                                (_host.UiVisible && (_host.AnyPanelOpen() || _notice.Active));
             }
-            catch (Exception ex)
-            {
-                Logger.LogError("Update() threw: " + ex);
-            }
+            catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.Update", ex); }
         }
 
         private void ToggleAllUi()
