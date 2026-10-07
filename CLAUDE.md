@@ -192,28 +192,21 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **Start:** skill `session-start` (its report's *bot feedback* line
-  says when skill `bot-review` is due).
-- **First loop run done** (R-0001, 2026-10-07: 5 rounds, 5 progressed,
-  3 author interventions - `python scripts/loop.py report`): T-0026 (your
-  report zips -> T-0148..T-0153), T-0028 (the /admin Bot tab, live),
-  T-0090 (answer length, deployed; waits on T-0157), T-0140 (the
-  knowledge-testing channel -> T-0158..T-0166), T-0141 (bot review: CI
-  full eval by hand, first review 81.5%, docs/bot-reviews/).
-- **Harness roadmap** (docs/harness.md, its *Status log*): steps 1-5, 3e,
-  8c, 9a, 9b, 10d, 12 Stage A done. Left: T-0014 cleanup loop + review,
-  T-0016 Stage B (after Stage A runs a week without a fix), T-0154
-  (loop.py: no release for a docs-only round), 14 small lint / test
-  checks (T-0122..T-0135). **Order (author, 2026-10-07):** harness first,
-  the redesign after (its tasks are `author-present`).
-- **Next loop run** would take, by priority: T-0156 / T-0157 (bot eval:
-  timeout crash, failed checks in the log - then T-0090 can confirm),
-  T-0163 (knowledge P2), T-0150. T-0158 (top-runners card) is live,
-  checked; its 4 evals confirm it in the next full eval. With the game up (`--bridge`):
-  T-0148, T-0149, T-0151, T-0143 (crashes / hitches from your zips).
-- **Parked for you:** T-0152 (other runners' spots read-only?), T-0153
-  (a settings lock per spot?), T-0144 (Runs-tab dead links).
+- **Start:** skill `session-start`; its report says when `bot-review`,
+  `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
+- **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
+  9a, 9b, 10d, 10e, 12 Stage A, 12d done. Left: T-0016 Stage B (after
+  Stage A runs a week without a fix), T-0154 (no release for a docs-only
+  loop round), T-0122..T-0135 (small lint / test checks). **The first
+  harness review is due** (it needs you: which component goes off).
+  **Order (author, 2026-10-07):** harness first, the redesign after.
+- **First cleanup** (T-0014, 2026-10-07) filed T-0170..T-0183 (P4: dead
+  session-log links, unused members, one unused function).
+- **Next loop run** would take: T-0150, then the P3 harness checks; with
+  the game up (`--bridge`): T-0148, T-0149, T-0151, T-0143. Built and
+  waiting on the next full eval: T-0158, T-0163. Loop history:
+  `python scripts/loop.py report`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Released:** v0.24.249, nothing unreleased.
+  pushed; T-0018..T-0025). **Released:** v0.24.249, nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
