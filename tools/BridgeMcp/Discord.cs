@@ -473,6 +473,9 @@ namespace ForestOverlay.BridgeMcp
             ProcessStartInfo psi = new ProcessStartInfo("python")
             {
                 WorkingDirectory = repo,
+                // The server's own stdin is the MCP pipe, which never closes; a child that
+                // inherits it can block on it (a git under tasks.py did, T-0007).
+                RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -482,12 +485,18 @@ namespace ForestOverlay.BridgeMcp
             psi.ArgumentList.Add(Path.Combine("scripts", "tasks.py"));
             psi.ArgumentList.Add("qa-todo");
             using Process p = Process.Start(psi);
+            p.StandardInput.Close();
             Task<string> stdout = p.StandardOutput.ReadToEndAsync(ct);
             Task<string> stderr = p.StandardError.ReadToEndAsync(ct);
             using (CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
                 limit.CancelAfter(TimeSpan.FromSeconds(30));
-                await p.WaitForExitAsync(limit.Token);
+                try { await p.WaitForExitAsync(limit.Token); }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    try { p.Kill(true); } catch (InvalidOperationException) { }
+                    throw new InvalidOperationException("tasks.py qa-todo did not finish in 30 s (killed); nothing was posted");
+                }
             }
             if (p.ExitCode != 0) throw new InvalidOperationException("tasks.py qa-todo failed: " + (await stderr).Trim());
             return (await stdout).Trim();

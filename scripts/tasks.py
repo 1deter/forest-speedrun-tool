@@ -350,8 +350,9 @@ def pick_next(tasks, bridge=False, by=None):
 
 def git_ok(args):
     try:
-        return subprocess.run(["git"] + args, cwd=ROOT, capture_output=True).returncode == 0
-    except OSError:
+        return subprocess.run(["git"] + args, cwd=ROOT, capture_output=True,
+                              stdin=subprocess.DEVNULL, timeout=30).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
         return False
 
 
@@ -498,8 +499,10 @@ def suites_for(paths):
 
 
 def git_out(args):
+    # stdin closed: under the MCP server (qa_todo from_tasks) it is the server's never-closing
+    # pipe, and git blocked on it (T-0007).
     r = subprocess.run(["git"] + args, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", timeout=30)
+                       errors="replace", timeout=30, stdin=subprocess.DEVNULL)
     if r.returncode != 0:
         raise TaskError("git %s failed: %s" % (" ".join(args[:2]), r.stderr.strip()[:200]),
                         "the brief reads the task's commits from git",

@@ -214,3 +214,4 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`).
 19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs.
 28. **Compare both sides the same way** - same dedup and filters before pairing lists.
+95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled").

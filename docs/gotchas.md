@@ -842,3 +842,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     limit; the eval waits out short rests. Honesty fixes must hold on the
     weaker model: an inline `[inferred]` was skimmed past until `read_card`
     put a NOT CONFIRMED list on top.
+
+95. **A process the MCP server starts inherits its stdin - the MCP pipe.**
+    (2026-10-07, T-0007, `qa_todo from_tasks`.) The server ran `python
+    scripts/tasks.py qa-todo`, which ran `git tag --list`; git blocked
+    for good (0 CPU, parent gone), the 30 s limit fired and the server
+    reported it as a bare "cancelled" (any `OperationCanceledException`
+    in a tool call is). The same command ran in 118 ms from a shell and
+    from a test program with a normal stdin. The MCP stdio pipe never
+    closes, so a child that touches stdin waits forever. Fix: a child of
+    the server gets `RedirectStandardInput` + `StandardInput.Close()`,
+    `tasks.py`'s git calls `stdin=DEVNULL`, and a timeout kills the
+    child and says so. A "cancelled" from a forest tool: look for a hung
+    child of the `forest-bridge-mcp` process first.
