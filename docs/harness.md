@@ -671,3 +671,11 @@ Asked after the deeper pass; each replaces an "open question" above.
   investigations.md, website.md, knowledge/README.md and run-mode.md
   (T-0001, T-0017); CLAUDE.md 1,061 -> 878 lines; 7 questions parked.
   Next: step 2 (T-0002).
+- 2026-10-07: roadmap step 2 built (T-0002): `scripts/session-start.py`
+  (4a), the SessionStart hook on startup + /clear (4b), `scripts/cleanup.py`
+  (10a), 9 tests. Author's calls: baseline from the CI badges when HEAD is
+  origin/main and clean, else local build + tests (~17 s warm); cleanup
+  deletes merged branches on origin too; scratch = what has no long-term
+  use (session scratchpads, site-look-shots, .claude/shots older than 7
+  days, __pycache__; site/aerial-out kept). First cleanup: 1 local + 4
+  origin branches, 85 empty scratch folders. Next: step 3 (T-0003).

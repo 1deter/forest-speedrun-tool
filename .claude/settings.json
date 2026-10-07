@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/session-start.py\" --hook",
+            "timeout": 300,
+            "statusMessage": "Session start report (git, baseline, release, site, tasks)"
+          }
+        ]
+      }
+    ]
+  }
+}

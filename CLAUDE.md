@@ -52,6 +52,8 @@ dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: 
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
 python scripts/bump.py 0.24.N "bullet" "bullet"   # release bump: csproj + Plugin.cs + CHANGELOG section (-f notes.md)
 python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches)
+python scripts/session-start.py                 # where things stand (the SessionStart hook runs it; --baseline forces local tests)
+python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (local + origin), __pycache__, scratch > 7 days
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
@@ -423,7 +425,7 @@ identity.
 ## Current status
 
 **Released: v0.24.248** (2026-10-05). The author runs it via the in-game
-updater (Slot 1). **620 tests** (+ 85 site tests, + 26 bot tests).
+updater (Slot 1). **909 tests** (+ 104 site tests, + 26 bot tests, + 33 script tests).
 
 ### Pick up here (2026-10-07)
 
@@ -436,12 +438,16 @@ names (backlog.md, investigations.md, run-mode.md ...). Start a task with
 with `tasks.py evidence`; behaviour changes are confirmed by a checker,
 never their maker (author, 2026-10-07).
 
-**Start here:** `qa_read new_only`, then `tasks.py list --needs
-author-decision` with the author present, then `tasks.py next`. The
-harness roadmap (docs/harness.md, author 2026-10-06: first) is the P1
-harness tasks, next up T-0002 (session start) and T-0003 (the
-router). Roadmap step 1 is done (T-0001, T-0017: 112 tasks). The
-plan's design parts want high effort - say so (memory
+**Start here:** the SessionStart hook (`.claude/settings.json`,
+startup + /clear) prints `scripts/session-start.py`'s report into the
+session: git, worktrees, baseline (CI badges, or local tests when HEAD
+is not origin/main), release, site, VPS, tasks. A `!` line is fixed
+first; merged leftovers -> `python scripts/cleanup.py`. Then
+`qa_read new_only`, `tasks.py list --needs author-decision` with the
+author present, then `tasks.py next`. The harness roadmap
+(docs/harness.md, author 2026-10-06: first) is the P1 harness tasks,
+next up T-0003 (the router). Steps 1-2 are done (T-0001, T-0017,
+T-0002). The plan's design parts want high effort - say so (memory
 `effort-level-switching`).
 
 Worktrees / branches: only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,

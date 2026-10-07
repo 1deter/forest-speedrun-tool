@@ -492,6 +492,10 @@ def main(argv=None):
     sub.add_parser("check")
     sub.add_parser("render")
     a = p.parse_args(argv)
+    # Titles carry emoji; a Windows console or pipe defaults to cp1252 and crashed `list`.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
     try:
         tasks = load()
