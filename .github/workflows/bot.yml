@@ -107,5 +107,6 @@ jobs:
           if awk -v p="$pct" -v w="$WARN_BELOW" 'BEGIN{exit !(p < w)}'; then
             echo "::warning::Eval subset scored $pct% (under $WARN_BELOW%) - $line"
           else
-            echo "Eval subset: $line"
+            # An annotation, not a log line: the run page shows it without sign-in.
+            echo "::notice::Eval subset: $line"
           fi
