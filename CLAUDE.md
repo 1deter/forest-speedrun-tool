@@ -180,7 +180,10 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   its first step).
 - **Harness roadmap** (docs/harness.md, author 2026-10-06: first): steps
   1-3 done (T-0001, T-0017, T-0002, T-0003: this router) and 3e (T-0004:
-  the four skills above); next: `tasks.py next`.
+  the four skills above); step 4's gates built (T-0005: lints, git hooks,
+  PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*); left of
+  step 4: the checker (T-0006), the gotcha audit (T-0009); next:
+  `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027).
 - **Nothing is published yet:** all live categories are drafts (the
