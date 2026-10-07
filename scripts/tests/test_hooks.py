@@ -172,6 +172,29 @@ class StopFindings(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    def test_unreviewed_tasks_with_unpushed_commits(self):
+        d = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(d, "tasks"))
+            rows = [{"id": "T-0001", "status": "built", "checker": True, "commits": ["abc1234"]},
+                    {"id": "T-0002", "status": "built", "checker": True, "commits": ["abc1234"],
+                     "reviews": [{"verdict": "accept", "commits": ["abc1234"]}]},
+                    {"id": "T-0003", "status": "built", "checker": True, "commits": ["fff0000"]},
+                    {"id": "T-0004", "status": "built", "checker": False, "commits": ["abc1234"]},
+                    {"id": "T-0005", "status": "built", "checker": True, "commits": ["abc1234", "abc9999"],
+                     "reviews": [{"verdict": "accept", "commits": ["abc1234"]}]}]
+            with open(os.path.join(d, "tasks", "tasks.jsonl"), "w") as f:
+                f.write("\n".join(json.dumps(r) for r in rows) + "\n")
+            self.assertEqual(S.unreviewed_tasks(d, ["abc1234deadbeef"]), ["T-0001", "T-0005"])
+            self.assertEqual(S.unreviewed_tasks(d, []), [])
+        finally:
+            shutil.rmtree(d)
+
+    def test_unreviewed_finding_names_the_checker(self):
+        out = S.findings("r", [], 0, None, None, None, [], [], ["T-0009"])
+        self.assertEqual(len(out), 1)
+        self.assertIn("forest-checker", out[0])
+
 
 if __name__ == "__main__":
     unittest.main()

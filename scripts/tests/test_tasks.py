@@ -2,6 +2,7 @@
 
     python scripts/tests/test_tasks.py
 """
+import argparse
 import os
 import sys
 import unittest
@@ -104,14 +105,103 @@ class Gates(unittest.TestCase):
         ts[0]["evidence"] = [{"by": "main", "what": "test passes"}]
         T.transition(ts, ts[0], "confirmed", by="main")
 
-    def test_checker_task_needs_evidence_from_someone_else(self):
-        ts = [task("T-0001", status="released", checker=True, maker="main",
+    def test_plugin_checker_task_needs_review_then_in_game_evidence(self):
+        ts = [task("T-0001", area="plugin", status="released", checker=True, maker="main", commits=["abc"],
                    evidence=[{"by": "main", "what": "looked fine"}])]
         with self.assertRaises(T.TaskError) as e:
             T.transition(ts, ts[0], "confirmed", by="main")
-        self.assertIn("fresh-context", str(e.exception))
-        ts[0]["evidence"].append({"by": "forest-tester", "what": "Restart line seen"})
-        T.transition(ts, ts[0], "confirmed", by="forest-tester")
+        self.assertIn("no checker review", str(e.exception))
+        ts[0]["reviews"] = [{"verdict": "accept", "by": "forest-checker", "commits": ["abc"]}]
+        with self.assertRaises(T.TaskError) as e:
+            T.transition(ts, ts[0], "confirmed", by="main")
+        self.assertIn("in-game", str(e.exception))
+        ts[0]["evidence"].append({"by": "forest-checker", "what": "diff reads fine"})
+        with self.assertRaises(T.TaskError):  # the checker's word is a gate, not a confirmation
+            T.transition(ts, ts[0], "confirmed", by="main")
+        ts[0]["evidence"].append({"by": "qa:maks", "what": "lines gone in a run"})
+        T.transition(ts, ts[0], "confirmed", by="main")
+
+    def test_site_checker_task_confirms_with_review_and_live_check(self):
+        ts = [task("T-0001", status="built", checker=True, maker="main", commits=["abc"],
+                   evidence=[{"by": "main", "what": "deploy-watch: live"}])]
+        with self.assertRaises(T.TaskError):
+            T.transition(ts, ts[0], "confirmed", by="main")
+        ts[0]["reviews"] = [{"verdict": "accept", "by": "forest-checker", "commits": ["abc"]}]
+        T.transition(ts, ts[0], "confirmed", by="main")
+
+
+class Checker(unittest.TestCase):
+    SCORES = "correctness=2,verification=2,scope=2,restart=n/a,legible=1,handoff=2"
+
+    def review(self, ts, verdict, by="forest-checker", scores=None, faults=None):
+        a = argparse.Namespace(id="T-0001", verdict=verdict, by=by, scores=scores or self.SCORES, faults=faults)
+        return T.cmd_review(ts, a)
+
+    def built(self, **kw):
+        return [task("T-0001", area="plugin", status="built", checker=True, maker="main", commits=["abc"], **kw)]
+
+    def test_release_needs_an_accept_covering_every_commit(self):
+        ts = self.built(release="v1")
+        with self.assertRaises(T.TaskError):
+            T.transition(ts, ts[0], "released", by="main")
+        self.review(ts, "accept")
+        ts[0]["commits"].append("def")
+        with self.assertRaises(T.TaskError) as e:
+            T.transition(ts, ts[0], "released", by="main")
+        self.assertIn("did not see", str(e.exception))
+        self.review(ts, "accept")
+        T.transition(ts, ts[0], "released", by="main")
+
+    def test_maker_cannot_review(self):
+        with self.assertRaises(T.TaskError):
+            self.review(self.built(), "accept", by="main")
+
+    def test_rubric_must_be_full_and_match_the_verdict(self):
+        with self.assertRaises(T.TaskError):
+            self.review(self.built(), "accept", scores="correctness=2")
+        with self.assertRaises(T.TaskError):
+            self.review(self.built(), "accept", scores=self.SCORES.replace("legible=1", "legible=0"))
+        with self.assertRaises(T.TaskError):
+            self.review(self.built(), "revise")  # no faults
+
+    def test_revise_hands_it_back_to_the_maker(self):
+        ts = self.built()
+        self.review(ts, "revise", faults=["src/X.cs:10 - null when no marker"])
+        self.assertEqual((ts[0]["status"], ts[0]["owner"]), ("in-progress", "main"))
+        self.assertEqual(ts[0]["reviews"][-1]["faults"], ["src/X.cs:10 - null when no marker"])
+
+    def test_revise_when_the_maker_is_busy_goes_back_on_the_list(self):
+        ts = self.built() + [task("T-0002", status="in-progress", owner="main")]
+        self.review(ts, "revise", faults=["x"])
+        self.assertEqual(ts[0]["status"], "todo")
+
+    def test_block_parks_a_question_for_the_author(self):
+        ts = self.built()
+        self.review(ts, "block", faults=["the label wording is a runner-facing choice"])
+        self.assertEqual((ts[0]["status"], ts[0]["needs"]), ("built", "author-decision"))
+        self.assertIn("label wording", ts[0]["question"])
+        T.validate(ts)
+
+    def test_brief_has_contract_suites_and_cut_diff(self):
+        calls = []
+
+        def show(args):
+            calls.append(args)
+            if "--name-only" in args:
+                return "src/Modules/Runs.cs\nscripts/tasks.py\n"
+            return "diff " + "x" * 500
+
+        text = T.brief(self.built()[0], show=show, limit=100)
+        self.assertIn("behavior: does x", text)
+        self.assertIn("ForestOverlay.Tests", text)
+        self.assertIn("test_tasks.py", text)
+        self.assertNotIn("ForestSite.Tests", text)
+        self.assertIn("cut at 100", text)
+        self.assertTrue(all(":(exclude)tasks/tasks.jsonl" in c for c in calls))
+
+    def test_brief_without_commits_says_so(self):
+        with self.assertRaises(T.TaskError):
+            T.brief(task("T-0001"), show=lambda a: "")
 
     def test_confirmed_never_goes_back(self):
         ts = [task("T-0001", status="confirmed", evidence=[{"by": "x", "what": "y"}])]

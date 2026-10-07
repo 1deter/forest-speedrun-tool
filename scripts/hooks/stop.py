@@ -4,6 +4,7 @@
 - uncommitted changes, and commits not pushed,
 - a csproj version with no tag, or a tag not pushed (a bump left half-done),
 - tasks in progress with no running note (tasks.py note) for the next session,
+- a checker task with a commit not yet pushed and no accept review (docs/harness.md 7d),
 - a changelog line not yet pushed that claims a number with no measurement (gotcha 44).
 
 With anything to say it blocks the stop once: the model reads the list and
@@ -63,6 +64,33 @@ def unnoted_tasks(root):
     return out
 
 
+def unreviewed_tasks(root, unpushed):
+    """Checker tasks with a commit in `unpushed` (full shas) whose latest review is not an accept
+    covering all their commits - the review happens before the push (author, 2026-10-07)."""
+    out = []
+    if not unpushed:
+        return out
+    try:
+        with open(os.path.join(root, "tasks", "tasks.jsonl"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                t = json.loads(line)
+                commits = t.get("commits") or []
+                if not t.get("checker") or t.get("status") not in ("built", "released"):
+                    continue
+                if not any(s.startswith(c) for c in commits for s in unpushed):
+                    continue
+                rs = t.get("reviews") or []
+                if rs and rs[-1].get("verdict") == "accept" and set(commits) <= set(rs[-1].get("commits") or []):
+                    continue
+                out.append(t["id"])
+    except (OSError, ValueError):
+        pass
+    return out
+
+
 def claims(diff):
     """Added changelog lines that carry a number like a measurement, unless they say it was measured."""
     out = []
@@ -74,7 +102,7 @@ def claims(diff):
     return out
 
 
-def findings(root, status, ahead, version, local_tag, remote_tag, tasks, claim_lines):
+def findings(root, status, ahead, version, local_tag, remote_tag, tasks, claim_lines, unreviewed=()):
     """The list shown to the model; every input is already fetched, so it is testable."""
     out = []
     if status:
@@ -91,6 +119,9 @@ def findings(root, status, ahead, version, local_tag, remote_tag, tasks, claim_l
     for tid in tasks:
         out.append("%s is in progress with no running note - python scripts/tasks.py note %s \"where it stands\""
                    % (tid, tid))
+    for tid in unreviewed:
+        out.append("%s has unpushed commits and no accept review - spawn forest-checker with \"Check %s\" "
+                   "before pushing" % (tid, tid))
     for c in claim_lines:
         out.append("changelog claims a number with no measurement (gotcha 44): \"%s\" - measure the released build, "
                    "or say what changed without the figure" % c[:120])
@@ -112,7 +143,9 @@ def collect(cwd):
             out = try_git(["ls-remote", "--tags", "origin", "refs/tags/v" + version], root, timeout=8)
             remote_tag = None if out is None else bool(out.strip())
     diff = try_git(["diff", upstream or "HEAD", "--", "CHANGELOG.md"], root) or ""
-    return findings(root, status, ahead, version, local_tag, remote_tag, unnoted_tasks(root), claims(diff))
+    unpushed = (try_git(["rev-list", "@{u}..HEAD"], root) or "").split() if upstream else []
+    return findings(root, status, ahead, version, local_tag, remote_tag, unnoted_tasks(root), claims(diff),
+                    unreviewed_tasks(root, unpushed))
 
 
 def main():

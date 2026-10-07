@@ -44,9 +44,11 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
 9. **Open work lives in the task file** (`scripts/tasks.py`): `start` writes
    the contract, `evidence` records proof; no prose to-do lists.
    *(author, 2026-10-07; until the harness replaces it)*
-10. **A behaviour change is confirmed by a checker, never its maker** - a
-    fresh-context agent given the task and the diff, or `forest-tester` for
-    in-game behaviour (the scripted e2e suite is task T-0010). *(author,
+10. **A behaviour change is checked by a fresh context, never its maker** -
+    `forest-checker` (`Check T-n`) reviews it at `built`, before the push
+    or release; plugin behaviour is then confirmed in game by
+    `forest-tester` (the scripted e2e suite is task T-0010); `tasks.py`
+    gates both (docs/areas/workflow.md *The checker*). *(author,
     2026-10-07; reviewed in the monthly harness review)*
 11. **Docs current at every release and handoff, one home per fact** -
     decisions to `docs/decisions.md`, lessons to `docs/gotchas.md` + their
@@ -181,10 +183,10 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Harness roadmap** (docs/harness.md, author 2026-10-06: first): steps
   1-3 done (T-0001, T-0017, T-0002, T-0003: this router) and 3e (T-0004:
   the four skills above); step 4's gates built (T-0005: lints, git hooks,
-  PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*); left of
-  step 4: the checker (T-0006), the gotcha audit (T-0009); next:
-  `tasks.py next`.
+  PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*) and the
+  checker (T-0006: `forest-checker`, `tasks.py brief` / `review`);
+  left of step 4: the gotcha audit (T-0009); next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027).
+  pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027, checker accepted).
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).

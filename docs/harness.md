@@ -414,7 +414,9 @@ nothing would have stopped a "done".
   `forest-tester`, or a review agent briefed with the task's `verify`
   and `keep` only, told to find faults (T: checker prompt). How often to
   pay for an extra agent: **decided** - every behaviour change, a lean
-  checker (see *Decisions*).
+  checker (see *Decisions*). **Built** (T-0006): `.claude/agents/forest-checker.md`,
+  `tasks.py brief` / `review`, the gates at `released` / `confirmed` and
+  a Stop-hook line (docs/areas/workflow.md *The checker*).
 - 7e. **Done has three layers** (L9): the task's `verify` names which of
   static (build), runtime (tests, the game loads the plugin) and system
   (the in-game path, the live page) it needs; a plugin behaviour change
@@ -490,6 +492,9 @@ is missing.
   correctness, verification ran with evidence, scope kept, survives a
   restart / reload, legible to the next session, handoff ready - each
   0-2, verdict accept / revise / block. *Check:* 7d's checker returns it.
+  **Built** (T-0006): `tasks.py review --scores` refuses a partial rubric
+  or an accept with correctness below 2 or any 0; `tasks.py stats` reports
+  first-review accepts and reviews per task.
 
 ### 10. State cleanup protocols
 
@@ -620,6 +625,14 @@ Asked after the deeper pass; each replaces an "open question" above.
    only the task record and the diff, told to find faults; in-game
    behaviour goes through the e2e script or `forest-tester`. Docs and
    harness tasks rely on the machine gates.
+   **How it runs** (author, 2026-10-07, T-0006): at `built`, **before**
+   the push or release; *revise* hands the task back to its maker,
+   *block* parks it with the checker's question. A plugin *accept* is a
+   gate, not a confirmation - `confirmed` still needs in-game evidence
+   (7e); for site and bot the accept plus the live check confirms. The
+   checker **re-runs the suites the diff touches** (author left it to
+   Claude: the review happens before CI, so it is the only independent
+   test run; it costs ~20-60 s a suite).
 3. **Unattended publishing** (12, Stage B): the loop **may commit to main
    and tag releases** once build, tests and the post-release in-game
    smoke (8b) pass; anything visual waits in the `author-eyes` queue.
@@ -701,3 +714,12 @@ Asked after the deeper pass; each replaces an "open question" above.
   once). 32 tests. Author's calls: baseline the heuristics, the
   log-prefix lint waits for 9a, the deploy asks (an unattended loop must
   refuse instead). Left of step 4: the gotcha audit (5d).
+- 2026-10-07: roadmap step 4, the checker built (T-0006, 7d + 9d):
+  `.claude/agents/forest-checker.md` (Sonnet, read + Bash), `tasks.py
+  brief` (contract + diff + suites) and `review` (rubric checked, revise
+  back to the maker, block parks a question), gates at `released` /
+  `confirmed`, a Stop-hook line for unpushed unreviewed commits; 43 task
+  + hook tests. Author's calls: review at built before the push; a plugin
+  accept gates, the game confirms; re-running the suites left to Claude
+  (yes). First real run: T-0027 accepted, 909 tests re-run, 2 minor
+  notes, 37 s / ~65k tokens. Left of step 4: the gotcha audit (T-0009).

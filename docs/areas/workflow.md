@@ -48,10 +48,35 @@ for the author at its top. Detail stays in the docs each task's `notes`
 names (backlog.md, investigations.md, run-mode.md ...). Start a task with
 `tasks.py start T-n --by <name>` (it asks for the contract), record proof
 with `tasks.py evidence`; behaviour changes are confirmed by a checker,
-never their maker (author, 2026-10-07). New requests become tasks
+never their maker (author, 2026-10-07; *The checker* below). New requests become tasks
 (`tasks.py add`), with their detail in backlog.md when it is long; the
 author's feature list (*Next up* until 2026-10-07) is P2-P4 there.
 Multi-session notes: `tasks.py note T-n "..."` (`tasks/notes/`).
+
+## The checker (docs/harness.md 7d, 9d; T-0006)
+
+Every behaviour change (`checker: true`: plugin, site, bot tasks) is
+reviewed by **`forest-checker`** (Sonnet, read + Bash, never edits) once
+it is built and **before it is pushed or released** (author,
+2026-10-07). Spawn it with only `Check T-n`; it reads `tasks.py brief
+T-n` (contract, evidence, earlier reviews, the diff without the task
+files, the suites to re-run), re-runs those suites, scores the rubric
+(correctness, verification, scope, restart, legible, handoff: 0-2 or
+n/a) and records `tasks.py review`:
+- **accept** - the release / push may go. A plugin task still needs
+  in-game evidence to be `confirmed` (`--by forest-tester`, `e2e`,
+  `author` or `qa:<tester>`); a site / bot task is confirmed by the
+  accept plus deploy-watch's live check.
+- **revise** - the task goes back to its maker (`in-progress`; `todo` if
+  the maker is busy) with the faults; fix them, commit, and check again.
+- **block** - the fix needs the author (intent, design, wording, scope):
+  the task is parked with the checker's question.
+
+Gates: `released` and `confirmed` refuse a checker task whose last review
+is not an accept covering all its commits; the Stop hook names a checker
+task with unpushed commits and no accept. The agent list loads at session
+start - in the session that adds or renames it, use a general-purpose
+Sonnet agent told to follow `.claude/agents/forest-checker.md`.
 
 **Awaiting an in-game check:** tasks with `needs: bridge` / `author-eyes`
 (`tasks.py list --open --needs bridge`). Confirmed features, by version
@@ -83,7 +108,8 @@ short brief naming the docs to read and the report to return:
 restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
 over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
 `forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
-the QA Discord). Run 2-3 at a time (5+ Opus agents emptied a 5-hour window
+the QA Discord), `forest-checker` (Sonnet: reviews a built task, *The
+checker* above). Run 2-3 at a time (5+ Opus agents emptied a 5-hour window
 in under 15 minutes), one driving the game at a time; spawn with
 `isolation: worktree` for code (worktrees in `.claude/worktrees/`, outside
 the compile globs) and give the task in a few lines - the agent file holds

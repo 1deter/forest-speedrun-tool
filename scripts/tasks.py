@@ -16,6 +16,10 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
            [--title ..] [--behavior ..] [--verify ..] [--keep ..] [--blocked-by ID ...]
            [--by NAME]
     python scripts/tasks.py evidence T-0001 "what proves it" --by forest-tester
+    python scripts/tasks.py brief T-0001   # what the checker reads: contract + diff + suites
+    python scripts/tasks.py review T-0001 --verdict accept|revise|block --by forest-checker
+           --scores correctness=2,verification=2,scope=2,restart=n/a,legible=2,handoff=1
+           [--faults "file:line - what is wrong" ...]
     python scripts/tasks.py note T-0001 "multi-session notes line"
     python scripts/tasks.py stats
     python scripts/tasks.py check          # validate the file (CI)
@@ -28,6 +32,7 @@ import datetime
 import json
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,13 +47,21 @@ LAYERS = ["spec", "context", "environment", "verification", "state"]
 DONE = ("confirmed", "wontfix")
 # Areas whose behaviour changes get a fresh-context checker (author, 2026-10-07).
 CHECKED_AREAS = ("plugin", "site", "bot")
+# Plugin behaviour needs the game (the system layer, docs/harness.md 7e): the checker's
+# accept gates the release, in-game evidence from one of these confirms (author, 2026-10-07).
+IN_GAME_BY = ("forest-tester", "e2e", "author")  # and "qa:<tester>"
+# The checker's rubric (docs/harness.md 9d): each 0-2, or n/a.
+RUBRIC = ["correctness", "verification", "scope", "restart", "legible", "handoff"]
+VERDICTS = ["accept", "revise", "block"]
+# A brief longer than this is cut; the checker reads the rest with git show.
+BRIEF_LIMIT = 60000
 # Tasks an agent can take alone (docs/harness.md 6a); bridge ones need the game up.
 ALONE = ("none",)
 ALONE_BRIDGE = ("none", "bridge")
 # Field order in the file, so diffs stay readable.
 ORDER = ["id", "title", "area", "priority", "status", "needs", "question", "behavior",
          "scope", "verify", "keep", "checker", "source", "owner", "maker", "commits",
-         "release", "evidence", "layer", "blocked_by", "notes", "created", "updated", "log"]
+         "release", "evidence", "reviews", "layer", "blocked_by", "notes", "created", "updated", "log"]
 
 
 class TaskError(Exception):
@@ -206,6 +219,8 @@ def transition(tasks, t, status, by=None, note=None):
     if status == "released" and not t.get("release"):
         raise TaskError("%s released with no version" % tid, "released names the release",
                         "add --release vX.Y.Z")
+    if status in ("released", "confirmed") and t.get("checker"):
+        review_gate(t, status)
     if status == "confirmed":
         confirm_gate(t)
     if status == "wontfix" and not (note or t.get("notes")):
@@ -249,6 +264,37 @@ def start_gate(tasks, t, by):
     t["owner"] = by
 
 
+def accepted(t):
+    """The task's latest review is an accept that covers every commit the task lists."""
+    rs = t.get("reviews") or []
+    if not rs or rs[-1].get("verdict") != "accept":
+        return False
+    return set(t.get("commits") or []) <= set(rs[-1].get("commits") or [])
+
+
+def review_gate(t, status):
+    if accepted(t):
+        return
+    tid = t["id"]
+    rs = t.get("reviews") or []
+    last = rs[-1] if rs else None
+    if not last:
+        what = "%s has no checker review" % tid
+    elif last.get("verdict") != "accept":
+        what = "%s's last review says %s" % (tid, last.get("verdict"))
+    else:
+        what = "%s has commits its accepted review did not see" % tid
+    raise TaskError(what + " - it cannot be " + status,
+                    "a behaviour change is checked by a fresh context before it ships, never by its maker "
+                    "(author, 2026-10-07; docs/harness.md 7d)",
+                    "spawn the forest-checker agent with \"Check %s\" (it records `tasks.py review`); "
+                    "fix what it finds first if it said revise" % tid)
+
+
+def in_game(by):
+    return bool(by) and (by in IN_GAME_BY or by.startswith("qa:"))
+
+
 def confirm_gate(t):
     tid = t["id"]
     ev = t.get("evidence") or []
@@ -256,14 +302,15 @@ def confirm_gate(t):
         raise TaskError("%s has no evidence" % tid,
                         "confirmed needs recorded proof (docs/harness.md 7a)",
                         "`tasks.py evidence %s \"<log line / shot / test name>\" --by <checker>`" % tid)
-    if t.get("checker"):
+    if t.get("checker") and t.get("area") == "plugin":
         maker = t.get("maker")
-        if not any(e.get("by") and e.get("by") != maker for e in ev):
-            raise TaskError("%s has evidence only from its maker (%s)" % (tid, maker or "?"),
-                            "a behaviour change is confirmed by a fresh-context checker, never its maker "
-                            "(author, 2026-10-07; docs/harness.md 7d)",
-                            "run a checker agent (in game: the e2e script or forest-tester) and record it: "
-                            "`tasks.py evidence %s \"...\" --by forest-tester`" % tid)
+        if not any(in_game(e.get("by")) and e.get("by") != maker for e in ev):
+            raise TaskError("%s has no in-game evidence from a checker" % tid,
+                            "plugin behaviour is confirmed in the game, by someone other than its maker "
+                            "(docs/harness.md 7e; author, 2026-10-07)",
+                            "run forest-tester (or the e2e script) after `update_game` and record it: "
+                            "`tasks.py evidence %s \"<log line / shot>\" --by forest-tester` "
+                            "(also: --by author, --by qa:<tester>)" % tid)
 
 
 def pick_next(tasks, bridge=False, by=None):
@@ -343,7 +390,111 @@ def stats(tasks):
                 wk = "%d-W%02d" % d.isocalendar()[:2]
                 weeks[wk] = weeks.get(wk, 0) + 1
     out.append("confirmed per week: " + ("  ".join("%s %d" % w for w in sorted(weeks.items())) or "none yet"))
+    reviewed = [t for t in tasks if t.get("reviews")]
+    if reviewed:
+        first = len([t for t in reviewed if t["reviews"][0].get("verdict") == "accept"])
+        rounds = sum(len(t["reviews"]) for t in reviewed) / float(len(reviewed))
+        out.append("checker: %d task(s) reviewed, %d accepted first time, %.1f reviews per task"
+                   % (len(reviewed), first, rounds))
+    else:
+        out.append("checker: no reviews yet")
     return "\n".join(out)
+
+
+# ---------------------------------------------------------------- checker
+
+# Changed paths -> the suites the checker re-runs (the same commands as CI).
+SUITES = [
+    (("src/", "patcher/", "tests/", "locations/", "collectibles/", "qa/", "ForestOverlay.csproj"),
+     "dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj -c Release --nologo"),
+    (("site/", "src/Data/", "community/"), "dotnet test site/ForestSite.Tests -c Release --nologo"),
+    (("bot/", "knowledge/"), "dotnet test bot/ForestBot.Tests -c Release --nologo"),
+    (("scripts/", ".githooks/"),
+     "python scripts/tests/test_tasks.py && python scripts/tests/test_session.py && "
+     "python scripts/tests/test_lint.py && python scripts/tests/test_hooks.py && "
+     "python scripts/tests/test_watch_deploy.py"),
+]
+# Generated or bookkeeping files left out of the brief's diff.
+BRIEF_SKIP = ("tasks/tasks.jsonl", "docs/tasks.md")
+
+
+def suites_for(paths):
+    out = []
+    for prefixes, cmd in SUITES:
+        if any(p.startswith(prefixes) for p in paths) and cmd not in out:
+            out.append(cmd)
+    out.append("python scripts/lint.py")
+    return out
+
+
+def git_out(args):
+    r = subprocess.run(["git"] + args, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=30)
+    if r.returncode != 0:
+        raise TaskError("git %s failed: %s" % (" ".join(args[:2]), r.stderr.strip()[:200]),
+                        "the brief reads the task's commits from git",
+                        "check the sha with `git show --stat <sha>`; fix it with `tasks.py set T-n --commit`")
+    return r.stdout
+
+
+def brief(t, show=git_out, limit=BRIEF_LIMIT):
+    """What a fresh-context checker reads: the contract, the maker's evidence, earlier reviews,
+    the task's diff (bookkeeping files left out, cut at limit) and the suites to re-run."""
+    tid = t["id"]
+    commits = t.get("commits") or []
+    if not commits:
+        raise TaskError("%s has no commits" % tid, "the checker reviews the task's diff",
+                        "`tasks.py set %s --commit <sha>`" % tid)
+    out = ["# Checker brief: %s %s" % (tid, t["title"]), "",
+           "area %s, status %s, maker %s, commits %s" % (t["area"], t["status"], t.get("maker") or "?",
+                                                          " ".join(commits)), "",
+           "## Contract", "", "behavior: %s" % (t.get("behavior") or "-"),
+           "scope: %s" % (t.get("scope") or "-"), "keep: %s" % (t.get("keep") or "-"), "verify:"]
+    out += ["  - " + v for v in t.get("verify") or []]
+    if t.get("notes"):
+        out.append("notes: %s" % t["notes"])
+    out += ["", "## Evidence recorded so far", ""]
+    out += ["- %s (%s): %s" % (e.get("at"), e.get("by"), e.get("what")) for e in t.get("evidence") or []] or ["- none"]
+    if t.get("reviews"):
+        out += ["", "## Earlier reviews (check these faults are fixed)", ""]
+        for r in t["reviews"]:
+            out.append("- %s %s by %s: %s" % (r.get("at"), r.get("verdict"), r.get("by"),
+                                              "; ".join(r.get("faults") or []) or "no faults"))
+    skip = [":(exclude)" + p for p in BRIEF_SKIP]
+    paths = []
+    diffs = []
+    for sha in commits:
+        names = show(["show", "--name-only", "--format=", sha, "--", "."] + skip)
+        paths += [p for p in names.splitlines() if p.strip() and p not in paths]
+        diffs.append(show(["show", "--stat", "--patch", "--format=commit %H%n%n%B", sha, "--", "."] + skip))
+    out += ["", "## Re-run (from the repo root)", ""] + ["    " + c for c in suites_for(paths)]
+    diff = "\n".join(diffs)
+    out += ["", "## Diff", ""]
+    if len(diff) > limit:
+        out += [diff[:limit], "", "... cut at %d of %d characters: read the rest with "
+                "`git show <sha> -- <file>`; files: %s" % (limit, len(diff), ", ".join(paths))]
+    else:
+        out.append(diff)
+    return "\n".join(out)
+
+
+def parse_scores(text):
+    scores = {}
+    for part in (text or "").split(","):
+        if not part.strip():
+            continue
+        k, _, v = part.partition("=")
+        k, v = k.strip(), v.strip()
+        if k not in RUBRIC or v not in ("0", "1", "2", "n/a"):
+            raise TaskError("bad score %r" % part.strip(),
+                            "each rubric item is %s, scored 0, 1, 2 or n/a" % ", ".join(RUBRIC),
+                            "--scores " + ",".join(r + "=2" for r in RUBRIC))
+        scores[k] = v if v == "n/a" else int(v)
+    missing = [r for r in RUBRIC if r not in scores]
+    if missing:
+        raise TaskError("scores missing %s" % ", ".join(missing), "the rubric is scored in full (docs/harness.md 9d)",
+                        "--scores " + ",".join(r + "=2" for r in RUBRIC))
+    return scores
 
 
 # ---------------------------------------------------------------- commands
@@ -413,6 +564,39 @@ def cmd_start(tasks, a):
 def cmd_evidence(tasks, a):
     t = find(tasks, a.id)
     t.setdefault("evidence", []).append({"at": today(), "by": a.by, "what": a.text})
+    t["updated"] = today()
+    return t
+
+
+def cmd_review(tasks, a):
+    t = find(tasks, a.id)
+    tid = t["id"]
+    if a.by == t.get("maker") or a.by == t.get("owner"):
+        raise TaskError("%s reviewed by its maker (%s)" % (tid, a.by),
+                        "a review is a fresh context that did not write the change (docs/harness.md 7d)",
+                        "spawn the forest-checker agent with \"Check %s\"" % tid)
+    if t["status"] not in ("built", "released"):
+        raise TaskError("%s is %s" % (tid, t["status"]), "the checker reviews built (or released) work",
+                        "`tasks.py show %s`" % tid)
+    scores = parse_scores(a.scores)
+    faults = [f.strip() for f in a.faults or [] if f.strip()]
+    if a.verdict == "accept" and (scores["correctness"] != 2 or 0 in scores.values()):
+        raise TaskError("accept with correctness %s and scores %s" % (scores["correctness"], a.scores),
+                        "accept needs correctness 2 and no 0 (docs/harness.md 9d)",
+                        "--verdict revise with the faults, or rescore")
+    if a.verdict != "accept" and not faults:
+        raise TaskError("%s with no faults" % a.verdict, "the maker needs to know what to fix or decide",
+                        "add --faults \"file:line - what is wrong\" ...")
+    t.setdefault("reviews", []).append({"at": today(), "by": a.by, "verdict": a.verdict, "scores": scores,
+                                        "faults": faults, "commits": list(t.get("commits") or [])})
+    if a.verdict == "revise" and t["status"] == "built":
+        try:
+            transition(tasks, t, "in-progress", by=t.get("maker") or "main")
+        except TaskError:
+            transition(tasks, t, "todo", by=a.by)  # the maker is busy: back on the list
+    elif a.verdict == "block":
+        t["question"] = "Checker (%s) blocked it: %s" % (a.by, "; ".join(faults))
+        t["needs"] = "author-decision"
     t["updated"] = today()
     return t
 
@@ -488,6 +672,14 @@ def main(argv=None):
     sp = sub.add_parser("note")
     sp.add_argument("id")
     sp.add_argument("text")
+    sp = sub.add_parser("brief")
+    sp.add_argument("id")
+    sp = sub.add_parser("review")
+    sp.add_argument("id")
+    sp.add_argument("--verdict", choices=VERDICTS, required=True)
+    sp.add_argument("--scores", required=True)
+    sp.add_argument("--faults", nargs="*")
+    sp.add_argument("--by", required=True)
     sub.add_parser("stats")
     sub.add_parser("check")
     sub.add_parser("render")
@@ -512,6 +704,8 @@ def main(argv=None):
             print(json.dumps(t, ensure_ascii=False, indent=1) if t else "(nothing an agent can take alone)")
         elif a.cmd == "show":
             print(json.dumps(find(tasks, a.id), ensure_ascii=False, indent=1))
+        elif a.cmd == "brief":
+            print(brief(find(tasks, a.id)))
         elif a.cmd == "stats":
             print(stats(tasks))
         elif a.cmd == "check":
@@ -530,7 +724,8 @@ def main(argv=None):
                     raise TaskError("no --area", "every task has an area", "--area " + "|".join(AREAS))
                 t = cmd_add(tasks, a)
             else:
-                t = {"set": cmd_set, "start": cmd_start, "evidence": cmd_evidence, "note": cmd_note}[a.cmd](tasks, a)
+                t = {"set": cmd_set, "start": cmd_start, "evidence": cmd_evidence, "note": cmd_note,
+                     "review": cmd_review}[a.cmd](tasks, a)
             save(tasks)
             print(line(t))
     except TaskError as e:
