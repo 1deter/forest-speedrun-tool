@@ -137,7 +137,7 @@ namespace ForestOverlay.Data
                 Location loc = ParseLine(line, fileName);
                 if (loc == null)
                 {
-                    _log.LogWarning(fileName + ":" + (i + 1) + " skipped (malformed): " + line);
+                    _log.LogWarning("Locations: " + fileName + ":" + (i + 1) + " skipped (malformed): " + line);
                     continue;
                 }
 

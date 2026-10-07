@@ -84,7 +84,9 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     that line is what gets asked for. Log what a hotkey **acted on**, not
     just that it ran: F7 restarted a different spot than the one the
     author had just set up, and only a `Restart '<id>'` line would have
-    shown it.
+    shown it. Every prefix, who writes it and what it means:
+    `docs/log-lines.md` (`scripts/log-catalogue.py`; the lint keeps every
+    call prefixed and the catalogue current, T-0012).
 
 17. **A library method that "does X" may only do X in one mode.**
     UnitySerializer's `LoadNow` deletes objects missing from the save — but

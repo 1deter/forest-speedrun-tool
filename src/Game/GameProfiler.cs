@@ -225,7 +225,7 @@ namespace ForestOverlay.Game
             Table.ExactAllocation = AllocationTracker.Counting;
             List<string> lines = Table.Report(seconds, _frames, Stopwatch.Frequency, Top);
             if (_unknown > 0) lines.Add("unmatched calls: " + _unknown);
-            for (int i = 0; i < lines.Count; i++) _log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
+            for (int i = 0; i < lines.Count; i++) _log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);   // log: Game profile
             if (lines.Count > 0) LastReport = string.Join("\n", lines.ToArray());
             Table.Reset();
             _unknown = 0;

@@ -363,7 +363,7 @@ namespace ForestOverlay.Game
             if (timedOut) sb.Append(" | stopped after ").Append(SceneSeconds.ToString("0")).Append(" s");
             if (_changed > 0) sb.Append(" | ").Append(_changed).Append(" collection(s) changed while walked, skipped");
             string summary = sb.ToString();
-            _log.LogInfo(summary);
+            _log.LogInfo(summary);   // log: Scene census after
 
             sb.Length = 0;
             for (int i = 0; i < byNodes.Count && i < 20; i++)
@@ -373,7 +373,7 @@ namespace ForestOverlay.Game
                   .Append(" (~").Append(Mb(st.Bytes)).Append(" MB)");
                 if (st.Capped) sb.Append(" [capped]");
             }
-            _log.LogInfo(sb.ToString());
+            _log.LogInfo(sb.ToString());   // log: Scene census after
             for (int i = 0; i < byNodes.Count && i < 10; i++)
             {
                 RootStat st = byNodes[i].Value;
@@ -384,7 +384,7 @@ namespace ForestOverlay.Game
                 sb.Append("  ").Append(byNodes[i].Key).Append(": ");
                 for (int k = 0; k < ts.Count && k < 6; k++)
                     sb.Append(k == 0 ? "" : ", ").Append(ts[k].Key.Name).Append(' ').Append(ts[k].Value);
-                _log.LogInfo(sb.ToString());
+                _log.LogInfo(sb.ToString());   // log: Scene census after
             }
             return summary;
         }
@@ -648,7 +648,7 @@ namespace ForestOverlay.Game
             if (capped) sb.Append(" | walk CAPPED at ").Append(TotalNodeCap);
             if (_changed > 0) sb.Append(" | ").Append(_changed).Append(" collection(s) changed while walked, skipped");
             string summary = sb.ToString();
-            _log.LogInfo(summary);
+            _log.LogInfo(summary);   // log: Memory census
 
             // Holding destroyed objects, most first.
             List<KeyValuePair<string, RootStat>> byDead = new List<KeyValuePair<string, RootStat>>(stats);
@@ -661,7 +661,7 @@ namespace ForestOverlay.Game
                 if (!first) sb.Append(" (").Append(Signed(byDead[i].Value.Dead - (was != null ? was.Dead : 0))).Append(')');
                 if (byDead[i].Value.Capped) sb.Append(" [capped]");
             }
-            if (sb.Length > 0) _log.LogInfo(sb.ToString());
+            if (sb.Length > 0) _log.LogInfo(sb.ToString());   // log: Memory census
             else _log.LogInfo("  Holding destroyed objects: none.");
 
             // What the top holders' destroyed objects are.
@@ -671,7 +671,7 @@ namespace ForestOverlay.Game
                 sb.Append(i == 0 ? "  Destroyed, by type: " : " | ").Append(byDead[i].Key).Append(": ");
                 AppendTop(sb, byDead[i].Value.DeadTypes, 4);
             }
-            if (sb.Length > 0) _log.LogInfo(sb.ToString());
+            if (sb.Length > 0) _log.LogInfo(sb.ToString());   // log: Memory census
 
             // Largest roots by estimated size.
             List<KeyValuePair<string, RootStat>> bySize = new List<KeyValuePair<string, RootStat>>(stats);
@@ -685,7 +685,7 @@ namespace ForestOverlay.Game
                   .Append(" MB, ").Append(bySize[i].Value.Nodes).Append(" obj");
                 if (bySize[i].Value.Capped) sb.Append(" [capped]");
             }
-            if (sb.Length > 0) _log.LogInfo(sb.ToString());
+            if (sb.Length > 0) _log.LogInfo(sb.ToString());   // log: Memory census
 
             // Growth since the last census, by objects reached and by size.
             if (!first)
@@ -703,16 +703,16 @@ namespace ForestOverlay.Game
                 grown.Sort(delegate(KeyValuePair<string, int> a, KeyValuePair<string, int> b) { return b.Value.CompareTo(a.Value); });
                 sb.Length = 0;
                 for (int i = 0; i < grown.Count && i < TopN; i++)
-                    sb.Append(i == 0 ? "  Grown since census " + (Runs - 1) + ": " : ", ")
+                    sb.Append(i == 0 ? "" : ", ")
                       .Append(grown[i].Key).Append(" +").Append(grown[i].Value).Append(" (").Append(stats[grown[i].Key].Nodes).Append(')');
-                _log.LogInfo(sb.Length > 0 ? sb.ToString() : "  Grown since census " + (Runs - 1) + ": nothing.");
+                _log.LogInfo("  Grown since census " + (Runs - 1) + ": " + (sb.Length > 0 ? sb.ToString() : "nothing."));
 
                 grownSize.Sort(delegate(KeyValuePair<string, long> a, KeyValuePair<string, long> b) { return b.Value.CompareTo(a.Value); });
                 sb.Length = 0;
                 for (int i = 0; i < grownSize.Count && i < TopN; i++)
-                    sb.Append(i == 0 ? "  Grown in size: " : ", ").Append(grownSize[i].Key).Append(' ').Append(SignedMb(grownSize[i].Value))
+                    sb.Append(i == 0 ? "" : ", ").Append(grownSize[i].Key).Append(' ').Append(SignedMb(grownSize[i].Value))
                       .Append(" (").Append(Mb(stats[grownSize[i].Key].Bytes)).Append(" MB)");
-                _log.LogInfo(sb.Length > 0 ? sb.ToString() : "  Grown in size: nothing over 64 KB.");
+                _log.LogInfo("  Grown in size: " + (sb.Length > 0 ? sb.ToString() : "nothing over 64 KB."));
 
                 List<KeyValuePair<Type, int>> typeGrowth = new List<KeyValuePair<Type, int>>();
                 foreach (KeyValuePair<Type, int> kv in types)
@@ -724,9 +724,9 @@ namespace ForestOverlay.Game
                 typeGrowth.Sort(delegate(KeyValuePair<Type, int> a, KeyValuePair<Type, int> b) { return b.Value.CompareTo(a.Value); });
                 sb.Length = 0;
                 for (int i = 0; i < typeGrowth.Count && i < TopN; i++)
-                    sb.Append(i == 0 ? "  Unity objects grown: " : ", ").Append(typeGrowth[i].Key.Name).Append(" +").Append(typeGrowth[i].Value)
+                    sb.Append(i == 0 ? "" : ", ").Append(typeGrowth[i].Key.Name).Append(" +").Append(typeGrowth[i].Value)
                       .Append(" (").Append(types[typeGrowth[i].Key]).Append(')');
-                _log.LogInfo(sb.Length > 0 ? sb.ToString() : "  Unity objects grown: none.");
+                _log.LogInfo("  Unity objects grown: " + (sb.Length > 0 ? sb.ToString() : "none."));
             }
 
             return summary;

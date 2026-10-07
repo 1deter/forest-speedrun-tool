@@ -333,7 +333,7 @@ namespace ForestOverlay.Modules
                 if (note.Length > 0) sb.Append(", note: ").Append(note);
 
                 string line = sb.ToString();
-                Ctx.Log.LogInfo(line);
+                Ctx.Log.LogInfo(line);   // log: MARK
                 _marks.Add(line);
 
                 _markStatus.text = "Marked #" + _markCount + " at " +
@@ -356,7 +356,7 @@ namespace ForestOverlay.Modules
             string note = (_markNote ?? "").Trim();
             if (note.Length == 0 || _lastMark == 0) return;
             string line = "MARK #" + _lastMark + " note: " + note;
-            Ctx.Log.LogInfo(line);
+            Ctx.Log.LogInfo(line);   // log: MARK
             _marks.Add(line);
             _lastMarkHasNote = true;
             _markNote = "";

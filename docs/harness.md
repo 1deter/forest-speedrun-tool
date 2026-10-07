@@ -489,7 +489,11 @@ is missing.
 - 9a. A log-line catalogue (prefix, the module that writes it, meaning)
   so e2e checks and agents grep the right prefix. Generate it by scanning
   `src/` for log calls. *Check:* `scripts/log-catalogue.py` writes
-  `docs/log-lines.md`.
+  `docs/log-lines.md`. **Built** (T-0012): 659 calls, 214 prefixes, each
+  with a hand-written meaning the script keeps; `--check` in `lint.py`
+  (gotcha 16's check) fails on a stale catalogue, an empty meaning or a
+  call with no prefix (the 50 unprefixed calls fixed); tests
+  `scripts/tests/test_log_catalogue.py`.
 - 9b. A report-zip reader: `scripts/read-report.py <zip>` summarises a
   tester's zip (version, exceptions, slow ticks, perf lines, the last
   actions). Then a 13 MB zip costs a few hundred tokens instead of
@@ -651,6 +655,13 @@ Asked after the deeper pass; each replaces an "open question" above.
    smoke (8b) pass; anything visual waits in the `author-eyes` queue.
 4. **Procedures as skills** (3e): **yes** - release, bridge test, QA
    session start and site deploy watch become project skills.
+5. **The log catalogue** (9a, T-0012): each prefix's **meaning is
+   hand-written** in `docs/log-lines.md` and kept by the generator; the
+   lint fails on a **stale catalogue and on a call with no prefix**, and
+   all of today's unprefixed calls were fixed (no baseline); a message
+   built elsewhere (a report builder, a StringBuilder) **declares** its
+   prefix in a `// log: Name` comment instead of splitting the builder,
+   and an indented report row needs none.
 
 ---
 
@@ -749,3 +760,10 @@ Asked after the deeper pass; each replaces an "open question" above.
   missing / repeated number and a `[check: T-n]` whose task is closed,
   so a new gotcha ships with its marker. Next (author's order): T-0012,
   the log catalogue, then step 5 (T-0010).
+- 2026-10-07: 9a built (T-0012): `scripts/log-catalogue.py` writes
+  `docs/log-lines.md` (659 log calls, 214 prefixes, a hand-written meaning
+  each) and its `--check` joins `lint.py` as gotcha 16's check. The 50
+  calls with no literal prefix were fixed: 21 got one at the call
+  (`Update:` / `Update download:` / `Item catalogue:` / `Segments:` ...),
+  29 built elsewhere declare theirs (`// log: Memory census`). Author's
+  calls: Decisions 5. Next: step 5 (T-0010, needs the game).

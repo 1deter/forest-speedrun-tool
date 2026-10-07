@@ -151,7 +151,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: T-0126]
 13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`. [judgement]
 14. **Labels from memory are guesses** - confirm runner-visible names against a log. [judgement]
-16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on. [check: T-0012]
+16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on; every prefix and its meaning: `docs/log-lines.md`. [check: lint.py log catalogue]
 17. **A library method may do X in one mode only** - read the whole body (`ilscan body`). [judgement]
 18. **Static or instance: check before binding** - `ilscan type` marks statics. [judgement]
 22. **A hook runs mid-method; the caller carries on** - read the caller past the call; apply a sequence's end state. [judgement]

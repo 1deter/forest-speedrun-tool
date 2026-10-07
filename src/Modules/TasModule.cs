@@ -336,7 +336,7 @@ namespace ForestOverlay.Modules
             LastLine = line;
             _drift = line;
             SetStatus("");
-            Ctx.Log.LogInfo(line + (unlock.Length > 0 ? " TAS: " + unlock + "." : ""));
+            Ctx.Log.LogInfo(line + (unlock.Length > 0 ? " TAS: " + unlock + "." : ""));   // log: TAS replay of
             Ctx.Notice.Show(d.Compared > 0 ? "TAS replay: " + why + " - " + d.Describe() : "TAS replay: " + why, 8f);
             _playRec = null;
         }

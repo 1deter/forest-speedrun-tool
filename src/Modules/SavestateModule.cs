@@ -1617,14 +1617,14 @@ namespace ForestOverlay.Modules
             if (string.IsNullOrEmpty(ride)) return;
             Ctx.Runner.StartCoroutine(RideModes.PutBack(ride, new Vector3(f.X, f.Y, f.Z), delegate(string note)
             {
-                if (note.Length > 0) Ctx.Log.LogInfo(prefix + ": " + note + ".");
+                if (note.Length > 0) Ctx.Log.LogInfo(prefix + ": " + note + ".");   // log: Savestate restore, Savestate after the load
             }));
         }
 
         private IEnumerator PullOutLater(string type, string prefix)
         {
             yield return new WaitForSecondsRealtime(0.3f);
-            Ctx.Log.LogInfo(prefix + ": " + BuildMode.PullOut(type) + ".");
+            Ctx.Log.LogInfo(prefix + ": " + BuildMode.PullOut(type) + ".");   // log: Savestate restore, Savestate after the load
         }
 
         // A cave's pickups can switch on after the first pass (maks: cave 5's

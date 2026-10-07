@@ -28,6 +28,10 @@ last** in `BuildModules()`: the bridge reaches modules by index
   practice features through `Ctx.Run.Refuse(...)` at the same entry points.
 - **Pure logic goes in `src/Data`** with tests (`tests/CLAUDE.md`).
 - **One log line per action** a runner takes, so a report zip tells the story.
+  It starts with a literal prefix (`"Name: " + ...`); a message built
+  elsewhere names its prefix in a `// log: Name` comment on the call. Then
+  `python scripts/log-catalogue.py` and the prefix's `Meaning:` line in
+  `docs/log-lines.md` (the lint fails until both are done).
 - **Lay panels out vertically**, not packed across a row at fixed offsets —
   that clips on narrow widths.
 - **If it can fail invisibly, show why on screen.** A dead toggle, an empty

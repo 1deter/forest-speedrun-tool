@@ -183,7 +183,7 @@ namespace ForestOverlay.Core
             {
                 State = Status.Failed;
                 Message = "downloaded file is not a DLL - ignoring";
-                _log.LogWarning(Message + " (" + data.Length + " bytes, HTTP " + _lastResponseCode + ")");
+                _log.LogWarning("Update download: " + Message + " (" + data.Length + " bytes, HTTP " + _lastResponseCode + ")");
                 yield break;
             }
 
@@ -195,7 +195,7 @@ namespace ForestOverlay.Core
                 _stagedPath = staged.Pending;
                 State = Status.Staged;
                 Message = StagedMessage();
-                _log.LogInfo(Message + " (" + Path.GetFileName(staged.Pending) + ")");
+                _log.LogInfo("Update download: " + Message + " (" + Path.GetFileName(staged.Pending) + ")");
                 if (staged.Aside != null)
                     _log.LogInfo("Update: this plugin runs as " + _ownName + ", which the installer does not update - " +
                                  "moved it to " + Path.GetFileName(staged.Aside) + " (the backup); the update installs as ForestOverlay.dll.");
@@ -207,7 +207,7 @@ namespace ForestOverlay.Core
             {
                 State = Status.Failed;
                 Message = "could not write update: " + ex.Message;
-                _log.LogWarning(Message);
+                _log.LogWarning("Update download: " + Message);
             }
         }
 
@@ -282,7 +282,7 @@ namespace ForestOverlay.Core
             {
                 State = Status.Failed;
                 Message = "UnityWebRequest unavailable in this build";
-                _log.LogWarning(Message);
+                _log.LogWarning("Update: " + Message);
                 yield break;
             }
 
@@ -307,7 +307,7 @@ namespace ForestOverlay.Core
             {
                 State = Status.Failed;
                 Message = "request failed: " + ex.Message;
-                _log.LogWarning(Message);
+                _log.LogWarning("Update: " + Message);
                 yield break;
             }
 
@@ -335,7 +335,7 @@ namespace ForestOverlay.Core
                 {
                     State = Status.Failed;
                     Message = "network error: " + error;
-                    _log.LogWarning(Message + "  (" + url + ")");
+                    _log.LogWarning("Update: " + Message + "  (" + url + ")");
                     yield break;
                 }
 
@@ -350,7 +350,7 @@ namespace ForestOverlay.Core
             {
                 State = Status.Failed;
                 Message = "response unreadable: " + ex.Message;
-                _log.LogWarning(Message);
+                _log.LogWarning("Update: " + Message);
             }
         }
     }

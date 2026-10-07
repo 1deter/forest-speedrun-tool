@@ -149,7 +149,7 @@ namespace ForestOverlay.Game
             List<string> lines = Timeline.Report(seconds, Stopwatch.Frequency, 16);
             Timeline.Reset();
             if (Log != null)
-                for (int i = 0; i < lines.Count; i++) Log.LogInfo((i == 0 ? "Snapshot " : "  ") + lines[i]);
+                for (int i = 0; i < lines.Count; i++) Log.LogInfo((i == 0 ? "Snapshot " : "  ") + lines[i]);   // log: Snapshot Frame
             if (_instance != null) _instance._snapshotStart = now;
             return lines.Count == 0 ? "no frames" : string.Join("\n", lines.ToArray());
         }

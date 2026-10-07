@@ -28,7 +28,11 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   ending with `[check: <name>]`, `[check: T-n]` (an open task) or
   `[judgement]` (5d, T-0009). `session-start.py` turns the git hooks on
   (`core.hooksPath .githooks`). The community index: `CommunityPacksTests`.
-  The log-prefix lint waits for the log catalogue (9a, author 2026-10-07).
+  The log catalogue (9a, T-0012: `scripts/log-catalogue.py --check`):
+  every log call in `src/` / `patcher/` starts with a literal prefix (or
+  names it in a `// log: Name` comment when the message is built
+  elsewhere) and `docs/log-lines.md` is current with a meaning per prefix
+  - after changing a log line, `python scripts/log-catalogue.py`.
 - **PreToolUse** (`scripts/hooks/pre_tool.py`, Bash / PowerShell /
   WebFetch): refuses `api.github.com` fetches and a forced push to main;
   **asks** before a deploy into the author's install (`deploy.ps1` with

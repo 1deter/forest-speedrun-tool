@@ -15,8 +15,12 @@ Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
 Every gotcha index line in docs/areas/*.md ends with [check: <name>],
 [check: T-n] (the task building it) or [judgement] (docs/harness.md 5d).
+The log catalogue (scripts/log-catalogue.py --check, gotcha 16's check):
+every log call has a prefix and docs/log-lines.md is current, with a
+meaning per prefix.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -24,6 +28,9 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_spec = importlib.util.spec_from_file_location("log_catalogue", os.path.join(ROOT, "scripts", "log-catalogue.py"))
+log_catalogue = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(log_catalogue)
 CSPROJ = "ForestOverlay.csproj"
 PLUGIN = "src/Plugin.cs"
 CHANGELOG = "CHANGELOG.md"
@@ -416,6 +423,7 @@ def main(argv=None):
     probs = check_versions(csproj, read(PLUGIN), read(CHANGELOG))
     probs += check_removes(csproj, project_folders())
     probs += check_gotchas(gotcha_numbers(read(GOTCHAS)), index_lines(), task_statuses())
+    probs += log_catalogue.check()
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

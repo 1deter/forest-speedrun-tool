@@ -264,7 +264,7 @@ namespace ForestOverlay.Data
 
             if (!s.IsValid)
             {
-                _log.LogWarning(fileName + ": segment (" +
+                _log.LogWarning("Segments: " + fileName + ": segment (" +
                                 (s.Id.Length > 0 ? s.Id : "no id") +
                                 ") skipped - needs id, start and end.");
                 return false;
@@ -272,7 +272,7 @@ namespace ForestOverlay.Data
 
             if (ById(s.Id) != null)
             {
-                _log.LogWarning(fileName + ": duplicate segment id " + s.Id + " skipped.");
+                _log.LogWarning("Segments: " + fileName + ": duplicate segment id " + s.Id + " skipped.");
                 return false;
             }
 
@@ -283,7 +283,7 @@ namespace ForestOverlay.Data
 
         private void Warn(string file, int line, string message)
         {
-            _log.LogWarning(file + ":" + line + " " + message);
+            _log.LogWarning("Segments: " + file + ":" + line + " " + message);
         }
 
         // ------------------------------------------------------------------

@@ -205,7 +205,7 @@ namespace ForestOverlay.Modules
             List<string> lines = AllocationTracker.Report();
             string ours = Host != null ? Host.TakeAllocReport(Time.unscaledTime - _allocWindowStart) : "";
             if (ours.Length > 0) lines.Add(ours);
-            for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
+            for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);   // log: Allocations
             _allocReport = string.Join("\n", lines.ToArray());
         }
 
@@ -327,7 +327,7 @@ namespace ForestOverlay.Modules
 
                 if (!_freeCam.Begin(cam)) { _status = "freecam: " + _freeCam.LastReport; return; }
                 _freeCamOn = true;
-                Ctx.Log.LogInfo(_freeCam.LastReport);
+                Ctx.Log.LogInfo(_freeCam.LastReport);   // log: Freecam
 
                 // The host holds the player (HoldsPlayer), which writes
                 // game state.

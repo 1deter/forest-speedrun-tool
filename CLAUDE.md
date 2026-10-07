@@ -118,6 +118,7 @@ python scripts/tasks.py list --open             # open work (the task file, docs
 python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/read-report.py <zip> [--full]  # a tester's report zip in ~50 lines: header, errors, slow ticks, perf, last actions
+python scripts/log-catalogue.py                 # after changing a log line: rewrites docs/log-lines.md (every prefix + meaning; --check in lint.py)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
 ```
@@ -170,6 +171,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 | [`docs/areas/bot.md`](docs/areas/bot.md) | The knowledge bot and `knowledge/` |
 | [`docs/bridge.md`](docs/bridge.md) | Before driving the game or posting to the QA Discord |
 | [`docs/game-notes.md`](docs/game-notes.md) | Game internals (confirmed from a dump or IL only) |
+| [`docs/log-lines.md`](docs/log-lines.md) | Reading a log or writing a check: every log prefix, who writes it, what it means (generated) |
 | [`docs/savestates.md`](docs/savestates.md) | Before touching a restore |
 | [`docs/run-mode.md`](docs/run-mode.md) | Run mode and anti-cheat: decisions, phases |
 | [`docs/gotchas.md`](docs/gotchas.md) | The full story of a gotcha. The one-line indexes, by area: plugin.md (game and engine, restores, performance, UI, run mode), site.md, bot.md, release.md, workflow.md |

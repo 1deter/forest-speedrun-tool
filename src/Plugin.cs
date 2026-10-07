@@ -97,7 +97,7 @@ namespace ForestOverlay
                 UpdateChecker.TidyPluginFolder(System.Reflection.Assembly.GetExecutingAssembly().Location, Logger);
 
                 _bridge = new GameBridge(Logger);
-                LatePass.Log = line => Logger.LogInfo(line);
+                LatePass.Log = line => Logger.LogInfo(line);   // log: Late pass
                 _player = new PlayerRef(Logger);
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
@@ -139,7 +139,7 @@ namespace ForestOverlay
                 _host.Hotkeys.Add("ui.toggleInfo", KeyCode.None,
                                   "Show / hide the info box", ToggleInfoBox);
 
-                Logger.LogInfo(_host.Count + " modules registered.");
+                Logger.LogInfo("Modules: " + _host.Count + " registered.");
                 Logger.LogInfo("Keys: " + _host.Hotkeys.Describe());
             }
             catch (Exception ex)
@@ -219,8 +219,8 @@ namespace ForestOverlay
         private void ToggleAllUi()
         {
             _host.UiVisible = !_host.UiVisible;
-            Logger.LogInfo(_host.UiVisible ? "UI shown (show / hide all key)."
-                                           : "UI hidden (show / hide all key) - press it again to show.");
+            Logger.LogInfo("UI " + (_host.UiVisible ? "shown (show / hide all key)."
+                                                  : "hidden (show / hide all key) - press it again to show."));
         }
 
         private void ToggleInfoBox()

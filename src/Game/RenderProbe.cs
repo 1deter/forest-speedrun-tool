@@ -55,7 +55,7 @@ namespace ForestOverlay.Game
                 sb.Append(shown == 1 ? ": " : ", ").Append(kv.Key);
                 if (kv.Value > 1) sb.Append(" x").Append(kv.Value);
             }
-            if (Log != null) Log.LogInfo(sb.ToString());
+            if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
             return on + " on layer " + layer + ", " + inView + " in view (log)";
         }
 
@@ -173,7 +173,7 @@ namespace ForestOverlay.Game
                     sb.Append(shown == 1 ? ": " : ", ").Append(kv.Key);
                     if (kv.Value > 1) sb.Append(" x").Append(kv.Value);
                 }
-                if (Log != null) Log.LogInfo(sb.ToString());
+                if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
                 summary.Append(cam.name).Append(' ').Append(inside).Append('/').Append(onLayer).Append("; ");
                 done++;
             }
@@ -233,7 +233,7 @@ namespace ForestOverlay.Game
                         }
                 }
             }
-            if (Log != null) Log.LogInfo(sb.ToString());
+            if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
             return hits.Count + " material(s) use it (log)";
         }
 
@@ -281,7 +281,7 @@ namespace ForestOverlay.Game
             sw.Stop();
             double ms = sw.Elapsed.TotalMilliseconds / n;
             string line = "Render probe: bare camera, mask " + mask + ", " + n + " renders: " + ms.ToString("0.000") + " ms each";
-            if (Log != null) Log.LogInfo(line);
+            if (Log != null) Log.LogInfo(line);   // log: Render probe
             return ms.ToString("0.000") + " ms";
         }
 
@@ -394,7 +394,7 @@ namespace ForestOverlay.Game
               .Append(Terrain.activeTerrains != null ? Terrain.activeTerrains.Length : 0).Append(" terrains; by root");
             for (int i = 0; i < list.Count && i < top; i++)
                 sb.Append(i == 0 ? ": " : ", ").Append(list[i].Key).Append(' ').Append(list[i].Value);
-            if (Log != null) Log.LogInfo(sb.ToString());
+            if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
             return on + " renderers enabled, " + lightsOn + " lights (log)";
         }
 
@@ -433,7 +433,7 @@ namespace ForestOverlay.Game
               .Append(": ").Append(shaders.Count);
             foreach (KeyValuePair<string, int> kv in shaders) sb.Append(" | ").Append(kv.Key).Append(" x").Append(kv.Value);
             foreach (KeyValuePair<string, string> kv in marked) sb.Append(" || '").Append(kv.Key).Append("' on ").Append(kv.Value);
-            if (Log != null) Log.LogInfo(sb.ToString());
+            if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
             return shaders.Count + " shaders, " + marked.Count + " matching '" + mark + "' (log)";
         }
 

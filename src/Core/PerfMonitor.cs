@@ -160,12 +160,12 @@ namespace ForestOverlay.Core
             if (system != _lastSystem)
             {
                 _lastSystem = system;
-                _log.LogInfo(system);
+                _log.LogInfo(system);   // log: System
             }
 
             // Where the frame's time went on the main thread (Game/FrameTimer).
             List<string> frame = ForestOverlay.Game.FrameTimer.Timeline.Report(seconds, System.Diagnostics.Stopwatch.Frequency, 16);
-            for (int i = 0; i < frame.Count; i++) _log.LogInfo(i == 0 ? frame[i] : "  " + frame[i]);
+            for (int i = 0; i < frame.Count; i++) _log.LogInfo(i == 0 ? frame[i] : "  " + frame[i]);   // log: Frame
         }
 
         // " (most: practicerun 3.2, collectibles 1.1 KB/s)" - by module, rough.

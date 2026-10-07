@@ -171,7 +171,7 @@ namespace ForestOverlay.Game
                 if (items == null)
                 {
                     CatalogStatus = "item database has no readable Items";
-                    _log.LogWarning(CatalogStatus);
+                    _log.LogWarning("Item catalogue: " + CatalogStatus);
                     return;
                 }
 
@@ -192,7 +192,7 @@ namespace ForestOverlay.Game
                         if (idField == null || nameField == null)
                         {
                             CatalogStatus = "item type has no _id/_name";
-                            _log.LogWarning(CatalogStatus + " (" + item.GetType().Name + ")");
+                            _log.LogWarning("Item catalogue: " + CatalogStatus + " (" + item.GetType().Name + ")");
                             return;
                         }
                     }
@@ -215,7 +215,7 @@ namespace ForestOverlay.Game
                     // Do not latch: the database may simply not be populated
                     // yet, and latching would leave search permanently dead.
                     CatalogStatus = "database held " + seen + " entries, none usable";
-                    _log.LogWarning(CatalogStatus);
+                    _log.LogWarning("Item catalogue: " + CatalogStatus);
                     return;
                 }
 
@@ -227,7 +227,7 @@ namespace ForestOverlay.Game
             catch (Exception ex)
             {
                 CatalogStatus = "catalogue failed: " + ex.Message;
-                _log.LogWarning(CatalogStatus);
+                _log.LogWarning("Item catalogue: " + CatalogStatus);
             }
         }
 
