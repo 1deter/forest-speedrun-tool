@@ -185,8 +185,8 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 35. **Parity with Full load stops where the save stops** - decide against the capture. [judgement]
 36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later. [judgement]
 37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore. [judgement]
-38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore. [check: T-0137]
-40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them. [check: T-0138]
+38. **Bookkeeping must survive the restores it serves** - test the chain, not one restore. [check: e2e restores]
+40. **A cutscene can parent the player** - test via `restore` (no teleport); set tests up the way a run reaches them. [check: e2e restores]
 47. **A restore that throws the player: ask what held the body** - kinematic modes (rope, zipline, sled, climb, glider). [judgement]
 48. **A frozen frame can count as game time** - `maximumDeltaTime` is 9; time the event, not the freeze. [judgement]
 79. **A component that sets itself up once misses an in-place load** - `_initialized` + `DelayedAwake` (nature guide, to-do list); a save field back is not the state back. [judgement]
@@ -207,13 +207,13 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 
 ### UI
 
-31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through. [check: lint.py label20, T-0136]
+31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through. [check: lint.py label20, e2e tabs (shots, for eyes)]
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: T-0129]
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
 
 ### Run mode and detectors
 
-82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK". [check: T-0139]
+82. **An integrity check must know what the platform and the game do themselves** - BepInEx patches .NET methods, Creative turns on GodMode / InfiniteEnergy / NoSurvival; run it on a clean install and every game mode before trusting a "NOT OK". [check: e2e runmode]
 89. **Before calling something new tech, read what the runners already know** - QA history, report folders, speedrun.com guides; a code branch is not a mechanic until a real input reaches it (the "water wall jump"). Bridge `tp` stops elevator rides; spawn tests clear of steep slopes. [judgement]
 90. **A speed and a distance in the same window can belong to different things** - a tp landing while the body held 300 m/s read as huge speed; a step longer than the speed allows is a teleport. Test detectors with tp / set mixed in. [check: MoveDetectorTests teleport cases]
 91. **A world object can be a mover, and a teleport lands inside things** - the yacht's hull bobs on a kinematic body (a "clip" + "lift" while walking on it); every tp is pushed out of what is there. Check a collider's pose twice; settle after teleports. [check: MoveDetectorPhysicsTests teleport cases]

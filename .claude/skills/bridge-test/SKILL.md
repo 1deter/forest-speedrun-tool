@@ -12,6 +12,10 @@ Slot 1, the plugin's module indexes, test spots, player actions):
 its maker (router rule 10): hand a finished change to `forest-tester`
 rather than passing your own work.
 
+A check the e2e suite already makes (`python scripts/e2e.py --list`;
+docs/bridge.md *The e2e suite*) is run, not done by hand; a check worth
+repeating becomes a journey in `tests/e2e/`.
+
 ## Steps
 
 1. **The game**: `status` (running? bridge on? version?). Not the

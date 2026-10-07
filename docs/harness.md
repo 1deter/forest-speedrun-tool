@@ -157,9 +157,9 @@ unattended loop (12) only ever takes tasks with no open question.
 | 5 | Behavioural constraints | Strong | Strong+ | Rules are prose only; few are checked by a machine |
 | 6 | Feature lists as primitives | Weak | Strong | There is no structured task list with status and checks |
 | 7 | Early-victory prevention | Good | Strong | "Done" depends on discipline; the maker checks its own work (L9) |
-| 8 | End-to-end verification | Partial | Strong | No scripted in-game run of the main paths |
+| 8 | End-to-end verification | Good (was Partial; T-0010) | Strong | Six golden journeys + the post-release smoke run unattended; visual judgement still by eyes (8d) |
 | 9 | Built-in observability | Strong | Strong | Runtime layer beyond the course; the *process* layer (contracts, rubric) is missing (L11) |
-| 10 | State cleanup | Partial | Strong | Merged worktrees, test uploads and slot backups are cleaned only by memory; no quality document (L12) |
+| 10 | State cleanup | Good (was Partial; T-0002, T-0010) | Strong | Cleanup and test hygiene are scripts now; no quality document yet (L12) |
 | 11 | Long-running context | Strong | Strong | The handoff works; it would shrink if 6 existed |
 | 12 | Progressive automation | Midway | Loop, then graph | No agent picks, does, verifies and records work by itself |
 
@@ -458,10 +458,16 @@ see.)
     judgement stays with 8d.
 
   *Check:* `python scripts/e2e.py` runs the set unattended in a few
-  minutes and writes a pass/fail report.
+  minutes and writes a pass/fail report. **Built** (T-0010): six
+  journeys in `tests/e2e/` (launch, restart, timed, restores, tabs, run
+  mode), ~3 min, report in `tests/e2e/reports/`; driven through the MCP
+  server's `--call` mode (docs/bridge.md *The e2e suite*). It also holds
+  the gotcha checks T-0136..T-0139 (31, 38, 40, 82).
 - 8b. Post-release smoke: after the asset is attached, `update_game`,
   then run 8a's first two scripts. The result goes to the release's
   tasks. *Check:* runs from the release step without being asked.
+  **Built** (T-0010): `e2e.py --smoke --update --release vX`, step 5 of
+  the release skill; a note on each released task.
 - 8c. The site: a Playwright-style smoke over the local site via the
   `forest-site` preview (pages load, an attempt page renders, the API
   answers). The bot: an eval subset in CI on a cheap model, if the quota
@@ -530,10 +536,15 @@ worktrees (`spot-delete-fixes`, `site-spots-in-game`,
   start and restore them at the end. They back up a save slot and put it
   back with a size check. They put god mode back. Each step is logged.
   *Check:* after `e2e.py`, `git status`, the slot sizes and the config
-  match the before state.
+  match the before state. **Built** (T-0010): the slot by content digest
+  (`Slot1.e2e-backup`), the config by its values, god mode / infinite
+  energy / the window; a crash aborts, closes the game and writes the
+  config back.
 - 10c. Site test data: `tasks.py` or the e2e report lists the test
   attempts it uploaded, and cleanup deletes them through the admin API
-  (`FOREST_SITE_ADMIN_TOKEN`, never printed).
+  (`FOREST_SITE_ADMIN_TOKEN`, never printed). **Built** (T-0010): run
+  mode attempts deleted on the site and dropped from the Runs tab's
+  list; test runs never upload (uploads off).
 - 10d. **A quality document** (L12, T): `docs/quality.md` grades each
   area A-D - plugin modules by group (savestates, runs, practice, run
   mode, UI, perf), site, bot, release - on verification, legibility for
@@ -767,3 +778,17 @@ Asked after the deeper pass; each replaces an "open question" above.
   (`Update:` / `Update download:` / `Item catalogue:` / `Segments:` ...),
   29 built elsewhere declare theirs (`// log: Memory census`). Author's
   calls: Decisions 5. Next: step 5 (T-0010, needs the game).
+- 2026-10-07: roadmap step 5 built (T-0010, 8a / 8b / 10b / 10c):
+  `scripts/e2e.py` + six journeys in `tests/e2e/` (launch, restart,
+  timed, restores, tabs, run mode; ~3 min; two clean runs in a row) and
+  the release skill's post-release smoke (`--smoke --update --release`);
+  the MCP server gained `--call <tool> <json>` so the suite reuses its
+  launcher, updater and bridge code. Hygiene as code: slot digest,
+  uploads / god mode / window, config values, git status, its own files,
+  its site attempts and their Runs-tab lines; a crash folder aborts the
+  run (the first full run hit one: T-0143). The gotcha checks T-0137 /
+  0138 / 0139 pass `--by e2e`; T-0136's shots were looked at. Found on
+  the way: docs/bridge.md still said a new game starts a run (not since
+  v0.24.213), Slot 1 is a Creative save, a cut bush's kept copy is
+  inactive (a `find all` sees it). Next: T-0013 (quality document), then
+  Stage A (T-0015).

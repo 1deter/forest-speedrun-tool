@@ -52,13 +52,25 @@ Facts behind each step (the updater, the 404 window, rollback):
    badge (`python scripts/session-start.py` prints it) - a missing
    CHANGELOG section fails the release.
 
+   **Then the post-release smoke** (docs/harness.md 8b; needs the game,
+   nothing else - the suite launches it): installs the release the
+   runners' way, restarts, loads Slot 1, checks the version and that the
+   log has no exception, F7 on a spot with a start state; the result goes
+   onto the release's tasks as a note:
+   ```bash
+   python scripts/e2e.py --smoke --update --release v0.24.N
+   ```
+   A FAIL is the next task, before anything new (the report in
+   `tests/e2e/reports/` says which check).
+
 6. **Handoff in the next push** (docs-only, no version): the router's
    *Where we are* (unreleased line), new gotchas in `docs/gotchas.md` +
    the area index, confirmed items moved to `docs/confirmed.md`.
 
 7. **Confirm in game**: a plugin task is `confirmed` by in-game evidence
-   from someone other than its maker (router rule 10): `forest-tester`
-   after `update_game` installs the release (`tasks.py evidence T-n
+   from someone other than its maker (router rule 10): the e2e suite
+   (`python scripts/e2e.py --evidence` records its journeys' tasks
+   `--by e2e`) or `forest-tester` after `update_game` installs the release (`tasks.py evidence T-n
    "..." --by forest-tester`). Something only a tester can check: a
    `needs: tester` task with a `qa` line, then `qa_todo from_tasks`
    (docs/bridge.md *The QA Discord*; lists go out as plain numbered text).

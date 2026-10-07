@@ -161,6 +161,29 @@ namespace ForestOverlay.BridgeMcp
             return new JsonObject { ["tools"] = list };
         }
 
+        /// Runs one tool; a thrown exception becomes an error result. The
+        /// MCP calls and `--call` (scripts/e2e.py) both come through here.
+        public static async Task<ToolResult> Invoke(Tool tool, JsonObject arguments, CancellationToken ct)
+        {
+            try
+            {
+                return await tool.Run(new Args(arguments), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return ToolResult.Fail("cancelled");
+            }
+            catch (ArgumentException ex)
+            {
+                return ToolResult.Fail(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex);
+                return ToolResult.Fail(tool.Name + " threw " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
+
         private async Task CallTool(JsonNode id, JsonObject p)
         {
             string key = id.ToJsonString();
@@ -178,20 +201,7 @@ namespace ForestOverlay.BridgeMcp
             DateTime start = DateTime.UtcNow;
             try
             {
-                result = await tool.Run(new Args(p["arguments"] as JsonObject), cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                result = ToolResult.Fail("cancelled");
-            }
-            catch (ArgumentException ex)
-            {
-                result = ToolResult.Fail(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                result = ToolResult.Fail(name + " threw " + ex.GetType().Name + ": " + ex.Message);
-                Console.Error.WriteLine(ex);
+                result = await Invoke(tool, p["arguments"] as JsonObject, cts.Token);
             }
             finally
             {

@@ -47,7 +47,7 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
 10. **A behaviour change is checked by a fresh context, never its maker** -
     `forest-checker` (`Check T-n`) reviews it at `built`, before the push
     or release; plugin behaviour is then confirmed in game by
-    `forest-tester` (the scripted e2e suite is task T-0010); `tasks.py`
+    `forest-tester` or the e2e suite (`scripts/e2e.py --evidence`); `tasks.py`
     gates both (docs/areas/workflow.md *The checker*). *(author,
     2026-10-07; reviewed in the monthly harness review)*
 11. **Docs current at every release and handoff, one home per fact** -
@@ -117,6 +117,7 @@ python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (l
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
 python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
+python scripts/e2e.py [--smoke] [names]        # the in-game e2e suite (~3 min, needs only the game): docs/bridge.md *The e2e suite*
 python scripts/read-report.py <zip> [--full]  # a tester's report zip in ~50 lines: header, errors, slow ticks, perf, last actions
 python scripts/log-catalogue.py                 # after changing a log line: rewrites docs/log-lines.md (every prefix + meaning; --check in lint.py)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)

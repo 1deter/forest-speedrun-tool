@@ -153,6 +153,33 @@ each item a `needs: tester` task with its `qa` line (linking the post),
 active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
 task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
 
+## The e2e suite (`scripts/e2e.py`, T-0010)
+
+The golden journeys as code (docs/harness.md 8a): launch + Slot 1 +
+version + no exception line, F7 with a start state, a timed segment with
+uploads off, the Quick / Full load chain (landing position, a cut bush
+kept), a tab sweep with a long message (shots for eyes), run mode's
+integrity check from a Normal and a Creative start state. One journey per
+file in `tests/e2e/` (`NAME`, `SMOKE`, `TASKS`, `run(t)`; helpers in
+`e2e.py`), driven through the MCP server's own code (`forest-bridge-mcp
+--call <tool> <json>`, built into `tools/BridgeMcp/bin/cli` - a copy no
+running server locks). `python scripts/e2e.py` (~3 min), `restores tabs`
+for some, `--smoke --update --release vX` after a release (the release
+skill), `--evidence` records passed journeys' `TASKS` `--by e2e`.
+**Hygiene is code** (10b, 10c): Slot 1 copied to `Slot1.e2e-backup` and
+compared after, uploads off and back, god mode / infinite energy / the
+window as found, the config's values and `git status` compared, its own
+files removed (`segments/e2e.txt`, `e2e-*` savestates, `runs/e2e-*`,
+run-mode reports naming an `e2e-` spot), its run mode attempts deleted
+from the site (`FOREST_SITE_ADMIN_TOKEN`) and from the Runs tab's
+`uploads/attempts/sent.txt`. A new crash folder beside `TheForest.exe`
+aborts the run, closes the game and names the dump; with the game closed
+the config file is written back as found. The report:
+`tests/e2e/reports/<time>.md` (git-ignored). The run spots' start
+states are `tests/e2e/states/` (Normal: cm-normal-2; Creative: Cave 5's
+start). A new journey: copy one, keep every wait bounded, run it alone
+first (`python scripts/e2e.py <name>`).
+
 ## Working with the game (bridge recipes)
 
 Durable how-tos for driving the game from a session; the tools are
@@ -188,10 +215,14 @@ window, 1 updates, 2 settings, 4 inventory, 5 100%, 7 type explorer, 8
 debug views, 9 practice, 10 savestates, 11 runs, 12 deaths, 13 QA, 14
 bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
 `EnqueueSaved`, `_state`), 17 run mode (`EndRunMode`, `_report`).
-**Run mode starts with every new game**: a bridge-started new game is a
-run - Go / `restart` / savestates are refused (the bridge still answers
-`ok`; check the player moved) and the attempt is flagged "the test bridge
-is on". `call ..._modules[17].EndRunMode` unlocks. New game:
+**Run mode starts on a run spot's Restart** (a spot with `run =
+<category>` and a start state - always a Full load; a new game has not
+started one since v0.24.213, docs/run-mode.md *What starts a run*):
+during it Go / `restart` / savestates are refused (the bridge still
+answers `ok`; check the player moved) and the attempt is flagged "the
+test bridge is on". `call ..._modules[17].EndRunMode` unlocks. **Slot 1
+is a Creative save** (Peaceful underneath; god mode and infinite energy
+come from the mode). New game:
 `call TitleSceneMain/TitleScreen TitleScreen.OnSinglePlayer`, `wait 1`,
 `... TitleScreen.OnNewNormalGame` (or `OnNewCreativeGame`, ...), ~40 s;
 back to the title: `call static:UnityEngine.SceneManagement.SceneManager

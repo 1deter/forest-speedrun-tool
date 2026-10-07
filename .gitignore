@@ -31,3 +31,6 @@ __pycache__/
 
 .claude/worktrees/
 .claude/shots/
+
+# e2e reports (scripts/e2e.py)
+tests/e2e/reports/

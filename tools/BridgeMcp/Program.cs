@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ForestOverlay.BridgeMcp
@@ -10,6 +12,9 @@ namespace ForestOverlay.BridgeMcp
     //
     //   forest-bridge-mcp            serve MCP on stdin / stdout
     //   forest-bridge-mcp --tools    print the tool list (a quick check)
+    //   forest-bridge-mcp --call <tool> [json-args]
+    //                                run one tool, print its result as JSON
+    //                                (scripts/e2e.py); exit 1 on an error
     internal static class Program
     {
         public const string Version = "1.0.0";
@@ -27,6 +32,17 @@ namespace ForestOverlay.BridgeMcp
                 Console.WriteLine();
                 Console.WriteLine("game folder " + paths.Root + ", bridge folder " + paths.Bridge);
                 return 0;
+            }
+
+            if (args.Length > 0 && args[0] == "--call")
+            {
+                Tool tool = args.Length > 1 ? tools.All.Find(t => t.Name == args[1]) : null;
+                if (tool == null) { Console.Error.WriteLine("usage: --call <tool> [json-args]; --tools lists them"); return 2; }
+                JsonObject arguments = args.Length > 2 ? JsonNode.Parse(args[2]) as JsonObject : new JsonObject();
+                ToolResult result = await McpServer.Invoke(tool, arguments, CancellationToken.None);
+                Console.OutputEncoding = new UTF8Encoding(false);
+                Console.WriteLine(result.ToJson().ToJsonString());
+                return result.IsError ? 1 : 0;
             }
 
             if (args.Length > 0 && args[0] == "--windows")
