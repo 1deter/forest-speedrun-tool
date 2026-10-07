@@ -211,7 +211,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   waiting on the next full eval: T-0158, T-0163. Loop history:
   `python scripts/loop.py report`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; T-0018..T-0025). **Released:** v0.24.250 (T-0150, the run-finish stutter; in-game
-  check by forest-tester pending), nothing unreleased.
+  pushed; T-0018..T-0025). **Released:** v0.24.250 (T-0150, the run-finish stutter: confirmed
+  in game, 26-33 -> 3 ms; the arm-frame twin is T-0184), nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
