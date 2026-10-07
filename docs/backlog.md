@@ -1,5 +1,7 @@
 # Deferred runner feedback
 
+**Open items are tasks since 2026-10-07** (`python scripts/tasks.py list --open`); this file keeps their detail, and each task's `notes` points to its section here.
+
 Moved out of CLAUDE.md (2026-09-26). **Deferred** until *Next up* is done (author: finish the list, then QoL/UX), unless critical. New runner requests that are not scheduled go here.
 
 **Deferred** until Next up is done (author: finish the list, then QoL/UX),

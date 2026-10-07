@@ -1,5 +1,7 @@
 # Open investigations, unverified items and test assets
 
+**Open items are tasks since 2026-10-07** (`python scripts/tasks.py list --open`); this file keeps the detail (what was ruled out, test assets), and each task's `notes` points to its section here.
+
 Detail for threads that run across sessions. CLAUDE.md *Pick up here*
 names them in one line each and links here; read the section before
 working on it. When one finishes: a line in `docs/confirmed.md` (or the
