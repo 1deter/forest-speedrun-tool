@@ -7,7 +7,7 @@ report.txt, the QA answers, the kept BepInEx logs, sometimes the Unity
 output_log, the config, segments and savestates. This reads it in place
 (never extracts) and prints: the header and marks from report.txt, then
 per log the version, system line, errors, slow ticks, perf, warnings and
-the last actions. --full prints every error / warning group instead of
+the last actions, and every mark and note in full. --full prints every error / warning group instead of
 the top few. Tests: scripts/tests/test_read_report.py.
 """
 import argparse
@@ -22,8 +22,10 @@ PERF = re.compile(r"Perf \(\d+ s\): ([\d.]+) fps, worst (\d+) ms, (\d+) over 50 
 ERRORISH = re.compile(r"\b(failed|threw|Exception)\b|Parameter name:")
 # Lines that say what the player did, newest last (prefixes, ForestOverlay source).
 ACTIONS = ("Restart '", "Teleport to ", "Savestate captured", "Savestate restore", "Run '",
-           "Death:", "MARK #", "Game event:", "Practice: selected", "Practice: saved",
-           "QA note", "Go to ")
+           "Death:", "Game event:", "Practice: selected", "Practice: saved", "Go to ")
+# The tester's own words (QaModule: Mark with or without a note, a note added
+# to the last mark, a note pending when the report was written) - never clipped.
+MARKS = ("MARK #", "QA note")
 HEADER_KEYS = ("Tester:", "Plugin:", "Written:", "Pass ")
 
 
@@ -69,14 +71,14 @@ def summarise_report(lines):
     marks = [l.strip() for l in lines if l.strip().startswith("MARK #")]
     if marks:
         out.append("Marks:")
-        out += ["  " + clip(m) for m in marks]
+        out += ["  " + m for m in marks]
     return out
 
 
 def parse_log(lines):
     """Pulls what matters out of one BepInEx log."""
     info = {"version": None, "system": None, "errors": [], "warnings": [], "slow": {},
-            "perf": [], "actions": [], "lines": len(lines)}
+            "perf": [], "actions": [], "marks": [], "lines": len(lines)}
     prev = None
     for raw in lines:
         m = LINE.match(raw)
@@ -106,7 +108,9 @@ def parse_log(lines):
             info["errors"].append(prev)
         elif level == "Warning":
             info["warnings"].append("[" + source + "] " + msg)
-        if msg.startswith(ACTIONS) and (not msg.startswith("Savestate restore") or ": done in" in msg):
+        if msg.startswith(MARKS):
+            info["marks"].append(msg)
+        elif msg.startswith(ACTIONS) and (not msg.startswith("Savestate restore") or ": done in" in msg):
             info["actions"].append(msg)
     return info
 
@@ -143,6 +147,9 @@ def summarise_log(name, info, top, last, prev_system=None):
         out += ["  %dx %s" % (n, clip(ex)) for n, ex in groups[:top]]
         if len(groups) > top:
             out.append("  ... %d more kinds (--full)" % (len(groups) - top))
+    if info["marks"]:
+        out.append("Marks (%d):" % len(info["marks"]))
+        out += ["  " + m for m in info["marks"]]
     if info["actions"]:
         out.append("Last actions (%d of %d):" % (min(last, len(info["actions"])), len(info["actions"])))
         out += ["  " + clip(a) for a in info["actions"][-last:]]

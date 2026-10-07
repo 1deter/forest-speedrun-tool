@@ -45,6 +45,8 @@ Parameter name: index.
 [Info   :ForestOverlay] Savestate restore start state of 'x' in place: done in 222 ms
 [Error  :ForestOverlay] Update() threw: NullReferenceException
 [Info   :ForestOverlay] MARK #1: 20:57:09, at (-515.2, 707.5, -1971.9)
+[Info   :ForestOverlay] MARK #1 note: idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea end
+[Info   :ForestOverlay] QA note (in the report): pending words
 """
 
 
@@ -88,8 +90,13 @@ class ParseLog(unittest.TestCase):
     def test_actions_skip_restore_detail(self):
         acts = self.info["actions"]
         self.assertFalse(any("sun snapped" in a for a in acts))
-        self.assertTrue(any("done in 222 ms" in a for a in acts))
-        self.assertTrue(acts[-1].startswith("MARK #1"))
+        self.assertTrue(acts[-1].endswith("done in 222 ms"))
+
+    def test_marks_and_notes_whole(self):
+        marks = self.info["marks"]
+        self.assertEqual(len(marks), 3)
+        self.assertTrue(marks[1].startswith("MARK #1 note: idea") and marks[1].endswith("end"))
+        self.assertEqual(marks[2], "QA note (in the report): pending words")
 
 
 class Summary(unittest.TestCase):
@@ -102,6 +109,8 @@ class Summary(unittest.TestCase):
                      "Errors (2):", "unity/output_log.txt: 1 exception", "at Foo.Bar"):
             self.assertIn(want, out)
         self.assertNotIn("2) [-]", out)
+        self.assertIn("Marks (3):", out)
+        self.assertIn("idea end", out)  # a long note is never clipped
 
     def test_bad_zip(self):
         self.assertEqual(R.main([os.path.join(HERE, "test_read_report.py")]), 1)

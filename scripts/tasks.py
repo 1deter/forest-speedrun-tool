@@ -412,7 +412,7 @@ SUITES = [
     (("scripts/", ".githooks/"),
      "python scripts/tests/test_tasks.py && python scripts/tests/test_session.py && "
      "python scripts/tests/test_lint.py && python scripts/tests/test_hooks.py && "
-     "python scripts/tests/test_watch_deploy.py"),
+     "python scripts/tests/test_watch_deploy.py && python scripts/tests/test_read_report.py"),
 ]
 # Generated or bookkeeping files left out of the brief's diff.
 BRIEF_SKIP = ("tasks/tasks.jsonl", "docs/tasks.md")
