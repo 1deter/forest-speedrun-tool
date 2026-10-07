@@ -13,6 +13,7 @@ follows: [`bot/CLAUDE.md`](../../bot/CLAUDE.md); its decisions:
 |---|---|
 | [`docs/knowledge-bot.md`](../knowledge-bot.md) | Design, build order, the decompiled code, the planned settings page |
 | [`bot/README.md`](../../bot/README.md) | Running it: Discord use, how it answers, modes, settings, tests |
+| [`docs/knowledge-testing.md`](../knowledge-testing.md) | What runners asked the bot in the QA server's knowledge-testing channel, per answer, with the fix (T-0140) |
 | [`knowledge/README.md`](../../knowledge/README.md) | Writing cards: format, `[runner]` / `[inferred]` labels, the research queue |
 | [`bot/deploy/README.md`](../../bot/deploy/README.md) | The container, the VPS, the one-time setup |
 
