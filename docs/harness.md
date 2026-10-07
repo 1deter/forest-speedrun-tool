@@ -665,5 +665,9 @@ Asked after the deeper pass; each replaces an "open question" above.
   `scripts/tasks.py` + `tasks/tasks.jsonl` + generated `docs/tasks.md`
   built with its gates (contract to start, WIP = 1 per worker, commit to
   build, evidence to confirm, a second worker's evidence on `checker`
-  tasks, confirmed never reversed) and 24 tests, run in CI. T-0001 (the
-  migration, 6b) is in progress.
+  tasks, confirmed never reversed) and 24 tests, run in CI.
+- 2026-10-07: checker widened to every behaviour change (author). Roadmap
+  step 1 done: 112 tasks migrated from CLAUDE.md, backlog.md,
+  investigations.md, website.md, knowledge/README.md and run-mode.md
+  (T-0001, T-0017); CLAUDE.md 1,061 -> 878 lines; 7 questions parked.
+  Next: step 2 (T-0002).

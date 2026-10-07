@@ -870,6 +870,8 @@ restart it after editing a wwwroot file, or the page keeps the old one.
 
 ## Next
 
+**Open items here are tasks since 2026-10-07** (`python scripts/tasks.py list --open --area site`); this section keeps the detail.
+
 1. ~~Other runners' PBs as comparisons in game~~ done (v0.24.155:
    `board.txt` + `Data/SiteBoard`, `Modules/PracticeRunModule.Site.cs`).
 2. ~~A spot submission button in Practice; an admin page~~ done

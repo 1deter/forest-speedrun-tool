@@ -70,6 +70,8 @@ the explained version for runners.
 
 ## Cards
 
+**Open items here are tasks since 2026-10-07** (`python scripts/tasks.py list --open --area knowledge`); this section keeps the detail.
+
 Written 2026-10-03 (23): player-physics, movement-tricks, bomb-boost,
 knockback-sources, fall-damage, cave-force-load, smash-clip,
 wall-and-log-boost, zipline-boost, swimming, position-snaps,

@@ -439,7 +439,10 @@ never their maker (author, 2026-10-07).
 **Start here:** `qa_read new_only`, then `tasks.py list --needs
 author-decision` with the author present, then `tasks.py next`. The
 harness roadmap (docs/harness.md, author 2026-10-06: first) is the P1
-harness tasks; T-0001 (the migration) is in progress.
+harness tasks, next up T-0002 (session start) and T-0003 (the
+router). Roadmap step 1 is done (T-0001, T-0017: 112 tasks). The
+plan's design parts want high effort - say so (memory
+`effort-level-switching`).
 
 Worktrees / branches: only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
 clean + pushed; the redesign tasks T-0018..T-0025). **Unreleased on
