@@ -53,6 +53,14 @@ never their maker (author, 2026-10-07; *The checker* below). New requests become
 author's feature list (*Next up* until 2026-10-07) is P2-P4 there.
 Multi-session notes: `tasks.py note T-n "..."` (`tasks/notes/`).
 
+**Closing** (T-0114, 2026-10-07): harness and docs tasks have no release
+and no checker - they go `built` -> `confirmed` once each verify step has
+evidence (the machine gates are their check). Work shipped and confirmed
+in game before the checker existed (2026-10-07) is closed with its
+`docs/confirmed.md` entry as evidence and `--no-checker`, noted as such.
+Before starting a migrated task, check git, the code and `confirmed.md`
+for it first - the migration copied lists that were partly stale.
+
 ## The checker (docs/harness.md 7d, 9d; T-0006)
 
 Every behaviour change (`checker: true`: plugin, site, bot tasks) is
