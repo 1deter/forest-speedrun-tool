@@ -69,7 +69,8 @@ bot reads it as background only and never passes it on to a runner or
 gives it as advice; at most it says the thing was not reproduced in our
 tests (T-0163, author 2026-10-07). A tagged heading covers its section.
 A tag's first word must be one of live, code, runner, inferred, dev,
-arithmetic (the knowledge lint checks it).
+arithmetic (`Card_tags_are_known` in the bot tests checks every
+lowercase `[word ...]` that is not a link).
 
 **When a card changes the knowledge** (a test, a correction), update
 `docs/game-notes.md` too - it stays the reference for sessions; cards are

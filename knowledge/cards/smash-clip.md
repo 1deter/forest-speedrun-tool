@@ -177,7 +177,7 @@ our tests, and the runners' exact timing and angle are the missing part.
 ## Open questions
 
 - The exact frame-by-frame collider positions during a successful runner
-  clip - needs the move done by hand with `anim watch` and per-frame reads [dev].
+  clip - needs a real clip read frame by frame.
 - Why fps matters: physics stays at 60 Hz, so it is not more collision
   checks; the idea that it is the fresher collider layout at each step is a
   guess.

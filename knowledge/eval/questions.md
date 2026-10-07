@@ -354,6 +354,7 @@ must:
 not:
 - states as fact that a clip gives no velocity
 - presents an invented explanation as fact
+- explains the speed as position change over time / a big move in one step, as fact
 - writes LaTeX or $...$ math
 
 ### dev-leftovers
@@ -690,3 +691,12 @@ must:
 - no theoretical best time is documented; gives the current records it has instead
 not:
 - an estimated best-possible time (e.g. "under 2 minutes") stated without a source
+
+### endgame-cutscene-flag
+question: what does endGameCutScene do? could a tool use it as a god mode?
+cards: endgame-splits, knockback-sources
+must:
+- it is the flag every endgame cutscene sets; the autosplitter splits on its rising edge
+- PlayerStats.Explosion returns early while it is set, so no explosion knockback or damage from that call
+not:
+- calls it a god mode, or says it blocks all damage, without code that shows it
