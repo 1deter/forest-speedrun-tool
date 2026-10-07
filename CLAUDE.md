@@ -186,30 +186,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Start:** skill `session-start` (the SessionStart hook's report is
   its first step).
-- **Harness roadmap** (docs/harness.md, author 2026-10-06: first): steps
-  1-3 done (T-0001, T-0017, T-0002, T-0003: this router) and 3e (T-0004:
-  the four skills above); step 4's gates built (T-0005: lints, git hooks,
-  PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*) and the
-  checker (T-0006: `forest-checker`, `tasks.py brief` / `review`);
-  step 4 closed by the gotcha audit (T-0009: every index line marked,
-  28 checkable / 67 judgement, 18 check tasks T-0122..T-0139, `lint.py`
-  keeps the markers); 9b built (T-0008:
-  `scripts/read-report.py`, checker accepted); T-0114 triaged the
-  migrated list (13 closed); T-0113 re-cut the agent briefs (first
-  spawns check the new frontmatter loads: its notes).
-  T-0007 built: `bump.py` releases its tasks, #qa-todo-list rendered
-  from `needs: tester` tasks' `qa` lines (only what testers still do;
-  the old list pruned to 2 items, posted live; gotcha 95).
-  T-0011 confirmed (8c): `scripts/site-smoke.py` gates the site deploy;
-  bot.yml's warn-only eval subset runs on the live key after each bot
-  deploy (secret set by the author). Bot direction (author, 2026-10-07):
-  take the author out of the feedback loop - T-0141 (review on every new
-  feedback), T-0140 (knowledge-testing channel); a paid model later.
-  T-0012 confirmed (9a): `docs/log-lines.md` catalogues every log prefix
-  with a meaning; `lint.py` fails on a call with no prefix (or `// log:`
-  declaration) or a stale catalogue.
-  **Order (author, 2026-10-07):** harness first (T-0009, T-0010, T-0015),
-  the redesign after; next: `tasks.py next` (T-0010 needs the game).
+- **Harness roadmap** (docs/harness.md, author 2026-10-06: first; what
+  each step built: its *Status log*): steps 1-4 done, 3e skills, 8c site
+  smoke + bot eval (T-0011), 9a log catalogue (T-0012), 9b report reader
+  (T-0008); T-0007 built (`bump.py` releases tasks, #qa-todo-list from
+  `needs: tester` tasks). Bot direction (author, 2026-10-07): the author
+  out of the feedback loop - T-0141, T-0140; a paid model later.
+  **Order (author, 2026-10-07):** harness first (T-0010, T-0015), the
+  redesign after; next: `tasks.py next` (T-0010 needs the game).
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Released:** v0.24.249 (T-0027 run lines off - in-game check
   still to do, `forest-tester`; T-0012's log prefixes). Nothing unreleased.
