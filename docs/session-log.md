@@ -23,8 +23,7 @@ Pick up here entries replaced at later handoffs, kept for reference (moved out o
   title load (P2, bridge); T-0049 is a real bug (another segment's Go
   keeps the red line); T-0144 Runs-tab dead links (question parked);
   T-0027 marker half and T-0052 tally confirmed, their other halves open.
-- **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Released:** v0.24.249. Nothing unreleased.
+- **Worktrees:** only `ui-redesign` (pushed; tasks T-0018..T-0025). **Released:** v0.24.249. Nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
 
@@ -116,8 +115,7 @@ gotchas 90-91), tech research round 2 - game-notes *Speedrun tech*.
    01:57 / 02:36) - not read yet (the harness's report reader, 9b, would
    make this cheap).
 4. The redesign fixes in docs/backlog.md *Author's notes in QA* (on
-   `ui-redesign`, worktree `.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-   clean + pushed), then the cursor re-check, QA, merge + release (the
+   `ui-redesign`, worktree clean + pushed), then the cursor re-check, QA, merge + release (the
    author's call, see below).
 5. **Unreleased on main:** `706ac88` run lines off now stop drawing
    (`Game/LatePass`); ships with the next release - check in game with
@@ -145,7 +143,7 @@ community / published-category spots.
 **UI / UX redesign DRAFT** (author, 2026-10-05: modern, UX friendly for
 new runners, a Momentum Mod style HUD customiser - isolate a value like
 speed, place and resize it): branch `ui-redesign` (pushed, NOT merged or
-released), design in `docs/ui-redesign.md` on that branch; `Core/UiKit`
+released), design in the redesign doc on that branch (ui-redesign.md); `Core/UiKit`
 (palette, skin, sections, tooltips), `Data/HudLayout` (tested,
 `hud-layout.txt`), HUD widgets + edit mode, window chrome, Runs tab
 regrouped, results panel no longer overlapped. **Never seen in game** - a
@@ -161,7 +159,7 @@ merge + release (author's call). The author runs the draft.
 
 **Read first:** the author's QA notes of 2026-10-05/06 (redesign fixes, run lines, trajectory, bot, two report zips) are sorted in docs/backlog.md *Author's notes in QA* - the redesign ones belong before its merge. Branches other than `ui-redesign` are all merged.
 
-**Harness / autonomy plan** (author, 2026-10-06: "truly fully autonomous ... minimal human input aside from when new features are being added"): [`docs/harness.md`](docs/harness.md) - the 12 harness-engineering principles scored, work items with checks, a roadmap (tasks file first). The author will do a deeper pass on the course before step 1.
+**Harness / autonomy plan** (author, 2026-10-06: "truly fully autonomous ... minimal human input aside from when new features are being added"): [`docs/harness.md`](harness.md) - the 12 harness-engineering principles scored, work items with checks, a roadmap (tasks file first). The author will do a deeper pass on the course before step 1.
 
 **Next:** 0) the harness plan (docs/harness.md, author 2026-10-06: first); 1) the bot settings page on /admin (author, 2026-10-05;
 design in docs/knowledge-bot.md *Bot settings page*); 2) the redesign's
@@ -171,11 +169,11 @@ maintainability review).
 A session picking this up mid-way: `git worktree list` / branches
 `worktree-*` show unmerged work.
 
-Older handoffs (2026-10-03 and before: the knowledge bot's cards / eval, banned-move detection, tech research) are in [`docs/session-log.md`](docs/session-log.md).
+Older handoffs (2026-10-03 and before: the knowledge bot's cards / eval, banned-move detection, tech research) are in [`docs/session-log.md`](session-log.md).
 
 **Session plan (author, 2026-10-02):** one item per session. Start each
 session with `qa_read new_only`. Run mode and anti-cheat: every decision
-is in [`docs/run-mode.md`](docs/run-mode.md) - read it before touching run
+is in [`docs/run-mode.md`](run-mode.md) - read it before touching run
 mode, the report or anything a run uploads. **Earlier
 (2026-10-03, research, no code):** the runners' tech read from IL and the
 bridge - docs/game-notes.md *Speedrun tech and the endgame gate*: the bomb
@@ -213,7 +211,7 @@ spot exists yet - making one is the author's call.
    reload (docs/run-mode.md *Decisions*), the elevator skip done by hand
    with `anim watch`, the multi-thrower / bodies slide, Megan's FSMs.
 3. **The game-knowledge Discord bot** (author, 2026-10-03; plan and
-   decisions in [`docs/knowledge-bot.md`](docs/knowledge-bot.md)): the
+   decisions in [`docs/knowledge-bot.md`](knowledge-bot.md)): the
    knowledge base (29 cards) and the bot (`bot/`) are built and live in
    the QA server; eval + tuning done (87%, 2026-10-03); `megan-boss`,
    `cannibal-ai`, `categories-and-rules`, `routes`,
@@ -223,7 +221,7 @@ spot exists yet - making one is the author's call.
    2026-10-03):** a run audit log (every interaction, on the attempt
    page's timeline) and richer replays (buildings as schematics,
    first-person replays with animations, a trajectory / "grenade camera"
-   view for bomb boosts and ziplines) - [`docs/run-audit-and-replays.md`](docs/run-audit-and-replays.md)
+   view for bomb boosts and ziplines) - [`docs/run-audit-and-replays.md`](run-audit-and-replays.md)
    (decisions there: run mode only, a skimmable rundown, in game first).
    **After v1** (author, 2026-10-03): UI work, refactoring inefficient /
    bad code, and a lighter repo with only useful information - plus
@@ -310,4 +308,4 @@ onto expanding more features".
 
 ### Deferred runner feedback
 
-Runner QoL / UX requests waiting until *Next up* is done (author: finish the list first, unless critical): [`docs/backlog.md`](docs/backlog.md) - deaths clarity, runs / run lines, checkpoint savestates, status overlay, settings that persist, debug views, maks's list, and a *final exhaustive feature testing* section (checks to run before a wide release). New unscheduled requests go there.
+Runner QoL / UX requests waiting until *Next up* is done (author: finish the list first, unless critical): [`docs/backlog.md`](backlog.md) - deaths clarity, runs / run lines, checkpoint savestates, status overlay, settings that persist, debug views, maks's list, and a *final exhaustive feature testing* section (checks to run before a wide release). New unscheduled requests go there.
