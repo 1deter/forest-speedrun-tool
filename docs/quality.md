@@ -43,8 +43,8 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0134, T-0135 | 2026-10-07 |
-| Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
-| Knowledge | B | B | A | B | B | T-0097, T-0141 | 2026-10-07 |
+| Bot | C | A | A | A | C | T-0090, T-0156, T-0157 | 2026-10-07 |
+| Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | B | B | T-0147, T-0122 | 2026-10-07 |
 
 Lowest first: Savestates, Practice, Performance and loads, TAS and
@@ -249,14 +249,16 @@ The photo map, caves, the 3D world and the export / bake pipeline.
 
 Paths: `bot/` `.github/workflows/bot.yml` `docs/knowledge-bot.md` `docs/areas/bot.md`
 
-- Verification **A**: 32 tests; the CI eval on 5 questions after each
-  deploy; deploy-watch's live check.
+- Verification **A**: 48 tests; the CI eval on 7 questions after each
+  deploy, the full eval by hand (bot.yml dispatch, T-0141); deploy-watch's
+  live check; the /admin Bot tab's live settings confirmed (T-0028).
 - Legibility **A**: bot/README.md, bot/CLAUDE.md, docs/areas/bot.md;
   files under 320 lines.
 - Stability **A**: the tests are deterministic; the eval is warn-only and
   skips busy answers (gotcha 94).
-- Gaps **C**: answers too long for short questions (T-0090, P2, from
-  runner feedback).
+- Gaps **C**: short-answer length not yet proved in the eval (T-0090,
+  waits on T-0157: failed checks only in the CI step summary); a model
+  timeout crashes the whole eval (T-0156, P2).
 
 ### Knowledge
 
@@ -265,14 +267,18 @@ Paths: `knowledge/` `docs/game-notes.md` `docs/fsm/`
 The cards, glossary and eval questions; the confirmed game notes and FSM
 exports the bot reads.
 - Verification **B**: the KnowledgeTests lint over every card; the full
-  eval scored 87% (2026-10-03) - a model judges, a person has not
+  eval scored 81.5% (260/319, 80 questions, flash-lite on CI, 2026-10-07 -
+  docs/bot-reviews/2026-10-07.md) - a model judges, a person has not
   re-checked since.
 - Legibility **A**: knowledge/README.md (format, `[runner]` /
   `[inferred]` labels, the research queue).
 - Stability **B**: the eval spends the free quota shared with the live
   bot, so CI runs a 7-question subset only.
-- Gaps **B**: the 👎 queue (T-0097); the recurring review is not built
-  (T-0141); eleven research items (T-0098..T-0108).
+- Gaps **C**: guesses stated as fact in runner answers (T-0163, P2, from
+  the knowledge-testing channel); wrong / missing top-runner facts
+  (T-0158, P2); low scorers in the full eval (T-0168); eleven research
+  items (T-0098..T-0108). The review (skill bot-review) runs on new
+  feedback; the queue is its step 3.
 
 ### Harness
 
