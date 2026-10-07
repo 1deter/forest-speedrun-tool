@@ -205,9 +205,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   deploy (secret set by the author). Bot direction (author, 2026-10-07):
   take the author out of the feedback loop - T-0141 (review on every new
   feedback), T-0140 (knowledge-testing channel); a paid model later.
-  **Order (author, 2026-10-07):** harness first (T-0012, T-0009,
-  T-0010, T-0015), the redesign after; next: `tasks.py next`.
+  T-0012 confirmed (9a): `docs/log-lines.md` catalogues every log prefix
+  with a meaning; `lint.py` fails on a call with no prefix (or `// log:`
+  declaration) or a stale catalogue.
+  **Order (author, 2026-10-07):** harness first (T-0009, T-0010, T-0015),
+  the redesign after; next: `tasks.py next` (T-0010 needs the game).
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027, checker accepted).
+  pushed; tasks T-0018..T-0025). **Released:** v0.24.249 (T-0027 run lines off - in-game check
+  still to do, `forest-tester`; T-0012's log prefixes). Nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
