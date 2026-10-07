@@ -1272,6 +1272,20 @@ within 100 m stayed 407 across a repeat); what it does find is pooled
 greeble plants spawned near the player since (`Pooling/Pool_Greebles/
 Chicory(Clone)004`: 415 -> 407 on the first repeat after a teleport
 there) - their `LOD_Base` destroyed on a pooled object.
+- **Signatures** (ilscan `type CrashClearing`, 2026-10-08): `void Start()`,
+  `void OnCrash()`, private `int GetStepCount()`, private `Vector3
+  GetPosition(float progress)`; fields `Radius`, `Length`, `PreferBurning`.
+  `LOD_Base.Burn()` returns `bool`.
+- **Where the time goes** (bridge, 2026-10-08, Slot 1 at the wreck):
+  `OnCrash` 161-167 ms; `call static:NeoGrassCutter Cut <step> 15 false`
+  at each of the 5 steps 27-30 ms (~140 ms); so the `LOD_Base` search and
+  removal ~25 ms (`LOD_Base` 30825 objects).
+- **The grass only ever goes down:** in Assembly-CSharp-firstpass
+  (decompiled) the only `SetDetailLayer` calls are `NeoGrassCutter.Edit`'s;
+  in Assembly-CSharp only the `GrassCut*` / `GrassCutter` debug scripts
+  (Space key) call it, and `NeoGrassCutter.Grow` only
+  `DebugConsole._growgrass`. A cut repeated at the same place writes 0
+  over 0.
 
 ## The frames of an in-place restore (bridge, 2026-10-07, v0.24.251, T-0148)
 
@@ -1297,7 +1311,11 @@ hitch` lines (205 / 204 ms in the log; the author's longer session:
   `TickOff` / `TodoList`, both `TreeLodGrid`s - `AiMaster` and `LOD
   Manager`); a restart from the surface reloads the endgame scenes and the
   elevators are new objects. All 8628 `CoopTreeId` are active, in a cave
-  too (`type ... all` = the active count).
+  too (`type ... all` = the active count); no game code instantiates one
+  or adds the component (ilscan `refs CoopTreeId`), and the game keeps the
+  list once itself (`CoopPlayerCallbacks.AllTrees`: `FindObjectsOfType
+  <CoopTreeId>` ordered by Id, cached in `_allTrees`;
+  `MassDestructionSaveManager` builds an Id dictionary the same way).
 - `TheForest.Utils.Scene.GreebleZonesManager` is the
   `MassDestructionSaveManager` GameObject (same handle).
 

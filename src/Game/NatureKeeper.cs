@@ -434,7 +434,7 @@ namespace ForestOverlay.Game
 
             UnityEngine.Object grid = _regrowth != null && _grid != null ? SceneCache.One(_grid) : null;
             int regrown = 0, midChop = 0;
-            UnityEngine.Object[] all = SceneCache.All(_treeId);
+            UnityEngine.Object[] all = SceneCache.Trees(_treeId);
             Behaviour[] lods = TreeLods(all);
             for (int i = 0; i < all.Length; i++)
             {

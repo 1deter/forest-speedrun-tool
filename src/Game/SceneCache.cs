@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using ForestOverlay.Data;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,25 +17,33 @@ namespace ForestOverlay.Game
     // start frame two more (the to-do list, Megan): the first of the two
     // "Load timing: hitch" lines after every spot restart.
     //
-    // WHAT: One(type) is FindObjectOfType, All(type) FindObjectsOfType,
-    // the result kept until a scene loads or unloads (SceneManager's
-    // events; a Full load, the caves' and the endgame's streaming), or
-    // until a kept object is destroyed or inactive - then searched again,
-    // so the answer is what the search would give. All() is only for
-    // types whose objects come with their scene and are active (trees -
-    // 8628 CoopTreeId, all active also in a cave - and the endgame's two
-    // ElevatorSystem): one made or switched on later without a scene
-    // event would be missed until the next one. Absence is not kept.
+    // WHAT (the rules: Data/LookupCache, tested):
+    // - One(type) is FindObjectOfType. The object found is kept while it is
+    //   alive and active - destroyed or switched off, the search runs
+    //   again, so the answer is the one the search would give. Used for
+    //   single objects: the tree manager, TreeLodGrid, Megan's
+    //   setupGirlMutant, the player's TickOff / TodoList.
+    // - Trees(type) is FindObjectsOfType, for the scene's trees only
+    //   (CoopTreeId). Trees come with their scene and are never made or
+    //   switched on later: all 8628 are active, in a cave too (`type ...
+    //   all` = the active count), no game code instantiates or adds one
+    //   (ilscan refs CoopTreeId), and the game keeps the same list itself
+    //   (CoopPlayerCallbacks.AllTrees: FindObjectsOfType<CoopTreeId> once).
+    //   Anything that can appear without a scene event (the elevators) is
+    //   searched every time.
+    // - Everything is forgotten when a scene loads or unloads (a Full load,
+    //   the caves' and the endgame's streaming); nothing found is never
+    //   kept.
     // ------------------------------------------------------------------
     public static class SceneCache
     {
-        private static readonly Dictionary<Type, Component> Ones = new Dictionary<Type, Component>();
-        private static readonly Dictionary<Type, UnityEngine.Object[]> Alls = new Dictionary<Type, UnityEngine.Object[]>();
+        private static readonly LookupCache<Type, UnityEngine.Object> Cache =
+            new LookupCache<Type, UnityEngine.Object>(Usable);
         private static bool _hooked;
 
-        /// Searches run (a miss or a stale entry) and answers from the cache, this launch.
-        public static int Searches { get; private set; }
-        public static int Hits { get; private set; }
+        /// Searches run and answers from the cache, this launch.
+        public static int Searches { get { return Cache.Searches; } }
+        public static int Hits { get { return Cache.Hits; } }
 
         /// Once, before the first use (the savestate module's Initialise).
         public static void Install()
@@ -52,58 +60,37 @@ namespace ForestOverlay.Game
             _hooked = false;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
-            Clear();
+            Cache.Clear();
         }
 
-        public static void Clear()
-        {
-            Ones.Clear();
-            Alls.Clear();
-        }
-
-        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, LoadSceneMode m) { Clear(); }
-        private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene s) { Clear(); }
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, LoadSceneMode m) { Cache.Clear(); }
+        private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene s) { Cache.Clear(); }
 
         /// UnityEngine.Object.FindObjectOfType(t), kept: null when none.
         public static Component One(Type t)
         {
             if (t == null) return null;
-            Component c;
-            if (_hooked && Ones.TryGetValue(t, out c) && Usable(c)) { Hits++; return c; }
-            Searches++;
-            c = UnityEngine.Object.FindObjectOfType(t) as Component;
-            if (!_hooked) return c;
-            if (c != null) Ones[t] = c;
-            else Ones.Remove(t);
-            return c;
+            if (!_hooked) return UnityEngine.Object.FindObjectOfType(t) as Component;
+            return Cache.One(t, FindOne) as Component;
         }
 
-        /// UnityEngine.Object.FindObjectsOfType(t), kept. The array is the
-        /// cache's own: read it, never change it.
-        public static UnityEngine.Object[] All(Type t)
+        /// UnityEngine.Object.FindObjectsOfType(t) for the scene's trees
+        /// (see above - nothing else). The array is the cache's own: read
+        /// it, never change it.
+        public static UnityEngine.Object[] Trees(Type t)
         {
             if (t == null) return new UnityEngine.Object[0];
-            UnityEngine.Object[] all;
-            if (_hooked && Alls.TryGetValue(t, out all) && AllUsable(all)) { Hits++; return all; }
-            Searches++;
-            all = UnityEngine.Object.FindObjectsOfType(t);
-            if (_hooked) Alls[t] = all;
-            return all;
+            if (!_hooked) return UnityEngine.Object.FindObjectsOfType(t);
+            return Cache.All(t, FindAll);
         }
 
-        private static bool Usable(Component c)
+        private static UnityEngine.Object FindOne(Type t) { return UnityEngine.Object.FindObjectOfType(t); }
+        private static UnityEngine.Object[] FindAll(Type t) { return UnityEngine.Object.FindObjectsOfType(t); }
+
+        private static bool Usable(UnityEngine.Object o)
         {
+            Component c = o as Component;
             return c != null && c.gameObject.activeInHierarchy;
-        }
-
-        private static bool AllUsable(UnityEngine.Object[] all)
-        {
-            for (int i = 0; i < all.Length; i++)
-            {
-                Component c = all[i] as Component;
-                if (!Usable(c)) return false;
-            }
-            return true;
         }
     }
 }

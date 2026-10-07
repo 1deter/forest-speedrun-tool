@@ -118,11 +118,17 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   spot restart was followed by two `Load timing: hitch` lines (the author:
   ~380 + ~255 ms). The first is the restore's continuation (all the keepers
   in one frame): six scene walks (`FindObjectOfType` / `FindObjectsOfType`,
-  20-37 ms each) - now kept between restores in `Game/SceneCache` (until a
-  scene loads / unloads or a kept object dies or goes inactive). The second
+  20-37 ms each) - now kept between restores in `Game/SceneCache` (rules in
+  `Data/LookupCache`, tested: until a scene loads / unloads or a kept
+  object dies or goes inactive; nothing found is never kept). Single
+  objects and the trees only; the elevators are still searched every
+  restore (~24 ms - they could appear without a scene event). The second
   is the plane wreck the Quick load re-creates running the game's crash
-  clearing again (~195 ms) - skipped when a wreck already stands at that
-  spot (`Game/WreckClearing`, `Plane wreck:` line). The restore line ends
+  clearing again (~165-195 ms): when a wreck already stands at that spot
+  (`Data/WreckSites`, tested) its plant / LOD removal still runs as the
+  game's does (~25 ms) and only the grass cut is skipped - it only ever
+  writes 0, already there (`Game/WreckClearing`, `Plane wreck:` line).
+  The restore line ends
   `after the load: N ms, S scene search(es), K kept`. Left: LoadNow's own
   frames (150 + 170 ms on the Labskip spot) - the game's deserializer
   (game-notes *The frames of an in-place restore*).

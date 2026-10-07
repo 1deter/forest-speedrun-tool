@@ -1090,11 +1090,11 @@ Written by PlaneSite.cs; warning.
 
 ## `Plane wreck`
 
-Meaning: An in-place restore's re-created plane wreck started where a wreck already stands, and its crash clearing (CrashClearing.OnCrash, ~0.2 s) was skipped - the path was cleared by the first one (T-0148).
+Meaning: An in-place restore's re-created plane wreck started where a wreck already stands: its crash clearing's plant / LOD removal ran as the game's does, its grass cut (~0.14 s, already cut there) was skipped (T-0148).
 Written by WreckClearing.cs; info / warning.
 
-- warning `Plane wreck: clearing check failed (<ex.Message>) - the game's clearing runs.`
-- info `Plane wreck: the restore's new wreck skipped the game's crash clearing - the wreck already at <..> cleared that path (trees and grass), ~0.2 s saved.`
+- warning `Plane wreck: clearing check failed (<..>) - the game's clearing runs.`
+- info `Plane wreck: the restore's new wreck cleared its crash path's plants as the game does (<removed> LOD(s)) but skipped the grass cut - the wreck already at <..> cut it, ~0.14 s saved.`
 
 ## `Player acquired via`
 
@@ -1896,7 +1896,7 @@ Meaning: The wreck-clearing patch could not hook CrashClearing.Start: every rest
 Written by WreckClearing.cs; warning.
 
 - warning `WreckClearing: <ex.Message>`
-- warning `WreckClearing: CrashClearing.Start not found - a restore's new plane wreck clears its crash path again.`
+- warning `WreckClearing: CrashClearing / LOD_Base members not found - a restore's new plane wreck clears its crash path again.`
 
 ## `Wrote`
 
