@@ -658,3 +658,9 @@ Asked after the deeper pass; each replaces an "open question" above.
   the quality document and cleanup loop (10d, 10e), loop stop conditions,
   silent costs and the monthly review (12), *Measuring the harness*, and
   four questions for the author.
+- 2026-10-07: the author's four decisions recorded. Roadmap step 1 begun:
+  `scripts/tasks.py` + `tasks/tasks.jsonl` + generated `docs/tasks.md`
+  built with its gates (contract to start, WIP = 1 per worker, commit to
+  build, evidence to confirm, a second worker's evidence on `checker`
+  tasks, confirmed never reversed) and 24 tests, run in CI. T-0001 (the
+  migration, 6b) is in progress.

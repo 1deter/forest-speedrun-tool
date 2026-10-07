@@ -52,6 +52,7 @@ dotnet test site/ForestSite.Tests   # the website (forest.deter.cloud); run it: 
 python scripts/community-index.py   # after changing community/*.foseg (CI checks it)
 python scripts/bump.py 0.24.N "bullet" "bullet"   # release bump: csproj + Plugin.cs + CHANGELOG section (-f notes.md)
 python scripts/merge-keepboth.py <files>          # resolve add/add merge conflicts (parallel branches)
+python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread

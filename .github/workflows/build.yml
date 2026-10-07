@@ -36,6 +36,13 @@ jobs:
       - name: Test
         run: dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj -c Release --nologo
 
+      # The task file (docs/harness.md 6): its script's tests, then the file
+      # itself against the rules, and docs/tasks.md generated from it.
+      - name: Tasks
+        run: |
+          python3 scripts/tests/test_tasks.py
+          python3 scripts/tasks.py check
+
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:
