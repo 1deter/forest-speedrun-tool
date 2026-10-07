@@ -287,3 +287,7 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   in no channel** (author, 2026-10-07, T-0028: "Answer in no channel");
   DMs follow the DM toggle. Settings never saved on the site keep the
   `.env` channels (`FOREST_BOT_CHANNELS`).
+- **The CI eval subset carries the answer-length check** (author,
+  2026-10-07, T-0090: "Add to CI subset"): short-bomb-fps (with its
+  "tell me more" follow-up) and one more short item join bot.yml's
+  `EVAL_SUBSET`; still no local live model runs (bot/CLAUDE.md).
