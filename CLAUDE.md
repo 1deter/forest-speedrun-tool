@@ -186,7 +186,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   the four skills above); step 4's gates built (T-0005: lints, git hooks,
   PreToolUse + Stop hooks - docs/areas/workflow.md *Gates*) and the
   checker (T-0006: `forest-checker`, `tasks.py brief` / `review`);
-  left of step 4: the gotcha audit (T-0009); next: `tasks.py next`.
+  left of step 4: the gotcha audit (T-0009); 9b built (T-0008:
+  `scripts/read-report.py`, checker accepted); next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027, checker accepted).
 - **Nothing is published yet:** all live categories are drafts (the
