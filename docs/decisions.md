@@ -299,3 +299,10 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   items and knowledge-testing messages since the last review; any new one
   makes the review due (Claude's default for the threshold - the author
   can raise it).
+- **Spots: their author's rules** (author, 2026-10-07, T-0152 / T-0153).
+  A downloaded or community spot is **read-only** for everyone but its
+  author; a runner can still add their own checkpoints on top, for their
+  own sub-segment timings. The spot's author can **set settings per spot**
+  that hold while it is run, forced off (e.g. debug colliders) or forced
+  on: "it's their spot, their rules", so everyone runs it on the same
+  playing field.
