@@ -914,3 +914,18 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     game, the plugin's config folder, the log, the saves, the QA zips,
     the repo. Replayed over the 10,963 commands in the transcripts it
     refuses exactly those three.
+
+100. **A crash dump's function name can be one of several, and Mono's
+    frames are readable.** (2026-10-07, T-0143.) The dump said
+    `Renderer_Set_Custom_PropEnabled`, and the task was filed as "a
+    destroyed renderer"; the linker had folded six identical icalls
+    (Behaviour, Cloth, Collider, LODGroup, ParticleEmitter, Renderer
+    `.enabled` setters) into one address, so the name proved nothing - and
+    a destroyed object cannot reach that crash (its `m_CachedPtr` is 0, an
+    exception). The JIT frames, "nameless", still told the story: Mono's
+    code keeps an RBP chain (`[rbp]` caller's rbp, `[rbp+8]` return), old
+    JIT code can sit below 4 GB, the address mono's runtime invoke holds is
+    the invoked method's start, and the floats left in a frame (a Vector3)
+    matched one object's live position to 4 decimals - which named the
+    component. `scripts/symbolize-crash.py` now prints the folded names,
+    the registers and the rbp chain, and marks values below rsp as stale.

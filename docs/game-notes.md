@@ -2592,6 +2592,65 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   (`scripts/symbolize-crash.py`, cached in
   `%LOCALAPPDATA%\ForestOverlay\symbols`).
 
+## The native crash in LOD_SimpleToggle at a title load (dump + PDB + IL + bridge, 2026-10-07, T-0143)
+
+One crash in ~6 e2e launches (`2026-10-07_115524`, v0.24.250-251): an
+access violation reading `0x500011eb4` at `Renderer_Set_Custom_PropEnabled+0x12`,
+in the frame where ForestMain_v08 had just loaded (the log's last line:
+`Load timing: scene 'ForestMain_v08' loaded`).
+
+- **The name is one of six.** The linker folded identical icalls: the PDB
+  has `Behaviour_`, `Cloth_`, `Collider_`, `LODGroup_`, `ParticleEmitter_`
+  and `Renderer_Set_Custom_PropEnabled` at one address (RVA 0x8918b0). The
+  code: `self->m_CachedPtr` (`[rcx+0x10]`), null -> NullReferenceException,
+  else a virtual call (`[vtable+0xe0]`) with the bool. `rdx` = 1: the value
+  set was `true`.
+- **Not a destroyed object.** Destroying clears `m_CachedPtr` (an exception,
+  no crash). Here it held `0x500011eb4` - not 8-aligned, not a native
+  pointer: the managed wrapper's memory held something else (a wrapper
+  freed and reused, or a slot pointing at another object).
+- **The frames** (rbp chain, see the gotcha): `DelayedCallManager` ->
+  `MonoBehaviour::Start` -> `InvokeMethodOrCoroutineChecked` -> mono's
+  runtime invoke -> a shared `void ()` invoke wrapper (old JIT code at
+  0x6e7f440) -> C at 0x13fb32c60 (the method pointer handed to the invoke;
+  new code beside B's, so JIT-compiled during this load)
+  -> at C+0x8a, B (also new code) -> a managed-to-native wrapper (old code,
+  its LMF holds r12-r15) -> the icall. Stale above it: `Transform::GetPosition`
+  (a `transform.position` just before).
+- **Whose Start: `LOD_SimpleToggle` on `CaveWoodplanks/woodplanksSolid/Plank2`.**
+  C's and B's frames hold the Vector3 (-450.65207, -16.603535, 664.35791);
+  live (bridge `find` / `get`), Plank2's `Transform.position` is
+  (-450.6521, -16.6035, 664.3579) - to 4 decimals. Plank2 carries
+  `MeshRenderer`, `BoxCollider` x2, `BreakWoodSimple` and `LOD_SimpleToggle`
+  (`Renderers` = its own MeshRenderer + `fracture2_Plank_2_Chunk_3` +
+  `Plank_2_Chunk_1_fracture2`, `Components` empty). `LOD_SimpleToggle.Start`
+  (IL): `position = transform.position; ThreadedRefresh();
+  RefreshVisibility(force: true)`; `RefreshVisibility` reads
+  `transform.position` again and sets `Renderers[i].enabled = nextVisibility`
+  for each not `IsNull()` (`== null`). `nextVisibility` starts `true` and
+  `ThreadedRefresh` only changes it once `LocalPlayer.Transform` is set -
+  not yet in that frame, so `true`, as the dump says. `ThreadedRefresh` also
+  runs on WorkScheduler's worker thread (`IThreadSafeTask`, registered in
+  `OnEnable`).
+- **No plugin code on that path.** Nothing in the plugin names
+  `LOD_SimpleToggle`, the planks or `Renderer.enabled` on game objects at a
+  load; no patch site in `src/Game` (92 patched methods live, bridge
+  `Harmony.GetAllPatchedMethods`) is on it. What the plugin runs in a load
+  frame: its `sceneLoaded` handlers, its own `Update`, and the postfixes
+  the load hits (AstarPath awake, the FocusLostAudio copy removal).
+- **Not reproduced:** 26 more game restarts + Slot 1 loads from the title
+  (the same journey, v0.24.251, 2026-10-07 evening): no crash. A wrapper
+  whose memory is reused is a managed-heap fault (the GC freeing what a
+  serialized array still holds, or a write into freed memory); safe code
+  cannot cause it, so the suspects are the runtime (Boehm + async scene
+  loading) or anything in the process that writes raw memory - which the
+  dump cannot tell apart.
+- **A second signature, not this one** (`2026-10-04_083030`,
+  `2026-10-05_120832`): the render thread (`GfxDeviceWorker::RunCommand` ->
+  `UploadTextureSubData2D` -> `TexturesD3D11Base::UploadTexture2D`) reads
+  `0xec` in `d3d11.dll+0x152a5a` - a texture upload (`Texture2D.Apply`) to a
+  null D3D resource; the main thread waits in `GfxDeviceClient::BeginFrame`.
+
 ## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
 
 - A* Pathfinding Project 3.8.4 (`AstarPath.Version`, branch
