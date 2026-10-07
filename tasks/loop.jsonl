@@ -1,0 +1,2 @@
+{"at": "2026-10-07T15:21:47", "event": "begin", "run": "R-0001", "max_rounds": 5, "bridge": false, "by": "main"}
+{"at": "2026-10-07T15:21:47", "event": "round", "run": "R-0001", "round": 1, "task": "T-0026", "reviews_before": 0}

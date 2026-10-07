@@ -199,7 +199,7 @@ Sorted by area. The QA message id is in brackets.
 **Plugin:**
 - Turning run lines off stops them but leaves the drawn line on screen [1556808081755603048] - **fixed on main, not released** (`Game/LatePass` drew every drawer once any wanted the pass; now each drawer's own `WantsLateDraw`). Ships with the next release; check in game with run lines off + a marker / replay up.
 - Trajectory preview is slightly off where a jump just clips an edge (labskip, the finest cuts) [1556843287539875921]; no use for bomb boosts, done backwards - needs a plan [1556843375947284571].
-- Two report zips from the author, 2026-10-06 01:57 and 02:36 (12.8 / 13.5 MB) [1556842694758760559] - not downloaded yet; read them first in the next plugin session.
+- Two report zips from the author, 2026-10-06 01:57 and 02:36 [1556842694758760559] - read 2026-10-07 (T-0026): findings filed as T-0148..T-0153.
 
 **Website:** community sum of best for categories / official runs, or any spot with segments [1556796583406862417].
 
