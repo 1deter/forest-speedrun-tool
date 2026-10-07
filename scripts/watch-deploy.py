@@ -31,7 +31,7 @@ TARGETS = {
         "container": "forest-site",
         "workflow": "site",
         "paths": ["site", "community", "src/Data", "tests/ForestOverlay.Tests/UnityShim.cs",
-                  ".github/workflows/site.yml"],
+                  "scripts/site-smoke.py", "scripts/tests/test_site_smoke.py", ".github/workflows/site.yml"],
         "live": S.SITE + "api/spots",
     },
     "bot": {

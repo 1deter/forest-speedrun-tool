@@ -13,9 +13,10 @@ on:
       - 'src/Data/**'
       - 'tests/ForestOverlay.Tests/UnityShim.cs'
       - 'scripts/site-smoke.py'
+      - 'scripts/tests/test_site_smoke.py'
       - '.github/workflows/site.yml'
   pull_request:
-    paths: ['site/**', 'scripts/site-smoke.py']
+    paths: ['site/**', 'scripts/site-smoke.py', 'scripts/tests/test_site_smoke.py']
   workflow_dispatch:
 
 # The job only reads the repo; the deploy goes over SSH with its own key.
