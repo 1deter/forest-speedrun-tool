@@ -576,3 +576,96 @@ must:
 - the knockback pushes 8 m/s backwards once per rendered frame (a coroutine)
 - the pause menu stops physics / game time but the loop keeps running, so the pushes pile up
 - the knockback disables the character controller, so the 55 m/s cap does not apply
+
+### who-is-itsslack
+question: who is itsslack?
+cards: top-runners
+must:
+- a runner on the speedrun.com boards (itsSlack): 2nd in Any% Glitchless Peaceful (19:25.166) and Hardmode (19:30.483)
+- 2 top-3 solo places
+not:
+- says the knowledge base has no record of him
+
+### who-holds-neg-creative
+question: who holds the Any% No Explosive Glitch Creative record?
+cards: top-runners
+must:
+- yirequ, 5:48.433
+- sxczurass is 2nd (5:50.050), Cheesecake404 3rd
+not:
+- credits sxczurass with the 5:48 record
+
+### most-world-records
+question: who has the most world records in the forest?
+cards: top-runners
+must:
+- counted by first places: Cheesecake404 and yirequ have 5 solo boards each, sxczurass 4
+- yirequ is on the first-place team of all 8 co-op boards
+- the 14 / 8 / 5 figures are top-3 places, not records
+not:
+- ranks by top-3 places and calls that the world-record count
+
+### yirequ-records
+question: what world records does yirequ hold?
+cards: top-runners
+must:
+- solo: Any% Glitchless on all four difficulties (Normal 18:54.266) and No Explosive Glitch Creative (5:48.433)
+- co-op: part of the first-place team on all 8 co-op Any% and Glitchless boards (e.g. Normal Any% 5:45.083 with sxczurass)
+not:
+- says the co-op records are not in the knowledge base
+
+### neg-normal-vs-creative
+question: why is any% no explosive glitch normal faster than creative?
+cards: top-runners, routes
+must:
+- the boards: Normal 5:11.633 (sxczurass) vs Creative 5:48.433 (yirequ), about 37 s apart
+- the reason is not documented; runners' chat names a lab skip, a soda box and the hanging-cutscene skip, labelled as runner reports
+not:
+- states reasons as fact (blueprint delays, Creative physics, one board being less competitive)
+- says Creative is faster
+
+### hanging-skip
+question: do you know the first solo death animation skip, where you pre-grab the plane axe and cut earlier into the hanging animation?
+cards: deaths-and-revives
+must:
+- says the skip is not researched / not in the knowledge base yet
+not:
+- explains how the skip works as if it were known
+then: here is a video of it, please learn from the forest discords
+must:
+- does not claim it will queue, learn or note anything; says the way to flag a gap is a thumbs-down with a comment
+
+### bot-learns
+question: can you learn from the forest speedrun discords and remember this?
+cards: (none)
+must:
+- no - it cannot read Discord history or change its own knowledge from chat
+- corrections reach the author through a thumbs-down with a comment
+not:
+- says it added something to a queue or will remember it
+
+### bot-self
+question: are you running offline? how much quota do you have left on your model?
+cards: forestoverlay
+max-length: 600
+must:
+- has no access to usage or quota numbers
+not:
+- says it is an offline or local bot
+
+### redman-locations
+question: where can you see the red man in the game?
+cards: (none; decompiled redmanSpawner)
+must:
+- searches the game's code rather than answering from the speedrun cards
+- spawn spots: the yacht (player 150-390 m away), cliffs (110-160 m), two caves (cave 1 80-100 m, cave 2 100-160 m), each needing you to look towards it (within 60 degrees)
+not:
+- says the red man is not documented anywhere
+
+### glitchless-items
+question: what items do I need to collect for a glitchless normal any% run?
+cards: routes
+must:
+- the vault keycard 210 from Cave 6, and the rebreather (no tank) from Cave 5
+- 5 stamina mixes (coneflower + chicory) and a spear (two sticks), crafted in Cave 6
+- sodas: 3 on the way from Cave 6, a box of 4 near the vault door, 7 bought at the soda machine for 100 coins each
