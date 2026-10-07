@@ -1,6 +1,6 @@
 # Gotchas learned the hard way
 
-The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are stable - commits and docs cite them ("gotcha 25").
+The full story behind each lesson; the one-line index is split by area (`docs/areas/*.md` *Gotchas*). Numbers are stable - commits and docs cite them ("gotcha 25").
 
 
 1. **The game re-asserts state every frame — use its flags, don't fight it.**

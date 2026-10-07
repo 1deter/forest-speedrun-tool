@@ -7,7 +7,7 @@ effort: high
 
 You research and fix something in ForestOverlay (BepInEx plugin for The Forest) that depends on the game's internals.
 
-Read: CLAUDE.md *Rules for modules* and the gotchas whose one-liners touch your area (open their full entries in docs/gotchas.md), the doc for your area (docs/savestates.md, docs/game-notes.md, docs/run-mode.md, ...), and docs/bridge.md only if you drive the game. Decompiled game source: %LOCALAPPDATA%\ForestOverlay\game-src\; IL queries: tools/ILScan.
+Read: `src/CLAUDE.md` (the module rules; loads by itself under src/), the gotcha index in docs/areas/plugin.md for your group (Game and engine / Restores / Performance / UI / Run mode; open their full entries in docs/gotchas.md), the doc for your area (docs/savestates.md, docs/game-notes.md, docs/run-mode.md, ...), and docs/bridge.md only if you drive the game. Decompiled game source: %LOCALAPPDATA%\ForestOverlay\game-src\; IL queries: tools/ILScan.
 
 Method:
 - A theory from IL alone is a guess (gotcha 25): prove it live over the bridge (`forest` MCP tools; ToolSearch "+forest") with set / call / get / shot before building on it. The game runs the released DLL - never deploy by hand; test the mechanism with bridge calls, not your new code.

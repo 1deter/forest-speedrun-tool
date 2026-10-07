@@ -2,8 +2,8 @@
 
 The author's ideas from the session that built banned-move detection
 (v0.24.227-229). Parts are built since - each section's *Built*
-paragraph says what; the rest sit after the current *Next* list
-(CLAUDE.md) unless the author moves them up.
+paragraph says what; the rest sit after the open tasks
+(`scripts/tasks.py`) unless the author moves them up.
 Each idea comes with what the plugin already records, so the first
 session on it starts from facts.
 

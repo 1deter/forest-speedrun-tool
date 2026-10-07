@@ -1,94 +1,11 @@
-# forest.deter.cloud - brief for the website session
+# forest.deter.cloud - reference
 
-Next up 10, started next (author, 2026-09-27: "get everything done and
-start working on the site - i'm pretty excited to see what can be done").
-Built by Claude (author, 2026-09-25: "do whatever's easiest"). This file is
-the starting point; decisions made while building go here too.
-
-## What it is for
-
-- **Shared runs and a web viewer** (runner request): everyone's runs of a
-  spot against yours, in the style of Momentum Mod - lines, ghosts, splits.
-- **Leaderboards are comparative, not competitive** (CLAUDE.md
-  *Conventions*): lines and ghosts, no verified ranking, so no anti-cheat.
-  Deleting a run and flagging a time faster than the golds is enough.
-- Later: 3D terrain from the heightmap, caves (need a geometry dump), a
-  scrub bar, annotations.
-
-## Decided with the author (2026-09-25 / 27)
-
-- **Spots stay curated in the repo, runs go to the site.** Community
-  spots (`community/*.foseg` + `index.txt`) are approved by the author for
-  now; later runner-managed and hands-off. The site should be able to
-  take a *spot submission* (a `.foseg`) for the author to approve, since
-  runners will not open pull requests.
-- **Run uploads:** off until the site is live, then **automatic** (author:
-  "once the site is live i don't see a reason not to submit the runs
-  automatically"). The plugin then fetches each runner's PB for the
-  current spot as split comparisons (the plugin side: attempts from other
-  runners kept apart from the runner's own, per-runner PB - not built yet;
-  `SplitTable` takes any `float[]` comparison already).
-- **Identity:** runners are keyed on `RunnerId`, shown by their newest
-  `RunnerName`. The id is `r-` + 16 hex digits of SHA-256 over
-  `forestoverlay-runner|steam:<steamid64>` (`Game/RunnerIdentity`) - a
-  plain Steam id would link to the profile from public files. A rename
-  must never split one runner in two: show the name from their newest run.
-  Non-Steam copies carry a random `r-` id from the config.
-- **Only the same route compares:** key runs on segment id + route
-  fingerprint (`Segment.RouteFingerprint`). A spot edited after publishing
-  gets a new fingerprint; old runs show under "older version", never mixed.
-- The site can serve the community index as a second URL
-  (`Community.Url` in the plugin config, `Modules/CommunityModule`).
-
-## The formats (all text, all already written by the plugin)
-
-- **`.foseg`** - one segment: `Data/SegmentBundle` (header, `[segment]`,
-  optional `[startstate]`, `[attempt]` sections). Tested round trip.
-- **`[segment]` block** - `Data/SegmentFormat`: id, name, category, spawn,
-  start / check / end triggers (`Data/Segments.cs`, `TriggerParser`),
-  `split = <name>` after a check / end line (v0.24.146), restore,
-  startstate hash, notes.
-- **`.run` (an attempt)** - `Data/AttemptFormat` (pure, tested): `anchor`,
-  `recorded`, `duration`, `route`, `splits|t1|t2...` (checkpoint times,
-  cumulative, ms; the end is `duration`), `runner|<id>|<name>`,
-  `channels|...`, `s|t|x|y|z|speed` (30 Hz path), `v|t|...` (5 Hz state).
-  Files before v0.24.146 have no `splits` / `runner` lines.
-- **Splits maths** - `Data/SplitTable` (PB, golds, sum of best, average,
-  deltas, LiveSplit colours). The site should reproduce the same numbers;
-  porting this file (or its tests) keeps both sides honest.
-- Coordinates are Unity world metres (y up); the surface map spans about
-  -1750..1750 on x / z; caves are below the terrain (y < 0 in places).
-
-## Decided at the start of the build (2026-09-27)
-
-- **Hosting (author):** the author's Oracle free-tier VPS (aarch64, Ubuntu
-  minimal), Cloudflare in front (SSL Full), Caddy in Docker (`~/website`,
-  network `caddy-navidrome`) as for deter.cloud and music.deter.cloud.
-- **Stack (Claude, author: "up to you"):** ASP.NET Core (.NET 10) + SQLite
-  + plain HTML / JS, one process, in the stock `aspnet:10.0` container on
-  Caddy's network (`reverse_proxy forest-site:8080`, no host port). The
-  server **links the plugin's own pure files** (`AttemptFormat`,
-  `SplitTable`, `SegmentFormat`, `SegmentBundle`, with the tests' Unity
-  shim) - one parser and one splits maths for game and site.
-- **Repo (author: `site/` is fine):** `site/` in this repo.
-- **Deploys (author asked for automatic):** `.github/workflows/site.yml` -
-  test, publish linux-arm64, tarball over SSH to `site/deploy/deploy.sh`
-  (a forced command: the key can run nothing else), container restart,
-  live check. One-time setup: `site/deploy/README.md`.
-- **Uploads:** a token per install (`POST /api/register`, first
-  registration owns the runner id; the author can reset a token). Rate
-  limits per IP (`CF-Connecting-IP`) and token, 4 MB bodies. A time under
-  0.8 x the route's best (3+ runs) is flagged "under review".
-- **First version (author agreed):** browse spots, upload / view runs per
-  spot and route, per-runner best with splits, a 2D map with a scrub bar.
-  3D terrain after.
-- **Look (author):** minimalist, intuitive, The Forest's loading screen:
-  its progress bar's yellow `rgb(229, 197, 1)` on black, `#222` backing,
-  Montserrat (read from `HUD_Ngui/LoadCam` over the bridge). The logo's
-  yellow is the same (229, 197, 0, from the author's cover art); its look
-  is echoed with Anton (heavy condensed, uppercase) for the wordmark and
-  titles - **not the logo image itself**, plus a "not affiliated with
-  Endnight" footer (Claude's advice, 2026-09-27).
+The site's reference detail, by feature. **Start at
+[`docs/areas/site.md`](areas/site.md)** (what it is for, commands, the
+formats, local work, which section here to read); the rules are in
+[`site/CLAUDE.md`](../site/CLAUDE.md), the decisions in
+[`docs/decisions.md`](decisions.md) *Site*. Decisions made while building
+go to decisions.md; feature detail goes here.
 
 ## What is built (2026-09-27, live at https://forest.deter.cloud)
 
@@ -139,28 +56,6 @@ the starting point; decisions made while building go here too.
   (shown once, only its hash kept - `admins`), and revokes it. Admins can
   do everything except manage admins. Locally the `forest-site` preview's
   owner token is `local-admin`.
-
-**The local preview versions its assets at startup** (`app.js?v=<hash>`,
-computed once): after editing `wwwroot`, restart the `forest-site`
-preview or the page keeps the old script and CSS (a deploy restarts, so
-live is fine). Test runs for the local site: post a `.foseg` with a
-registered local runner (`/api/register`, then `/api/runs` with the
-token); an attempt's `runner|` line must be that runner's, or it is
-refused as "another runner's attempt".
-
-**Testing the plugin against a local site** (preview `forest-site`,
-`http://localhost:5080`, owner token `local-admin` from
-`.claude/launch.json`): `set ..._modules[16]._url.Value
-http://localhost:5080`, and back to `https://forest.deter.cloud` after.
-The author's config holds a **live token** now: leave it in place (the
-local site answers 401 - enough to test a request path; a session may
-not copy the token aside) or, to test a full registration locally, clear
-it and have the author **Reset token** for their runner on the live
-`/admin` afterwards, so the plugin registers again live. A local test
-that sets `_tokenBad` (401) needs `set ..._modules[16]._tokenBad false`.
-Pressing Submit over the bridge: `call ..._modules[9].SubmitSelected`
-(after `QuickSaveSpot`, which selects the new spot; remove it after per
-*Removing test spots*).
 
 The plugin side is done (v0.24.153-154, `Modules/RunUploadModule`):
 each finished timed run is queued on disk and uploaded, on by default;
@@ -926,7 +821,7 @@ restart it after editing a wwwroot file, or the page keeps the old one.
    caves / endgame sections / overlook (not in the terrain - a mesh dump),
    which plane a save has. **Photo map** (v0.24.164-169, `Game/AerialCapture`
    -> `scripts/aerial-bake.py` -> `scripts/aerial-upload.py` -> the map's
-   Photo / Ground layers): state and next steps in CLAUDE.md *Pick up here*.
+   Photo / Ground layers): see *The photo map* below.
    (The plane line is done too, v0.24.163.) Originally: Known (bridge, 2026-09-27, Slot 2): one
    terrain, `Terrain.activeTerrain` = `MainTerrain`,
    `terrainData.size` (3500, 250, 3500), at (-1750, 0, -1742.63) - so it

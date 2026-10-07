@@ -1,6 +1,6 @@
 # Savestates - how they work
 
-The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). IL and game internals are in game-notes *Saving and loading*.
+The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-26). IL and game internals are in game-notes *Saving and loading*.
 
 - **Savestates** (no tab: Practice start states + the bridge; practice-only; game-notes *Saving and
   loading* has the IL). The game's own level serialization
@@ -152,7 +152,7 @@ expected - the same list now filled first).
 
 ## Reload the save in place on death (2026-10-04, unreleased)
 
-The author's idea (CLAUDE.md *Next up* 3). Deaths tab, under the reload:
+The author's idea (the author's old *Next up* list, item 3). Deaths tab, under the reload:
 **Reload the save: with a load (as the game does) / in place (fast)** -
 `[Deaths] ReloadInPlace`, **off by default** (the game's own load stays
 the default: true to the game, and the only one run mode uses). A *Quick

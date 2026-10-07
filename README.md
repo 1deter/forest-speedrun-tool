@@ -155,7 +155,7 @@ assume any of it is permitted in submitted runs until they have.
 
 ## Development
 
-[`CLAUDE.md`](CLAUDE.md) — architecture, conventions and the current task list.
+[`CLAUDE.md`](CLAUDE.md) — the agents' router: hard rules, commands, layout and a map of `docs/` (area docs in `docs/areas/`, decisions in `docs/decisions.md`, open work in `docs/tasks.md`).
 [`docs/game-notes.md`](docs/game-notes.md) — confirmed game internals.
 
 `tools/ILScan` is an offline IL query tool over the game assembly; it answers

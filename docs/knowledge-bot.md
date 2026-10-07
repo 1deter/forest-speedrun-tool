@@ -5,37 +5,10 @@ A learning tool for the wider runner community: a runner asks
 work, and what is the optimal version?" and gets a thorough, sourced
 answer, then asks follow-ups by replying to it.
 
-## Decisions (author, 2026-10-03)
+## Decisions
 
-- **Audience: the wider runner community**, not only the QA team -
-  "understand complex mechanics exhaustively like bomb boosts, axe
-  clips, and their deep technical reasoning and why they work and what
-  an optimal version of this tech would look like". **Answers of the
-  highest quality, so a runner ends with full understanding.**
-- **Follow-up questions about previous answers** (author): a runner
-  replies to an answer and the bot carries on the conversation.
-- **A regular bot** (author: "i would really just prefer a regular bot"):
-  a gateway bot, not an interactions-only endpoint. **No public knowledge
-  pages on forest.deter.cloud** - "people won't really be using the site
-  all that much as the discord". Feedback lives on the bot's answers.
-  No `/about` command.
-- **Runtime on the Gemini API free tier** - operational cost ~0. The
-  author's two Claude Pro plans (our sessions) build the knowledge base
-  and the tools.
-- **A new Discord application** for it (not the QA bot's).
-- **The Gemini API key**: the author creates it (Google AI Studio) when
-  the bot is built; store it as a User environment variable like the
-  others, never printed.
-- **Retrieval is local; the model only writes** (author asked "is there a
-  better free model?", 2026-10-03; Claude's call, agreed): search runs on
-  the VPS (SQLite FTS5 + the bge-small embedding model through ONNX) - free,
-  private, no quota. The writer: **Gemini Flash first, Mistral's free
-  "Experiment" tier as the fallback** (any OpenAI-compatible provider is a
-  config line); the test questions decide the order with scores.
-- **The game's code, decompiled to C#, is kept privately on the server
-  and quoted freely in answers** (author: "i'm not distributing it, i'm
-  simply describing its functionality ... you don't need to limit how
-  much you quote"). It is never served as files or made downloadable.
+In [`docs/decisions.md`](decisions.md) *Knowledge bot*. The bot area
+(commands, the queue, gotchas): [`docs/areas/bot.md`](areas/bot.md).
 
 ## Design (agreed 2026-10-03)
 

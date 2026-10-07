@@ -152,7 +152,7 @@ unattended loop (12) only ever takes tasks with no open question.
 |---|---|---|---|---|
 | 1 | Closed-loop systems | Strong | Strong+ | The loop closes per task. Nothing loops *across* tasks unattended |
 | 2 | Repository as system of record | Strong | Strong | Work state is prose spread over 5 files; see 6 |
-| 3 | Modular instructions | **Weak** (was Partial) | Strong | `CLAUDE.md` is 1,061 lines, 5-20x the course's 50-200 (L4), loaded every turn by every agent |
+| 3 | Modular instructions | Good (was Weak; T-0003) | Strong | Router 179 lines + area docs + folder `CLAUDE.md` files; procedures still prose (3e, T-0004) |
 | 4 | Initialisation phase | Partial | Strong | The session-start ritual is prose, not a script, and runs no baseline check (L6) |
 | 5 | Behavioural constraints | Strong | Strong+ | Rules are prose only; few are checked by a machine |
 | 6 | Feature lists as primitives | Weak | Strong | There is no structured task list with status and checks |
@@ -679,3 +679,15 @@ Asked after the deeper pass; each replaces an "open question" above.
   use (session scratchpads, site-look-shots, .claude/shots older than 7
   days, __pycache__; site/aerial-out kept). First cleanup: 1 local + 4
   origin branches, 85 empty scratch folders. Next: step 3 (T-0003).
+- 2026-10-07: roadmap step 3 built (T-0003): `CLAUDE.md` 887 -> 179
+  lines, a router with 15 hard rules (source + when removable) and a doc
+  map; `docs/decisions.md`; `docs/areas/` plugin, plugin-concepts, site,
+  bot, release, workflow (each with its gotcha index); folder `CLAUDE.md`
+  in `src/`, `tests/`, `site/`, `bot/`; website.md / knowledge-bot.md
+  decision sections moved to decisions.md; agent briefs point at their
+  area. Author's calls: new area docs per 3a (not the old docs), restore
+  gotchas in plugin.md (savestates.md is bot-indexed), the "Recent
+  releases" list and test counts dropped. Checked by a coverage script
+  (every old unit in one file) and a fresh Sonnet checker (5 questions +
+  4 lookups in one hop; its faults fixed: moved links, the gotcha index
+  map, rule 10's e2e wording). Next: step 3e (T-0004, skills).

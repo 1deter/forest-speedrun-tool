@@ -2,8 +2,8 @@
 
 **Open items are tasks since 2026-10-07** (`python scripts/tasks.py list --open`); this file keeps the detail (what was ruled out, test assets), and each task's `notes` points to its section here.
 
-Detail for threads that run across sessions. CLAUDE.md *Pick up here*
-names them in one line each and links here; read the section before
+Detail for threads that run across sessions. Each task's `notes`
+names its section here; read the section before
 working on it. When one finishes: a line in `docs/confirmed.md` (or the
 fix's commit / CHANGELOG), and delete it here.
 
@@ -234,7 +234,7 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   `physA`, `elevPre`, `elevMid`, `rope104`, `axe-held` / `axe-lighter`
   (Slot 2), `maks-boost`, Tom's `tom-c6boss`, `tom-c6`, `tom-c6exit`,
   `tom-bigjump`, `tom-megan` (Normal).
-- **Test spots to remove** (CLAUDE.md *Removing test spots*):
+- **Test spots to remove** (docs/bridge.md *Test spots*):
   `s-splitstest01` ("Splits test"; backup before it
   `%TEMP%/my-segments.before-splits-test.txt`), and once Tom answers
   `s-191b90c5ab6f` (Cave 6) / `s-afcb5c720847` (Megan) with their

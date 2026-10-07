@@ -5,7 +5,7 @@ aliases: splits, autosplitter, auto splitter, asl, livesplit, split timing, when
 tags: timing, endgame, splits, tool
 confidence: live
 checked: 2026-10-03
-sources: game-notes "Endgame splits - the separate triggers", "The autosplitter's other splits"; the LiveSplit ASL (1deter/auto-splitters); CLAUDE.md "Key concepts" (Endgame events)
+sources: game-notes "Endgame splits - the separate triggers", "The autosplitter's other splits"; the LiveSplit ASL (1deter/auto-splitters); docs/areas/plugin-concepts.md "Endgame events"
 related: endgame-gate, elevator-skip, forestoverlay
 code: playerAnimatorControl.endGameCutScene, playerOpenKeypadDoorAction.openDoorRoutine, PlayerPickupTimmyAction.pickupTimmyRoutine, PlayerGirlTransformAction.doGirlTransformRoutine, PlayerGirlPickupAction.girlToMachineRoutine, PlayerEndCrashAction.doEndPlaneCrashRoutine, LocalPlayer.ActiveAreaInfo
 ---

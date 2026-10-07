@@ -5,7 +5,7 @@ aliases: forestoverlay, forest overlay, the tool, the mod, the plugin, overlay, 
 tags: tool
 confidence: live
 checked: 2026-10-03
-sources: CLAUDE.md "UI", "Key concepts", "Run mode"; docs/run-mode.md; docs/savestates.md; CHANGELOG.md
+sources: docs/areas/plugin.md "UI"; docs/areas/plugin-concepts.md; docs/decisions.md "Run mode"; docs/run-mode.md; docs/savestates.md; CHANGELOG.md
 related: endgame-splits, deaths-and-revives, saves-and-loading
 code:
 ---
