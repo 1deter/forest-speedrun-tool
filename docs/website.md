@@ -35,6 +35,16 @@ go to decisions.md; feature detail goes here.
   `runners/{id}/ban|unban|reset-token`, `DELETE spots/{id}`, `log`, and
   the owner's `admins` (GET / POST a name -> `{token}` / `DELETE {id}`).
   Every non-GET admin call is logged (`admin_log`) by the auth filter.
+- **Bot settings** (T-0028, `BotSettings.cs`; design docs/knowledge-bot.md
+  *Bot settings page*): the owner's **Bot** tab on /admin (`GET / PUT
+  /api/admin/bot`, owner only, validated, one JSON in `bot_settings`, a
+  revision per save). The bot has its own token (`FOREST_BOT_TOKEN`, header
+  `X-Bot-Token`, unset = 403): `GET /api/bot/settings` -> `{rev, settings}`
+  (`channels`, `dms`, `perHour`, `perDay`, `models`, `thinking`,
+  `queueChannel`; a missing field = the bot's .env default) and `POST
+  /api/bot/report` `{version, rev, channels:[{id,name,guild}]}` (the page
+  lists channels by name and shows "applied rev N"). No secrets pass through.
+  **Bot side not built** (poller + `BotConfig` live reload, bot/).
 - **Clean paths** (author, 2026-09-27: the `#/` "doesn't look clean"):
   `/spot/<id>[/<route>]`, `/about`, `/admin[/<tab>]` - the server answers
   each with the page (mapped by name: the fallback skips paths with a

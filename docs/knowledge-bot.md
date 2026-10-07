@@ -133,7 +133,12 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
 
-## Bot settings page on /admin (planned, author 2026-10-05: "sure")
+## Bot settings page on /admin (site half built, T-0028; bot poller not yet)
+
+Site side done: docs/website.md *What is built* (*Bot settings*). Left, in
+bot/: poll `GET /api/bot/settings` (`X-Bot-Token`, about a minute, cache the
+last good one in the data dir), apply live, `POST /api/bot/report` with its
+version, applied `rev` and the channels it sees.
 
 Asked for so channels / limits change without editing `/opt/forest-bot/.env`
 and recreating the container. Until it exists: edit `.env`

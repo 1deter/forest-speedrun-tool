@@ -598,7 +598,7 @@ function botView(data) {
     catch (e) { save.say("Not saved: " + e.message); }
   } }, "Save"));
 
-  const field = (name, input, note) => el("div", { class: "field" }, el("label", null, name), input, note ? el("p", { class: "sub" }, note) : null);
+  const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
 
   let status;
   if (!data.botToken) status = "The site has no FOREST_BOT_TOKEN, so the bot cannot read these settings (set it in /opt/forest-site/.env and the bot's .env, then restart both).";
@@ -610,6 +610,7 @@ function botView(data) {
     el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
       "A field left empty uses the bot's .env value."),
     el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
+    el("div", { class: "catform" },
     el("h3", null, "Channels it answers in"),
     boxes.length ? el("div", null, boxes) : el("p", { class: "sub" }, "The bot has not listed its channels yet. None ticked = the .env channels (or all)."),
     el("label", { class: "check" }, dms, " Answer direct messages"),
@@ -618,7 +619,7 @@ function botView(data) {
     field("Model order", models, "First is preferred; the next answers when it fails."),
     field("Thinking level", thinking),
     field("Research-queue channel", queue),
-    save.box);
+    save.box));
 }
 
 // --- runners -------------------------------------------------------------------------
