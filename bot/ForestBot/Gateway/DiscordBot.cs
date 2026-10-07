@@ -24,11 +24,22 @@ public sealed class DiscordBot
     private readonly Action<string> _log;
     private readonly DiscordSocketClient _client;
 
+    private readonly SiteSettings _site;
+
     public DiscordBot(Brain brain, Action<string> log)
     {
         _brain = brain;
         _cfg = brain.Config;
         _log = log;
+        // Live settings from the site (FOREST_BOT_TOKEN set): the cached last good ones apply now.
+        _site = SiteSettings.FromConfig(_cfg, new HttpClient { Timeout = TimeSpan.FromSeconds(20) },
+            typeof(DiscordBot).Assembly.GetName().Version + " / kb " + brain.Corpus.Version, log);
+        if (_site != null)
+        {
+            _site.Applied = _brain.ReloadModels;
+            if (_site.LoadCached()) { _log("Site settings: cached revision " + _site.Rev + " applied"); }
+            else _log("Site settings: no cache - .env values until the site answers");
+        }
         _client = new DiscordSocketClient(new DiscordSocketConfig
         {
             GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMessages | GatewayIntents.MessageContent | GatewayIntents.DirectMessages,
@@ -46,10 +57,16 @@ public sealed class DiscordBot
     {
         await _client.LoginAsync(TokenType.Bot, _cfg.DiscordToken);
         await _client.StartAsync();
+        if (_site != null) _ = Task.Run(() => _site.RunAsync(SeenChannels, ct));
         try { await Task.Delay(Timeout.Infinite, ct); }
         catch (TaskCanceledException) { }
         await _client.StopAsync();
     }
+
+    /// The text channels the bot can see, for the site's Bot tab (empty until connected).
+    private IReadOnlyList<SeenChannel> SeenChannels() =>
+        _client.ConnectionState != ConnectionState.Connected ? new List<SeenChannel>()
+            : _client.Guilds.SelectMany(g => g.TextChannels.Select(c => new SeenChannel(c.Id, c.Name, g.Name))).ToList();
 
     private async Task OnReady()
     {

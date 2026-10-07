@@ -62,6 +62,16 @@ public sealed class ModelChain
         return new ModelChain(models, log);
     }
 
+    /// Swaps the models in place (live settings: a new order). Resting times are kept by name.
+    public void Replace(IEnumerable<IChatModel> models)
+    {
+        lock (_lock)
+        {
+            _models.Clear();
+            _models.AddRange(models);
+        }
+    }
+
     /// The first model not resting, or null.
     public IChatModel Pick(IChatModel preferred = null)
     {
