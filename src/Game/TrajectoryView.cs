@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using System;
 using System.Reflection;
 using BepInEx.Logging;
@@ -120,9 +121,13 @@ namespace ForestOverlay.Game
 
         private void Update()
         {
-            if (!Show) return;
-            float dt = Time.unscaledDeltaTime;
-            if (dt > 0f) _fps += (1f / dt - _fps) * 0.1f;
+            try
+            {
+                if (!Show) return;
+                float dt = Time.unscaledDeltaTime;
+                if (dt > 0f) _fps += (1f / dt - _fps) * 0.1f;
+            }
+            catch (Exception ex) { Lifecycle.Fail("TrajectoryView.Update", ex); }
         }
 
         /// From the module's Tick, every frame; works on its own throttle.
@@ -399,49 +404,57 @@ namespace ForestOverlay.Game
 
         private void OnRenderObject()
         {
-            if (!Show || _count < 2 || !DrawTarget.ShouldDraw()) return;
-            if (_material == null)
+            try
             {
-                Shader shader = Shader.Find("Hidden/Internal-Colored");
-                if (shader == null) return;
-                _material = new Material(shader);
-                _material.hideFlags = HideFlags.HideAndDontSave;
-                _material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-                _material.SetInt("_ZWrite", 0);
-                _material.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
-            }
+                if (!Show || _count < 2 || !DrawTarget.ShouldDraw()) return;
+                if (_material == null)
+                {
+                    Shader shader = Shader.Find("Hidden/Internal-Colored");
+                    if (shader == null) return;
+                    _material = new Material(shader);
+                    _material.hideFlags = HideFlags.HideAndDontSave;
+                    _material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    _material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    _material.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                    _material.SetInt("_ZWrite", 0);
+                    _material.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                }
 
-            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-            _material.SetPass(0);
-            GL.PushMatrix();
-            GL.Begin(GL.LINES);
-            GL.Color(_lineColour);
-            for (int i = 1; i < _count; i++)
-            {
-                GL.Vertex(_points[i - 1]);
-                GL.Vertex(_points[i]);
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                _material.SetPass(0);
+                GL.PushMatrix();
+                GL.Begin(GL.LINES);
+                GL.Color(_lineColour);
+                for (int i = 1; i < _count; i++)
+                {
+                    GL.Vertex(_points[i - 1]);
+                    GL.Vertex(_points[i]);
+                }
+                int verts = 2 * (_count - 1);
+                if (_hasHit)
+                {
+                    Vector3 p = _hitPoint;
+                    const float h = 0.8f;
+                    GL.Color(_hitColour);
+                    GL.Vertex(p); GL.Vertex(new Vector3(p.x, p.y + 4f, p.z));
+                    GL.Vertex(new Vector3(p.x - h, p.y, p.z)); GL.Vertex(new Vector3(p.x + h, p.y, p.z));
+                    GL.Vertex(new Vector3(p.x, p.y, p.z - h)); GL.Vertex(new Vector3(p.x, p.y, p.z + h));
+                    verts += 6;
+                }
+                GL.End();
+                GL.PopMatrix();
+                DrawTarget.Record(t0, verts);
             }
-            int verts = 2 * (_count - 1);
-            if (_hasHit)
-            {
-                Vector3 p = _hitPoint;
-                const float h = 0.8f;
-                GL.Color(_hitColour);
-                GL.Vertex(p); GL.Vertex(new Vector3(p.x, p.y + 4f, p.z));
-                GL.Vertex(new Vector3(p.x - h, p.y, p.z)); GL.Vertex(new Vector3(p.x + h, p.y, p.z));
-                GL.Vertex(new Vector3(p.x, p.y, p.z - h)); GL.Vertex(new Vector3(p.x, p.y, p.z + h));
-                verts += 6;
-            }
-            GL.End();
-            GL.PopMatrix();
-            DrawTarget.Record(t0, verts);
+            catch (Exception ex) { Lifecycle.Fail("TrajectoryView.OnRenderObject", ex); }
         }
 
         private void OnDestroy()
         {
-            if (_material != null) Destroy(_material);
+            try
+            {
+                if (_material != null) Destroy(_material);
+            }
+            catch (Exception ex) { Lifecycle.Fail("TrajectoryView.OnDestroy", ex); }
         }
     }
 }

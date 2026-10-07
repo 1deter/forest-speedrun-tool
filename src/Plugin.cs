@@ -79,6 +79,7 @@ namespace ForestOverlay
             try
             {
                 Logger.LogInfo(PluginName + " v" + PluginVersion + " loading (net35 / Unity 5.6).");
+                Lifecycle.Log = Logger;
 
                 string configDir = Path.Combine(Paths.ConfigPath, PluginName);
                 if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
@@ -184,11 +185,11 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private void Update()
         {
-            if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
-            if (_host == null) return;
-
             try
             {
+                if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
+                if (_host == null) return;
+
                 _player.Tick();
 
                 // Before modules, so a split fires in the frame its
@@ -236,10 +237,14 @@ namespace ForestOverlay
 
         private void OnDestroy()
         {
-            try { if (_host != null) _host.Shutdown(); }
-            catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
+            try
+            {
+                try { if (_host != null) _host.Shutdown(); }
+                catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
 
-            if (_events != null) _events.Uninstall();
+                if (_events != null) _events.Uninstall();
+            }
+            catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.OnDestroy", ex); }
         }
 
         // ------------------------------------------------------------------

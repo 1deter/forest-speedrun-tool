@@ -283,5 +283,74 @@ class Ui(unittest.TestCase):
         self.assertEqual(L.main([]), 0)
 
 
+BEHAVIOURS = """using UnityEngine;
+public sealed class Good : MonoBehaviour
+{
+    private void OnEnable() { try { Go(); } catch (Exception ex) { Lifecycle.Fail("Good.OnEnable", ex); } }
+    private void Update()
+    {
+        if (_host == null) return;
+        if (!Show && _count < 2) return;
+        try
+        {
+            if (x) { y(); }
+        }
+        catch (Exception ex) { Lifecycle.Fail("Good.Update", ex); }
+        finally { z(); }
+    }
+    private void OnDestroy() { }
+}
+public sealed class Bad : MonoBehaviour, ILateDrawer
+{
+    private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+    private void OnRenderObject()
+    {
+        if (!DrawTarget.ShouldDraw()) return;
+        try { Draw(); }
+        catch (Exception) { }
+    }
+    private void FixedUpdate()
+    {
+        try { Step(); }
+        catch (Exception) { }
+        After();
+    }
+    private void OnGUI() => Draw();
+}
+public sealed class Plain
+{
+    public void Update() { Tick(); }
+    public void Start(string extra) { Go(); }
+}
+"""
+
+
+class Lifecycle(unittest.TestCase):
+    def methods(self):
+        return [(c, m, n, body is not None and L.body_wrapped(body)) for c, m, n, body in L.message_methods(BEHAVIOURS)]
+
+    def test_wrapped_and_plain_guards_pass(self):
+        ok = [(c, m) for c, m, n, w in self.methods() if w]
+        self.assertEqual(ok, [("Good", "OnEnable"), ("Good", "Update"), ("Good", "OnDestroy")])
+
+    def test_unwrapped_call_guard_tail_and_arrow_fail(self):
+        bad = [(c, m, n) for c, m, n, w in self.methods() if not w]
+        # a guard with a call is not plain; a statement after the catch escapes; => has no body to wrap
+        self.assertEqual(bad, [("Bad", "LateUpdate", 20), ("Bad", "OnRenderObject", 21),
+                               ("Bad", "FixedUpdate", 27), ("Bad", "OnGUI", 33)])
+
+    def test_non_unity_class_is_skipped(self):
+        self.assertNotIn("Plain", [c for c, m, n, w in self.methods()])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_lifecycle([("src/Game/Bad.cs", 20, "Bad", "LateUpdate")]))
+        self.assertIn("ERROR: Bad.LateUpdate in src/Game/Bad.cs:20 is not wrapped in try / catch", out)
+        self.assertIn("gotcha 3", out)
+        self.assertIn('FIX: put the whole body in try { ... } catch (Exception ex) { Lifecycle.Fail("Bad.LateUpdate", ex); }', out)
+
+    def test_repo_has_no_unwrapped_method(self):
+        self.assertEqual(L.lifecycle_hits(), [])
+
+
 if __name__ == "__main__":
     unittest.main()

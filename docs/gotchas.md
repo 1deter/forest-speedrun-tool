@@ -13,7 +13,10 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
 2. **`OnGUI` runs several times per frame.** Never allocate in it.
 
 3. **A throwing `Awake` silently kills the plugin** while BepInEx still logs
-   "loaded". Every lifecycle method is individually try/caught.
+   "loaded". Every lifecycle method is individually try/caught: the whole body
+   in try, `catch (Exception ex) { Lifecycle.Fail("Class.Method", ex); }`
+   (logged once per method), plain guards only before it. `lint.py`
+   (`check_lifecycle`) fails an unwrapped Unity message method in `src/`.
 
 4. **Don't trust assumed names.** Everything in `src/Game/` was confirmed from
    a dump or IL. `docs/game-notes.md` once contained a guess that was wrong

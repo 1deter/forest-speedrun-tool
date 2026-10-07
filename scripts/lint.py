@@ -21,6 +21,9 @@ meaning per prefix.
 The quality document (docs/quality.md, docs/harness.md 10d): grades A-D,
 an area's grade the worst of its four, a C / D row names an open task,
 every tracked file falls under some area's Paths.
+Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
+... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
+guards only (author, 2026-10-07: wrap all, no baseline).
 """
 import argparse
 import importlib.util
@@ -368,6 +371,123 @@ def stale_areas(rows, paths, changes):
     return out
 
 
+# ---------------------------------------------------------------- Unity message methods
+
+# Unity calls these by name on a MonoBehaviour; an exception escaping one
+# logs every frame (Update, OnRenderObject) or leaves the object half set
+# up (Awake, OnEnable) - for the plugin, while BepInEx still says "loaded".
+MESSAGES = ("Awake", "Start", "OnEnable", "OnDisable", "OnDestroy", "Update", "LateUpdate", "FixedUpdate",
+            "OnGUI", "OnRenderObject", "OnApplicationQuit", "OnApplicationFocus", "OnApplicationPause",
+            "OnPreCull", "OnPreRender", "OnPostRender", "OnRenderImage", "OnWillRenderObject",
+            "OnBecameVisible", "OnBecameInvisible", "OnLevelWasLoaded", "OnValidate", "Reset",
+            "OnTriggerEnter", "OnTriggerStay", "OnTriggerExit", "OnCollisionEnter", "OnCollisionStay",
+            "OnCollisionExit")
+MESSAGE_SIG = re.compile(r"^\s*(?:(?:private|public|protected|internal|override|virtual|new)\s+)*"
+                         r"(?:void|IEnumerator)\s+(" + "|".join(MESSAGES) + r")\s*\([^)]*\)")
+CLASS_DECL = re.compile(r"\bclass\s+(\w+)([^{]*)")
+UNITY_BASE = re.compile(r":.*\b(MonoBehaviour|BaseUnityPlugin)\b")
+# A plain guard before the try: null / bool checks only, no call (author, 2026-10-07).
+GUARD = re.compile(r"^if\s*\(([\w.!=<>&|\s]*)\)\s*return\s*;\s*")
+
+
+def _block_end(code, i):
+    """Index just past the {...} block starting at code[i] == '{' (string-unaware; -1 if unbalanced)."""
+    depth = 0
+    for j in range(i, len(code)):
+        if code[j] == "{":
+            depth += 1
+        elif code[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+    return -1
+
+
+def body_wrapped(body):
+    """True when a method body (the text between its braces) is guards, then one try / catch / finally and nothing after."""
+    rest = body.strip()
+    if not rest:
+        return True
+    m = GUARD.match(rest)
+    while m:
+        rest = rest[m.end():]
+        m = GUARD.match(rest)
+    if not rest.startswith("try"):
+        return False
+    rest = rest[3:].lstrip()
+    if not rest.startswith("{"):
+        return False
+    end = _block_end(rest, 0)
+    if end < 0:
+        return False
+    rest = rest[end:].lstrip()
+    handlers = 0
+    while True:
+        m = re.match(r"(catch\b\s*(\([^)]*\))?|finally\b)\s*", rest)
+        if not m:
+            break
+        rest = rest[m.end():]
+        if not rest.startswith("{"):
+            return False
+        end = _block_end(rest, 0)
+        if end < 0:
+            return False
+        rest = rest[end:].lstrip()
+        handlers += 1
+    return handlers > 0 and rest == ""
+
+
+def message_methods(text):
+    """(class, method, line) of every Unity message method on a MonoBehaviour / BaseUnityPlugin, and its body text (None: no block body)."""
+    lines = text.splitlines()
+    code = [strip_comment(l) for l in lines]
+    out = []
+    unity = None
+    for i, line in enumerate(code):
+        c = CLASS_DECL.search(line)
+        if c:
+            unity = c.group(1) if UNITY_BASE.search(c.group(2)) else None
+        m = MESSAGE_SIG.search(line)
+        if not m or unity is None:
+            continue
+        joined = "\n".join(code[i:])
+        tail = joined[len(m.group(0)):].lstrip()
+        if not tail.startswith("{"):
+            out.append((unity, m.group(1), i + 1, None))   # => expression body or abstract
+            continue
+        end = _block_end(tail, 0)
+        out.append((unity, m.group(1), i + 1, tail[1:end - 1] if end > 0 else None))
+    return out
+
+
+def lifecycle_hits(root=ROOT):
+    hits = []
+    for dirpath, dirs, files in os.walk(os.path.join(root, "src")):
+        dirs[:] = [d for d in dirs if d not in ("bin", "obj")]
+        for f in sorted(files):
+            if not f.endswith(".cs"):
+                continue
+            full = os.path.join(dirpath, f)
+            rel = os.path.relpath(full, root).replace("\\", "/")
+            with open(full, encoding="utf-8-sig") as fh:
+                text = fh.read()
+            for cls, method, n, body in message_methods(text):
+                if body is None or not body_wrapped(body):
+                    hits.append((rel, n, cls, method))
+    return hits
+
+
+def check_lifecycle(hits):
+    return [Problem("%s.%s in %s:%d is not wrapped in try / catch" % (cls, method, path, n),
+                    "Unity calls it by name: a throw escapes every frame (Update, OnRenderObject) or leaves the object "
+                    "half set up (Awake, OnEnable) - a throwing Awake once killed the plugin while BepInEx said "
+                    "\"loaded\" (gotcha 3)",
+                    "put the whole body in try { ... } catch (Exception ex) { Lifecycle.Fail(\"%s.%s\", ex); } "
+                    "(Core/Lifecycle logs it once); only plain guards (if (x == null) return;) may stay before the try"
+                    % (cls, method))
+            for path, n, cls, method in hits]
+
+
 # ---------------------------------------------------------------- UI heuristics
 
 LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
@@ -556,6 +676,7 @@ def main(argv=None):
     probs += check_gotchas(gotcha_numbers(read(GOTCHAS)), index_lines(), task_statuses())
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
+    probs += check_lifecycle(lifecycle_hits())
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

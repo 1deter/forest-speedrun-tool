@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using ForestOverlay.Data;
 using UnityEngine;
 
@@ -120,18 +121,22 @@ namespace ForestOverlay.Game
 
         // Drawn after the camera's image effects when Game/LatePass can
         // (true colours); OnRenderObject is the fallback.
-        private void OnEnable() { LatePass.Register(this); }
-        private void OnDisable() { LatePass.Unregister(this); }
-        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        private void OnEnable() { try { LatePass.Register(this); } catch (System.Exception ex) { Lifecycle.Fail("ReplayBehaviour.OnEnable", ex); } }
+        private void OnDisable() { try { LatePass.Unregister(this); } catch (System.Exception ex) { Lifecycle.Fail("ReplayBehaviour.OnDisable", ex); } }
+        private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (System.Exception ex) { Lifecycle.Fail("ReplayBehaviour.LateUpdate", ex); } }
         public bool WantsLateDraw { get { return (ShowBuildings && _buildings > 0) || (ShowMarkers && _markCount > 0); } }
         public void DrawLate(Camera camera) { DrawLines(); }
 
         private void OnRenderObject()
         {
-            if (!WantsLateDraw) return;
-            if (!DrawTarget.ShouldDraw()) return;
-            if (LatePass.Covers(Camera.current)) return;
-            DrawLines();
+            try
+            {
+                if (!WantsLateDraw) return;
+                if (!DrawTarget.ShouldDraw()) return;
+                if (LatePass.Covers(Camera.current)) return;
+                DrawLines();
+            }
+            catch (System.Exception ex) { Lifecycle.Fail("ReplayBehaviour.OnRenderObject", ex); }
         }
 
         private void DrawLines()
@@ -201,7 +206,11 @@ namespace ForestOverlay.Game
 
         private void OnDestroy()
         {
-            if (_material != null) Object.Destroy(_material);
+            try
+            {
+                if (_material != null) Object.Destroy(_material);
+            }
+            catch (System.Exception ex) { Lifecycle.Fail("ReplayBehaviour.OnDestroy", ex); }
         }
     }
 }

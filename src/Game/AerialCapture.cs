@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -153,7 +154,7 @@ namespace ForestOverlay.Game
             return "stopping after this tile";
         }
 
-        private void OnDestroy() { Restore(); }
+        private void OnDestroy() { try { Restore(); } catch (Exception ex) { Lifecycle.Fail("AerialCapture.OnDestroy", ex); } }
 
         private IEnumerator Run(FreeCamBehaviour freeCam, float x0, float z0, float x1, float z1, float tile,
                                 float settle, float rangeScale, float sunTime)

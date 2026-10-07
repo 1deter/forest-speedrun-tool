@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-214 prefixes from 659 log calls.
+215 prefixes from 660 log calls.
 
 ## `Aerial capture`
 
@@ -710,6 +710,13 @@ Written by LeakedThreads.cs; info / warning.
 - warning `LeakedThreads: WorkScheduler hook failed: <ex.Message>`
 - warning `LeakedThreads: WorkScheduler wake failed: <ex.Message>`
 - warning `LeakedThreads: WorkScheduler.OnDestroy / mutex not found.`
+
+## `Lifecycle`
+
+Meaning: A Unity message method (Update, OnRenderObject, OnDestroy, ...) on one of the plugin's MonoBehaviours threw; logged once per method, the exception stack follows (gotcha 3). Any one in a log is a bug.
+Written by Lifecycle.cs; error.
+
+- error `Lifecycle: <where> threw (logged once, later throws are silent): <ex>`
 
 ## `LiveSplit`
 

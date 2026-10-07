@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -66,40 +67,44 @@ namespace ForestOverlay.Game
 
         private void OnRenderObject()
         {
-            if (!Show || Zones == null || Count <= 0) return;
-            if (!DrawTarget.ShouldDraw()) return;
-
-            EnsureMaterial();
-            if (_material == null) return;
-
-            long start = System.Diagnostics.Stopwatch.GetTimestamp();
-            _material.SetPass(0);
-            GL.PushMatrix();
-            GL.Begin(GL.LINES);
-
-            int n = Mathf.Min(Count, Zones.Length);
-            for (int i = 0; i < n; i++)
+            try
             {
-                PreviewZone z = Zones[i];
-                bool poly = z.Points != null;
-                if (poly ? z.Points.Length < 3 : (!z.IsBox && z.Radius <= 0f)) continue;
+                if (!Show || Zones == null || Count <= 0) return;
+                if (!DrawTarget.ShouldDraw()) return;
 
-                GL.Color(z.Kind == 0 ? StartColour : (z.Kind == 2 ? EndColour : CheckColour));
+                EnsureMaterial();
+                if (_material == null) return;
 
-                if (poly) WirePrism(z.Points, z.Center.y - z.Extents.y, z.Center.y + z.Extents.y);
-                else if (z.IsBox) WireBox(z.Center, z.Extents, z.Yaw);
-                else WireSphere(z.Center, z.Radius);
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                _material.SetPass(0);
+                GL.PushMatrix();
+                GL.Begin(GL.LINES);
 
-                // A post through the centre makes a zone findable when
-                // you are outside it and the outline is edge-on.
-                float height = poly || z.IsBox ? z.Extents.y : z.Radius;
-                GL.Vertex(new Vector3(z.Center.x, z.Center.y - height, z.Center.z));
-                GL.Vertex(new Vector3(z.Center.x, z.Center.y + height, z.Center.z));
+                int n = Mathf.Min(Count, Zones.Length);
+                for (int i = 0; i < n; i++)
+                {
+                    PreviewZone z = Zones[i];
+                    bool poly = z.Points != null;
+                    if (poly ? z.Points.Length < 3 : (!z.IsBox && z.Radius <= 0f)) continue;
+
+                    GL.Color(z.Kind == 0 ? StartColour : (z.Kind == 2 ? EndColour : CheckColour));
+
+                    if (poly) WirePrism(z.Points, z.Center.y - z.Extents.y, z.Center.y + z.Extents.y);
+                    else if (z.IsBox) WireBox(z.Center, z.Extents, z.Yaw);
+                    else WireSphere(z.Center, z.Radius);
+
+                    // A post through the centre makes a zone findable when
+                    // you are outside it and the outline is edge-on.
+                    float height = poly || z.IsBox ? z.Extents.y : z.Radius;
+                    GL.Vertex(new Vector3(z.Center.x, z.Center.y - height, z.Center.z));
+                    GL.Vertex(new Vector3(z.Center.x, z.Center.y + height, z.Center.z));
+                }
+
+                GL.End();
+                GL.PopMatrix();
+                DrawTarget.Record(start, 0);
             }
-
-            GL.End();
-            GL.PopMatrix();
-            DrawTarget.Record(start, 0);
+            catch (System.Exception ex) { Lifecycle.Fail("ZonePreviewBehaviour.OnRenderObject", ex); }
         }
 
         private static void WireBox(Vector3 c, Vector3 e, float yaw)
@@ -177,7 +182,11 @@ namespace ForestOverlay.Game
 
         private void OnDestroy()
         {
-            if (_material != null) UnityEngine.Object.Destroy(_material);
+            try
+            {
+                if (_material != null) UnityEngine.Object.Destroy(_material);
+            }
+            catch (System.Exception ex) { Lifecycle.Fail("ZonePreviewBehaviour.OnDestroy", ex); }
         }
     }
 }
