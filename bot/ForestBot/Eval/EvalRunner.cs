@@ -69,7 +69,7 @@ public sealed class EvalRunner
                 report.Append("## ").Append(q.Id).Append(": busy - skipped (").Append(why).Append(")\n**Q:** ").Append(q.Question).Append("\n\n");
                 continue;
             }
-            string thenDetail = "";
+            string thenDetail = "", thenChecks = null;
             if (q.Then != null)
             {
                 await Task.Delay(Pause, ct);
@@ -81,6 +81,7 @@ public sealed class EvalRunner
                         (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
                         (ok2, n2, d2) = AddLength(b.Text, q.ThenMaxLength, q.ThenMinLength, ok2, n2, d2);
                         ok += ok2; n += n2;
+                        thenChecks = d2;
                         thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
                     }
                     catch (JudgeBusyException) { }
@@ -88,6 +89,8 @@ public sealed class EvalRunner
             score.Passed += ok; score.Total += n; score.Answered++;
             string line = q.Id + ": " + ok + "/" + n + "  (" + a.Model + ", " + a.ToolCalls + " lookups, " + a.Status + ")";
             _out(line);
+            PrintFailed(detail, "");
+            if (thenChecks != null) PrintFailed(thenChecks, "follow-up: ");
             report.Append("## ").Append(line).Append("\n**Q:** ").Append(q.Question).Append('\n').Append(detail)
                   .Append("\n<details>\n\n").Append(a.Text).Append("\n\n").Append("sources: ").Append(string.Join(", ", a.Sources))
                   .Append("\n\n</details>\n").Append(thenDetail).Append('\n');
@@ -103,6 +106,14 @@ public sealed class EvalRunner
         if (!string.IsNullOrEmpty(summaryPath)) File.AppendAllText(summaryPath, report.ToString());
         _out("Report: " + path);
         return score;
+    }
+
+    /// Each unticked check under the score line, so the CI log says why a
+    /// question lost points (the step summary needs a GitHub sign-in).
+    private void PrintFailed(string detail, string prefix)
+    {
+        foreach (string l in detail.Split('\n'))
+            if (l.StartsWith("- [ ]") || l.StartsWith("- judge failed")) _out("    " + prefix + l);
     }
 
     /// A length limit counts as one more fact.

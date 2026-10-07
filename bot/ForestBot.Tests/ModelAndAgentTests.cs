@@ -235,7 +235,8 @@ public class ModelAndAgentTests
 
     // ---- the eval: busy (no quota) is skipped, never scored (gotcha 94) ----
 
-    private static async Task<(ForestBot.Eval.EvalScore score, string report)> RunEval(ScriptedModel model)
+    private static async Task<(ForestBot.Eval.EvalScore score, string report)> RunEval(ScriptedModel model, List<string> output = null,
+        string questionsMd = "### bb\nquestion: why bb?\ncards: bomb-boost\nmust:\n- pushes pile up\n- 8 m/s per frame\n")
     {
         Corpus corpus = SmallCorpus();
         using HybridSearch search = new HybridSearch(corpus, null, null, null);
@@ -244,10 +245,10 @@ public class ModelAndAgentTests
         try
         {
             string questions = Path.Combine(dir, "questions.md");
-            File.WriteAllText(questions, "### bb\nquestion: why bb?\ncards: bomb-boost\nmust:\n- pushes pile up\n- 8 m/s per frame\n");
+            File.WriteAllText(questions, questionsMd);
             ModelChain chain = new ModelChain(new[] { model }, null);
             var runner = new ForestBot.Eval.EvalRunner(chain, new Answerer(chain, new Tools(corpus, search, new CodeIndex()), "sys", null),
-                                                       "v", dir, _ => { }) { Pause = TimeSpan.Zero, MaxWait = TimeSpan.Zero };
+                                                       "v", dir, l => output?.Add(l)) { Pause = TimeSpan.Zero, MaxWait = TimeSpan.Zero };
             string summary = Path.Combine(dir, "summary.md");
             var score = await runner.RunAsync(questions, null, CancellationToken.None, summary);
             return (score, File.ReadAllText(summary));
@@ -264,6 +265,28 @@ public class ModelAndAgentTests
         var (score, report) = await RunEval(model);
         Assert.Equal((2, 3, 1, 0), (score.Passed, score.Total, score.Answered, score.Busy));   // card read + 1 of 2 facts
         Assert.Contains("- [ ] 8 m/s per frame", report);
+    }
+
+    [Fact]
+    public async Task Eval_prints_each_failed_check_under_the_score_line()
+    {
+        ScriptedModel model = new ScriptedModel();
+        model.Steps.Enqueue(_ => new ChatResult { Text = "Pushes pile up, and it is long.\nSOURCES: wiki\nSTATUS: answered" });
+        model.Steps.Enqueue(_ => new ChatResult { Text = "{\"must\":[true,false],\"not\":[true]}" });
+        model.Steps.Enqueue(_ => new ChatResult { Text = "No.\nSTATUS: answered" });
+        model.Steps.Enqueue(_ => new ChatResult { Text = "{\"must\":[false],\"not\":[]}" });
+        List<string> output = new List<string>();
+        await RunEval(model, output, "### bb\nquestion: why bb?\ncards: bomb-boost\nmax-length: 10\nmust:\n- pushes pile up\n- 8 m/s per frame\nnot:\n- says it is patched\n" +
+                                     "then: and in v1.12?\nmust:\n- still works\n");
+        int score = output.FindIndex(l => l.StartsWith("bb: "));
+        Assert.True(score >= 0, string.Join("\n", output));
+        string after = string.Join("\n", output.Skip(score + 1));
+        Assert.Contains("    - [ ] did not read bomb-boost", after);
+        Assert.Contains("    - [ ] 8 m/s per frame", after);
+        Assert.Contains("    - [ ] DID: says it is patched", after);
+        Assert.Contains("    - [ ] TOO LONG: answer at most 10 characters", after);
+        Assert.Contains("    follow-up: - [ ] still works", after);
+        Assert.DoesNotContain("pushes pile up", after);   // ticked checks stay in the report only
     }
 
     [Fact]
