@@ -211,7 +211,32 @@ public class SiteSettingsTests : IDisposable
     [Fact]
     public void Build_id_names_the_deploy_or_dev()
     {
+        // bot.yml publishes with -p:SourceRevisionId=<sha>; the SDK makes the informational version "1.0.0+<sha>".
+        const string Sha = "0123456789abcdef0123456789abcdef01234567";
+        Assert.Equal("0123456789ab", ForestBot.Gateway.DiscordBot.BuildId("1.0.0+" + Sha));
+        Assert.Equal("abc", ForestBot.Gateway.DiscordBot.BuildId("2.1+abc"));
+        Assert.Equal("dev", ForestBot.Gateway.DiscordBot.BuildId("1.0.0"));
+        Assert.Equal("dev", ForestBot.Gateway.DiscordBot.BuildId("1.0.0+"));
+        Assert.Equal("dev", ForestBot.Gateway.DiscordBot.BuildId(""));
+        Assert.Equal("dev", ForestBot.Gateway.DiscordBot.BuildId(null));
         Assert.False(string.IsNullOrWhiteSpace(ForestBot.Gateway.DiscordBot.BuildId()));
+    }
+
+    [Fact]
+    public async Task Report_carries_the_time_the_revision_was_applied()
+    {
+        BotConfig c = Config();
+        FakeSite fake = new FakeSite { Body = """{"rev":4,"settings":{}}""" };
+        SiteSettings site = Site(c, fake);
+        DateTime t = new DateTime(2026, 10, 7, 12, 34, 0, DateTimeKind.Utc);
+        site.Now = () => t;
+        Assert.Null(site.AppliedAt);
+        await site.PollAsync(CancellationToken.None);
+        t = t.AddMinutes(5);
+        await site.PollAsync(CancellationToken.None);   // same revision: the apply time stays
+        await site.ReportAsync(new[] { new SeenChannel(1, "a", "G") }, CancellationToken.None);
+        JsonObject body = (JsonObject)JsonNode.Parse(fake.Seen.Last().body);
+        Assert.Equal(new DateTime(2026, 10, 7, 12, 34, 0, DateTimeKind.Utc), DateTime.Parse((string)body["appliedAt"], null, System.Globalization.DateTimeStyles.RoundtripKind));
     }
 
     [Fact]

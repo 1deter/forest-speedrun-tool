@@ -588,8 +588,10 @@ function botView(data) {
   queue.value = s.queueChannel || "";
 
   const save = actions(el("button", { class: "chip", onclick: async () => {
+    // With no boxes (the bot has not listed its channels) the channels stay as stored, or absent:
+    // sending [] would silence the bot.
     const body = {
-      channels: boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value), dms: dms.checked,
+      channels: boxes.length ? boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value) : s.channels, dms: dms.checked,
       perHour: perHour.value ? Number(perHour.value) : null, perDay: perDay.value ? Number(perDay.value) : null,
       models: models.value.trim(), thinking: thinking.value, queueChannel: queue.value,
     };
@@ -603,8 +605,13 @@ function botView(data) {
   let status;
   if (!data.botToken) status = "The site has no FOREST_BOT_TOKEN, so the bot cannot read these settings (set it in /opt/forest-site/.env and the bot's .env, then restart both).";
   else if (!report) status = "The bot has not reported yet.";
-  else status = "The bot last reported " + date(report.at) + ", version " + (report.version || "?") + ", running revision " + report.rev +
-    (report.rev === data.rev ? " (current)." : " - saved is " + data.rev + ", it has not applied that yet.");
+  else {
+    const hhmm = t => t ? new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null;
+    const runs = "bot " + (report.version || "?");
+    if (data.rev === 0 && report.rev === 0) status = "No settings saved yet - the bot runs its .env values (" + runs + ", last reported " + date(report.at) + ").";
+    else if (report.rev === data.rev) status = "Applied " + (hhmm(report.appliedAt) || "(time unknown)") + ", " + runs + " - saved rev " + data.rev + " is running.";
+    else status = "Saved rev " + data.rev + ", bot runs rev " + report.rev + " (" + (report.appliedAt ? "applied " + hhmm(report.appliedAt) + ", " : "") + runs + ", last reported " + date(report.at) + ") - not applied yet.";
+  }
 
   return el("section", null,
     el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +

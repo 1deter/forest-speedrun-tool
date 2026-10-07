@@ -34,6 +34,11 @@ public sealed class SiteSettings
     /// The revision running now (0 = none from the site).
     public long Rev { get; private set; }
 
+    /// When that revision was applied (UTC; null = never applied one).
+    public DateTime? AppliedAt { get; private set; }
+
+    public Func<DateTime> Now = () => DateTime.UtcNow;
+
     public SiteSettings(BotConfig cfg, HttpClient http, string siteUrl, string token, string version, Action<string> log)
     {
         _cfg = cfg;
@@ -98,6 +103,7 @@ public sealed class SiteSettings
         Rev = rev;
         if (changed)
         {
+            AppliedAt = Now();
             if (announce) _log("Site settings: revision " + rev + " applied");
             Applied();
         }
@@ -112,6 +118,7 @@ public sealed class SiteSettings
             var body = new
             {
                 version = _version, rev = Rev,
+                appliedAt = AppliedAt?.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 channels = channels.Select(c => new { id = c.Id.ToString(), name = c.Name, guild = c.Guild }).ToList(),
             };
             using HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, _siteUrl + "/api/bot/report") { Content = JsonContent.Create(body) };
