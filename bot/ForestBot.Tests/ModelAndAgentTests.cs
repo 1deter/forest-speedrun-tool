@@ -271,7 +271,7 @@ public class ModelAndAgentTests
     {
         var (score, report) = await RunEval(new ScriptedModel());   // no steps: out of quota at once
         Assert.Equal((0, 0, 0, 1), (score.Passed, score.Total, score.Answered, score.Busy));
-        Assert.Contains("busy - skipped (no model had quota)", report);
+        Assert.Contains("busy - skipped (no model available (quota", report);
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public class ModelAndAgentTests
         model.Steps.Enqueue(_ => new ChatResult { Text = "Pushes pile up.\nSOURCES: card:bomb-boost\nSTATUS: answered" });
         var (score, report) = await RunEval(model);   // the judge's call finds no step left
         Assert.Equal((0, 0, 0, 1), (score.Passed, score.Total, score.Answered, score.Busy));
-        Assert.Contains("no model had quota for the judge", report);
+        Assert.Contains("no model available for the judge", report);
     }
 
     [Fact]
