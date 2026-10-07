@@ -95,7 +95,10 @@ on the name) in the QA server's **#general** (channel
 author's User variable `FOREST_QA_BOT_TOKEN` - never print it, never
 ask for it in chat. REST only (no gateway): `qa_read` (oldest first;
 `new_only` = since the last read, remembered in
-`%LOCALAPPDATA%\ForestOverlay\qa-discord-last-read.txt`), `qa_post`
+`%LOCALAPPDATA%\ForestOverlay\qa-discord-last-read.txt`, per channel;
+`channel: knowledge-testing` (`1555989862652313620`, where runners try
+the knowledge bot) or an id reads another channel; `save_to` + `all`
+writes a whole history to a file; reactions shown), `qa_post`
 (split at 2000 chars with ``` blocks reopened, optional file / reply;
 **pings the people it names** - write `@username` / `@displayname` and it
 becomes a real mention for anyone `qa_read` has seen, kept in
