@@ -54,4 +54,15 @@ public static class EvalQuestions
         list.RemoveAll(q => string.IsNullOrEmpty(q.Question));
         return list;
     }
+
+    /// The questions named in `only` (all when empty), in file order. An id
+    /// that is not in the file throws: a renamed question must not quietly
+    /// shrink CI's subset.
+    public static List<EvalQuestion> Select(List<EvalQuestion> all, ICollection<string> only)
+    {
+        if (only == null || only.Count == 0) return all;
+        List<string> unknown = only.Where(id => !all.Any(q => q.Id == id)).ToList();
+        if (unknown.Count > 0) throw new ArgumentException("no such eval question: " + string.Join(", ", unknown));
+        return all.Where(q => only.Contains(q.Id)).ToList();
+    }
 }

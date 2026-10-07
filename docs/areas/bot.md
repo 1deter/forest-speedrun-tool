@@ -26,6 +26,15 @@ Try it locally: `forest-bot search / ask / chat` (bot/README.md). Deploy:
 every push to `main` touching `bot/`, `knowledge/`, `docs/game-notes.md`,
 `docs/savestates.md`, `docs/run-mode.md` or `docs/fsm/` (`.github/workflows/bot.yml`).
 
+**The CI eval** (T-0011, author 2026-10-07): after each deploy, bot.yml
+runs `eval` on a 5-question subset (`EVAL_SUBSET`; a test checks the ids
+exist) on Flash-Lite with the live bot's key (secret `GEMINI_API_KEY` -
+it shares the free quota, so the subset stays small). Warn-only: a
+`::warning::` under 70%, the report in the run's summary; busy questions
+are skipped, never scored. No code tools or embedding model there. A paid
+model is the author's later call (after research sessions polish
+`knowledge/`): config only, `FOREST_BOT_MODELS` + its key.
+
 **The 👎 queue** (run without asking - author's standing OK):
 `ssh -i ~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue'`;
 mark items with `answer <id>` / `resolve <id>` the same way. Never print

@@ -61,3 +61,34 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes -o BatchMode=yes forestbotdeploy@"$HOST" < bot.tgz
+
+      # A small eval subset on the live bot's key (author 2026-10-07: it
+      # shares the free daily quota, so few questions, one cheap model).
+      # Warn-only: never fails the job or holds back a deploy; busy
+      # questions are skipped, not scored (gotcha 94). Without code tools
+      # or the embedding model here, so it checks the cards and the prompt.
+      - name: Eval subset (warn-only)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FOREST_BOT_MODELS: gemini:gemini-3.5-flash-lite
+          EVAL_SUBSET: bomb-why fall-how zipline keycardless injection
+          WARN_BELOW: 70
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::GEMINI_API_KEY secret not set (bot/deploy/README.md) - eval skipped."
+            exit 0
+          fi
+          dotnet run --project bot/ForestBot -c Release -- eval $EVAL_SUBSET --summary "$GITHUB_STEP_SUMMARY" | tee eval.txt
+          line=$(grep '^Score:' eval.txt || true)
+          pct=$(echo "$line" | sed -n 's/^Score: [0-9]*\/[0-9]* = \([0-9.]*\)%.*/\1/p')
+          answered=$(echo "$line" | sed -n 's/.*, \([0-9]*\) answered.*/\1/p')
+          if [ -z "$pct" ]; then echo "::warning::Eval printed no score."; exit 0; fi
+          if [ "${answered:-0}" = 0 ]; then echo "::warning::Eval: every question was busy (quota) - nothing scored."; exit 0; fi
+          if awk -v p="$pct" -v w="$WARN_BELOW" 'BEGIN{exit !(p < w)}'; then
+            echo "::warning::Eval subset scored $pct% (under $WARN_BELOW%) - $line"
+          else
+            echo "Eval subset: $line"
+          fi

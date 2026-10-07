@@ -30,7 +30,14 @@ packs).
 
 ```bash
 dotnet test site/ForestSite.Tests      # stop a running forest-site preview first (it locks ForestSite.exe)
+python scripts/site-smoke.py           # every page in headless Chromium over a throwaway local copy (CI runs it before the deploy)
 ```
+
+The browser smoke (T-0011) seeds a temp site from
+`site/ForestSite.Tests/smoke-run.foseg` (`SmokeFixture_Uploads` keeps it
+uploadable) and fails on a page that does not render, a console error or
+CSP violation, a page exception or a failed same-origin request. A new
+page goes into its `PAGES` list.
 
 - Run it: the preview `forest-site` (`.claude/launch.json`,
   `http://localhost:5080`, owner token `local-admin`); an agent in its own

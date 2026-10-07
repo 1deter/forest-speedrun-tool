@@ -15,4 +15,5 @@ Loaded by itself when work touches `bot/`. The area doc:
   wrong answer.
 - **Do not run the live bot's model to test answers** - it shares a small
   free quota (gotcha 94); check that search finds the right card instead
-  (`forest-bot search`).
+  (`forest-bot search`). The one exception: CI's small warn-only eval
+  subset after each deploy (bot.yml, author 2026-10-07).

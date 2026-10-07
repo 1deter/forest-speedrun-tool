@@ -13,7 +13,10 @@ namespace ForestBot.Eval;
 // large knowledge change; it spends quota (~3-6 requests a question),
 // so it paces itself, and waits out a short quota rest (a per-minute
 // limit) instead of scoring the question "busy" - the first full run
-// lost half its questions that way (2026-10-03).
+// lost half its questions that way (2026-10-03). A question still busy
+// after that (a daily quota) is skipped and counted, never scored as
+// wrong (gotcha 94). CI runs a subset after each bot deploy
+// (.github/workflows/bot.yml, warn-only).
 // ------------------------------------------------------------------
 public sealed class EvalRunner
 {
@@ -29,27 +32,40 @@ public sealed class EvalRunner
         _out = output;
     }
 
-    public async Task<double> RunAsync(string questionsPath, ICollection<string> only, CancellationToken ct)
+    /// Runs the questions, writes the report to the data folder (and to
+    /// `summaryPath` too when given, e.g. $GITHUB_STEP_SUMMARY) and returns
+    /// the score over the answered questions.
+    public async Task<EvalScore> RunAsync(string questionsPath, ICollection<string> only, CancellationToken ct, string summaryPath = null)
     {
-        List<EvalQuestion> questions = EvalQuestions.Parse(File.ReadAllText(questionsPath));
-        if (only != null && only.Count > 0) questions = questions.Where(q => only.Contains(q.Id)).ToList();
+        List<EvalQuestion> questions = EvalQuestions.Select(EvalQuestions.Parse(File.ReadAllText(questionsPath)), only);
         StringBuilder report = new StringBuilder("# Eval " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + "Z, knowledge " + _brain.Corpus.Version + "\n\n");
-        int passed = 0, total = 0;
+        EvalScore score = new EvalScore();
 
         foreach (EvalQuestion q in questions)
         {
             Answer a = await AskAsync(q.Question, new List<Turn>(), ct);
+            if (a.Busy)
+            {
+                score.Busy++;
+                _out(q.Id + ": busy - skipped");
+                report.Append("## ").Append(q.Id).Append(": busy - skipped (no model had quota)\n**Q:** ").Append(q.Question).Append("\n\n");
+                continue;
+            }
             (int ok, int n, string detail) = await JudgeAsync(q.Question, a, q.Must, q.Not, q.Cards, ct);
             string thenDetail = "";
-            if (q.Then != null && !a.Busy)
+            if (q.Then != null)
             {
                 await Task.Delay(Pause, ct);
                 Answer b = await AskAsync(q.Then, new List<Turn> { new Turn { Question = q.Question, Answer = a.Text } }, ct);
-                (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
-                ok += ok2; n += n2;
-                thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
+                if (b.Busy) thenDetail = "\n**Follow-up:** " + q.Then + "\n- busy - skipped\n";
+                else
+                {
+                    (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
+                    ok += ok2; n += n2;
+                    thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
+                }
             }
-            passed += ok; total += n;
+            score.Passed += ok; score.Total += n; score.Answered++;
             string line = q.Id + ": " + ok + "/" + n + "  (" + a.Model + ", " + a.ToolCalls + " lookups, " + a.Status + ")";
             _out(line);
             report.Append("## ").Append(line).Append("\n**Q:** ").Append(q.Question).Append('\n').Append(detail)
@@ -58,14 +74,13 @@ public sealed class EvalRunner
             await Task.Delay(Pause, ct);
         }
 
-        double score = total == 0 ? 0 : (double)passed / total;
-        string summary = "Score: " + passed + "/" + total + " = " + (score * 100).ToString("0.0") + "%  (models: " +
-                         string.Join(" -> ", _brain.Models.Models.Select(m => m.Name)) + ")";
+        string summary = score.Line() + "  (models: " + string.Join(" -> ", _brain.Models.Models.Select(m => m.Name)) + ")";
         _out(summary);
         report.Insert(0, summary + "\n\n");
         string path = Path.Combine(_brain.Config.DataDir, "eval-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm") + ".md");
         Directory.CreateDirectory(_brain.Config.DataDir);
         File.WriteAllText(path, report.ToString());
+        if (!string.IsNullOrEmpty(summaryPath)) File.AppendAllText(summaryPath, report.ToString());
         _out("Report: " + path);
         return score;
     }
@@ -105,7 +120,6 @@ public sealed class EvalRunner
             total++; if (read) ok++;
             detail.Append(read ? "- [x] read " : "- [ ] did not read ").Append(card).Append('\n');
         }
-        if (a.Busy) { detail.Append("- busy - not judged\n"); return (ok, total + must.Count + not.Count, detail.ToString()); }
         if (must.Count + not.Count == 0) return (ok, total, detail.ToString());
 
         StringBuilder prompt = new StringBuilder();
@@ -147,4 +161,18 @@ public sealed class EvalRunner
         for (int i = 0; i < n.Length; i++) { total++; if (!n[i]) ok++; detail.Append(!n[i] ? "- [x] did not: " : "- [ ] DID: ").Append(not[i]).Append('\n'); }
         return (ok, total, detail.ToString());
     }
+}
+
+/// Facts passed over facts judged, from answered questions only; busy
+/// questions are counted apart (gotcha 94).
+public sealed class EvalScore
+{
+    public int Passed, Total, Answered, Busy;
+
+    public double Percent => Total == 0 ? 0 : 100.0 * Passed / Total;
+
+    /// "Score: 7/9 = 77.8%, 3 answered, 1 busy skipped" - bot.yml reads the percent.
+    public string Line() =>
+        "Score: " + Passed + "/" + Total + " = " + Percent.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "%, " +
+        Answered + " answered, " + Busy + " busy skipped";
 }

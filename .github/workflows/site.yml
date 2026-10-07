@@ -12,9 +12,10 @@ on:
       - 'community/**'
       - 'src/Data/**'
       - 'tests/ForestOverlay.Tests/UnityShim.cs'
+      - 'scripts/site-smoke.py'
       - '.github/workflows/site.yml'
   pull_request:
-    paths: ['site/**']
+    paths: ['site/**', 'scripts/site-smoke.py']
   workflow_dispatch:
 
 # The job only reads the repo; the deploy goes over SSH with its own key.
@@ -38,6 +39,15 @@ jobs:
 
       - name: Test
         run: dotnet test site/ForestSite.Tests -c Release --nologo
+
+      # The pages in a real browser over a throwaway local copy (T-0011,
+      # docs/harness.md 8c): a broken page script stops the deploy.
+      - name: Browser smoke
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/tests/test_site_smoke.py
+          python3 scripts/site-smoke.py --no-build
 
       - name: Publish (linux-arm64)
         run: |

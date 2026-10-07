@@ -465,7 +465,9 @@ see.)
 - 8c. The site: a Playwright-style smoke over the local site via the
   `forest-site` preview (pages load, an attempt page renders, the API
   answers). The bot: an eval subset in CI on a cheap model, if the quota
-  allows (gotcha 94).
+  allows (gotcha 94). **Built** (T-0011): `scripts/site-smoke.py`
+  (headless Chromium over a throwaway site, before the site deploy) and
+  bot.yml's warn-only 5-question eval on the live key after the deploy.
 - 8d. **What cannot be automated, batched:** visual judgement (gotcha 51)
   and game feel. These go to a `needs: author-eyes` queue with the shot
   or clip attached. The author clears it in one sitting, instead of being

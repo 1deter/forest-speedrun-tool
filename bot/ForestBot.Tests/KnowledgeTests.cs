@@ -164,4 +164,35 @@ public class KnowledgeTests
         Assert.Equal(new[] { "g1" }, qs[0].ThenMust);
         Assert.Empty(qs[1].Cards);
     }
+
+    [Fact]
+    public void Eval_select_keeps_file_order_and_refuses_unknown_ids()
+    {
+        List<EvalQuestion> qs = EvalQuestions.Parse("### a\nquestion: q?\nmust:\n- f\n### b\nquestion: q?\nmust:\n- f\n### c\nquestion: q?\nmust:\n- f\n");
+        Assert.Equal(3, EvalQuestions.Select(qs, new HashSet<string>()).Count);
+        Assert.Equal(new[] { "a", "c" }, EvalQuestions.Select(qs, new HashSet<string> { "c", "a" }).Select(q => q.Id));
+        ArgumentException ex = Assert.Throws<ArgumentException>(() => EvalQuestions.Select(qs, new HashSet<string> { "a", "gone" }));
+        Assert.Contains("gone", ex.Message);
+    }
+
+    [Fact]
+    public void Eval_score_counts_only_answered_questions()
+    {
+        EvalScore s = new EvalScore { Passed = 7, Total = 9, Answered = 3, Busy = 2 };
+        Assert.Equal("Score: 7/9 = 77.8%, 3 answered, 2 busy skipped", s.Line());
+        Assert.Equal(0, new EvalScore { Busy = 5 }.Percent);
+    }
+
+    /// CI's eval subset (bot.yml EVAL_SUBSET) names real questions - a
+    /// rename would otherwise fail only after a deploy.
+    [Fact]
+    public void Ci_eval_subset_names_real_questions()
+    {
+        string root = RepoRoot();
+        string line = File.ReadAllLines(Path.Combine(root, ".github", "workflows", "bot.yml")).Single(l => l.Trim().StartsWith("EVAL_SUBSET:"));
+        string[] ids = line.Substring(line.IndexOf(':') + 1).Trim().Trim('\'', '"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Assert.InRange(ids.Length, 3, 8);
+        List<EvalQuestion> qs = EvalQuestions.Parse(File.ReadAllText(Path.Combine(root, "knowledge", "eval", "questions.md")));
+        Assert.Equal(ids.Length, EvalQuestions.Select(qs, ids.ToHashSet()).Count);
+    }
 }

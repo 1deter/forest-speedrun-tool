@@ -1154,4 +1154,24 @@ public sealed class ApiTests : IDisposable
     [InlineData("ground/3/12_7.jpg\n", false)]
     [InlineData("ground/3/../../12_7.jpg", false)]
     public void AerialUploadPaths(string path, bool allowed) => Assert.Equal(allowed, UploadPath.IsTile(path));
+
+    /// scripts/site-smoke.py seeds the throwaway site with smoke-run.foseg;
+    /// this keeps it uploadable as the formats move. Rewrite it with
+    /// FOREST_WRITE_SMOKE_FIXTURE=1 dotnet test --filter SmokeFixture.
+    [Fact]
+    public async Task SmokeFixture_Uploads()
+    {
+        string dir = AppContext.BaseDirectory;
+        while (dir != null && !Directory.Exists(Path.Combine(dir, "site", "ForestSite.Tests"))) dir = Path.GetDirectoryName(dir);
+        Assert.NotNull(dir);
+        string path = Path.Combine(dir, "site", "ForestSite.Tests", "smoke-run.foseg");
+        if (Environment.GetEnvironmentVariable("FOREST_WRITE_SMOKE_FIXTURE") == "1")
+        {
+            Segment seg = TestSegment("s-5a0ce0000001");
+            File.WriteAllText(path, Bundle(seg, RunText(seg, A, 12.5f, 6.25f)));
+        }
+        var r = await Upload(await Register(A), File.ReadAllText(path));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Single((await r.Content.ReadFromJsonAsync<JsonObject>())["added"].AsArray());
+    }
 }

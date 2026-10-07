@@ -274,3 +274,12 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
 - **A private copy of the game's Assembly-CSharp.dll on the server** is
   fine (author, 2026-10-03: "as long as it's not being served and just
   used as an informational lookup ... for educating speedrunners").
+- **CI evals the bot on the live key, warn-only** (author, 2026-10-07,
+  T-0011): a separate key would share the same per-project quota, so
+  bot.yml runs a small subset on the live bot's free key after each
+  deploy; a low score warns and never holds back a deploy.
+- **A paid model is a later call** (author, 2026-10-07: "happy to put
+  forward some money ... however first i want the knowledge to be more
+  polished with research sessions"); cheap OpenAI-compatible models are
+  the candidates. Planned bot reviews: T-0141; runners' reactions in the
+  knowledge-testing channel feed them (T-0140).

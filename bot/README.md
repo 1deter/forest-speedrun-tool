@@ -40,7 +40,8 @@ forest-bot search "<query>"    # what search finds (no model, no keys)
 forest-bot code <Type.Member>  # the code tool's answer; code search <text>
 forest-bot ask "<question>"    # one answer on the console, with its lookups
 forest-bot chat                # a console conversation (follow-ups)
-forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota)
+forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota); --summary <file> appends the report
+                               # busy (no quota) questions are skipped, not scored; an unknown id exits 2
 forest-bot queue               # the open research queue
 forest-bot answer <id>         # a stored answer in full (the queue's "answer #n")
 forest-bot resolve <id>        # close a queue item once it is dealt with
