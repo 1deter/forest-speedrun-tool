@@ -198,6 +198,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0007 built: `bump.py` releases its tasks, #qa-todo-list rendered
   from `needs: tester` tasks' `qa` lines (only what testers still do;
   the old list pruned to 2 items, posted live; gotcha 95).
+  T-0011 confirmed (8c): `scripts/site-smoke.py` gates the site deploy;
+  bot.yml's warn-only eval subset runs on the live key after each bot
+  deploy (secret set by the author). Bot direction (author, 2026-10-07):
+  take the author out of the feedback loop - T-0141 (review on every new
+  feedback), T-0140 (knowledge-testing channel); a paid model later.
   **Order (author, 2026-10-07):** harness first (T-0012, T-0009,
   T-0010, T-0015), the redesign after; next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
