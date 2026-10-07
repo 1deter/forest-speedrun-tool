@@ -230,9 +230,8 @@ session and subagent pays for all of it on every turn.
 **Target (corrected, L4):** the always-loaded file is a router: overview,
 build / test / deploy commands, the hard constraints (at most ~15, at the
 top or bottom), and one-line links to topic docs, each with when to read
-it. The course's range is 50-200 lines; the size for this project is an
-**open question** (see *Questions for the author*: the author has also
-said "don't trim pointlessly").
+it. The course's range is 50-200 lines; the size for this project is
+**decided: ~100-200 lines**, moved not deleted (see *Decisions*).
 
 **Work:**
 - 3a. Split `CLAUDE.md` into the router plus area docs:
@@ -414,7 +413,8 @@ nothing would have stopped a "done".
   fresh context that did not write the change - the e2e script (8a),
   `forest-tester`, or a review agent briefed with the task's `verify`
   and `keep` only, told to find faults (T: checker prompt). How often to
-  pay for an extra agent is an **open question** (usage).
+  pay for an extra agent: **decided** - tasks with in-game or visual
+  effects (see *Decisions*).
 - 7e. **Done has three layers** (L9): the task's `verify` names which of
   static (build), runtime (tests, the game loads the plugin) and system
   (the in-game path, the live page) it needs; a plugin behaviour change
@@ -560,8 +560,8 @@ state) and reports rounds, passes, failures and human interventions.
   through `needs: none` tasks (docs, site, tests, bot cards) without the
   game. With the game up and the bridge on, it also takes `needs: bridge`
   tasks. Each release passes the 8b smoke before the next task. What it
-  may publish unattended (commit to main, tag a release) is an **open
-  question**. Ladder levels 2 and 4 (scheduled, self-feeding).
+  may publish unattended: main and releases, once the smoke passes
+  (see *Decisions*). Ladder levels 2 and 4 (scheduled, self-feeding).
 - **Stage C, graph** - only if it scores at least three of L14's five
   criteria when we get there. A dispatcher fans independent tasks out to
   the role agents (`forest-dev` / `-site` / `-knowledge` in worktrees, at
@@ -606,22 +606,22 @@ router) is judged by these, before and after - not by how it reads.
 
 ---
 
-## Questions for the author (2026-10-07)
+## Decisions (author, 2026-10-07)
 
-Asked in the session; the answers are recorded here with the date.
+Asked after the deeper pass; each replaces an "open question" above.
 
-1. **Router size** (3): the course says 50-200 lines for the
-   always-loaded file; the author said in 2026-09 "don't trim CLAUDE.md
-   pointlessly". Is the target a router of ~100-200 lines with every
-   other fact one hop away, or something larger?
-2. **The checker** (7d): a fresh-context checker for every task costs an
-   extra agent per task. Every task, only tasks with in-game / visual
-   effects, or machine checks only?
-3. **Unattended publishing** (12, Stage B): may an unattended loop commit
-   to main and tag releases runners download, or only push branches for
-   the author to merge and release?
-4. **Procedures as skills** (3e): move release / bridge test / QA start /
-   site deploy into project skills?
+1. **Router size** (3): a router of **~100-200 lines**; every other fact
+   moves one hop away (area docs, `docs/decisions.md`, folder
+   `CLAUDE.md` files) - moved, not deleted.
+2. **The checker** (7d): a fresh-context checker for **tasks with in-game
+   or visual effects** (plugin behaviour: the e2e script or
+   `forest-tester`); docs / tests / site-only tasks rely on the machine
+   gates.
+3. **Unattended publishing** (12, Stage B): the loop **may commit to main
+   and tag releases** once build, tests and the post-release in-game
+   smoke (8b) pass; anything visual waits in the `author-eyes` queue.
+4. **Procedures as skills** (3e): **yes** - release, bridge test, QA
+   session start and site deploy watch become project skills.
 
 ---
 
