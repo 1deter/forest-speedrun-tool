@@ -265,5 +265,69 @@ class Views(unittest.TestCase):
         self.assertIn("spec 1", s)
 
 
+ACCEPT = {"verdict": "accept", "commits": ["aaa"]}
+
+
+class Release(unittest.TestCase):
+    """bump.py's half of a release (docs/harness.md 6c)."""
+
+    def plan(self, ts, head=("aaa", "bbb"), tags=None):
+        return T.release_plan(ts, "0.24.9", in_head=lambda c: c in head,
+                              tag_of=lambda cs: (tags or {}).get(cs[0]))
+
+    def test_built_plugin_task_in_head_is_released_with_the_new_version(self):
+        ts = [task("T-0001", area="plugin", status="built", commits=["aaa"], checker=True, reviews=[ACCEPT])]
+        plan = self.plan(ts)
+        self.assertEqual([(t["id"], r) for t, r in plan], [("T-0001", "v0.24.9")])
+        T.mark_released(ts, plan)
+        self.assertEqual((ts[0]["status"], ts[0]["release"]), ("released", "v0.24.9"))
+
+    def test_a_commit_already_tagged_keeps_its_own_release(self):
+        ts = [task("T-0001", area="plugin", status="built", commits=["aaa"])]
+        self.assertEqual(self.plan(ts, tags={"aaa": "v0.24.5"})[0][1], "v0.24.5")
+
+    def test_left_out_off_head_other_areas_and_not_built(self):
+        ts = [task("T-0001", area="plugin", status="built", commits=["zzz"]),      # another branch
+              task("T-0002", area="plugin", status="built", commits=["aaa", "zzz"]),
+              task("T-0003", area="site", status="built", commits=["aaa"]),        # deploys on push
+              task("T-0004", area="plugin", status="todo", commits=["aaa"]),
+              task("T-0005", area="plugin", status="built", commits=[])]
+        self.assertEqual(self.plan(ts), [])
+
+    def test_refuses_without_an_accept(self):
+        ts = [task("T-0001", area="plugin", status="built", commits=["aaa"], checker=True),
+              task("T-0002", area="plugin", status="built", commits=["bbb"], checker=True,
+                   reviews=[{"verdict": "accept", "commits": ["bbb"]}])]
+        with self.assertRaises(T.TaskError) as e:
+            self.plan(ts)
+        self.assertIn("T-0001", str(e.exception))
+        self.assertNotIn("T-0002", str(e.exception).split("\n")[0])
+        self.assertEqual(ts[0]["status"], "built")
+
+
+class QaTodo(unittest.TestCase):
+    """The #qa-todo-list message, rendered from the tasks (docs/harness.md 6d)."""
+
+    def test_only_open_tester_items_with_qa_lines_in_priority_order(self):
+        ts = [task("T-0001", needs="tester", qa="maks: do b - see c: link2", priority=3),
+              task("T-0002", needs="tester", qa="Anyone: do a - see b: link1", priority=2),
+              task("T-0003", needs="tester", qa="old", status="confirmed", evidence=[{"by": "x", "what": "y"}]),
+              task("T-0004", needs="tester", qa="paused", status="blocked", notes="waits on Tom"),
+              task("T-0005", needs="bridge", qa="a session checks it")]
+        md = T.qa_todo(ts, "v0.24.9", day="2026-10-07")
+        self.assertEqual(md, "**ForestOverlay - QA to-do** (2026-10-07, v0.24.9)\n\n**Please test**\n"
+                             "- Anyone: do a - see b: link1\n- maks: do b - see c: link2")
+
+    def test_nothing_to_test(self):
+        self.assertIn("Nothing to test right now.", T.qa_todo([], "v1", day="d"))
+
+    def test_open_tester_task_needs_a_qa_line(self):
+        with self.assertRaises(T.TaskError) as e:
+            T.validate([task("T-0001", needs="tester")])
+        self.assertIn("--qa", str(e.exception))
+        T.validate([task("T-0001", needs="tester", status="blocked", notes="paused")])
+        T.validate([task("T-0001", needs="tester", qa="Anyone: x - y: link")])
+
+
 if __name__ == "__main__":
     unittest.main()

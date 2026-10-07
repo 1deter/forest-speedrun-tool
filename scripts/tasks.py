@@ -10,6 +10,7 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
     python scripts/tasks.py add "Title" --area plugin --behavior "..." [--priority 2]
            [--source qa:123] [--needs none] [--verify STEP ...] [--keep "..."]
            [--scope "..."] [--question "..."] [--notes "..."] [--checker | --no-checker]
+           [--qa "the line testers read + a message link"]
     python scripts/tasks.py start T-0001 --by main [--scope ..] [--verify ..] [--keep ..]
     python scripts/tasks.py set T-0001 [--status S] [--needs N] [--question Q | --answer A]
            [--priority P] [--commit SHA ...] [--release vX] [--layer L] [--notes ..]
@@ -24,6 +25,7 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
     python scripts/tasks.py stats
     python scripts/tasks.py check          # validate the file (CI)
     python scripts/tasks.py render         # rewrite docs/tasks.md
+    python scripts/tasks.py qa-todo        # the #qa-todo-list text (qa_todo from_tasks posts it)
 
 Errors print WHAT / WHY / FIX and exit 1, so a chain joined with && stops.
 """
@@ -58,9 +60,13 @@ BRIEF_LIMIT = 60000
 # Tasks an agent can take alone (docs/harness.md 6a); bridge ones need the game up.
 ALONE = ("none",)
 ALONE_BRIDGE = ("none", "bridge")
+# Areas a plugin release ships; bump.py marks their built tasks released (docs/harness.md 6c).
+RELEASED_AREAS = ("plugin",)
+# What testers still have to do (author, 2026-10-07: only that, nothing done or planned).
+QA_OPEN = ("todo", "in-progress", "built", "released")
 # Field order in the file, so diffs stay readable.
 ORDER = ["id", "title", "area", "priority", "status", "needs", "question", "behavior",
-         "scope", "verify", "keep", "checker", "source", "owner", "maker", "commits",
+         "scope", "verify", "keep", "qa", "checker", "source", "owner", "maker", "commits",
          "release", "evidence", "reviews", "layer", "blocked_by", "notes", "created", "updated", "log"]
 
 
@@ -171,6 +177,12 @@ def validate(tasks):
                             "a parked task carries its question, the options and what each changes "
                             "(docs/harness.md *Ground rule*)",
                             "`tasks.py set %s --question \"...\"`" % tid)
+        if t["needs"] == "tester" and t["status"] in QA_OPEN and not t.get("qa"):
+            raise TaskError("%s needs a tester but has no qa line" % tid,
+                            "the #qa-todo-list message is rendered from qa lines (docs/harness.md 6d); "
+                            "a tester item says what to do and what to expect, plus the message link",
+                            "`tasks.py set %s --qa \"<who>: <what to do> - <what you should see>: <link>\"`, "
+                            "or --needs bridge if a session can check it" % tid)
         if t["status"] == "confirmed" and not t.get("evidence"):
             raise TaskError("%s is confirmed with no evidence" % tid,
                             "confirmed needs recorded proof (docs/harness.md 7a)",
@@ -334,6 +346,54 @@ def pick_next(tasks, bridge=False, by=None):
     return ready[0] if ready else None
 
 
+# ---------------------------------------------------------------- releases
+
+def git_ok(args):
+    try:
+        return subprocess.run(["git"] + args, cwd=ROOT, capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
+def first_tag(commits):
+    """The earliest v* tag holding every commit, or None (not released yet)."""
+    common = None
+    for c in commits:
+        tags = set(git_out(["tag", "--contains", c, "--list", "v*"]).split())
+        common = tags if common is None else common & tags
+    if not common:
+        return None
+    return min(common, key=lambda v: [int(x) for x in re.findall(r"\d+", v)])
+
+
+def release_plan(tasks, version, in_head=None, tag_of=first_tag):
+    """[(task, release)] for built plugin tasks whose commits are all in HEAD; raises if one
+    of them may not be released yet (the checker gate), so bump.py stops before editing."""
+    in_head = in_head or (lambda c: git_ok(["merge-base", "--is-ancestor", c, "HEAD"]))
+    plan, refused = [], []
+    for t in tasks:
+        if t["status"] != "built" or t["area"] not in RELEASED_AREAS or not t.get("commits"):
+            continue
+        if not all(in_head(c) for c in t["commits"]):
+            continue  # on another branch (e.g. a worktree's): ships with its merge
+        if t.get("checker") and not accepted(t):
+            refused.append(t["id"])
+            continue
+        plan.append((t, tag_of(t["commits"]) or "v" + version.lstrip("v")))
+    if refused:
+        raise TaskError("built %s in this release without a checker accept" % ", ".join(refused),
+                        "a behaviour change is checked by a fresh context before it ships (router rule 10)",
+                        "spawn forest-checker with \"Check %s\" first; nothing was changed" % refused[0])
+    return plan
+
+
+def mark_released(tasks, plan, by="bump.py"):
+    for t, release in plan:
+        t["release"] = release
+        transition(tasks, t, "released", by=by)
+        t["updated"] = today()
+
+
 # ---------------------------------------------------------------- views
 
 def line(t):
@@ -373,6 +433,16 @@ def render(tasks):
     done = len([t for t in tasks if t["status"] in DONE])
     out.append("%d open, %d done (confirmed or wontfix)." % (len(open_), done))
     return "\n".join(out) + "\n"
+
+
+def qa_todo(tasks, version=None, day=None):
+    """The #qa-todo-list message: only what testers still have to do (author, 2026-10-07)."""
+    rows = sorted([t for t in tasks if t["needs"] == "tester" and t["status"] in QA_OPEN and t.get("qa")],
+                  key=lambda t: (t.get("priority", 3), id_num(t["id"])))
+    head = "**ForestOverlay - QA to-do** (%s%s)" % (day or today(), ", " + version if version else "")
+    if not rows:
+        return head + "\n\nNothing to test right now."
+    return head + "\n\n**Please test**\n" + "\n".join("- " + t["qa"].strip() for t in rows)
 
 
 def stats(tasks):
@@ -502,7 +572,7 @@ def parse_scores(text):
 def cmd_add(tasks, a):
     t = {"id": new_id(tasks), "title": a.title.strip(), "area": a.area, "priority": a.priority,
          "status": "todo", "needs": a.needs, "question": a.question, "behavior": a.behavior,
-         "scope": a.scope, "verify": a.verify or [], "keep": a.keep,
+         "scope": a.scope, "verify": a.verify or [], "keep": a.keep, "qa": a.qa,
          "checker": a.checker if a.checker is not None else a.area in CHECKED_AREAS,
          "source": a.source, "commits": [], "release": None, "evidence": [], "layer": None,
          "blocked_by": [normalise_id(x) for x in a.blocked_by or []], "notes": a.notes,
@@ -515,7 +585,7 @@ def cmd_add(tasks, a):
 
 def cmd_set(tasks, a):
     t = find(tasks, a.id)
-    for field in ("title", "behavior", "scope", "keep", "notes", "release", "layer", "needs", "area"):
+    for field in ("title", "behavior", "scope", "keep", "notes", "release", "layer", "needs", "area", "qa"):
         v = getattr(a, field, None)
         if v is not None:
             t[field] = v
@@ -630,6 +700,7 @@ def main(argv=None):
         sp.add_argument("--area", choices=AREAS, default=None)
         sp.add_argument("--blocked-by", nargs="*")
         sp.add_argument("--question")
+        sp.add_argument("--qa")
         g = sp.add_mutually_exclusive_group()
         g.add_argument("--checker", dest="checker", action="store_true", default=None)
         g.add_argument("--no-checker", dest="checker", action="store_false")
@@ -683,6 +754,7 @@ def main(argv=None):
     sub.add_parser("stats")
     sub.add_parser("check")
     sub.add_parser("render")
+    sub.add_parser("qa-todo")
     a = p.parse_args(argv)
     # Titles carry emoji; a Windows console or pipe defaults to cp1252 and crashed `list`.
     for stream in (sys.stdout, sys.stderr):
@@ -715,6 +787,9 @@ def main(argv=None):
                     raise TaskError("docs/tasks.md is out of date", "it is generated from tasks.jsonl",
                                     "`python scripts/tasks.py render` and commit it")
             print("tasks: %d ok" % len(tasks))
+        elif a.cmd == "qa-todo":
+            tags = git_out(["tag", "--list", "v*", "--sort=-v:refname"]).split()
+            print(qa_todo(tasks, tags[0] if tags else None))
         elif a.cmd == "render":
             save(tasks)
             print("rendered " + os.path.relpath(VIEW, ROOT))

@@ -115,17 +115,23 @@ posted), and **check `qa_read new_only` constantly** - session start,
 between work steps, after releases and tests, before ending a turn
 (author, 2026-09-26: "a little annoying having to prompt you");
 **the to-do list**: one bot message in **#qa-todo-list** (channel
-`1553227181868589096`, `FOREST_QA_TODO_CHANNEL` overrides), edited in
-place with the MCP tool `qa_todo` (no `text` = read it) whenever an
-item is confirmed, changed, removed or added (maks + author,
-2026-09-26; memory `qa-todo-list`); its message id is kept in
+`1553227181868589096`, `FOREST_QA_TODO_CHANNEL` overrides), **rendered
+from the task file** (T-0007, author 2026-10-07): it lists **only what
+testers still have to do** - each open `needs: tester` task's `qa` line
+(`tasks.py set T-n --qa "<who>: <what to do> - <what you should see>:
+<message link>"`), nothing done, planned or decided ("it clogs the
+channel"). `python scripts/tasks.py qa-todo` prints it; `qa_todo` with
+`from_tasks: true` posts it - after every change to a tester task
+(no `text` = read the posted one). A tester item is only what a session
+cannot do or easily do over the bridge (else `needs: bridge`), never
+something already confirmed, and possible in the game as described.
+Its message id is kept in
 `%LOCALAPPDATA%\ForestOverlay\qa-todo-message.txt` (first posted
-`1553229664015614033`); sections: Please test / Being looked into /
-Planned next / Noted for later / Done recently, under 2000 chars per message (longer: `qa_todo`
-splits it at its sections into several messages, ids one per line in the
-state file - author, 2026-09-26: "two messages"; since 2026-09-27); it
-**links** what it refers to (a posted list, a report) by message link
-(author, 2026-09-26) - so every QA list is posted in #general too;
+`1553229664015614033`); under 2000 chars per message (longer: `qa_todo`
+splits it at blank lines into several messages, ids one per line in the
+state file); it **links** what it refers to (a posted list, a report)
+by message link (author, 2026-09-26) - so every QA list is posted in
+#general too;
 without the MCP tool, a direct `PATCH
 /channels/<todo channel>/messages/<id>` (JSON `content`, bot token
 from the User variable, never printed, the DiscordBot User-Agent) does it;
@@ -141,9 +147,11 @@ checked over the bridge and nothing [`confirmed.md`](confirmed.md)
 already lists; light (volunteers); a plain ``` code block numbered `1)`
 `2)` so it pastes unchanged; `qa_post` it in #general (`@username`
 pings the testers it names). Save it verbatim as `qa/<date>-<name>.txt`
-and as `docs/tests/<date>-<name>.md` with what each item checks, link
-it from the #qa-todo-list message (`qa_todo`), and poll `qa_read
-new_only` while a tester is active.
+and as `docs/tests/<date>-<name>.md` with what each item checks, give
+each item a `needs: tester` task with its `qa` line (linking the post),
+`qa_todo from_tasks`, and poll `qa_read new_only` while a tester is
+active. An answer: `tasks.py evidence T-n "..." --by qa:<tester>`, the
+task confirmed or back to `needs: none`, then `qa_todo from_tasks`.
 
 ## Working with the game (bridge recipes)
 

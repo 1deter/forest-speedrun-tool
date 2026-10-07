@@ -23,8 +23,8 @@ Facts behind each step (the updater, the 404 window, rollback):
    into this release has an accept review - `tasks.py list --status
    built`, and for each without one spawn `forest-checker` with
    `Check T-n` (docs/areas/workflow.md *The checker*). A revise is fixed
-   and checked again before the bump; `tasks.py set --status released`
-   refuses a task with no accept.
+   and checked again before the bump; `bump.py` refuses (before it
+   edits anything) a built plugin task in HEAD with no accept.
 
 3. **Changelog bullets**: a few short runner-facing lines in plain words,
    no internals (`CHANGELOG.md` shows them; "What's new in vX" in game).
@@ -34,12 +34,14 @@ Facts behind each step (the updater, the 404 window, rollback):
    it (gotcha 65; a script edit that belongs to the release goes in the
    same chain):
    ```bash
-   python scripts/bump.py 0.24.N "Bullet one." "Bullet two." && dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed" && dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj && git add CHANGELOG.md ForestOverlay.csproj src/Plugin.cs && git commit -m "v0.24.N: <summary>" && git tag v0.24.N && git push origin main v0.24.N
+   python scripts/bump.py 0.24.N "Bullet one." "Bullet two." && dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed" && dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj && git add CHANGELOG.md ForestOverlay.csproj src/Plugin.cs tasks/tasks.jsonl docs/tasks.md && git commit -m "v0.24.N: <summary>" && git tag v0.24.N && git push origin main v0.24.N
    ```
    (stage the change itself first if it is not committed yet;
    `-f notes.md` instead of bullets for longer notes; commit message
-   ends with the session's Co-Authored-By line.) `bump.py` only edits the
-   three files - it does not commit, tag or push.
+   ends with the session's Co-Authored-By line.) `bump.py` edits the
+   three files and marks the release's tasks (built plugin tasks whose
+   commits are all in HEAD -> `released`, with the version; it prints
+   them) - it does not commit, tag or push.
 
 5. **Wait for the asset, not the release** (a tag publishes before CI
    attaches the DLL). Poll in the background, never `api.github.com`:
@@ -50,13 +52,13 @@ Facts behind each step (the updater, the 404 window, rollback):
    badge (`python scripts/session-start.py` prints it) - a missing
    CHANGELOG section fails the release.
 
-6. **Handoff in the next push** (docs-only, no version): the task's
-   `tasks.py set T-n --release v0.24.N` (and `--commit`), the router's
+6. **Handoff in the next push** (docs-only, no version): the router's
    *Where we are* (unreleased line), new gotchas in `docs/gotchas.md` +
    the area index, confirmed items moved to `docs/confirmed.md`.
 
 7. **Confirm in game**: a plugin task is `confirmed` by in-game evidence
    from someone other than its maker (router rule 10): `forest-tester`
    after `update_game` installs the release (`tasks.py evidence T-n
-   "..." --by forest-tester`). Something for the QA team: the
-   `bridge-test` skill's QA part (lists go out as plain numbered text).
+   "..." --by forest-tester`). Something only a tester can check: a
+   `needs: tester` task with a `qa` line, then `qa_todo from_tasks`
+   (docs/bridge.md *The QA Discord*; lists go out as plain numbered text).

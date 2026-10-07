@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -120,9 +121,11 @@ namespace ForestOverlay.BridgeMcp
                     "list (posts it the first time, or again if it was deleted); over 2000 characters it is split " +
                     "at blank lines (sections) into several messages, and extra old ones are deleted. Without: " +
                     "returns the current list. Keep it up to date whenever an item is confirmed, changed, removed " +
-                    "or added. Never pings.",
+                    "or added. Never pings. from_tasks: posts `python scripts/tasks.py qa-todo` - the list rendered from the " +
+                    "task file (needs: tester tasks' qa lines), the normal way to update it.",
                 Schema = Tools.Schema(
-                    Tools.P("text", "string", "The whole new list (Discord markdown). Omit to read the current one.")),
+                    Tools.P("text", "string", "The whole new list (Discord markdown). Omit to read the current one."),
+                    Tools.P("from_tasks", "boolean", "Post the list rendered from tasks/tasks.jsonl instead of `text`.")),
                 Run = Todo,
             });
         }
@@ -463,9 +466,36 @@ namespace ForestOverlay.BridgeMcp
             }
         }
 
+        // The list rendered from the task file (docs/harness.md 6d), so the two never drift.
+        private static async Task<string> RenderFromTasks(CancellationToken ct)
+        {
+            string repo = Tools.RepoRoot() ?? throw new InvalidOperationException("repo not found above " + AppContext.BaseDirectory);
+            ProcessStartInfo psi = new ProcessStartInfo("python")
+            {
+                WorkingDirectory = repo,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+            };
+            psi.ArgumentList.Add(Path.Combine("scripts", "tasks.py"));
+            psi.ArgumentList.Add("qa-todo");
+            using Process p = Process.Start(psi);
+            Task<string> stdout = p.StandardOutput.ReadToEndAsync(ct);
+            Task<string> stderr = p.StandardError.ReadToEndAsync(ct);
+            using (CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                limit.CancelAfter(TimeSpan.FromSeconds(30));
+                await p.WaitForExitAsync(limit.Token);
+            }
+            if (p.ExitCode != 0) throw new InvalidOperationException("tasks.py qa-todo failed: " + (await stderr).Trim());
+            return (await stdout).Trim();
+        }
+
         private async Task<ToolResult> Todo(Args a, CancellationToken ct)
         {
-            string text = a.Str("text");
+            string text = a.Bool("from_tasks") ? await RenderFromTasks(ct) : a.Str("text");
             List<string> ids = new List<string>();
             try
             {

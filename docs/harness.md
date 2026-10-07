@@ -384,8 +384,17 @@ the template, both because of how this project ships:
 - 6c. `bump.py` marks `built` tasks whose commits are in the release as
   `released`. `forest-tester` marks them `confirmed` with evidence.
   *Check:* one release moves its tasks without anyone editing by hand.
+  **Built** (T-0007): `tasks.release_plan` / `mark_released`, called by
+  `bump.py` - built plugin tasks whose commits are all in HEAD (a
+  worktree's are left for its merge), the version of the first tag
+  holding them or the new one; a checker task with no accept stops the
+  bump before any file is edited (`scripts/tests/test_bump.py`).
 - 6d. The QA to-do Discord message (`qa_todo`) is rendered from the tasks
-  marked `needs: tester`, so the two never drift.
+  marked `needs: tester`, so the two never drift. **Built** (T-0007):
+  a `qa` field (the line testers read), `tasks.py qa-todo`, `qa_todo
+  from_tasks`; only what testers still have to do (author, 2026-10-07 -
+  docs/decisions.md); `tasks.py check` refuses an open tester task with
+  no `qa` line.
 
 ### 7. Early-victory prevention
 

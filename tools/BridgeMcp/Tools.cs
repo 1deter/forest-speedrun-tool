@@ -714,7 +714,7 @@ namespace ForestOverlay.BridgeMcp
             return text.Length <= chars ? text : "...(" + (text.Length - chars) + " chars cut)\n" + text.Substring(text.Length - chars);
         }
 
-        private static string RepoRoot()
+        internal static string RepoRoot()
         {
             DirectoryInfo d = new DirectoryInfo(AppContext.BaseDirectory);
             while (d != null && !File.Exists(Path.Combine(d.FullName, "ForestOverlay.csproj"))) d = d.Parent;

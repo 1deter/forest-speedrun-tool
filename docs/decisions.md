@@ -48,7 +48,8 @@ Flower/plant coordinate display is **out of scope by the author's own call**.
 ## Working with the author
 
 - **The author runs medium effort**; say when a task needs high (memory
-  `effort-level-switching`). The bridge makes fixes fast: reproduce live
+  `effort-level-switching`) - with the author present, pause the turn for
+  the switch instead of a one-liner they can miss (author, 2026-10-07). The bridge makes fixes fast: reproduce live
   before and after a fix, and prefer a live read over an IL theory
   (gotcha 25).
 - **Game data is disposable** (author, 2026-09-25: "i'm the tool dev
@@ -65,6 +66,16 @@ Flower/plant coordinate display is **out of scope by the author's own call**.
   Unattended work parks the task with the question written out
   (docs/harness.md *Ground rule*); new features are built with the
   author present, and questions are welcome (they can spark ideas).
+
+- **The QA to-do list holds only what testers still have to do**
+  (author, 2026-10-07, T-0007): rendered from the task file (`tasks.py
+  qa-todo`: `needs: tester` tasks with a `qa` line), no Done / Later /
+  Decided sections ("it clogs the channel"). Testers get only what a
+  session cannot do or easily do over the bridge; the rest is a `needs:
+  bridge` task for automated checks. Each item says what to do and what
+  to expect - past lists asked for things impossible in game, were vague
+  about the expected result, or re-asked what a session had already
+  confirmed.
 
 ## People and saves
 
