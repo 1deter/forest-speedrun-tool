@@ -153,6 +153,16 @@ class CatalogueTests(Repo):
         self.assertEqual(list(cat.groups), ["Memory census", "Render probe", "Scene census after"])
         self.assertIn("- info `<summary>` *(declared)*", self.doc())
 
+    def test_a_declaration_must_start_a_string_literal(self):
+        self.write("src/Game/A.cs", '_log.LogInfo(summary);   // log: Memory census\n'
+                                    '_log.LogInfo(other);   // log: Memroy census')
+        self.write("src/Game/B.cs", 'string s = "Memory census " + n; // "Memroy census" in a comment does not count')
+        self.generate()
+        self.assertEqual(self.problems(), [
+            "log call at src/Game/A.cs:2 declares `Memroy census`, but no string literal in src/ or patcher/ starts with it",
+            "log prefix `Memory census` has no meaning in docs/log-lines.md",
+            "log prefix `Memroy census` has no meaning in docs/log-lines.md"])
+
     def test_comment_above_must_stand_alone(self):
         self.write("src/Game/A.cs", 'Foo();   // log: Map\n_log.LogInfo(line);')
         cat = self.generate()

@@ -12,8 +12,10 @@ the bridge are the test harness (gotcha 16), so every call starts with a
 literal prefix an agent or an e2e check can grep for. Two exceptions
 (author, 2026-10-07): a message built elsewhere (a report builder, a
 StringBuilder) names the prefix(es) it prints in a `// log: Name` comment on
-the call's line or the line above; a line starting with spaces continues
-the line above (a report's indented rows) and needs no prefix.
+the call's line or the line above - a name that starts no string literal in
+src/ or patcher/ fails, so a typo or a stale one is caught; a line starting
+with spaces continues the line above (a report's indented rows) and needs
+no prefix.
 
 docs/log-lines.md is generated, except the `Meaning:` line under each
 prefix: written by hand, kept across regenerations (author, 2026-10-07).
@@ -106,6 +108,20 @@ def string_end(text, i):
             return j + 1
         j += 1
     return len(text)
+
+
+def string_literals(text):
+    """The values of the string literals in code (comments and char literals skipped)."""
+    out, masked = [], mask(text)
+    i = 0
+    while True:
+        i = masked.find('"', i)
+        if i < 0:
+            return out
+        j = string_end(text, i)
+        verbatim = i > 0 and text[i - 1] == "@"
+        out.append(unescape(text[i + 1:j - 1], verbatim))
+        i = j
 
 
 def first_arg(text, masked, i):
@@ -212,7 +228,8 @@ def scan_text(path, text):
     return calls
 
 
-def scan(root=ROOT):
+def scan(root=ROOT, literals=None):
+    """Every log call under src/ and patcher/; `literals`, when given, collects every string literal."""
     calls = []
     for base in SCAN:
         for dirpath, dirs, files in os.walk(os.path.join(root, base)):
@@ -222,7 +239,10 @@ def scan(root=ROOT):
                     full = os.path.join(dirpath, f)
                     with open(full, encoding="utf-8-sig") as fh:
                         rel = os.path.relpath(full, root).replace("\\", "/")
-                        calls.extend(scan_text(rel, fh.read()))
+                        text = fh.read()
+                        calls.extend(scan_text(rel, text))
+                        if literals is not None:
+                            literals.extend(string_literals(text))
     return calls
 
 
@@ -230,9 +250,11 @@ def scan(root=ROOT):
 
 class Catalogue(object):
     """groups: OrderedDict prefix -> [(path, level, template, count)];
-    bare: calls with no prefix [(path, line, template)]; wrong: bad declarations [(path, line, why)]."""
+    bare: calls with no prefix [(path, line, template)]; wrong: bad declarations [(path, line, why)].
+    With `literals` (every string literal scanned), a declared prefix must start one of them, so
+    a typo or a declaration left behind when its text changed fails."""
 
-    def __init__(self, calls):
+    def __init__(self, calls, literals=None):
         groups, self.bare, self.wrong = {}, [], []
         for path, line, level, tpl, decl in calls:
             p = prefix(tpl)
@@ -243,6 +265,9 @@ class Catalogue(object):
                 if prefix(d) != d:
                     self.wrong.append((path, line, "declares `%s`, which is not a prefix "
                                        "(words up to ':', '(' or a quote)" % d))
+                elif literals is not None and not any(lit.startswith(d) for lit in literals):
+                    self.wrong.append((path, line, "declares `%s`, but no string literal in src/ or "
+                                       "patcher/ starts with it" % d))
             names = [p] if p is not None else decl
             if not names:
                 if not tpl.startswith(" "):
@@ -304,7 +329,8 @@ def build(root=ROOT):
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             old = f.read()
-    cat = Catalogue(scan(root))
+    literals = []
+    cat = Catalogue(scan(root, literals), literals)
     return cat, render(cat, read_meanings(old or "")), old
 
 

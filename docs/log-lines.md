@@ -1589,7 +1589,7 @@ Written by ModuleHost.cs; warning.
 
 - warning `Slow tick: '<m.Id>' took <..> ms<..>`
 
-## `Snapshot Frame`
+## `Snapshot`
 
 Meaning: The bridge's FrameSnapshot (dev): the frame-time report for the window since the last call.
 Written by FrameTimer.cs; info.
