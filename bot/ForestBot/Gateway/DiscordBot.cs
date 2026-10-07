@@ -65,10 +65,14 @@ public sealed class DiscordBot
 
     /// What identifies the running build: the commit the deploy published (bot.yml passes it as
     /// SourceRevisionId, which the SDK appends to the informational version after a +); "dev" locally.
-    public static string BuildId()
+    public static string BuildId() =>
+        BuildId(typeof(DiscordBot).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion);
+
+    /// "1.0.0+<SourceRevisionId>" -> the first 12 characters of the revision id; no id -> "dev".
+    public static string BuildId(string informationalVersion)
     {
-        string v = typeof(DiscordBot).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "";
+        string v = informationalVersion ?? "";
         int plus = v.IndexOf('+');
         return plus >= 0 && v.Length > plus + 1 ? v.Substring(plus + 1, Math.Min(12, v.Length - plus - 1)) : "dev";
     }

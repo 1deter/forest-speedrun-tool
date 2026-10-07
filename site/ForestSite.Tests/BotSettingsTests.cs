@@ -71,6 +71,14 @@ public sealed class BotSettingsTests : IDisposable
         Assert.Equal(2, r["channels"].AsArray().Count);
         Assert.Equal(100, ((string)r["channels"][1]["name"]).Length);
         Assert.NotNull(b.SaveReport("nope"));
+
+        // The time the bot applied its revision: kept as UTC; junk or none = "".
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"appliedAt":"2026-10-07T12:34:00.0000000Z","channels":[]}"""));
+        Assert.Equal(new DateTime(2026, 10, 7, 12, 34, 0, DateTimeKind.Utc), DateTime.Parse((string)b.Report()["appliedAt"], null, System.Globalization.DateTimeStyles.RoundtripKind));
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"appliedAt":"soon","channels":[]}"""));
+        Assert.Equal("", (string)b.Report()["appliedAt"]);
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"channels":[]}"""));
+        Assert.Equal("", (string)b.Report()["appliedAt"]);
     }
 
     private HttpRequestMessage Req(HttpMethod m, string path, string header, string token, string body = null)

@@ -10,7 +10,8 @@ namespace ForestBot.Llm;
 // ------------------------------------------------------------------
 public sealed class ModelChain
 {
-    private readonly List<IChatModel> _models;
+    // Replaced as a whole by reference (live settings), never mutated: readers keep a consistent list.
+    private volatile IReadOnlyList<IChatModel> _models;
     private readonly Dictionary<string, DateTime> _restUntil = new Dictionary<string, DateTime>();
     private readonly object _lock = new object();
     private readonly Action<string> _log;
@@ -19,7 +20,7 @@ public sealed class ModelChain
 
     public ModelChain(IEnumerable<IChatModel> models, Action<string> log)
     {
-        _models = new List<IChatModel>(models);
+        _models = new List<IChatModel>(models).AsReadOnly();
         _log = log ?? (_ => { });
     }
 
@@ -65,11 +66,7 @@ public sealed class ModelChain
     /// Swaps the models in place (live settings: a new order). Resting times are kept by name.
     public void Replace(IEnumerable<IChatModel> models)
     {
-        lock (_lock)
-        {
-            _models.Clear();
-            _models.AddRange(models);
-        }
+        _models = new List<IChatModel>(models).AsReadOnly();
     }
 
     /// The first model not resting, or null.

@@ -127,9 +127,13 @@ public sealed class BotSettings
                     ["id"] = id, ["name"] = Clip(Text(c["name"]), 100), ["guild"] = Clip(Text(c["guild"]), 100),
                 });
             }
+        // When the bot applied that revision (its own clock); anything unparsable = unknown.
+        string applied = DateTimeOffset.TryParse(Text(o["appliedAt"]), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var when)
+            ? when.UtcDateTime.ToString("o", CultureInfo.InvariantCulture) : "";
         var report = new JsonObject
         {
-            ["at"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture), ["version"] = version, ["rev"] = rev, ["channels"] = channels,
+            ["at"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture), ["version"] = version, ["rev"] = rev,
+            ["appliedAt"] = applied, ["channels"] = channels,
         };
         Put("report", report.ToJsonString());
         return null;
