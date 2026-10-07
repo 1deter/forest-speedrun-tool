@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.250 - 2026-10-07
+
+- Finishing a run no longer stutters on the finish frame: looking up your save's plane crash site took 22-25 ms each finish and now takes under 1 ms.
+
 ## v0.24.249 - 2026-10-07
 
 - Run lines off now hides every run line, even while a marker or a replay is up.
