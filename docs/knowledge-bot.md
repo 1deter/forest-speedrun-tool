@@ -34,7 +34,10 @@ cover.
   thresholds) - read live over the bridge.
 - **Test questions** (`knowledge/eval/questions.md`): 40-50 questions with
   the facts each answer must contain. Run on every model swap or big
-  knowledge change; a swap that scores worse is not made.
+  knowledge change; a swap that scores worse is not made. An optional
+  `max-length:` / `min-length:` (characters) checks the answer's length:
+  the bot answers a short question briefly and a "how / why" or an
+  "elaborate" reply in full (T-0090).
 - **Secondary sources** the bot also searches: `docs/game-notes.md` (by
   heading), `docs/fsm/*.txt` (PlayMaker FSMs, by state), the decompiled
   game code (by type / method, private, on the server only), and the

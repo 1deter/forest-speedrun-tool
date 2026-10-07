@@ -6,7 +6,11 @@ each), the cards it should read, and things it must **not** say. A
 follow-up (`then:`) is asked as a reply to the first answer.
 
 Format: `### <id>`, then `question:`, `cards:`, `must:` bullets, optional
-`not:` bullets and `then:` (a follow-up with its own `must:`).
+`not:` bullets, optional `max-length:` / `min-length:` (answer length in
+characters; before `then:` it bounds the first answer, after it the
+follow-up) and `then:` (a follow-up with its own `must:`). A length limit
+counts as one more fact in the score. Short questions get `max-length`
+(the bot answers short questions briefly, T-0090).
 
 ### bomb-why
 question: why does a bomb boost work?
@@ -530,3 +534,45 @@ must:
 - physics stays at 60 Hz, so higher fps does not add collision checks
 not:
 - that physics or collision checks run once per rendered frame
+
+### short-coyote
+question: coyote time?
+cards: movement-tricks
+max-length: 600
+must:
+- yes, 0.21 s after the last grounded step
+
+### short-diagonal
+question: diagonal faster?
+cards: movement-tricks
+max-length: 600
+must:
+- yes, 10% - input is clamped to length 1.1
+
+### short-terminal
+question: max fall speed?
+cards: player-physics
+max-length: 600
+must:
+- 55.43 m/s
+
+### short-elevator-card
+question: elevator needs keycard?
+cards: elevator-skip
+max-length: 600
+must:
+- no - nothing in the elevator's chain checks the keycard
+- the keycard is only checked at the gold door
+
+### short-bomb-fps
+question: fps and bomb boost?
+cards: bomb-boost
+max-length: 700
+must:
+- yes - one push per rendered frame, so more fps = more pushes per second paused
+then: why exactly? explain how it works in detail
+min-length: 1200
+must:
+- the knockback pushes 8 m/s backwards once per rendered frame (a coroutine)
+- the pause menu stops physics / game time but the loop keeps running, so the pushes pile up
+- the knockback disables the character controller, so the 55 m/s cap does not apply

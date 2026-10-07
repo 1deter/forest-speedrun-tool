@@ -270,7 +270,7 @@ exports the bot reads.
 - Legibility **A**: knowledge/README.md (format, `[runner]` /
   `[inferred]` labels, the research queue).
 - Stability **B**: the eval spends the free quota shared with the live
-  bot, so CI runs a 5-question subset only.
+  bot, so CI runs a 7-question subset only.
 - Gaps **B**: the 👎 queue (T-0097); the recurring review is not built
   (T-0141); eleven research items (T-0098..T-0108).
 

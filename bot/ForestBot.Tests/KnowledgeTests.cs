@@ -166,6 +166,25 @@ public class KnowledgeTests
     }
 
     [Fact]
+    public void Eval_parser_reads_length_limits_and_a_too_long_answer_fails()
+    {
+        string md = "### a\nquestion: q1?\nmax-length: 600\nmust:\n- f\nthen: more\nmin-length: 1200\nmust:\n- g\n";
+        EvalQuestion q = EvalQuestions.Parse(md).Single();
+        Assert.Equal(600, q.MaxLength);
+        Assert.Equal(0, q.MinLength);
+        Assert.Equal(1200, q.ThenMinLength);
+        Assert.Equal(0, q.ThenMaxLength);
+        Assert.Equal(new[] { "f" }, q.Must);
+        Assert.Equal(new[] { "g" }, q.ThenMust);
+        Assert.True(EvalQuestion.CheckLength(new string('x', 600), 600, 0).ok);
+        (bool ok, string line) = EvalQuestion.CheckLength(new string('x', 601), 600, 0);
+        Assert.False(ok);
+        Assert.Contains("TOO LONG", line);
+        Assert.False(EvalQuestion.CheckLength("short", 0, 1200).ok);
+        Assert.Null(EvalQuestion.CheckLength("anything", 0, 0).line);
+    }
+
+    [Fact]
     public void Eval_select_keeps_file_order_and_refuses_unknown_ids()
     {
         List<EvalQuestion> qs = EvalQuestions.Parse("### a\nquestion: q?\nmust:\n- f\n### b\nquestion: q?\nmust:\n- f\n### c\nquestion: q?\nmust:\n- f\n");

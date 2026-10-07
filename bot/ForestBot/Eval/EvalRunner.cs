@@ -60,6 +60,7 @@ public sealed class EvalRunner
             if (!a.Busy)
                 try { (ok, n, detail) = await JudgeAsync(q.Question, a, q.Must, q.Not, q.Cards, ct); }
                 catch (JudgeBusyException) { detail = null; }
+            if (detail != null) (ok, n, detail) = AddLength(a.Text, q.MaxLength, q.MinLength, ok, n, detail);
             if (detail == null)
             {
                 score.Busy++;
@@ -78,6 +79,7 @@ public sealed class EvalRunner
                     try
                     {
                         (int ok2, int n2, string d2) = await JudgeAsync(q.Then, b, q.ThenMust, new List<string>(), new List<string>(), ct);
+                        (ok2, n2, d2) = AddLength(b.Text, q.ThenMaxLength, q.ThenMinLength, ok2, n2, d2);
                         ok += ok2; n += n2;
                         thenDetail = "\n**Follow-up:** " + q.Then + "\n" + d2 + "\n<details>\n\n" + b.Text + "\n\n</details>\n";
                     }
@@ -101,6 +103,14 @@ public sealed class EvalRunner
         if (!string.IsNullOrEmpty(summaryPath)) File.AppendAllText(summaryPath, report.ToString());
         _out("Report: " + path);
         return score;
+    }
+
+    /// A length limit counts as one more fact.
+    private static (int ok, int n, string detail) AddLength(string text, int max, int min, int ok, int n, string detail)
+    {
+        (bool good, string line) = EvalQuestion.CheckLength(text, max, min);
+        if (line == null) return (ok, n, detail);
+        return (ok + (good ? 1 : 0), n + 1, detail + line + "\n");
     }
 
     /// An answer, retried while every model rests for less than MaxWait.

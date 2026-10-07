@@ -27,7 +27,7 @@ every push to `main` touching `bot/`, `knowledge/`, `docs/game-notes.md`,
 `docs/savestates.md`, `docs/run-mode.md` or `docs/fsm/` (`.github/workflows/bot.yml`).
 
 **The CI eval** (T-0011, author 2026-10-07): after each deploy, bot.yml
-runs `eval` on a 5-question subset (`EVAL_SUBSET`; a test checks the ids
+runs `eval` on a 7-question subset (`EVAL_SUBSET`; a test checks the ids
 exist) on Flash-Lite with the live bot's key (secret `GEMINI_API_KEY` -
 it shares the free quota, so the subset stays small). Warn-only, in its own job and concurrency group (a deploy never queues
 behind it; a newer push cancels it): a `::warning::` under 70%, the
