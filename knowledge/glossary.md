@@ -53,7 +53,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | dev console, itemhack, goto | the game's built-in developer console | dev-console-and-creative |
 | Creative | god mode + infinite energy + no survival, set by the mode | dev-console-and-creative |
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
-| top runners, wr, records, leaderboard, top 3 | every board's top 3 on speedrun.com; Cheesecake404, sxczurass, yirequ hold most | top-runners |
+| top runners, wr, records, leaderboard, top 3, co-op records, itsslack | every board's top 3 on speedrun.com (nothing below 3rd), first-place counts solo and co-op, each runner's places; Cheesecake404, sxczurass, yirequ hold most | top-runners |
 | 100%, hundo, all items, passenger manifest | the 100% rules and the full item list, nature guide, passengers, to-do list | hundred-percent |
 | explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
 | route, K4 skip, Sahara | the runs step by step; Sahara = the cave to the vault door | routes |
