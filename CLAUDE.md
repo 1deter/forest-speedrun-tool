@@ -205,7 +205,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   the redesign after (its tasks are `author-present`).
 - **Next loop run** would take, by priority: T-0156 / T-0157 (bot eval:
   timeout crash, failed checks in the log - then T-0090 can confirm),
-  T-0158 / T-0163 (knowledge P2s), T-0150. With the game up (`--bridge`):
+  T-0163 (knowledge P2), T-0150. T-0158 (top-runners card) is live,
+  checked; its 4 evals confirm it in the next full eval. With the game up (`--bridge`):
   T-0148, T-0149, T-0151, T-0143 (crashes / hitches from your zips).
 - **Parked for you:** T-0152 (other runners' spots read-only?), T-0153
   (a settings lock per spot?), T-0144 (Runs-tab dead links).
