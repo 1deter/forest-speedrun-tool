@@ -125,18 +125,55 @@ def main():
         return ("(jit?)" if 0x100000000 <= a < 0x7ff000000000 else None), False
 
     rec = m.exception.exception_records[0]
-    print("exception", rec.ExceptionRecord.ExceptionCode, "at", where(rec.ExceptionRecord.ExceptionAddress)[0])
+    fault = rec.ExceptionRecord.ExceptionAddress
+    print("exception", rec.ExceptionRecord.ExceptionCode, "at", where(fault)[0])
+    for lo_, hi_, n in mods:
+        if lo_ <= fault < hi_ and n.lower() == exe_name:
+            # The linker folds identical functions (ICF): one address, several
+            # names. The name printed above is only one of them (T-0143).
+            start = keys[bisect.bisect_right(keys, fault - lo_) - 1]
+            same = [s[1] for s in syms if s[0] == start]
+            if len(same) > 1:
+                print("  the same code as (folded):", ", ".join(same))
     th = [t for t in m.threads.threads if t.ThreadId == rec.ThreadId][0]
     lo, size = th.Stack.StartOfMemoryRange, th.Stack.MemoryLocation.DataSize
     with open(dmp, "rb") as f:
         f.seek(th.Stack.MemoryLocation.Rva)
         data = f.read(size)
-    # The dump's own context would give RSP; the lowest in-module value is close enough.
+        f.seek(rec.ThreadContext.Rva)
+        ctx = f.read(rec.ThreadContext.DataSize)
+    # AMD64 CONTEXT: Rax at 0x78, then Rcx Rdx Rbx Rsp Rbp Rsi Rdi R8..R15, Rip.
+    names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11",
+             "r12", "r13", "r14", "r15", "rip"]
+    regs = dict(zip(names, struct.unpack_from("<17Q", ctx, 0x78))) if len(ctx) >= 0x78 + 17 * 8 else {}
+    if regs:
+        print("registers:", " ".join("%s=%x" % (n, regs[n]) for n in names))
+
+    def at(a):
+        return struct.unpack_from("<Q", data, a - lo)[0] if lo <= a <= lo + size - 8 else None
+
+    # Mono's JIT code keeps an RBP frame chain: [rbp] = the caller's rbp,
+    # [rbp+8] = the return address. A managed-to-native wrapper (an icall's
+    # caller) is a frame too. Old JIT code can sit below 4 GB, which the raw
+    # scan's "(jit?)" guess misses (T-0143).
+    rbp = regs.get("rbp", 0)
+    if lo <= rbp < lo + size:
+        print("rbp chain (frame, return address):")
+        for _ in range(64):
+            saved, ret = at(rbp), at(rbp + 8)
+            if saved is None or ret is None:
+                break
+            label, in_module = where(ret)
+            print("  ", hex(rbp), hex(ret), label if in_module else "(jit)")
+            if not (rbp < saved < lo + size):
+                break
+            rbp = saved
+    rsp = regs.get("rsp", lo)
     for i in range(0, len(data) - 7, 8):
         v = struct.unpack_from("<Q", data, i)[0]
         label, in_module = where(v)
         if label and (in_module or label == "(jit?)"):
-            print(hex(lo + i), hex(v), label)
+            print(hex(lo + i), hex(v), label + ("   (below rsp: stale)" if lo + i < rsp else ""))
 
 
 if __name__ == "__main__":

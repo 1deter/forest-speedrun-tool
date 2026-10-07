@@ -160,7 +160,8 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
 - Legibility **B**: `PerfPatches.cs` 969, `MemoryCensus.cs` 765; all seven
   performance gotchas are judgement.
 - Stability **A**.
-- Gaps **C**: a native crash on a title load (T-0143, P2); garbage in play
+- Gaps **C**: a native crash on a title load (T-0143: in the game's
+  LOD_SimpleToggle, no plugin code on the path, 0 in 26 repeats); garbage in play
   (T-0033); the old world held after a load (T-0034); the census hitch
   check (T-0048); raw FPS questions (T-0030..T-0032).
 
