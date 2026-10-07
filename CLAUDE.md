@@ -197,7 +197,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done. Left: T-0016 Stage B (after
   Stage A runs a week without a fix), T-0154 (no release for a docs-only
-  loop round), T-0122..T-0135 (small lint / test checks). **First
+  loop round), T-0123..T-0135 (small lint / test checks). **First
   harness review open:** the Stop hook's "commits not pushed" line is off
   for the 5 tasks finished from 2026-10-08 (docs/quality.md *Simplification
   log*); session-start counts them, then skill `harness-review` compares.
@@ -211,7 +211,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   waiting on the next full eval: T-0158, T-0163. Loop history:
   `python scripts/loop.py report`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; T-0018..T-0025). **Released:** v0.24.250 (T-0150, the run-finish stutter: confirmed
-  in game, 26-33 -> 3 ms; the arm-frame twin is T-0184), nothing unreleased.
+  pushed; T-0018..T-0025). **Released:** v0.24.251 (T-0122: every Unity
+  message method in src/ wrapped, `Core/Lifecycle.Fail` logs a throw once,
+  `lint.py check_lifecycle`; checker follow-ups T-0187, T-0188), nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
