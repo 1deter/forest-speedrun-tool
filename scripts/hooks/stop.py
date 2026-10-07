@@ -135,6 +135,7 @@ def collect(cwd):
     status = [s for s in (try_git(["status", "--porcelain"], root) or "").splitlines() if s.strip()]
     upstream = (try_git(["rev-parse", "--abbrev-ref", "@{u}"], root) or "").strip()
     ahead = int((try_git(["rev-list", "--count", "@{u}..HEAD"], root) or "0").strip() or 0) if upstream else 0
+    ahead = 0  # harness review 2026-10-07: the "not pushed" line is off for 5 tasks - delete this line to switch it back
     version = csproj_version(root)
     local_tag = remote_tag = None
     if version:

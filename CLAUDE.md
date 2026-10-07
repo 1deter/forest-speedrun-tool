@@ -197,8 +197,10 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done. Left: T-0016 Stage B (after
   Stage A runs a week without a fix), T-0154 (no release for a docs-only
-  loop round), T-0122..T-0135 (small lint / test checks). **The first
-  harness review is due** (it needs you: which component goes off).
+  loop round), T-0122..T-0135 (small lint / test checks). **First
+  harness review open:** the Stop hook's "commits not pushed" line is off
+  for the 5 tasks finished from 2026-10-08 (docs/quality.md *Simplification
+  log*); session-start counts them, then skill `harness-review` compares.
   **Order (author, 2026-10-07):** harness first, the redesign after.
 - **First cleanup** (T-0014, 2026-10-07) filed T-0170..T-0183 (P4: dead
   session-log links, unused members, one unused function).

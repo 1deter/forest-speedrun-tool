@@ -864,3 +864,8 @@ Asked after the deeper pass; each replaces an "open question" above.
   `docs/quality.md`. Decisions 8. First cleanup run the same day (its
   row in the log). Next: Stage B (T-0016) once Stage A ran a week
   without a fix; the first harness review is due now.
+- 2026-10-07: first harness review (12d) started: the Stop hook's
+  "commits not pushed" line off (no recorded catch; it set off gotcha
+  97), counted over the 5 tasks finished from 2026-10-08 - the row in
+  `docs/quality.md`'s *Simplification log*; the author left the pick to
+  Claude.
