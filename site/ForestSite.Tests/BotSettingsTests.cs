@@ -72,6 +72,14 @@ public sealed class BotSettingsTests : IDisposable
         Assert.Equal(100, ((string)r["channels"][1]["name"]).Length);
         Assert.NotNull(b.SaveReport("nope"));
 
+        // What it answers in now: valid ids only; allChannels a real bool.
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"allChannels":false,"answersIn":["5",7,"x","1 OR 1"],"channels":[]}"""));
+        Assert.Equal(new[] { "5", "7" }, b.Report()["answersIn"].AsArray().Select(x => (string)x));
+        Assert.False((bool)b.Report()["allChannels"]);
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"allChannels":true,"channels":[]}"""));
+        Assert.True((bool)b.Report()["allChannels"]);
+        Assert.Empty(b.Report()["answersIn"].AsArray());
+
         // The time the bot applied its revision: kept as UTC; junk or none = "".
         Assert.Null(b.SaveReport("""{"version":"1","rev":3,"appliedAt":"2026-10-07T12:34:00.0000000Z","channels":[]}"""));
         Assert.Equal(new DateTime(2026, 10, 7, 12, 34, 0, DateTimeKind.Utc), DateTime.Parse((string)b.Report()["appliedAt"], null, System.Globalization.DateTimeStyles.RoundtripKind));

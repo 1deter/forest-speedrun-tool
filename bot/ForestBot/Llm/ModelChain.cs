@@ -69,6 +69,20 @@ public sealed class ModelChain
         _models = new List<IChatModel>(models).AsReadOnly();
     }
 
+    /// Live settings: swaps in `fresh` (built from `spec`) unless it is empty - a typo, an unknown
+    /// provider or a missing key must not leave the bot with no model. False = kept the current ones.
+    public bool ReplaceIfAny(IReadOnlyList<IChatModel> fresh, string spec)
+    {
+        if (fresh.Count == 0)
+        {
+            _log("Site settings: model order '" + spec + "' has no usable model - keeping " +
+                 (_models.Count == 0 ? "the current (none)" : string.Join(" -> ", _models.Select(m => m.Name))));
+            return false;
+        }
+        Replace(fresh);
+        return true;
+    }
+
     /// The first model not resting, or null.
     public IChatModel Pick(IChatModel preferred = null)
     {
