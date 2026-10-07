@@ -7,8 +7,8 @@ with the call as JSON on stdin. It answers with a permission decision:
 - refuse a forced push to main,
 - ask before a DLL deploy into the author's game install (router rule 2;
   author, 2026-10-07: "just ask me"). Bridge tests install releases with
-  update_game and never come here; an unattended loop must turn this ask
-  into a refusal so it never waits on the author (Stage A, docs/harness.md 12),
+  update_game and never come here; while a loop run is open (tasks/loop.jsonl)
+  the ask is a refusal so it never waits on the author (Stage A, docs/harness.md 12),
 - refuse a search over a whole drive, the filesystem root or the home folder
   (find / ls -R / grep -r / rg / Get-ChildItem -Recurse / dir /s / where /r /
   a Python walk, deeper than 2) and name where the files are (gotcha 99),
@@ -254,8 +254,31 @@ def decide(payload, root=None, branch=None):
             or wide_search(command, root) or ps_round_trip(command, tool))
 
 
-def answer(decision):
+def loop_open(path=None):
+    """True while a loop run is open (tasks/loop.jsonl: a begin with no stop
+    after it). Nobody is there to answer an ask then."""
+    path = path or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "tasks", "loop.jsonl")
+    state = False
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if '"begin"' in line or '"stop"' in line:
+                    kind = json.loads(line).get("event")
+                    if kind in ("begin", "stop"):
+                        state = kind == "begin"
+    except (OSError, ValueError):
+        return False
+    return state
+
+
+def answer(decision, unattended=False):
     kind, reason = decision
+    # Unattended (an open loop run), an ask would wait all night: refuse it
+    # instead, with the reason, so the run parks the step and goes on.
+    if kind == "ask" and unattended:
+        kind, reason = "deny", reason + " (A loop run is open, so this ask is refused rather than left waiting - " \
+                                         "park the step for the author.)"
     if kind == "warn":
         return {"systemMessage": "Warning: " + reason,
                 "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "Warning: " + reason}}
@@ -270,7 +293,7 @@ def main():
     except Exception:
         return 0
     if d:
-        print(json.dumps(answer(d)))
+        print(json.dumps(answer(d, d[0] == "ask" and loop_open())))
     return 0
 
 

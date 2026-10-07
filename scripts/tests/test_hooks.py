@@ -82,6 +82,22 @@ class Deploy(unittest.TestCase):
         kind, _ = decide('& "./scripts/deploy.ps1"')
         self.assertEqual(kind, "ask")
 
+    def test_an_open_loop_run_refuses_the_ask(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        p = os.path.join(d, "loop.jsonl")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write('{"event": "begin", "run": "R-1"}\n')
+        self.assertTrue(P.loop_open(p))
+        with open(p, "a", encoding="utf-8") as f:
+            f.write('{"event": "stop", "run": "R-1"}\n')
+        self.assertFalse(P.loop_open(p))
+        self.assertFalse(P.loop_open(os.path.join(d, "none.jsonl")))
+        out = P.answer(("ask", "why"), unattended=True)["hookSpecificOutput"]
+        self.assertEqual(out["permissionDecision"], "deny")
+        self.assertIn("loop run is open", out["permissionDecisionReason"])
+        self.assertEqual(P.answer(("ask", "why"))["hookSpecificOutput"]["permissionDecision"], "ask")
+
     def test_test_install_and_reading_logs_pass(self):
         self.assertIsNone(decide('./scripts/deploy.ps1 -GameRoot "D:\\ForestTest"'))
         self.assertIsNone(decide('cat "/g/SteamLibrary/steamapps/common/The Forest/BepInEx/LogOutput.log"'))
