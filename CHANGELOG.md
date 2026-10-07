@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.252 - 2026-10-08
+
+- Restarting a spot in place no longer hitches twice right after the load (two ~0.2 s frames before the fix, measured on maks's Labskip Jumping Section): the restore's look-ups are kept between restores, and the plane wreck the game re-creates no longer re-cuts the grass on its crash path.
+
 ## v0.24.251 - 2026-10-07
 
 - Sturdier overlays: if a line, marker, replay or free-camera drawing ever hits an error, it is now caught and written to the log once instead of repeating every frame.
