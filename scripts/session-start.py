@@ -244,7 +244,7 @@ def report(force_local=False):
     base = f_base.result()
     if badges:
         red = [w for w, st in base.items() if st != "passing"]
-        lines.append("baseline (CI badges, HEAD = origin/main): " + ", ".join("%s %s" % kv for kv in base.items()))
+        lines.append("baseline (CI badges = last finished run on main; HEAD = origin/main): " + ", ".join("%s %s" % kv for kv in base.items()))
         if red:
             problems.append("CI not passing for %s - check the Actions page, or run "
                             "`python scripts/session-start.py --baseline` to test locally" % ", ".join(red))
