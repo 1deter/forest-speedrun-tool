@@ -93,6 +93,11 @@ running and coyote time (`movement-tricks`), the fall damage slide cancel
 (`pausing-and-game-time`). Some of these may still count as "glitches" to
 a moderator for *Glitchless* - the rule names only OOB and wall clips.
 
+The **fall damage slide cancel is allowed in Glitchless** [runner: a speedrunner in the
+knowledge-testing feedback, 2026-10-05: slides to avoid fall damage "are more of a physics
+quirk than a specific bug" and were ruled allowed in glitchless; not on the rules page].
+The written Glitchless rules name only OOB and clipping through walls.
+
 ## Difficulty matters
 
 - **Creative** turns on god mode, infinite energy and no survival

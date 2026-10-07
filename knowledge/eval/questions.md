@@ -433,6 +433,8 @@ must:
 - Cave 6 for the keycard: clips, custom wall boosts, sliding on the bodies to avoid fall damage
 - Cave 4 (K4 skip) to the vault door, passing the cave loading trigger
 - lab skip or the normal corridors, then the red elevator with the elevator skip
+not:
+- lists climbing axe cliff climbs as part of the route
 
 ### route-glitchless-stamina
 question: how do people manage stamina in glitchless?
@@ -669,3 +671,12 @@ must:
 - the vault keycard 210 from Cave 6, and the rebreather (no tank) from Cave 5
 - 5 stamina mixes (coneflower + chicory) and a spear (two sticks), crafted in Cave 6
 - sodas: 3 on the way from Cave 6, a box of 4 near the vault door, 7 bought at the soda machine for 100 coins each
+
+### glitchless-slides-allowed
+question: are fall damage slides allowed in any% glitchless?
+cards: categories-and-rules
+must:
+- the written rules ban only OOB and clipping through walls
+- a runner report says the fall damage slide is allowed in Glitchless
+not:
+- says the rules ban body slides or fall damage cancels in Glitchless

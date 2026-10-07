@@ -34,6 +34,10 @@ the wall's far face**, climbing.
   caves the hit must be tagged `climbWall`.
 - Which real walls qualify (player-built walls, doors, the lab) is not
   checked - a wall's layer decides it.
+- **No route uses it.** The Any% No Explosive Glitch Creative route (`routes`) has
+  no cliff climb [runner: a speedrunner, knowledge-testing feedback 2026-10-05, "climbing
+  axe is never used in runs as far as I'm aware"]. This section is how the tool
+  works, not a technique runners practise.
 - The climb ends itself after 2 s when the surface is under 30° from flat or
   the forward ray misses (12 m) - a steep wall is needed for a long climb.
 
