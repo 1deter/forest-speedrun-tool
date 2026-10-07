@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.251 - 2026-10-07
+
+- Sturdier overlays: if a line, marker, replay or free-camera drawing ever hits an error, it is now caught and written to the log once instead of repeating every frame.
+
 ## v0.24.250 - 2026-10-07
 
 - Finishing a run no longer stutters on the finish frame: looking up your save's plane crash site took 22-25 ms each finish and now takes under 1 ms.
