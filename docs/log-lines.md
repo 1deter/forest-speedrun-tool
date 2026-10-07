@@ -1094,7 +1094,7 @@ Meaning: An in-place restore's re-created plane wreck started where a wreck alre
 Written by WreckClearing.cs; info / warning.
 
 - warning `Plane wreck: clearing check failed (<..>) - the game's clearing runs.`
-- info `Plane wreck: the restore's new wreck cleared its crash path's plants as the game does (<removed> LOD(s)) but skipped the grass cut - the wreck already at <..> cut it, ~0.14 s saved.`
+- info `Plane wreck: the restore's new wreck cleared its crash path's plants as the game does (<removed> LOD(s)) but skipped the grass cut - the wreck already at <..> cut it.`
 
 ## `Player acquired via`
 

@@ -108,7 +108,7 @@ namespace ForestOverlay.Game
                 int removed = ClearLods(__instance);
                 Skipped++;
                 _log.LogInfo("Plane wreck: the restore's new wreck cleared its crash path's plants as the game does (" + removed +
-                             " LOD(s)) but skipped the grass cut - the wreck already at " + Pos(at) + " cut it, ~0.14 s saved.");
+                             " LOD(s)) but skipped the grass cut - the wreck already at " + Pos(at) + " cut it.");
                 return false;
             }
             catch (Exception ex)
