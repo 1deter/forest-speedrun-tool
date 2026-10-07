@@ -101,7 +101,8 @@ ask for it in chat. REST only (no gateway): `qa_read` (oldest first;
 becomes a real mention for anyone `qa_read` has seen, kept in
 `%LOCALAPPDATA%\ForestOverlay\qa-discord-users.txt`; @everyone / roles
 never - author, 2026-10-01: "ping the members you are mentioning"), `qa_download` (a message's attachments to
-`Downloads\qa-reports\<user>\`, lists a zip, `extract`). A message
+`Downloads\qa-reports\<user>\`, lists a zip, `extract`; read a report
+zip with `python scripts/read-report.py <zip>` before opening its logs). A message
 the author **forwards** (how maks's feedback arrived) has no content of
 its own - its text and files are under `message_snapshots` (read since
 2026-09-25; before, it showed as an empty line). A direct API call from

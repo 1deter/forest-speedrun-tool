@@ -117,6 +117,7 @@ python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (l
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
 python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
+python scripts/read-report.py <zip> [--full]  # a tester's report zip in ~50 lines: header, errors, slow ticks, perf, last actions
 python scripts/symbolize-crash.py <crash.dmp>   # names the functions in a Unity crash dump (player PDB)
 python scripts/sample-stacks.py 60 --after "<log text>"   # where the live game's main thread is; --snapshot N walks every thread
 ```

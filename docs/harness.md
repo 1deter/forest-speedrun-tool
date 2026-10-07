@@ -482,7 +482,9 @@ is missing.
 - 9b. A report-zip reader: `scripts/read-report.py <zip>` summarises a
   tester's zip (version, exceptions, slow ticks, perf lines, the last
   actions). Then a 13 MB zip costs a few hundred tokens instead of
-  thousands. Two of the author's zips (2026-10-06) are waiting for it.
+  thousands. **Built** (T-0008): 23-73 lines for the 19 QA zips on
+  hand (0.5-6.6 MB each); tests `scripts/tests/test_read_report.py`.
+  The author's two zips of 2026-10-06 were not found on disk (asked).
 - 9c. **Task contracts** (L11): before work starts, `tasks.py start T-x`
   asks for the contract - scope, the `verify` steps, the `keep` list,
   exclusions - and stores it on the task. Writing it is where open
