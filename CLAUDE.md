@@ -193,8 +193,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   `scripts/read-report.py`, checker accepted); T-0114 triaged the
   migrated list (13 closed); T-0113 re-cut the agent briefs (first
   spawns check the new frontmatter loads: its notes).
-  **Order (author, 2026-10-07):** harness first (T-0007, T-0012,
-  T-0009, T-0010, T-0015), the redesign after; next: `tasks.py next`.
+  T-0007 built: `bump.py` releases its tasks, #qa-todo-list rendered
+  from `needs: tester` tasks' `qa` lines (only what testers still do;
+  the old list pruned to 2 items - first `qa_todo from_tasks` post
+  not made yet: the author's call).
+  **Order (author, 2026-10-07):** harness first (T-0012, T-0009,
+  T-0010, T-0015), the redesign after; next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027, checker accepted).
 - **Nothing is published yet:** all live categories are drafts (the
