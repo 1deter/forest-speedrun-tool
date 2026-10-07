@@ -193,12 +193,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Harness roadmap** (docs/harness.md, author 2026-10-06: first; what
   each step built: its *Status log*): steps 1-5 done (5: the e2e suite,
   `scripts/e2e.py`, T-0010 - the release skill runs its smoke), 3e
-  skills, 8c, 9a, 9b; T-0007 / T-0113 built. T-0013 quality doc built (docs/quality.md). Left:
-  T-0015 Stage A, T-0014 cleanup loop + review, T-0016 Stage B, 14 small
+  skills, 8c, 9a, 9b, 10d (T-0013), **12 Stage A (T-0015): the assisted
+  loop**, `scripts/loop.py` + skill `work-loop`, not yet run on real
+  tasks; T-0007 / T-0113 built. Left: T-0014 cleanup loop + review,
+  T-0016 Stage B (after Stage A runs a week without a fix), 14 small
   lint / test checks (T-0122..T-0135). Bot direction (author,
   2026-10-07): the author out of the feedback loop - T-0141, T-0140.
-  **Order (author, 2026-10-07):** harness first, the redesign after;
-  next: `tasks.py next` (T-0015).
+  **Order (author, 2026-10-07):** harness first, the redesign after (the
+  redesign tasks are `author-present`, so the loop skips them).
+  **Next: the first loop run** - skill `work-loop`; it takes T-0026,
+  T-0028, T-0090, T-0140, T-0141 by priority.
 - **New from the 2026-10-07 game session:** T-0143 native crash on a
   title load (P2, bridge); T-0049 is a real bug (another segment's Go
   keeps the red line); T-0144 Runs-tab dead links (question parked);

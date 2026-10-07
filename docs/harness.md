@@ -692,7 +692,9 @@ Asked after the deeper pass; each replaces an "open question" above.
    exception to one session, one task; its context grows by summaries);
    **5 rounds** a run; the pool is **`needs: none`** (+ bridge when the
    game is up) - author-* tasks are skipped, their questions asked at the
-   run's start; **2 checker revises** a task, the third parks it.
+   run's start; **2 checker revises** a task, the third parks it. The
+   redesign tasks (T-0018..T-0023) are `author-present`: visual work is
+   built with the author, so the loop skips them.
 
 ---
 
