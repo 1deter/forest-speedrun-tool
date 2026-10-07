@@ -103,14 +103,16 @@ def parse_log(lines):
         if p:
             info["perf"].append((float(p.group(1)), int(p.group(2)), int(p.group(3))))
             continue
+        if msg.startswith(MARKS):
+            # The tester's words: "failed the clip" in a note is not an error.
+            info["marks"].append(msg)
+            continue
         if level in ("Error", "Fatal") or ERRORISH.search(msg):
             prev = "[" + source + "] " + msg
             info["errors"].append(prev)
         elif level == "Warning":
             info["warnings"].append("[" + source + "] " + msg)
-        if msg.startswith(MARKS):
-            info["marks"].append(msg)
-        elif msg.startswith(ACTIONS) and (not msg.startswith("Savestate restore") or ": done in" in msg):
+        if msg.startswith(ACTIONS) and (not msg.startswith("Savestate restore") or ": done in" in msg):
             info["actions"].append(msg)
     return info
 

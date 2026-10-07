@@ -46,7 +46,7 @@ Parameter name: index.
 [Error  :ForestOverlay] Update() threw: NullReferenceException
 [Info   :ForestOverlay] MARK #1: 20:57:09, at (-515.2, 707.5, -1971.9)
 [Info   :ForestOverlay] MARK #1 note: idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea idea end
-[Info   :ForestOverlay] QA note (in the report): pending words
+[Info   :ForestOverlay] QA note (in the report): pending words, failed the clip
 """
 
 
@@ -96,7 +96,8 @@ class ParseLog(unittest.TestCase):
         marks = self.info["marks"]
         self.assertEqual(len(marks), 3)
         self.assertTrue(marks[1].startswith("MARK #1 note: idea") and marks[1].endswith("end"))
-        self.assertEqual(marks[2], "QA note (in the report): pending words")
+        self.assertEqual(marks[2], "QA note (in the report): pending words, failed the clip")
+        self.assertFalse(any("failed the clip" in e for e in self.info["errors"]))
 
 
 class Summary(unittest.TestCase):
