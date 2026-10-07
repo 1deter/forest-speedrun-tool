@@ -115,6 +115,7 @@ python scripts/merge-keepboth.py <files>          # resolve add/add merge confli
 python scripts/session-start.py                 # where things stand (the SessionStart hook runs it; --baseline forces local tests)
 python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (local + origin), __pycache__, scratch > 7 days
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
+python scripts/loop.py begin                    # the assisted loop (skill work-loop): next / end / intervene / report; tests: test_loop.py
 python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/e2e.py [--smoke] [names]        # the in-game e2e suite (~3 min, needs only the game): docs/bridge.md *The e2e suite*
@@ -154,6 +155,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `release` - fetch, bump, build, test, tag, push, wait for the DLL, handoff.
 - `bridge-test` - an in-game test over the bridge (backup, uploads off, notices, proof, clean-up) and QA lists.
 - `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
+- `work-loop` - "run the loop": up to 5 tasks in one session, main orchestrates, `scripts/loop.py` names each step and stops the run.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
 `forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.

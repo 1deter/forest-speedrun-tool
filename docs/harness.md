@@ -687,6 +687,13 @@ Asked after the deeper pass; each replaces an "open question" above.
    the lint) - "this helps evaluate the true scope of the project and
    removes blindsiding things that do need genuine work".
 
+7. **The assisted loop** (12 Stage A, T-0015): the main session
+   **orchestrates and subagents do each round's work** (the loop's
+   exception to one session, one task; its context grows by summaries);
+   **5 rounds** a run; the pool is **`needs: none`** (+ bridge when the
+   game is up) - author-* tasks are skipped, their questions asked at the
+   run's start; **2 checker revises** a task, the third parks it.
+
 ---
 
 ## Roadmap (suggested order, one per session)
@@ -814,3 +821,13 @@ Asked after the deeper pass; each replaces an "open question" above.
   rows; the simplification log for 12d is in it. Found on the way: five
   script test files CI never runs (T-0147), TAS has no doc (T-0145), dev
   tools have no tests (T-0146). Decisions 6. Next: Stage A (T-0015).
+- 2026-10-07: Stage A built (T-0015, 12): `scripts/loop.py` (begin /
+  next / peek / end / intervene / stop / report) over an append-only
+  `tasks/loop.jsonl`; `next` reads the round's task state and names one
+  action (contract, the area's agent, forest-checker, release / ship /
+  evidence, end), and stops the run by machine check (5 rounds, an empty
+  pool, 3 rounds without progress); a third checker revise parks the
+  task. Skill `work-loop`; `tasks.py stats` gains the loop line;
+  `test_loop.py` (18) in CI. Decisions 7. Not run on a real task yet:
+  the first run is the next session's. Next: T-0014 (cleanup loop),
+  then Stage B (T-0016) once Stage A ran a week without a fix.

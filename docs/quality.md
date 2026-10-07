@@ -276,17 +276,18 @@ exports the bot reads.
 
 ### Harness
 
-Paths: `scripts/{agent-cost,cleanup,lint,log-catalogue,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
+Paths: `scripts/{agent-cost,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
 
-The task file, lints, hooks, skills, agents, session start, cleanup.
-- Verification **A**: tasks, lint, hooks, session and log catalogue
-  tests in CI; `tasks.py check` in CI.
+The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
+- Verification **A**: tasks, loop, lint, hooks, session and log
+  catalogue tests in CI; `tasks.py check` in CI.
 - Legibility **B**: docs/harness.md is ~800 lines of plan and status
   together; workflow.md is the working copy.
 - Stability **B**: `test_agent_cost.py` and `test_watch_deploy.py` pass
   locally, CI never runs them (T-0147).
 - Gaps **B**: fourteen gotchas still wait on their check (T-0122..T-0135);
-  Stage A / B not built (T-0015, T-0016).
+  Stage A built but not yet run on real tasks; Stage B not built
+  (T-0016).
 
 ## Simplification log
 

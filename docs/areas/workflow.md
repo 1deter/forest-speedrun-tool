@@ -99,6 +99,30 @@ task with unpushed commits and no accept. The agent list loads at session
 start - in the session that adds or renames it, use a general-purpose
 Sonnet agent told to follow `.claude/agents/forest-checker.md`.
 
+## The loop (docs/harness.md 12 Stage A; T-0015)
+
+The assisted loop: the author says "run the loop" and one main session
+works up to **5 rounds** back to back (skill `work-loop`). Each round is
+one task from `tasks.py next` (needs none; + bridge with `--bridge`),
+and `scripts/loop.py next` names its one next action from the task's
+state - contract, the work, the checker, release / ship / evidence,
+end. Author's calls (2026-10-07, harness.md *Decisions* 7):
+- **Main orchestrates, subagents work**: each round's work goes to a
+  fresh agent for its area (tiny docs / harness edits main does itself),
+  so the main context grows by one summary per round, not by the work.
+  A loop run is the exception to *one session, one task* below.
+- **Stops by machine check**: 5 rounds done, nothing left in the pool,
+  or 3 rounds in a row without progress. A task's 3rd checker revise in
+  its round parks it (`needs: author-decision`, the faults as its
+  question) and the loop moves on.
+- **The pool is `needs: none`** (+ bridge when the game is up):
+  author-present / author-decision tasks are skipped; `loop.py begin`
+  lists the parked questions for the author first.
+- Every round ends with `loop.py end --summary` (one paragraph; an
+  in-progress task is refused - pass or park first); a human fix is
+  logged with `loop.py intervene`. `loop.py report` is the run, `tasks.py
+  stats` its *loop* line. State: `tasks/loop.jsonl` (append-only).
+
 **Awaiting an in-game check:** tasks with `needs: bridge` / `author-eyes`
 (`tasks.py list --open --needs bridge`). Confirmed features, by version
 and by whom: [`docs/confirmed.md`](../confirmed.md) (check it before
@@ -167,7 +191,9 @@ Switch at a task boundary, not by habit or by a context number alone:
   author's usual plan).
   **One session, one task** (author, 2026-10-07): once the task is done
   and handed off, stop - name the next task for a new session, never
-  offer to carry on with it in this one.
+  offer to carry on with it in this one. The exception is a loop run the
+  author started (*The loop* above): its rounds go on until `loop.py`
+  says STOP, then the handoff and stop.
 - **An investigation stays in one session** (a performance item, a
   heap / physics lead, a multi-release bug): what has been read - IL,
   log lines, a dropped theory - is worth more than a fresh start reading

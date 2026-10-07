@@ -325,19 +325,21 @@ def confirm_gate(t):
                             "(also: --by author, --by qa:<tester>)" % tid)
 
 
-def pick_next(tasks, bridge=False, by=None):
+def pick_next(tasks, bridge=False, by=None, skip=()):
     """The highest-priority task an agent can do alone, or None.
 
-    A worker with a task in progress gets that one back (WIP = 1)."""
+    A worker with a task in progress gets that one back (WIP = 1). skip: ids
+    to pass over (the loop's tasks already taken this run, scripts/loop.py)."""
     if by:
-        mine = [t for t in tasks if t["status"] == "in-progress" and t.get("owner") == by]
+        mine = [t for t in tasks if t["status"] == "in-progress" and t.get("owner") == by
+                and t["id"] not in skip]
         if mine:
             return mine[0]
     allowed = ALONE_BRIDGE if bridge else ALONE
     ids = {t["id"]: t for t in tasks}
     ready = []
     for t in tasks:
-        if t["status"] != "todo" or t["needs"] not in allowed or t.get("question"):
+        if t["status"] != "todo" or t["needs"] not in allowed or t.get("question") or t["id"] in skip:
             continue
         if any(ids[d]["status"] not in ("built", "released", "confirmed") for d in t.get("blocked_by") or []):
             continue
@@ -469,6 +471,8 @@ def stats(tasks):
                    % (len(reviewed), first, rounds))
     else:
         out.append("checker: no reviews yet")
+    import loop  # the loop's own state file (scripts/loop.py imports this module)
+    out.append(loop.stats_line(loop.load()))
     return "\n".join(out)
 
 
@@ -481,7 +485,8 @@ SUITES = [
     (("site/", "src/Data/", "community/"), "dotnet test site/ForestSite.Tests -c Release --nologo"),
     (("bot/", "knowledge/"), "dotnet test bot/ForestBot.Tests -c Release --nologo"),
     (("scripts/", ".githooks/"),
-     "python scripts/tests/test_tasks.py && python scripts/tests/test_session.py && "
+     "python scripts/tests/test_tasks.py && python scripts/tests/test_loop.py && "
+     "python scripts/tests/test_session.py && "
      "python scripts/tests/test_lint.py && python scripts/tests/test_hooks.py && "
      "python scripts/tests/test_watch_deploy.py && python scripts/tests/test_read_report.py"),
 ]

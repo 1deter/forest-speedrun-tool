@@ -41,6 +41,7 @@ jobs:
       - name: Tasks
         run: |
           python3 scripts/tests/test_tasks.py
+          python3 scripts/tests/test_loop.py
           python3 scripts/tests/test_session.py
           python3 scripts/tasks.py check
 
