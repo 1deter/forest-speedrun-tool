@@ -283,3 +283,7 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   polished with research sessions"); cheap OpenAI-compatible models are
   the candidates. Planned bot reviews: T-0141; runners' reactions in the
   knowledge-testing channel feed them (T-0140).
+- **Bot tab channels: a save with every box unticked = the bot answers
+  in no channel** (author, 2026-10-07, T-0028: "Answer in no channel");
+  DMs follow the DM toggle. Settings never saved on the site keep the
+  `.env` channels (`FOREST_BOT_CHANNELS`).
