@@ -24,6 +24,7 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+scripts/deploy.ps1 copies the plugin DLL only (gotcha 10).
 Text files (gotcha 9): no tracked file holds PowerShell 5.1 mojibake.
 """
 import argparse
@@ -727,6 +728,48 @@ def check_mojibake(files):
     return probs
 
 
+# ---------------------------------------------------------------- deploy script
+
+DEPLOY = "scripts/deploy.ps1"
+PS_COPY = re.compile(r"(?:^|[;|(]|\s)(Copy-Item|Move-Item|xcopy|robocopy|cp|copy|Expand-Archive)\b(.*)$", re.I)
+
+
+def ps_code(text):
+    """A PowerShell script without <# #> blocks and # comments (the script holds no '#' in a string)."""
+    text = re.sub(r"<#.*?#>", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
+    return [re.sub(r"#.*$", "", l) for l in text.splitlines()]
+
+
+def check_deploy(text):
+    """scripts/deploy.ps1 copies the plugin DLL and nothing else (gotcha 10): runners only get what is in the DLL."""
+    code = ps_code(text)
+    probs = []
+    why = ("a file only deploy.ps1 copies is missing for every runner, who installs the DLL alone (gotcha 10: "
+           "the 100% list did exactly that)")
+    fix = "embed the data in the DLL (src/Data/ShippedData.cs, an EmbeddedResource) and keep deploy.ps1 copying $dll only"
+    dll_var = None
+    for l in code:
+        m = re.match(r"\s*\$(\w+)\s*=.*ForestOverlay\.dll", l)
+        if m:
+            dll_var = m.group(1)
+    copies = 0
+    for n, l in enumerate(code, 1):
+        m = PS_COPY.search(l)
+        if not m:
+            continue
+        copies += 1
+        args = [a for a in m.group(2).replace(",", " ").split() if not a.startswith("-") or a.lower() == "-path"]
+        args = [a for a in args if a.lower() != "-path"]
+        src = args[0] if args else ""
+        if dll_var is None or src.strip("\"'") != "$" + dll_var:
+            probs.append(Problem("%s:%d copies %s, not the plugin DLL: %s" % (DEPLOY, n, src or "?", l.strip()), why, fix))
+    if copies == 0:
+        probs.append(Problem("%s has no Copy-Item of the plugin DLL" % DEPLOY,
+                             "the script's one job is to put ForestOverlay.dll in BepInEx/plugins",
+                             "copy the built ForestOverlay.dll with Copy-Item $dll $pluginDir"))
+    return probs
+
+
 # ---------------------------------------------------------------- main
 
 def git_show(rev, path):
@@ -764,6 +807,7 @@ def main(argv=None):
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
     probs += check_mojibake(tracked_text())
+    probs += check_deploy(read(DEPLOY))
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

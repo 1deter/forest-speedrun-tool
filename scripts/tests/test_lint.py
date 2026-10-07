@@ -402,5 +402,38 @@ class Mojibake(unittest.TestCase):
         self.assertEqual(text(L.check_mojibake(L.tracked_text())), "")
 
 
+DEPLOY_OK = """<#
+    Copy-Item is only mentioned here.
+#>
+$dll = Join-Path $root "bin\\$Configuration\\net35\\ForestOverlay.dll"
+Copy-Item $dll $pluginDir -Force   # the DLL
+"""
+
+
+class Deploy(unittest.TestCase):
+    def test_dll_only_passes(self):
+        self.assertEqual(L.check_deploy(DEPLOY_OK), [])
+
+    def test_data_copy_fails_with_fix_text(self):
+        out = text(L.check_deploy(DEPLOY_OK + 'Copy-Item "$root\\locations" $pluginDir -Recurse\n'))
+        self.assertIn("ERROR: scripts/deploy.ps1:6 copies", out)
+        self.assertIn("gotcha 10", out)
+        self.assertIn("FIX: embed the data in the DLL", out)
+
+    def test_other_copy_commands_fail(self):
+        for cmd in ("xcopy data $pluginDir", "robocopy data $pluginDir", "Copy-Item -Path data -Destination $pluginDir",
+                    "cp data $pluginDir"):
+            self.assertEqual(len(L.check_deploy(DEPLOY_OK + cmd + "\n")), 1, cmd)
+
+    def test_dll_by_path_flag_passes(self):
+        self.assertEqual(L.check_deploy(DEPLOY_OK.replace("Copy-Item $dll", "Copy-Item -Path $dll")), [])
+
+    def test_no_copy_at_all_fails(self):
+        self.assertEqual(len(L.check_deploy("$dll = 'ForestOverlay.dll'\n")), 1)
+
+    def test_repo_script_is_clean(self):
+        self.assertEqual(L.check_deploy(L.read(L.DEPLOY)), [])
+
+
 if __name__ == "__main__":
     unittest.main()

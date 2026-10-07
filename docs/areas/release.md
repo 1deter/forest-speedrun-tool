@@ -109,7 +109,7 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 
 One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
-10. **What only `deploy.ps1` copies is missing for runners** - ship data inside the DLL. [check: T-0124]
+10. **What only `deploy.ps1` copies is missing for runners** - ship data inside the DLL. [check: lint.py check_deploy]
 15. **Unity 5.6's `UnityWebRequest` ignores 404** - check `responseCode` yourself. [check: T-0127]
 44. **Measure before the changelog claims a number.** [check: stop.py changelog number]
 65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty). [check: lint.py versions + pre-push]
