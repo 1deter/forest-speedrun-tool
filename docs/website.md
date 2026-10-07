@@ -44,7 +44,7 @@ go to decisions.md; feature detail goes here.
   `queueChannel`; a missing field = the bot's .env default) and `POST
   /api/bot/report` `{version, rev, channels:[{id,name,guild}]}` (the page
   lists channels by name and shows "applied rev N"). No secrets pass through.
-  **Bot side not built** (poller + `BotConfig` live reload, bot/).
+  The bot side (poller, live reload, cache): docs/knowledge-bot.md.
 - **Clean paths** (author, 2026-09-27: the `#/` "doesn't look clean"):
   `/spot/<id>[/<route>]`, `/about`, `/admin[/<tab>]` - the server answers
   each with the page (mapped by name: the fallback skips paths with a

@@ -45,6 +45,10 @@ FOREST_BOT_CHANNELS=
 FOREST_BOT_QUEUE_CHANNEL=
 FOREST_BOT_PER_HOUR=15
 FOREST_BOT_PER_DAY=60
+# Live settings from the site's /admin Bot tab: the same value as FOREST_BOT_TOKEN in
+# /opt/forest-site/.env (a long random string). Empty = these values only. The lines above
+# are then the defaults.
+FOREST_BOT_TOKEN=
 EOF
   umask 022
 fi

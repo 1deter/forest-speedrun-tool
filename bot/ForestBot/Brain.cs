@@ -34,6 +34,8 @@ public sealed class Brain : IDisposable
     public readonly BotStore Store;
     public readonly Action<string> Log;
 
+    private HttpClient _http;
+
     public Brain(BotConfig config, Action<string> log, bool withModels = true)
     {
         Config = config;
@@ -46,11 +48,18 @@ public sealed class Brain : IDisposable
         Store = new BotStore(Path.Combine(config.DataDir, "bot.db"));
         if (withModels)
         {
-            HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-            Models = ModelChain.FromSpec(config.Models, http, config.Get, config.ThinkingLevel, log);
+            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+            Models = ModelChain.FromSpec(config.Models, _http, config.Get, config.ThinkingLevel, log);
             Tools tools = new Tools(Corpus, Search, Code);
             Answerer = new Answerer(Models, tools, Prompt.Build(Corpus, tools.HasCode), log);
         }
+    }
+
+    /// The model order or thinking level changed (live settings): rebuild the chain's models in place.
+    public void ReloadModels()
+    {
+        if (Models == null) return;
+        Models.Replace(ModelChain.FromSpec(Config.Models, _http, Config.Get, Config.ThinkingLevel, Log).Models);
     }
 
     /// `followUpOf`: the answer being replied to (null = a new question).

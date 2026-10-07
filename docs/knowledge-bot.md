@@ -133,12 +133,20 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
 
-## Bot settings page on /admin (site half built, T-0028; bot poller not yet)
+## Bot settings page on /admin (built, T-0028)
 
-Site side done: docs/website.md *What is built* (*Bot settings*). Left, in
-bot/: poll `GET /api/bot/settings` (`X-Bot-Token`, about a minute, cache the
-last good one in the data dir), apply live, `POST /api/bot/report` with its
-version, applied `rev` and the channels it sees.
+Site: docs/website.md *What is built* (*Bot settings*). Bot
+(`bot/ForestBot/SiteSettings.cs`, `BotConfig.ApplySettings`): with
+`FOREST_BOT_TOKEN` set it polls `GET <FOREST_BOT_SITE_URL>/api/bot/settings`
+(`X-Bot-Token`) every minute and applies it live; a changed model order /
+thinking level rebuilds the model chain in place (`Brain.ReloadModels`). The
+last good answer is cached in `<data>/site-settings.json` and applied at
+start. `.env` values are the defaults: a setting the site lacks, an unusable
+value, or no site and no cache = the `.env` one. `POST /api/bot/report`
+(version, revision applied, text channels it sees; not sent before Discord
+is connected) feeds the page's channel list and its "applied" line.
+**VPS:** the same random `FOREST_BOT_TOKEN` in `/opt/forest-site/.env` and
+`/opt/forest-bot/.env`, then recreate both containers once.
 
 Asked for so channels / limits change without editing `/opt/forest-bot/.env`
 and recreating the container. Until it exists: edit `.env`
