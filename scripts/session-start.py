@@ -14,7 +14,9 @@ startup + /clear) does it unprompted. It reports:
   - the latest tag's DLL attached (the asset URL - never api.github.com),
     plugin commits since it;
   - the site up, the VPS containers (ssh, skipped without the key);
-  - tasks: in progress, parked questions, what is next.
+  - tasks: in progress, parked questions, what is next;
+  - quality (docs/quality.md): the lowest grades, and the rows whose paths
+    changed after their Reviewed date (re-grade them).
 QA messages need the MCP tool, so it ends with the reminder to run qa_read.
 Every check has a timeout; one that cannot run says so and the rest go on.
 """
@@ -35,6 +37,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True   # a report must not leave __pycache__ for cleanup.py to find
 import cleanup  # noqa: E402
+import lint  # noqa: E402
 import tasks as T  # noqa: E402
 
 ROOT = cleanup.ROOT
@@ -57,6 +60,26 @@ PLUGIN_PATHS = ["src", "patcher", "ForestOverlay.csproj", "Plugin.cs", "location
 
 
 # ---------------------------------------------------------------- pure parts (tested)
+
+def parse_changes(log):
+    """[(YYYY-MM-DD, path)] from `git log --format=@%cs --name-only`."""
+    out, day = [], None
+    for l in log.splitlines():
+        if l.startswith("@"):
+            day = l[1:].strip()
+        elif l.strip() and day:
+            out.append((day, l.strip()))
+    return out
+
+
+def quality_line(rows, stale):
+    worst = max(r["grade"] for r in rows)
+    s = "quality: lowest %s - %s" % (worst, ", ".join(r["area"] for r in rows if r["grade"] == worst))
+    if stale:
+        return s + "; changed since their review: %s -> re-grade in docs/quality.md" % ", ".join(
+            "%s (%s)" % (a, plural(n, "file")) for a, n in stale)
+    return s + "; every row reviewed since its area last changed"
+
 
 def badge_state(svg):
     """A GitHub Actions badge SVG -> 'passing' | 'failing' | whatever its title says."""
@@ -286,6 +309,13 @@ def report(force_local=False):
             lines.append("  next with the game up: " + T.line(nxt_b))
     except T.TaskError as e:
         problems.append("tasks file: " + str(e).replace("\n", " "))
+
+    try:
+        rows, paths = lint.quality_doc(lint.read(lint.QUALITY))
+        log = cleanup.git("log", "--since=" + min(r["reviewed"] for r in rows), "--format=@%cs", "--name-only")
+        lines.append(quality_line(rows, lint.stale_areas(rows, paths, parse_changes(log))))
+    except (OSError, ValueError) as e:
+        problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
     lines.append("QA: run `qa_read new_only` (forest MCP) and file each new message as a task")
     head_line = "Session start (%.1f s)%s" % (time.time() - t0, "" if not problems else " - %s" % plural(len(problems), "problem"))

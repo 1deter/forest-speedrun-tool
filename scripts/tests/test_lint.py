@@ -152,6 +152,101 @@ DRAW = '''class M {
 '''
 
 
+QUALITY = """# Quality document
+
+## How a grade is set
+
+| | Verification | Agent legibility | Test stability | Known gaps |
+|---|---|---|---|---|
+| **A** | x | x | x | x |
+
+## Grades
+
+| Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
+|---|---|---|---|---|---|---|---|
+| Saves | C | A | C | A | B | T-0001 | 2026-10-07 |
+| Site | A | A | A | A | A | | 2026-10-07 |
+
+## Areas
+
+### Saves
+
+Paths: `src/Save*.cs` `scripts/{save,diff}.py`
+
+### Site
+
+Paths: `site/`
+
+## Simplification log
+"""
+FILES = ["src/SaveA.cs", "src/SaveB.cs", "scripts/save.py", "site/a.cs", "site/b/c.js",
+         "docs/x.md", "tasks/tasks.jsonl", "README.md", "scripts/tests/test_x.py",
+         "tests/ForestOverlay.Tests/T.cs", "site/ForestSite.Tests/A.cs"]
+
+
+class Quality(unittest.TestCase):
+    def check(self, doc=QUALITY, statuses=None, files=FILES):
+        rows, paths = L.quality_doc(doc)
+        return text(L.check_quality(rows, paths, {"T-0001": "todo"} if statuses is None else statuses, files))
+
+    def test_parses_only_the_grades_table(self):
+        rows, paths = L.quality_doc(QUALITY)
+        self.assertEqual([r["area"] for r in rows], ["Saves", "Site"])
+        self.assertEqual(rows[0]["dims"], ["A", "C", "A", "B"])
+        self.assertEqual(rows[0]["tasks"], ["T-0001"])
+        self.assertEqual(paths, {"Saves": ["src/Save*.cs", "scripts/{save,diff}.py"], "Site": ["site/"]})
+
+    def test_good_doc_passes(self):
+        self.assertEqual(self.check(), "")
+
+    def test_globs(self):
+        self.assertTrue(L.glob_re("src/Save*.cs").match("src/SaveA.cs"))
+        self.assertFalse(L.glob_re("src/*.cs").match("src/Game/A.cs"))
+        self.assertTrue(L.glob_re("src/**.cs").match("src/Game/A.cs"))
+        self.assertTrue(L.glob_re("site/").match("site/b/c.js"))
+        self.assertTrue(L.glob_re("x/{a,b}.py").match("x/b.py"))
+        self.assertFalse(L.glob_re("x/{a,b}.py").match("x/ab.py"))
+
+    def test_bad_grade(self):
+        out = self.check(QUALITY.replace("| Site | A | A |", "| Site | A | E |"))
+        self.assertIn("Site: grade 'E' is not one of A, B, C, D", out)
+
+    def test_grade_must_be_the_worst_dimension(self):
+        out = self.check(QUALITY.replace("| Saves | C |", "| Saves | B |"))
+        self.assertIn("Saves is graded B, but its worst dimension is C", out)
+        self.assertIn("FIX: set Saves's Grade to C", out)
+
+    def test_c_row_needs_an_open_task(self):
+        out = self.check(statuses={"T-0001": "confirmed"})
+        self.assertIn("Saves is graded C and names no open task", out)
+        self.assertIn("Saves names T-0001, which is confirmed", out)
+        self.assertIn("Saves names T-0001, which is not in", self.check(statuses={}))
+
+    def test_uncovered_file_fails(self):
+        out = self.check(files=FILES + ["bot/new.cs"])
+        self.assertIn("1 tracked file(s) in no area", out)
+        self.assertIn("bot/new.cs", out)
+        self.assertIn("FIX: add them to the Paths", out)
+
+    def test_dead_path_and_missing_section(self):
+        out = self.check(files=[f for f in FILES if f != "scripts/save.py"])
+        self.assertIn("Saves's path `scripts/{save,diff}.py` matches no tracked file", out)
+        out = self.check(QUALITY.replace("### Site\n\nPaths: `site/`\n", ""))
+        self.assertIn("Site has no ### Site section", out)
+        self.assertIn("in no area", out)
+
+    def test_stale_areas(self):
+        rows, paths = L.quality_doc(QUALITY)
+        changes = [("2026-10-07", "src/SaveA.cs"), ("2026-10-08", "src/SaveA.cs"),
+                   ("2026-10-09", "src/SaveB.cs"), ("2026-10-09", "docs/x.md")]
+        self.assertEqual(L.stale_areas(rows, paths, changes), [("Saves", 2)])
+
+    def test_repo_doc_parses(self):
+        rows, paths = L.quality_doc(L.read(L.QUALITY))
+        self.assertGreaterEqual(len(rows), 16)
+        self.assertEqual(set(r["area"] for r in rows), set(paths))
+
+
 class Ui(unittest.TestCase):
     def test_label20_with_variable_text(self):
         hits = L.label_hits("src/M.cs", DRAW)

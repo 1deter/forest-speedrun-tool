@@ -18,6 +18,9 @@ Every gotcha index line in docs/areas/*.md ends with [check: <name>],
 The log catalogue (scripts/log-catalogue.py --check, gotcha 16's check):
 every log call has a prefix and docs/log-lines.md is current, with a
 meaning per prefix.
+The quality document (docs/quality.md, docs/harness.md 10d): grades A-D,
+an area's grade the worst of its four, a C / D row names an open task,
+every tracked file falls under some area's Paths.
 """
 import argparse
 import importlib.util
@@ -237,6 +240,134 @@ def check_gotchas(numbers, index, statuses):
     return probs
 
 
+# ---------------------------------------------------------------- quality document
+
+QUALITY = "docs/quality.md"
+GRADES = "ABCD"
+# Not graded on their own: docs/ and tasks/ are each area's legibility, the
+# test projects its evidence, and root files are listed where they belong.
+NOT_GRADED = re.compile(r"^(docs/|tasks/|scripts/tests/|tests/ForestOverlay\.Tests/|(?:[^/]+/)?[^/]+\.Tests/|[^/]+$)")
+
+
+def glob_re(pattern):
+    """A Paths glob as a regex: * within a folder, ** across, {a,b} either, a trailing / the whole folder."""
+    out, i = "", 0
+    while i < len(pattern):
+        if pattern.startswith("**", i):
+            out, i = out + ".*", i + 2
+        elif pattern[i] == "*":
+            out, i = out + "[^/]*", i + 1
+        elif pattern[i] == "{" and "}" in pattern[i:]:
+            j = pattern.index("}", i)
+            out, i = out + "(?:%s)" % "|".join(re.escape(x) for x in pattern[i + 1:j].split(",")), j + 1
+        else:
+            out, i = out + re.escape(pattern[i]), i + 1
+    return re.compile(out + (".*" if pattern.endswith("/") else "") + "$")
+
+
+def quality_doc(text):
+    """(rows, paths) from docs/quality.md: rows = [{area, grade, dims, tasks, reviewed}] from the
+    ## Grades table, paths = {area: [glob]} from each ### section's Paths: line."""
+    rows = []
+    sec = text.split("\n## Grades", 1)
+    if len(sec) == 2:
+        for line in re.split(r"\n## ", sec[1])[0].splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) != 8 or cells[0] == "Area" or not cells[0].strip("-: "):
+                continue
+            rows.append({"area": cells[0], "grade": cells[1], "dims": cells[2:6],
+                         "tasks": re.findall(r"T-\d{4}", cells[6]), "reviewed": cells[7]})
+    paths, area = {}, None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            area = None
+        elif line.startswith("### "):
+            area = line[4:].strip()
+        elif area and line.startswith("Paths:"):
+            paths[area] = re.findall(r"`([^`]+)`", line)
+    return rows, paths
+
+
+def tracked_files(root=ROOT):
+    out = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True, encoding="utf-8", check=True)
+    return [f for f in out.stdout.splitlines() if f]
+
+
+def check_quality(rows, paths, statuses, files):
+    """docs/quality.md (docs/harness.md 10d): grades A-D, the area's grade the worst of its four,
+    a C / D row names an open task, every area has its paths, every tracked file is in an area."""
+    fix_row = "edit the row in %s's ## Grades table" % QUALITY
+    if not rows:
+        return [Problem("%s has no ## Grades table rows" % QUALITY,
+                        "the quality document is how a session knows where the project is weak (docs/harness.md 10d)",
+                        "put back the ## Grades table: | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |")]
+    probs = []
+    for r in rows:
+        a = r["area"]
+        bad = [g for g in [r["grade"]] + r["dims"] if g not in GRADES or len(g) != 1]
+        if bad:
+            probs.append(Problem("%s: grade %s is not one of A, B, C, D" % (a, ", ".join(repr(b) for b in bad)),
+                                 "each dimension and the area are graded A-D (%s *How a grade is set*)" % QUALITY, fix_row))
+            continue
+        worst = max(r["dims"])
+        if r["grade"] != worst:
+            probs.append(Problem("%s is graded %s, but its worst dimension is %s" % (a, r["grade"], worst),
+                                 "an area's grade is the worst of its four (author, 2026-10-07)",
+                                 "set %s's Grade to %s, or re-grade the dimension" % (a, worst)))
+        open_tasks = [t for t in r["tasks"] if statuses.get(t) not in (None,) + CLOSED]
+        if r["grade"] in "CD" and not open_tasks:
+            probs.append(Problem("%s is graded %s and names no open task" % (a, r["grade"]),
+                                 "a C or D row feeds the task list: some open task works on it (docs/harness.md 10d)",
+                                 "file one (python scripts/tasks.py add ...) and put its id in the row's Tasks cell"))
+        for t in r["tasks"]:
+            if t not in statuses:
+                probs.append(Problem("%s names %s, which is not in %s" % (a, t, TASKS),
+                                     "the Tasks cell points at the work on the row's gaps", "fix the id"))
+            elif statuses[t] in CLOSED:
+                probs.append(Problem("%s names %s, which is %s" % (a, t, statuses[t]),
+                                     "a finished task may have closed a gap: the row's grades are out of date",
+                                     "re-grade %s (its evidence, grades, Reviewed) and drop %s from Tasks" % (a, t)))
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", r["reviewed"]):
+            probs.append(Problem("%s: Reviewed %r is not a date" % (a, r["reviewed"]),
+                                 "session-start.py compares it with the area's last change", "write YYYY-MM-DD"))
+    names = set(r["area"] for r in rows)
+    for a in sorted(names - set(paths)):
+        probs.append(Problem("%s has no ### %s section with a Paths: line" % (a, a),
+                             "an area's paths say which files it grades and when its row is stale",
+                             "add \"### %s\" under ## Areas with Paths: `glob` `glob` ..." % a))
+    for a in sorted(set(paths) - names):
+        probs.append(Problem("### %s has paths but no row in ## Grades" % a,
+                             "every area is graded", "add its row to the ## Grades table"))
+    for a, globs in sorted(paths.items()):
+        for g in globs:
+            rx = glob_re(g)
+            if not any(rx.match(f) for f in files):
+                probs.append(Problem("%s's path `%s` matches no tracked file" % (a, g),
+                                     "a moved or deleted file leaves its area grading nothing there",
+                                     "fix or drop the path in ### %s" % a))
+    every = [glob_re(g) for globs in paths.values() for g in globs]
+    loose = [f for f in files if not NOT_GRADED.match(f) and not any(rx.match(f) for rx in every)]
+    if loose:
+        probs.append(Problem("%d tracked file(s) in no area of %s: %s%s" % (
+                                 len(loose), QUALITY, ", ".join(loose[:8]), " ..." if len(loose) > 8 else ""),
+                             "every part of the project is graded, so new work cannot hide (author, 2026-10-07)",
+                             "add them to the Paths of the area they belong to, or a new area (a row + a ### section)"))
+    return probs
+
+
+def stale_areas(rows, paths, changes):
+    """[(area, n)] - areas with n changed files after their Reviewed date; changes = [(YYYY-MM-DD, path)]."""
+    out = []
+    for r in rows:
+        rxs = [glob_re(g) for g in paths.get(r["area"], [])]
+        hit = set(p for d, p in changes if d > r["reviewed"] and any(rx.match(p) for rx in rxs))
+        if hit:
+            out.append((r["area"], len(hit)))
+    return out
+
+
 # ---------------------------------------------------------------- UI heuristics
 
 LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
@@ -424,6 +555,7 @@ def main(argv=None):
     probs += check_removes(csproj, project_folders())
     probs += check_gotchas(gotcha_numbers(read(GOTCHAS)), index_lines(), task_statuses())
     probs += log_catalogue.check()
+    probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:

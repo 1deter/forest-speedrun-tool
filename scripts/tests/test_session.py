@@ -46,6 +46,20 @@ class Git(unittest.TestCase):
         self.assertEqual([w["prunable"] for w in wts], [False, False, True])
 
 
+class Quality(unittest.TestCase):
+    ROWS = [{"area": "Saves", "grade": "C"}, {"area": "Site", "grade": "A"}, {"area": "Bot", "grade": "C"}]
+
+    def test_parse_changes(self):
+        log = "@2026-10-08\n\nsrc/a.cs\ndocs/b.md\n@2026-10-07\n\nsite/c.js\n"
+        self.assertEqual(S.parse_changes(log), [("2026-10-08", "src/a.cs"), ("2026-10-08", "docs/b.md"),
+                                                ("2026-10-07", "site/c.js")])
+
+    def test_line(self):
+        self.assertEqual(S.quality_line(self.ROWS, []),
+                         "quality: lowest C - Saves, Bot; every row reviewed since its area last changed")
+        self.assertIn("changed since their review: Saves (2 files) -> re-grade", S.quality_line(self.ROWS, [("Saves", 2)]))
+
+
 class Tests(unittest.TestCase):
     def test_dotnet(self):
         ok = "Passed!  - Failed:     0, Passed:   909, Skipped:     0, Total:   909, Duration: 80 ms - X.dll (net8.0)"

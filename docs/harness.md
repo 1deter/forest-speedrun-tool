@@ -159,7 +159,7 @@ unattended loop (12) only ever takes tasks with no open question.
 | 7 | Early-victory prevention | Good | Strong | "Done" depends on discipline; the maker checks its own work (L9) |
 | 8 | End-to-end verification | Good (was Partial; T-0010) | Strong | Six golden journeys + the post-release smoke run unattended; visual judgement still by eyes (8d) |
 | 9 | Built-in observability | Strong | Strong | Runtime layer beyond the course; the *process* layer (contracts, rubric) is missing (L11) |
-| 10 | State cleanup | Good (was Partial; T-0002, T-0010) | Strong | Cleanup and test hygiene are scripts now; no quality document yet (L12) |
+| 10 | State cleanup | Good (was Partial; T-0002, T-0010) | Strong | Cleanup and test hygiene are scripts now; the quality document grades every area (T-0013); the weekly loop is next (T-0014) |
 | 11 | Long-running context | Strong | Strong | The handoff works; it would shrink if 6 existed |
 | 12 | Progressive automation | Midway | Loop, then graph | No agent picks, does, verifies and records work by itself |
 
@@ -550,6 +550,12 @@ worktrees (`spot-delete-fixes`, `site-spots-in-game`,
   mode, UI, perf), site, bot, release - on verification, legibility for
   an agent, test stability and known gaps. *Check:* each session that
   changes an area updates its row; the lowest grade feeds the task list.
+  **Built** (T-0013): 16 areas - the plugin by group, site app, site maps
+  / 3D, bot, knowledge, release, bridge / e2e / QA, dev tools, harness
+  (author: every part of the project). `lint.py` checks the grades (the
+  worst of four), an open task on every C / D row and that every tracked
+  file sits in some area's paths; `session-start.py` names the rows whose
+  paths changed after their review.
 - 10e. **A weekly cleanup loop** (L12): stale docs, structural lint
   violations, quality grades, dead code - each finding a small task.
   *Check:* a scheduled routine runs it and files tasks, nothing more.
@@ -673,6 +679,13 @@ Asked after the deeper pass; each replaces an "open question" above.
    built elsewhere (a report builder, a StringBuilder) **declares** its
    prefix in a `// log: Name` comment instead of splitting the builder,
    and an indented report row needs none.
+6. **The quality document** (10d, T-0013): an area's grade is **the
+   worst of its four** dimensions; stale rows are named in the
+   **session-start report** (the weekly loop re-grades them, no Stop-hook
+   block); **every part of the project is graded** - the harness and the
+   knowledge base too, and anything added later (a file in no area fails
+   the lint) - "this helps evaluate the true scope of the project and
+   removes blindsiding things that do need genuine work".
 
 ---
 
@@ -792,3 +805,12 @@ Asked after the deeper pass; each replaces an "open question" above.
   v0.24.213), Slot 1 is a Creative save, a cut bush's kept copy is
   inactive (a `find all` sees it). Next: T-0013 (quality document), then
   Stage A (T-0015).
+- 2026-10-07: roadmap step 6's last part built (T-0013, 10d):
+  `docs/quality.md` grades 16 areas on verification, legibility, test
+  stability and known gaps (rubric in the doc); first grading: seven at C
+  (savestates, practice, performance and loads, TAS and trajectory, dev
+  tools, site maps / 3D, bot), none at D, one A (site app). `lint.py`
+  checks the table and the coverage, `session-start.py` reports stale
+  rows; the simplification log for 12d is in it. Found on the way: five
+  script test files CI never runs (T-0147), TAS has no doc (T-0145), dev
+  tools have no tests (T-0146). Decisions 6. Next: Stage A (T-0015).

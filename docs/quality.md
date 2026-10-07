@@ -1,0 +1,305 @@
+# Quality document
+
+Where the project is strong and where it is weak, area by area, so a
+session knows what it is walking into (docs/harness.md 10d, the course's
+quality-document template). Every part of the project is in one row: a
+new folder or file that no area's *Paths* covers fails `lint.py` until it
+is graded (author, 2026-10-07: "grade anything relevant ... removes
+blindsiding things that do need genuine work").
+
+**Keeping it current.** A session that changes an area re-reads its row
+and updates the grades, the evidence and *Reviewed* in the same push
+(the handoff, docs/areas/workflow.md). `session-start.py` lists the rows
+whose paths changed after their *Reviewed* date; the weekly cleanup loop
+(T-0014) re-grades them. A C or D row names at least one open task that
+works on it - that is how the lowest grades feed the task list.
+
+## How a grade is set
+
+Four dimensions, each A-D; **the area's grade is the worst of the four**
+(author, 2026-10-07) - `lint.py` checks it.
+
+| | Verification | Agent legibility | Test stability | Known gaps |
+|---|---|---|---|---|
+| **A** | Pure logic unit-tested, the main path run end to end by a machine (e2e journey, CI smoke, live check) and confirmed on a recent version | An area doc names the files and the behaviour; no file over 1,000 lines | Its suites run in CI on every push; nothing flaky in its history | No open bug |
+| **B** | Unit tests, but the main path is confirmed by hand only (bridge, author, tester) | Documented, but a file over 1,000 lines or the behaviour partly only in code | Deterministic, but some of its tests run only locally, or its live check depends on something outside (quota, the game) | Open bugs, P3-P4 only, none a crash |
+| **C** | Confirmed by hand only, or its main path waits on a check (`author-eyes`, `tester`) | A file over 2,000 lines, or no doc for the behaviour at all | No automated tests, or a known flaky test | An open P2 bug or a crash, with its task |
+| **D** | Shipped and neither tested nor confirmed | No doc and code an agent cannot follow | No tests for behaviour runners rely on | The main path is broken in the current release |
+
+## Grades
+
+| Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
+|---|---|---|---|---|---|---|---|
+| Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-07 |
+| Timed runs | B | A | B | A | B | T-0049, T-0144 | 2026-10-07 |
+| Practice | C | A | C | A | B | T-0046 | 2026-10-07 |
+| Run mode | B | A | A | A | B | T-0109, T-0110, T-0111, T-0112 | 2026-10-07 |
+| Information tabs | B | B | A | A | A | | 2026-10-07 |
+| Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
+| Performance and loads | C | B | B | A | C | T-0143, T-0033 | 2026-10-07 |
+| TAS and trajectory | C | B | C | A | B | T-0145, T-0088 | 2026-10-07 |
+| Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
+| Bridge, e2e and QA | B | A | A | B | A | T-0147 | 2026-10-07 |
+| Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
+| Site app | A | A | A | A | A | | 2026-10-07 |
+| Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0134, T-0135 | 2026-10-07 |
+| Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
+| Knowledge | B | B | A | B | B | T-0097, T-0141 | 2026-10-07 |
+| Harness | B | A | B | B | B | T-0147, T-0122 | 2026-10-07 |
+
+Lowest first: Savestates, Practice, Performance and loads, TAS and
+trajectory, Dev tools, Site maps and 3D world, Bot (C).
+
+## Areas
+
+Paths are globs from the repo root (`*` within a folder, `**` across
+folders, `{a,b}` either, a trailing `/` the whole folder). Not graded:
+`docs/` and `tasks/` (they are each area's legibility), the test
+projects (they are each area's evidence) and the root files.
+
+### Savestates
+
+Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PrefabList,RideModes,RopeClimb,SetupHold,Stance,SunSync,TitleLoad}.cs` `src/Data/{BlueprintState,BookPageState,CapturedAreas,CheckpointStates,EnemyRecord,GreebleRecord,PickupMatch,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
+
+- Verification **A**: SavestateFile (33), CheckpointStates (21) and the
+  record tests; the e2e `restores` journey (in place, with a load, the
+  chain); confirmed in game through v0.24.249 (docs/confirmed.md).
+- Legibility **C**: `SavestateModule.cs` 2,178 lines, `SavestateBridge.cs`
+  2,093; 14 keepers; 17 restore gotchas, 14 of them judgement only.
+  docs/savestates.md and plugin.md's file map are good.
+- Stability **A**: unit tests in CI; the e2e journey ran clean twice in a
+  row (T-0010).
+- Gaps **C**: native crashes on F7 in the vault door / Megan pickup
+  cutscenes (T-0058, blocked on Tom); half-chopped trees regrow (T-0067);
+  a wall rope is ended, not put back (T-0065); item drift after restores
+  (T-0066); ~30 Quick loads then a Full load hung once (T-0056).
+
+### Timed runs
+
+Paths: `src/Modules/PracticeRunModule*.cs` `src/Modules/{RunUploadModule,TimerModule}.cs` `src/Game/{BuildWatch,GameEvents,ItemCounter,ItemCounts,LatePass,PlayerStateReader,ReplayDraw,RunnerIdentity,WorldEvents}.cs` `src/Data/{AttemptFormat,AttemptStore,BusEvents,ClockText,LineBuffer,LoadTimes,LssAutoSplit,LssFile,ReplayCamera,ReplayLabels,ReplayMarks,RunHistory,RunRecorder,RunResults,RunTiming,SiteBoard,SiteProtocol,SiteSpots,SplitSequence,SplitTable}.cs`
+
+Segments, checkpoints, splits, ghosts, run lines, replays, results,
+LiveSplit, uploads.
+- Verification **A**: RunCompare (29), LssFile (20), SplitTable,
+  Trigger, RunHistory and more; the e2e `timed` journey; results panel,
+  ghosts, replay camera, load-removed time confirmed (v0.24.241-249).
+- Legibility **B**: `PracticeRunModule.cs` 1,402 lines, the rest split
+  into eight partials under 810; plugin.md and plugin-concepts.md cover it.
+- Stability **A**.
+- Gaps **B**: another segment's Go keeps the red line (T-0049); a
+  deleted attempt stays listed with a dead link (T-0144); replay
+  labels done in one spot print over each other (confirmed.md,
+  2026-10-04).
+
+### Practice
+
+Paths: `src/Modules/{PracticeModule,DeathModule}.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,ItemCaps,LocationLibrary,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
+
+Spots and their editor, teleports, Go / Restart, death reload and revive,
+sharing and community packs, the gameplay mods ("ON NOW").
+- Verification **A**: DeathPlan, SegmentFormat, PolygonZone, ZoneDisplay,
+  CommunityPacks tests; the e2e `launch` and `restart` journeys; confirmed
+  by the author and runners since v0.19.
+- Legibility **C**: `PracticeModule.cs` 2,835 lines (the editor, Go,
+  Restart and the restart flow of savestates in one file).
+- Stability **A**.
+- Gaps **B**: Megan's health bar vs her death (T-0085); reload-on-death
+  parity (T-0041); a test spot to remove (T-0068).
+
+### Run mode
+
+Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport}.cs` `docs/run-mode.md`
+
+- Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
+  RunCategory, RunReport, AttemptChain; the e2e `runmode` journey;
+  confirmed v0.24.241.
+- Legibility **A**: docs/run-mode.md; five partials, none over 450 lines;
+  its gotchas carry checks.
+- Stability **A**.
+- Gaps **B**: integrity holes, all P4 (time scale T-0109, a refused bridge
+  command answers ok T-0110, hashing the file not the loaded assembly
+  T-0111, BepInEx patches skipped by assembly T-0112); the move events
+  wait on in-game checks (T-0115..T-0118).
+
+### Information tabs
+
+Paths: `src/Modules/{CollectiblesModule,InventoryModule,MapModule,RunInfoModule}.cs` `src/Game/{DrawingsReader,InventoryReader,MapRelief,NatureGuideReader,PassengerReader,PlaneSite,SurvivalBookReader}.cs` `src/Data/{CollectionList,HudLines,MapView,ReliefImage}.cs` `collectibles/`
+
+HUD readouts, inventory, the 100% checklist, nature guide, To Do list,
+the Map tab.
+- Verification **B**: MapView (19), HudLines, ItemTrack tests; the e2e
+  `tabs` journey takes shots but asserts nothing about their content; the
+  Map tab and inventory confirmed over the bridge (v0.24.245).
+- Legibility **A**: in plugin.md's file map; files under 760 lines.
+- Stability **A**.
+- Gaps **A**: no open bug.
+
+### Plugin core and UI
+
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CursorController,HotkeyMap,HudBuilder,HudSettings,ModuleContext,ModuleHost,Notice,OverlayModule,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{PageGrouping,TextMemo}.cs` `ForestOverlay.csproj`
+
+The module host, window and tabs, hotkeys, cursor, input block, HUD
+builder, notice, settings, the reflection helpers.
+- Verification **B**: PageGrouping, TextMemo tests; `lint.py` label20 and
+  alloc; the e2e `tabs` journey's shots are for eyes; the look is the
+  author's (author-eyes).
+- Legibility **A**: plugin.md *UI* and *Where things live*, src/CLAUDE.md;
+  `ModuleHost.cs` 557 lines.
+- Stability **A**.
+- Gaps **B**: the cursor re-check (T-0024); the redesign waits in the
+  `ui-redesign` worktree (T-0018..T-0025).
+
+### Performance and loads
+
+Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PerfPatches,RenderProbe,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable}.cs` `scripts/{sample-stacks,symbolize-crash}.py`
+
+- Verification **B**: FrameTimeline, ProfileTable, LoadTimes tests; the
+  `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the
+  load leak confirmed (v0.23.3-7, v0.24.244); the e2e `launch` journey
+  loads but measures nothing.
+- Legibility **B**: `PerfPatches.cs` 969, `MemoryCensus.cs` 765; all seven
+  performance gotchas are judgement.
+- Stability **A**.
+- Gaps **C**: a native crash on a title load (T-0143, P2); garbage in play
+  (T-0033); the old world held after a load (T-0034); the census hitch
+  check (T-0048); raw FPS questions (T-0030..T-0032).
+
+### TAS and trajectory
+
+Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/Data/{TasRecording,Trajectory}.cs`
+
+- Verification **B**: TasRecording, Trajectory tests; record / replay and
+  the trajectory preview confirmed once (v0.24.241); no e2e journey.
+- Legibility **C**: no area doc mentions TAS or the trajectory preview -
+  not in plugin.md's file map, not in plugin-concepts.md (T-0145).
+- Stability **A**.
+- Gaps **B**: the preview is off where a jump clips an edge (T-0088); TAS
+  is exploratory (T-0038).
+
+### Dev tools
+
+Paths: `src/Modules/{DebugViewModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/VolumeFilter.cs` `tools/ILScan/`
+
+Debug views and freecam, the explorer, dumps, the FSM / terrain / world
+exports, the offline IL scanner.
+- Verification **B**: used in every research session; freecam confirmed
+  by the author (v0.17.0); VolumeFilter tested.
+- Legibility **B**: `DebugDraw.cs` 829 (also draws run lines and
+  markers); ILScan is documented in game-notes and plugin.md.
+- Stability **C**: no automated test of the dumps, the exports or ILScan
+  (T-0146).
+- Gaps **A**.
+
+### Bridge, e2e and QA
+
+Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/LogKeeper.cs` `src/Data/{BridgeCommand,InjectedInputs,LogArchive,QaList,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
+
+- Verification **A**: BridgeCommand, BridgeMcp, InjectedInputs, QaList,
+  ZipWriter, LogArchive tests; the bridge drives every in-game test and the
+  e2e suite runs it end to end.
+- Legibility **A**: docs/bridge.md, docs/log-lines.md (generated);
+  `Tools.cs` 952 and `ObjectProbe.cs` 1,050 lines.
+- Stability **B**: `test_e2e.py` and `test_read_report.py` pass locally
+  but CI never runs them (T-0147); the e2e suite is a day old (two clean
+  runs, one aborted by T-0143).
+- Gaps **A**.
+
+### Release and updater
+
+Paths: `src/Core/{UpdateChecker,UpdaterInstaller,WebRequest}.cs` `src/Modules/UpdateModule.cs` `src/Data/{ReleaseJson,ShippedData,UpdateStaging}.cs` `patcher/` `scripts/{bump.py,deploy.ps1}` `.github/workflows/build.yml` `CHANGELOG.md` `docs/areas/release.md`
+
+- Verification **A**: ReleaseJson (16), UpdateStaging (8), `test_bump.py`;
+  `lint.py` versions + the pre-push tag check; CI attaches the DLL; the
+  release skill's e2e smoke installs it through the updater.
+- Legibility **A**: docs/areas/release.md.
+- Stability **B**: `test_bump.py` passes locally, CI never runs it
+  (T-0147).
+- Gaps **A**: the old-install problems are documented for runners
+  (release.md *Known issues*), nothing open.
+
+### Site app
+
+Paths: `site/CLAUDE.md` `site/ForestSite/*` `site/ForestSite/GameCode/` `site/ForestSite/wwwroot/{admin.js,app.js,attempt.js,compare.js,index.html,items.json,style.css}` `site/deploy/` `.github/workflows/site.yml` `scripts/site-smoke.py` `docs/website.md` `docs/areas/site.md`
+
+Spots, runs, attempts, categories, admin, the API, the PB webhook.
+- Verification **A**: 77 tests (Api, Attempt, Category); the browser smoke
+  in CI before every deploy; deploy-watch's live check.
+- Legibility **A**: docs/areas/site.md -> website.md sections; files
+  under 770 lines.
+- Stability **A**.
+- Gaps **A**: no open bug (the 1.0 security audit T-0084 is planned work).
+
+### Site maps and 3D world
+
+Paths: `site/ForestSite/wwwroot/{map.js,map3d.js,world3d.js}` `site/ForestSite/wwwroot/terrain/` `site/ForestSite/wwwroot/vendor/` `scripts/{aerial-bake,aerial-upload,cave-bake,terrain-bake,world-extract,world_pack,site-look,site-measure}.py`
+
+The photo map, caves, the 3D world and the export / bake pipeline.
+- Verification **C**: checked by eye (gotcha 68: render the page and
+  compare with a game shot); the 2026-10-01 map items and the 3D lab /
+  Cave 6 / texture packs wait on the author's look (T-0061, T-0062); the
+  smoke loads the pages, not the picture.
+- Legibility **B**: `map3d.js` 1,216, `world3d.js` 1,067; website.md
+  *The photo map* / *The 3D world*; 19 site gotchas, 16 judgement only.
+- Stability **C**: no automated test of the bake / export scripts; their
+  two checks are tasks (T-0134 duplicate placements, T-0135 black
+  textures).
+- Gaps **B**: the exact world is planned work (T-0086).
+
+### Bot
+
+Paths: `bot/` `.github/workflows/bot.yml` `docs/knowledge-bot.md` `docs/areas/bot.md`
+
+- Verification **A**: 32 tests; the CI eval on 5 questions after each
+  deploy; deploy-watch's live check.
+- Legibility **A**: bot/README.md, bot/CLAUDE.md, docs/areas/bot.md;
+  files under 320 lines.
+- Stability **A**: the tests are deterministic; the eval is warn-only and
+  skips busy answers (gotcha 94).
+- Gaps **C**: answers too long for short questions (T-0090, P2, from
+  runner feedback).
+
+### Knowledge
+
+Paths: `knowledge/` `docs/game-notes.md` `docs/fsm/`
+
+The cards, glossary and eval questions; the confirmed game notes and FSM
+exports the bot reads.
+- Verification **B**: the KnowledgeTests lint over every card; the full
+  eval scored 87% (2026-10-03) - a model judges, a person has not
+  re-checked since.
+- Legibility **A**: knowledge/README.md (format, `[runner]` /
+  `[inferred]` labels, the research queue).
+- Stability **B**: the eval spends the free quota shared with the live
+  bot, so CI runs a 5-question subset only.
+- Gaps **B**: the 👎 queue (T-0097); the recurring review is not built
+  (T-0141); eleven research items (T-0098..T-0108).
+
+### Harness
+
+Paths: `scripts/{agent-cost,cleanup,lint,log-catalogue,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
+
+The task file, lints, hooks, skills, agents, session start, cleanup.
+- Verification **A**: tasks, lint, hooks, session and log catalogue
+  tests in CI; `tasks.py check` in CI.
+- Legibility **B**: docs/harness.md is ~800 lines of plan and status
+  together; workflow.md is the working copy.
+- Stability **B**: `test_agent_cost.py` and `test_watch_deploy.py` pass
+  locally, CI never runs them (T-0147).
+- Gaps **B**: fourteen gotchas still wait on their check (T-0122..T-0135);
+  Stage A / B not built (T-0015, T-0016).
+
+## Simplification log
+
+The monthly harness review (docs/harness.md 12d, T-0014): one component
+switched off for a few tasks, kept only if results got worse
+(`tasks.py stats` before and after, docs/harness.md *Measuring the
+harness*).
+
+| Date | Component switched off | Outcome | Decision |
+|---|---|---|---|
+
+## Change history
+
+- 2026-10-07: first grading (T-0013). Seven areas at C, none at D; new
+  tasks for the gaps with none: T-0145 (TAS docs), T-0146 (dev tools
+  tests), T-0147 (CI runs every script test).

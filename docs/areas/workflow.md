@@ -33,6 +33,10 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   names it in a `// log: Name` comment when the message is built
   elsewhere) and `docs/log-lines.md` is current with a meaning per prefix
   - after changing a log line, `python scripts/log-catalogue.py`.
+  The quality document (10d, T-0013: `docs/quality.md`): grades A-D, an
+  area's grade the worst of its four, a C / D row names an open task,
+  and every tracked file sits in some area's *Paths* - a new folder
+  fails until it is graded.
 - **PreToolUse** (`scripts/hooks/pre_tool.py`, Bash / PowerShell /
   WebFetch): refuses `api.github.com` fetches and a forced push to main;
   **asks** before a deploy into the author's install (`deploy.ps1` with
@@ -111,7 +115,9 @@ replaced on every game launch — read it before the author starts the game
 again. **Keep the handoff current without being asked** (author,
 2026-09-25: "so i don't have to keep asking before i switch session"):
 after every release or finished piece of work, in the same push,
-update the router's *Where we are* and the task file, move confirmed items, add any lesson as a
+update the router's *Where we are* and the task file, re-grade the
+[`docs/quality.md`](../quality.md) row of each area the work changed
+(evidence, grades, *Reviewed*; session start lists stale rows), move confirmed items, add any lesson as a
 gotcha (`docs/gotchas.md` + its area doc's index line) - with its check
 when a lint, test or log assertion can catch it (or a task for one), else `[judgement]`. The author may switch session at any moment;
 the docs on `main` must always be ready for it. With sessions running side
