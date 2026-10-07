@@ -36,7 +36,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Run mode | B | A | A | A | B | T-0109, T-0110, T-0111, T-0112 | 2026-10-07 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
-| Performance and loads | C | B | B | A | C | T-0143, T-0033 | 2026-10-07 |
+| Performance and loads | C | B | B | A | C | T-0033, T-0190 | 2026-10-07 |
 | TAS and trajectory | C | B | C | A | B | T-0145, T-0088 | 2026-10-07 |
 | Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
 | Bridge, e2e and QA | B | A | A | B | A | T-0147 | 2026-10-07 |
@@ -160,8 +160,9 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
 - Legibility **B**: `PerfPatches.cs` 969, `MemoryCensus.cs` 765; all seven
   performance gotchas are judgement.
 - Stability **A**.
-- Gaps **C**: a native crash on a title load (T-0143: in the game's
-  LOD_SimpleToggle, no plugin code on the path, 0 in 26 repeats); garbage in play
+- Gaps **C**: the title-load native crash is the game's (T-0143 closed:
+  LOD_SimpleToggle, 0 in 26 repeats; e2e watch T-0189); a render-thread
+  texture-upload crash not yet placed (T-0190); garbage in play
   (T-0033); the old world held after a load (T-0034); the census hitch
   check (T-0048); raw FPS questions (T-0030..T-0032).
 
