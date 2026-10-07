@@ -13,7 +13,8 @@ namespace ForestSite;
 // revision it applied, and the channels it can see (the page lists them by
 // name). Secrets (the Discord token, model keys) never come through here.
 //
-// A field left out means "the bot's .env default". Stored as one JSON text.
+// A field left out means "the bot's .env default"; `channels` once saved is the whole
+// list (an empty one = no channel). Stored as one JSON text.
 // ------------------------------------------------------------------
 public sealed class BotSettings
 {

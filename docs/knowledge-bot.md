@@ -142,15 +142,20 @@ Site: docs/website.md *What is built* (*Bot settings*). Bot
 thinking level rebuilds the model chain in place (`Brain.ReloadModels`). The
 last good answer is cached in `<data>/site-settings.json` and applied at
 start. `.env` values are the defaults: a setting the site lacks, an unusable
-value, or no site and no cache = the `.env` one. `POST /api/bot/report`
+value, or no site and no cache = the `.env` one. Channels are the exception:
+once the site has saved settings its list is the whole list (none ticked = no
+channel; DMs follow `dms`); never saved = the `.env` channels. A poll builds
+the new values aside and swaps one immutable snapshot (`BotConfig.Live`), so a
+message never sees a half-applied mix. The reported version is the deploy's
+commit (`bot.yml` publishes with `SourceRevisionId`) + the knowledge version. `POST /api/bot/report`
 (version, revision applied, text channels it sees; not sent before Discord
 is connected) feeds the page's channel list and its "applied" line.
 **VPS:** the same random `FOREST_BOT_TOKEN` in `/opt/forest-site/.env` and
 `/opt/forest-bot/.env`, then recreate both containers once.
 
 Asked for so channels / limits change without editing `/opt/forest-bot/.env`
-and recreating the container. Until it exists: edit `.env`
-(`FOREST_BOT_CHANNELS=id,id`), then
+and recreating the container. The fallback (no `FOREST_BOT_TOKEN`, or the
+site never saved): edit `.env` (`FOREST_BOT_CHANNELS=id,id`), then
 `cd /opt/forest-bot && sudo docker compose up -d --force-recreate`.
 
 Design (agreed in chat):

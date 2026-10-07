@@ -41,7 +41,7 @@ jobs:
 
       - name: Publish (linux-arm64)
         run: |
-          dotnet publish bot/ForestBot -c Release -r linux-arm64 --self-contained false -o out
+          dotnet publish bot/ForestBot -c Release -r linux-arm64 --self-contained false -p:SourceRevisionId=${{ github.sha }} -o out
           test -f out/kb/knowledge/glossary.md
           tar czf bot.tgz -C out .
           ls -l bot.tgz
