@@ -116,7 +116,12 @@ def game_root_arg(command):
 def dll_deploy(command, root):
     reason = ("Router rule 2: never deploy a DLL into the author's game install by hand - it updates through the "
               "real release path (update_game installs a release). Approve only if the author asked for this deploy.")
-    if re.search(r"deploy\.ps1", command, re.I):
+    # Only a run counts: the name inside a grep pattern or a commit message is
+    # quoted text (a search for "deploy.ps1" asked, 2026-10-07); a quoted path
+    # still runs after `&` or `-File`.
+    text = HEREDOC.sub("", command)
+    if re.search(r"deploy\.ps1", QUOTED.sub(" ", text), re.I) \
+            or re.search(r"(&|-File)\s*[\"'][^\"']*deploy\.ps1", text, re.I):
         arg = game_root_arg(command)
         if arg is None or "forest_root" in arg.lower() or (root and norm(arg).startswith(norm(root))):
             return ("ask", reason)

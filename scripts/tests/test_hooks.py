@@ -76,6 +76,12 @@ class Deploy(unittest.TestCase):
             self.assertEqual(kind, "ask", cmd)
             self.assertIn("Router rule 2", reason)
 
+    def test_deploy_name_in_quoted_text_passes(self):
+        self.assertIsNone(decide('grep -rn -E "branch build|deploy.ps1" docs/areas/release.md'))
+        self.assertIsNone(decide("git commit -m 'deploy.ps1: a note'"))
+        kind, _ = decide('& "./scripts/deploy.ps1"')
+        self.assertEqual(kind, "ask")
+
     def test_test_install_and_reading_logs_pass(self):
         self.assertIsNone(decide('./scripts/deploy.ps1 -GameRoot "D:\\ForestTest"'))
         self.assertIsNone(decide('cat "/g/SteamLibrary/steamapps/common/The Forest/BepInEx/LogOutput.log"'))
