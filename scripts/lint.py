@@ -393,6 +393,19 @@ GUARD = re.compile(r"^if\s*\(([\w.!=<>&|\s]*)\)\s*return\s*;\s*")
 STRING_LIT = re.compile(r'@"(?:[^"]|"")*"|\$?"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)+\'')
 
 
+# Strings, // comments and /* */ comments in one scan, so a "/*" inside a
+# string or after a // is not a comment start.
+COMMENT_OR_STRING = re.compile(r'@"(?:[^"]|"")*"|\$?"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\]|\\.)+\'|//[^\n]*|/\*.*?\*/', re.S)
+
+
+def strip_block_comments(text):
+    """The text with every /* */ comment blanked to spaces (newlines kept, so line numbers hold): a brace in one is not a brace (T-0187)."""
+    def blank(m):
+        t = m.group(0)
+        return re.sub(r"[^\n]", " ", t) if t.startswith("/*") else t
+    return COMMENT_OR_STRING.sub(blank, text)
+
+
 def blank_strings(line):
     """The line with every string / char literal's inside blanked (same length), so a '{' in one is not a brace."""
     return STRING_LIT.sub(lambda m: m.group(0)[0] + " " * (len(m.group(0)) - 2) + m.group(0)[-1], line)
@@ -447,7 +460,7 @@ def body_wrapped(body):
 
 def message_methods(text):
     """(class, method, line) of every Unity message method on a MonoBehaviour / BaseUnityPlugin, and its body text (None: no block body)."""
-    code = [blank_strings(strip_comment(l)) for l in text.splitlines()]
+    code = [blank_strings(strip_comment(l)) for l in strip_block_comments(text).splitlines()]
     out = []
     # (class name, or None when not a MonoBehaviour; the brace depth of its body):
     # a method belongs to the class whose body it sits directly in, so a

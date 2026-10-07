@@ -360,6 +360,21 @@ class Lifecycle(unittest.TestCase):
         (c, m, n, body), = L.message_methods(src)
         self.assertTrue(L.body_wrapped(body))
 
+    def test_brace_in_a_block_comment_is_not_a_brace(self):
+        src = ("public class A : MonoBehaviour\n{\n    private void Update()\n    {\n"
+               "        /* old: if (x) { */\n        try { Go(); }\n        catch (Exception ex) { Lifecycle.Fail(\"A.Update\", ex); }\n"
+               "        /*\n         }\n        */\n    }\n    private void LateUpdate() { Go(); }\n}\n")
+        got = [(c, m, n, b is not None and L.body_wrapped(b)) for c, m, n, b in L.message_methods(src)]
+        self.assertEqual(got, [("A", "Update", 3, True), ("A", "LateUpdate", 12, False)])
+
+    def test_block_comment_strip_keeps_lines_and_strings(self):
+        src = 'a /* x\n y */ b "/* not */" // /* nor */\nc'
+        out = L.strip_block_comments(src)
+        self.assertEqual(out.count("\n"), src.count("\n"))
+        self.assertIn('"/* not */"', out)
+        self.assertIn("// /* nor */", out)
+        self.assertNotIn(" x", out)
+
     def test_repo_has_no_unwrapped_method(self):
         self.assertEqual(L.lifecycle_hits(), [])
 
