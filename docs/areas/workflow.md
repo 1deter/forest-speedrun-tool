@@ -11,7 +11,11 @@ The steps: skill `session-start` (`.claude/skills/session-start/`).
 The SessionStart hook (`.claude/settings.json`, startup + /clear) prints
 `scripts/session-start.py`'s report into the session: git, worktrees,
 baseline (CI badges, or local tests when HEAD is not origin/main),
-release, site, VPS, tasks.
+release, site, VPS, tasks, quality, and when the recurring reviews are
+due: the weekly cleanup (skill `weekly-cleanup`: `scripts/audit.py`'s
+dead paths / code / files become P4 tasks, stale quality rows are
+re-graded), the monthly harness review (skill `harness-review`: one
+component off for 5 tasks, the author decides) and the bot review.
 
 ## Gates (machine checks, docs/harness.md 5a, 5b, 7b)
 

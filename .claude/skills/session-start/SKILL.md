@@ -34,6 +34,13 @@ resumed session)? Run `python scripts/session-start.py` yourself.
    `python scripts/tasks.py list --needs author-decision` - ask them now;
    `tasks.py set T-n --answer "..."` records each answer.
 
+3b. **Due reviews**: the report's `cleanup: ... -> due` line -> skill
+   `weekly-cleanup` (weekly; files tasks, re-grades quality rows);
+   `harness review: ... -> due` or `-> compare and decide` -> skill
+   `harness-review` (monthly; its start and its end both need the
+   author). Do them before step 4; with the author away, the cleanup
+   still runs and the review parks its question.
+
 4. **Next task**: `python scripts/tasks.py next` (`--bridge` when the
    game is up). One session, one task: start it with `tasks.py start
    T-n --by main` (it asks for the contract), and stop after its handoff

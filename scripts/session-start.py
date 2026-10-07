@@ -20,12 +20,18 @@ startup + /clear) does it unprompted. It reports:
     review is due, skill bot-review (T-0141);
   - tasks: in progress, parked questions, what is next;
   - quality (docs/quality.md): the lowest grades, and the rows whose paths
-    changed after their Reviewed date (re-grade them).
+    changed after their Reviewed date (re-grade them);
+  - the weekly cleanup (docs/quality.md *Cleanup log*): due 7 days after the last
+    row, skill weekly-cleanup (docs/harness.md 10e, T-0014);
+  - the monthly harness review (docs/quality.md *Simplification log*): due 30 days
+    after the last row; while a component is off, how many of its 5 tasks have
+    finished, then "compare and decide", skill harness-review (12d).
 QA messages need the MCP tool, so it ends with the reminder to run qa_read.
 Every check has a timeout; one that cannot run says so and the rest go on.
 """
 import argparse
 import concurrent.futures
+import datetime
 import json
 import os
 import random
@@ -64,6 +70,10 @@ SUITES = [
     ("bot tests", ["dotnet", "test", "bot/ForestBot.Tests", "-v", "q", "--nologo"]),
     ("task + script tests", [sys.executable, "-m", "unittest", "discover", "-s", "scripts/tests", "-q"]),
 ]
+# The weekly cleanup and the monthly harness review (docs/harness.md 10e, 12d; T-0014).
+CLEANUP_DAYS = 7
+REVIEW_DAYS = 30
+REVIEW_TASKS = 5
 # Paths whose changes mean the plugin needs a release.
 PLUGIN_PATHS = ["src", "patcher", "ForestOverlay.csproj", "Plugin.cs", "locations", "collectibles", "qa"]
 
@@ -88,6 +98,60 @@ def quality_line(rows, stale):
         return s + "; changed since their review: %s -> re-grade in docs/quality.md" % ", ".join(
             "%s (%s)" % (a, plural(n, "file")) for a, n in stale)
     return s + "; every row reviewed since its area last changed"
+
+
+def log_table(text, heading):
+    """The data rows (cell lists) of the table under `## heading` in docs/quality.md."""
+    parts = re.split(r"^## ", text or "", flags=re.M)
+    sec = next((p for p in parts if p.startswith(heading + "\n")), None)
+    if sec is None:
+        return None
+    rows = []
+    for l in sec.splitlines():
+        if l.startswith("|"):
+            cells = [c.strip() for c in l.strip().strip("|").split("|")]
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", cells[0]):
+                rows.append(cells)
+    return rows
+
+
+def days_between(a, b):
+    return (datetime.date.fromisoformat(b) - datetime.date.fromisoformat(a)).days
+
+
+def cleanup_line(rows, today):
+    """(line, due) for the weekly cleanup: due with no row or the last one CLEANUP_DAYS old."""
+    if rows is None:
+        return "cleanup: no Cleanup log in docs/quality.md", False
+    if not rows:
+        return "cleanup: never run -> due, skill weekly-cleanup", True
+    last = max(r[0] for r in rows)
+    if days_between(last, today) >= CLEANUP_DAYS:
+        return "cleanup: last run %s -> due, skill weekly-cleanup" % last, True
+    nxt = (datetime.date.fromisoformat(last) + datetime.timedelta(days=CLEANUP_DAYS)).isoformat()
+    return "cleanup: last run %s, next due %s" % (last, nxt), False
+
+
+def review_line(rows, finished_since, today):
+    """(line, due) for the monthly harness review. rows: the Simplification log (date, component,
+    how to switch it back, outcome, decision); finished_since(date) -> tasks finished from that day."""
+    if rows is None:
+        return "harness review: no Simplification log in docs/quality.md", False
+    open_ = [r for r in rows if len(r) >= 5 and r[4].lower() == "open"]
+    if open_:
+        r = open_[-1]
+        n = finished_since(r[0])
+        s = "harness review: %s off since %s, %d/%d tasks finished" % (r[1], r[0], min(n, REVIEW_TASKS), REVIEW_TASKS)
+        if n >= REVIEW_TASKS:
+            return s + " -> compare and decide, skill harness-review", True
+        return s, False
+    if not rows:
+        return "harness review: never run -> due, skill harness-review", True
+    last = max(r[0] for r in rows)
+    if days_between(last, today) >= REVIEW_DAYS:
+        return "harness review: last %s -> due, skill harness-review" % last, True
+    nxt = (datetime.date.fromisoformat(last) + datetime.timedelta(days=REVIEW_DAYS)).isoformat()
+    return "harness review: last %s, next due %s" % (last, nxt), False
 
 
 def badge_state(svg):
@@ -429,10 +493,16 @@ def report(force_local=False):
         problems.append("tasks file: " + str(e).replace("\n", " "))
 
     try:
-        rows, paths = lint.quality_doc(lint.read(lint.QUALITY))
+        qtext = lint.read(lint.QUALITY)
+        rows, paths = lint.quality_doc(qtext)
         log = cleanup.git("log", "--since=" + min(r["reviewed"] for r in rows), "--format=@%cs", "--name-only")
         lines.append(quality_line(rows, lint.stale_areas(rows, paths, parse_changes(log))))
-    except (OSError, ValueError) as e:
+        today = datetime.date.today().isoformat()
+        lines.append(cleanup_line(log_table(qtext, "Cleanup log"), today)[0])
+        done = T.load()
+        lines.append(review_line(log_table(qtext, "Simplification log"),
+                                 lambda d: len(T.finished_between(done, since=d)), today)[0])
+    except (OSError, ValueError, T.TaskError) as e:
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
     try:

@@ -47,13 +47,14 @@ jobs:
 
       # The machine gates (docs/harness.md 5a, 5b, 7b): the lints over the
       # tree (WHAT / WHY / FIX on failure; with the log catalogue, 9a), then
-      # the lint, hook and catalogue tests.
+      # the lint, hook and catalogue tests, and the weekly cleanup's finder (10e).
       - name: Lint
         run: |
           python3 scripts/lint.py
           python3 scripts/tests/test_lint.py
           python3 scripts/tests/test_hooks.py
           python3 scripts/tests/test_log_catalogue.py
+          python3 scripts/tests/test_audit.py
 
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4

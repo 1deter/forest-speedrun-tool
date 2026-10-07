@@ -264,6 +264,23 @@ class Views(unittest.TestCase):
         s = T.stats([task("T-0001", layer="spec"), task("T-0002")])
         self.assertIn("spec 1", s)
 
+    def test_stats_window_counts_tasks_finished_in_it(self):
+        def done(tid, day, **kw):
+            return task(tid, status="confirmed", log=[{"at": "2026-10-01", "from": "todo", "to": "in-progress"},
+                                                      {"at": day, "from": "in-progress", "to": "built"},
+                                                      {"at": "2026-10-20", "from": "built", "to": "confirmed"}], **kw)
+        ts = [done("T-0001", "2026-10-02"), done("T-0002", "2026-10-05", layer="spec"),
+              done("T-0003", "2026-10-09"), task("T-0004")]
+        self.assertEqual(T.finished_on(ts[0]), "2026-10-02")   # first built, not the later confirm
+        self.assertIsNone(T.finished_on(ts[3]))
+        s = T.stats(ts, since="2026-10-03", until="2026-10-09", events=[
+            {"at": "2026-10-01T10:00:00", "event": "begin", "run": "R-0001"},
+            {"at": "2026-10-04T10:00:00", "event": "begin", "run": "R-0002"}])
+        self.assertIn("window: 2026-10-03..2026-10-09, 2 task(s) finished", s)
+        self.assertIn("spec 1", s)
+        self.assertIn("loop: 1 run(s)", s)                       # R-0001 began before the window
+        self.assertNotIn("window", T.stats(ts, events=[]))      # no flags: today's output
+
 
 ACCEPT = {"verdict": "accept", "commits": ["aaa"]}
 

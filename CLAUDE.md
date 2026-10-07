@@ -117,6 +117,7 @@ python scripts/cleanup.py [--dry-run]           # merged worktrees / branches (l
 python scripts/tasks.py list --open             # open work (the task file, docs/harness.md 6); next / start / set / evidence; tests: scripts/tests/test_tasks.py
 python scripts/loop.py begin                    # the assisted loop (skill work-loop): next / end / intervene / report; tests: test_loop.py
 python scripts/lint.py                          # the lints (CI + git hooks); hooks + gates: docs/areas/workflow.md *Gates*
+python scripts/audit.py [--file]                # the weekly cleanup's finder: dead paths / code / files (skill weekly-cleanup)
 dotnet test bot/ForestBot.Tests     # the knowledge bot + a lint over knowledge/; try it: forest-bot search / ask / chat (bot/README.md)
 python scripts/e2e.py [--smoke] [names]        # the in-game e2e suite (~3 min, needs only the game): docs/bridge.md *The e2e suite*
 python scripts/read-report.py <zip> [--full]  # a tester's report zip in ~50 lines: header, errors, slow ticks, perf, last actions
@@ -157,6 +158,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
 - `bot-review` - the bot's review when session-start says it is due: full eval on CI, the thumbs-down queue, the knowledge-testing channel, research movement, `docs/bot-reviews/`.
 - `work-loop` - "run the loop": up to 5 tasks in one session, main orchestrates, `scripts/loop.py` names each step and stops the run.
+- `weekly-cleanup` - when session-start says it is due: `scripts/audit.py`, check each candidate, file tasks, re-grade quality rows.
+- `harness-review` - monthly, when due: one harness component off for 5 tasks, stats before / after, the author decides.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
 `forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.

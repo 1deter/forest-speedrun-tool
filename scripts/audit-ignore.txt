@@ -1,0 +1,5 @@
+# scripts/audit.py: findings checked and kept on purpose (the weekly cleanup, T-0014).
+# kind<TAB>file<TAB>name<TAB>reason - name * = the whole file. A line that matches nothing any more is reported (kind ignore).
+doc-path	README.md	../../releases	GitHub resolves it against the repo page (the Releases tab), not a file
+doc-path	docs/areas/release.md	locations/my-spots.txt	a path under a runner's BepInEx/config, not in the repo
+cs-unused	src/Modules/QaModule.cs	LogEvent	BepInEx ILogListener interface method (the interface is outside the repo)

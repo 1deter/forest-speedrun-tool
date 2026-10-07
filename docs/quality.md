@@ -10,8 +10,8 @@ blindsiding things that do need genuine work").
 **Keeping it current.** A session that changes an area re-reads its row
 and updates the grades, the evidence and *Reviewed* in the same push
 (the handoff, docs/areas/workflow.md). `session-start.py` lists the rows
-whose paths changed after their *Reviewed* date; the weekly cleanup loop
-(T-0014) re-grades them. A C or D row names at least one open task that
+whose paths changed after their *Reviewed* date; the weekly cleanup
+(skill `weekly-cleanup`, logged below) re-grades them. A C or D row names at least one open task that
 works on it - that is how the lowest grades feed the task list.
 
 ## How a grade is set
@@ -283,7 +283,7 @@ exports the bot reads.
 
 ### Harness
 
-Paths: `scripts/{agent-cost,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
+Paths: `scripts/{agent-cost,audit,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/audit-ignore.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
 
 The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
 - Verification **A**: tasks, loop, lint, hooks, session and log
@@ -291,23 +291,42 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
 - Legibility **B**: docs/harness.md is ~800 lines of plan and status
   together; workflow.md is the working copy.
 - Stability **B**: `test_agent_cost.py` and `test_watch_deploy.py` pass
-  locally, CI never runs them (T-0147).
+  locally, CI never runs them (T-0147); `test_audit.py` runs in CI.
 - Gaps **B**: fourteen gotchas still wait on their check (T-0122..T-0135);
-  Stage A built but not yet run on real tasks; Stage B not built
-  (T-0016).
+  Stage A ran once (R-0001); Stage B not built (T-0016); the weekly
+  cleanup and monthly review (T-0014) are new - the first review has not
+  run.
+
+## Cleanup log
+
+The weekly cleanup (docs/harness.md 10e, skill `weekly-cleanup`):
+`scripts/audit.py` finds dead paths, stale baseline entries, unused code
+and orphan files; each real finding becomes a task, each checked false
+positive a line in `scripts/audit-ignore.txt`; the stale rows above are
+re-graded. `session-start.py` says it is due 7 days after the last row.
+
+| Date | Findings | Filed | Ignored | Re-graded |
+|---|---|---|---|---|
+| 2026-10-07 | doc-path 7, cs-unused 16, py-unused 1 (first run, T-0014) | T-0170..T-0183 | 3 lines added | Harness (changed by T-0014) |
 
 ## Simplification log
 
-The monthly harness review (docs/harness.md 12d, T-0014): one component
-switched off for a few tasks, kept only if results got worse
-(`tasks.py stats` before and after, docs/harness.md *Measuring the
-harness*).
+The monthly harness review (docs/harness.md 12d, skill `harness-review`):
+one component switched off for the next 5 finished tasks, then
+`tasks.py stats --since/--until` before and after (docs/harness.md
+*Measuring the harness*); the author decides keep or remove. Never the
+safety guards (rules 2, 4, 13, 15 and their hooks). *Decision* is `open`
+while the component is off; `session-start.py` counts its tasks and says
+the next review is due 30 days after the last row.
 
-| Date | Component switched off | Outcome | Decision |
-|---|---|---|---|
+| Date | Component switched off | How to switch it back | Outcome | Decision |
+|---|---|---|---|---|
 
 ## Change history
 
+- 2026-10-07: the *Cleanup log* added and the *Simplification log* given
+  its *How to switch it back* column (T-0014); Harness re-graded (still
+  B), `scripts/audit.py` + `audit-ignore.txt` in its paths.
 - 2026-10-07: first grading (T-0013). Seven areas at C, none at D; new
   tasks for the gaps with none: T-0145 (TAS docs), T-0146 (dev tools
   tests), T-0147 (CI runs every script test).

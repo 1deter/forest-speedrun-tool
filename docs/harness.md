@@ -159,7 +159,7 @@ unattended loop (12) only ever takes tasks with no open question.
 | 7 | Early-victory prevention | Good | Strong | "Done" depends on discipline; the maker checks its own work (L9) |
 | 8 | End-to-end verification | Good (was Partial; T-0010) | Strong | Six golden journeys + the post-release smoke run unattended; visual judgement still by eyes (8d) |
 | 9 | Built-in observability | Strong | Strong | Runtime layer beyond the course; the *process* layer (contracts, rubric) is missing (L11) |
-| 10 | State cleanup | Good (was Partial; T-0002, T-0010) | Strong | Cleanup and test hygiene are scripts now; the quality document grades every area (T-0013); the weekly loop is next (T-0014) |
+| 10 | State cleanup | Good (was Partial; T-0002, T-0010) | Strong | Cleanup and test hygiene are scripts now; the quality document grades every area (T-0013); the weekly cleanup and the monthly review are skills with a session-start trigger (T-0014) |
 | 11 | Long-running context | Strong | Strong | The handoff works; it would shrink if 6 existed |
 | 12 | Progressive automation | Midway | Loop, then graph | No agent picks, does, verifies and records work by itself |
 
@@ -559,6 +559,13 @@ worktrees (`spot-delete-fixes`, `site-spots-in-game`,
 - 10e. **A weekly cleanup loop** (L12): stale docs, structural lint
   violations, quality grades, dead code - each finding a small task.
   *Check:* a scheduled routine runs it and files tasks, nothing more.
+  **Built** (T-0014): `scripts/audit.py` finds dead doc paths, stale
+  lint-baseline entries, unused C# / Python code, orphan files and stale
+  quality rows; `scripts/audit-ignore.txt` keeps checked false positives
+  with their reason; `--file` files one P4 task per (kind, file). Skill
+  `weekly-cleanup` checks each candidate, files, re-grades, logs a row in
+  `docs/quality.md`'s *Cleanup log*; session-start says when it is due
+  (7 days) - decision 8.
 
 ### 11. Long-running context management
 
@@ -623,6 +630,10 @@ transcript.
   tasks, and keep it only if results got worse. Log it in
   `docs/quality.md`'s simplification table. *Check:* one review a month
   appears in the log.
+  **Built** (T-0014): skill `harness-review`; `tasks.py stats --since /
+  --until` compares a window of finished tasks; session-start says when
+  a review is due (30 days) and counts an open one's tasks (n/5) -
+  decision 8.
 
 **What stays human, by design:**
 - New feature direction.
@@ -695,6 +706,18 @@ Asked after the deeper pass; each replaces an "open question" above.
    run's start; **2 checker revises** a task, the third parks it. The
    redesign tasks (T-0018..T-0023) are `author-present`: visual work is
    built with the author, so the loop skips them.
+8. **The weekly cleanup and the monthly review** (10e, 12d; T-0014):
+   both run **when session-start says they are due** (like the bot
+   review: no scheduled routine, nothing unattended); the cleanup's dead
+   code is **"anything redundant that isn't beneficial to the project
+   long term and serves no purpose / is no longer implemented or
+   needed"** - doc paths, baseline entries, C# and Python code, orphan
+   files; a review switches one component off for **the next 5 finished
+   tasks**, and **the author decides** keep / remove from the
+   before / after stats. Which components may go was left to Claude:
+   **all but the safety guards** (rules 2, 4, 13, 15 and their hooks) -
+   five tasks of stats cannot show the worth of a guard against a rare,
+   costly event.
 
 ---
 
@@ -833,3 +856,11 @@ Asked after the deeper pass; each replaces an "open question" above.
   `test_loop.py` (18) in CI. Decisions 7. Not run on a real task yet:
   the first run is the next session's. Next: T-0014 (cleanup loop),
   then Stage B (T-0016) once Stage A ran a week without a fix.
+- 2026-10-07: the weekly cleanup and the monthly harness review built
+  (T-0014, 10e, 12d): `scripts/audit.py` + `audit-ignore.txt`
+  (`test_audit.py`, 14, in CI), skills `weekly-cleanup` and
+  `harness-review`, `tasks.py stats --since / --until`, session-start's
+  cleanup and harness review lines, the *Cleanup log* in
+  `docs/quality.md`. Decisions 8. First cleanup run the same day (its
+  row in the log). Next: Stage B (T-0016) once Stage A ran a week
+  without a fix; the first harness review is due now.

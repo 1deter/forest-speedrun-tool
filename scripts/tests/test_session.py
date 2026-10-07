@@ -16,6 +16,57 @@ S = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(S)
 
 
+QUALITY = """# Quality
+
+## Cleanup log
+
+| Date | Findings | Filed | Ignored | Re-graded |
+|---|---|---|---|---|
+%s
+## Simplification log
+
+| Date | Component switched off | How to switch it back | Outcome | Decision |
+|---|---|---|---|---|
+%s
+## Change history
+"""
+
+
+class CleanupAndReview(unittest.TestCase):
+    """The weekly cleanup and monthly harness review lines (docs/harness.md 10e, 12d; T-0014)."""
+
+    def test_log_table_reads_dated_rows_only(self):
+        text = QUALITY % ("| 2026-10-07 | 9 | 4 | 3 | none |\n", "")
+        self.assertEqual(S.log_table(text, "Cleanup log"), [["2026-10-07", "9", "4", "3", "none"]])
+        self.assertEqual(S.log_table(text, "Simplification log"), [])
+        self.assertIsNone(S.log_table("# nothing", "Cleanup log"))
+
+    def test_cleanup_due_after_seven_days(self):
+        self.assertTrue(S.cleanup_line([], "2026-10-07")[1])
+        line, due = S.cleanup_line([["2026-10-01"], ["2026-10-07"]], "2026-10-13")
+        self.assertFalse(due)
+        self.assertIn("next due 2026-10-14", line)
+        self.assertTrue(S.cleanup_line([["2026-10-07"]], "2026-10-14")[1])
+        self.assertFalse(S.cleanup_line(None, "2026-10-14")[1])
+
+    def test_review_due_after_thirty_days(self):
+        row = ["2026-10-07", "the Stop hook", "settings.json", "kept: rounds 1.2 -> 1.9", "keep"]
+        self.assertTrue(S.review_line([], lambda d: 0, "2026-10-07")[1])
+        self.assertFalse(S.review_line([row], lambda d: 0, "2026-11-05")[1])
+        self.assertTrue(S.review_line([row], lambda d: 0, "2026-11-06")[1])
+
+    def test_open_review_counts_its_tasks(self):
+        row = ["2026-10-07", "lint UI heuristics", "lint.py ui check back on", "-", "open"]
+        seen = []
+        line, due = S.review_line([row], lambda d: seen.append(d) or 3, "2026-12-30")
+        self.assertEqual(seen, ["2026-10-07"])
+        self.assertFalse(due)                     # open: never "due" by age, only by its tasks
+        self.assertIn("lint UI heuristics off since 2026-10-07, 3/5 tasks finished", line)
+        line, due = S.review_line([row], lambda d: 7, "2026-10-09")
+        self.assertTrue(due)
+        self.assertIn("5/5 tasks finished -> compare and decide", line)
+
+
 class Badges(unittest.TestCase):
     def test_states(self):
         self.assertEqual(S.badge_state('<svg><title>build - passing</title></svg>'), "passing")

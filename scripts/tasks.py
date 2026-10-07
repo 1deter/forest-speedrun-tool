@@ -22,7 +22,8 @@ point (docs/harness.md 7a, 9c). Every write also re-renders docs/tasks.md.
            --scores correctness=2,verification=2,scope=2,restart=n/a,legible=2,handoff=1
            [--faults "file:line - what is wrong" ...]
     python scripts/tasks.py note T-0001 "multi-session notes line"
-    python scripts/tasks.py stats
+    python scripts/tasks.py stats [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+           # a window: only tasks finished (first built) in it - the monthly review's before / after
     python scripts/tasks.py check          # validate the file (CI)
     python scripts/tasks.py render         # rewrite docs/tasks.md
     python scripts/tasks.py qa-todo        # the #qa-todo-list text (qa_todo from_tasks posts it)
@@ -448,8 +449,32 @@ def qa_todo(tasks, version=None, day=None):
     return head + "\n\n**Please test**\n" + "\n".join("- " + t["qa"].strip() for t in rows)
 
 
-def stats(tasks):
+# A task is finished when it first reaches one of these: its maker is done (the monthly harness
+# review counts a window of finished tasks, docs/harness.md 12d).
+FINISHED = ("built", "released", "confirmed")
+
+
+def finished_on(t):
+    """The date the task first reached built (or later), or None."""
+    for e in t.get("log") or []:
+        if e.get("to") in FINISHED:
+            return e["at"][:10]
+    return None
+
+
+def in_window(day, since=None, until=None):
+    return bool(day) and (not since or day >= since) and (not until or day <= until)
+
+
+def finished_between(tasks, since=None, until=None):
+    return [t for t in tasks if in_window(finished_on(t), since, until)]
+
+
+def stats(tasks, since=None, until=None, events=None):
     out = []
+    if since or until:
+        tasks = finished_between(tasks, since, until)
+        out.append("window: %s..%s, %d task(s) finished" % (since or "start", until or "today", len(tasks)))
     for field, values in (("status", STATUSES), ("needs", NEEDS), ("area", AREAS)):
         counts = [(v, len([t for t in tasks if t.get(field) == v])) for v in values]
         out.append("%-7s " % field + "  ".join("%s %d" % c for c in counts if c[1]))
@@ -472,7 +497,10 @@ def stats(tasks):
     else:
         out.append("checker: no reviews yet")
     import loop  # the loop's own state file (scripts/loop.py imports this module)
-    out.append(loop.stats_line(loop.load()))
+    events = loop.load() if events is None else events
+    if since or until:
+        events = [e for e in events if in_window(e.get("at", "")[:10], since, until)]
+    out.append(loop.stats_line(events))
     return "\n".join(out)
 
 
@@ -488,6 +516,7 @@ SUITES = [
      "python scripts/tests/test_tasks.py && python scripts/tests/test_loop.py && "
      "python scripts/tests/test_session.py && "
      "python scripts/tests/test_lint.py && python scripts/tests/test_hooks.py && "
+     "python scripts/tests/test_audit.py && "
      "python scripts/tests/test_watch_deploy.py && python scripts/tests/test_read_report.py"),
 ]
 # Generated or bookkeeping files left out of the brief's diff.
@@ -759,7 +788,9 @@ def main(argv=None):
     sp.add_argument("--scores", required=True)
     sp.add_argument("--faults", nargs="*")
     sp.add_argument("--by", required=True)
-    sub.add_parser("stats")
+    sp = sub.add_parser("stats")
+    sp.add_argument("--since")
+    sp.add_argument("--until")
     sub.add_parser("check")
     sub.add_parser("render")
     sub.add_parser("qa-todo")
@@ -787,7 +818,10 @@ def main(argv=None):
         elif a.cmd == "brief":
             print(brief(find(tasks, a.id)))
         elif a.cmd == "stats":
-            print(stats(tasks))
+            for d in (a.since, a.until):
+                if d and not re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+                    raise TaskError("bad date %r" % d, "the window is whole days", "--since / --until YYYY-MM-DD")
+            print(stats(tasks, a.since, a.until))
         elif a.cmd == "check":
             validate(tasks)
             with open(VIEW, encoding="utf-8") as f:
