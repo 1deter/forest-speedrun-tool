@@ -14,6 +14,10 @@ startup + /clear) does it unprompted. It reports:
   - the latest tag's DLL attached (the asset URL - never api.github.com),
     plugin commits since it;
   - the site up, the VPS containers (ssh, skipped without the key);
+  - bot feedback: new thumbs-down / partial queue items (the VPS) and new
+    humans' messages in the knowledge-testing channel (Discord REST, read-only)
+    since the last bot review (docs/bot-reviews/mark.json); any new = the
+    review is due, skill bot-review (T-0141);
   - tasks: in progress, parked questions, what is next;
   - quality (docs/quality.md): the lowest grades, and the rows whose paths
     changed after their Reviewed date (re-grade them).
@@ -47,6 +51,11 @@ WORKFLOWS = ("build", "site", "bot")
 VPS = "ubuntu@141.147.101.228"
 VPS_KEY = os.path.join(os.path.expanduser("~"), ".ssh", "ssh-key-2026-08-13.key")
 NET_TIMEOUT = 8
+# The bot review's mark (skill bot-review): the last review's date, the highest
+# queue id and the last knowledge-testing message id it covered.
+REVIEW_MARK = os.path.join(ROOT, "docs", "bot-reviews", "mark.json")
+KNOWLEDGE_TESTING = "1555989862652313620"   # tools/BridgeMcp/Discord.cs KnowledgeTestingChannel
+BOT_QUEUE_CMD = "sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue"
 # Local baseline, in order; (name, command, cwd-relative). The build gets
 # ForestManagedPath when the User-scope variable exists (CLAUDE.md, Commands).
 SUITES = [
@@ -106,6 +115,47 @@ def test_summary(output):
         return "%s passed" % m.group(1) if not f else "%s of %s FAILED" % (f.group(1), m.group(1))
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     return lines[-1] if lines else "no output"
+
+
+def parse_queue_ids(text):
+    """Ids of the open items in `forest-bot queue` output (lines `#12 2026-10-07 ...`)."""
+    return [int(m.group(1)) for m in re.finditer(r"^#(\d+) ", text or "", re.M)]
+
+
+def new_messages(msgs, after_id, bot_id=None):
+    """Humans' messages newer than the mark: Discord messages (dicts), snowflake ids compared as ints."""
+    out = []
+    for m in msgs or []:
+        a = m.get("author") or {}
+        if a.get("bot") or (bot_id and a.get("id") == bot_id):
+            continue
+        if int(m["id"]) > int(after_id or 0):
+            out.append(m)
+    return out
+
+
+def read_mark(text):
+    """The mark file -> dict with date / queue_id / message_id, or None when absent or unreadable."""
+    try:
+        d = json.loads(text)
+        return {"date": str(d["date"]), "queue_id": int(d.get("queue_id", 0)), "message_id": str(d.get("message_id", "0"))}
+    except (TypeError, ValueError, KeyError):
+        return None
+
+
+def feedback_line(mark, queue_new, msgs_new, notes=()):
+    """(line, due): queue_new / msgs_new are counts, or None when that source could not be read."""
+    if mark is None:
+        return ("bot feedback: no review mark (docs/bot-reviews/mark.json) - the first review is due, skill bot-review", True)
+    parts = []
+    for n, what in ((queue_new, "new thumbs-down / partial queue items"), (msgs_new, "new knowledge-testing messages")):
+        parts.append("%s unknown" % what if n is None else "%d %s" % (n, what))
+    due = bool((queue_new or 0) + (msgs_new or 0))
+    s = "bot feedback since the review of %s: %s" % (mark["date"], ", ".join(parts))
+    s += " -> review due, skill bot-review" if due else " (no review due)"
+    if notes:
+        s += " [%s]" % "; ".join(notes)
+    return s, due
 
 
 def use_badges(head, origin, dirty, forced):
@@ -181,6 +231,73 @@ def check_vps():
     return ("; ".join(rows) or "no containers") + ("  <- NOT UP" if bad else "")
 
 
+def user_env(name):
+    """An environment variable, then the Windows User scope (tooling shells do not inherit it)."""
+    v = os.environ.get(name)
+    if v or os.name != "nt":
+        return v
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+            return winreg.QueryValueEx(k, name)[0]
+    except OSError:
+        return None
+
+
+def check_queue_ids():
+    """(ids, note): the open thumbs-down / partial queue ids from the VPS; ids None when it cannot be read."""
+    if not os.path.exists(VPS_KEY) or not shutil.which("ssh"):
+        return None, "queue skipped (no ssh key here)"
+    try:
+        p = subprocess.run(["ssh", "-i", VPS_KEY, "-o", "BatchMode=yes", "-o", "ConnectTimeout=6", VPS, BOT_QUEUE_CMD],
+                           capture_output=True, text=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        return None, "queue: ssh timed out"
+    if p.returncode != 0:
+        return None, "queue: ssh failed (exit %d)" % p.returncode
+    return parse_queue_ids(p.stdout), None
+
+
+def check_testing_messages(after_id):
+    """(humans' messages since after_id, note) from the knowledge-testing channel, read-only REST.
+    The QA bot token is read from the environment and never printed or put in a message."""
+    token = user_env("FOREST_QA_BOT_TOKEN")
+    if not token:
+        return None, "channel skipped (no FOREST_QA_BOT_TOKEN)"
+    url = "https://discord.com/api/v10/channels/%s/messages?limit=100&after=%s" % (KNOWLEDGE_TESTING, after_id or "0")
+    req = urllib.request.Request(url, headers={
+        "Authorization": "Bot " + token,
+        "User-Agent": "DiscordBot (https://github.com/1deter/forest-speedrun-tool, 1.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=NET_TIMEOUT) as r:
+            msgs = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        return None, "channel: Discord answered %d" % e.code
+    except Exception as e:
+        return None, "channel: %s" % type(e).__name__
+    return new_messages(msgs, after_id), None
+
+
+def check_bot_feedback():
+    """The 'bot feedback' line and whether the review is due. Read-only; never raises."""
+    try:
+        with open(REVIEW_MARK, encoding="utf-8") as f:
+            mark = read_mark(f.read())
+    except OSError:
+        mark = None
+    if mark is None:
+        return feedback_line(None, None, None)
+    notes = []
+    ids, note = check_queue_ids()
+    if note:
+        notes.append(note)
+    msgs, note = check_testing_messages(mark["message_id"])
+    if note:
+        notes.append(note)
+    q_new = None if ids is None else len([i for i in ids if i > mark["queue_id"]])
+    return feedback_line(mark, q_new, None if msgs is None else len(msgs), notes)
+
+
 def managed_path():
     v = os.environ.get("FOREST_MANAGED_PATH")
     if v or os.name != "nt":
@@ -236,6 +353,7 @@ def report(force_local=False):
     f_site = pool.submit(check_site)
     f_vps = pool.submit(check_vps)
     f_survey = pool.submit(cleanup.survey)
+    f_feedback = pool.submit(check_bot_feedback)
 
     g = "git: %s at %s" % (branch, head[:7])
     g += ", fetched" if fetched.returncode == 0 else ", FETCH FAILED (%s)" % fetched.stderr.strip()[:80]
@@ -316,6 +434,14 @@ def report(force_local=False):
         lines.append(quality_line(rows, lint.stale_areas(rows, paths, parse_changes(log))))
     except (OSError, ValueError) as e:
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
+
+    try:
+        fb_line, fb_due = f_feedback.result(timeout=60)
+        lines.append(fb_line)
+        if fb_due:
+            problems.append("bot review due - skill bot-review (new queue items / knowledge-testing messages)")
+    except Exception as e:
+        lines.append("bot feedback: check failed (%s)" % type(e).__name__)
 
     lines.append("QA: run `qa_read new_only` (forest MCP) and file each new message as a task")
     head_line = "Session start (%.1f s)%s" % (time.time() - t0, "" if not problems else " - %s" % plural(len(problems), "problem"))

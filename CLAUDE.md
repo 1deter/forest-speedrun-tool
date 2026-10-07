@@ -155,6 +155,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `release` - fetch, bump, build, test, tag, push, wait for the DLL, handoff.
 - `bridge-test` - an in-game test over the bridge (backup, uploads off, notices, proof, clean-up) and QA lists.
 - `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
+- `bot-review` - the bot's review when session-start says it is due: full eval on CI, the thumbs-down queue, the knowledge-testing channel, research movement, `docs/bot-reviews/`.
 - `work-loop` - "run the loop": up to 5 tasks in one session, main orchestrates, `scripts/loop.py` names each step and stops the run.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)

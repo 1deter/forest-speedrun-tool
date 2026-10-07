@@ -76,6 +76,65 @@ class Tests(unittest.TestCase):
         self.assertEqual(S.test_summary(""), "no output")
 
 
+class BotFeedback(unittest.TestCase):
+    MARK = {"date": "2026-10-07", "queue_id": 12, "message_id": "1000"}
+
+    def test_queue_ids(self):
+        out = "#12 2026-10-06 thumbs-down (answer #3): q\n    detail\n#15 2026-10-07 partial (answer #9): q2\n    #99 not an item\n"
+        self.assertEqual(S.parse_queue_ids(out), [12, 15])
+        self.assertEqual(S.parse_queue_ids(""), [])
+
+    def test_new_messages_are_humans_after_the_mark(self):
+        msgs = [{"id": "999", "author": {"id": "1"}},
+                {"id": "1001", "author": {"id": "2", "bot": True}},
+                {"id": "1002", "author": {"id": "3"}},
+                {"id": "10000", "author": {"id": "4"}}]   # compared as ints, not strings
+        self.assertEqual([m["id"] for m in S.new_messages(msgs, "1000")], ["1002", "10000"])
+        self.assertEqual(S.new_messages(msgs, "1000", bot_id="3")[0]["id"], "10000")
+
+    def test_mark(self):
+        self.assertEqual(S.read_mark('{"date":"2026-10-07","queue_id":12,"message_id":"1000"}'), self.MARK)
+        self.assertIsNone(S.read_mark("not json"))
+        self.assertIsNone(S.read_mark('{"queue_id":1}'))
+
+    def test_line_due_only_when_something_is_new(self):
+        line, due = S.feedback_line(self.MARK, 0, 0)
+        self.assertFalse(due)
+        self.assertIn("no review due", line)
+        line, due = S.feedback_line(self.MARK, 2, 0)
+        self.assertTrue(due)
+        self.assertIn("2 new thumbs-down", line)
+        self.assertTrue(S.feedback_line(self.MARK, 0, 5)[1])
+
+    def test_unreadable_source_is_said_not_counted(self):
+        line, due = S.feedback_line(self.MARK, None, 0, ["queue skipped (no ssh key here)"])
+        self.assertFalse(due)
+        self.assertIn("unknown", line)
+        self.assertIn("no ssh key", line)
+
+    def test_no_mark_means_first_review_due(self):
+        line, due = S.feedback_line(None, None, None)
+        self.assertTrue(due)
+        self.assertIn("first review", line)
+
+    def test_check_with_fake_sources(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        mark = os.path.join(d, "mark.json")
+        with open(mark, "w") as f:
+            f.write('{"date":"2026-10-07","queue_id":12,"message_id":"1000"}')
+        saved = (S.REVIEW_MARK, S.check_queue_ids, S.check_testing_messages)
+        try:
+            S.REVIEW_MARK = mark
+            S.check_queue_ids = lambda: ([11, 12, 13, 14], None)
+            S.check_testing_messages = lambda after: ([{"id": "1001"}], None)
+            line, due = S.check_bot_feedback()
+            self.assertTrue(due)
+            self.assertIn("2 new thumbs-down / partial queue items, 1 new knowledge-testing messages", line)
+        finally:
+            S.REVIEW_MARK, S.check_queue_ids, S.check_testing_messages = saved
+
+
 class Scratch(unittest.TestCase):
     def test_slug_matches_claude_code(self):
         self.assertEqual(C.project_slug(r"C:\Users\deter\Desktop\forest-overlay"),

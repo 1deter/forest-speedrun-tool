@@ -13,6 +13,7 @@ follows: [`bot/CLAUDE.md`](../../bot/CLAUDE.md); its decisions:
 |---|---|
 | [`docs/knowledge-bot.md`](../knowledge-bot.md) | Design, build order, the decompiled code, the planned settings page |
 | [`bot/README.md`](../../bot/README.md) | Running it: Discord use, how it answers, modes, settings, tests |
+| [`docs/bot-reviews/`](../bot-reviews/) | The bot reviews (skill `bot-review`): eval scores per question, queue, runners' feedback, research movement; `mark.json` is what session-start counts from |
 | [`docs/knowledge-testing.md`](../knowledge-testing.md) | What runners asked the bot in the QA server's knowledge-testing channel, per answer, with the fix (T-0140) |
 | [`knowledge/README.md`](../../knowledge/README.md) | Writing cards: format, `[runner]` / `[inferred]` labels, the research queue |
 | [`bot/deploy/README.md`](../../bot/deploy/README.md) | The container, the VPS, the one-time setup |
@@ -36,6 +37,16 @@ report in the run's summary; busy questions (no quota for the answer or
 the judge) are skipped, never scored. No code tools or embedding model there. A paid
 model is the author's later call (after research sessions polish
 `knowledge/`): config only, `FOREST_BOT_MODELS` + its key.
+
+**The bot review** (T-0141, author 2026-10-07: as often as there is
+feedback): the session-start report's "bot feedback" line counts the 👎 /
+partial queue items and the humans' knowledge-testing messages newer than
+`docs/bot-reviews/mark.json`; any new one = `! bot review due`, and skill
+`bot-review` runs it (full eval, queue, channel, research, a report in
+`docs/bot-reviews/<date>.md`, the mark moved). The full eval is bot.yml's
+`workflow_dispatch` (`gh workflow run bot.yml -f eval_ids=all`, or ids):
+job `eval-manual`, no build, no deploy (a dispatch no longer redeploys -
+push to deploy), Flash-Lite on the live key like the subset, up to 90 min.
 
 **The 👎 queue** (run without asking - author's standing OK):
 `ssh -i ~/.ssh/ssh-key-2026-08-13.key ubuntu@141.147.101.228 'sudo docker exec forest-bot dotnet /srv/current/forest-bot.dll queue'`;

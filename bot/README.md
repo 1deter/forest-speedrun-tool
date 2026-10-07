@@ -42,6 +42,7 @@ forest-bot ask "<question>"    # one answer on the console, with its lookups
 forest-bot chat                # a console conversation (follow-ups)
 forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota); --summary <file> appends the report
                                # busy (no quota) questions are skipped, not scored; an unknown id exits 2
+                               # the full set runs on CI, not here: bot.yml workflow_dispatch (`gh workflow run bot.yml -f eval_ids=all`), skill bot-review
 forest-bot queue               # the open research queue
 forest-bot answer <id>         # a stored answer in full (the queue's "answer #n")
 forest-bot resolve <id>        # close a queue item once it is dealt with
