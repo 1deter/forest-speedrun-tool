@@ -1,6 +1,6 @@
 ---
 name: deploy-watch
-description: Watch a push to main deploy the website (forest.deter.cloud) or the knowledge bot to the VPS and confirm it is live - scripts/watch-deploy.py, then a look at the change itself. Use after pushing anything under site/, src/Data/, community/ (the site) or bot/, knowledge/, docs/game-notes.md, docs/savestates.md, docs/run-mode.md, docs/fsm/ (the bot), or when asked whether a deploy went out.
+description: Watch a push to main deploy the website (forest.deter.cloud) or the knowledge bot to the VPS and confirm it is live - scripts/watch-deploy.py, then a look at the change itself. Use after pushing anything under site/, src/Data/, community/ (the site) or bot/, knowledge/, docs/game-notes.md, docs/savestates.md, docs/run-mode.md, docs/fsm/ (the bot; the exact lists are the workflows' `paths:`), or when asked whether a deploy went out.
 ---
 
 # Watch a site / bot deploy
@@ -19,9 +19,10 @@ VPS: `site/deploy/README.md`, `docs/website.md`, `docs/areas/bot.md`.
    ```
    No targets = every one whose newest commit on origin/main is newer
    than its container's restart (`site`, `bot` to name them). Deployed =
-   restarted after that commit, the live check answers (the site's
-   `/api/spots`, with a new query string each poll - Cloudflare caches a
-   `?v=` URL) and the workflow badge is not failing. Exit 1 = timed out
+   restarted after that commit and running, the workflow badge is not
+   failing, and for the site the live check answers (`/api/spots`, a new
+   query string each poll - Cloudflare caches a `?v=` URL); the bot has
+   no public endpoint, so step 2 is its live check. Exit 1 = timed out
    (900 s, `--timeout`) or failing. It never calls `api.github.com`, and
    neither do you (router rule 4).
 

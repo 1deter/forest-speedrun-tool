@@ -55,7 +55,7 @@ def parse_started(text):
 
 def last_push(paths):
     out = S.cleanup.git("log", "-1", "--format=%ct", "origin/main", "--", *paths).strip()
-    return int(out) if out else None
+    return int(out) if out else 0
 
 
 def container_state(name):

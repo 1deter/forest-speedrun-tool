@@ -27,9 +27,10 @@ Facts behind each step (the updater, the 404 window, rollback):
    it (gotcha 65; a script edit that belongs to the release goes in the
    same chain):
    ```bash
-   python scripts/bump.py 0.24.N "Bullet one." "Bullet two." && dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed" && dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj && git add -A && git commit -m "v0.24.N: <summary>" && git tag v0.24.N && git push origin main v0.24.N
+   python scripts/bump.py 0.24.N "Bullet one." "Bullet two." && dotnet build -c Release -p:ForestManagedPath="G:\SteamLibrary\steamapps\common\The Forest\TheForest_Data\Managed" && dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj && git add CHANGELOG.md ForestOverlay.csproj src/Plugin.cs && git commit -m "v0.24.N: <summary>" && git tag v0.24.N && git push origin main v0.24.N
    ```
-   (`-f notes.md` instead of bullets for longer notes; commit message
+   (stage the change itself first if it is not committed yet;
+   `-f notes.md` instead of bullets for longer notes; commit message
    ends with the session's Co-Authored-By line.) `bump.py` only edits the
    three files - it does not commit, tag or push.
 
