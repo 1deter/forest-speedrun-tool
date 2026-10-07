@@ -2,6 +2,7 @@
 
 Moved out of CLAUDE.md on 2026-10-04 (every session and subagent loads CLAUDE.md; this is only needed when driving the game or the QA Discord).
 
+A test session step by step: skill `bridge-test` (`.claude/skills/bridge-test/`).
 The rules that apply everywhere: the bridge is off by default (Settings ->
 Test bridge); **do the in-game actions yourself** (memory
 `automate-ingame-actions`); updating / restarting the game is fine any

@@ -7,14 +7,11 @@ before spawning agents.
 
 ## Session start
 
-**Start here:** the SessionStart hook (`.claude/settings.json`,
-startup + /clear) prints `scripts/session-start.py`'s report into the
-session: git, worktrees, baseline (CI badges, or local tests when HEAD
-is not origin/main), release, site, VPS, tasks. A `!` line is fixed
-first; merged leftovers -> `python scripts/cleanup.py`. Then
-`qa_read new_only`, `tasks.py list --needs author-decision` with the
-author present, then `tasks.py next`. Harness and design work wants
-high effort - say so (memory `effort-level-switching`).
+The steps: skill `session-start` (`.claude/skills/session-start/`).
+The SessionStart hook (`.claude/settings.json`, startup + /clear) prints
+`scripts/session-start.py`'s report into the session: git, worktrees,
+baseline (CI badges, or local tests when HEAD is not origin/main),
+release, site, VPS, tasks.
 
 ## The task file
 

@@ -23,7 +23,8 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
    releases - docs/areas/release.md)*
 3. **Release with `scripts/bump.py`** (csproj + `Plugin.PluginVersion` + a
    `CHANGELOG.md` section, which CI requires), after `git fetch` and a look
-   at `HEAD..origin/main`; chain a script edit to the bump with `&&`.
+   at `HEAD..origin/main`; chain a script edit to the bump with `&&`
+   (the steps: skill `release`).
    *(author, 2026-09-23; gotcha 65; while sessions tag releases)*
 4. **Never poll `api.github.com`** - poll the release asset URL (60 calls an
    hour per IP, shared with the author's game). *(locked the author's
@@ -141,6 +142,13 @@ the Unity shim: `tests/CLAUDE.md`.
 Folder `CLAUDE.md` files load by themselves when work touches the folder:
 `src/` (module rules), `tests/` (the shim), `site/`, `bot/`.
 
+## Skills (`.claude/skills/`: the procedures, loaded when the task matches)
+
+- `session-start` - the start of every session: the report, red first, QA messages to tasks, `tasks.py next`.
+- `release` - fetch, bump, build, test, tag, push, wait for the DLL, handoff.
+- `bridge-test` - an in-game test over the bridge (backup, uploads off, notices, proof, clean-up) and QA lists.
+- `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
+
 ## Where everything else lives
 
 | Doc | Read it when |
@@ -167,12 +175,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **Start:** the SessionStart hook prints git, baseline, release, site, VPS
-  and the next task; then `qa_read new_only` and `tasks.py next`
-  (docs/areas/workflow.md *Session start*).
+- **Start:** skill `session-start` (the SessionStart hook's report is
+  its first step).
 - **Harness roadmap** (docs/harness.md, author 2026-10-06: first): steps
-  1-3 done (T-0001, T-0017, T-0002, T-0003: this router); next T-0004
-  (procedures as project skills).
+  1-3 done (T-0001, T-0017, T-0002, T-0003: this router) and 3e (T-0004:
+  the four skills above); next: `tasks.py next`.
 - **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; tasks T-0018..T-0025). **Unreleased on main:** `706ac88` (T-0027).
 - **Nothing is published yet:** all live categories are drafts (the

@@ -38,8 +38,8 @@ dotnet test site/ForestSite.Tests      # stop a running forest-site preview firs
 - Deploy: every push to `main` touching `site/`, `src/Data/`,
   `community/` deploys (`.github/workflows/site.yml` -> `site/deploy/deploy.sh`;
   one-time setup [`site/deploy/README.md`](../../site/deploy/README.md)).
-  Watch a deploy by polling the live page with a **new query string each
-  poll** (Cloudflare caches a `?v=` URL), never `api.github.com`.
+  Watch a deploy: skill `deploy-watch` (`scripts/watch-deploy.py`; a new
+  query string each poll - Cloudflare caches a `?v=` URL).
 
 ## The formats (all text, all already written by the plugin)
 

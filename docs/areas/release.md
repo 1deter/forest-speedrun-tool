@@ -7,15 +7,12 @@ in-game updater and the patcher. Read it before a release or any change to
 
 ## Releasing
 
-After each change that builds and passes tests: bump the version (csproj
-`Version`/`AssemblyVersion`/`FileVersion` **and** `Plugin.PluginVersion`),
-**add its `CHANGELOG.md` section** (CI fails the release without one),
-commit, push, tag, then poll the asset URL in the background and say when
-it is attached — never `api.github.com`. Docs-only changes need no
-version or tag. `python scripts/bump.py 0.24.N "bullet" "bullet"` does the
-version, the changelog section and the commit (`-f notes.md` for longer
-notes). With sessions running side by side: **`git fetch` and check
-`HEAD..origin/main` before bumping the version**.
+After each plugin change that builds and passes tests; docs-only changes
+need no version or tag. The steps: skill `release`
+(`.claude/skills/release/`). `python scripts/bump.py 0.24.N "bullet"
+"bullet"` sets the csproj `Version`/`AssemblyVersion`/`FileVersion`,
+`Plugin.PluginVersion` and the `CHANGELOG.md` section (`-f notes.md` for
+longer notes); it does not commit, tag or push.
 
 - **Changelog** (author, 2026-09-23, "all future updates"): `CHANGELOG.md`,
   one runner-facing section per release. CI puts the tag's section in the

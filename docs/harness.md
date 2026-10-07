@@ -152,7 +152,7 @@ unattended loop (12) only ever takes tasks with no open question.
 |---|---|---|---|---|
 | 1 | Closed-loop systems | Strong | Strong+ | The loop closes per task. Nothing loops *across* tasks unattended |
 | 2 | Repository as system of record | Strong | Strong | Work state is prose spread over 5 files; see 6 |
-| 3 | Modular instructions | Good (was Weak; T-0003) | Strong | Router 179 lines + area docs + folder `CLAUDE.md` files; procedures still prose (3e, T-0004) |
+| 3 | Modular instructions | Good (was Weak; T-0003) | Strong | Router + area docs + folder `CLAUDE.md` files; procedures are project skills (3e, T-0004) |
 | 4 | Initialisation phase | Partial | Strong | The session-start ritual is prose, not a script, and runs no baseline check (L6) |
 | 5 | Behavioural constraints | Strong | Strong+ | Rules are prose only; few are checked by a machine |
 | 6 | Feature lists as primitives | Weak | Strong | There is no structured task list with status and checks |

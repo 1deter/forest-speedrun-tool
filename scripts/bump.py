@@ -4,8 +4,8 @@ the CHANGELOG.md section, keeping each file's BOM and line endings.
     python scripts/bump.py 0.24.248 "First bullet." "Second bullet."
     python scripts/bump.py 0.24.248 -f notes.md      # bullets from a file ("- ..." lines)
 
-Then build, commit, tag, push and poll the asset (docs/areas/release.md *Releasing*
-goes*). Fails loudly if anything does not match, so a release chain joined
+It does not commit, tag or push: the rest is the `release` skill
+(.claude/skills/release/SKILL.md). Fails loudly if anything does not match, so a release chain joined
 with && stops (gotcha 65)."""
 import datetime
 import os
