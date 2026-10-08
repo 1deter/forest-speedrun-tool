@@ -438,6 +438,14 @@ def tree_digest(folder):
     return h.hexdigest(), size
 
 
+def changed_files(before, after):
+    """The relative paths that differ between two folders (added, gone or changed)."""
+    def files(d):
+        return {str(p.relative_to(d)): p for p in d.rglob("*") if p.is_file()}
+    a, b = files(before), files(after)
+    return sorted(k for k in set(a) | set(b) if k not in a or k not in b or a[k].read_bytes() != b[k].read_bytes())
+
+
 def slot_dir():
     for profile in sorted(SAVES.glob("*")):
         d = profile / "SinglePlayer" / ("Slot%d" % SLOT)
@@ -546,13 +554,14 @@ class Hygiene:
                 remove([self.backup])
                 self.lines.append("slot %s unchanged (%d bytes); backup removed" % (self.slot.name, now[1]))
             else:
+                changed = changed_files(self.backup, self.slot)
                 remove([self.slot])
                 shutil.copytree(self.backup, self.slot)
                 ok = tree_digest(self.slot) == self.slot_digest
                 if ok:
                     remove([self.backup])
-                self.problems.append("slot %s changed during the suite (%d -> %d bytes) - %s" % (
-                    self.slot.name, self.slot_digest[1], now[1],
+                self.problems.append("slot %s changed during the suite (%d -> %d bytes; %s) - %s" % (
+                    self.slot.name, self.slot_digest[1], now[1], ", ".join(changed) or "no file differs",
                     "put back from the backup" if ok else "put back, but it still differs: the backup is kept"))
 
         cfg = CFG.read_text(encoding="utf-8-sig") if CFG.exists() else ""

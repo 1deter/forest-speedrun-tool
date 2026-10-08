@@ -223,6 +223,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
-  (`python scripts/cleanup.py`). **Released:** v0.24.258, nothing unreleased.
+  (`python scripts/cleanup.py`). **Released:** v0.24.259 (T-0194: website spots keep
+  their start state, owner-only; Elevator Boost gets its state on maks's
+  next upload), nothing unreleased. Its smoke: journeys pass, Slot 1's
+  `info` rewritten - T-0214.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
