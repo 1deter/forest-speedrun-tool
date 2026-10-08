@@ -340,6 +340,18 @@ must:
 not:
 - says the chance adds up linearly per attack
 
+### megan-spin-spear
+question: so given the amount of time it takes to kill her by throwing the spear, what's the chance of her doing a spin and messing up the run?
+cards: megan-boss
+must:
+- 10 spears kill her solo (370 health, 40 a spear)
+- every hit's counter rolls the spin (4.76%) at any distance; a hit from 8-27 m rolls twice (counter, then close / mid attack)
+- at least 38.6% over the 10 counters (10 rolls), 62.3% if every throw lands from 8-27 m (20 rolls)
+- her own attacks between throws add rolls; the fight's length is not measured, so these are floors
+not:
+- says a hit beyond 8 m gives fewer rolls than one within 8 m
+- states a single exact per-run chance as measured
+
 ### megan-bombs
 question: how many bombs does it take to kill megan?
 cards: megan-boss

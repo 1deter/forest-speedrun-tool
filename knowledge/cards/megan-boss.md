@@ -96,8 +96,21 @@ Every melee or projectile hit (`EnemyHealth.HitReal`) sends `gotHit`. After
 0.2 s she counter-attacks: within 8 m a counter swing (one of three, 1.2 s),
 farther away straight into `chooseAttack` [live: 45 hits, every one went
 `gotHit` -> `counterAttack` after 0.2 s; 38 of them beyond 8 m went on to
-`chooseAttack`]. The ~5% spin roll applies here too. **Hitting her does not
-interrupt her. It starts her next attack.**
+`chooseAttack`]. **Hitting her does not interrupt her. It starts her next
+attack.**
+
+`counterAttack` rolls the spin itself (4.76%) **at any distance**, before
+the 8 m check; beyond 8 m it then goes into `chooseAttack`, which rolls
+again in the close / mid bands (8-27 m) [code: FSM export]. So each hit
+is **one roll from under 8 m or beyond 27 m, two rolls from 8-27 m**
+(1 - 0.9524^2 = 9.3% for that hit) [code; arithmetic].
+
+**The spear fight's spin risk.** 10 spears solo means at least 10 rolls
+from the counters alone: 38.6% for at least one spin if every throw lands
+from beyond 27 m (or within 8 m), 62.3% if every throw lands from 8-27 m
+(20 rolls) [arithmetic]. Her own close / mid attacks between your throws
+add more rolls; how many depends on how long the fight takes, which is not
+measured (Open questions) - so these are floors, not the whole risk.
 
 ## Explosions and the stagger
 
