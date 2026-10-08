@@ -182,7 +182,7 @@ Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/D
 
 ### Dev tools
 
-Paths: `src/Modules/{DebugViewModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/VolumeFilter.cs` `tools/ILScan/`
+Paths: `src/Modules/{DebugViewModule,DeveloperModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/VolumeFilter.cs` `tools/ILScan/`
 
 Debug views and freecam, the explorer, dumps, the FSM / terrain / world
 exports, the offline IL scanner.

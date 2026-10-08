@@ -28,7 +28,6 @@ namespace ForestOverlay.Modules
         public override string TabTitle { get { return "Settings"; } }
         public override int TabOrder { get { return 60; } }
 
-        private Vector2 _scroll;
 
         // Key names: KeyCode.ToString() allocates, and the list asked for
         // one per row on every OnGUI pass.
@@ -43,10 +42,23 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _prompt = new GUIContent();
         private string _message = "";
 
-        // Keys or the info box (HUD) below the global toggles.
-        private bool _hudView;
-        private Vector2 _hudScroll;
-        private float _hudContentH = 900f;   // measured on the last pass
+        // The page: folds, one scroll (T-0226).
+        private Vector2 _pageScroll;
+        private float _pageH = 900f;   // measured on the last pass
+        private DebugViewModule _views;
+        private SavestateModule _savestates;
+        private static readonly GUIContent TextKeys = new GUIContent("Keys");
+        private static readonly GUIContent TipKeys = new GUIContent(
+            "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
+        private static readonly GUIContent TextHud = new GUIContent("Info box (HUD)");
+        private static readonly GUIContent TipHud = new GUIContent(
+            "The values on screen: which lines show, their size and place, and the HUD layout editor.");
+        private static readonly GUIContent TextPerf = new GUIContent("Performance");
+        private static readonly GUIContent TipPerf = new GUIContent(
+            "Patches that make the game do less work each frame without changing what it does. On by default.");
+        private static readonly GUIContent TextLoads = new GUIContent("Loads and savestates");
+        private static readonly GUIContent TipLoads = new GUIContent(
+            "What a restore puts back, and two fixes for what the game leaves behind after a load.");
         private GUIContent[] _hudNames;
         private GUIContent[] _hudDescriptions;
         private static readonly GUIContent HudIntro = new GUIContent(
@@ -81,7 +93,7 @@ namespace ForestOverlay.Modules
 
             // The HUD view's changing text, built here (not in OnGUI) and
             // only when it changed.
-            if (!TabShowing || !_hudView) return;
+            if (!TabShowing) return;
             HudSettings s = Host.Hud.Settings;
             if (s.TextSize != _sizeShown)
             {
@@ -103,6 +115,8 @@ namespace ForestOverlay.Modules
         {
             _tabW = area.width;
             _tabH = area.height;
+            if (_views == null) _views = Host.Find<DebugViewModule>();
+            if (_savestates == null) _savestates = Host.Find<SavestateModule>();
             DrawContents();
         }
 
@@ -128,45 +142,44 @@ namespace ForestOverlay.Modules
             EnsureStyles();
             HotkeyMap map = Host.Hotkeys;
 
-            float w = _tabW;
+            // One page of folds (T-0226, author 2026-10-08: "a settings tab
+            // with folds ... clear and easy to navigate").
+            Rect area = new Rect(0, 0, _tabW, _tabH);
+            bool scrolls = _pageH > _tabH;
+            float w = scrolls ? _tabW - 20f : _tabW;
+            _pageScroll = GUI.BeginScrollView(area, _pageScroll, new Rect(0, 0, w, Mathf.Max(_pageH, _tabH)));
 
-            // --- global toggles --------------------------------------------
-            bool lockPlayer = GUI.Toggle(new Rect(12, 28, w - 160, 22),
+            float y = 4f;
+            bool lockPlayer = GUI.Toggle(new Rect(12, y, w - 24, 22),
                                          Host.LockPlayerWhilePanelOpen,
                                          " Hold player and block game input while open");
             if (lockPlayer != Host.LockPlayerWhilePanelOpen) Host.SetLockPlayer(lockPlayer);
-
-            if (GUI.Button(new Rect(w - 130, 28, 118, 22), "Reset all keys"))
-            {
-                map.ResetToDefaults();
-                _message = "Keys reset to defaults.";
-            }
-
-            // The live test bridge (developer tool): toggle and what it is doing.
-            float y = 54f;
-            BridgeModule bridge = Host.Find<BridgeModule>();
-            if (bridge != null)
-            {
-                bool on = GUI.Toggle(new Rect(12, y, w - 24, 22), bridge.Enabled,
-                                     " Test bridge (developer tool): run commands from bridge/in.txt");
-                if (on != bridge.Enabled) bridge.Enabled = on;
-                y += 24f;
-                y += UiText.DrawDim(12, y, w - 24, bridge.StatusText);
-            }
-
-            // Keys | Info box (HUD)
-            bool keysView = GUI.Toggle(new Rect(12, y, 120, 22), !_hudView, "Keys", GUI.skin.button);
-            bool hudView = GUI.Toggle(new Rect(136, y, 160, 22), _hudView, "Info box (HUD)", GUI.skin.button);
-            if (keysView && _hudView) _hudView = false;
-            else if (hudView && !_hudView) { _hudView = true; map.AwaitingRebind = null; }
             y += 28f;
 
-            if (_hudView)
-            {
-                DrawHudSettings(new Rect(8, y, w - 16, _tabH - y - 10f));
-                return;
-            }
+            if (UiKit.Section(0f, ref y, w, "settings.keys", TextKeys, null, TipKeys, true))
+                y = DrawKeys(y, w, map);
+            else if (map.AwaitingRebind != null)
+                map.AwaitingRebind = null;   // a closed fold never keeps a capture armed
 
+            if (UiKit.Section(0f, ref y, w, "settings.hud", TextHud, null, TipHud, false))
+                y = DrawHudSettings(y, w);
+
+            if (_views != null && UiKit.Section(0f, ref y, w, "settings.perf", TextPerf, null, TipPerf, false))
+                y = _views.DrawPerformance(y, w) + 6f;
+
+            if (_savestates != null && UiKit.Section(0f, ref y, w, "settings.loads", TextLoads, null, TipLoads, false))
+                y = _savestates.DrawOptions(12f, y, w - 24f) + 6f;
+
+            _pageH = y + 4f;
+            GUI.EndScrollView();
+
+            // Capture has to run before DragWindow, or dragging swallows
+            // the key event we are waiting for.
+            if (map.AwaitingRebind != null) CaptureKey(map);
+        }
+
+        private float DrawKeys(float y, float w, HotkeyMap map)
+        {
             bool rebinding = map.AwaitingRebind != null;
             if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
             {
@@ -179,28 +192,30 @@ namespace ForestOverlay.Modules
                 _prompt.text = _message.Length > 0 ? _message : StatusLine();
             }
 
+            if (GUI.Button(new Rect(12, y, 118, 22), "Reset all keys"))
+            {
+                map.ResetToDefaults();
+                _message = "Keys reset to defaults.";
+            }
+            y += 26f;
+
+            // Where the click was: the prompt / result under the button.
             GUIStyle promptStyle = rebinding ? _promptStyle : _labelStyle;
             float promptW = w - 24f;
             float promptH = _prompt.text.Length == 0
                 ? 0f
                 : Mathf.Max(20f, promptStyle.CalcHeight(_prompt, promptW));
-
             GUI.Label(new Rect(12, y, promptW, promptH), _prompt, promptStyle);
+            y += promptH + 4f;
 
-            float listY = y + 4f + promptH;
-            DrawBindList(new Rect(8, listY, w - 16, _tabH - listY - 10f), map);
-
-            // Capture has to run before DragWindow, or dragging swallows
-            // the key event we are waiting for.
-            if (map.AwaitingRebind != null) CaptureKey(map);
-
+            return DrawBindList(y, w, map) + 6f;
         }
 
         // --- the info box (HUD) -------------------------------------------
         // Every line with a tick box and what it shows (Data/HudLines);
         // the honest-labelling lines are listed as "always shown". Each
         // click writes the config once (gotcha 60).
-        private void DrawHudSettings(Rect area)
+        private float DrawHudSettings(float y, float cw)
         {
             HudSettings s = Host.Hud.Settings;
             if (_hudNames == null)
@@ -214,10 +229,7 @@ namespace ForestOverlay.Modules
                 }
             }
 
-            float cw = area.width - 20f;
-            _hudScroll = GUI.BeginScrollView(area, _hudScroll, new Rect(0, 0, cw, _hudContentH));
-            float y = 0f;
-            Rect editR = new Rect(4, y, 170, 28);
+            Rect editR = new Rect(12, y, 170, 28);
             if (UiKit.PrimaryButton(editR, EditLayoutText))
             {
                 MainWindowModule main = Host.Find<MainWindowModule>();
@@ -280,8 +292,7 @@ namespace ForestOverlay.Modules
                 y += 24f;
             }
 
-            _hudContentH = y + 8f;
-            GUI.EndScrollView();
+            return y + 6f;
         }
 
         // Rebuilt only when the status text changes, not on every OnGUI pass.
@@ -299,17 +310,17 @@ namespace ForestOverlay.Modules
             return _statusLine;
         }
 
-        private void DrawBindList(Rect listRect, HotkeyMap map)
+        // The rows, inline in the page (the page scrolls). Returns the y under them.
+        private float DrawBindList(float top, float w, HotkeyMap map)
         {
             IList<HotkeyMap.Binding> binds = map.Bindings;
 
-            Rect content = new Rect(0, 0, listRect.width - 20f, binds.Count * RowHeight);
-            _scroll = GUI.BeginScrollView(listRect, _scroll, content);
+            Rect content = new Rect(8, top, w - 16f, binds.Count * RowHeight);
 
             for (int i = 0; i < binds.Count; i++)
             {
                 HotkeyMap.Binding b = binds[i];
-                float y = i * RowHeight;
+                float y = top + i * RowHeight;
 
                 GUI.Label(new Rect(4, y, content.width - 244f, RowHeight), b.Description, _labelStyle);
 
@@ -333,7 +344,7 @@ namespace ForestOverlay.Modules
                 }
             }
 
-            GUI.EndScrollView();
+            return top + binds.Count * RowHeight;
         }
 
         private GUIContent KeyLabel(KeyCode key)

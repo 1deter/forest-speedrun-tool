@@ -78,8 +78,6 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent QuickLoadText = new GUIContent(
             "Reloading loads your save at once, with the game's own load. " +
             "Not permadeath (the game deletes the save) or multiplayer.");
-        private static readonly GUIContent ReloadFallbackText = new GUIContent(
-            "Reload save on death: used when the spot choice cannot apply (no current spot, run mode).");
         private static readonly GUIContent ChoiceTitle = new GUIContent("When I die:");
         private static readonly GUIContent ReloadHowTitle = new GUIContent("Reload the save:");
         private static readonly GUIContent ReloadWithLoad = new GUIContent(" with a load (as the game does)");
@@ -100,23 +98,22 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent[] ChoiceHints =
         {
             new GUIContent("Practice mode on, or a current spot with a start state: a death restarts that spot (F7). " +
-                           "Otherwise Reload save on death below, if on; else the game's own death."),
+                           "Otherwise your save reloads."),
             new GUIContent("Every death reloads your save (the toggles below for the first death and the boss fight still apply)."),
             new GUIContent("Health back, then the current spot's start state is restored - Quick or Full load as the spot says; " +
                            "a spot with no start state is a teleport there. The current spot is the last one you went to, " +
-                           "restarted or saved. Marks practice."),
+                           "restarted or saved; with none, your save reloads. Marks practice."),
             new GUIContent("Health back and a teleport to the current spot. Nothing is restored, even when the spot has a " +
-                           "start state. Marks practice."),
+                           "start state; with no current spot, your save reloads. Marks practice."),
             new GUIContent("Nothing changes: the dead cam and the menu, the capture on a game's first death, " +
                            "the boss-room wake-up."),
         };
         private static readonly GUIContent RunModeChoiceText = new GUIContent(
             "Run mode: a restart or revive on death is locked during a run unless the run's category allows the " +
-            "practice revive; Reload save on death follows the category. The line below says what happens instead.");
+            "practice revive; a reload on death follows the category. The line below says what happens instead.");
 
         private DeathHooks _hooks;
         private ConfigEntry<DeathChoice> _choiceCfg;
-        private ConfigEntry<bool> _quickLoadCfg;
         private ConfigEntry<bool> _quickLoadCaptureCfg;
         private ConfigEntry<bool> _quickLoadBossCfg;
         private ConfigEntry<bool> _skipMenuCfg;
@@ -168,14 +165,10 @@ namespace ForestOverlay.Modules
 
             _choiceCfg = Ctx.Config.Bind("Deaths", "OnDeath", DeathChoice.Automatic,
                 "What a death does. Automatic: the rules from before this choice (practice mode on, or a current " +
-                "spot with a start state, restarts the current spot; otherwise QuickLoadOnDeath). ReloadSave: " +
+                "spot with a start state, restarts the current spot; otherwise reloads the save). ReloadSave: " +
                 "reload the save. RestartSpot: the current spot's restart (F7). ReviveAtSpot: health back and a " +
                 "teleport to the current spot. GameDeath: the game's own death. The QuickLoad* keys still apply " +
                 "wherever a reload happens; never permadeath or multiplayer.");
-
-            _quickLoadCfg = Ctx.Config.Bind("Deaths", "QuickLoadOnDeath", true,
-                "On death, load the current save straight away through the title screen's own load path " +
-                "instead of playing the death animation and returning to the menu.");
 
             _quickLoadCaptureCfg = Ctx.Config.Bind("Deaths", "QuickLoadOnCapture", true,
                 "Reload the save also on the first death, which the game otherwise turns into the capture " +
@@ -280,7 +273,11 @@ namespace ForestOverlay.Modules
             s.FullLoad = s.HasStartState && (cur.StartRestoreWithLoad || cur.RunCategory.Length > 0);
             s.PracticeOn = _runs != null && _runs.Enabled;
 
-            s.ReloadOn = _quickLoadCfg.Value;
+            // The fallback when the choice cannot apply is always a reload
+            // (T-0226: the separate "Reload save on death" toggle - default
+            // on - set the same thing twice; the game's own death is its own
+            // choice). The old Deaths.QuickLoadOnDeath key is no longer read.
+            s.ReloadOn = true;
             s.ReloadOnCapture = _quickLoadCaptureCfg.Value;
             s.ReloadInBoss = _quickLoadBossCfg.Value;
             s.SlotKnown = slotKnown;
@@ -594,17 +591,9 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Active) y += UiText.Draw(10, y, w - 10, RunModeChoiceText) + 4f;
             y += UiText.Draw(0, y, w, _nextDeathText) + 10f;
 
-            // Reloading: not shown when a death is always the game's own.
-            bool reloadPicked = choice == DeathChoice.ReloadSave;
-            if (choice != DeathChoice.GameDeath && !reloadPicked)
-            {
-                bool ql = GUI.Toggle(new Rect(0, y, w, 22), _quickLoadCfg.Value, " Reload save on death");
-                if (ql != _quickLoadCfg.Value) { _quickLoadCfg.Value = ql; _nextDeathAt = 0f; }
-                y += 26f;
-                if (choice != DeathChoice.Automatic) y += UiText.Note(20, y, w - 20, ReloadFallbackText) + 4f;
-            }
-
-            if (choice != DeathChoice.GameDeath && (_quickLoadCfg.Value || reloadPicked))
+            // How a reload goes: every choice but the game's own death can
+            // end in one (picked, or the fallback with no spot).
+            if (choice != DeathChoice.GameDeath)
             {
                 bool cap = GUI.Toggle(new Rect(20, y, w - 20, 22), _quickLoadCaptureCfg.Value,
                                       " Also on the first death (instead of being captured)");

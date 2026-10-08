@@ -2154,7 +2154,9 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        // Drawn by Debug views (the Savestates tab is gone since v0.24.106).
+        // Drawn by the Settings tab's Loads and savestates fold (the
+        // Savestates tab is gone since v0.24.106; T-0226 moved these out of
+        // Debug views).
         public float DrawOptions(float x, float y, float w)
         {
             bool respawn = GUI.Toggle(new Rect(x, y, w, 22), _respawnEnemies.Value,
@@ -2171,6 +2173,12 @@ namespace ForestOverlay.Modules
                                    " Fix: drop the old world's event subscriptions after a load (the game keeps them)");
             if (subs != _subscribersFix.Value) { _subscribersFix.Value = subs; StaleSubscribers.Enabled = subs; }
             y += 26f;
+            return y;
+        }
+
+        // Drawn by the Developer tab (T-0226): the memory census.
+        public float DrawCensus(float x, float y, float w)
+        {
             bool census = GUI.Toggle(new Rect(x, y, w, 22), _censusOnLoad.Value,
                                      " Memory census after every load (log; a short hitch after the load)");
             if (census != _censusOnLoad.Value) _censusOnLoad.Value = census;

@@ -375,9 +375,6 @@ namespace ForestOverlay.Modules
             bool pin = GUI.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) { _pinSummary = pin; _pinSummaryCfg.Value = pin; }
 
-            if (GUI.Button(new Rect(w - 300, 26, 106, 22), "Write dumps"))
-                DumpItems();
-
             if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
             {
                 _list.Reload();
@@ -391,14 +388,24 @@ namespace ForestOverlay.Modules
                 RebuildRows();
             }
 
-            // Under the buttons that produce them: the dump result, then
-            // where the list and the book came from.
+            // Where the list and the book came from.
             RefreshTabText();
             float y = 52f;
-            y += UiText.Draw(0, y, w, _dumpText);
             y += UiText.DrawDim(0, y, w, _sourceText);
 
             DrawList(new Rect(0, y + 2f, w, _tabH - y - 6f));
+        }
+
+        /// The Developer tab's Dumps fold (T-0226; was a button on this tab):
+        /// the button, then its result under it.
+        public float DrawDumps(float x, float y, float w)
+        {
+            if (GUI.Button(new Rect(x, y, 200, 22), "Write item / nature dumps"))
+                DumpItems();
+            y += 26f;
+            RefreshTabText();
+            y += UiText.Draw(x, y, w, _dumpText);
+            return y;
         }
 
         /// Writes every id and name the game knows, so a checklist can

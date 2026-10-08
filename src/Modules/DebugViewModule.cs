@@ -44,9 +44,9 @@ namespace ForestOverlay.Modules
         private const float SaveDelay = 1f;
 
         public override string Id { get { return "debugview"; } }
-        public override string DisplayName { get { return "Debug views"; } }
+        public override string DisplayName { get { return "Views"; } }
         public override bool HasTab { get { return true; } }
-        public override string TabTitle { get { return "Debug views"; } }
+        public override string TabTitle { get { return "Views"; } }
         public override int TabOrder { get { return 50; } }
 
         public override bool HoldsPlayer { get { return _freeCamOn; } }
@@ -227,7 +227,7 @@ namespace ForestOverlay.Modules
             // F1 is deliberately left unbound - it opens the game's own
             // developer console when that is enabled, and a runner who has
             // not rebound yet would get both.
-            map.Add("tab.debugview", KeyCode.None, "Open Debug views tab", OpenMyTab);
+            map.Add("tab.debugview", KeyCode.None, "Open Views tab", OpenMyTab);
             map.Add("debug.freecam", KeyCode.KeypadMultiply, "Toggle freecam", ToggleFreeCam);
             map.Add("debug.trajectory", KeyCode.None, "Toggle trajectory preview", ToggleTrajectory);
         }
@@ -516,21 +516,6 @@ namespace ForestOverlay.Modules
             _radius = GUI.HorizontalSlider(new Rect(12, y + 4, w - 24, 20), _radius, 5f, 120f);
             y += Row + 6f;
 
-            // --- experimental: trajectory preview ---------------------------
-            y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
-            bool traj = GUI.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
-            if (traj != _trajectoryOn) ToggleTrajectory();
-            y += Row;
-            if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
-            y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
-            if (_trajectory.Show)
-            {
-                y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
-                y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
-            }
-            UiText.Note(30, y, w - 42, TrajectoryHelp);
-            y += 6f;
-
             // --- filters ----------------------------------------------------
             bool limit = GUI.Toggle(new Rect(12, y, w - 24, 22), _limitSize, _sizeLabel);
             if (limit != _limitSize) { _limitSize = limit; FiltersChanged(); }
@@ -573,7 +558,29 @@ namespace ForestOverlay.Modules
             }
             y += 8f;
 
-            // --- game profiler ---------------------------------------------
+            // --- notes ------------------------------------------------------
+            y += UiText.Draw(12, y, w - 24, _status);
+            y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
+            y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
+            y += UiText.Draw(12, y, w - 24, "Volumes are world-space bounds, not exact mesh shapes.") + 4f;
+
+            _contentHeight = y;
+            GUI.EndScrollView();
+        }
+
+        // --- drawn by the Settings tab's Performance fold ---------------------
+        // The behaviour-preserving patches: on by default and for everyone
+        // (author, 2026-10-08: not developer-only). Draws from x 0, width w.
+        public float DrawPerformance(float y, float w)
+        {
+            y += UiText.Note(12, y, w - 24, PerformanceNote) + 4f;
+            return DrawPerf(y, w, false);
+        }
+
+        // --- drawn by the Developer tab ------------------------------------------
+        // Benchmarks: the game profiler, the frame test, the allocation tracker.
+        public float DrawBenchmarks(float y, float w)
+        {
             bool prof = GUI.Toggle(new Rect(12, y, w - 24, 22), _profiler.Active,
                                    " Game profiler (the game's slowest scripts, in the log every 30 s)");
             if (prof != _profiler.Active) ToggleProfiler();
@@ -585,9 +592,7 @@ namespace ForestOverlay.Modules
                                    " Frame test: add 1 ms of work every frame (for a minute - it lowers your fps)");
             if (load != (FrameTimer.TestLoadMs > 0.0)) ToggleFrameTest();
             y += Row;
-            UiText.Note(12, y, w - 24, "Tells whether your processor's main game thread or its drawing thread limits your frame " +
-                                            "rate: the log's Frame lines with and without it. Never kept on between launches.");
-            y += 8f;
+            y += UiText.Note(12, y, w - 24, FrameTestNote) + 8f;
 
             bool alloc = GUI.Toggle(new Rect(12, y, w - 24, 22), AllocationTracker.Counting,
                                     " Allocation tracker (what the game allocates, by type; by method with the profiler)");
@@ -595,29 +600,39 @@ namespace ForestOverlay.Modules
             y += Row;
             y += UiText.Draw(12, y, w - 24, AllocationTracker.Status);
             y += UiText.Draw(12, y, w - 24, _allocReport) + 8f;
-
-            // --- performance patches -----------------------------------------
-            { float hh = UiText.Draw(12, y, w - 24, "Performance patches"); UiText.Note(12, y + hh, w - 24, "Performance patches - less work for the game each frame, and less garbage to collect (fewer hitches); " +
-                                            "each one keeps what the game does. Untick one to get the game's own code back."); y += hh; }
-            y = DrawPerf(y, w, false);
-            { float hh = UiText.Draw(12, y, w - 24, "Experimental / gameplay-altering"); UiText.Note(12, y + hh, w - 24, "Experimental / gameplay-altering - off by default. These change what the game does, " +
-                                            "not only how fast it runs; each one says what under it."); y += hh; }
-            y = DrawPerf(y, w, true);
-            y += 8f;
-
-            // --- savestates and loads (was the Savestates tab) --------------
-            SavestateModule savestates = Host.Find<SavestateModule>();
-            if (savestates != null) y = savestates.DrawOptions(12, y, w - 24) + 8f;
-
-            // --- notes ------------------------------------------------------
-            y += UiText.Draw(12, y, w - 24, _status);
-            y += UiText.Draw(12, y, w - 24, "Freecam: WASD move, Q/E down/up, Shift fast, Ctrl slow.");
-            y += UiText.Draw(12, y, w - 24, "The body is held still while it is on.");
-            y += UiText.Draw(12, y, w - 24, "Volumes are world-space bounds, not exact mesh shapes.") + 4f;
-
-            _contentHeight = y;
-            GUI.EndScrollView();
+            return y;
         }
+
+        // Experimental: the trajectory preview and the gameplay-altering
+        // performance switches - off by default, never needed for a run.
+        public float DrawExperimental(float y, float w)
+        {
+            y += UiText.Draw(12, y, w - 24, TrajectoryHeading);
+            bool traj = GUI.Toggle(new Rect(12, y, w - 24, 22), _trajectoryOn, " Trajectory preview (practice)");
+            if (traj != _trajectoryOn) ToggleTrajectory();
+            y += Row;
+            if (_trajectoryLocked) y += UiText.Draw(30, y, w - 42, TrajectoryLockedText);
+            y += UiText.Draw(30, y, w - 42, _trajectoryStatus);
+            if (_trajectory.Show)
+            {
+                y += UiText.Draw(30, y, w - 42, _trajectory.Summary);
+                y += UiText.Draw(30, y, w - 42, _trajectory.BoostText);
+            }
+            UiText.Note(30, y, w - 42, TrajectoryHelp);
+            y += 10f;
+
+            { float hh = UiText.Draw(12, y, w - 24, "Gameplay-altering performance switches"); UiText.Note(12, y + hh, w - 24, ExperimentalNote); y += hh; }
+            return DrawPerf(y, w, true) + 4f;
+        }
+
+        private static readonly GUIContent PerformanceNote = new GUIContent(
+            "Less work for the game each frame, and less garbage to collect (fewer hitches); " +
+            "each one keeps what the game does. Untick one to get the game's own code back.");
+        private static readonly GUIContent ExperimentalNote = new GUIContent(
+            "Off by default. These change what the game does, not only how fast it runs; each one says what under it.");
+        private static readonly GUIContent FrameTestNote = new GUIContent(
+            "Tells whether your processor's main game thread or its drawing thread limits your frame " +
+            "rate: the log's Frame lines with and without it. Never kept on between launches.");
 
         public override void Shutdown()
         {

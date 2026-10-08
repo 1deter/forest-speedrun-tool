@@ -1247,9 +1247,6 @@ namespace ForestOverlay.Modules
                 y = DrawCameraSection(y, cw);
             }
 
-            if (_tas != null && UiKit.Section(0f, ref y, cw, "runs.tas", TextTas, null, null, false))
-                y = _tas.DrawSection(y, cw);
-
             if (_upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false))
                 y = _upload.DrawSection(y, cw);
 
@@ -1266,7 +1263,6 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextSources = new GUIContent("Compare to another runner or LiveSplit");
         private static readonly GUIContent TextOptions = new GUIContent("Run options");
         private static readonly GUIContent TextReplay = new GUIContent("Ghost and replay");
-        private static readonly GUIContent TextTas = new GUIContent("TAS");
         private static readonly GUIContent TextUpload = new GUIContent("Upload to the website");
         private static readonly GUIContent SummaryOn = new GUIContent("on");
         private static readonly GUIContent SummaryOff = new GUIContent("off");
