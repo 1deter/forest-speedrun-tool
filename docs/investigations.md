@@ -251,8 +251,8 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   (Slot 2), `maks-boost`, Tom's `tom-c6boss`, `tom-c6`, `tom-c6exit`,
   `tom-bigjump`, `tom-megan` (Normal).
 - **Test spots to remove** (docs/bridge.md *Test spots*):
-  `s-splitstest01` ("Splits test"; backup before it
-  `%TEMP%/my-segments.before-splits-test.txt`), and once Tom answers
+  (`s-splitstest01` removed 2026-10-08, T-0068; backup
+  `segments/my-segments.txt.deter-backup`), and once Tom answers
   `s-191b90c5ab6f` (Cave 6) / `s-afcb5c720847` (Megan) with their
   `savestates/segments/*.fosave`.
 - **Backups**: photo map `%TEMP%/claude/aer/` (`aerial-0928`, `final` =
