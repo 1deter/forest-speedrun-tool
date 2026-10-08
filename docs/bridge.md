@@ -273,7 +273,13 @@ that model (`LOD_Trees.CurrentView`) fell it; bushes `BushDamage.Hit 5`,
 saplings / ferns `CutBush2.Hit 8`. **PlayMaker FSMs**: `get
 $T ScriptSetup.pmControl.ActiveStateName`; a state's parts by index
 (`FsmStates[i].name`, `.transitions[j].EventName` / `.ToState`, `fields
-....actions[k]`); fire an event with `call ... SendEvent "<event>"`.
+....actions[k]`); fire an event with `call ... SendEvent "<event>"`. **An FSM's transition
+log** (T-0044): `set static:HutongGames.PlayMaker.FsmLog LoggingEnabled
+true`, then read `<fsm>.Fsm.MyLog.Entries[i].TextWithTimecode` (`ENTER:` /
+`EXIT:` / `EVENT:`; `.Time` is real time). Every new FSM switches it back
+off (`Fsm.Init` outside the editor) - re-set it every few frames in the
+batch; `call static:HutongGames.PlayMaker.FsmLog ClearLogs` and `false`
+after.
 Test away from cannibals (they stagger the player and cut actions).
 **Updates without the MCP tool**: `call #<h>
 OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,

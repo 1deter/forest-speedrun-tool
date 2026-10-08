@@ -312,9 +312,12 @@ not:
 question: how do i stop megan spawning babies?
 cards: megan-boss
 must:
-- stay within 35 m - births come only from the roll she reaches beyond 35 m
+- births come only from the roll she reaches after 1-2 s with you beyond 35 m
+- her dodges throw her 30-55 m back, so follow her back within 35 m after a dodge
 - beyond 35 m the birth weight is 6 of 13.5 (about 44%)
-- she stops for good once more than 2 spawners exist; spawners are never destroyed
+- one birth drops 6 babies; she cannot give birth again while more than 2 of their spawners exist - kill 4 of the 6 (or wait out their 300 s timer)
+not:
+- says the spawners are never destroyed or that she stops giving birth for good
 
 ### megan-spin
 question: what are the odds of megan doing her spin attack? is it 3%?
@@ -334,6 +337,16 @@ must:
 - 370 health (Normal), an explosion takes a flat 30 regardless of distance
 - about 13 explosions with nothing else
 - each explosion has a 25% chance to stagger her for 10 s
+- two explosions within 0.1 s of each other count once
+
+### megan-empty-health-bar
+question: in the megan fight my health bar was empty but i only died a few hits later - why?
+cards: megan-boss, deaths-and-revives
+must:
+- the last stand: above 10 health a hit that would kill leaves you on 1
+- while at 10 or less, 12 s later (checked every 2 s) the game sets health to 11, which re-arms the last stand
+- only a hit within that 12-14 s window kills; hits further apart are clamped to 1 again
+- megan hits for 28 on normal
 
 ### unknown-gold-card-spot
 question: where exactly is the gold keycard?
