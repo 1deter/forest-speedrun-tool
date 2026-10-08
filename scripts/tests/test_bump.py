@@ -41,7 +41,7 @@ class Bump(unittest.TestCase):
         T.TASKS = os.path.join(self.dir, "tasks.jsonl")
         T.VIEW = os.path.join(self.dir, "tasks.md")
         real = self.saved[3]
-        T.release_plan = lambda ts, v: real(ts, v, in_head=lambda c: c == "aaa", tag_of=lambda cs: None)
+        T.release_plan = lambda ts, v, *_: real(ts, v, in_head=lambda c: c == "aaa", tag_of=lambda cs: None)
         sys.argv = ["bump.py", "0.24.2", "New thing."]
 
     def tearDown(self):
