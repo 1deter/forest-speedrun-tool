@@ -11,7 +11,6 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | multi-thrower, multithrower, rock thrower, catapult | the player-built thrower; its rocks knock you back like a bomb | knockback-sources |
 | last usable frame | the end of the knockback's free push window (~0.13-0.16 s of game time) | bomb-boost |
 | slide cancel, fall damage cancel, body slide | landing judged on a slow last collision, so no fall damage | fall-damage |
-| fall damage, fall damage formula, how fall damage works | damage only if the last collision-enter speed is over 28 m/s: 0.9 x v^2 / 27.5, 1000 (death) over 3.8 s in the air, needs over 0.75 s of air time | fall-damage |
 | fell too long, 3.8 s | over 3.8 s in the air = 1000 damage | fall-damage |
 | hard landing, landing stun | the 1 s freeze after a damaging landing | fall-damage |
 | force load, cave force load | cave state left on at the surface by a cut-short cave entry | cave-force-load |
@@ -57,7 +56,6 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
 | top runners, wr, records, leaderboard, top 3, co-op records, itsslack | every board's top 3 on speedrun.com (nothing below 3rd), first-place counts solo and co-op, each runner's places; Cheesecake404, sxczurass, yirequ hold most | top-runners |
 | 100%, hundo, all items, passenger manifest | the 100% rules and the full item list, nature guide, passengers, to-do list | hundred-percent |
-| bomb boost on Normal, bombs in a category, is the bomb boost allowed | Normal is run under No Explosive Glitch (bans the bomb boost) or Glitchless; unrestricted Any% only for Creative; moderators decide edge cases | categories-and-rules |
 | explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
 | route, K4 skip, Sahara | the runs step by step; Sahara = the cave to the vault door | routes |
 | stamina, energy, sodas, stamina mix, shift reset | sprint 3.5/s, regen 6/s (not while sprint held), capped by energy | crafting-and-building |
