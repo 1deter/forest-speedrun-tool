@@ -194,25 +194,29 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
+- **Night run 2026-10-07/08 (author away, unattended):** loop runs back to
+  back (`loop.py report` R-0002..), no-game tasks sent to cloud sessions
+  (one-time routines, branches `cloud/*`, merged by main after a checker;
+  they share the account's 5-hour limit, not the cloud credit). Hook: every
+  ask is a refusal while a loop run is open (T-0024 round). Parked for the
+  author: T-0194 (runner spots' start state on the site), T-0024 (needs
+  the redesign build in game, author present).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
-  9a, 9b, 10d, 10e, 12 Stage A, 12d done. Left: T-0016 Stage B (after
-  Stage A runs a week without a fix), T-0154 (no release for a docs-only
-  loop round), T-0123..T-0135 (small lint / test checks). **First
-  harness review open:** the Stop hook's "commits not pushed" line is off
-  for the 5 tasks finished from 2026-10-08 (docs/quality.md *Simplification
-  log*); session-start counts them, then skill `harness-review` compares.
-  **Order (author, 2026-10-07):** harness first, the redesign after.
-- **First cleanup** (T-0014, 2026-10-07) filed T-0170..T-0183 (P4: dead
-  session-log links, unused members, one unused function).
-- **Next loop run** would take: the P3 harness checks; with the game up
-  (`--bridge`): T-0148 (lead noted: each scene scan is 22-25 ms), T-0149,
-  T-0151, T-0143. `tasks.py next` offers T-0016 first, but Stage B waits
-  for a week of Stage A without a fix (harness.md) - skip it until then. Built and
-  waiting on the next full eval: T-0158, T-0163. Loop history:
-  `python scripts/loop.py report`.
-- **Worktrees:** only `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; T-0018..T-0025). **Released:** v0.24.251 (T-0122: every Unity
-  message method in src/ wrapped, `Core/Lifecycle.Fail` logs a throw once,
-  `lint.py check_lifecycle`; checker follow-ups T-0187, T-0188), nothing unreleased.
+  9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
+  check (T-0123..T-0135). Left: T-0016 Stage B (after Stage A runs a week
+  without a fix). **First harness review open:** the Stop hook's "commits
+  not pushed" line is off for the 5 tasks finished from 2026-10-08
+  (docs/quality.md *Simplification log*); session-start counts them, then
+  skill `harness-review` compares. **Order (author, 2026-10-07):** harness
+  first, the redesign after.
+- **Next loop run** would take `tasks.py next --bridge`; T-0016 waits
+  (Stage B after a week of Stage A). Built and waiting on the next full
+  eval: T-0158, T-0163.
+- **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
+  pushed; T-0018..T-0025) plus merged agent worktrees (`cleanup.py`).
+  **Released:** v0.24.254 (T-0151: a restart into the red elevator after
+  its ride keeps the endgame loaded); v0.24.253 (T-0149 endgame material
+  leak, dead code, T-0188); v0.24.252 (T-0148 restart hitches). Nothing
+  unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
