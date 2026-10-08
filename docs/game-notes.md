@@ -3344,7 +3344,8 @@ does, a way to visualise it):
   hit decides the sideways drift. Off course = something touched inside
   the window; a level runway (or a jump just before) is the optimal setup.
 - **A boost visualiser** (not built; Experimental if wanted): the path is a
-  straight line along the player's back, length 8 x frames paused x the
+  straight line along the player's back (after the hit: straight away from
+  the blast, level - `lookAtExplosion`), length 8 x frames paused x the
   window left (0.163 s - game time since the blast), swept with the
   player's capsule (`Physics.CapsuleCast`) to show the first hit - where
   the boost bends and launches.
