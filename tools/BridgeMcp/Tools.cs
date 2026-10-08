@@ -744,7 +744,7 @@ namespace ForestOverlay.BridgeMcp
             string managed = ForestPaths.Env("FOREST_MANAGED_PATH") ?? Path.Combine(_paths.Root, "TheForest_Data", "Managed");
             psi.Environment["FOREST_MANAGED_PATH"] = managed;
 
-            using Process p = Process.Start(psi);
+            using Process p = ChildProcess.Start(psi);   // closed stdin (gotcha 95)
             Task<string> stdout = p.StandardOutput.ReadToEndAsync(ct);
             Task<string> stderr = p.StandardError.ReadToEndAsync(ct);
             using (CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct))

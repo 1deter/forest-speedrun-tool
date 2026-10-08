@@ -265,16 +265,32 @@ class Log:
             time.sleep(0.5)
 
 
-SUITE_START = time.time()
+CRASH_FOLDER = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}$")   # Unity's crash folder: YYYY-MM-DD_HHMMSS
+
+
+def crash_folders(root=None):
+    """Unity's crash folders (`<date>_<time>/crash.dmp` beside TheForest.exe) in the game root, by name."""
+    root = Path(root) if root is not None else GAME_ROOT
+    try:
+        found = [d for d in root.iterdir() if CRASH_FOLDER.match(d.name) and (d / "crash.dmp").is_file()]
+    except OSError:
+        return {}
+    return {d.name: d for d in found}
+
+
+CRASH_BASELINE = set(crash_folders())   # what the game root held before this suite ran (T-0189)
+
+
+def new_crashes(root=None, before=None):
+    """The crash folders made since `before` (default: when the suite started), oldest first."""
+    before = CRASH_BASELINE if before is None else before
+    return [d for name, d in sorted(crash_folders(root).items()) if name not in before]
 
 
 def new_crash():
-    """Unity's crash folder (`<date>_<time>/crash.dmp` beside TheForest.exe) made since the suite started."""
-    for d in GAME_ROOT.glob("20??-??-??_*"):
-        dmp = d / "crash.dmp"
-        if dmp.exists() and dmp.stat().st_mtime >= SUITE_START:
-            return d
-    return None
+    """The first crash folder made since the suite started, or None."""
+    found = new_crashes()
+    return found[0] if found else None
 
 
 # ---------------------------------------------------------------------------
@@ -691,17 +707,23 @@ def main(argv=None):
         print("  %s (%.0f s)%s" % (verdict, took, " - " + why if why else ""), flush=True)
         results.append((j, verdict, why, t, took))
 
-    crash = new_crash()
-    if crash:
+    crashes = new_crashes()
+    if crashes:
         # The crash dialog keeps TheForest.exe up with the bridge dead: close it, so the clean-up's
         # game steps fail fast and the next run launches cleanly. The dump stays for symbolize-crash.py.
-        hygiene.problems.append("the game crashed - %s (closed it)" % crash)
+        hygiene.problems.append("the game crashed - %s (closed it)" % ", ".join(d.name for d in crashes))
         try:
             game.call("game", {"action": "close"})
         except (Fail, Abort):
             pass
     before = len(hygiene.lines)
     hygiene.after(attempts)
+    # One the clean-up itself made (it closes and restarts the game) counts too.
+    named = {d.name for d in crashes}
+    later = [d for d in new_crashes() if d.name not in named]
+    if later:
+        hygiene.problems.append("the game crashed during the clean-up - %s" % ", ".join(d.name for d in later))
+        crashes += later
     for line in hygiene.lines[before:]:
         print("hygiene: " + line)
     for p in hygiene.problems:
@@ -709,8 +731,9 @@ def main(argv=None):
 
     passed = all(r[1] == "pass" for r in results) and not hygiene.problems
     path = write_report(started, results, hygiene, passed, a)
-    summary = "%d/%d journeys passed%s" % (sum(1 for r in results if r[1] == "pass"), len(results),
-                                          "" if not hygiene.problems else ", %d hygiene problem(s)" % len(hygiene.problems))
+    summary = "%d/%d journeys passed%s%s" % (sum(1 for r in results if r[1] == "pass"), len(results),
+                                            "" if not hygiene.problems else ", %d hygiene problem(s)" % len(hygiene.problems),
+                                            "" if not crashes else ", Unity crash folder(s): %s" % ", ".join(d.name for d in crashes))
     print("e2e: %s - %s" % ("PASS" if passed else "FAIL", summary))
     print("e2e: report %s" % path.relative_to(ROOT))
 

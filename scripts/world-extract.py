@@ -54,6 +54,7 @@ import sys
 
 import numpy as np
 import UnityPy
+import world_checks
 import world_pack
 from UnityPy.helpers.MeshHelper import MeshHandler
 
@@ -321,6 +322,7 @@ class Export:
         self.materials, self.mat_ix = [], {}
         self.textures = {}
         self.clear = {}      # texture index -> share of its pixels under half alpha
+        self.black = {}      # texture name -> mean colour, for the near-black ones (gotcha 88)
         self.models, self.model_ix = [], {}
         self.chunks = collections.defaultdict(list)     # (area, cx, cz, wide) -> [(model, matrix)]
         self.reach = {}      # chunk key -> [x0, z0, x1, z1] of its instances' bounds
@@ -416,7 +418,8 @@ class Export:
             return self.textures[k]
         ix = -1
         try:
-            img = pptr.read().image.convert("RGBA")
+            tex = pptr.read()
+            img = tex.image.convert("RGBA")
             # Colour and alpha shrunk apart: Pillow's RGBA resize premultiplies
             # by alpha, and the Standard shader's textures keep smoothness
             # there (0 on the lab's concrete / metal) - they came out black
@@ -427,6 +430,9 @@ class Export:
             img = rgb.copy()
             img.putalpha(a)
             ix = sum(1 for v in self.textures.values() if v >= 0)
+            mean = float(np.asarray(img.convert("RGB")).mean())
+            if world_checks.is_near_black(mean):
+                self.black["%s (t/%d)" % (getattr(tex, "m_Name", "?"), ix)] = mean
             img.convert("RGB").save(os.path.join(self.out, "t", "%d.jpg" % ix), quality=85)
             # Leaves, grass, fences: the alpha cuts the shape out. Kept as a
             # PNG beside the JPEG when a real part of the texture is clear.
@@ -775,6 +781,12 @@ class Export:
 
     def finish(self):
         import json
+        # After the textures are written, before the packing: a resize that read the alpha as coverage
+        # (gotcha 88) stops the export instead of shipping black textures.
+        problem = world_checks.black_message(self.black, sum(1 for v in self.textures.values() if v >= 0))
+        if problem:
+            sys.exit(problem)
+        print("near-black textures:", len(self.black), "(the game has %d on purpose)" % world_checks.KNOWN_BLACK)
         chunks = []
         for key, items in sorted(self.chunks.items()):
             area, cx, cz, wide = key
@@ -805,8 +817,16 @@ class Export:
 
 
 def export(out):
-    e = Export(out)
     world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
+    # Before the long read: a diagnostic Placed dump left in the folder is a second copy of the geometry (gotcha 78).
+    dumps = {}
+    for n in world_checks.placed_files(os.listdir(world) if os.path.isdir(world) else []):
+        with open(os.path.join(world, n), encoding="utf-8") as f:
+            dumps[os.path.join(world, n)] = f.readlines()
+    problem = world_checks.duplicates_message(world_checks.duplicate_placements(dumps))
+    if problem:
+        sys.exit(problem)
+    e = Export(out)
     e.read_members(os.path.join(world, "area-members.txt"))
     for level in [2, 7, 11] + list(range(15, 31)):
         e.scene(level)
