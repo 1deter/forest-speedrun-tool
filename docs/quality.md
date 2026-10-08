@@ -45,7 +45,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
-| Harness | B | A | B | A | B | T-0197 | 2026-10-08 |
+| Harness | B | A | B | B | B | T-0197 | 2026-10-08 |
 
 Lowest first: Savestates, Practice, Performance and loads, Dev tools,
 Site maps and 3D world, Bot (C).
@@ -293,7 +293,7 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
   catalogue tests in CI; `tasks.py check` in CI.
 - Legibility **B**: docs/harness.md is ~800 lines of plan and status
   together; workflow.md is the working copy.
-- Stability **A**: every scripts/tests file runs in CI (T-0147,
+- Stability **B**: every scripts/tests file runs in CI (T-0147,
   2026-10-08). Open: two tasks.py writers at once can lose a write (T-0197).
 - Gaps **B**: every checkable gotcha has its check (T-0123..T-0135, 2026-10-08;
   two plugin gaps the new lints baselined: T-0192, T-0193); Stage A ran
