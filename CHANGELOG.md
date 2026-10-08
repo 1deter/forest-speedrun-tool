@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.257 - 2026-10-08
+
+- Going from a run in progress to a different timed segment no longer shows the first run's red 'failed' line on the new segment.
+
 ## v0.24.256 - 2026-10-08
 
 - The 100% tab no longer throws and catches 21 errors a second in the background while a save is loaded.
