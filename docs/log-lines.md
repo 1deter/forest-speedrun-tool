@@ -10,12 +10,12 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 664 log calls.
+216 prefixes from 665 log calls.
 
 ## `Aerial capture`
 
 Meaning: The site map's aerial tile capture (dev): progress, tiles saved / sea skipped, or why tiles would come out dark.
-Written by AerialCapture.cs; info / warning.
+Written by AerialCapture.cs, DebugViewModule.cs; info / warning.
 
 - info `Aerial capture <Status>`
 - info `Aerial capture: <done> tiles saved, <skipped> sea, <Status>, <..>`
@@ -24,6 +24,7 @@ Written by AerialCapture.cs; info / warning.
 - warning `Aerial capture: restoring settings failed: <e.Message>`
 - info `Aerial capture: tile <..> m at <Screen.height> px, LOD ranges x<..> (+ <s.LodDistances.Count> LOD toggle distances of <toggles.Length> toggles), <s.Hud.Count> HUD camera(s) emptied, <s.PostEffects.Count> post effect(s) off, <s.Overlays.Count> hurt / weather overlay(s) held off, player kept well, <exposure>, <weather>, fog off, <..>sun at <..>`
 - info `Aerial capture: tile <ix>_<iz> camera raised to y <..> over '<over>'`
+- info `Aerial capture: <area>`
 
 ## `Allocation tracker`
 
