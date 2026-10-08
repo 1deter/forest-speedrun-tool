@@ -182,7 +182,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 20. **A restore can bring back a flag without its effects** - send the game's message for the state (`InACave`). [judgement]
 21. **Ids are per game, not per scene** - cross-save work maps ids (`AdoptPlayer`). [judgement]
 26. **A restore runs frames** - judge the "before" state when the restore starts. [judgement]
-34. **One teleport, many callers** - `grep MoveTo(` and cover every caller. [check: T-0128]
+34. **One teleport, many callers** - `grep MoveTo(` and cover every caller. [check: lint.py moveto baseline]
 35. **Parity with Full load stops where the save stops** - decide against the capture. [judgement]
 36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later. [judgement]
 37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore. [judgement]

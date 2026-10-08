@@ -50,3 +50,10 @@ label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf
 label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _precisionText);
 label20	src/Modules/PracticeRunModule.cs	GUI.Label(new Rect(150, 2, w - 160, 20), _segmentText);
 label20	src/Modules/UpdateModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
+moveto	src/Game/EndgameLoader.cs	player.MoveTo(_holdAt, _holdRotation);
+moveto	src/Modules/DebugViewModule.cs	bool moved = Ctx.Player.MoveTo(to, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (Ctx.Player.Found && at != Vector3.zero) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (pin && Ctx.Player.Found) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (pin && Ctx.Player.Found) { Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation); Ctx.Bridge.EndFall(); }

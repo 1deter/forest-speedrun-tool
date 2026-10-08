@@ -556,5 +556,51 @@ class WebRequests(unittest.TestCase):
         self.assertEqual(text(L.check_web_requests(hits)), "")
 
 
+MOVE_SRC = """class M {
+    private string Good(Vector3 to)
+    {
+        string area = _areas.ForTeleport(to);
+        if (!Ctx.Player.MoveTo(to, rot)) return "no";
+        return area;
+    }
+    private void Bad(Vector3 at)
+    {
+        Ctx.Player.MoveTo(at, rot);
+    }
+    public bool Other(Vector3 at)
+    {
+        // Ctx.Player.MoveTo(at, rot);
+        return Ctx.Camera.MoveTo(at);
+    }
+    private void AlsoBad(Vector3 at)
+    {
+        player.MoveTo(at, rot);
+    }
+}
+"""
+
+
+class MoveTo(unittest.TestCase):
+    def test_only_callers_without_for_teleport_hit(self):
+        hits = L.moveto_hits("src/Modules/M.cs", MOVE_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("moveto", 10), ("moveto", 19)])
+
+    def test_for_teleport_in_another_method_does_not_cover(self):
+        src = "class M {\n  void A() { _areas.ForTeleport(x); }\n  void B()\n  {\n    Ctx.Player.MoveTo(x, r);\n  }\n}\n"
+        self.assertEqual(len(L.moveto_hits("m.cs", src)), 1)
+
+    def test_fails_with_fix_text_and_baseline_allows_it(self):
+        hits = L.moveto_hits("src/Modules/M.cs", MOVE_SRC)
+        out = text(L.check_ui(hits, {})[0])
+        self.assertIn("ERROR: a player MoveTo call in a method that does not run AreaKeeper.ForTeleport in src/Modules/M.cs:10", out)
+        self.assertIn("gotcha 34", out)
+        self.assertIn("FIX: call string area = _areas.ForTeleport(dest) before MoveTo", out)
+        base = {L.baseline_key(h): 1 for h in hits}
+        self.assertEqual(L.check_ui(hits, base), ([], 0))
+
+    def test_the_definition_is_not_a_caller(self):
+        self.assertEqual(L.moveto_hits("src/Game/PlayerRef.cs", "public bool MoveTo(Vector3 position, Quaternion rotation)\n{\n}\n"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

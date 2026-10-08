@@ -9,7 +9,7 @@ Every failure prints WHAT / WHY / FIX, so the fix is in the message.
 
 The baselined heuristics (a fixed 20 px GUI.Label with variable text, an
 allocation in an OnGUI / DrawTab body, a Resources.FindObjectsOfTypeAll
-call site) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
+call site, a player MoveTo without AreaKeeper.ForTeleport) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
 scripts/lint-baseline.txt and only new ones fail (author, 2026-10-07).
 Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
@@ -683,9 +683,31 @@ def findall_hits(path, text):
     return [("findall", path, n, lines[n - 1].strip()) for n, code in code_lines(text) if FIND_ALL.search(code)]
 
 
+PLAYER_MOVE = re.compile(r"\b\w*[Pp]layer\.MoveTo\s*\(")
+METHOD_SIG = re.compile(r"^\s*(?:(?:public|private|protected|internal|static|override|virtual|sealed|async)\s+)+"
+                        r"[\w<>\[\],.?]+\s+\w+\s*\(")
+
+
+def moveto_hits(path, text):
+    """Every player MoveTo( call in a method that never runs AreaKeeper.ForTeleport (gotcha 34, T-0128): a teleport
+    that skips it leaves the endgame / cave flag of the old place set. The callers that exist sit in the baseline."""
+    lines = text.splitlines()
+    code = code_lines(text)
+    out = []
+    for i, (n, c) in enumerate(code):
+        if not PLAYER_MOVE.search(c):
+            continue
+        j = i
+        while j > 0 and not (METHOD_SIG.match(code[j][1]) and "=" not in code[j][1].split("(")[0]):
+            j -= 1
+        if not any("ForTeleport(" in cc for _, cc in code[j:i + 1]):
+            out.append(("moveto", path, n, lines[n - 1].strip()))
+    return out
+
+
 def source_hits(path, text):
     """The baselined source-text rules for one src/ file."""
-    return findall_hits(path, text)
+    return findall_hits(path, text) + moveto_hits(path, text)
 
 
 def ui_hits(root=ROOT):
@@ -717,6 +739,11 @@ UI_TEXT = {
                 "it walks every loaded object (22-25 ms in ForestMain); on a refresh it was a visible stutter (gotcha 11)",
                 "find once and keep it (Game/SceneCache), rate-limit the re-search, or use the game's static handle; a one-off "
                 "dump / probe that runs on a command: python scripts/lint.py --update-baseline"),
+    "moveto": ("a player MoveTo call in a method that does not run AreaKeeper.ForTeleport",
+               "a teleport that skips it leaves the endgame flag of the old place set - the bridge's tp once left the "
+               "surface lit like a cave (gotcha 34)",
+               "call string area = _areas.ForTeleport(dest) before MoveTo, as Go and the bridge's tp do; a restore or "
+               "pin that stays in one area: python scripts/lint.py --update-baseline"),
 }
 
 
