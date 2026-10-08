@@ -2544,7 +2544,29 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   (`LayerContents 1`: 18 renderers on the surface, 2 in view) - so it
   nearly always has something to draw; not worth a skip. Also: it sets
   the Sun's and Moon's shadows to None and back to **Soft** every frame,
-  whatever they were.
+  whatever they were. **No skip is safe** (T-0030, 2026-10-08, v0.24.254,
+  bridge + the game files): an offline census (UnityPy, every level /
+  sharedassets / resources / AssetBundles file) finds ~4.7k renderers on
+  layer 1 in ~200 kinds - the player's held lighter / flare / torch /
+  molotov / dynamite / chainsaw smoke / hairspray and the survival book's
+  "Text - Close", every building ghost (`Ghost_*`, 3.4k in
+  resources.assets), blood hits, foot dust, rain, water ripples, fish,
+  fires, arrows, exploded bodies, broken stalagmites, cassette sheens,
+  the surface and cave waterfalls. Most are prefabs instantiated at
+  runtime (pools, FX), so only Unity's own culling - the render itself
+  - knows whether anything is in view; a list of our own cannot be
+  complete. Nothing else in the game touches the component (IL), and
+  the two lights' Unity shadows are written only by it, SunshineCamera
+  (None around the main camera, then restored) and the quality options
+  for other lights. Live, surface (428, 78, -4): the component off for
+  10 s = 4.98 -> 4.68 ms/frame (the most a skip could ever save) and
+  the held lighter's flame gone from the screenshot; a camera's fixed
+  cost does not depend on the sun's shadows (bare camera, mask 0: 0.220
+  ms with Soft, 0.233 with None); the flame adds 0.05 ms (bare camera,
+  mask 2: 0.261 vs 0.214). Cave 6: 3.44 ms/frame, MainCamNew 0.68,
+  ParticleCam 0.25 +0.05, Camera_HUD 0.30, ActionIconCamera 0.25,
+  Sunshine 0.29 every other frame; 111 layer-1 renderers loaded, 0 in
+  view.
 - **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
   (`refresh` 1) along the sun's direction, which moves every frame - a
   skip would change the picture.
