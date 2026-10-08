@@ -75,7 +75,7 @@ CLEANUP_DAYS = 7
 REVIEW_DAYS = 30
 REVIEW_TASKS = 5
 # Paths whose changes mean the plugin needs a release.
-PLUGIN_PATHS = ["src", "patcher", "ForestOverlay.csproj", "Plugin.cs", "locations", "collectibles", "qa"]
+PLUGIN_PATHS = list(T.PLUGIN_PATHS)
 
 
 # ---------------------------------------------------------------- pure parts (tested)

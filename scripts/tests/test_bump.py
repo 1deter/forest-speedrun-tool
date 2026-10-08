@@ -66,6 +66,17 @@ class Bump(unittest.TestCase):
         self.assertTrue(self.read(os.path.join("src", "Plugin.cs")).startswith(b"\xef\xbb\xbf"))
         self.assertIn(b"## v0.24.2", self.read("CHANGELOG.md"))
 
+    def test_skips_a_plugin_task_that_only_touched_scripts(self):
+        self.write_tasks([task("T-0001", reviews=[{"verdict": "accept", "commits": ["aaa"]}])])
+        saved = T.commit_files
+        T.commit_files = lambda sha: ["scripts/tasks.py", "docs/harness.md"]
+        try:
+            B.main()
+        finally:
+            T.commit_files = saved
+        t = T.load(T.TASKS)[0]
+        self.assertEqual((t["status"], t.get("release")), ("built", None))
+
     def test_refuses_without_an_accept_and_touches_nothing(self):
         self.write_tasks([task("T-0001")])
         before = {n: self.read(n) for n in FILES}

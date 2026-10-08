@@ -63,7 +63,8 @@ BRIEF_LIMIT = 60000
 # Tasks an agent can take alone (docs/harness.md 6a); bridge ones need the game up.
 ALONE = ("none",)
 ALONE_BRIDGE = ("none", "bridge")
-# Areas a plugin release ships; bump.py marks their built tasks released (docs/harness.md 6c).
+# Areas a plugin release ships; bump.py marks their built tasks released when a commit touches a plugin
+# path (scripts / docs-only ones stay built and confirm on test evidence, T-0196; docs/harness.md 6c).
 RELEASED_AREAS = ("plugin",)
 # What testers still have to do (author, 2026-10-07: only that, nothing done or planned).
 QA_OPEN = ("todo", "in-progress", "built", "released")
@@ -363,7 +364,11 @@ def confirm_gate(t):
         raise TaskError("%s has no evidence" % tid,
                         "confirmed needs recorded proof (docs/harness.md 7a)",
                         "`tasks.py evidence %s \"<log line / shot / test name>\" --by <checker>`" % tid)
-    if t.get("checker") and t.get("area") == "plugin":
+    commits = t.get("commits") or []
+    # A plugin task whose commits touch no plugin path (scripts / docs only) has no behaviour to see in
+    # game: test / lint evidence suffices, like a harness task (T-0196).
+    scripts_only = bool(commits) and not touches_plugin(commits)
+    if t.get("checker") and t.get("area") == "plugin" and not scripts_only:
         maker = t.get("maker")
         if not any(in_game(e.get("by")) and e.get("by") != maker for e in ev):
             raise TaskError("%s has no in-game evidence from a checker" % tid,

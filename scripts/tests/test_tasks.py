@@ -123,6 +123,23 @@ class Gates(unittest.TestCase):
         ts[0]["evidence"].append({"by": "qa:maks", "what": "lines gone in a run"})
         T.transition(ts, ts[0], "confirmed", by="main")
 
+    def test_scripts_only_plugin_task_confirms_on_test_evidence(self):
+        ts = [task("T-0001", area="plugin", status="built", checker=True, maker="main", commits=["abc"],
+                   reviews=[{"verdict": "accept", "by": "forest-checker", "commits": ["abc"]}],
+                   evidence=[{"by": "forest-checker", "what": "286 tests pass"}])]
+        saved = T.commit_files
+        try:
+            T.commit_files = lambda sha: ["scripts/loop.py", "docs/harness.md"]
+            T.transition(ts, ts[0], "confirmed", by="main")
+            self.assertEqual(ts[0]["status"], "confirmed")
+            ts[0]["status"] = "built"
+            T.commit_files = lambda sha: ["scripts/loop.py", "src/Modules/X.cs"]
+            with self.assertRaises(T.TaskError) as e:
+                T.transition(ts, ts[0], "confirmed", by="main")
+            self.assertIn("in-game", str(e.exception))
+        finally:
+            T.commit_files = saved
+
     def test_site_checker_task_confirms_with_review_and_live_check(self):
         ts = [task("T-0001", status="built", checker=True, maker="main", commits=["abc"],
                    evidence=[{"by": "main", "what": "deploy-watch: live"}])]

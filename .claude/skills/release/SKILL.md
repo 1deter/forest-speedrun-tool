@@ -40,8 +40,8 @@ Facts behind each step (the updater, the 404 window, rollback):
    `-f notes.md` instead of bullets for longer notes; commit message
    ends with the session's Co-Authored-By line.) `bump.py` edits the
    three files and marks the release's tasks (built plugin tasks whose
-   commits are all in HEAD -> `released`, with the version; it prints
-   them) - it does not commit, tag or push.
+   commits are all in HEAD and touch a plugin path -> `released`, with the
+   version; scripts / docs-only ones stay `built`; it prints them) - it does not commit, tag or push.
 
 5. **Wait for the asset, not the release** (a tag publishes before CI
    attaches the DLL). Poll in the background, never `api.github.com`:

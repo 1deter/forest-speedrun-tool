@@ -386,7 +386,9 @@ the template, both because of how this project ships:
   *Check:* one release moves its tasks without anyone editing by hand.
   **Built** (T-0007): `tasks.release_plan` / `mark_released`, called by
   `bump.py` - built plugin tasks whose commits are all in HEAD (a
-  worktree's are left for its merge), the version of the first tag
+  worktree's are left for its merge; ones whose commits touch no plugin
+  path - scripts / docs only - stay `built` and confirm on test / lint
+  evidence, T-0196), the version of the first tag
   holding them or the new one; a checker task with no accept stops the
   bump before any file is edited (`scripts/tests/test_bump.py`).
 - 6d. The QA to-do Discord message (`qa_todo`) is rendered from the tasks
