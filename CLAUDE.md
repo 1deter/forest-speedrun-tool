@@ -212,6 +212,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   not chat; T-0220 moves it to the answer log (runners `/ask` in the
   speedrun server's general chat, which the bot can't read - the author
   asks its admins).
+- **T-0231 live (2026-10-08, built, author-eyes):** the site's Bot tab got
+  a Discord-style unsaved-changes bar + server > category grouping; the
+  author's channel untick had never been saved (rev 1 still ticks The
+  Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
+  the nature guide map - answered, maks's route, registration research).
 - **Redesign (2026-10-08):** main merged into `ui-redesign` (even with
   v0.24.259 + its own commits); T-0024 built + checker-accepted (F2 over
   the pause menu: cursor and player lock left to the game, author
