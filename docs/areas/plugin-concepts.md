@@ -125,7 +125,8 @@ concept before changing its feature. Where the code lives:
   site is answered `startstate: "wanted"`, and the plugin queues the same
   bundle again with its `[startstate]` once (`SiteProtocol.
   StartStateResend`; `Upload: the site has no start state for ...`). The
-  site keeps it per route only when its data hash matches, and Add writes
+  site keeps it per route only from the route's owner (a copy of someone
+  else's spot stays teleport-only) and when its data hash matches; Add writes
   it as the segment's own (`Website spots: added '<id>', start state.`).
   A spot whose creator has not uploaded since keeps restarting as a
   teleport (`Restart '<id>': no start state - teleport only.`); before

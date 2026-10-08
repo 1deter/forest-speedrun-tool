@@ -149,6 +149,7 @@ namespace ForestOverlay.Modules
             SavestateModule savestates = Host.Find<SavestateModule>();
             if (savestates == null) return "";
             Segment s = bundle.Segment;
+            bool hashed = s.StartState.Length > 0;   // DeleteStartState clears it
             try
             {
                 if (bundle.StartState == null)
@@ -158,10 +159,10 @@ namespace ForestOverlay.Modules
                     {
                         string perr;
                         SavestateFile f = SavestateFile.Parse(have, out perr);
-                        if (s.StartState.Length > 0 && f != null && Segment.HashText(f.Data) == s.StartState) return "start state";
+                        if (hashed && f != null && Segment.HashText(f.Data) == s.StartState) return "start state";
                         savestates.DeleteStartState(s);
                     }
-                    return s.StartState.Length > 0 ? "no start state on the website yet - restarts teleport only" : "";
+                    return hashed ? "no start state on the website yet - restarts teleport only" : "";
                 }
                 if (savestates.ReadStartStateText(s) == bundle.StartState) return "start state";
                 string err = savestates.WriteStartStateText(s, bundle.StartState);
@@ -180,6 +181,12 @@ namespace ForestOverlay.Modules
             if (all.Count == before) { entry.Added = false; WebRelabel(); return; }
             string err = WebWrite(all);
             if (err != null) { WebStatus = "Not saved: " + err; return; }
+            // Its start state goes with it (website ids are never the
+            // runner's own - WebAdd refuses those - nor a community pack's).
+            SavestateModule savestates = Host.Find<SavestateModule>();
+            Segment gone = new Segment();
+            gone.Id = entry.Spot.Id;
+            if (savestates != null && savestates.HasStartState(gone)) savestates.DeleteStartState(gone);
             entry.Added = false;
             WebRelabel();
             WebStatus = "Removed '" + entry.Spot.Name + "'.";

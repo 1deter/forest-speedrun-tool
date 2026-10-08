@@ -107,7 +107,7 @@ public sealed class Runs
             seg.Notes = ParseBlock(holder.Value.block).Notes;
         }
         _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, owner, copy);
-        KeepStartState(b, seg, route, res);
+        KeepStartState(b, seg, route, runnerId, res);
         string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
         float previousBest = RunnerBest(seg.Id, route, runnerId);
         var fresh = new List<(float duration, bool flagged, long id, string name)>();
@@ -138,12 +138,16 @@ public sealed class Runs
         return res;
     }
 
-    /// The first matching state a route is sent is the one it keeps: the
-    /// route's fingerprint folds in the state's hash, so it cannot change
-    /// under the same route.
-    private void KeepStartState(SegmentBundle b, Segment seg, string route, UploadResult res)
+    /// Only the route's owner gives it a state (author, 2026-10-08: the
+    /// 32-bit hash alone could be forged by anyone; a copy of someone
+    /// else's spot and a community route stay teleport-only). The first
+    /// matching state is the one kept: the route's fingerprint folds in
+    /// the state's hash, so a new state is a new route.
+    private void KeepStartState(SegmentBundle b, Segment seg, string route, string runnerId, UploadResult res)
     {
         if (seg.StartState.Length == 0 || _store.HasStartState(seg.Id, route)) return;
+        if (_store.Scalar("SELECT owner FROM routes WHERE segment_id = $s AND route = $r AND community = 0",
+                          ("$s", seg.Id), ("$r", route)) as string != runnerId) return;
         if (b.StartState != null)
         {
             SavestateFile f = SavestateFile.Parse(b.StartState, out string error);

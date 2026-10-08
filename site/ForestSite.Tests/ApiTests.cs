@@ -160,11 +160,18 @@ public sealed class ApiTests : IDisposable
         string stateText = state.Write();
         Segment seg = TestSegment();
         seg.StartState = Segment.HashText(state.Data);
-        string ta = await Register(A);
+        string ta = await Register(A), tb = await Register(B);
 
-        // Uploaded without its state: the site asks for it.
+        // Uploaded without its state: the site asks its owner for it.
         var first = await (await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)))).Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal("wanted", first["startstate"]?.GetValue<string>());
+        Assert.Null(SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null).StartState);
+
+        // Not the owner: never asked, and a state sent is not kept.
+        var bb = new SegmentBundle { Segment = seg, Exported = "now", PluginVersion = "test", StartState = stateText };
+        bb.Attempts.Add(RunText(seg, B, 11f, 4f, 4));
+        var notOwner = await (await Upload(tb, bb.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(notOwner["startstate"]?.GetValue<string>());
         Assert.Null(SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null).StartState);
 
         // Another state than the route was timed from is refused.
@@ -192,9 +199,9 @@ public sealed class ApiTests : IDisposable
         var p = await (await Upload(ta, Bundle(plain, RunText(plain, A, 10f, 4f, 3)))).Content.ReadFromJsonAsync<JsonObject>();
         Assert.Null(p["startstate"]?.GetValue<string>());
 
-        // Deleting the spot takes its state with it.
-        var del = new HttpRequestMessage(HttpMethod.Delete, "/api/spots/" + seg.Id);
-        del.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ta);
+        // Deleting the spot (an admin: B has a run on it) takes its state with it.
+        var del = new HttpRequestMessage(HttpMethod.Delete, "/api/admin/spots/" + seg.Id);
+        del.Headers.Add("X-Admin-Token", "admin-secret");
         Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(del)).StatusCode);
         Assert.Empty(Directory.GetFiles(Path.Combine(_data, "startstates")));
     }
