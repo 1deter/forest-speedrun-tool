@@ -13,7 +13,8 @@
       ],
       "port": 5080,
       "env": {
-        "FOREST_ADMIN_TOKEN": "local-admin"
+        "FOREST_ADMIN_TOKEN": "local-admin",
+        "FOREST_BOT_TOKEN": "local-bot"
       }
     },
     {

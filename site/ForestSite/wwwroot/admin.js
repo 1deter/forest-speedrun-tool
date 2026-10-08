@@ -79,7 +79,7 @@ async function adminPage(tab) {
     el("div", { class: "adminbar" },
       el("h1", null, "Admin"),
       el("div", { class: "btnrow" }, el("span", { class: "sub" }, "Signed in as " + me.name),
-        el("button", { class: "chip", onclick: () => { setAdminToken(""); adminSignIn("Signed out."); } }, "Sign out"))),
+        el("button", { class: "chip", onclick: () => { if (leaveRefused()) return; unsaved = null; setAdminToken(""); adminSignIn("Signed out."); } }, "Sign out"))),
     el("div", { class: "routes" }, tabs.map(([id, label, n]) =>
       el("a", { class: "chip" + (id === tab ? " on" : ""), href: "/admin/" + id }, label + (n ? " · " + n : "")))),
     body);
@@ -549,8 +549,10 @@ function adminsView(list) {
 
 // --- the knowledge bot (the owner only) -------------------------------------------------
 
-/// Channels the bot answers in (by name, from what it reports seeing), DMs, limits,
-/// models, thinking, the research-queue channel. A field left empty = the bot's .env default.
+/// Channels the bot answers in (by name, from what it reports seeing, grouped server > category
+/// in Discord's order), DMs, limits, models, thinking, the research-queue channel. A field left
+/// empty = the bot's .env default. Edits are held until Save on Discord's unsaved-changes bar;
+/// leaving with unsaved changes is refused (author, 2026-10-08, T-0231).
 function botView(data) {
   const s = data.settings || {}, report = data.report;
   const seen = (report && report.channels) || [];
@@ -558,21 +560,34 @@ function botView(data) {
   const stored = Array.isArray(s.channels);
   const answering = report && !report.allChannels ? (report.answersIn || []) : [];
   const chosen = new Set((stored ? s.channels : answering).map(String));
-  let touched = false;
   const known = new Set(seen.map(c => c.id));
-  const label = c => (c.guild ? c.guild + " / " : "") + "#" + c.name;
 
-  const boxes = seen.map(c => {
-    const box = el("input", { type: "checkbox", value: c.id, onchange: () => { touched = true; } });
-    box.checked = chosen.has(c.id);
-    return el("label", { class: "check" }, box, " " + label(c));
-  });
-  // Saved ids the bot no longer lists stay visible, so saving does not drop them silently.
-  for (const id of chosen) if (!known.has(id)) {
+  const checks = [];
+  const channelBox = (id, text) => {
     const box = el("input", { type: "checkbox", value: id });
-    box.checked = true;
-    boxes.push(el("label", { class: "check" }, box, " (unknown channel " + id + ")"));
+    box.checked = chosen.has(id);
+    checks.push(box);
+    return el("label", { class: "check" }, box, " " + text);
+  };
+  // Server > category > channel, in the order the bot sent (Discord's sidebar order).
+  const servers = new Map();
+  for (const c of seen) {
+    const g = c.guild || "(no server)";
+    if (!servers.has(g)) servers.set(g, new Map());
+    const cats = servers.get(g), cat = c.category || "";
+    if (!cats.has(cat)) cats.set(cat, []);
+    cats.get(cat).push(c);
   }
+  const groups = [...servers].map(([guild, cats]) => el("details", { class: "chserver", open: "" },
+    el("summary", null, guild),
+    [...cats].map(([cat, list]) => {
+      const rows = list.map(c => channelBox(c.id, "#" + c.name));
+      return cat ? el("details", { class: "chcat", open: "" }, el("summary", null, cat), rows) : el("div", { class: "chcat" }, rows);
+    })));
+  // Saved ids the bot no longer lists stay visible, so saving does not drop them silently.
+  const unknown = [...chosen].filter(id => !known.has(id));
+  if (unknown.length) groups.push(el("details", { class: "chserver", open: "" }, el("summary", null, "Not listed by the bot"),
+    el("div", { class: "chcat" }, unknown.map(id => channelBox(id, "(unknown channel " + id + ")")))));
 
   const dms = el("input", { type: "checkbox" });
   dms.checked = s.dms !== false;
@@ -587,24 +602,60 @@ function botView(data) {
   thinking.value = s.thinking || "";
   const queue = el("select", { "aria-label": "Research queue channel" },
     el("option", { value: "" }, "none (or the .env one)"),
-    seen.map(c => el("option", { value: c.id }, label(c))));
+    seen.map(c => el("option", { value: c.id }, (c.guild ? c.guild + " / " : "") + (c.category ? c.category + " / " : "") + "#" + c.name)));
   if (s.queueChannel && !known.has(s.queueChannel)) queue.append(el("option", { value: s.queueChannel }, "(unknown channel " + s.queueChannel + ")"));
   queue.value = s.queueChannel || "";
 
-  const save = actions(el("button", { class: "chip", onclick: async () => {
+  // What the form says now; the bar shows while it differs from what was loaded.
+  const ticked = () => checks.filter(b => b.checked).map(b => b.value);
+  const state = () => JSON.stringify([ticked(), dms.checked, perHour.value, perDay.value, models.value.trim(), thinking.value, queue.value]);
+  const loadedChannels = JSON.stringify(ticked());
+  const loaded = state();
+  let saving = false;
+
+  const barText = el("span", { class: "unsavedmsg" });
+  const reset = el("button", { class: "chip" }, "Reset");
+  const saveBtn = el("button", { class: "chip on" }, "Save changes");
+  const bar = el("div", { class: "unsaved", role: "status", hidden: "" }, barText, el("div", { class: "btnrow" }, reset, saveBtn));
+  const dirty = () => !saving && state() !== loaded;
+  const refresh = () => {
+    if (saving) return;
+    const d = state() !== loaded;
+    bar.hidden = !d;
+    if (!d) bar.classList.remove("warn");
+    else if (!bar.classList.contains("warn")) barText.textContent = "Careful - you have unsaved changes!";
+  };
+  unsaved = {
+    dirty,
+    blocked: () => {
+      bar.hidden = false;
+      barText.textContent = "Save or reset your changes before leaving.";
+      bar.classList.remove("warn"); void bar.offsetWidth; bar.classList.add("warn");   // replay the shake
+    },
+  };
+  reset.addEventListener("click", () => { unsaved = null; adminPage("bot"); });
+  saveBtn.addEventListener("click", async () => {
     // With no boxes (the bot has not listed its channels) the channels stay as stored, or absent:
     // sending [] would silence the bot.
     const body = {
-      channels: !boxes.length ? s.channels
-        : !stored && !touched && !answering.length ? undefined   // never saved, bot answers everywhere: stay that way
-        : boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value), dms: dms.checked,
+      channels: !checks.length ? s.channels
+        : !stored && JSON.stringify(ticked()) === loadedChannels && !answering.length ? undefined   // never saved, bot answers everywhere: stay that way
+        : ticked(), dms: dms.checked,
       perHour: perHour.value ? Number(perHour.value) : null, perDay: perDay.value ? Number(perDay.value) : null,
       models: models.value.trim(), thinking: thinking.value, queueChannel: queue.value,
     };
-    save.say("…");
-    try { const r = await adminCall("PUT", "/bot", JSON.stringify(body)); save.say("Saved as revision " + r.rev + ". The bot applies it within a minute."); setTimeout(() => adminPage("bot"), 900); }
-    catch (e) { save.say("Not saved: " + e.message); }
-  } }, "Save"));
+    saving = true; saveBtn.disabled = reset.disabled = true;
+    bar.classList.remove("warn");
+    barText.textContent = "Saving…";
+    try {
+      const r = await adminCall("PUT", "/bot", JSON.stringify(body));
+      barText.textContent = "Saved as revision " + r.rev + ". The bot applies it within a minute.";
+      setTimeout(() => { if (unsaved && unsaved.dirty === dirty) { unsaved = null; adminPage("bot"); } }, 1500);
+    } catch (e) {
+      saving = false; saveBtn.disabled = reset.disabled = false;
+      barText.textContent = "Not saved: " + e.message;
+    }
+  });
 
   const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
 
@@ -619,21 +670,23 @@ function botView(data) {
     else status = "Saved rev " + data.rev + ", bot runs rev " + report.rev + " (" + (report.appliedAt ? "applied " + hhmm(report.appliedAt) + ", " : "") + runs + ", last reported " + date(report.at) + ") - not applied yet.";
   }
 
-  return el("section", null,
-    el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
-      "A field left empty uses the bot's .env value."),
-    el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
-    el("div", { class: "catform" },
+  const form = el("div", { class: "catform", oninput: refresh, onchange: refresh },
     el("h3", null, "Channels it answers in"),
-    boxes.length ? el("div", null, boxes) : el("p", { class: "sub" }, "The bot has not listed its channels yet."),
-    el("p", { class: "sub" }, "Once saved here, the ticked channels are the whole list: none ticked = the bot answers in no channel (direct messages follow the setting below). Before the first save the bot uses its .env channels (ticked here when it has reported them; with none, it answers in every channel until you tick some)."),
+    groups.length ? el("div", { class: "chgroups" }, groups) : el("p", { class: "sub" }, "The bot has not listed its channels yet."),
+    el("p", { class: "sub" }, "Once saved, the ticked channels are the whole list: none ticked = the bot answers in no channel (direct messages follow the setting below). Before the first save the bot uses its .env channels (ticked here when it has reported them; with none, it answers in every channel until you tick some). The bot lists a new channel within a minute - reload this tab to see it."),
     el("label", { class: "check" }, dms, " Answer direct messages"),
     field("Questions per user per hour", perHour),
     field("Questions per user per day", perDay),
     field("Model order", models, "First is preferred; the next answers when it fails."),
     field("Thinking level", thinking),
-    field("Research-queue channel", queue),
-    save.box));
+    field("Research-queue channel", queue));
+
+  return el("section", { class: "botsettings" },
+    el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
+      "A field left empty uses the bot's .env value."),
+    el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
+    form,
+    bar);
 }
 
 // --- runners -------------------------------------------------------------------------

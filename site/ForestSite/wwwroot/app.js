@@ -84,8 +84,15 @@ function writeFolded(v) { try { localStorage.setItem(FOLDED_KEY, JSON.stringify(
 // --- router -------------------------------------------------------------------------
 
 let cleanup = null;
+/// A page with unsaved changes (the admin Bot tab) sets this to { dirty(), blocked() }: while
+/// dirty() is true, leaving by a link or Back is refused and blocked() shows the page's own
+/// warning (Discord's unsaved-changes bar); closing or reloading the tab asks the browser.
+let unsaved = null;
+let shownPath = location.pathname;
 function route() {
   if (cleanup) { cleanup(); cleanup = null; }
+  unsaved = null;
+  shownPath = location.pathname;
   if (location.hash.startsWith("#/")) history.replaceState(null, "", location.hash.slice(1));
   const parts = location.pathname.replace(/^\/+|\/+$/g, "").split("/").map(decodeURIComponent);
   const here = parts[0] === "about" || parts[0] === "compare" ? "/" + parts[0] : "/";
@@ -98,8 +105,19 @@ function route() {
   if (parts[0] === "admin") return adminPage(parts[1]);
   return homePage();
 }
-window.addEventListener("popstate", route);
-window.addEventListener("hashchange", route);
+function leaveRefused() {
+  if (!unsaved || !unsaved.dirty()) return false;
+  unsaved.blocked();
+  return true;
+}
+window.addEventListener("beforeunload", e => { if (unsaved && unsaved.dirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+function onHistory() {
+  if (leaveRefused()) { history.pushState(null, "", shownPath); return; }
+  route();
+}
+window.addEventListener("popstate", onHistory);
+window.addEventListener("hashchange", onHistory);
 
 // Same-site page links stay in the page: no reload, the address changes.
 document.addEventListener("click", e => {
@@ -107,6 +125,7 @@ document.addEventListener("click", e => {
   const a = e.target.closest("a[href^='/']");
   if (!a || a.hasAttribute("download") || a.target || a.getAttribute("href").startsWith("/api/")) return;
   e.preventDefault();
+  if (leaveRefused()) return;
   if (a.getAttribute("href") !== location.pathname) history.pushState(null, "", a.getAttribute("href"));
   route();
 });

@@ -4,8 +4,24 @@ using System.Text.Json.Nodes;
 
 namespace ForestBot;
 
-/// A channel the bot can see, as it reports it to the site.
-public sealed record SeenChannel(ulong Id, string Name, string Guild);
+/// A channel the bot can see, as it reports it to the site. Category is "" outside one; the
+/// positions and Voice only order the list like Discord's sidebar (InDiscordOrder) and are not sent.
+public sealed record SeenChannel(ulong Id, string Name, string Guild, string Category = "",
+    int CategoryPosition = -1, int Position = 0, bool Voice = false)
+{
+    /// Discord's sidebar order inside each server (servers keep their first-seen order): channels
+    /// outside a category first, then categories by position; in each, text before voice, then by
+    /// position, then by id.
+    public static List<SeenChannel> InDiscordOrder(IEnumerable<SeenChannel> channels)
+    {
+        List<SeenChannel> list = channels.ToList();
+        List<string> guilds = list.Select(c => c.Guild).Distinct().ToList();
+        return list.OrderBy(c => guilds.IndexOf(c.Guild))
+            .ThenBy(c => c.CategoryPosition).ThenBy(c => c.Category, StringComparer.Ordinal)
+            .ThenBy(c => c.Voice).ThenBy(c => c.Position).ThenBy(c => c.Id)
+            .ToList();
+    }
+}
 
 // ------------------------------------------------------------------
 // Live settings from the site's Bot tab (docs/knowledge-bot.md *Bot settings
@@ -121,7 +137,7 @@ public sealed class SiteSettings
                 // What it answers in right now (the applied set: the .env ones when never saved).
                 allChannels = _cfg.Live.AllChannels, answersIn = _cfg.Live.Channels.Select(id => id.ToString()).ToList(),
                 appliedAt = AppliedAt?.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture),
-                channels = channels.Select(c => new { id = c.Id.ToString(), name = c.Name, guild = c.Guild }).ToList(),
+                channels = channels.Select(c => new { id = c.Id.ToString(), name = c.Name, guild = c.Guild, category = c.Category ?? "" }).ToList(),
             };
             using HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, _siteUrl + "/api/bot/report") { Content = JsonContent.Create(body) };
             req.Headers.Add("X-Bot-Token", _token);
