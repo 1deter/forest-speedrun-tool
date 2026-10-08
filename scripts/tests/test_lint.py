@@ -666,5 +666,21 @@ class CfgWrite(unittest.TestCase):
         self.assertEqual(L.cfgwrite_hits("m.cs", src), [])
 
 
+class BotGlobalization(unittest.TestCase):
+    def test_false_and_absent_pass(self):
+        self.assertEqual(L.check_bot_globalization("<Project><PropertyGroup><InvariantGlobalization>false</InvariantGlobalization></PropertyGroup></Project>"), [])
+        self.assertEqual(L.check_bot_globalization("<Project><PropertyGroup><InvariantGlobalization> False </InvariantGlobalization></PropertyGroup></Project>"), [])
+        self.assertEqual(L.check_bot_globalization("<Project></Project>"), [])
+
+    def test_true_fails_with_fix_text(self):
+        out = text(L.check_bot_globalization("<InvariantGlobalization>true</InvariantGlobalization>"))
+        self.assertIn("ERROR: bot/ForestBot/ForestBot.csproj sets InvariantGlobalization to true", out)
+        self.assertIn("gotcha 93", out)
+        self.assertIn("FIX: set <InvariantGlobalization>false</InvariantGlobalization>", out)
+
+    def test_repo_bot_keeps_it_false(self):
+        self.assertEqual(L.check_bot_globalization(L.read(L.BOT_CSPROJ)), [])
+
+
 if __name__ == "__main__":
     unittest.main()

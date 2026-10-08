@@ -25,6 +25,7 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+bot/ForestBot.csproj keeps InvariantGlobalization false (gotcha 93).
 Code that reads a UnityWebRequest also checks responseCode (gotcha 15).
 Every OnRenderObject in src/ checks DrawTarget.ShouldDraw() (gotcha 12).
 scripts/deploy.ps1 copies the plugin DLL only (gotcha 10).
@@ -590,6 +591,23 @@ def check_web_requests(hits):
             for path, n in hits]
 
 
+# ---------------------------------------------------------------- bot globalization
+
+BOT_CSPROJ = "bot/ForestBot/ForestBot.csproj"
+
+
+def check_bot_globalization(csproj):
+    """The bot keeps InvariantGlobalization false (gotcha 93): absent is the .NET default (false) and fine."""
+    m = re.search(r"<InvariantGlobalization>\s*([^<\s]*)\s*</InvariantGlobalization>", csproj)
+    if m and m.group(1).lower() != "false":
+        return [Problem("%s sets InvariantGlobalization to %s" % (BOT_CSPROJ, m.group(1)),
+                        "Discord.Net builds CultureInfo(\"en-US\") from every server's locale; with invariant "
+                        "globalization it throws in GUILD_CREATE, the server never loads and every message is an "
+                        "\"Unknown Channel\" (gotcha 93; the setting was copied from the site, which keeps it true)",
+                        "set <InvariantGlobalization>false</InvariantGlobalization> in %s (or remove the line)" % BOT_CSPROJ)]
+    return []
+
+
 # ---------------------------------------------------------------- UI heuristics
 
 LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
@@ -959,6 +977,7 @@ def main(argv=None):
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
+    probs += check_bot_globalization(read(BOT_CSPROJ))
     probs += check_web_requests([h for p, t in src_texts() for h in web_request_hits(p, t)])
     probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
     probs += check_mojibake(tracked_text())
