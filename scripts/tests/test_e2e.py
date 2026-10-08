@@ -89,5 +89,55 @@ class Cleanup(unittest.TestCase):
         self.assertEqual(names, ["attempt-1.log", "attempt-1.txt", "e2e.txt"])
 
 
+class CrashFolders(unittest.TestCase):
+    """T-0189: a Unity crash folder made during a run is found, named and fails the run."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def crash(self, name, dmp=True):
+        d = self.root / name
+        d.mkdir()
+        if dmp:
+            (d / "crash.dmp").write_bytes(b"MDMP")
+        return d
+
+    def test_finds_only_dated_folders_holding_a_dump(self):
+        self.crash("2026-10-07_115524")
+        self.crash("2026-10-07_120000", dmp=False)     # no crash.dmp: not a crash
+        self.crash("2026-10-07")                       # not YYYY-MM-DD_HHMMSS
+        (self.root / "BepInEx").mkdir()
+        self.assertEqual(["2026-10-07_115524"], sorted(E.crash_folders(self.root)))
+
+    def test_a_folder_made_after_the_baseline_is_new(self):
+        self.crash("2026-10-07_115524")
+        before = set(E.crash_folders(self.root))
+        self.assertEqual([], E.new_crashes(self.root, before))
+        later = self.crash("2026-10-08_090102")
+        self.crash("2026-10-08_080000")
+        self.assertEqual(["2026-10-08_080000", later.name], [d.name for d in E.new_crashes(self.root, before)])
+
+    def test_a_missing_game_root_has_no_crashes(self):
+        self.assertEqual({}, E.crash_folders(self.root / "nowhere"))
+        self.assertEqual([], E.new_crashes(self.root / "nowhere", set()))
+
+    def test_new_crash_uses_the_game_root_and_the_suite_baseline(self):
+        old_root, old_base = E.GAME_ROOT, E.CRASH_BASELINE
+        try:
+            E.GAME_ROOT = self.root
+            E.CRASH_BASELINE = set()
+            self.assertIsNone(E.new_crash())
+            d = self.crash("2026-10-08_090102")
+            self.assertEqual(d, E.new_crash())
+            E.CRASH_BASELINE = {d.name}
+            self.assertIsNone(E.new_crash())
+        finally:
+            E.GAME_ROOT, E.CRASH_BASELINE = old_root, old_base
+
+
 if __name__ == "__main__":
     unittest.main()
