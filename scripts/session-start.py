@@ -436,13 +436,13 @@ def report(force_local=False):
         lines.append("git hooks: turned on (core.hooksPath .githooks - lints before commit, tag check before push)")
 
     s = f_survey.result()
-    live = [wt for wt, st in s["worktrees"] if st in ("live", "dirty")]
+    live = [wt for wt, st in s["worktrees"] if st in ("live", "dirty", "locked")]
     merged_wt = [wt for wt, st in s["worktrees"] if st in ("merged", "prunable")]
     merged_br = [n for n, m in s["local"] if m] + ["origin/" + n for n, m in s["remote"] if m]
     unmerged_br = [n for n, m in s["local"] if not m] + ["origin/" + n for n, m in s["remote"] if not m]
     wl = "worktrees: %s" % (", ".join("%s (%s%s)" % (os.path.basename(wt["path"]), wt["branch"] or "detached",
-                                                     ", dirty" if st == "dirty" else "")
-                                      for wt, st in s["worktrees"] if st in ("live", "dirty")) or "none besides main")
+                                                     ", dirty" if st == "dirty" else ", in use" if st == "locked" else "")
+                                      for wt, st in s["worktrees"] if st in ("live", "dirty", "locked")) or "none besides main")
     lines.append(wl)
     if unmerged_br:
         lines.append("unmerged branches: " + ", ".join(unmerged_br))

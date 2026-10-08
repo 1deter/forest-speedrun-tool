@@ -6,7 +6,8 @@
 What goes (author, 2026-10-07: merged branches locally AND on origin; scratch
 = whatever has no long-term use):
   - worktrees whose branch (or detached HEAD) is merged into origin/main and
-    whose tree is clean - a dirty one is kept and named;
+    whose tree is clean - a dirty one is kept and named, and a locked one (a running
+    agent's worktree; it can look merged before its first commit) is in use and left alone;
   - local branches merged into origin/main;
   - branches on origin merged into origin/main (`git push origin --delete`);
   - __pycache__ folders in the repo;
@@ -46,11 +47,11 @@ def git(*args, check=False, cwd=ROOT):
 
 
 def parse_worktrees(porcelain):
-    """`git worktree list --porcelain` -> [{path, head, branch (short or None), prunable}]."""
+    """`git worktree list --porcelain` -> [{path, head, branch (short or None), prunable, locked}]."""
     out, cur = [], None
     for line in porcelain.splitlines():
         if line.startswith("worktree "):
-            cur = {"path": line[9:], "head": None, "branch": None, "prunable": False}
+            cur = {"path": line[9:], "head": None, "branch": None, "prunable": False, "locked": False}
             out.append(cur)
         elif cur is None:
             continue
@@ -60,6 +61,8 @@ def parse_worktrees(porcelain):
             cur["branch"] = re.sub(r"^refs/heads/", "", line[7:])
         elif line.startswith("prunable"):
             cur["prunable"] = True
+        elif line == "locked" or line.startswith("locked "):
+            cur["locked"] = True
     return out
 
 
@@ -99,12 +102,14 @@ def survey():
     """What is merged and what is live. Read-only; session-start prints it.
 
     Returns {worktrees: [(wt, state)], local: [(name, merged)], remote: [(name, merged)]}
-    where state is 'main' | 'merged' | 'dirty' | 'live' | 'prunable'."""
+    where state is 'main' | 'merged' | 'dirty' | 'live' | 'locked' | 'prunable'."""
     wts = parse_worktrees(git("worktree", "list", "--porcelain"))
     worktrees = []
     for wt in wts:
         if same_path(wt["path"], ROOT):
             state = "main"
+        elif wt["locked"]:
+            state = "locked"   # in use by a running agent: never removed, whatever else is true
         elif wt["prunable"] or not os.path.isdir(wt["path"]):
             state = "prunable"
         elif not is_clean(wt["path"]):
@@ -239,6 +244,8 @@ def main(argv=None):
             print("%s worktree %s (%s, merged)" % (verb, wt["path"], wt["branch"] or "detached"))
         elif state == "dirty":
             print("kept worktree %s (%s): uncommitted changes" % (wt["path"], wt["branch"] or "detached"))
+        elif state == "locked":
+            print("kept worktree %s (%s): locked, in use" % (wt["path"], wt["branch"] or "detached"))
     # A branch a just-removed worktree held is free now.
     for name in local_to_delete(s["local"], s["worktrees"]):
         did += 1

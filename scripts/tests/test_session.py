@@ -116,6 +116,36 @@ class Git(unittest.TestCase):
         self.assertEqual([w["branch"] for w in wts], ["main", "ui-redesign", None])
         self.assertEqual(wts[2]["head"], "ccc")
         self.assertEqual([w["prunable"] for w in wts], [False, False, True])
+        self.assertEqual([w["locked"] for w in wts], [False, False, False])
+
+    def test_parse_worktrees_locked_with_and_without_reason(self):
+        text = ("worktree C:/r\nHEAD aaa\nbranch refs/heads/main\n\n"
+                "worktree C:/r/w1\nHEAD bbb\nbranch refs/heads/a\nlocked\n\n"
+                "worktree C:/r/w2\nHEAD ccc\nbranch refs/heads/b\nlocked claude agent agent-1 (pid 7)\n")
+        self.assertEqual([w["locked"] for w in C.parse_worktrees(text)], [False, True, True])
+
+    def test_survey_leaves_a_locked_worktree_that_looks_merged(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            wt = os.path.join(d, "agent")
+            os.mkdir(wt)
+            porcelain = ("worktree %s\nHEAD aaa\nbranch refs/heads/main\n\n"
+                         "worktree %s\nHEAD bbb\nbranch refs/heads/agent-x\nlocked\n") % (C.ROOT, wt)
+            def fake_git(*args, **kw):
+                return porcelain if args[:2] == ("worktree", "list") else ""
+            with mock.patch.object(C, "git", fake_git), mock.patch.object(C, "is_merged", lambda r, base=C.BASE: True), \
+                    mock.patch.object(C, "is_clean", lambda p: True):
+                s = C.survey()
+            self.assertEqual([st for _, st in s["worktrees"]], ["main", "locked"])
+            calls = []
+            with mock.patch.object(C, "git", lambda *a, **k: calls.append(a) or (porcelain if a[:2] == ("worktree", "list") else "")), \
+                    mock.patch.object(C, "is_merged", lambda r, base=C.BASE: True), \
+                    mock.patch.object(C, "is_clean", lambda p: True), \
+                    mock.patch.object(C, "pycaches", lambda: []), mock.patch.object(C, "scratch_candidates", lambda n, d: []):
+                C.main([])
+            self.assertFalse([c for c in calls if c[:2] == ("worktree", "remove")])
+            self.assertFalse([c for c in calls if c[:1] == ("branch",)])
 
 
 class Quality(unittest.TestCase):
