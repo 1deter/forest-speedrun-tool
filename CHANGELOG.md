@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.255 - 2026-10-08
+
+- Typing the log cap in the Inventory tab no longer hitches: the setting is saved once you stop typing.
+
 ## v0.24.254 - 2026-10-08
 
 - A teleport-only restart into the red elevator after its ride no longer unloads the endgame and drops you through the map.
