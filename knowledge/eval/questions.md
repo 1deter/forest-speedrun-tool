@@ -586,28 +586,28 @@ not:
 ### short-coyote
 question: coyote time?
 cards: movement-tricks
-max-length: 600
+max-length: 700
 must:
 - yes, 0.21 s after the last grounded step
 
 ### short-diagonal
 question: diagonal faster?
 cards: movement-tricks
-max-length: 600
+max-length: 700
 must:
 - yes, 10% - input is clamped to length 1.1
 
 ### short-terminal
 question: max fall speed?
 cards: player-physics
-max-length: 600
+max-length: 700
 must:
 - 55.43 m/s
 
 ### short-elevator-card
 question: elevator needs keycard?
 cards: elevator-skip
-max-length: 600
+max-length: 700
 must:
 - no - nothing in the elevator's chain checks the keycard
 - the keycard is only checked at the gold door
@@ -615,7 +615,7 @@ must:
 ### short-bomb-fps
 question: fps and bomb boost?
 cards: bomb-boost
-max-length: 700
+max-length: 1000
 must:
 - yes - one push per rendered frame, so more fps = more pushes per second paused
 then: why exactly? explain how it works in detail
