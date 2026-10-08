@@ -532,8 +532,11 @@ namespace ForestOverlay.Core
             _playerLockApplied = false;
 
             // The game's own menu still holds him: leave the lock (and the
-            // cursor it freed) to the game.
-            if (_gameHeldLock) { _gameHeldLock = false; return; }
+            // cursor it freed) to the game. Also when the pause menu opened
+            // while the window was up (T-0024, author: F2, Esc, F2 freed the
+            // camera under the menu and UnLockView's LockMouse hid the
+            // cursor); the menu's close unlocks him itself.
+            if (_gameHeldLock || MenuClose.PauseMenuOpen()) { _gameHeldLock = false; return; }
 
             _ctx.Bridge.SetPlayerLocked(false);
 
