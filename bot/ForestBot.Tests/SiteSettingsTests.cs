@@ -306,6 +306,37 @@ public class SiteSettingsTests : IDisposable
     }
 
     [Fact]
+    public async Task Report_sends_each_channels_category()
+    {
+        BotConfig c = Config();
+        FakeSite fake = new FakeSite { Body = """{"rev":1,"settings":{}}""" };
+        SiteSettings site = Site(c, fake);
+        await site.PollAsync(CancellationToken.None);
+        await site.ReportAsync(new[] { new SeenChannel(11, "general", "QA", "Forest", 2, 0), new SeenChannel(12, "rules", "QA") }, CancellationToken.None);
+        JsonObject body = (JsonObject)JsonNode.Parse(fake.Seen.Last().body);
+        Assert.Equal("Forest", (string)body["channels"][0]["category"]);
+        Assert.Equal("", (string)body["channels"][1]["category"]);
+    }
+
+    [Fact]
+    public void Channels_are_listed_in_Discords_sidebar_order()
+    {
+        // Two servers (kept in first-seen order); in each, no category first, then categories by
+        // position; inside one, text before voice, then by position.
+        List<SeenChannel> sorted = SeenChannel.InDiscordOrder(new[]
+        {
+            new SeenChannel(1, "general", "A", "Forest", 5, 0),
+            new SeenChannel(2, "Room 1", "A", "Forest", 5, 0, Voice: true),
+            new SeenChannel(3, "welcome", "A"),
+            new SeenChannel(4, "general", "A", "Info", 1, 3),
+            new SeenChannel(5, "rules", "A", "Info", 1, 0),
+            new SeenChannel(6, "general", "B"),
+            new SeenChannel(7, "bot-talk", "A", "Forest", 5, 2),
+        });
+        Assert.Equal(new ulong[] { 3, 5, 4, 1, 7, 2, 6 }, sorted.Select(s => s.Id));
+    }
+
+    [Fact]
     public async Task Run_polls_then_reports_only_when_it_sees_channels()
     {
         BotConfig c = Config();

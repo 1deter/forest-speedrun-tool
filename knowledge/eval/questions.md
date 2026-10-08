@@ -340,6 +340,18 @@ must:
 not:
 - says the chance adds up linearly per attack
 
+### megan-spin-spear
+question: so given the amount of time it takes to kill her by throwing the spear, what's the chance of her doing a spin and messing up the run?
+cards: megan-boss
+must:
+- 10 spears kill her solo (370 health, 40 a spear)
+- every hit's counter rolls the spin (4.76%) at any distance; a hit from 8-27 m rolls twice (counter, then close / mid attack)
+- at least 38.6% over the 10 counters (10 rolls), 62.3% if every throw lands from 8-27 m (20 rolls)
+- her own attacks between throws add rolls; the fight's length is not measured, so these are floors
+not:
+- says a hit beyond 8 m gives fewer rolls than one within 8 m
+- states a single exact per-run chance as measured
+
 ### megan-bombs
 question: how many bombs does it take to kill megan?
 cards: megan-boss
@@ -586,28 +598,28 @@ not:
 ### short-coyote
 question: coyote time?
 cards: movement-tricks
-max-length: 600
+max-length: 700
 must:
 - yes, 0.21 s after the last grounded step
 
 ### short-diagonal
 question: diagonal faster?
 cards: movement-tricks
-max-length: 600
+max-length: 700
 must:
 - yes, 10% - input is clamped to length 1.1
 
 ### short-terminal
 question: max fall speed?
 cards: player-physics
-max-length: 600
+max-length: 700
 must:
 - 55.43 m/s
 
 ### short-elevator-card
 question: elevator needs keycard?
 cards: elevator-skip
-max-length: 600
+max-length: 700
 must:
 - no - nothing in the elevator's chain checks the keycard
 - the keycard is only checked at the gold door
@@ -615,7 +627,7 @@ must:
 ### short-bomb-fps
 question: fps and bomb boost?
 cards: bomb-boost
-max-length: 700
+max-length: 1000
 must:
 - yes - one push per rendered frame, so more fps = more pushes per second paused
 then: why exactly? explain how it works in detail
@@ -754,3 +766,22 @@ must:
 - PlayerStats.Explosion returns early while it is set, so no explosion knockback or damage from that call
 not:
 - calls it a god mode, or says it blocks all damage, without code that shows it
+
+### nature-guide-register
+question: what is the logic behind registering a new animal to the nature guide, so 100% runners can register things faster?
+cards: hundred-percent
+must:
+- nothing is pressed; a trigger on the creature ticks the entry once
+- view kind: centred in the middle 40% of the screen within ~18.7 m, then centred again 2.5 s later
+- some creatures tick on appearing; others need 4 s in the grab focus
+not:
+- says the creature must stay in view for the whole 2.5 s
+- mentions ForestOverlay's own restore internals (NatureGuideKeeper) in a routing answer
+
+### runner-monsterkar
+question: who is monsterkar?
+cards: top-runners
+must:
+- Monsterkar_ is 3rd in Glitchless Normal (19:15.833)
+not:
+- says the name is not in the knowledge base

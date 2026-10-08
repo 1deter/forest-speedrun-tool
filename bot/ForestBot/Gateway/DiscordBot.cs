@@ -77,10 +77,15 @@ public sealed class DiscordBot
         return plus >= 0 && v.Length > plus + 1 ? v.Substring(plus + 1, Math.Min(12, v.Length - plus - 1)) : "dev";
     }
 
-    /// The text channels the bot can see, for the site's Bot tab (empty until connected).
+    /// The text channels the bot can see, for the site's Bot tab (empty until connected), with their
+    /// category, in Discord's sidebar order. Read each minute, so a new channel shows within one.
     private IReadOnlyList<SeenChannel> SeenChannels() =>
         _client.ConnectionState != ConnectionState.Connected ? new List<SeenChannel>()
-            : _client.Guilds.SelectMany(g => g.TextChannels.Select(c => new SeenChannel(c.Id, c.Name, g.Name))).ToList();
+            : SeenChannel.InDiscordOrder(_client.Guilds.SelectMany(g => g.TextChannels.Select(c =>
+            {
+                ICategoryChannel cat = c.Category;   // a SocketCategoryChannel from the cache, or null
+                return new SeenChannel(c.Id, c.Name, g.Name, cat?.Name ?? "", cat?.Position ?? -1, c.Position, c is SocketVoiceChannel);
+            })));
 
     private async Task OnReady()
     {

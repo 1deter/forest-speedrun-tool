@@ -70,7 +70,16 @@ public sealed class BotSettingsTests : IDisposable
         Assert.Equal(3, (int)r["rev"]);
         Assert.Equal(2, r["channels"].AsArray().Count);
         Assert.Equal(100, ((string)r["channels"][1]["name"]).Length);
+        Assert.Equal("", (string)r["channels"][0]["category"]);   // an older bot sends none
         Assert.NotNull(b.SaveReport("nope"));
+
+        // The category is kept (clipped), and the channels keep the bot's order.
+        Assert.Null(b.SaveReport("""{"version":"1","rev":3,"channels":[{"id":"21","name":"b","guild":"G","category":"Forest"},{"id":"20","name":"a","guild":"G","category":"%CAT%"}]}"""
+            .Replace("%CAT%", new string('c', 500))));
+        r = b.Report();
+        Assert.Equal(new[] { "21", "20" }, r["channels"].AsArray().Select(c => (string)c["id"]));
+        Assert.Equal("Forest", (string)r["channels"][0]["category"]);
+        Assert.Equal(100, ((string)r["channels"][1]["category"]).Length);
 
         // What it answers in now: valid ids only; allChannels a real bool.
         Assert.Null(b.SaveReport("""{"version":"1","rev":3,"allChannels":false,"answersIn":["5",7,"x","1 OR 1"],"channels":[]}"""));

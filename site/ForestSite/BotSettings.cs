@@ -108,7 +108,8 @@ public sealed class BotSettings
     private static string Text(JsonNode n) => n is JsonValue v && v.TryGetValue(out string s) ? s
         : n is JsonValue v2 && v2.TryGetValue(out long l) ? l.ToString(CultureInfo.InvariantCulture) : null;
 
-    /// The bot's report: version, the revision it applied, the channels it sees.
+    /// The bot's report: version, the revision it applied, the channels it sees (with their
+    /// category, in the bot's order - Discord's sidebar order - which the Bot tab keeps).
     public string SaveReport(string body)
     {
         JsonObject o;
@@ -125,6 +126,7 @@ public sealed class BotSettings
                 channels.Add(new JsonObject
                 {
                     ["id"] = id, ["name"] = Clip(Text(c["name"]), 100), ["guild"] = Clip(Text(c["guild"]), 100),
+                    ["category"] = Clip(Text(c["category"]), 100),   // "" outside a category or from an older bot
                 });
             }
         // When the bot applied that revision (its own clock); anything unparsable = unknown.

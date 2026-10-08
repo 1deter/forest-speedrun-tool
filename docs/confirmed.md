@@ -366,3 +366,4 @@ Confirmed 2026-10-08 (game, bridge, v0.24.257): **another segment's Go leaves no
 Confirmed 2026-10-08 (game, bridge, v0.24.257): **weapon-upgrade receivers kept on a cross-save Quick load (T-0050)** - UpgradeViewReceiver 35 before / 35 after (Slot1 capture into Slot5), "deleted 0 not in the save, kept 33 weapon-upgrade receiver(s) the save lacks". bridge 2026-10-08.
 
 Confirmed 2026-10-08 (game, bridge, v0.24.258): **a timed run logs what armed it (T-0051)** - "armed after F7 restart" (no start state), "armed after Go", once "armed after start-state restore" after F7 with a start state; moving then ran the timer. bridge 2026-10-08.
+Confirmed 2026-10-08 (game, bridge, v0.24.260): **Elevator Boost restarts keep the endgame dark sky after the car reached the overlook (T-0222)** - R10 off right after the restart (x2), "overlook: left (... ExitOverlookArea sent, outdoor sky off)", dark cliffs; tp to the surface keeps R10 on and the surface lit. bridge 2026-10-08.

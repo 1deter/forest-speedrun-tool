@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.260 - 2026-10-08
+
+- Elevator Boost: restarting after a ride that reached the top no longer turns the overlook and the shaft foggy-white until a game restart.
+
 ## v0.24.259 - 2026-10-08
 
 - Website spots now come with the start state their creator recorded, so a restart restores the spot instead of only teleporting. A creator's next upload on a spot sends its state to the website.

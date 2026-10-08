@@ -24,6 +24,14 @@ conversation concrete. Once there is a ruling, circle back and enforce it.
 
 Flower/plant coordinate display is **out of scope by the author's own call**.
 
+### The tool first (author, 2026-10-08)
+
+"Focus development on the tool rather than anything external to it, as i want
+to get the tool done ASAP." `tasks.py next` takes plugin, release and research
+tasks before site, bot and knowledge ones, whatever their priority
+(`FOCUS_AREAS` in `scripts/tasks.py`). The author still picks external work
+when they want it.
+
 ### Conventions
 
 - **Data, not code.** Locations, segments and the 100% checklist are text files
@@ -260,6 +268,26 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   clips, and their deep technical reasoning and why they work and what
   an optimal version of this tech would look like". **Answers of the
   highest quality, so a runner ends with full understanding.**
+- **Answer from proof, or say it is not known** (author, 2026-10-08): the
+  bot either has the fact - backed by research or code that proves it -
+  and answers, or it does not, says so, and the question goes to the
+  research queue. No half-answers: "otherwise it's going to be spitting
+  out half-answers and the learning process is going to take a lot
+  longer". Inferring from the game's code is fine. Answers are clean,
+  concise and informative, a short breakdown a runner can follow up on,
+  not one mega-message.
+  Not known: something "nearby" is shared only when it is relevant and
+  benefits the question asked. A possible cause for something unexplained
+  only from code, and only when it is certain the code is related to that
+  context - otherwise none (author, 2026-10-08).
+- **Tone follows the community** (author, 2026-10-08): once the bot learns
+  from the Discord history, informal knowledge (inside jokes, memes about
+  and in the community) is written and usable; when the context is right
+  the bot is "memey", laid back and banters about community members.
+  A banter-style question ("when will deter run the game?", queue #42)
+  gets a banter-y answer built from what the bot has learned on the
+  server about the person asking and the person asked about (author,
+  2026-10-08; T-0238).
 - **Follow-up questions about previous answers** (author): a runner
   replies to an answer and the bot carries on the conversation.
 - **A regular bot** (author: "i would really just prefer a regular bot"):

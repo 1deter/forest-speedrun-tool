@@ -96,8 +96,13 @@ Every melee or projectile hit (`EnemyHealth.HitReal`) sends `gotHit`. After
 0.2 s she counter-attacks: within 8 m a counter swing (one of three, 1.2 s),
 farther away straight into `chooseAttack` [live: 45 hits, every one went
 `gotHit` -> `counterAttack` after 0.2 s; 38 of them beyond 8 m went on to
-`chooseAttack`]. The ~5% spin roll applies here too. **Hitting her does not
-interrupt her. It starts her next attack.**
+`chooseAttack`]. **Hitting her does not interrupt her. It starts her next
+attack.**
+
+The counter rolls the spin at any distance, then `chooseAttack` rolls
+again at 8-27 m: **a hit is one roll, two from 8-27 m** [code]. 10 spears
+solo: at least 38.6%, 62.3% from 8-27 m, plus her own attacks' rolls
+(fight length unmeasured), so floors [arithmetic].
 
 ## Explosions and the stagger
 

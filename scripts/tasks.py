@@ -63,6 +63,9 @@ BRIEF_LIMIT = 60000
 # Tasks an agent can take alone (docs/harness.md 6a); bridge ones need the game up.
 ALONE = ("none",)
 ALONE_BRIDGE = ("none", "bridge")
+# The tool itself comes first (author, 2026-10-08: "get the tool done ASAP"): next takes these
+# areas before the site, the bot and the knowledge base, whatever their priority.
+FOCUS_AREAS = ("plugin", "release", "research")
 # Areas a plugin release ships; bump.py marks their built tasks released when a commit touches a plugin
 # path (scripts / docs-only ones stay built and confirm on test evidence, T-0196; docs/harness.md 6c).
 RELEASED_AREAS = ("plugin",)
@@ -469,7 +472,7 @@ def pick_next(tasks, bridge=False, by=None, skip=()):
         if any(ids[d]["status"] not in ("built", "released", "confirmed") for d in t.get("blocked_by") or []):
             continue
         ready.append(t)
-    ready.sort(key=lambda t: (t.get("priority", 3), id_num(t["id"])))
+    ready.sort(key=lambda t: (t["area"] not in FOCUS_AREAS, t.get("priority", 3), id_num(t["id"])))
     return ready[0] if ready else None
 
 

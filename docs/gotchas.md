@@ -786,7 +786,11 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     scene-wired UnityEvents: read the trigger's events (`fields ...
     m_PersistentCalls.m_Calls[i]`) and invoke them instead of setting the
     flag. A normal cave round trip was fine - test from a save loaded
-    inside, not only from a walk in.
+    inside, not only from a walk in. Again in v0.24.260 (T-0222): the
+    restore cleared `IsInOverlookArea` but not R10, which the overlook's
+    enter event had switched on - Elevator Boost restarts went foggy-white;
+    now the game's `ExitOverlookArea` is published. Every flag that
+    `AreaReport` clears by hand: look for the event's other listeners.
 
 88. **An image library's resize can read the alpha as coverage.**
     (2026-10-03, site.) Pillow's RGBA `thumbnail` premultiplies by alpha;

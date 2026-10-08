@@ -153,7 +153,7 @@ namespace ForestOverlay.Game
                 if (overlook)
                 {
                     string o = AreaReport.LeaveOverlook();
-                    if (o.Length > 0) note += (note.Length > 0 ? ", " : "") + "overlook flag cleared";
+                    if (o.Length > 0) note += (note.Length > 0 ? ", " : "") + o;
                 }
                 if (vault)
                 {

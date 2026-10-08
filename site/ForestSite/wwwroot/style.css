@@ -298,6 +298,31 @@ td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 .catform textarea { font-size: 13px; resize: vertical; }
 .catform .check { display: flex; gap: 8px; align-items: flex-start; }
 .catform td select { width: auto; }
+/* The Bot tab's channels: server > category > channel, like Discord's sidebar (T-0231). */
+.chgroups { display: grid; gap: 6px; }
+.chserver > summary { cursor: pointer; color: var(--white); font-weight: 600; }
+.chcat { margin: 2px 0 2px 14px; display: grid; gap: 2px; }
+.chcat > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.chcat > .check { margin-left: 14px; }
+div.chcat > .check { margin-left: 0; }
+/* Discord's unsaved-changes bar (Bot tab, Categories): pinned to the bottom while a form differs
+   from what was saved; it shakes and turns red when leaving is refused. */
+.hasbar { padding-bottom: 96px; }   /* room under the last field for the bar */
+.unsaved {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 10;
+  width: min(720px, calc(100% - 32px)); display: flex; flex-wrap: wrap; gap: 8px 16px;
+  align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--yellow); border-radius: var(--radius);
+  padding: 10px 14px; color: var(--white); box-shadow: 0 4px 18px rgba(0, 0, 0, .6);
+}
+.unsaved[hidden] { display: none; }
+.unsaved.warn { border-color: var(--behind-lose); background: #2a0d0c; animation: unsaved-shake .4s; }
+@keyframes unsaved-shake {
+  0%, 100% { transform: translateX(-50%); }
+  20%, 60% { transform: translateX(calc(-50% - 8px)); }
+  40%, 80% { transform: translateX(calc(-50% + 8px)); }
+}
+@media (prefers-reduced-motion: reduce) { .unsaved.warn { animation: none; } }
 .cappicker { display: grid; gap: 6px; }
 .caprows { display: grid; gap: 4px; }
 .caprow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
