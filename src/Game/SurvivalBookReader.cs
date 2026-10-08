@@ -148,8 +148,12 @@ namespace ForestOverlay.Game
                 // Each objective is its own TodoTask field. Identify them by
                 // shape - something carrying _done - rather than by a
                 // hardcoded list of names that a game update would break.
+                // A bool _done only: each task's `<name>GOs` sibling
+                // (TodoEntryGOs) has a GameObject `_done`, and reading
+                // that as a bool threw and was caught - 21 exceptions a
+                // second, the overlay's biggest idle garbage (T-0033).
                 FieldInfo doneField = FindField(fields[i].FieldType, "_done", flags);
-                if (doneField == null) continue;
+                if (doneField == null || doneField.FieldType != typeof(bool)) continue;
 
                 _taskFields.Add(fields[i]);
                 _doneFields.Add(doneField);

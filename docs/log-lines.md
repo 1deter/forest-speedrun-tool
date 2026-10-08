@@ -538,7 +538,7 @@ Written by GameProfiler.cs; info / warning.
 - warning `Game profiler: <Status>`
 - info `Game profiler: <_pending.Count> method(s) to hook on <types> live script type(s)<..> (found in <sw.ElapsedMilliseconds> ms).`
 - info `Game profiler: hooked <_hooked.Count> method(s) in <..> s<..>; a report every <..> s.`
-- info `Game profiler: off, <_hooked.Count> method(s) unhooked in <..> s.`
+- info `Game profiler: off, <_hooked.Count> method(s) unhooked in <..> s (until a restart, the methods it hooked still box their foreach loops - restart before measuring allocations).`
 
 ## `GameEvents`
 
