@@ -515,9 +515,6 @@ namespace ForestOverlay.BridgeMcp
             ProcessStartInfo psi = new ProcessStartInfo("python")
             {
                 WorkingDirectory = repo,
-                // The server's own stdin is the MCP pipe, which never closes; a child that
-                // inherits it can block on it (a git under tasks.py did, T-0007).
-                RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -526,8 +523,7 @@ namespace ForestOverlay.BridgeMcp
             };
             psi.ArgumentList.Add(Path.Combine("scripts", "tasks.py"));
             psi.ArgumentList.Add("qa-todo");
-            using Process p = Process.Start(psi);
-            p.StandardInput.Close();
+            using Process p = ChildProcess.Start(psi);   // closed stdin: the MCP pipe never ends (gotcha 95)
             Task<string> stdout = p.StandardOutput.ReadToEndAsync(ct);
             Task<string> stderr = p.StandardError.ReadToEndAsync(ct);
             using (CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct))
