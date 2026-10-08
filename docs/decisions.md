@@ -104,6 +104,15 @@ Flower/plant coordinate display is **out of scope by the author's own call**.
 
 ## Plugin
 
+- **Performance switches need no sign-off** (author, 2026-10-08; the
+  admins agree): a switch that helps and is tested not to change any game
+  mechanic or logic runners rely on for fair, consistent timing ships on
+  by default. Off-limits only if the same run would come out faster with
+  the tool. Load-time cuts are always fine (they make the game more
+  consistent for everyone). Looks (e.g. how particles draw) are not a
+  mechanic.
+- **Runner spots keep their start state on the site** (author,
+  2026-10-08, T-0194): whether a spot uses one is the creator's choice.
 - **Naming** (author, v0.24.27, UI only - config keys and log lines
   unchanged): **Quick load** = restore in place, **Full load** = with a
   scene load; the death option is **Reload save on death**. Plan: polish
