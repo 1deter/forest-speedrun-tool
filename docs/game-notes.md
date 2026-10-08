@@ -2289,7 +2289,58 @@ patched (`Game/PerfPatches`, v0.24.92-94): ~216 KB/s left. Not patched
 (behaviour): `MaterialTween.Output.SendMessage` boxes a float for
 `Component.SendMessage` each frame; Unity's own `Collision` /
 `ContactPoint[]` per physics callback; strings (~1100/s, source not yet
-found). During play it is ~2 MB/s (maks: a GC every ~5 s).
+found). "~2 MB/s during play" (maks, v0.24.8x) was his restart loop and
+that version's overlay (+750 KB/s) - see *Garbage in play* below.
+
+**Garbage in play** (bridge, v0.24.255, 2026-10-08, Slot 2 Normal,
+`AllocationTrackerAtStartup` + a fresh launch, 30 s windows, tracker
+alone - the game profiler only for attribution, then a restart, gotcha
+42). The game's own: plane idle 54-58 KB/s (~950 objects/s), book open
+59, cannibal camp idle 104, running into a tree ~85, Cave 6 pushing a
+wall 121, inventory open (time stopped) 16; GC x0 in every 30 s window.
+At ~100 KB/s a collection from volume alone (~200 MB, above) comes every
+~30 min - **in play, garbage is not what makes the pauses**; the
+restart loop is (below). Per source:
+- **Unity's physics-callback objects, 30-60% of it, not patchable**:
+  `UnityEngine.ControllerColliderHit` 30-50 KB/s (390-650/s, one per
+  `CharacterController.Move` hit: the player and every awake cannibal -
+  `mutantAnimatorControl.OnAnimatorMove` -> `controller.Move` was charged
+  30 KB/s), and `Collision` + `ContactPoint[]` 12-21 KB/s (60-120/s). Unity
+  5.6 builds them natively before calling any script that has the message
+  (`PlayMakerFSM` itself defines `OnControllerColliderHit`, so every
+  CharacterController with an FSM gets one); there is no
+  `Physics.reuseCollisionCallbacks` before Unity 2018.3.
+- Strings 4-16 KB/s (75-380/s): source not found (not in any hooked
+  Update / LateUpdate / FixedUpdate / OnGUI / render / stay message).
+- `Byte[]` ~7 KB/s, also at the title screen: not the world's.
+- Ocean: `Ceto.WaveSpectrum.CreateConditions` -> `NewSpectrumConditionKey`
+  makes a `UnifiedSpectrumConditionKey` every Update it runs (every
+  second frame on land) only to compare it by value - 3.8 KB/s (~97/s).
+- `TerrainHelper.GetProminantTextureIndex` (firstpass), from
+  `FirstPersonCharacter.HandleHeightAdjustments` every fixed step:
+  `terrainData.GetAlphamaps(x, z, 1, 1)` returns a new `float[1,1,L]` -
+  3.8 KB/s (60/s). Unity 5.6 has no non-allocating read.
+- `animalController` (144 of them) `InvokeRepeating` `callSpawnCreatures`
+  every 4 s -> `StartCoroutine("spawnFish")`: iterator + `Coroutine`
+  3.2 KB/s (36/s).
+- In caves `mutantController.sortCaveSpawnsByDistance`: a closure + a
+  `Comparison<GameObject>` each call, 7.5 KB/s (60/s).
+- Ours: the 100% tab's book reader threw 21 `InvalidCastException`s a
+  second (3.4 KB/s with their stack traces; fixed T-0033, gotcha 101);
+  the bridge's input injection 5 KB/s while it holds a key (fixed).
+**The restart loop** (a Quick load of the same state every ~6.6 s): 6.1
+MB/s (4.7 on the main thread) - `Vector3[]` 1.7 MB/s (~280 KB arrays,
+~1.5 a restore), strings 1 MB/s, `Int32[]` 0.9, `Object[]` 0.6,
+`Serialization.Entry`, `GreebleDefinition`: the game's deserializer and
+the streamed scenes reloading, ~40 MB a restore; GC x4-9 per 30 s, i.e.
+1-2 a restore, mostly the forced ones after the asset clean-ups. The
+author's lab restarts (2026-10-06 report): heap +1.3-2.4 MB/s, GC x1-3
+per 30 s, overlay `practicerun` ~280 KB/s (the restore runs inside that
+module's tick).
+**The game profiler's hooks stay after it is switched off**: the methods
+it hooked keep running Harmony's copy, whose `foreach` enumerators box
+(`List.Enumerator<CullingGrid.Cell>` 390/s, three `Dictionary.Enumerator`s
+in `AssetBundleManager.Update` 193/s each, ...) - ~60 KB/s until a restart.
 
 **Asset clean-ups.** `TheForest.Utils.ResourcesHelper.UnloadUnusedAssets`
 (`Debug.Log` + `Resources.UnloadUnusedAssets`) walks every loaded object;

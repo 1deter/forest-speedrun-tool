@@ -189,9 +189,14 @@ behaviour-preserving patches on by default, each with its own switch and
 one log line, measured before / after in one session; anything changing
 timing or outcomes is Experimental, labelled (*Standing decisions*).
 
-1. Garbage in play (~216 KB/s idle, ~2 MB/s in play per maks): strings,
-   `MaterialTween` `SendMessage` boxing, Unity's collision objects.
-   Measure during play (`AllocationTrackerAtStartup` + restart).
+1. Garbage in play - measured (T-0033, 2026-10-08; game-notes *Garbage
+   in play*): the game makes 50-150 KB/s in play (a volume GC every
+   ~30 min), 30-60% Unity's physics-callback objects (not patchable);
+   the rest is small sources of 3-8 KB/s each (ocean key, alphamap read,
+   fish coroutines, cave spawn sort) left alone pending the author
+   (tasks/notes/T-0033.md). Ours fixed: 21 caught exceptions a second in
+   the 100% tab. Open: the strings (4-16 KB/s, source not found) and the
+   restart loop (~40 MB and 1-2 forced GCs per Quick load).
 2. The old world held 30-70 s after each Full load / death reload (~25 ms
    longer pauses meanwhile). Root unknown; low payoff.
 3. The live heap: mostly the A* navmesh, needed.

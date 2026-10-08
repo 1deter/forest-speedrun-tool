@@ -163,7 +163,9 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
 - Gaps **C**: the title-load native crash is the game's (T-0143 closed:
   LOD_SimpleToggle, 0 in 26 repeats; e2e watch T-0189); a render-thread
   texture-upload crash not yet placed (T-0190); garbage in play
-  (T-0033); the old world held after a load (T-0034); the census hitch
+  measured (T-0033: 50-150 KB/s, half Unity's; the small game patches
+  wait on the author; the restart loop's ~40 MB a Quick load and the
+  strings' source open); the old world held after a load (T-0034); the census hitch
   check (T-0048); raw FPS questions (T-0030..T-0032).
 
 ### TAS and trajectory

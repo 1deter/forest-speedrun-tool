@@ -290,6 +290,16 @@ wrapper type (`UnityEngine.Material` 24 bytes) at that rate, and the
 profiler's `alloc:` row charges those bytes to the hooked method that
 made it (an `enabled = true` runs the target's OnEnable inside the
 caller). Put the config back after.
+**Garbage by scenario** (T-0033): `ToggleAllocations` is a toggle that
+logs a report when it goes off and every 30 s while on - read
+`get static:ForestOverlay.Game.AllocationTracker Counting` first (two
+toggles = a fresh window). Drive the scenario with long `hold` / `axis`
+commands, not many short ones: every bridge command allocates (the
+report's `overlay ... bridge` figure, up to 200 KB/s for a `press` a
+second). Take by-type figures **before** any profiler session - its hooks
+leave boxed enumerators until a restart (gotcha 42); use the profiler
+(`GameProfilerExtra` "Type::*") only to find which method makes a type,
+then restart.
 
 **Habits**: `set` takes a vector as `x,y,z` (no brackets or spaces).
 Handles are per launch; target objects the game respawns **by path**

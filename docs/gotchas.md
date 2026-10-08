@@ -310,7 +310,13 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     and the next); and hooking 1588 methods with Harmony nearly doubled
     the GC pause (90 -> 165 ms) through the patches' own objects. When a
     number surprises you, first ask what the instrument adds, and
-    measure baselines on a fresh launch with the instrument off.
+    measure baselines on a fresh launch with the instrument off. The
+    profiler's hooks also outlive it: after "Game profiler: off" the
+    methods it hooked keep Harmony's rewritten copy, and its boxed
+    `foreach` enumerators (~190/s each, ~60 KB/s) stayed in the
+    allocation tracker's figures until the game restarted (T-0033,
+    2026-10-08) - restart between a profiler session and a by-type
+    measurement.
 
 43. **A switch can be latched off before you arrive.** v0.24.90's
     allocation tracker installed Mono's profiler correctly and counted
@@ -934,3 +940,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     matched one object's live position to 4 decimals - which named the
     component. `scripts/symbolize-crash.py` now prints the folded names,
     the registers and the rbp chain, and marks values below rsp as stale.
+
+101. **A swallowed exception is garbage nobody sees.** (2026-10-08,
+    T-0033.) The 100% tab's book reader bound every field whose type
+    carries a `_done` - meant for the 21 to-do tasks (`bool _done`), but
+    each task's `<name>GOs` sibling has a `GameObject _done` too. Reading
+    those as bool threw `InvalidCastException` once a second each, and a
+    `catch (Exception) { continue; }` hid it: the tab was right, the game
+    carried 21 exception objects and stack traces a second (~3.4 KB/s,
+    the overlay's biggest idle garbage). The allocation tracker showed it
+    as `System.InvalidCastException` + `System.IntPtr[]` at the same rate;
+    the title screen (no book) was the control. When binding by shape,
+    check the member's type too; an exception type in an allocation report
+    is a bug looking for its catch.

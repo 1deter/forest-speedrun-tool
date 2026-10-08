@@ -202,12 +202,13 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 ### Performance and rendering
 
 11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep (`Game/SceneCache`), rate-limit re-searches; check `Slow tick:` lines first. [check: lint.py findall baseline]
-42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch. [judgement]
+42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch (the profiler's hooks leave garbage until a restart). [judgement]
 45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic. [judgement]
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control. [judgement]
 50. **A camera costs its culling whatever it draws** - count cameras (`Frame` line) before optimising what they draw. [judgement]
 51. **The picture needs eyes** - a render change that measures right can still freeze the screen; ask the author to look before a release. [judgement]
 59. **Log the work, not the queue** - a queue shows what waits; hook the enqueue (bounds + caller). Check a merged game list is ever cleared. [judgement]
+101. **A swallowed exception is garbage nobody sees** - binding by shape, check the member's type too; an exception type in an allocation report is a bug looking for its catch. [judgement]
 
 ### UI
 
