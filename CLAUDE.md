@@ -199,7 +199,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   (one-time routines, branches `cloud/*`, merged by main after a checker;
   they share the account's 5-hour limit, not the cloud credit). Hook: every
   ask is a refusal while a loop run is open (T-0024 round). Parked for the
-  author: T-0194 (runner spots' start state on the site), T-0024 (needs
+  author: T-0194 (runner spots' start state on the site), T-0198 / T-0203
+  (Experimental / small perf switches), T-0109 / T-0111 / T-0112 (run-mode
+  design calls), T-0024 (needs
   the redesign build in game, author present).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
@@ -214,7 +216,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   eval: T-0158, T-0163.
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025) plus merged agent worktrees (`cleanup.py`).
-  **Released:** v0.24.254 (T-0151: a restart into the red elevator after
+  **Released:** v0.24.256 (T-0033: the 100% tab's 21 errors a second;
+  in-play garbage measured, T-0202 / T-0203 next); v0.24.255 (T-0192,
+  T-0193, T-0110); v0.24.254 (T-0151: a restart into the red elevator after
   its ride keeps the endgame loaded); v0.24.253 (T-0149 endgame material
   leak, dead code, T-0188); v0.24.252 (T-0148 restart hitches). Nothing
   unreleased.
