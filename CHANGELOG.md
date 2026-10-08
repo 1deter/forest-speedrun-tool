@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.258 - 2026-10-08
+
+- Timed runs now log a line when they arm, naming what armed them (Go, F7 restart, start-state restore, auto-restart, ...), so a run that fails to start after a restore can be traced in the log.
+
 ## v0.24.257 - 2026-10-08
 
 - Going from a run in progress to a different timed segment no longer shows the first run's red 'failed' line on the new segment.
