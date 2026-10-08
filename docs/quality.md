@@ -36,7 +36,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
-| Performance and loads | C | B | B | A | C | T-0033, T-0190 | 2026-10-07 |
+| Performance and loads | C | B | B | A | C | T-0202, T-0190 | 2026-10-08 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
 | Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
 | Bridge, e2e and QA | B | A | A | B | A | | 2026-10-08 |
@@ -164,9 +164,9 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
   LOD_SimpleToggle, 0 in 26 repeats; e2e watch T-0189); a render-thread
   texture-upload crash not yet placed (T-0190); garbage in play
   measured (T-0033: 50-150 KB/s, half Unity's; the small game patches
-  wait on the author; the restart loop's ~40 MB a Quick load and the
+  wait on the author, T-0203; the restart loop's ~40 MB a Quick load, T-0202, and the
   strings' source open); the old world held after a load (T-0034); the census hitch
-  check (T-0048); raw FPS questions (T-0030..T-0032).
+  check (T-0048); raw FPS (T-0030 done: no safe camera cut; T-0031, T-0032, the main camera's draw calls T-0199).
 
 ### TAS and trajectory
 
