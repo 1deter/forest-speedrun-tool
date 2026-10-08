@@ -120,6 +120,10 @@ namespace ForestOverlay.Game
     //    at exactly 1/60 (never over PlayMaker's ScaleTime slow motion).
     //    Measured: 5.26 -> 4.98 ms a frame here (a step in 32% -> 15% of
     //    frames); a physics step costs ~1.8 ms on sxczurass's i5.
+    // 16. The sun post-process material (T-0149): in the endgame the game
+    //    switches SunshinePostprocess off and on every frame and each
+    //    OnEnable leaks a new Material; a prefix keeps the live one (at the
+    //    end of the class).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -237,6 +241,11 @@ namespace ForestOverlay.Game
                 "Removals at the same moment far apart (a Quick load deleting buildings across the map) are recalculated place by " +
                 "place, not as one box over everything between them.",
                 ApplyNavRemoval, RemoveNavRemoval);
+            Add(config, "SunPostProcessKeepMaterial", "Endgame: stop the sun post-process making a material every frame",
+                "While you are in the endgame area, two of the game's scripts switch the sun's post-process off and on again every " +
+                "frame, and each switch-on makes a new material that is only freed when a load takes you out of the area - one a " +
+                "frame, over a million after an hour of restarting a spot in the lab. Keep the material it already has.",
+                ApplySunshineBlit, RemoveSunshineBlit);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -942,6 +951,60 @@ namespace ForestOverlay.Game
             }
             _atmosReplaced = found;
             return list;
+        }
+
+        // ------------------------------------------------------------------
+        // 16. The sun post-process material (T-0149, bridge 2026-10-08).
+        // In the endgame the `Sunshine` object (under TimeAndWeather) is
+        // inactive, so its OnDisable destroyed PostScatterMaterial and
+        // Sunshine.RequiresPostprocessing is false. Every frame
+        // SunshineCamera.Update then switches the camera's
+        // SunshinePostprocess off and ImageEffectOptimizer.Update switches
+        // it on again; its OnEnable makes `blitMaterial = new
+        // Material(Shader.Find("Hidden/Post FX/Blit"))` and OnDisable never
+        // destroys it - one Material a frame, freed only by the next
+        // Resources.UnloadUnusedAssets (leaving the area, a load). In-place
+        // restarts in the lab never run one: 1.47M Materials in the
+        // author's session. The prefix keeps the live material instead:
+        // the same shader, and nothing ever writes a property on it (IL:
+        // only the command buffer's Blit reads it), so the picture is the
+        // same; MainTexID was set by the first OnEnable.
+        private MethodInfo _sunshineEnable;
+
+        /// Bridge: how many switch-ons kept the material this session.
+        public static int SunshineBlitKept;
+
+        private string ApplySunshineBlit()
+        {
+            Type t = GameType("SunshinePostprocess");
+            if (t == null) return "SunshinePostprocess not found";
+            const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            _sunshineEnable = t.GetMethod("OnEnable", inst, null, Type.EmptyTypes, null);
+            if (_sunshineEnable == null) return "OnEnable not found";
+            FieldInfo mat = t.GetField("blitMaterial", inst);
+            if (mat == null || mat.FieldType != typeof(Material)) return "blitMaterial not found";
+            _self = this;
+            _harmony.Patch(_sunshineEnable, prefix: new HarmonyMethod(typeof(PerfPatches).GetMethod("SunshineEnablePrefix", BindingFlags.Static | BindingFlags.NonPublic)));
+            return "";
+        }
+
+        private void RemoveSunshineBlit()
+        {
+            if (_sunshineEnable != null) _harmony.Unpatch(_sunshineEnable, HarmonyPatchType.Prefix, _harmony.Id);
+        }
+
+        private static bool SunshineEnablePrefix(Material ___blitMaterial)
+        {
+            try
+            {
+                if (___blitMaterial == null) return true;   // the first switch-on, or it was destroyed: the game's own
+                SunshineBlitKept++;
+                if (SunshineBlitKept == 1 && _self != null)
+                    _self._log.LogInfo("Performance: the sun post-process was switched on again - kept its material instead of " +
+                                       "making a new one (the game does this every frame in the endgame).");
+                return false;
+            }
+            catch (Exception) { return true; }
         }
     }
 

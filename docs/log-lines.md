@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 663 log calls.
+216 prefixes from 664 log calls.
 
 ## `Aerial capture`
 
@@ -1017,7 +1017,7 @@ Written by PerfMonitor.cs; info.
 
 ## `Performance`
 
-Meaning: Performance trims at work: camera trims, the endgame screen camera, skipped grass updates, merged asset clean-ups.
+Meaning: Performance trims at work: camera trims, the endgame screen camera, skipped grass updates, merged asset clean-ups, the sun post-process material kept in the endgame (first time a session).
 Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
 
 - warning `Performance: camera trim scan failed: <ex.Message>`
@@ -1049,6 +1049,7 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
 - info `Performance: save load handed over after <..> ms, <_holdFrames> frame(s) instead of the fixed 600 ms<..>.`
 - info `Performance: skipped the endgame-animation asset clean-up at load (<AnimSweepsSkipped> this session).`
 - info `Performance: the removed 30 Hz physics switch was on - physics back at 60 Hz (fixed step <..> s).`
+- info `Performance: the sun post-process was switched on again - kept its material instead of making a new one (the game does this every frame in the endgame).`
 
 ## `Performance patch`
 
