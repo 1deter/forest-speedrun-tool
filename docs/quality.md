@@ -33,7 +33,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-07 |
 | Timed runs | B | A | B | A | B | T-0049, T-0144 | 2026-10-07 |
 | Practice | C | A | C | A | B | T-0046 | 2026-10-07 |
-| Run mode | B | A | A | A | B | T-0109, T-0110, T-0111, T-0112 | 2026-10-07 |
+| Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
 | Performance and loads | C | B | B | A | C | T-0033, T-0190 | 2026-10-07 |
@@ -45,7 +45,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
-| Harness | B | A | B | B | B | T-0197 | 2026-10-08 |
+| Harness | B | A | B | A | B | T-0201 | 2026-10-08 |
 
 Lowest first: Savestates, Practice, Performance and loads, Dev tools,
 Site maps and 3D world, Bot (C).
@@ -116,8 +116,8 @@ Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs`
 - Legibility **A**: docs/run-mode.md; five partials, none over 450 lines;
   its gotchas carry checks.
 - Stability **A**.
-- Gaps **B**: integrity holes, all P4 (time scale T-0109, a refused bridge
-  command answers ok T-0110, hashing the file not the loaded assembly
+- Gaps **B**: integrity holes, all P4 and waiting on the author's design
+  call (time scale T-0109, hashing the file not the loaded assembly
   T-0111, BepInEx patches skipped by assembly T-0112); the move events
   wait on in-game checks (T-0115..T-0118).
 
@@ -293,8 +293,9 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
   catalogue tests in CI; `tasks.py check` in CI.
 - Legibility **B**: docs/harness.md is ~800 lines of plan and status
   together; workflow.md is the working copy.
-- Stability **B**: every scripts/tests file runs in CI (T-0147,
-  2026-10-08). Open: two tasks.py writers at once can lose a write (T-0197).
+- Stability **A**: every scripts/tests file runs in CI (T-0147); task-file
+  writes take a lock (T-0197, 200/200 writes kept under 8 writers;
+  temp-file replace still open, T-0201).
 - Gaps **B**: every checkable gotcha has its check (T-0123..T-0135, 2026-10-08;
   two plugin gaps the new lints baselined: T-0192, T-0193); Stage A ran
   twice (R-0001, R-0002); Stage B not built (T-0016); the weekly
