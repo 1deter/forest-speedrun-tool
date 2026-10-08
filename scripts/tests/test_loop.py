@@ -116,6 +116,50 @@ class Actions(unittest.TestCase):
                                               {"start": {"reviews_before": 1}}))
 
 
+class ReleaseStep(unittest.TestCase):
+    """A plugin-area task whose commits touch no plugin path has nothing to release (T-0154)."""
+    RND = {"start": {"reviews_before": 0}}
+
+    def built(self, files_of, **kw):
+        t = task("T-0001", status="built", area="plugin", checker=True, commits=["abc"],
+                 reviews=[review("accept")], **kw)
+        return t, L.needs_release(t, files_of)
+
+    def test_plugin_path_releases(self):
+        for path in ("src/Core/Host.cs", "patcher/P.cs", "locations/a.json", "collectibles/b.json", "qa/x"):
+            self.assertTrue(self.built(lambda c, p=path: ["docs/a.md", p])[1], path)
+
+    def test_scripts_and_docs_only_do_not(self):
+        t, rel = self.built(lambda c: ["scripts/loop.py", "docs/areas/workflow.md", "tests/x.cs"])
+        self.assertFalse(rel)
+        real, L.commit_files = L.commit_files, lambda c: ["scripts/loop.py"]
+        try:
+            act = L.action(t, self.RND)
+        finally:
+            L.commit_files = real
+        self.assertNotIn("skill release", act)
+        self.assertIn("tasks.py evidence", act)
+
+    def test_any_plugin_commit_among_several_releases(self):
+        files = {"a": ["scripts/x.py"], "b": ["src/Plugin.cs"]}
+        t = task("T-0001", area="plugin", commits=["a", "b"])
+        self.assertTrue(L.needs_release(t, files.get))
+
+    def test_unknown_commit_or_none_still_releases(self):
+        self.assertTrue(self.built(lambda c: None)[1])
+        self.assertTrue(L.needs_release(task("T-0001", area="plugin", commits=[]), lambda c: []))
+
+    def test_other_areas_never_release(self):
+        self.assertFalse(L.needs_release(task("T-0001", area="site", commits=["a"]), lambda c: ["src/x.cs"]))
+
+    def test_real_git_resolves_a_commit(self):
+        sha = L.subprocess.run(["git", "log", "-1", "--format=%H", "--", "scripts/loop.py"], cwd=T.ROOT,
+                               capture_output=True, text=True).stdout.strip()
+        if sha:
+            self.assertIn("scripts/loop.py", L.commit_files(sha))
+        self.assertIsNone(L.commit_files("0" * 40))
+
+
 class End(unittest.TestCase):
     def setUp(self):
         self.ts = [task("T-0001", area="site", checker=True), task("T-0002")]
