@@ -276,6 +276,10 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   longer". Inferring from the game's code is fine. Answers are clean,
   concise and informative, a short breakdown a runner can follow up on,
   not one mega-message.
+  Not known: something "nearby" is shared only when it is relevant and
+  benefits the question asked. A possible cause for something unexplained
+  only from code, and only when it is certain the code is related to that
+  context - otherwise none (author, 2026-10-08).
 - **Tone follows the community** (author, 2026-10-08): once the bot learns
   from the Discord history, informal knowledge (inside jokes, memes about
   and in the community) is written and usable; when the context is right
