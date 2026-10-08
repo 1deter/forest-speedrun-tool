@@ -230,5 +230,11 @@ accent; a toast when an update is out; `UiText.Note` turns an explanation
 under a control into that row's tooltip (13 notes in Settings, Practice,
 Inventory, Deaths - statuses stay `DrawDim`); the window panel opaque.
 Left: the remaining `DrawDim` explanations (Practice `FullLoadHint` /
-`QuickLoadHint`, Debug views, Map, 100%), the cursor re-check, then merge +
-release (the author's call).
+`QuickLoadHint`, Debug views, Map, 100%), then merge + release (the
+author's call).
+**2026-10-08: main merged in; the cursor (item 3) fixed** (T-0024): the
+author's steps were F2, Esc, Settings, F2 - the pause menu opened while the
+window was up, and the close re-locked the mouse and released the player
+lock under the menu. `CursorController.Release` and
+`ModuleHost.ReleasePlayerLock` now leave both to the game while the pause
+menu is open (author confirmed in game).
