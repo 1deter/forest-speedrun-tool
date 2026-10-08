@@ -55,11 +55,6 @@ namespace ForestOverlay.Core
         private bool _active;
         private bool _hadLockedCursor = true;
 
-        // True when we found the game's switch. When false we fall back to
-        // writing Cursor.* directly, which is imperfect (see above) but is
-        // better than a window nobody can click at all.
-        public bool UsingGameFlag { get { return _isMouseLockedProp != null; } }
-
         public CursorController(ManualLogSource log)
         {
             _log = log;

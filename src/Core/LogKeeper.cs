@@ -37,9 +37,6 @@ namespace ForestOverlay.Core
         /// The folder holding the kept logs (the report zips it).
         public string Folder { get { return _folder; } }
 
-        /// This session's copy.
-        public string CurrentFile { get { return _target; } }
-
         public LogKeeper(string bepinexRoot, string configDir, int keepPrevious, ManualLogSource log)
         {
             _log = log;

@@ -48,9 +48,6 @@ namespace ForestOverlay.Game
         private static readonly Color PlacedColour = new Color(0.55f, 0.8f, 1f, 0.6f);
         private static readonly Color BuiltColour = new Color(1f, 0.72f, 0.3f, 0.9f);
 
-        public int BuildingCount { get { return _buildings; } }
-        public int MarkerCount { get { return _markCount; } }
-
         /// The run whose buildings and markers are drawn; null clears.
         /// Allocates only when the run changes.
         public void SetSource(Attempt a)

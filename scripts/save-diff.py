@@ -70,9 +70,6 @@ def main():
             bytype.setdefault(k[0], []).append((k[1], p, va, vb))
     if out_noise is not None:
         open(sys.argv[3], 'w').write('\n'.join(sorted(set(out_noise))) + '\n')
-    def objname(n):
-        o = an.get(n) or bn.get(n)
-        return (o.get('Name') if o else None) or n
     print('added in B: %d, removed in B: %d' % (len(added), len(removed)))
     from collections import Counter
     for label, lst in (('added', added), ('removed', removed)):

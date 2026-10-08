@@ -183,7 +183,14 @@ namespace ForestOverlay.Game
                         _scene.width + "x" + _scene.height + ", " + _scene.depth + "-bit)");
                 }
             }
-            catch (Exception ex) { Lifecycle.Fail("LatePass.OnRenderImage", ex); }
+            catch (Exception ex)
+            {
+                Lifecycle.Fail("LatePass.OnRenderImage", ex);
+                // A throw before the Blit would leave this frame unwritten (a
+                // second Blit after a late throw is harmless).
+                try { Graphics.Blit(src, dst); }
+                catch (Exception) { }
+            }
         }
 
         /// Null when the late draw can run on this frame, else why not.
