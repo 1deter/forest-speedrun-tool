@@ -217,14 +217,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   author's channel untick had never been saved (rev 1 still ticks The
   Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
   the nature guide map - answered, maks's route, registration research).
-- **Redesign (2026-10-08):** main merged into `ui-redesign` (even with
-  v0.24.259 + its own commits); T-0024 built + checker-accepted (F2 over
-  the pause menu: cursor and player lock left to the game, author
-  confirmed). The author's game runs the branch build by hand-deploy
-  (author-approved); their v0.24.259 is `BepInEx/plugins/ForestOverlay.dll.mine`.
+- **Redesign (2026-10-08):** main (v0.24.260) merged into `ui-redesign`
+  (pushed). T-0024 built + checker-accepted. **T-0226 built +
+  checker-accepted** (cc3bab7): a *Developer* tab (last: bridge,
+  benchmarks, experimental, TAS, memory census, dumps), Settings as folds
+  (Keys, Info box, Performance, Loads and savestates), Debug views ->
+  *Views*, the Deaths tab's *Reload save on death* toggle gone (fallback
+  always reloads) - old -> new place table in `tasks/notes/T-0226.md`;
+  **not seen in game** (the game runs v0.24.260; a branch build there
+  needs the author's OK to hand-deploy). Follow-ups T-0240 (settings never
+  contradict, tool-wide), T-0241 (QA tab out at the public release).
   Next on the branch: T-0018..T-0022 (author present), then T-0025 (QA,
-  merge, release - its notes carry the checker's repeat list). The branch
-  needs main's v0.24.260 merged in (T-0222) before its next build.
+  merge, release - its notes carry both checkers' lists).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
