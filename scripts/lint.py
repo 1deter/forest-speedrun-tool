@@ -9,7 +9,8 @@ Every failure prints WHAT / WHY / FIX, so the fix is in the message.
 
 The baselined heuristics (a fixed 20 px GUI.Label with variable text, an
 allocation in an OnGUI / DrawTab body, a Resources.FindObjectsOfTypeAll
-call site, a player MoveTo without AreaKeeper.ForTeleport) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
+call site, a player MoveTo without AreaKeeper.ForTeleport, a config write
+right after a slider / text field) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
 scripts/lint-baseline.txt and only new ones fail (author, 2026-10-07).
 Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
@@ -706,9 +707,39 @@ def moveto_hits(path, text):
     return out
 
 
+SLIDER_OR_FIELD = re.compile(r"\bGUI(?:Layout)?\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+OTHER_CONTROL = re.compile(r"\bGUI(?:Layout)?\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+CONFIG_WRITE = re.compile(r"\.Value\s*=(?!=)")
+# A write that waits for the value to settle: a timer, or the mouse release.
+SETTLED = re.compile(r"MouseUp|unscaledTime|realtimeSinceStartup|_writeAt|[Ss]ettle|[Dd]ebounce")
+
+
+def cfgwrite_hits(path, text):
+    """A ConfigEntry .Value write in the lines right after a slider / text field call, with nothing that waits for the
+    value to settle (gotcha 60, T-0129): each write saves the whole config file (86 ms), once per drag step / keystroke.
+    The window runs to the next GUI control or method signature, at most 12 lines."""
+    lines = text.splitlines()
+    code = code_lines(text)
+    out = []
+    for i, (n, c) in enumerate(code):
+        if not SLIDER_OR_FIELD.search(c):
+            continue
+        window = [code[i]]
+        for j in range(i + 1, min(i + 13, len(code))):
+            if OTHER_CONTROL.search(code[j][1]) or METHOD_SIG.match(code[j][1]):
+                break
+            window.append(code[j])
+        if any(SETTLED.search(cc) for _, cc in window):
+            continue
+        for k, cc in window:
+            if CONFIG_WRITE.search(cc):
+                out.append(("cfgwrite", path, k, lines[k - 1].strip()))
+    return out
+
+
 def source_hits(path, text):
     """The baselined source-text rules for one src/ file."""
-    return findall_hits(path, text) + moveto_hits(path, text)
+    return findall_hits(path, text) + moveto_hits(path, text) + cfgwrite_hits(path, text)
 
 
 def ui_hits(root=ROOT):
@@ -745,6 +776,11 @@ UI_TEXT = {
                "surface lit like a cave (gotcha 34)",
                "call string area = _areas.ForTeleport(dest) before MoveTo, as Go and the bridge's tp do; a restore or "
                "pin that stays in one area: python scripts/lint.py --update-baseline"),
+    "cfgwrite": ("a ConfigEntry .Value write right after a slider / text field",
+                 "setting .Value saves the whole config file (86 ms): on every drag step or keystroke that is a hitch (gotcha 60)",
+                 "keep the value in the module while it changes and write once it settles (a 0.5 s timer after the last change, "
+                 "as the splits opacity slider does; a drag: on mouse release); a false positive (a click, not a drag): "
+                 "python scripts/lint.py --update-baseline"),
 }
 
 

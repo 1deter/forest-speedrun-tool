@@ -607,5 +607,64 @@ class MoveTo(unittest.TestCase):
         self.assertEqual(L.moveto_hits("src/Game/PlayerRef.cs", "public bool MoveTo(Vector3 position, Quaternion rotation)\n{\n}\n"), [])
 
 
+CFG_SRC = """class M {
+    float Bad(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (op != Opacity) _opacityCfg.Value = op;
+        return y;
+    }
+    string BadText(float y)
+    {
+        string t = GUI.TextField(new Rect(0, y, 90, 22), _name);
+        if (t != _name) { _name = t; _nameCfg.Value = t; }
+        return t;
+    }
+    float Settled(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (op != Opacity) { _now = op; _writeAt = Time.unscaledTime + 0.5f; }
+        if (Time.unscaledTime > _writeAt) _opacityCfg.Value = _now;
+        return y;
+    }
+    float OnRelease(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (Event.current.type == EventType.MouseUp) _opacityCfg.Value = op;
+        return y;
+    }
+    void Toggle(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        bool on = GUI.Toggle(new Rect(0, y, 90, 16), _on.Value, "x");
+        if (on != _on.Value) _on.Value = on;
+        if (a == b) c = d;
+    }
+}
+"""
+
+
+class CfgWrite(unittest.TestCase):
+    def test_write_on_every_change_hits(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("cfgwrite", 5), ("cfgwrite", 11)])
+
+    def test_only_the_unsettled_writes_hit(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        self.assertEqual(sorted(set(h[2] for h in hits)), [5, 11])
+
+    def test_fails_with_fix_text_and_baseline_allows_it(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        out = text(L.check_ui(hits, {})[0])
+        self.assertIn("ERROR: a ConfigEntry .Value write right after a slider / text field in src/Modules/M.cs:5", out)
+        self.assertIn("gotcha 60", out)
+        self.assertIn("FIX: keep the value in the module while it changes and write once it settles", out)
+        self.assertEqual(L.check_ui(hits, {L.baseline_key(h): 1 for h in hits}), ([], 0))
+
+    def test_comment_is_not_a_write(self):
+        src = "void A()\n{\n    float v = GUI.HorizontalSlider(r, x, 0, 1);\n    // cfg.Value = v;\n}\n"
+        self.assertEqual(L.cfgwrite_hits("m.cs", src), [])
+
+
 if __name__ == "__main__":
     unittest.main()
