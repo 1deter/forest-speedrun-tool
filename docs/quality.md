@@ -42,10 +42,10 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Bridge, e2e and QA | B | A | A | B | A | T-0147 | 2026-10-07 |
 | Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
-| Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0134, T-0135 | 2026-10-07 |
+| Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
-| Harness | B | A | B | B | B | T-0147, T-0123 | 2026-10-07 |
+| Harness | B | A | B | B | B | T-0147 | 2026-10-08 |
 
 Lowest first: Savestates, Practice, Performance and loads, TAS and
 trajectory, Dev tools, Site maps and 3D world, Bot (C).
@@ -295,8 +295,9 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
   together; workflow.md is the working copy.
 - Stability **B**: `test_agent_cost.py` and `test_watch_deploy.py` pass
   locally, CI never runs them (T-0147); `test_audit.py` runs in CI.
-- Gaps **B**: thirteen gotchas still wait on their check (T-0123..T-0135; T-0122 done, v0.24.251);
-  Stage A ran once (R-0001); Stage B not built (T-0016); the weekly
+- Gaps **B**: every checkable gotcha has its check (T-0123..T-0135, 2026-10-08;
+  two plugin gaps the new lints baselined: T-0192, T-0193); Stage A ran
+  twice (R-0001, R-0002); Stage B not built (T-0016); the weekly
   cleanup and monthly review (T-0014) are new - the first review has not
   run.
 

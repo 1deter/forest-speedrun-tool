@@ -265,7 +265,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`). [check: pre_tool.py warning, lint.py check_mojibake]
 19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs. [judgement]
 28. **Compare both sides the same way** - same dedup and filters before pairing lists. [judgement]
-95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled"). [check: T-0133]
+95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled"). [check: ChildProcessTests]
 97. **Push main only after the checker accepts** - a merged branch rides along with any push, and a push deploys. [judgement]
 98. **Commit the contract before spawning the maker** - a worktree branches from HEAD. [judgement]
 99. **Never search a whole drive or the home folder** - give agents absolute paths; a `find /` crawled 22 min after its agent finished. [check: pre_tool.py wide_search]
