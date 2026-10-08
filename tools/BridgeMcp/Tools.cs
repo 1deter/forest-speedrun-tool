@@ -36,7 +36,7 @@ namespace ForestOverlay.BridgeMcp
         }
 
         public const string Instructions =
-            "Drives The Forest (running, with ForestOverlay's Settings -> Test bridge on) through the live test bridge: " +
+            "Drives The Forest (running, with ForestOverlay's Developer -> Test bridge on) through the live test bridge: " +
             "each tool writes bridge commands to in.txt and returns the game's replies from out.txt. " +
             "Targets: #<handle> (printed by every listing; valid for this launch only), player, camera, static:<Type>, " +
             "or a GameObject name or path (BepInEx_Manager is the plugin: BepInEx_Manager OverlayPlugin._host...). " +

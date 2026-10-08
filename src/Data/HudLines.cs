@@ -96,7 +96,7 @@ namespace ForestOverlay.Data
             L("debugview", "Cam", "ShowFreecam", "Freecam",
               "FREECAM while the free camera is on."),
             L("debugview", "Flight", "ShowTrajectory", "Trajectory preview",
-              "Where you come down (distance, time, speed) while the trajectory preview (Debug views) is on."),
+              "Where you come down (distance, time, speed) while the trajectory preview (Developer tab, Experimental) is on."),
             L("debugview", "Boost", "ShowBoostPreview", "Bomb boost preview",
               "The piled-up speed and distance in the pause menu during a knockback, while the trajectory preview is on."),
             L("dumps", "Dump", "ShowDumps", "Dump status",

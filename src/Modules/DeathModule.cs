@@ -274,10 +274,8 @@ namespace ForestOverlay.Modules
             s.PracticeOn = _runs != null && _runs.Enabled;
 
             // The fallback when the choice cannot apply is always a reload
-            // (T-0226: the separate "Reload save on death" toggle - default
-            // on - set the same thing twice; the game's own death is its own
-            // choice). The old Deaths.QuickLoadOnDeath key is no longer read.
-            s.ReloadOn = true;
+            // (DeathPlan; T-0226 removed the separate toggle, the old
+            // Deaths.QuickLoadOnDeath key is no longer read).
             s.ReloadOnCapture = _quickLoadCaptureCfg.Value;
             s.ReloadInBoss = _quickLoadBossCfg.Value;
             s.SlotKnown = slotKnown;

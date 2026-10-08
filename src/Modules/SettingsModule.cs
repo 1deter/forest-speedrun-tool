@@ -322,7 +322,7 @@ namespace ForestOverlay.Modules
                 HotkeyMap.Binding b = binds[i];
                 float y = top + i * RowHeight;
 
-                GUI.Label(new Rect(4, y, content.width - 244f, RowHeight), b.Description, _labelStyle);
+                GUI.Label(new Rect(12, y, content.width - 252f, RowHeight), b.Description, _labelStyle);
 
                 HotkeyMap.Binding clash = map.Conflict(b.Key, b);
                 if (clash != null)

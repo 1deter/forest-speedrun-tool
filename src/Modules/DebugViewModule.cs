@@ -164,12 +164,12 @@ namespace ForestOverlay.Modules
             ApplyFilters();
 
             _profilerExtraCfg = Ctx.Config.Bind("Diagnostics", "GameProfilerExtra", "",
-                "Extra game methods the game profiler (Debug views) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
+                "Extra game methods the game profiler (Developer tab) times: \"Type::Method\" or \"Type::*\", comma-separated. " +
                 "Read when the profiler is switched on.");
             _profiler = new GameProfiler(Ctx.Log, OverlayPlugin.PluginGuid);
 
             _allocAtStartupCfg = Ctx.Config.Bind("Diagnostics", "AllocationTrackerAtStartup", false,
-                "Install the allocation tracker (Debug views) when the game starts, so every allocation is seen - " +
+                "Install the allocation tracker (Developer tab) when the game starts, so every allocation is seen - " +
                 "a small cost on each allocation for the whole session. Off: it installs when first switched on and " +
                 "misses plain objects from code the game already ran.");
             if (_allocAtStartupCfg.Value) AllocationTracker.Install(Ctx.Log, true);
