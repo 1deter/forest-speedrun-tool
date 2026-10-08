@@ -137,8 +137,11 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 90
+    # Its own group: in the subset's group (cancel-in-progress) a push
+    # cancelled a running full eval (2026-10-08, run 37786044535). The two
+    # use different models (DeepSeek / free Gemini), so they may overlap.
     concurrency:
-      group: bot-eval
+      group: bot-eval-manual
       cancel-in-progress: false
 
     steps:
