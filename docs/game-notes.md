@@ -792,6 +792,25 @@ state, not scenes (areas: `same as at capture`).
   The box's `EnterEndgame` (Player registry) reaches
   `LocalPlayer.SetInEndGame` through an `EventListener` on
   `player/ControllerObjects` (and a snow-cave artifact listener).
+- **ExitEndgame unloads the endgame, 2 s later** (bridge, 2026-10-08,
+  T-0151). `LoadEndgame`'s `_onCrossingBackwards` has one persistent call,
+  `SendEvent` on its child emitter `ExitEndgame` (Player registry); an
+  `EventListener` on `LoadEndgame` itself (event `ExitEndgame`) calls
+  `DelayedUnload.BeginDelay` (`DoAfter`, `_delay` 2), whose callback is
+  `SceneLoadTrigger.ForceUnload` -> `UnloadScene` (`endgame_streaming`
+  unloaded, then `UnloadUnusedAssets` + `GC.Collect`). So sending it with
+  the player still standing in the endgame drops them through the void
+  (~55 m/s, y -4100 after 75 s, no death). IL: `ForceUnload`'s only code
+  callers are `PlayerStats.KillPlayer` and `PlayerRespawnMP.Respawn`.
+- **The red elevator's lower stop is outside every section's renderers
+  once the car has gone up.** At the stop (-714.8, -433.3, 967) the only
+  `AreaMembers` renderers containing the spot (bounds + 2 m) are the car's
+  (`Sections/HellCorridor/Elevator_01a`, a child of the section); the ride
+  moves the car to the overlook (-542.4, 704.8, -1967.5). Car down: inside;
+  car up (`MoveToDownPosition`): outside. The floor there is
+  `Sections/HellCorridor/Collision/Collision` (BoxCollider, not a trigger,
+  layer 25 Blocker, renderer off, scene `endgame_streaming`) - a collider
+  of the section, under `Sections/HellCorridor` (`Area` + `AreaMembers`).
 
 **Held items after a Full load** (bridge + IL, 2026-09-24). After a Full
 load the inventory had the axe and lighter equipped (`RightHand` /
