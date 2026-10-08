@@ -125,8 +125,17 @@ must:
 - it works only on certain spots of the piles (about half of the spots tried), so runners use one exact spot
 - also avoids the 3.8 s death
 not:
-- claims the runners' own jump down the shaft has been reproduced
 - says landing anywhere on the bodies avoids the damage
+
+### slide-jump-spam
+question: does spamming jump help the cave 6 body slide?
+cards: fall-damage
+must:
+- no - spamming jump changes neither the damage nor where you land
+- the landing is judged before a jump can start
+- what matters is the exact line / spot
+not:
+- says spamming jump reduces or avoids the fall damage
 
 ### fall-terrain
 question: can I slide down a steep hill to avoid fall damage?

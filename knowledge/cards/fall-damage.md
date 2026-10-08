@@ -29,8 +29,20 @@ lands "on a rock, then on the hole in the bodies while spamming jump"
 [runner]. The keycard room sits under a ~25-30 m rope shaft, and its floor
 is covered with piles of bodies. Hitting the right part of a pile turns the
 fall into a short slide, and the landing is judged on the slide's slow
-contact instead of the fall [live: drops onto the piles; the runners' own
-jump from the shaft is not reproduced].
+contact instead of the fall [live: drops onto the piles, and the runners'
+own jumps done by hand].
+
+**"A rock, then the hole in the bodies"** is two slides: first the rope
+drop just before the keycard area (~33 m), where runners slide on a rock,
+then the keycard shaft onto the bodies (d.eter's reading of the guide).
+Both were done by hand with real input on 2026-10-08 [live]: every clean
+line took **no damage** (the rock 3 of 3, the bodies 2 of 2); a missed
+line on the rock was a full hard landing (52 damage).
+
+**Spamming jump does nothing.** Tries with and without jump spam on the
+same line took the same damage (none) and landed within half a metre of
+each other [live]; the game judges the landing before a jump can start
+[code]. A try that lands further on is a different line, not the jump.
 
 **It depends on the exact spot.** In a grid of 80 drops from ~20 m
 (~32 m/s measured at the impact) over the piles and the floor around them [live]:
@@ -183,8 +195,4 @@ jump until `resetAnimSpine` 1 s later (plus ~0.5 s to blend back). About
 
 ## Open questions
 
-- The runners' own Cave 6 jump down the shaft onto their spot has not been
-  reproduced with real input yet (the drops above start from a standstill
-  in the air).
-- What "spamming jump" on the way down adds: nothing in the landing check
-  reads a jump - the landing is judged before a jump can start [code].
+- None open about the Cave 6 slides since the by-hand tries (2026-10-08).

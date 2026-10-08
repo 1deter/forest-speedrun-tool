@@ -108,8 +108,10 @@ code behind it, and the stamina numbers: `crafting-and-building`.
 3. **Cave 5 -> Cave 6.** Flowers on the way - coneflowers and chicory, one
    of each per stamina mix (`crafting-and-building`),
    rocks for the endgame, files.
-4. **Cave 6 (keycard).** Fall damage avoided by landing on a rock, then on
-   the "hole in the bodies" while spamming jump (`fall-damage`). On Peaceful
+4. **Cave 6 (keycard).** Fall damage avoided by sliding on a rock at the
+   rope drop, then on the "hole in the bodies" at the keycard shaft
+   (`fall-damage`; the guide says "while spamming jump", but the jump
+   spam changes nothing - live). On Peaceful
    break the door yourself; on Normal / Hard wait for the cannibals to break
    it while blocking. Keycard 210 on a body. Two **wall climbs** (no
    sprint, scroll jump, crouch only at the top of the second). Then craft:

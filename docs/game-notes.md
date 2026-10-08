@@ -3856,10 +3856,14 @@ y -40 (~30 m) 4 of 4 cancelled, from y -30 (~40 m) 2 of 4 (34 and 60
 damage on the others). Repeating a drop from the same point gave the same
 result (deterministic). It works on specific spots of the piles, not on
 bodies in general - the runners' fixed line ("the hole in the bodies").
-Not checked: the runners' own jump from the shaft (a `tp` and a set
-velocity on the ledge are overwritten by ground movement - real input), and
-what "spamming jump" on the way down adds (nothing in `HandleLanded` reads
-a jump: it judges before a jump can start).
+**By hand (T-0204, 2026-10-08, the author's real input, health read per
+try):** the guide's "a rock, then the hole in the bodies" is two slides -
+the rope drop before the keycard area (top (1254.9, 9.2, 436.0), ~33 m):
+3 clean lines 0 damage, landing ~(1262-1264, -24.6, 476-483), a missed
+line 52; the keycard shaft (ledge (1269.7, -36.6, 562.1)): 2 clean slides
+0 damage, landing ~(1282, -70.4, 608-610). Jump spam changes nothing: spam
+and no-spam on the same line landed 0.5 m apart, both 0 damage (as
+`HandleLanded` says - it judges before a jump can start).
 
 ## How to extend this file
 
