@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 666 log calls.
+216 prefixes from 669 log calls.
 
 ## `Aerial capture`
 
@@ -1851,6 +1851,9 @@ Written by RunUploadModule.cs; info / warning.
 - warning `Upload: register failed: <..>.`
 - info `Upload: registered on <baseUrl> as '<name>' (<id>).`
 - warning `Upload: runner <id> is registered already (409); uploads paused.`
+- warning `Upload: start state not queued: <ex.Message>`
+- info `Upload: the site has no start state for '<b.Segment.Id>' - not sent: <why>.`
+- info `Upload: the site has no start state for '<b.Segment.Id>' - queued it.`
 - warning `Upload: token refused (401); uploads paused. <PendingCount> run file(s) wait.`
 
 ## `WeatherKeeper`
@@ -1868,7 +1871,7 @@ Meaning: Spots from the website: added / updated, skipped with a reason, or the 
 Written by CommunityModule.Website.cs; info / warning.
 
 - warning `Website spots: '<entry.Spot.Id>': <why>.`
-- info `Website spots: <..> '<entry.Spot.Id>'.`
+- info `Website spots: <..> '<entry.Spot.Id>'<..>.`
 - warning `Website spots: <SiteSpots.SegmentFile> not written: <ex.Message>`
 - warning `Website spots: <SiteSpots.SegmentFile> unreadable: <ex.Message>`
 - info `Website spots: <list.Count> listed.`

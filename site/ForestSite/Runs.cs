@@ -49,12 +49,18 @@ public sealed class Runs
         public readonly List<string> Skipped = new();
         /// A new PB on an announced spot (community / run spot); null when none.
         public PbFound Pb;
+        /// The route's start state: "stored" (this upload's was kept),
+        /// "wanted" (the route has a startstate line and the site has no
+        /// data - the plugin sends it), null (none needed or already kept).
+        public string StartState;
     }
 
     public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
-    /// the runner `runnerId` (their token). The start state is not kept.
+    /// the runner `runnerId` (their token). A [startstate] is kept for the
+    /// route when the route has none yet and its data hash is the
+    /// segment's `startstate` line (T-0194).
     public UploadResult Upload(string runnerId, string text)
     {
         var res = new UploadResult();
@@ -101,6 +107,7 @@ public sealed class Runs
             seg.Notes = ParseBlock(holder.Value.block).Notes;
         }
         _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, owner, copy);
+        KeepStartState(b, seg, route, res);
         string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
         float previousBest = RunnerBest(seg.Id, route, runnerId);
         var fresh = new List<(float duration, bool flagged, long id, string name)>();
@@ -129,6 +136,27 @@ public sealed class Runs
             res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest);
         }
         return res;
+    }
+
+    /// The first matching state a route is sent is the one it keeps: the
+    /// route's fingerprint folds in the state's hash, so it cannot change
+    /// under the same route.
+    private void KeepStartState(SegmentBundle b, Segment seg, string route, UploadResult res)
+    {
+        if (seg.StartState.Length == 0 || _store.HasStartState(seg.Id, route)) return;
+        if (b.StartState != null)
+        {
+            SavestateFile f = SavestateFile.Parse(b.StartState, out string error);
+            if (f == null) res.Skipped.Add("start state: " + error);
+            else if (Segment.HashText(f.Data) != seg.StartState) res.Skipped.Add("start state: not the one the route was timed from");
+            else
+            {
+                _store.SaveStartState(seg.Id, route, b.StartState);
+                res.StartState = "stored";
+                return;
+            }
+        }
+        res.StartState = "wanted";
     }
 
     /// A runner's best on a route so far (runs under review included, hidden
@@ -316,7 +344,8 @@ public sealed class Runs
         return SiteSpots.Write(list);
     }
 
-    /// One spot's current route as a .foseg (segment only), or null.
+    /// One spot's current route as a .foseg (the segment and its start
+    /// state when the site has one), or null.
     public string SpotFoseg(string segmentId)
     {
         List<RouteRow> routes = Routes(segmentId);
@@ -325,7 +354,11 @@ public sealed class Runs
         Segment seg = ParseBlock(routes[0].Block);
         seg.Name = routes[0].Name;
         seg.Category = routes[0].Category;
-        return new SegmentBundle { Segment = seg, Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"), PluginVersion = "website" }.Write();
+        return new SegmentBundle
+        {
+            Segment = seg, StartState = _store.StartStateText(segmentId, routes[0].Route),
+            Exported = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"), PluginVersion = "website",
+        }.Write();
     }
 
     /// Each runner's best on one route, fastest first, for the plugin's

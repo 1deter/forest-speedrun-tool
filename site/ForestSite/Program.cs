@@ -278,7 +278,8 @@ var api = app.MapGroup("/api");
 api.MapGet("/spots", () => Results.Json(runs.Spots())).RequireRateLimiting("read");
 
 // The plugin's "Website spots" (src/Data/SiteSpots): the list as text, one
-// spot's segment as a .foseg. Read-only, no start state (the site keeps none).
+// spot's segment as a .foseg, with the route's start state when the site has
+// one (T-0194). Read-only.
 api.MapGet("/spots.txt", () => Results.Text(runs.SpotsText(), "text/plain; charset=utf-8")).RequireRateLimiting("read");
 
 api.MapGet("/spots/{id}/foseg", (string id) =>
@@ -333,7 +334,7 @@ api.MapPost("/runs", async (HttpRequest req) =>
     if (res.Pb is { } pb)
         try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId)), runner); }
         catch (Exception ex) { app.Logger.LogWarning("Discord webhook: {m}", ex.Message); }
-    return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped });
+    return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped, startstate = res.StartState });
 }).RequireRateLimiting("upload");
 
 // A runner deleting their own spot (the game's Practice -> Share ->

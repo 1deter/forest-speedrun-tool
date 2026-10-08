@@ -28,7 +28,11 @@ go to decisions.md; feature detail goes here.
   `/api/spots/{id}/{route}/board.txt` (each runner's best as text for the
   plugin, `Data/SiteBoard`; runs under review left out);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
-  (a `.foseg` with `[attempt]`s, Bearer token), `POST /api/submissions`
+  (a `.foseg` with `[attempt]`s, Bearer token; answers `startstate:
+  "wanted"` when the route has a `startstate` hash and the site no data -
+  the plugin re-sends the bundle with its `[startstate]`, kept per route
+  in `<data>/startstates/` only when its data hash matches, served by
+  `/api/spots/{id}/foseg`; T-0194), `POST /api/submissions`
   (-> `{id, replaced}`); `/api/admin/...` with `X-Admin-Token` (own rate
   limit, 120 / min): `check` (`{name, owner}`), `submissions[/{id}[/{status}]]`,
   `flagged`, `runs/{id}/hide|show|unflag`, `DELETE runs/{id}`, `runners`,

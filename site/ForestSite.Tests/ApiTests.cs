@@ -154,6 +154,52 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task StartState_KeptPerRoute_WhenItsHashMatches()
+    {
+        var state = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data 1" };
+        string stateText = state.Write();
+        Segment seg = TestSegment();
+        seg.StartState = Segment.HashText(state.Data);
+        string ta = await Register(A);
+
+        // Uploaded without its state: the site asks for it.
+        var first = await (await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("wanted", first["startstate"]?.GetValue<string>());
+        Assert.Null(SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null).StartState);
+
+        // Another state than the route was timed from is refused.
+        var wrong = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data 2" };
+        var b = new SegmentBundle { Segment = seg, Exported = "now", PluginVersion = "test", StartState = wrong.Write() };
+        b.Attempts.Add(RunText(seg, A, 10f, 4f, 1));
+        var refused = await (await Upload(ta, b.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("wanted", refused["startstate"]?.GetValue<string>());
+        Assert.Contains(refused["skipped"].AsArray(), x => x.GetValue<string>().Contains("start state"));
+
+        // The matching one is kept and comes with the spot's .foseg.
+        b.StartState = stateText;
+        var stored = await (await Upload(ta, b.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("stored", stored["startstate"]?.GetValue<string>());
+        SegmentBundle got = SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null);
+        Assert.Equal(stateText, got.StartState);
+        Assert.Equal(seg.RouteFingerprint(), got.Segment.RouteFingerprint());
+
+        // Kept: later uploads are not asked again.
+        var later = await (await Upload(ta, Bundle(seg, RunText(seg, A, 9f, 4f, 2)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(later["startstate"]?.GetValue<string>());
+
+        // A teleport-only spot is never asked for one.
+        Segment plain = TestSegment("s-0123456789cd");
+        var p = await (await Upload(ta, Bundle(plain, RunText(plain, A, 10f, 4f, 3)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(p["startstate"]?.GetValue<string>());
+
+        // Deleting the spot takes its state with it.
+        var del = new HttpRequestMessage(HttpMethod.Delete, "/api/spots/" + seg.Id);
+        del.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ta);
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(del)).StatusCode);
+        Assert.Empty(Directory.GetFiles(Path.Combine(_data, "startstates")));
+    }
+
+    [Fact]
     public async Task OwnersRenameReachesTheSite_OthersDoNot()
     {
         Segment seg = TestSegment();

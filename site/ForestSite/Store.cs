@@ -15,6 +15,7 @@ namespace ForestSite;
 //   <data>/forest.db
 //   <data>/runs/<segment id>/<run id>.run.gz
 //   <data>/submissions/<id>.foseg.gz
+//   <data>/startstates/<sha of segment id + route>.fosave.gz
 // ------------------------------------------------------------------
 public sealed class Store
 {
@@ -302,6 +303,15 @@ ON CONFLICT DO NOTHING RETURNING id";
             using var r = cmd.ExecuteReader();
             while (r.Read()) ids.Add(r.GetInt64(0));
         }
+        var routeIds = new List<string>();
+        using (var c = Open())
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = "SELECT route FROM routes WHERE segment_id = $s";
+            cmd.Parameters.AddWithValue("$s", segmentId);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) routeIds.Add(r.GetString(0));
+        }
         int routes = Update("DELETE FROM routes WHERE segment_id = $s", ("$s", segmentId));
         int runs = Update("DELETE FROM runs WHERE segment_id = $s", ("$s", segmentId));
         if (routes == 0 && runs == 0) return (0, "no such spot");
@@ -313,8 +323,34 @@ ON CONFLICT DO NOTHING RETURNING id";
         string dir = Path.Combine(_dir, "runs", SafeName(segmentId));
         try { if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir); }
         catch (IOException) { }
+        foreach (string route in routeIds)
+        {
+            string path = StartStatePath(segmentId, route);
+            if (File.Exists(path)) File.Delete(path);
+        }
         return (runs, null);
     }
+
+    // --- start states ---------------------------------------------------------
+
+    // A route's start state (.fosave text), kept so a runner spot downloaded
+    // from the site restores like a community one (author, 2026-10-08,
+    // T-0194). One per route: the route's fingerprint folds in the state's
+    // hash, so a route has exactly one state. Named by a hash of the
+    // segment id and route - SafeName folds look-alike ids together.
+    private string StartStatePath(string segmentId, string route) =>
+        Path.Combine(_dir, "startstates", Hash(segmentId + "|" + route).Substring(0, 32) + ".fosave.gz");
+
+    public bool HasStartState(string segmentId, string route) => File.Exists(StartStatePath(segmentId, route));
+
+    public string StartStateText(string segmentId, string route)
+    {
+        string path = StartStatePath(segmentId, route);
+        return File.Exists(path) ? ReadGz(path) : null;
+    }
+
+    public void SaveStartState(string segmentId, string route, string text) =>
+        WriteGz(StartStatePath(segmentId, route), text);
 
     // --- admins -------------------------------------------------------------
 
