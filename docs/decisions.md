@@ -268,6 +268,18 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   clips, and their deep technical reasoning and why they work and what
   an optimal version of this tech would look like". **Answers of the
   highest quality, so a runner ends with full understanding.**
+- **Answer from proof, or say it is not known** (author, 2026-10-08): the
+  bot either has the fact - backed by research or code that proves it -
+  and answers, or it does not, says so, and the question goes to the
+  research queue. No half-answers: "otherwise it's going to be spitting
+  out half-answers and the learning process is going to take a lot
+  longer". Inferring from the game's code is fine. Answers are clean,
+  concise and informative, a short breakdown a runner can follow up on,
+  not one mega-message.
+- **Tone follows the community** (author, 2026-10-08): once the bot learns
+  from the Discord history, informal knowledge (inside jokes, memes about
+  and in the community) is written and usable; when the context is right
+  the bot is "memey", laid back and banters about community members.
 - **Follow-up questions about previous answers** (author): a runner
   replies to an answer and the bot carries on the conversation.
 - **A regular bot** (author: "i would really just prefer a regular bot"):
