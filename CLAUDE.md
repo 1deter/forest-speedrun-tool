@@ -206,10 +206,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Answered 2026-10-08** (ready to build): T-0194 runner spots keep
   their start state; T-0207 try the prompt proposal (branch
   `t-0207-prompt-proposal`); T-0198 / T-0203 perf switches (no sign-off
-  needed - docs/decisions.md *Plugin*). **Present at the next session
-  start as a list of decisions** (author's ask): T-0109 / T-0111 / T-0112
-  (run mode), T-0212 (lab-skip restarts), and the author-present T-0024,
-  T-0204, T-0210.
+  needed - docs/decisions.md *Plugin*); T-0109 / T-0111 / T-0112 (run
+  mode), T-0212 (lab-skip restarts). T-0210 closed (leftover redesign HUD
+  position). Bot review 2026-10-08 (3): the trigger counts uses of the bot,
+  not chat; T-0220 moves it to the answer log (runners `/ask` in the
+  speedrun server's general chat, which the bot can't read - the author
+  asks its admins).
+- **Next session (author, 2026-10-08): the redesign.** Merge main into
+  `ui-redesign` (396 commits behind), rebuild, author-approved deploy into
+  the game, then T-0024 the cursor re-check (author present).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
