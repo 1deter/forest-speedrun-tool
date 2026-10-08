@@ -1057,7 +1057,8 @@ reach `chooseAction`, the weighted roll `girlMutantAiManager.setAiParams`
 feeds (births 6, attack 0.5 + 5, walk forward 2 beyond 35 m). `chooseAttack`
 picks by `targetDist` alone (8 / 13 / 27 / 38 / 50 m bands).
 `chanceToDodge` checks `gettingHit` (1.3 s after a hit) first: 1 : 0.4
-attack / walk back, no 15 s lock; else dodge weight 0 for 15 s after
+attack / walk back, no 15 s lock - in the code only: live it never comes
+up, her next roll is at least 1.6 s after a hit (45 hits, 0 uses, T-0044); else dodge weight 0 for 15 s after
 `activateGirlMutant`, then 0.25 : 1. A hit -> `gotHit` -> counter after
 0.2 s (live). `SendRandomEvent` normalises its weights
 (`ActionHelpers.GetRandomWeightedIndex`, IL): the spin roll (close / mid /

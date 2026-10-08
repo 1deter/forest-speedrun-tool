@@ -105,9 +105,9 @@ to it):
 - Where keycard 242 lies.
 - The wall-side swim jump (1.5x) and wall-side swim speed.
 - Zipline exit distances by height and angle.
-- Megan: her hits' damage live, a timed fight within 35 m vs bombs, births
-  before the block, what kills the boss-room babies, weapon damage to her
-  (`megan-boss`).
+- Megan: a timed fight within 35 m vs bombs, weapon damage to her, what
+  cuts her cooldown short (`megan-boss`; hit damage, births and the
+  boss-room babies were checked live in T-0044).
 - Categories: whether a bomb without the pause menu is
   "the explosives glitch"; what the empty "Any% Bombs" board was for
   (`categories-and-rules`; questions for the moderators / runners).
