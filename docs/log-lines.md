@@ -1280,7 +1280,7 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<_segment.Id>': <..> - left the level, <where> (not saved).`
 - info `Run '<_segment.Id>': <..> - run mode ended, practice mode (F9) is off.`
 - info `Run '<_segment.Id>': aborted - restarting the spot.`
-- info `Run '<_segment.Id>': armed.`
+- info `Run '<_segment.Id>': armed after <cause> (start: <..>).`
 - info `Run '<_segment.Id>': auto-restart<..>.`
 - info `Run '<_segment.Id>': autosplit on <why> at <..>.`
 - info `Run '<_segment.Id>': checkpoint <_splits.Count> split by hand at <..>.`
