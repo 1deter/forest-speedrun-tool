@@ -356,7 +356,7 @@ namespace ForestOverlay.Modules
             _failedFromOtherSegment = _recorder.State == RunRecorder.RunState.Running &&
                                       !(s.Id == _loadedSegmentId && s.RouteFingerprint() == _armedRoute);
             LoadAttemptsFor(s);
-            ArmRun();
+            ArmRun(_autoRestarting ? "auto-restart" : "Go / F7 restart");
             _failedFromOtherSegment = false;
         }
 
@@ -383,7 +383,9 @@ namespace ForestOverlay.Modules
             _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
         }
 
-        private void ArmRun()
+        private bool _autoRestarting;   // set around the auto-restart so its arm says so
+
+        private void ArmRun(string cause)
         {
             // Priming (rather than firing) on the first evaluation is what
             // stops the start trigger going off while you are still standing
@@ -420,7 +422,7 @@ namespace ForestOverlay.Modules
             SelectReference();
             ArmSplits();
             _status = "armed: " + _segment.Name;
-            Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed.");
+            Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed after " + cause + " (start: " + _segment.Start.Describe() + ").");
         }
 
         private void CollectReferencedItemIds(Segment s)
@@ -479,8 +481,10 @@ namespace ForestOverlay.Modules
                     _recorder.State != RunRecorder.RunState.Running)
                 {
                     Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart" + (checkpoint >= 0 ? " from checkpoint " + (checkpoint + 1) : "") + ".");
+                    _autoRestarting = true;
                     if (checkpoint >= 0) RestartFromCheckpoint(checkpoint);
                     else _practice.ReturnToSpot();
+                    _autoRestarting = false;
                 }
             }
 
@@ -514,7 +518,7 @@ namespace ForestOverlay.Modules
                 _recorder.State != RunRecorder.RunState.Running)
             {
                 LoadAttemptsFor(_segment);
-                ArmRun();
+                ArmRun("segment edit");
                 _status = "segment edited - re-armed";
             }
 
@@ -781,7 +785,7 @@ namespace ForestOverlay.Modules
             ClearRunPreview();
             _status = "aborted";
 
-            if (_segment != null) ArmRun();
+            if (_segment != null) ArmRun("abort");
         }
 
         // Practice deleted a spot: if it is the armed one, the run, the

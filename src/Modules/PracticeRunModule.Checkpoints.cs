@@ -204,7 +204,7 @@ namespace ForestOverlay.Modules
                 {
                     Ctx.Log.LogWarning("Run '" + seg.Id + "': checkpoint " + (index + 1) + " not restored - " + err + ".");
                     CheckpointMessage("Checkpoint " + (index + 1) + " not restored: " + err + ".");
-                    ArmRun();
+                    ArmRun("checkpoint restore failed");
                     return;
                 }
                 ResumeFrom(st);
@@ -213,7 +213,7 @@ namespace ForestOverlay.Modules
 
         private void ResumeFrom(CheckpointState st)
         {
-            ArmRun();   // a fresh attempt on this segment and route
+            ArmRun("checkpoint restore");   // a fresh attempt on this segment and route
 
             _baseline.Load(st.Baseline);
             _splits.Clear();
