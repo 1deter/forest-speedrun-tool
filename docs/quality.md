@@ -285,7 +285,7 @@ exports the bot reads.
 
 ### Harness
 
-Paths: `scripts/{agent-cost,audit,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/audit-ignore.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md` `cloud-notes/`
+Paths: `scripts/{agent-cost,audit,cleanup,lint,log-catalogue,loop,merge-keepboth,session-start,tasks,watch-deploy}.py` `scripts/lint-baseline.txt` `scripts/audit-ignore.txt` `scripts/hooks/` `.claude/` `.githooks/` `.mcp.json` `CLAUDE.md` `docs/harness.md` `docs/quality.md` `docs/areas/workflow.md`
 
 The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
 - Verification **A**: tasks, loop, lint, hooks, session and log
