@@ -111,6 +111,7 @@ namespace ForestOverlay.Modules
             "In the pause menu during a knockback it shows the bomb boost the menu is piling up and what each more second adds. " +
             "The HUD's Flight / Boost lines show the numbers with the window closed.");
 
+        private AreaKeeper _areas;
         private Vector2 _scroll;
         private float _contentHeight = 600f;
 
@@ -135,6 +136,11 @@ namespace ForestOverlay.Modules
             _aerial.MovePlayer = to =>
             {
                 Ctx.Bridge.SyncCaveState(to);
+                // As Go and the bridge's tp: the endgame's area and flags (and a ride)
+                // outlive a plain move (gotcha 34).
+                if (_areas == null) _areas = new AreaKeeper(Ctx.Log);
+                string area = _areas.ForTeleport(to);
+                if (area.Length > 0) Ctx.Log.LogInfo("Aerial capture: " + area);
                 bool moved = Ctx.Player.MoveTo(to, Ctx.Player.Transform.rotation);
                 Ctx.Bridge.EndFall();
                 return moved;

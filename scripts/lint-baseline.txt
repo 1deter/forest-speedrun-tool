@@ -6,7 +6,6 @@ alloc	src/Modules/PracticeRunModule.cs	_compareCfg.Value = kind.ToString();   //
 alloc	src/Modules/PracticeRunModule.cs	_rowStyle = new GUIStyle(GUI.skin.label);
 alloc	src/Modules/UpdateModule.cs	y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
 alloc	src/Plugin.cs	Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
-cfgwrite	src/Modules/InventoryModule.cs	if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99) _logCapCfg.Value = cap;
 cfgwrite	src/Modules/PracticeModule.cs	f.Value = p3;
 findall	src/Game/DrawingsReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
 findall	src/Game/InventoryReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
@@ -53,7 +52,6 @@ label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf
 label20	src/Modules/PracticeRunModule.cs	GUI.Label(new Rect(150, 2, w - 160, 20), _segmentText);
 label20	src/Modules/UpdateModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
 moveto	src/Game/EndgameLoader.cs	player.MoveTo(_holdAt, _holdRotation);
-moveto	src/Modules/DebugViewModule.cs	bool moved = Ctx.Player.MoveTo(to, Ctx.Player.Transform.rotation);
 moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
 moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
 moveto	src/Modules/SavestateModule.cs	if (Ctx.Player.Found && at != Vector3.zero) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
