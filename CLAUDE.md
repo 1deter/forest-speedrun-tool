@@ -218,8 +218,8 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   confirmed). The author's game runs the branch build by hand-deploy
   (author-approved); their v0.24.259 is `BepInEx/plugins/ForestOverlay.dll.mine`.
   Next on the branch: T-0018..T-0022 (author present), then T-0025 (QA,
-  merge, release - its notes carry the checker's repeat list). New from QA:
-  T-0222 (Elevator Boost goes foggy-white after restarts, bridge).
+  merge, release - its notes carry the checker's repeat list). The branch
+  needs main's v0.24.260 merged in (T-0222) before its next build.
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
@@ -233,9 +233,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
-  (`python scripts/cleanup.py`). **Released:** v0.24.259 (T-0194: website spots keep
-  their start state, owner-only; Elevator Boost gets its state on maks's
-  next upload), nothing unreleased. Its smoke: journeys pass, Slot 1's
-  `info` rewritten - T-0214.
+  (`python scripts/cleanup.py`). **Released:** v0.24.260 (T-0222: a restore that
+  leaves the overlook sends the game's ExitOverlookArea - the outdoor sky
+  R10 off in the endgame; cause proved live, checker-accepted; the
+  in-game check of the release itself is still open), nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
