@@ -408,15 +408,6 @@ namespace ForestOverlay.Game
                          " equipIds:" + (_equipmentSlotIdsField != null));
         }
 
-        /// The game's own count field. Kept for comparison only - it is
-        /// not what the HUD shows.
-        public int ReportedCount()
-        {
-            if (_inventory == null || _possessedCountField == null) return -1;
-            try { return (int)_possessedCountField.GetValue(_inventory); }
-            catch (Exception) { return -1; }
-        }
-
         // ------------------------------------------------------------------
         /// Refills Stacks from the live inventory. Call from Tick on a
         /// throttle, never from OnGUI.
