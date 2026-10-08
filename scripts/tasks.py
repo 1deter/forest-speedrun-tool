@@ -37,6 +37,8 @@ import os
 import re
 import subprocess
 import sys
+import time
+from contextlib import contextmanager
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TASKS = os.path.join(ROOT, "tasks", "tasks.jsonl")
@@ -117,6 +119,52 @@ def load(path=TASKS):
         return []
     with open(path, encoding="utf-8") as f:
         return parse(f.read())
+
+
+LOCK_TIMEOUT = 20.0   # seconds a writer waits for the lock before it fails
+LOCK_STALE = 60.0     # a lock file older than this belongs to a dead process
+
+
+@contextmanager
+def locked(path=TASKS, timeout=None, stale=None):
+    """Exclusive lock for a read-modify-write of `path`: a `<path>.lock` file made with
+    O_CREAT|O_EXCL (works on Windows and Linux). Retries briefly; a lock older than
+    `stale` seconds is taken over. Hold it from load to save."""
+    timeout = LOCK_TIMEOUT if timeout is None else timeout
+    stale = LOCK_STALE if stale is None else stale
+    lock = path + ".lock"
+    os.makedirs(os.path.dirname(lock), exist_ok=True)
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode("ascii"))
+            os.close(fd)
+            break
+        except OSError:
+            if not os.path.exists(lock):
+                if time.time() > deadline:  # not a held lock (a permission error, say)
+                    raise
+                time.sleep(0.02)
+                continue
+            try:
+                if time.time() - os.path.getmtime(lock) > stale:
+                    os.remove(lock)
+                    continue
+            except OSError:
+                pass  # the holder released it between our checks
+            if time.time() > deadline:
+                raise TaskError("%s is locked" % os.path.basename(path),
+                                "another tasks.py / loop.py / bump.py process holds %s" % os.path.basename(lock),
+                                "retry in a moment; delete %s if no such process is running" % lock)
+            time.sleep(0.02)
+    try:
+        yield
+    finally:
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
 
 
 def save(tasks, path=TASKS, view=VIEW):
@@ -800,6 +848,17 @@ def main(argv=None):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
 
+    try:
+        if a.cmd in ("list", "next", "show", "brief", "stats", "check", "qa-todo"):
+            return run(a)
+        with locked():  # every other command ends in save(): load -> change -> save is one step
+            return run(a)
+    except TaskError as e:
+        print(e, file=sys.stderr)
+        return 1
+
+
+def run(a):
     try:
         tasks = load()
         if a.cmd == "list":

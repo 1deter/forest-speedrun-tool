@@ -34,3 +34,4 @@ __pycache__/
 
 # e2e reports (scripts/e2e.py)
 tests/e2e/reports/
+tasks/*.lock

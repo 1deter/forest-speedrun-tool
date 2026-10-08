@@ -63,21 +63,22 @@ def main():
         i = t.index("\n## v")
         return t[:i] + "\n## v%s - %s\n\n%s\n" % (new, datetime.date.today().isoformat(), bullets) + t[i:]
 
-    all_tasks = T.load(T.TASKS)
-    try:
-        T.validate(all_tasks)  # save() validates too; fail here, before any file is edited
-        plan = T.release_plan(all_tasks, new)
-    except T.TaskError as e:
-        sys.exit(str(e))
+    with T.locked(T.TASKS):  # load -> save of the task file is one step
+        all_tasks = T.load(T.TASKS)
+        try:
+            T.validate(all_tasks)  # save() validates too; fail here, before any file is edited
+            plan = T.release_plan(all_tasks, new)
+        except T.TaskError as e:
+            sys.exit(str(e))
 
-    rw(os.path.join(ROOT, "ForestOverlay.csproj"), csproj)
-    rw(os.path.join(ROOT, "src", "Plugin.cs"), plugin)
-    rw(os.path.join(ROOT, "CHANGELOG.md"), changelog)
-    T.mark_released(all_tasks, plan)
-    T.save(all_tasks, T.TASKS, T.VIEW)
-    print("bumped to", new)
-    for task, release in plan:
-        print("released:", task["id"], release, task["title"])
+        rw(os.path.join(ROOT, "ForestOverlay.csproj"), csproj)
+        rw(os.path.join(ROOT, "src", "Plugin.cs"), plugin)
+        rw(os.path.join(ROOT, "CHANGELOG.md"), changelog)
+        T.mark_released(all_tasks, plan)
+        T.save(all_tasks, T.TASKS, T.VIEW)
+        print("bumped to", new)
+        for task, release in plan:
+            print("released:", task["id"], release, task["title"])
 
 
 if __name__ == "__main__":

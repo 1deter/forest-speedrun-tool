@@ -90,9 +90,10 @@ def load(path=LOOP):
 
 def append(new, path=LOOP):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a", encoding="utf-8", newline="\n") as f:
-        for e in new:
-            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    with T.locked(path):  # one write, so lines of two processes never interleave
+        with open(path, "a", encoding="utf-8", newline="\n") as f:
+            for e in new:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
 
 
 def runs(events):
@@ -437,6 +438,17 @@ def main(argv=None, loop_path=None, tasks_path=None):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     loop_path = loop_path or LOOP
+    try:
+        if a.cmd in ("report", "peek"):
+            return run(a, loop_path, tasks_path)
+        with T.locked(tasks_path or T.TASKS):  # a park saves the task file: load -> save is one step
+            return run(a, loop_path, tasks_path)
+    except T.TaskError as e:
+        print(e, file=sys.stderr)
+        return 1
+
+
+def run(a, loop_path, tasks_path):
     try:
         events = load(loop_path)
         tasks = T.load(tasks_path or T.TASKS)

@@ -4,7 +4,9 @@
 """
 import argparse
 import os
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -344,6 +346,57 @@ class QaTodo(unittest.TestCase):
         self.assertIn("--qa", str(e.exception))
         T.validate([task("T-0001", needs="tester", status="blocked", notes="paused")])
         T.validate([task("T-0001", needs="tester", qa="Anyone: x - y: link")])
+
+
+WRITER = """
+import sys, time
+sys.path.insert(0, %r)
+import tasks as T
+path, tid = sys.argv[1], sys.argv[2]
+for i in range(8):
+    with T.locked(path):
+        ts = T.load(path)
+        time.sleep(0.005)  # widens the read-modify-write window
+        ts.append(%s)
+        T.save(ts, path, None)
+"""
+
+
+class Locking(unittest.TestCase):
+    def test_two_writer_processes_both_keep_every_change(self):
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        # one writer owns the T-1xxx ids, the other T-2xxx
+        code = WRITER % (here, "{'id': 'T-%d%03d' % (int(tid), i), 'title': 'x', 'area': 'site', 'priority': 3,"
+                         " 'status': 'todo', 'needs': 'none', 'behavior': 'b', 'verify': ['v'], 'checker': False,"
+                         " 'commits': [], 'evidence': [], 'blocked_by': [], 'log': []}")
+        for _ in range(3):  # a few rounds: a race is luck, not a certainty
+            with tempfile.TemporaryDirectory() as d:
+                path = os.path.join(d, "tasks.jsonl")
+                procs = [subprocess.Popen([sys.executable, "-c", code, path, str(n)]) for n in (1, 2)]
+                self.assertEqual([p.wait() for p in procs], [0, 0])
+                self.assertEqual(len(T.load(path)), 16)  # 2 writers x 8 tasks, none lost
+                self.assertFalse(os.path.exists(path + ".lock"))
+
+    def test_a_held_lock_times_out_with_what_why_fix(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tasks.jsonl")
+            with T.locked(path):
+                with self.assertRaises(T.TaskError) as e:
+                    with T.locked(path, timeout=0.1):
+                        pass
+            self.assertIn("FIX:", str(e.exception))
+            self.assertFalse(os.path.exists(path + ".lock"))
+
+    def test_a_stale_lock_is_taken_over(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tasks.jsonl")
+            with open(path + ".lock", "w") as f:
+                f.write("99999")
+            old = os.path.getmtime(path + ".lock") - 120
+            os.utime(path + ".lock", (old, old))
+            with T.locked(path, timeout=1):
+                pass
+            self.assertFalse(os.path.exists(path + ".lock"))
 
 
 if __name__ == "__main__":
