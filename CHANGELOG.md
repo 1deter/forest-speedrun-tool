@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.254 - 2026-10-08
+
+- A teleport-only restart into the red elevator after its ride no longer unloads the endgame and drops you through the map.
+
 ## v0.24.253 - 2026-10-08
 
 - In the endgame the game made a new material every frame that only a load out of the area freed (over a million after an hour of lab restarts); a new Performance switch, on by default, keeps the one it has.
