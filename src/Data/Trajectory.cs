@@ -3,7 +3,7 @@ using UnityEngine;
 namespace ForestOverlay.Data
 {
     // ------------------------------------------------------------------
-    // The trajectory preview's maths (Debug views, Experimental; drawn by
+    // The trajectory preview's maths (Developer tab, Experimental; drawn by
     // Game/TrajectoryView). Pure: the game side reads the live numbers into
     // a FlightModel, steps it here and sweeps the player's capsule along
     // each piece of path itself.

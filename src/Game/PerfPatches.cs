@@ -20,7 +20,7 @@ namespace ForestOverlay.Game
     //
     // Each one is behaviour-preserving (the game computes and draws the
     // same things), has its own switch (`[Performance]`, on by default,
-    // Debug views tab), applies and removes live, and logs one line.
+    // Settings > Performance; the experimental ones in Developer > Experimental), applies and removes live, and logs one line.
     //
     // 1. Overlay layout (ours): Unity runs an IMGUI layout pass - a new
     //    GUILayoutGroup, its list and a RectOffset - for every OnGUI
@@ -326,7 +326,7 @@ namespace ForestOverlay.Game
             return string.Join("; ", parts.ToArray());
         }
 
-        /// Once a frame (Debug views module).
+        /// Once a frame (DebugViewModule).
         public void Tick(PlayerRef player, GameEvents events)
         {
             EndgameLoader.Tick(player, events);

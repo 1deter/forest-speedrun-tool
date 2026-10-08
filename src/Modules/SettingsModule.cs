@@ -229,7 +229,7 @@ namespace ForestOverlay.Modules
                 }
             }
 
-            Rect editR = new Rect(12, y, 170, 28);
+            Rect editR = new Rect(4, y, 170, 28);
             if (UiKit.PrimaryButton(editR, EditLayoutText))
             {
                 MainWindowModule main = Host.Find<MainWindowModule>();
