@@ -242,9 +242,10 @@ The photo map, caves, the 3D world and the export / bake pipeline.
   smoke loads the pages, not the picture.
 - Legibility **B**: `map3d.js` 1,216, `world3d.js` 1,067; website.md
   *The photo map* / *The 3D world*; 19 site gotchas, 16 judgement only.
-- Stability **C**: no automated test of the bake / export scripts; their
-  two checks are tasks (T-0134 duplicate placements, T-0135 black
-  textures).
+- Stability **C**: the bake / export scripts have not run since their two
+  checks went in (duplicate placements, near-black textures:
+  `scripts/world_checks.py` + tests); the next real export proves the
+  wiring and the near-black threshold (T-0191).
 - Gaps **B**: the exact world is planned work (T-0086).
 
 ### Bot
