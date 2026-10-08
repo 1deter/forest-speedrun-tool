@@ -275,6 +275,7 @@ question: why didn't I die with an empty health bar after a cannibal hit?
 cards: deaths-and-revives
 must:
 - the last stand: above the grey zone an enemy hit that would kill leaves just over 1 health and starts the adrenaline rush
+- it re-arms: 12-14 s after dropping to 10 or less (no hit in between) the game sets health to 11 (RechargeHealth), so the next would-be-lethal hit is clamped again
 
 ### splits
 question: when does the vault door split happen?

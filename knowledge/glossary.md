@@ -22,8 +22,8 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | cannibals, enemy ai, stealth, detection | sight range computed on the player (light, crouch, bushes, trees, running, lighter); running is heard at ~59 m, walking is silent | cannibal-ai |
 | stalking, stalker | a passive cannibal watching you: attacks within 8 m, rolls within 24 m | cannibal-ai |
 | families, cannibal spawns | spawner groups by day (day 0: 6 skinny); the 4 nearest spawn points are skipped | cannibal-ai |
-| megan, boss fight, megan ai | the endgame boss: within 35 m she attacks every cycle (picked by distance); beyond 35 m she rolls, and births babies | megan-boss |
-| boss babies, baby spawn | Megan's births: only when you stay beyond 35 m, stop for good after 3+ spawners | megan-boss |
+| megan, boss fight, megan ai | the endgame boss: within 35 m she attacks every cycle (picked by distance); beyond 35 m she rolls, and births babies; her dodges throw her 30-55 m back, past 35 m | megan-boss |
+| boss babies, baby spawn | Megan's births: only from her roll beyond 35 m (her dodges get her there); one birth drops 6 babies; none while 3+ spawners exist, and a dead baby frees its spawner | megan-boss |
 | lab skip, gold door skip, megan skip | past the gold door over invisible collision + a clip, skipping Timmy / Megan / boss | lab-skip |
 | timmy forehead skip, forehead skip, bed skip | runner-reported: aim at Timmy's scar at ~15-18 fps to skip the bed part of his cutscene (not researched) | timmy-forehead-skip |
 | invisible section, invisible collision | the lab's collision (`EndCollision`), always present, drawn only through area gates | lab-skip |

@@ -3,7 +3,7 @@ id: megan-boss
 title: Megan's boss fight (how her AI works)
 aliases: megan, megan fight, spear strat, spin attack, spin chance, megan boss, boss fight, final boss, girl boss, girl mutant, spider megan, megan ai, megan attacks, megan babies, boss babies, baby spawn, megan health, kill megan, bombing megan, megan stagger, girlMutant, megan dodge, megan damage, empty health bar, health bar empty
 tags: endgame, boss, ai, combat
-confidence: code
+confidence: live
 checked: 2026-10-08
 sources: docs/fsm/megan-action_combatFSM.txt (exported 2026-10-03, ruben-megan, Normal); decompiled girlMutantAiManager, creepyAnimatorControl, creepyAnimEvents, EnemyHealth, enemyWeaponMelee, spawnMutants, mutantTypeSetup, PlayerStats; PlayMaker.dll; bridge 2026-10-03 and 2026-10-08 (T-0044, game-notes "Megan's boss AI"); game-notes "Deaths"
 related: endgame-splits, deaths-and-revives, lab-skip, knockback-sources
@@ -127,7 +127,7 @@ interrupt her. It starts her next attack.**
   10 solo (370), 16 with 2 players (616), 19 with 3 (739), 20 with 4+ (800)
   [arithmetic].
 - **She enters the "hurt" weights below half health (185)**, but see the
-  babies section for why that rarely matters.
+  babies section for why that rarely matters [code].
 - Her melee hits use the creepy damage: **28 per hit on Normal** [live: 100
   -> 72 -> 44 -> 16 with god mode off], 42 on Hard (`28 x
   creepyDamageRatio`, 1.5 on Hard). If **she** is poisoned, her hits are
