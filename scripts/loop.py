@@ -173,31 +173,20 @@ def pick(run, tasks):
     return T.pick_next(tasks, bridge=run["begin"].get("bridge", False), by="main", skip=taken)
 
 
-# What a plugin release ships (skill release: src/, patcher/, locations/, collectibles/, qa/).
-PLUGIN_PATHS = ("src/", "patcher/", "locations/", "collectibles/", "qa/", "ForestOverlay.csproj")
-
-
-def commit_files(sha):
-    """Paths a commit touches, or None when git cannot say (no such commit here)."""
-    try:
-        r = subprocess.run(["git", "show", "--name-only", "--format=", sha], cwd=T.ROOT, capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=30, stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return r.stdout.split() if r.returncode == 0 else None
+PLUGIN_PATHS = T.PLUGIN_PATHS
+commit_files = T.commit_files   # tests patch L.commit_files
 
 
 def needs_release(t, files_of=None):
     """A plugin-area task ships in a release only if a commit touches a plugin path; one that
-    changed only scripts / docs has nothing to release (T-0154). Unknown commits count as plugin."""
+    changed only scripts / docs has nothing to release (T-0154). Unknown commits count as plugin.
+    The same rule as tasks.release_plan (T-0196)."""
     if t["area"] not in T.RELEASED_AREAS:
         return False
-    files_of = files_of or commit_files
-    for c in t.get("commits") or []:
-        files = files_of(c)
-        if files is None or any(f.startswith(PLUGIN_PATHS) for f in files):
-            return True
-    return not t.get("commits")
+    commits = t.get("commits") or []
+    if not commits:
+        return True
+    return T.touches_plugin(commits, files_of or commit_files)
 
 
 def action(t, rnd):

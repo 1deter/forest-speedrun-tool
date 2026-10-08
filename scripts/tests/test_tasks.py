@@ -324,6 +324,81 @@ class Release(unittest.TestCase):
         self.assertEqual(ts[0]["status"], "built")
 
 
+class ReleaseFiles(unittest.TestCase):
+    """commit_files / release_plan against a temp git repo (T-0196)."""
+
+    def setUp(self):
+        import subprocess
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.saved_root = T.ROOT
+        T.ROOT = self.tmp
+        self.sp = subprocess
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@t")
+        self.git("config", "user.name", "t")
+        self.git("config", "commit.gpgsign", "false")
+        self.commit("README.md", "base")
+
+    def tearDown(self):
+        import shutil
+        T.ROOT = self.saved_root
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *a):
+        return self.sp.run(["git"] + list(a), cwd=self.tmp, capture_output=True, text=True, check=True).stdout.strip()
+
+    def commit(self, path, msg):
+        import os
+        full = os.path.join(self.tmp, path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "a") as f:
+            f.write(msg + "\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", msg)
+        return self.git("rev-parse", "HEAD")
+
+    def merge(self, path):
+        self.git("checkout", "-q", "-b", "side")
+        self.commit(path, "side work")
+        self.git("checkout", "-q", "main")
+        self.commit("docs/other.md", "main moves")
+        self.git("merge", "-q", "--no-ff", "-m", "merge side", "side")
+        return self.git("rev-parse", "HEAD")
+
+    def test_plain_commit_and_paths_with_spaces(self):
+        sha = self.commit("src/My Mod/A File.cs", "spaced")
+        self.assertEqual(T.commit_files(sha), ["src/My Mod/A File.cs"])
+        self.assertTrue(T.touches_plugin([sha]))
+
+    def test_merge_counts_against_its_first_parent(self):
+        sha = self.merge("src/Core/X.cs")
+        self.assertEqual(T.commit_files(sha), ["src/Core/X.cs"])
+        self.assertTrue(T.touches_plugin([sha]))
+
+    def test_merge_of_scripts_only_is_not_a_plugin_change(self):
+        sha = self.merge("scripts/x.py")
+        self.assertEqual(T.commit_files(sha), ["scripts/x.py"])
+        self.assertFalse(T.touches_plugin([sha]))
+
+    def test_unknown_commit_counts_as_plugin(self):
+        self.assertIsNone(T.commit_files("0" * 40))
+        self.assertTrue(T.touches_plugin(["0" * 40]))
+
+    def test_release_plan_skips_script_only_tasks_like_needs_release(self):
+        ts = [task("T-0001", area="plugin", status="built", commits=["aaa"]),
+              task("T-0002", area="plugin", status="built", commits=["bbb"])]
+        files = {"aaa": ["scripts/x.py"], "bbb": ["src/A.cs"]}
+        plan = T.release_plan(ts, "0.24.9", in_head=lambda c: True, tag_of=lambda cs: None, files_of=files.get)
+        self.assertEqual([t["id"] for t, r in plan], ["T-0002"])
+
+    def test_release_plan_counts_a_real_merge(self):
+        sha = self.merge("src/Core/X.cs")
+        ts = [task("T-0001", area="plugin", status="built", commits=[sha])]
+        plan = T.release_plan(ts, "0.24.9", tag_of=lambda cs: None)
+        self.assertEqual([t["id"] for t, r in plan], ["T-0001"])
+
+
 class QaTodo(unittest.TestCase):
     """The #qa-todo-list message, rendered from the tasks (docs/harness.md 6d)."""
 
