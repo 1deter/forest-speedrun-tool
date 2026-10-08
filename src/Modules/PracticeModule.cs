@@ -53,7 +53,6 @@ namespace ForestOverlay.Modules
         // --- current entry (what a practice attempt starts from) ----------
         private Segment _current;
         public bool HasSpot { get { return _current != null && _current.HasSpawn; } }
-        public Vector3 SpotPosition { get { return _current != null ? _current.SpawnPosition : Vector3.zero; } }
         public string SpotLabel { get { return _current != null ? _current.Name : ""; } }
         public Segment CurrentSegment { get { return _current; } }
 
