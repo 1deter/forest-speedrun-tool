@@ -469,5 +469,58 @@ class FindAll(unittest.TestCase):
         self.assertEqual((text(probs), stale), ("", 0))
 
 
+RENDER_SRC = """public class Good : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try
+        {
+            if (!DrawTarget.ShouldDraw()) return;
+            Draw();
+        }
+        catch (Exception ex) { Lifecycle.Fail("Good.OnRenderObject", ex); }
+    }
+}
+public class Bad : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try { Draw(); }
+        catch (Exception ex) { Lifecycle.Fail("Bad.OnRenderObject", ex); }
+    }
+    private void Update() { }
+}
+public class Mentions : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try { /* DrawTarget.ShouldDraw() */ Draw(); }
+        catch (Exception ex) { Lifecycle.Fail("Mentions.OnRenderObject", ex); }
+    }
+}
+"""
+
+
+class RenderObject(unittest.TestCase):
+    def test_unchecked_draw_hits(self):
+        hits = L.render_hits("src/Game/X.cs", RENDER_SRC)
+        self.assertEqual([(c, n) for p, n, c in hits], [("Bad", 15), ("Mentions", 24)])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_render(L.render_hits("src/Game/X.cs", RENDER_SRC)[:1]))
+        self.assertIn("ERROR: Bad.OnRenderObject in src/Game/X.cs:15 does not check DrawTarget.ShouldDraw()", out)
+        self.assertIn("gotcha 12", out)
+        self.assertIn("FIX: start the body with if (!DrawTarget.ShouldDraw()) return;", out)
+
+    def test_allow_listed_class_is_skipped(self):
+        src = "public class LatePass : MonoBehaviour\n{\n    private void OnRenderObject() { try { Go(); } catch (Exception) { } }\n}\n"
+        self.assertEqual(L.render_hits("src/Game/LatePass.cs", src), [])
+        self.assertEqual(len(L.render_hits("src/Game/Other.cs", src)), 1)
+
+    def test_repo_overlays_all_check(self):
+        hits = [h for p, t in L.src_texts() for h in L.render_hits(p, t)]
+        self.assertEqual(text(L.check_render(hits)), "")
+
+
 if __name__ == "__main__":
     unittest.main()

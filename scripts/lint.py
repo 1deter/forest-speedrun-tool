@@ -24,6 +24,7 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+Every OnRenderObject in src/ checks DrawTarget.ShouldDraw() (gotcha 12).
 scripts/deploy.ps1 copies the plugin DLL only (gotcha 10).
 Text files (gotcha 9): no tracked file holds PowerShell 5.1 mojibake.
 """
@@ -524,6 +525,47 @@ def check_lifecycle(hits):
             for path, n, cls, method in hits]
 
 
+# ---------------------------------------------------------------- OnRenderObject
+
+# OnRenderObject methods that draw nothing, so there is no view to pick.
+RENDER_NO_DRAW = {
+    ("src/Game/LatePass.cs", "LatePass"): "only records the camera's render target for the late pass; draws nothing",
+}
+
+
+def src_texts(root=ROOT):
+    """[(path, text)] of every .cs under src/."""
+    out = []
+    for dirpath, dirs, files in os.walk(os.path.join(root, "src")):
+        dirs[:] = [d for d in dirs if d not in ("bin", "obj")]
+        for f in sorted(files):
+            if f.endswith(".cs"):
+                full = os.path.join(dirpath, f)
+                with open(full, encoding="utf-8-sig") as fh:
+                    out.append((os.path.relpath(full, root).replace("\\", "/"), fh.read()))
+    return out
+
+
+def render_hits(path, text):
+    """(path, line, class) of every OnRenderObject that never calls DrawTarget.ShouldDraw() (gotcha 12)."""
+    out = []
+    for cls, method, n, body in message_methods(text):
+        if method != "OnRenderObject" or (path, cls) in RENDER_NO_DRAW:
+            continue
+        if body is None or not re.search(r"\bDrawTarget\.ShouldDraw\s*\(\s*\)", body):
+            out.append((path, n, cls))
+    return out
+
+
+def check_render(hits):
+    return [Problem("%s.OnRenderObject in %s:%d does not check DrawTarget.ShouldDraw()" % (cls, path, n),
+                    "OnRenderObject runs once per camera - reflections and UI included; without the check a GL overlay is "
+                    "drawn into every view (gotcha 12)",
+                    "start the body with if (!DrawTarget.ShouldDraw()) return; (inside the try); if it draws nothing, "
+                    "add (file, class) to RENDER_NO_DRAW in scripts/lint.py with the reason")
+            for path, n, cls in hits]
+
+
 # ---------------------------------------------------------------- UI heuristics
 
 LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
@@ -830,6 +872,7 @@ def main(argv=None):
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
+    probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
     probs += check_mojibake(tracked_text())
     probs += check_deploy(read(DEPLOY))
     ui, stale = check_ui(hits, load_baseline())

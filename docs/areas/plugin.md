@@ -148,7 +148,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers). [judgement]
 6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics. [judgement]
 7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry. [check: CrossingTests]
-12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: T-0126]
+12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: lint.py check_render]
 13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`. [judgement]
 14. **Labels from memory are guesses** - confirm runner-visible names against a log. [judgement]
 16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on; every prefix and its meaning: `docs/log-lines.md`. [check: lint.py log catalogue]
