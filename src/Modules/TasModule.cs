@@ -187,7 +187,7 @@ namespace ForestOverlay.Modules
             {
                 _pending = Pending.None;
                 TasInput.UnlockFrameRate();
-                SetStatus("Could not restart: " + err + ".");
+                SetStatus("Could not restart: " + err.TrimEnd('.') + ".");
             }
         }
 

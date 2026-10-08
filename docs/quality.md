@@ -37,7 +37,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
 | Performance and loads | C | B | B | A | C | T-0033, T-0190 | 2026-10-07 |
-| TAS and trajectory | C | B | C | A | B | T-0145, T-0088 | 2026-10-07 |
+| TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
 | Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
 | Bridge, e2e and QA | B | A | A | B | A | T-0147 | 2026-10-07 |
 | Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
@@ -47,8 +47,8 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | B | B | T-0147 | 2026-10-08 |
 
-Lowest first: Savestates, Practice, Performance and loads, TAS and
-trajectory, Dev tools, Site maps and 3D world, Bot (C).
+Lowest first: Savestates, Practice, Performance and loads, Dev tools,
+Site maps and 3D world, Bot (C).
 
 ## Areas
 
@@ -172,8 +172,8 @@ Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/D
 
 - Verification **B**: TasRecording, Trajectory tests; record / replay and
   the trajectory preview confirmed once (v0.24.241); no e2e journey.
-- Legibility **C**: no area doc mentions TAS or the trajectory preview -
-  not in plugin.md's file map, not in plugin-concepts.md (T-0145).
+- Legibility **B**: plugin.md's file map and plugin-concepts.md cover TAS
+  record / replay and the trajectory preview (T-0145, 2026-10-08).
 - Stability **A**.
 - Gaps **B**: the preview is off where a jump clips an edge (T-0088); TAS
   is exploratory (T-0038).
