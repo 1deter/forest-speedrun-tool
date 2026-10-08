@@ -430,8 +430,7 @@ def main(argv=None, loop_path=None, tasks_path=None):
     try:
         if a.cmd in ("report", "peek"):
             return run(a, loop_path, tasks_path)
-        with T.locked(tasks_path or T.TASKS):  # a park saves the task file: load -> save is one step
-            return run(a, loop_path, tasks_path)
+        return run(a, loop_path, tasks_path)  # git calls run unlocked; only a park takes the lock
     except T.TaskError as e:
         print(e, file=sys.stderr)
         return 1
@@ -461,12 +460,14 @@ def run(a, loop_path, tasks_path):
             new, text, code = cmd_stop(events, a.reason)
         if new and any(e["event"] == "park" for e in new):
             park = [e for e in new if e["event"] == "park"][0]
-            t = T.find(tasks, park["task"])
-            t["question"] = park["question"]
-            t["needs"] = "author-decision"
-            T.transition(tasks, t, "blocked", by="loop")
-            t["updated"] = T.today()
-            T.save(tasks, tasks_path or T.TASKS, None if tasks_path else T.VIEW)
+            with T.locked(tasks_path or T.TASKS):  # load -> save of the task file is one step
+                tasks = T.load(tasks_path or T.TASKS)  # fresh: another writer may have saved meanwhile
+                t = T.find(tasks, park["task"])
+                t["question"] = park["question"]
+                t["needs"] = "author-decision"
+                T.transition(tasks, t, "blocked", by="loop")
+                t["updated"] = T.today()
+                T.save(tasks, tasks_path or T.TASKS, None if tasks_path else T.VIEW)
         append(new, loop_path)
         print(text)
         return code

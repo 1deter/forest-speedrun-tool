@@ -63,11 +63,31 @@ def main():
         i = t.index("\n## v")
         return t[:i] + "\n## v%s - %s\n\n%s\n" % (new, datetime.date.today().isoformat(), bullets) + t[i:]
 
+    # git is slow: ask it before taking the lock, and remember the answers. Inside the lock the
+    # plan is made again on the fresh file, which asks git only about commits not seen yet.
+    def cached(fn):
+        memo = {}
+
+        def call(arg):
+            key = tuple(arg) if isinstance(arg, list) else arg
+            if key not in memo:
+                memo[key] = fn(arg)
+            return memo[key]
+        return call
+
+    in_head = cached(lambda c: T.git_ok(["merge-base", "--is-ancestor", c, "HEAD"]))
+    files_of = cached(T.commit_files)
+    tag_of = cached(T.first_tag)
+    try:
+        T.release_plan(T.load(T.TASKS), new, in_head, tag_of, files_of)
+    except T.TaskError as e:
+        sys.exit(str(e))
+
     with T.locked(T.TASKS):  # load -> save of the task file is one step
         all_tasks = T.load(T.TASKS)
         try:
             T.validate(all_tasks)  # save() validates too; fail here, before any file is edited
-            plan = T.release_plan(all_tasks, new)
+            plan = T.release_plan(all_tasks, new, in_head, tag_of, files_of)
         except T.TaskError as e:
             sys.exit(str(e))
 

@@ -78,6 +78,25 @@ A release moves its tasks by itself (`bump.py` -> `released`, T-0007; a plugin t
 a check only a tester can do is a `needs: tester` task with a `qa` line,
 which is all the #qa-todo-list message shows (docs/bridge.md).
 
+**The lock** (T-0197, T-0201): every command that changes the task file
+(`tasks.py` writers, `bump.py`, a `loop.py` park) holds `tasks/tasks.jsonl.lock`
+from load to save, so two processes never lose each other's change. It is a
+file made with `O_CREAT|O_EXCL` holding the owner's pid. A waiter retries for
+20 s (`LOCK_TIMEOUT`), then fails with the usual ERROR / WHY / FIX (never a
+traceback); a lock older than 60 s (`LOCK_STALE`) belongs to a dead process
+and is taken over: the waiter renames it to a name of its own, checks its age
+again there, and puts it back if it turns out fresh, so a takeover never
+deletes a lock another waiter has just made. `save()` writes a temp file next
+to the target and `os.replace()`s it (retrying ~1 s on Windows'
+`PermissionError` while a reader has the file open), so a reader sees the old
+file or the new one, and a crash leaves the old one. Slow git calls stay
+outside the lock (`bump.py` asks git first, then re-plans under the lock from
+the cached answers; `loop.py` locks only to save a park). Recovery: if a
+command says the file is locked and no tasks.py / loop.py / bump.py is
+running, delete `tasks/tasks.jsonl.lock` (and any `tasks.jsonl.tmp.*` or
+`*.lock.stale.*` leftovers from a killed process); the file itself is never
+half written. Tests: `scripts/tests/test_tasks.py` (*Locking*, *AtomicSave*).
+
 **Closing** (T-0114, 2026-10-07): harness and docs tasks have no release
 and no checker - they go `built` -> `confirmed` once each verify step has
 evidence (the machine gates are their check). Work shipped and confirmed

@@ -490,6 +490,111 @@ class Locking(unittest.TestCase):
                 pass
             self.assertFalse(os.path.exists(path + ".lock"))
 
+    def test_a_fresh_lock_found_during_takeover_is_kept(self):
+        # the lock looked stale when we checked, but a waiter replaced it before the rename
+        with tempfile.TemporaryDirectory() as d:
+            lock = os.path.join(d, "tasks.jsonl.lock")
+            with open(lock, "w") as f:
+                f.write("4242")  # fresh mtime
+            T._take_over_stale(lock, 60)
+            self.assertTrue(os.path.exists(lock))
+            self.assertEqual(open(lock).read(), "4242")
+            self.assertEqual(os.listdir(d), ["tasks.jsonl.lock"])  # no renamed leftovers
+
+    def test_takeover_removes_a_really_stale_lock_and_leaves_no_leftovers(self):
+        with tempfile.TemporaryDirectory() as d:
+            lock = os.path.join(d, "tasks.jsonl.lock")
+            with open(lock, "w") as f:
+                f.write("1")
+            os.utime(lock, (1, 1))
+            T._take_over_stale(lock, 60)
+            self.assertEqual(os.listdir(d), [])
+            T._take_over_stale(lock, 60)  # already gone: no error
+
+    def test_a_lock_that_cannot_be_made_is_a_task_error_not_an_oserror(self):
+        with tempfile.TemporaryDirectory() as d:
+            blocker = os.path.join(d, "file")
+            open(blocker, "w").close()
+            path = os.path.join(blocker, "sub", "tasks.jsonl")  # a folder cannot be made under a file
+            with self.assertRaises(T.TaskError) as e:
+                with T.locked(path, timeout=0.1):
+                    pass
+            for part in ("ERROR", "WHY", "FIX"):
+                self.assertIn(part + ":", str(e.exception))
+            path = os.path.join(d, "ghost", "tasks.jsonl")
+            os.makedirs(os.path.dirname(path))
+            os.chmod(os.path.dirname(path), 0o500)  # no write: the lock file cannot be created
+            try:
+                if os.access(os.path.dirname(path), os.W_OK):
+                    return  # running as root: permissions do not apply
+                with self.assertRaises(T.TaskError) as e:
+                    with T.locked(path, timeout=0.1):
+                        pass
+                self.assertIn("FIX:", str(e.exception))
+            finally:
+                os.chmod(os.path.dirname(path), 0o700)
+
+
+READER = """
+import sys, time
+sys.path.insert(0, %r)
+import tasks as T
+path = sys.argv[1]
+end = time.time() + float(sys.argv[2])
+n = 0
+while time.time() < end:
+    T.load(path)  # parse() raises on a half-written line
+    n += 1
+print(n)
+"""
+
+
+class AtomicSave(unittest.TestCase):
+    def test_a_reader_never_sees_a_half_written_file(self):
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tasks.jsonl")
+            ts = [task("T-%04d" % i, title="x" * 400) for i in range(1, 300)]
+            T.save(ts, path, None)
+            reader = subprocess.Popen([sys.executable, "-c", READER % here, path, "1.5"],
+                                      stdout=subprocess.PIPE)
+            for i in range(40):
+                ts[0]["title"] = "y" * (i + 1)
+                T.save(ts, path, None)
+            out, _ = reader.communicate()
+            self.assertEqual(reader.returncode, 0)
+            self.assertGreater(int(out), 0)
+            self.assertEqual(os.listdir(d), ["tasks.jsonl"])  # no temp files left
+
+    def test_a_failed_write_leaves_the_old_file_and_no_temp(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "tasks.jsonl")
+            T.save([task("T-0001")], path, None)
+            before = open(path, encoding="utf-8").read()
+            with self.assertRaises(T.TaskError):
+                T.save([task("T-0001"), task("T-0001")], path, None)  # duplicate id: validate refuses
+            self.assertEqual(open(path, encoding="utf-8").read(), before)
+            self.assertEqual(os.listdir(d), ["tasks.jsonl"])
+
+    def test_replace_is_retried_on_a_permission_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "f.txt")
+            real, calls = os.replace, []
+
+            def flaky(a, b):
+                calls.append(1)
+                if len(calls) < 3:
+                    raise PermissionError("in use")
+                real(a, b)
+            os.replace = flaky
+            try:
+                T.atomic_write(path, "hi\n")
+            finally:
+                os.replace = real
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(open(path).read(), "hi\n")
+            self.assertEqual(os.listdir(d), ["f.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()

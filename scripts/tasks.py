@@ -126,38 +126,73 @@ LOCK_TIMEOUT = 20.0   # seconds a writer waits for the lock before it fails
 LOCK_STALE = 60.0     # a lock file older than this belongs to a dead process
 
 
+def _lock_error(path, lock, why):
+    return TaskError("%s is locked" % os.path.basename(path), why,
+                     "retry in a moment; delete %s if no such process is running" % lock)
+
+
+def _take_over_stale(lock, stale):
+    """Remove a lock older than `stale`. The file is first renamed to a name only this process
+    knows, and its age is judged again there: when a waiter has replaced the stale lock by a
+    fresh one meanwhile, that fresh lock is put back (os.link fails if somebody made a newer
+    one) instead of deleted."""
+    mine = "%s.stale.%d.%s" % (lock, os.getpid(), os.urandom(4).hex())
+    try:
+        os.rename(lock, mine)  # exactly one of several takers wins this
+    except OSError:
+        return
+    try:
+        if time.time() - os.path.getmtime(mine) <= stale:  # not the stale one: give it back
+            try:
+                os.link(mine, lock)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    finally:
+        try:
+            os.remove(mine)
+        except OSError:
+            pass
+
+
 @contextmanager
 def locked(path=TASKS, timeout=None, stale=None):
     """Exclusive lock for a read-modify-write of `path`: a `<path>.lock` file made with
-    O_CREAT|O_EXCL (works on Windows and Linux). Retries briefly; a lock older than
-    `stale` seconds is taken over. Hold it from load to save."""
+    O_CREAT|O_EXCL (works on Windows and Linux). Retries for `timeout` seconds; a lock older
+    than `stale` seconds is taken over (_take_over_stale). A lock that cannot be taken raises
+    TaskError (WHAT / WHY / FIX), never a bare OSError. Hold it from load to save only."""
     timeout = LOCK_TIMEOUT if timeout is None else timeout
     stale = LOCK_STALE if stale is None else stale
     lock = path + ".lock"
-    os.makedirs(os.path.dirname(lock), exist_ok=True)
+    try:
+        os.makedirs(os.path.dirname(lock), exist_ok=True)
+    except OSError as e:
+        raise _lock_error(path, lock, "the folder cannot be made: %s" % e)
     deadline = time.time() + timeout
     while True:
         try:
             fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode("ascii"))
-            os.close(fd)
+            try:
+                os.write(fd, str(os.getpid()).encode("ascii"))
+            finally:
+                os.close(fd)
             break
-        except OSError:
+        except OSError as e:
             if not os.path.exists(lock):
                 if time.time() > deadline:  # not a held lock (a permission error, say)
-                    raise
+                    raise _lock_error(path, lock, "%s cannot be created: %s" % (os.path.basename(lock), e))
                 time.sleep(0.02)
                 continue
             try:
                 if time.time() - os.path.getmtime(lock) > stale:
-                    os.remove(lock)
+                    _take_over_stale(lock, stale)
                     continue
             except OSError:
                 pass  # the holder released it between our checks
             if time.time() > deadline:
-                raise TaskError("%s is locked" % os.path.basename(path),
-                                "another tasks.py / loop.py / bump.py process holds %s" % os.path.basename(lock),
-                                "retry in a moment; delete %s if no such process is running" % lock)
+                raise _lock_error(path, lock,
+                                  "another tasks.py / loop.py / bump.py process holds %s" % os.path.basename(lock))
             time.sleep(0.02)
     try:
         yield
@@ -168,14 +203,38 @@ def locked(path=TASKS, timeout=None, stale=None):
             pass
 
 
+def atomic_write(path, text, retries=50):
+    """Write `text` to a temp file next to `path` and os.replace() it in: a reader sees the
+    old file or the new one, never half of it, and a crash leaves the old one. On Windows
+    os.replace raises PermissionError while another process has the file open; retry ~1 s."""
+    tmp = "%s.tmp.%d.%s" % (path, os.getpid(), os.urandom(4).hex())
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        for i in range(retries):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                if i == retries - 1:
+                    raise
+                time.sleep(0.02)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
 def save(tasks, path=TASKS, view=VIEW):
     validate(tasks)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(dump(tasks))
+    atomic_write(path, dump(tasks))
     if view:
-        with open(view, "w", encoding="utf-8", newline="\n") as f:
-            f.write(render(tasks))
+        atomic_write(view, render(tasks))
 
 
 def find(tasks, tid):
