@@ -327,6 +327,7 @@ namespace ForestOverlay.Modules
         private void OnPlacedAtSpot()
         {
             if (_practice == null) return;
+            string cause = _practice.PlaceCause.Take();   // read once, whatever happens below
             // A run spot's run start is timed whatever F9 says (run mode).
             ArmSource source = RunTiming.Source(Enabled, _practice.PlacingRunStart);
             if (source == ArmSource.None) return;
@@ -356,7 +357,7 @@ namespace ForestOverlay.Modules
             _failedFromOtherSegment = _recorder.State == RunRecorder.RunState.Running &&
                                       !(s.Id == _loadedSegmentId && s.RouteFingerprint() == _armedRoute);
             LoadAttemptsFor(s);
-            ArmRun(_autoRestarting ? "auto-restart" : "Go / F7 restart");
+            ArmRun(cause);
             _failedFromOtherSegment = false;
         }
 
@@ -382,8 +383,6 @@ namespace ForestOverlay.Modules
             }
             _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
         }
-
-        private bool _autoRestarting;   // set around the auto-restart so its arm says so
 
         private void ArmRun(string cause)
         {
@@ -481,10 +480,8 @@ namespace ForestOverlay.Modules
                     _recorder.State != RunRecorder.RunState.Running)
                 {
                     Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart" + (checkpoint >= 0 ? " from checkpoint " + (checkpoint + 1) : "") + ".");
-                    _autoRestarting = true;
                     if (checkpoint >= 0) RestartFromCheckpoint(checkpoint);
-                    else _practice.ReturnToSpot();
-                    _autoRestarting = false;
+                    else _practice.ReturnToSpot("auto-restart");
                 }
             }
 

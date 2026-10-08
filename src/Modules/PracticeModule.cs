@@ -69,6 +69,9 @@ namespace ForestOverlay.Modules
         /// can arm without this module knowing the timer exists.
         public Action OnPlacedAtSpot;
 
+        /// Why the next placement happens (Data/ArmCause); the run module takes it.
+        public readonly ArmCause PlaceCause = new ArmCause();
+
         /// True during OnPlacedAtSpot when the placement ends a run spot's
         /// run start (its start state restored): run mode times it whatever
         /// practice mode says (Data/RunTiming).
@@ -472,7 +475,10 @@ namespace ForestOverlay.Modules
         /// place, or with a load per the segment), then the teleport runs as
         /// before - it sets the view angles and the cave state, and fires
         /// OnPlacedAtSpot for the run module once the world is final.
-        private void Restart(Segment s)
+        private void Restart(Segment s) { Restart(s, null); }
+
+        /// `cause` null = a plain restart (F7 / the buttons); the auto-restart names itself.
+        private void Restart(Segment s, string cause)
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
             // A run spot's Restart starts (or resets) a run - the one Restart
@@ -492,6 +498,7 @@ namespace ForestOverlay.Modules
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
 
                 _current = s;
+                PlaceCause.Set(cause ?? "start-state restore");
                 if (OnRestartStarting != null) OnRestartStarting();
                 if (runStart) _runMode.SpotRunStarting(s);
                 StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
@@ -520,6 +527,7 @@ namespace ForestOverlay.Modules
             }
 
             if (_savestates != null) Ctx.Log.LogInfo("Restart '" + s.Id + "': no start state - teleport only.");
+            PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
         }
 
@@ -529,6 +537,7 @@ namespace ForestOverlay.Modules
         {
             if (Ctx.Run.Refuse("go", "Go (teleport)")) { _status = _refusedByRun = Ctx.Run.RefusedText("Go"); return; }
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
+            PlaceCause.Set("Go");
             PlaceAt(s, true);
         }
 
@@ -591,10 +600,12 @@ namespace ForestOverlay.Modules
             if (OnPlacedAtSpot != null) OnPlacedAtSpot();
         }
 
-        public void ReturnToSpot()
+        public void ReturnToSpot() { ReturnToSpot(null); }
+
+        public void ReturnToSpot(string cause)
         {
             if (_current == null) { _status = "No entry selected."; return; }
-            Restart(_current);
+            Restart(_current, cause);
         }
 
         /// A death's "Revive at the current spot" (Deaths tab): Go to the
