@@ -684,7 +684,8 @@ def findall_hits(path, text):
 
 
 PLAYER_MOVE = re.compile(r"\b\w*[Pp]layer\.MoveTo\s*\(")
-METHOD_SIG = re.compile(r"^\s*(?:(?:public|private|protected|internal|static|override|virtual|sealed|async)\s+)+"
+METHOD_SIG = re.compile(r"^\s*(?:(?:public|private|protected|internal|static|override|virtual|sealed|async)\s+)*"
+                        r"(?!(?:return|new|else|if|while|for|foreach|switch|using|lock|throw|await|yield|case|goto|do)\b)"
                         r"[\w<>\[\],.?]+\s+\w+\s*\(")
 
 

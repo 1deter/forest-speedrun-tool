@@ -589,6 +589,11 @@ class MoveTo(unittest.TestCase):
         src = "class M {\n  void A() { _areas.ForTeleport(x); }\n  void B()\n  {\n    Ctx.Player.MoveTo(x, r);\n  }\n}\n"
         self.assertEqual(len(L.moveto_hits("m.cs", src)), 1)
 
+    def test_statements_do_not_start_a_method(self):
+        src = ("class M {\n  void A(Vector3 x)\n  {\n    _areas.ForTeleport(x);\n    if (ok)\n    {\n"
+               "      return Foo(x);\n    }\n    Ctx.Player.MoveTo(x, r);\n  }\n}\n")
+        self.assertEqual(L.moveto_hits("m.cs", src), [])
+
     def test_fails_with_fix_text_and_baseline_allows_it(self):
         hits = L.moveto_hits("src/Modules/M.cs", MOVE_SRC)
         out = text(L.check_ui(hits, {})[0])
