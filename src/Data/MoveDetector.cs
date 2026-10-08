@@ -461,9 +461,6 @@ namespace ForestOverlay.Data
             return true;
         }
 
-        /// The unexplained rise of the episode under way (0 = none) - for the log.
-        public float LiftSoFar { get { return _lift != null ? _lift.Distance : 0f; } }
-
         /// A finished lift episode under LiftReport, for the log ("" none).
         public string SmallLift { get; private set; }
 
