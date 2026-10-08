@@ -3864,6 +3864,10 @@ line 52; the keycard shaft (ledge (1269.7, -36.6, 562.1)): 2 clean slides
 0 damage, landing ~(1282, -70.4, 608-610). Jump spam changes nothing: spam
 and no-spam on the same line landed 0.5 m apart, both 0 damage (as
 `HandleLanded` says - it judges before a jump can start).
+The plugin's `Move seen: fall-damage-cancel` caught all 5 clean slides
+(practice, no attempt): every one really fell at 40-41 m/s; the bodies
+were judged at 8.4-9.7 m/s, the rock at 21.4-22.4 m/s (closer to the 28
+threshold - the tighter line); 52-55 damage at the real speed.
 
 ## How to extend this file
 
