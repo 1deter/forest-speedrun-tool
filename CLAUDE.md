@@ -212,9 +212,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   not chat; T-0220 moves it to the answer log (runners `/ask` in the
   speedrun server's general chat, which the bot can't read - the author
   asks its admins).
-- **Next session (author, 2026-10-08): the redesign.** Merge main into
-  `ui-redesign` (396 commits behind), rebuild, author-approved deploy into
-  the game, then T-0024 the cursor re-check (author present).
+- **Redesign (2026-10-08):** main merged into `ui-redesign` (even with
+  v0.24.259 + its own commits); T-0024 built + checker-accepted (F2 over
+  the pause menu: cursor and player lock left to the game, author
+  confirmed). The author's game runs the branch build by hand-deploy
+  (author-approved); their v0.24.259 is `BepInEx/plugins/ForestOverlay.dll.mine`.
+  Next on the branch: T-0018..T-0022 (author present), then T-0025 (QA,
+  merge, release - its notes carry the checker's repeat list). New from QA:
+  T-0222 (Elevator Boost goes foggy-white after restarts, bridge).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A

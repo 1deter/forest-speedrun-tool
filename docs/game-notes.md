@@ -1609,7 +1609,11 @@ first on Restart and Go. `PlayerViews`: Pause = 6, World = 2, Inventory = 3.
 closes with `UnLockView()`. A panel opened over it found the player already
 locked; releasing "our" lock on close called `UnLockView` under the menu,
 whose `Input.LockMouse()` hid the cursor (author). `ModuleHost` now leaves a
-lock the game already held to the game.
+lock the game already held to the game. The pause menu opened *after* the
+window (F2, Esc, F2) is the same case: the window's snapshot said "ours",
+its `UnLockView` freed the camera under the menu and hid the cursor; since
+T-0024 (ui-redesign) the release also leaves the lock while
+`MenuClose.PauseMenuOpen()` (author confirmed 2026-10-08).
 
 ## Caves
 
