@@ -754,3 +754,22 @@ must:
 - PlayerStats.Explosion returns early while it is set, so no explosion knockback or damage from that call
 not:
 - calls it a god mode, or says it blocks all damage, without code that shows it
+
+### nature-guide-register
+question: what is the logic behind registering a new animal to the nature guide, so 100% runners can register things faster?
+cards: hundred-percent
+must:
+- nothing is pressed; a trigger on the creature ticks the entry once
+- view kind: centred in the middle 40% of the screen within ~18.7 m, then centred again 2.5 s later
+- some creatures tick on appearing; others need 4 s in the grab focus
+not:
+- says the creature must stay in view for the whole 2.5 s
+- mentions ForestOverlay's own restore internals (NatureGuideKeeper) in a routing answer
+
+### runner-monsterkar
+question: who is monsterkar?
+cards: top-runners
+must:
+- Monsterkar_ is 3rd in Glitchless Normal (19:15.833)
+not:
+- says the name is not in the knowledge base

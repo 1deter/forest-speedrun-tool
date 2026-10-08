@@ -69,6 +69,27 @@ names onto the game's item ids (`collectibles/100-percent.txt`) [code]:
   and animals 1-3, **43 ticks** (44 entries in `TickOffSystem`, one with
   no tick mark). An entry ticks when you pick up the item, or inspect the
   animal or plant [code + live reads, game-notes *Nature guide*].
+- **How an animal or plant registers** (`AnimalTypeTrigger` on the
+  creature; each entry ticks once, then stops listening) [code, not
+  reproduced]. Nothing is pressed. Each trigger is one of three kinds:
+  - *on enable*: ticks as soon as the creature appears (is enabled).
+  - *by view*: the creature's origin must be in the **middle 40% of the
+    screen** (viewport 0.3-0.7 on both axes), in front of the camera,
+    and **within ~18.7 m** (squared distance under 350). The check
+    starts 1 s after the creature appears. Once it passes, the game
+    waits **2.5 s** and checks the centre box **once more** (distance
+    is not checked again): still centred -> it ticks; not -> it re-arms
+    (1 s) and starts over. The creature does **not** have to stay in
+    view during the 2.5 s - only be centred at the start and at the
+    end. Fastest: centre it from close, keep the crosshair near it,
+    about 2.5 s.
+  - *by grab focus* (neither flag): the creature's pickup trigger must
+    stay in the player's grab focus (the `Grabber`) for **4 s of real
+    time**; out of focus for more than 1 s cancels it until it is
+    focused again.
+  - Fish register when their body is set up (`setupFishRagdoll`), not
+    through this trigger.
+  Which species use which kind is not recorded yet.
 - **Passenger manifest**: **43 seats**. A passenger counts only while you
   carry the manifest (item 197) and are not upside down
   (`PassengerManifest.FoundPassenger`) [code]. The game's own passenger
