@@ -284,6 +284,10 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   from the Discord history, informal knowledge (inside jokes, memes about
   and in the community) is written and usable; when the context is right
   the bot is "memey", laid back and banters about community members.
+  A banter-style question ("when will deter run the game?", queue #42)
+  gets a banter-y answer built from what the bot has learned on the
+  server about the person asking and the person asked about (author,
+  2026-10-08; T-0238).
 - **Follow-up questions about previous answers** (author): a runner
   replies to an answer and the bot carries on the conversation.
 - **A regular bot** (author: "i would really just prefer a regular bot"):

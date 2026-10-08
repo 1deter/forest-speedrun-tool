@@ -5,7 +5,7 @@ aliases: who holds the record, who holds the wr, no explosive glitch record, neg
 tags: categories, community
 confidence: runner
 checked: 2026-10-04
-sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04; d.eter: the author's own account, 2026-10-07; yirequ = maks / max: d.eter, 2026-10-08
+sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04; d.eter: the author's own account, 2026-10-07 and 2026-10-08; yirequ = maks / max: d.eter, 2026-10-08
 related: categories-and-rules, hundred-percent, routes
 code: Categories.Seeds
 ---
@@ -101,7 +101,8 @@ with yirequ, and with the co-op boards counted yirequ has the most
   speedrun tool, and of forest.deter.cloud and this bot (`forestoverlay`).
   A former world-record holder in the old Any% Normal category, from
   before today's category split; not on the current top 3s. (Their own
-  account; no time or date for that record here.)
+  account; no time or date for that record here.) A tool dev now, who
+  does not really run the game anymore (their own account, 2026-10-08).
 
 ## Top 3 per board
 
