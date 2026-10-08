@@ -2550,6 +2550,31 @@ game (only the constructor); `AfterXFrames` 2 re-renders on even frames
 (`SunshineCamera.NeedsRefresh`): 0.66 -> 0.32 ms a frame. Shipped as
 the Experimental switch `SunShadowsEveryOtherFrame` (v0.24.125, off).
 
+**The endgame leaks one Material a frame** (T-0149; bridge + IL,
+2026-10-08, v0.24.252). In the endgame `Sunshine`'s GameObject is
+inactive (`activeInHierarchy` False, `enabled` True; its OnDisable ran
+`DestroyResources`: `Ready` False, `PostScatterMaterial` / `Lightmap`
+null), so `PostProcessSupported` and `RequiresPostprocessing` are
+false. Every frame `SunshineCamera.Update` sets the main camera's
+`SunshinePostprocess.enabled` to that false and
+`ImageEffectOptimizer.Update` sets it true again; `SunshinePostprocess
+.OnEnable` does `blitMaterial = new Material(Shader.Find("Hidden/Post
+FX/Blit"))` and its OnDisable never destroys the old one. Live: the
+Material count grows by exactly the frame count (+3093 over 3093
+frames, +1511 / 1511 after a plain Slot 1 load in the lab - no restore
+involved), `blitMaterial`'s instance id changes between two reads 0.5
+s apart, the allocation tracker shows `UnityEngine.Material` at the
+frame rate charged to `ImageEffectOptimizer.Update` (6.5 KB/s = 24
+bytes x 278 fps), and with `ImageEffectOptimizer.enabled` false the
+count stops (+0 over 1519 frames). Not on the surface or in a cave
+(Cave 6: +0; Sunshine active there). The materials are not DontSave:
+`Resources.UnloadUnusedAssets` frees them, so leaving the endgame by a
+load or a teleport out dropped 68k to 2060 - but in-place restarts in
+the lab never run one (the author's 01-57 report: 1.47M Materials,
++243821 over 111 restarts of Labskip Jumping Section). Fixed by the
+performance switch `SunPostProcessKeepMaterial` (a prefix on OnEnable
+keeps the live material; nothing writes a property on it).
+
 **Far shadow** (`FarShadowCascade.SetShadowCamera`, from MainCamNew's
 OnPreCull): renders `__Far_Shadow Camera` every call with
 `QualitySettings.shadowDistance` set to 0 around it; the `refresh` /

@@ -278,6 +278,18 @@ Test away from cannibals (they stagger the player and cut actions).
 OverlayPlugin._host._modules[1]._checker.Check`, `wait 8`,
 `..._checker.Download "<plugin path>"`, restart.
 
+**Who makes Unity objects** (T-0149): count them cheaply with `call
+static:ForestOverlay.Game.RenderProbe TextureUsers zzz _MainTex` (logs
+"in N materials"; a census gives every type) against `get
+static:UnityEngine.Time frameCount` - a count that grows by exactly the
+frames is one a frame. Then `set ..._modules[8]._allocAtStartupCfg.Value
+true`, restart the game, and run `ToggleAllocations` + `ToggleProfiler`
+together for 30 s: an object made from script shows as its managed
+wrapper type (`UnityEngine.Material` 24 bytes) at that rate, and the
+profiler's `alloc:` row charges those bytes to the hooked method that
+made it (an `enabled = true` runs the target's OnEnable inside the
+caller). Put the config back after.
+
 **Habits**: `set` takes a vector as `x,y,z` (no brackets or spaces).
 Handles are per launch; target objects the game respawns **by path**
 (`girlMutant(Clone)/girl_base`) - a restore changes handles. `run` with
