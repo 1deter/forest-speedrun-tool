@@ -871,3 +871,6 @@ Asked after the deeper pass; each replaces an "open question" above.
   97), counted over the 5 tasks finished from 2026-10-08 - the row in
   `docs/quality.md`'s *Simplification log*; the author left the pick to
   Claude.
+- 2026-10-08: first harness review ended - the line is **removed**
+  (author): nothing got worse with it off (`docs/quality.md`
+  *Simplification log*). Next review due 30 days on.

@@ -1,7 +1,8 @@
 """Stop hook: what is unfinished, shown to the model before it stops (docs/harness.md 7b).
 
 .claude/settings.json runs it when a turn ends. It lists:
-- uncommitted changes, and commits not pushed,
+- uncommitted changes (commits not pushed: removed by the harness review
+  2026-10-08 - session-start's ahead line and the checker line cover it),
 - a csproj version with no tag, or a tag not pushed (a bump left half-done),
 - tasks in progress with no running note (tasks.py note) for the next session,
 - a checker task with a commit not yet pushed and no accept review (docs/harness.md 7d),
@@ -102,15 +103,13 @@ def claims(diff):
     return out
 
 
-def findings(root, status, ahead, version, local_tag, remote_tag, tasks, claim_lines, unreviewed=()):
+def findings(root, status, version, local_tag, remote_tag, tasks, claim_lines, unreviewed=()):
     """The list shown to the model; every input is already fetched, so it is testable."""
     out = []
     if status:
         n = len(status)
         out.append("%d uncommitted change(s) (%s%s) - commit them or say why they stay"
                    % (n, ", ".join(s[3:] for s in status[:4]), ", ..." if n > 4 else ""))
-    if ahead:
-        out.append("%d commit(s) not pushed - git push (memory: keep the repo in sync)" % ahead)
     if version and not local_tag:
         out.append("ForestOverlay.csproj is at %s but there is no tag v%s - finish the release (skill `release`)"
                    % (version, version))
@@ -134,8 +133,6 @@ def collect(cwd):
         return []
     status = [s for s in (try_git(["status", "--porcelain"], root) or "").splitlines() if s.strip()]
     upstream = (try_git(["rev-parse", "--abbrev-ref", "@{u}"], root) or "").strip()
-    ahead = int((try_git(["rev-list", "--count", "@{u}..HEAD"], root) or "0").strip() or 0) if upstream else 0
-    ahead = 0  # harness review 2026-10-07: the "not pushed" line is off for 5 tasks - delete this line to switch it back
     version = csproj_version(root)
     local_tag = remote_tag = None
     if version:
@@ -145,7 +142,7 @@ def collect(cwd):
             remote_tag = None if out is None else bool(out.strip())
     diff = try_git(["diff", upstream or "HEAD", "--", "CHANGELOG.md"], root) or ""
     unpushed = (try_git(["rev-list", "@{u}..HEAD"], root) or "").split() if upstream else []
-    return findings(root, status, ahead, version, local_tag, remote_tag, unnoted_tasks(root), claims(diff),
+    return findings(root, status, version, local_tag, remote_tag, unnoted_tasks(root), claims(diff),
                     unreviewed_tasks(root, unpushed))
 
 

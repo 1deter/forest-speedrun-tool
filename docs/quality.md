@@ -329,7 +329,7 @@ the next review is due 30 days after the last row.
 
 | Date | Component switched off | How to switch it back | Outcome | Decision |
 |---|---|---|---|---|
-| 2026-10-08 | Stop hook's "commits not pushed" line | `scripts/hooks/stop.py` `collect()`: delete the `ahead = 0  # harness review` line | off since 2026-10-07, counted from 2026-10-08 (today's tasks finished with it on); no recorded catch, it set off gotcha 97 (an unchecked merge pushed and deployed); the "no accept review" line, the release skill and session-start's ahead line stay | open |
+| 2026-10-08 | Stop hook's "commits not pushed" line | `scripts/hooks/stop.py` `collect()`: delete the `ahead = 0  # harness review` line | off since 2026-10-07, counted from 2026-10-08 (today's tasks finished with it on); no recorded catch, it set off gotcha 97 (an unchecked merge pushed and deployed); the "no accept review" line, the release skill and session-start's ahead line stay. Compared 2026-10-08: 10-07 (on) 49 finished, checker first-time accept 7/13 (54%), 1.8 reviews per task, 4 loop interventions; 10-08 (off) 53 finished, 44/48 (92%), 1.1, 0 - nothing worse, 0 commits left unpushed; the gain is mostly the loop maturing, so it says little for the line itself | **removed** (author, 2026-10-08) |
 
 ## Change history
 

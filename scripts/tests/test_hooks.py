@@ -201,19 +201,19 @@ class HookProcess(unittest.TestCase):
 
 class StopFindings(unittest.TestCase):
     def test_each_finding(self):
-        out = S.findings("r", [" M src/A.cs"], 2, "0.24.9", False, None, ["T-0005"], ["about 60% less garbage"])
+        out = S.findings("r", [" M src/A.cs"], "0.24.9", False, None, ["T-0005"], ["about 60% less garbage"])
         joined = "\n".join(out)
         self.assertIn("1 uncommitted change(s) (src/A.cs)", joined)
-        self.assertIn("2 commit(s) not pushed", joined)
+        self.assertNotIn("not pushed", joined)  # removed, harness review 2026-10-08
         self.assertIn("no tag v0.24.9", joined)
         self.assertIn("T-0005 is in progress with no running note", joined)
         self.assertIn("gotcha 44", joined)
 
     def test_tag_not_pushed(self):
-        out = S.findings("r", [], 0, "0.24.9", True, False, [], [])
+        out = S.findings("r", [], "0.24.9", True, False, [], [])
         self.assertEqual(out, ["tag v0.24.9 is not pushed - git push origin v0.24.9 (CI publishes the DLL from it)"])
-        self.assertEqual(S.findings("r", [], 0, "0.24.9", True, True, [], []), [])
-        self.assertEqual(S.findings("r", [], 0, "0.24.9", True, None, [], []), [])  # offline: no claim
+        self.assertEqual(S.findings("r", [], "0.24.9", True, True, [], []), [])
+        self.assertEqual(S.findings("r", [], "0.24.9", True, None, [], []), [])  # offline: no claim
 
     def test_claims(self):
         diff = ("+++ b/CHANGELOG.md\n+- Loads about 40% faster.\n+- Measured: 12 ms less per frame (measured A/B).\n"
@@ -251,7 +251,7 @@ class StopFindings(unittest.TestCase):
             shutil.rmtree(d)
 
     def test_unreviewed_finding_names_the_checker(self):
-        out = S.findings("r", [], 0, None, None, None, [], [], ["T-0009"])
+        out = S.findings("r", [], None, None, None, [], [], ["T-0009"])
         self.assertEqual(len(out), 1)
         self.assertIn("forest-checker", out[0])
 
