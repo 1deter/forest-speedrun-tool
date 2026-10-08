@@ -39,13 +39,13 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Performance and loads | C | B | B | A | C | T-0033, T-0190 | 2026-10-07 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
 | Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
-| Bridge, e2e and QA | B | A | A | B | A | T-0147 | 2026-10-07 |
-| Release and updater | B | A | A | B | A | T-0147 | 2026-10-07 |
+| Bridge, e2e and QA | B | A | A | B | A | | 2026-10-08 |
+| Release and updater | A | A | A | A | A | | 2026-10-08 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
 | Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
-| Harness | B | A | B | B | B | T-0147 | 2026-10-08 |
+| Harness | B | A | B | A | B | T-0197 | 2026-10-08 |
 
 Lowest first: Savestates, Practice, Performance and loads, Dev tools,
 Site maps and 3D world, Bot (C).
@@ -201,9 +201,9 @@ Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectPro
   e2e suite runs it end to end.
 - Legibility **A**: docs/bridge.md, docs/log-lines.md (generated);
   `Tools.cs` 952 and `ObjectProbe.cs` 1,050 lines.
-- Stability **B**: `test_e2e.py` and `test_read_report.py` pass locally
-  but CI never runs them (T-0147); the e2e suite is a day old (two clean
-  runs, one aborted by T-0143).
+- Stability **B**: every script test runs in CI (T-0147); the e2e suite
+  is two days old (clean smokes on v0.24.252..255; one run aborted by the
+  game's own crash, T-0143).
 - Gaps **A**.
 
 ### Release and updater
@@ -214,8 +214,8 @@ Paths: `src/Core/{UpdateChecker,UpdaterInstaller,WebRequest}.cs` `src/Modules/Up
   `lint.py` versions + the pre-push tag check; CI attaches the DLL; the
   release skill's e2e smoke installs it through the updater.
 - Legibility **A**: docs/areas/release.md.
-- Stability **B**: `test_bump.py` passes locally, CI never runs it
-  (T-0147).
+- Stability **A**: `test_bump.py` runs in CI with every script test
+  (T-0147, 2026-10-08).
 - Gaps **A**: the old-install problems are documented for runners
   (release.md *Known issues*), nothing open.
 
@@ -293,8 +293,8 @@ The task file, the loop, lints, hooks, skills, agents, session start, cleanup.
   catalogue tests in CI; `tasks.py check` in CI.
 - Legibility **B**: docs/harness.md is ~800 lines of plan and status
   together; workflow.md is the working copy.
-- Stability **B**: `test_agent_cost.py` and `test_watch_deploy.py` pass
-  locally, CI never runs them (T-0147); `test_audit.py` runs in CI.
+- Stability **A**: every scripts/tests file runs in CI (T-0147,
+  2026-10-08). Open: two tasks.py writers at once can lose a write (T-0197).
 - Gaps **B**: every checkable gotcha has its check (T-0123..T-0135, 2026-10-08;
   two plugin gaps the new lints baselined: T-0192, T-0193); Stage A ran
   twice (R-0001, R-0002); Stage B not built (T-0016); the weekly
