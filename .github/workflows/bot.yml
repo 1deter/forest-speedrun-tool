@@ -126,9 +126,11 @@ jobs:
           fi
 
   # The full eval by hand (T-0141): `gh workflow run bot.yml -f eval_ids=all`
-  # (or ids). Same model and key as the subset, so it shares the free
-  # quota - run it once per review, not in a loop. Never deploys: no
-  # publish, no ssh. Prints one line per question and the score; busy
+  # (or ids). It runs on DeepSeek, the live bot's first model, which is
+  # PAID per token (author, 2026-10-08) - so it runs only by hand: the
+  # full set once per bot review, named ids once per task fix, never in a
+  # loop (docs/decisions.md *Knowledge bot*). The automatic subset above
+  # stays on free Gemini. Never deploys: no publish, no ssh. Prints one line per question and the score; busy
   # questions are skipped, not scored (gotcha 94). Warn-only like the subset.
   eval-manual:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -149,12 +151,14 @@ jobs:
       - name: Eval (full set or the named ids)
         timeout-minutes: 80
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FOREST_BOT_MODELS: gemini:gemini-3.5-flash-lite
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # DeepSeek only: an empty balance shows as busy-skipped questions,
+          # never as a silent switch to another model's scores.
+          FOREST_BOT_MODELS: deepseek:deepseek-chat@https://api.deepseek.com/v1
           EVAL_IDS: ${{ inputs.eval_ids }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::GEMINI_API_KEY secret not set (bot/deploy/README.md) - eval skipped."
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::error::DEEPSEEK_API_KEY secret not set (bot/deploy/README.md) - eval skipped."
             exit 1
           fi
           ids="$EVAL_IDS"

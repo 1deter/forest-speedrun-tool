@@ -292,6 +292,16 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   polished with research sessions"); cheap OpenAI-compatible models are
   the candidates. Planned bot reviews: T-0141; runners' reactions in the
   knowledge-testing channel feed them (T-0140).
+- **The bot runs on DeepSeek, paid** (author, 2026-10-08, tired of the
+  Gemini Flash limits): `deepseek:deepseek-chat@https://api.deepseek.com/v1`
+  first in the VPS `.env`'s `FOREST_BOT_MODELS`, Gemini after as the
+  fallback; the key is `DEEPSEEK_API_KEY` (VPS `.env` + a GitHub secret).
+  **Don't drain it** (author: "make sure you don't spam the bot api"):
+  the automatic subset eval after each push stays on free Gemini; the
+  manual eval (bot.yml `eval-manual`) runs on DeepSeek only, and only the
+  full set once per bot review or named ids once per task fix (a second
+  run of the same ids needs a change in between) - never in a loop, never
+  "to see if it is stable"; no local live-model runs (bot/CLAUDE.md).
 - **Bot tab channels: a save with every box unticked = the bot answers
   in no channel** (author, 2026-10-07, T-0028: "Answer in no channel");
   DMs follow the DM toggle. Settings never saved on the site keep the

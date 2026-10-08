@@ -23,9 +23,9 @@ session-start counts what is newer than it. Move it only in step 7.
 1. **Read the mark and the last report** (`docs/bot-reviews/<latest>.md`):
    the scores to beat, the tasks it filed (are they done?).
 
-2. **Dispatch the full eval** (CI, never locally; it shares the free
-   quota, so once per review, and not after a push whose subset eval is
-   still running):
+2. **Dispatch the full eval** (CI, never locally; it runs on DeepSeek,
+   paid per token - **once per review**, never re-run to check
+   stability (author 2026-10-08, docs/decisions.md *Knowledge bot*)):
    ```bash
    gh workflow run bot.yml -f eval_ids=all      # or ids: -f eval_ids="bomb-why zipline"
    gh run list --workflow bot.yml --limit 3     # find the run id (one call)
