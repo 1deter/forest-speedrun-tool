@@ -3,3 +3,6 @@
 doc-path	README.md	../../releases	GitHub resolves it against the repo page (the Releases tab), not a file
 doc-path	docs/areas/release.md	locations/my-spots.txt	a path under a runner's BepInEx/config, not in the repo
 cs-unused	src/Modules/QaModule.cs	LogEvent	BepInEx ILogListener interface method (the interface is outside the repo)
+cs-unused	src/Modules/DebugViewModule.cs	AerialStop	the bridge-driven aerial bake's stop (AerialStart is called by name from scripts/aerial-bake.py) - T-0180
+cs-unused	src/Modules/PracticeModule.cs	ImportLiveSplitFile	the bridge's way in for a LiveSplit import (a click the bridge cannot make) - T-0181
+cs-unused	src/Modules/PracticeRunModule.Camera.cs	ReplayCameraOn	read over the bridge - T-0182
