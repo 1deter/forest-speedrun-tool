@@ -27,6 +27,8 @@ namespace ForestOverlay.Game
         private static PropertyInfo _inCaves, _inEndgame, _inOverlook;
         private static FieldInfo _loaders;
         private static FieldInfo _sceneName, _forced, _root;
+        private static object _playerBus, _exitOverlook;     // EventRegistry.Player, TfEvent.ExitOverlookArea
+        private static MethodInfo _publish;
 
         private static void Resolve()
         {
@@ -55,6 +57,17 @@ namespace ForestOverlay.Game
                 _sceneName = loader.GetField("_sceneName", inst);
                 _forced = loader.GetField("_forcedUnload", inst);
                 _root = loader.GetField("_loadedSceneRoot", inst);
+            }
+
+            Type registry = GameBridge.FindGameType("TheForest.Tools.EventRegistry");
+            Type tfEvent = GameBridge.FindGameType("TheForest.Tools.TfEvent");
+            if (registry != null && tfEvent != null)
+            {
+                FieldInfo player = registry.GetField("Player", stat);
+                FieldInfo exit = tfEvent.GetField("ExitOverlookArea", stat);
+                _playerBus = player != null ? player.GetValue(null) : null;
+                _exitOverlook = exit != null ? exit.GetValue(null) : null;
+                _publish = registry.GetMethod("Publish", inst, null, new[] { typeof(object), typeof(object) }, null);
             }
         }
 
@@ -203,6 +216,18 @@ namespace ForestOverlay.Game
             }
         }
 
+        /// The overlook area is entered when the red elevator's car reaches
+        /// the top (ElevatorAll/Enter Overlook Area Event, a proximity test
+        /// on the car): its EnterOverlookArea listeners set the flag AND
+        /// switch the outdoor sky on (TimeAndWeather/R10, off in the
+        /// endgame). Clearing the flag alone left R10 on inside the endgame:
+        /// an Elevator Boost restart after a ride that reached the top drew
+        /// the overlook foggy-white until a game restart (T-0222, maks;
+        /// bridge 2026-10-08). So in the endgame this sends the game's own
+        /// ExitOverlookArea (as PlayerStats.KillPlayer does): its listeners
+        /// clear the flag and switch R10 off. Outside the endgame R10
+        /// belongs on, so only the flag is cleared there (a teleport out
+        /// sends ExitEndgame after this, which switches it on).
         public static string LeaveOverlook()
         {
             try
@@ -210,10 +235,23 @@ namespace ForestOverlay.Game
                 Resolve();
                 if (_inOverlook == null) return "";
                 if (!(bool)_inOverlook.GetValue(null, null)) return "";
-                MethodInfo set = _inOverlook.GetSetMethod(true);
-                if (set == null) return "overlook: still set (no setter)";
-                set.Invoke(null, new object[] { false });
-                return "overlook: left (set by the elevator ride, not at capture)";
+                string how = "";
+                if (_inEndgame != null && (bool)_inEndgame.GetValue(null, null))
+                {
+                    if (_publish != null && _playerBus != null && _exitOverlook != null)
+                    {
+                        _publish.Invoke(_playerBus, new object[] { _exitOverlook, null });
+                        how = " - ExitOverlookArea sent, outdoor sky off";
+                    }
+                    else how = " - no ExitOverlookArea event, outdoor sky left as it is";
+                }
+                if ((bool)_inOverlook.GetValue(null, null))
+                {
+                    MethodInfo set = _inOverlook.GetSetMethod(true);
+                    if (set == null) return "overlook: still set (no setter" + how + ")";
+                    set.Invoke(null, new object[] { false });
+                }
+                return "overlook: left (set by the elevator ride, not at capture" + how + ")";
             }
             catch (Exception ex)
             {

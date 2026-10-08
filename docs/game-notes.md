@@ -778,6 +778,21 @@ state, not scenes (areas: `same as at capture`).
   Quick load kept `ControlRoom` active, so its neighbour `HellCorridor`
   stayed loaded (textured). `ControlRoom.OnLeave(null)` unloaded it (author
   confirmed). Kept by `Game/AreaKeeper` (v0.24.41).
+- **The overlook area is entered by the car, and switches the sky on**
+  (bridge, 2026-10-08, T-0222): `ControlRoom/ElevatorAll/Enter Overlook
+  Area Event` (`PlayerPositionTester` Proximity 0.5 of the car
+  `Elevator_01a` to `p2`, `EventEmitter` Player / `EnterOverlookArea`) -
+  so it fires when the car arrives (~20-30 s after an Elevator Boost
+  puts the player up there), not when the player does. Exit: `Exit
+  Overlook Area Event` (Behind `Trigger_Door`), and the game publishes
+  `ExitOverlookArea` itself in `PlayerStats.KillPlayer` / `PlayerRespawnMP`.
+  Listeners: `player/ControllerObjects` (`SetInOverlookArea` true /
+  false) and `TimeAndWeather/R10` (the sun, moon, Sunshine, sky mesh):
+  `SetActive(false)` on EnterEndgame and ExitOverlookArea, `SetActive(true)`
+  on ExitEndgame and EnterOverlookArea. R10 left on inside the endgame
+  draws the overlook / shaft foggy-white (sunlit cliffs, haze) until a
+  game restart; switching it off gave the first ride's look back.
+  `Game/AreaReport.LeaveOverlook` sends ExitOverlookArea in the endgame.
 - `LocalPlayer.IsInOverlookArea` is not the elevator's cause (cleared by a
   restore since v0.24.26), but it **hides the Sahara cave's outside**
   (its corridors show through the ControlRoom area instead). After the
