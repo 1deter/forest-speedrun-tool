@@ -131,6 +131,12 @@ section open / closed state is not persisted; widgets are not snapped / no
 stack groups; the run timer widget has no delta colouring yet; verify
 checkbox / window textures and tooltip placement in game.
 
+T-0226 (2026-10-08): a **Developer** tab (last: bridge, benchmarks,
+experimental, TAS, memory census, dumps), Settings as one page of folds
+(Keys, Info box, Performance, Loads and savestates), Debug views renamed
+**Views**, the Deaths tab's duplicate toggle gone. Built + tests; not seen in
+game yet (T-0025's QA).
+
 ## First in-game try (author, 2026-10-05)
 
 - **Title over the tab pills** - fixed: the window style drew the title

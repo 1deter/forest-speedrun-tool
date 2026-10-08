@@ -31,7 +31,7 @@ concept before changing its feature. Where the code lives:
   `]`. Run mode refuses it (feature `tas`, not in any category). Log prefix
   `TAS:`.
 - **The trajectory preview predicts a let-go flight and only reads the
-  game** (experimental, Debug views switch, off at every launch, practice
+  game** (experimental, Developer tab switch, off at every launch, practice
   marked; run mode refuses it unless a category allows feature
   `trajectory`). Ten times a second it steps the player's live velocity with
   the game's gravity (Physics -16 plus the controller's 10), the 55 m/s cap
@@ -75,8 +75,10 @@ concept before changing its feature. Where the code lives:
      death"; a load-mode state = a full load per death);
   2. practice mode on + a current spot → **revive** at the spot (health
      100, blood cleared, no reload, marks practice);
-  3. otherwise **Reload save on death** (was "quick-load"; toggle, on;
-     config keys still `QuickLoad*`) — every death, the first-death
+  3. otherwise **the save reloads** (was "quick-load"; the separate
+     *Reload save on death* toggle went in T-0226 - the game's own death is
+     its own choice; config keys still `QuickLoad*`, `QuickLoadOnDeath` no
+     longer read) — every death, the first-death
      capture and the boss-fight wake-up each with their own toggle (both on;
      the boss toggle is the author's call). Never permadeath or multiplayer.
   The reload **skips the title screen** by default (`QuickLoadSkipMenu`,
@@ -138,7 +140,7 @@ concept before changing its feature. Where the code lives:
   **route fingerprint**, so moving a zone retires old times instead of
   letting them compete. Lines are cleared when the current entry is a plain
   spot or another segment.
-- **Loads and memory** (Debug views, bottom; drawn by `SavestateModule.DrawOptions`): `Game/LoadWatcher`
+- **Loads and memory** (Settings > Loads and savestates via `SavestateModule.DrawOptions`; the census in Developer via `DrawCensus`): `Game/LoadWatcher`
   sees every load by `Scene.FinishGameLoad`; 1.5 s later `Game/MemoryCensus`
   logs the heap, destroyed Unity objects still reachable from statics (per
   root, with growth) and Unity objects by type (switch

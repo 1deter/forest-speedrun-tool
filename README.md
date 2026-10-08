@@ -49,7 +49,7 @@ A speedrun and practice tool for **The Forest**, built as a
   dying at such a spot restores it too
 - **Death recovery** — a death in practice mode puts you back at your spot
   with full health and no blood overlay
-- **Debug views** — freecam (the body is held still), collider and trigger
+- **Views** — freecam (the body is held still), collider and trigger
   volumes with a size cap and a name filter, wireframe
 
 ## Using it

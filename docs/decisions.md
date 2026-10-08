@@ -112,6 +112,17 @@ when they want it.
 
 ## Plugin
 
+- **Developer tab and settings that never contradict** (author, 2026-10-08,
+  T-0226): developer-only = the bridge, memory census, benchmarks and the
+  experimental features runners would not risk a run on - they live in the
+  last tab, *Developer*. The behaviour-preserving performance patches are
+  *not* developer-only (Settings > Performance). Settings is a tab of folds,
+  "clear and easy to navigate". The QA tab stays while the tool is in
+  development and **goes at the public release**. Two options that
+  contradict can never both be on: one control per setting, a choice of
+  one (radio), or picking one disables the other (the Deaths tab's
+  *Reload save on death* toggle went for this). The Info box and the
+  legacy `locations/*.txt` import stay.
 - **Performance switches need no sign-off** (author, 2026-10-08; the
   admins agree): a switch that helps and is tested not to change any game
   mechanic or logic runners rely on for fair, consistent timing ships on
