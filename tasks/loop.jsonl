@@ -40,3 +40,5 @@
 {"at": "2026-10-08T06:44:10", "event": "stop", "run": "R-0003", "reason": "5 rounds done (the run's limit)"}
 {"at": "2026-10-08T06:44:29", "event": "begin", "run": "R-0004", "max_rounds": 5, "bridge": true, "by": "main"}
 {"at": "2026-10-08T06:44:29", "event": "round", "run": "R-0004", "round": 1, "task": "T-0186", "reviews_before": 0}
+{"at": "2026-10-08T06:44:55", "event": "end", "run": "R-0004", "round": 1, "task": "T-0186", "status": "todo", "progress": false, "parked": false, "summary": "T-0186 handed back again: it was 05:45 UTC, the bot's free quota resets ~07:00 UTC. Main dispatches the eval after 07:30 UTC outside the loop rounds."}
+{"at": "2026-10-08T06:44:55", "event": "round", "run": "R-0004", "round": 2, "task": "T-0043", "reviews_before": 0}
