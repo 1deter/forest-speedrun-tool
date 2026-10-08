@@ -31,7 +31,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-07 |
-| Timed runs | B | A | B | A | B | T-0049, T-0144 | 2026-10-07 |
+| Timed runs | B | A | B | A | B | T-0144 | 2026-10-08 |
 | Practice | C | A | C | A | B | T-0046 | 2026-10-07 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
@@ -86,8 +86,8 @@ LiveSplit, uploads.
 - Legibility **B**: `PracticeRunModule.cs` 1,402 lines, the rest split
   into eight partials under 810; plugin.md and plugin-concepts.md cover it.
 - Stability **A**.
-- Gaps **B**: another segment's Go keeps the red line (T-0049); a
-  deleted attempt stays listed with a dead link (T-0144); replay
+- Gaps **B**: (another segment's Go clears the red line since v0.24.257,
+  T-0049); a deleted attempt stays listed with a dead link (T-0144); replay
   labels done in one spot print over each other (confirmed.md,
   2026-10-04).
 
