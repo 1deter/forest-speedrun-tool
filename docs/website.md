@@ -53,8 +53,14 @@ go to decisions.md; feature detail goes here.
   No secrets pass through. Edits are held until **Save changes** on a
   Discord-style unsaved-changes bar (Reset beside it); while it shows, tab
   links, Back and Sign out are refused (the bar turns red and shakes) and
-  closing the page asks - `unsaved` / `leaveRefused` in app.js (T-0231:
-  the author's untick was never saved, the old Save sat below the fold).
+  closing the page asks - `unsaved` / `leaveRefused` in app.js, the bar
+  `unsavedBar` in admin.js (T-0231: the author's untick was never saved,
+  the old Save sat below the fold). The **Categories** tab uses the same
+  bar (T-0236): open editors are kept across redraws, a changed one will
+  not close, its Save (new version) saves every changed editor (each a new
+  version; a validation message stays under its form), and Check
+  speedrun.com now / New category / Accept / Keep ours are refused while
+  changes are unsaved (they reload the list).
   The bot side (poller, live reload, cache): docs/knowledge-bot.md.
 - **Clean paths** (author, 2026-09-27: the `#/` "doesn't look clean"):
   `/spot/<id>[/<route>]`, `/about`, `/admin[/<tab>]` - the server answers

@@ -109,6 +109,34 @@ async function act(say, method, path, done) {
   catch (e) { say("Failed: " + e.message); }
 }
 
+/// Discord's unsaved-changes bar for a form saved by hand (author, 2026-10-08, T-0231): pinned to
+/// the bottom while show(true); blocked() turns it red and shakes it when leaving is refused (the
+/// page sets app.js's `unsaved`); busy(true) while saving holds both buttons.
+function unsavedBar(saveLabel, onSave, onReset) {
+  const text = el("span", { class: "unsavedmsg" });
+  const reset = el("button", { class: "chip", onclick: onReset }, "Reset");
+  const save = el("button", { class: "chip on", onclick: onSave }, saveLabel);
+  const box = el("div", { class: "unsaved", role: "status", hidden: "" }, text, el("div", { class: "btnrow" }, reset, save));
+  let saving = false;
+  return {
+    box,
+    saving: () => saving,
+    show(dirty) {
+      if (saving) return;
+      box.hidden = !dirty;
+      if (!dirty) box.classList.remove("warn");
+      else if (!box.classList.contains("warn")) text.textContent = "Careful - you have unsaved changes!";
+    },
+    blocked() {
+      box.hidden = false;
+      text.textContent = "Save or reset your changes before leaving.";
+      box.classList.remove("warn"); void box.offsetWidth; box.classList.add("warn");   // replay the shake
+    },
+    say(s) { text.textContent = s; },
+    busy(on) { saving = on; save.disabled = reset.disabled = on; if (on) box.classList.remove("warn"); },
+  };
+}
+
 // --- spot submissions -------------------------------------------------------------
 
 function submissionsView(subs) {
@@ -272,26 +300,65 @@ function categoryText(c) {
 }
 
 /// Every category: speedrun.com's (drafts until published), the presets
-/// and the moderators' own. Each opens into an editor; Save makes a new
-/// version (attempts keep the version they ran under).
+/// and the moderators' own. Each opens into an editor; edits wait for Save
+/// on the unsaved-changes bar, which saves every changed editor - each save
+/// a new version (attempts keep the version they ran under).
 function categoriesView(data, spots) {
   const list = data.list.slice().sort((a, b) =>
     (a.status === "published" ? 0 : a.status === "draft" ? 1 : 2) - (b.status === "published" ? 0 : b.status === "draft" ? 1 : 2) ||
     a.name.localeCompare(b.name));
-  const open = new Set();
+  // The open editors, kept across redraws so opening another row keeps what was typed.
+  const editors = new Map();
+  const anyDirty = () => [...editors.values()].some(e => e.dirty());
+  const bar = unsavedBar("Save (new version)", saveAll, () => { unsaved = null; adminPage("categories"); });
+  const refresh = () => bar.show(anyDirty());
+  unsaved = { dirty: () => !bar.saving() && anyDirty(), blocked: bar.blocked };
+
   const rows = el("tbody");
+  function toggle(x) {
+    const ed = editors.get(x.id);
+    if (ed && ed.dirty()) { bar.blocked(); return; }   // closing would drop its changes
+    if (ed) editors.delete(x.id); else editors.set(x.id, categoryEditor(x, data.features, spots, refresh));
+    render();
+  }
   function render() {
     rows.replaceChildren(...list.flatMap(x => {
-      const row = el("tr", { class: open.has(x.id) ? "focus" : "", onclick: () => { open.has(x.id) ? open.delete(x.id) : open.add(x.id); render(); } },
+      const ed = editors.get(x.id);
+      const row = el("tr", { class: ed ? "focus" : "", onclick: () => toggle(x) },
         el("td", { class: "name" }, x.name, x.changed ? el("span", { class: "tag bad" }, "speedrun.com changed this") : null),
         el("td", { class: "r status-" + (x.status === "published" ? "approved" : x.status === "draft" ? "open" : "rejected") }, x.status),
         el("td", { class: "r" }, "v" + x.version));
-      return open.has(x.id) ? [row, el("tr", { class: "detail" }, el("td", { colspan: 3 }, categoryEditor(x, data.features, spots, render)))] : [row];
+      return ed ? [row, el("tr", { class: "detail" }, el("td", { colspan: 3 }, ed.node))] : [row];
     }));
   }
   render();
 
+  async function saveAll() {
+    const changed = [...editors.values()].filter(e => e.dirty());
+    const outs = [];
+    for (const e of changed) {
+      const out = e.collect();   // null = its own message says what is wrong
+      if (!out) { bar.say("Not saved - see the message in " + e.name() + "."); return; }
+      outs.push([e, out]);
+    }
+    bar.busy(true);
+    bar.say("Saving…");
+    const done = [];
+    for (const [e, out] of outs) {
+      try { const r = await adminCall("PUT", "/categories/" + out.id, categoryText(out)); done.push(out.name + " v" + r.version); e.say("Saved as version " + r.version + "."); }
+      catch (err) {
+        e.say("Failed: " + err.message);
+        bar.busy(false);
+        bar.say("Not saved: " + out.name + (done.length ? " (saved: " + done.join(", ") + ")" : "") + " - " + err.message);
+        return;
+      }
+    }
+    bar.say("Saved: " + done.join(", ") + ".");
+    setTimeout(() => { unsaved = null; adminPage("categories"); }, 900);
+  }
+
   const sync = actions(el("button", { class: "chip", onclick: async () => {
+    if (leaveRefused()) return;   // it reloads the list
     sync.say("Reading speedrun.com…");
     try {
       const r = await adminCall("POST", "/categories/sync");
@@ -301,6 +368,7 @@ function categoriesView(data, spots) {
   } }, "Check speedrun.com now"), el("button", { class: "chip", onclick: () => newCategory() }, "New category"));
 
   function newCategory() {
+    if (leaveRefused()) return;   // it reloads the list
     const name = prompt("The new category's name (e.g. Manhunt - Hard):");
     if (!name || !name.trim()) return;
     const id = slug(name.trim());
@@ -310,7 +378,7 @@ function categoriesView(data, spots) {
     adminCall("PUT", "/categories/" + id, categoryText(c)).then(() => adminPage("categories"), e => sync.say("Failed: " + e.message));
   }
 
-  return el("section", null,
+  return el("section", { class: "hasbar" },
     el("p", { class: "note" }, "What a run allows. Categories come from speedrun.com (checked daily; new ones arrive as drafts) - " +
       "publish one and the game offers it in the Runs tab. Speedrun.com's changes apply by themselves until a category is edited here; " +
       "after that they wait for Accept. Every save is a new version: an attempt is judged by the version it ran under. " +
@@ -318,10 +386,13 @@ function categoriesView(data, spots) {
     sync.box,
     el("div", { class: "tablewrap" }, el("table", { class: "admin" },
       el("thead", null, el("tr", null, el("th", null, "Category"), el("th", { class: "r" }, "Status"), el("th", { class: "r" }, "Version"))),
-      rows)));
+      rows)),
+    bar.box);
 }
 
-function categoryEditor(x, features, spots, rerender) {
+/// One category's form. It does not save itself: the page's unsaved-changes bar calls collect()
+/// (the category to PUT, or null with the reason under the form); onChange runs on every edit.
+function categoryEditor(x, features, spots, onChange) {
   const c = x.category;
   const stop = e => e.stopPropagation();
   const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
@@ -354,31 +425,35 @@ function categoryEditor(x, features, spots, rerender) {
     return el("tr", null, el("td", null, f.label, f.def !== "locked" ? el("span", { class: "sub" }, " (default: " + POLICY_LABEL[f.def].toLowerCase() + ")") : null), el("td", null, s));
   });
 
-  const save = actions(el("button", { class: "chip", onclick: async () => {
+  const msg = el("div", { class: "rowmsg" });
+  const say = t => { msg.textContent = t; };
+  function collect() {
     const out = {
       id: x.id, name: name.value.trim(), status: status.value, difficulty: difficulty.value, creative: creative.value, multiplayer: multiplayer.value,
       spot: spot.value, antisplice: anti.checked, amber: amber.checked, src: c.src,
       banned: banned.value.split("\n").map(s => s.trim()).filter(Boolean), rules: rules.value.split("\n").map(s => s.trimEnd()).filter(s => s.trim()),
       features: features.map(f => ({ key: f.key, policy: policies[f.key].value })),
     };
-    if (!out.name) { save.say("A name, please."); return; }
+    if (!out.name) { say("A name, please."); return null; }
     const lc = logcap.value.trim() ? parseInt(logcap.value, 10) : 0;
-    if (logcap.value.trim() && !(lc >= 1 && lc <= 99)) { save.say("The log cap is 1-99 (empty: 5)."); return; }
+    if (logcap.value.trim() && !(lc >= 1 && lc <= 99)) { say("The log cap is 1-99 (empty: 5)."); return null; }
     out.logcap = lc;
     const bad = caps.list.find(k => !(k.cap >= 1 && k.cap <= 9999));
-    if (bad) { save.say("Item caps are 1-9999 - " + bad.name + " is not."); return; }
+    if (bad) { say("Item caps are 1-9999 - " + bad.name + " is not."); return null; }
     out.caps = caps.list.map(k => ({ name: k.name, cap: k.cap }));
-    save.say("…");
-    try { const r = await adminCall("PUT", "/categories/" + x.id, categoryText(out)); save.say("Saved as version " + r.version + "."); setTimeout(() => adminPage("categories"), 700); }
-    catch (e) { save.say("Failed: " + e.message); }
-  } }, "Save (new version)"));
+    say("");
+    return out;
+  }
+  // What the form says now, compared with what it opened with.
+  const state = () => JSON.stringify([name.value, status.value, difficulty.value, creative.value, multiplayer.value, spot.value,
+    anti.checked, amber.checked, banned.value, logcap.value, caps.list, rules.value, features.map(f => policies[f.key].value)]);
 
   let changed = null;
   if (x.changed) {
     const a = actions(
-      el("button", { class: "chip", onclick: () => act(a.say, "POST", "/categories/" + x.id + "/accept", () => adminPage("categories")) },
+      el("button", { class: "chip", onclick: () => { if (!leaveRefused()) act(a.say, "POST", "/categories/" + x.id + "/accept", () => adminPage("categories")); } },
         x.changed.name === "(removed from speedrun.com)" ? "Hide this category" : "Accept speedrun.com's version"),
-      el("button", { class: "chip", onclick: () => act(a.say, "POST", "/categories/" + x.id + "/dismiss", () => adminPage("categories")) }, "Keep ours"));
+      el("button", { class: "chip", onclick: () => { if (!leaveRefused()) act(a.say, "POST", "/categories/" + x.id + "/dismiss", () => adminPage("categories")); } }, "Keep ours"));
     changed = el("div", { class: "srcdiff" },
       el("h3", null, "Speedrun.com changed this category"),
       x.changed.name === "(removed from speedrun.com)" ? el("p", null, "It is no longer on speedrun.com.")
@@ -389,7 +464,7 @@ function categoryEditor(x, features, spots, rerender) {
       a.box);
   }
 
-  return el("div", { class: "catform", onclick: stop },
+  const node = el("div", { class: "catform", onclick: stop },
     changed,
     field("Name", name),
     field("Status", status, "Published categories are offered in the game's Runs tab."),
@@ -410,7 +485,11 @@ function categoryEditor(x, features, spots, rerender) {
     field("Banned moves (one per line)", banned, "Shown on every attempt's page. Detecting them automatically comes later."),
     field("Rules (one per line)", rules),
     c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),
-    save.box);
+    msg);
+  const loaded = state();
+  // The caps picker adds and removes by click / Enter, the rest by input / change.
+  for (const ev of ["input", "change", "click", "keyup"]) node.addEventListener(ev, () => onChange());
+  return { node, dirty: () => state() !== loaded, collect, say, name: () => name.value.trim() || x.name };
 }
 
 // The game's item list (wwwroot/items.json, read from the game's database):
@@ -611,30 +690,12 @@ function botView(data) {
   const state = () => JSON.stringify([ticked(), dms.checked, perHour.value, perDay.value, models.value.trim(), thinking.value, queue.value]);
   const loadedChannels = JSON.stringify(ticked());
   const loaded = state();
-  let saving = false;
 
-  const barText = el("span", { class: "unsavedmsg" });
-  const reset = el("button", { class: "chip" }, "Reset");
-  const saveBtn = el("button", { class: "chip on" }, "Save changes");
-  const bar = el("div", { class: "unsaved", role: "status", hidden: "" }, barText, el("div", { class: "btnrow" }, reset, saveBtn));
-  const dirty = () => !saving && state() !== loaded;
-  const refresh = () => {
-    if (saving) return;
-    const d = state() !== loaded;
-    bar.hidden = !d;
-    if (!d) bar.classList.remove("warn");
-    else if (!bar.classList.contains("warn")) barText.textContent = "Careful - you have unsaved changes!";
-  };
-  unsaved = {
-    dirty,
-    blocked: () => {
-      bar.hidden = false;
-      barText.textContent = "Save or reset your changes before leaving.";
-      bar.classList.remove("warn"); void bar.offsetWidth; bar.classList.add("warn");   // replay the shake
-    },
-  };
-  reset.addEventListener("click", () => { unsaved = null; adminPage("bot"); });
-  saveBtn.addEventListener("click", async () => {
+  const bar = unsavedBar("Save changes", save, () => { unsaved = null; adminPage("bot"); });
+  const dirty = () => !bar.saving() && state() !== loaded;
+  const refresh = () => bar.show(state() !== loaded);
+  unsaved = { dirty, blocked: bar.blocked };
+  async function save() {
     // With no boxes (the bot has not listed its channels) the channels stay as stored, or absent:
     // sending [] would silence the bot.
     const body = {
@@ -644,18 +705,17 @@ function botView(data) {
       perHour: perHour.value ? Number(perHour.value) : null, perDay: perDay.value ? Number(perDay.value) : null,
       models: models.value.trim(), thinking: thinking.value, queueChannel: queue.value,
     };
-    saving = true; saveBtn.disabled = reset.disabled = true;
-    bar.classList.remove("warn");
-    barText.textContent = "Saving…";
+    bar.busy(true);
+    bar.say("Saving…");
     try {
       const r = await adminCall("PUT", "/bot", JSON.stringify(body));
-      barText.textContent = "Saved as revision " + r.rev + ". The bot applies it within a minute.";
+      bar.say("Saved as revision " + r.rev + ". The bot applies it within a minute.");
       setTimeout(() => { if (unsaved && unsaved.dirty === dirty) { unsaved = null; adminPage("bot"); } }, 1500);
     } catch (e) {
-      saving = false; saveBtn.disabled = reset.disabled = false;
-      barText.textContent = "Not saved: " + e.message;
+      bar.busy(false);
+      bar.say("Not saved: " + e.message);
     }
-  });
+  }
 
   const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
 
@@ -681,12 +741,12 @@ function botView(data) {
     field("Thinking level", thinking),
     field("Research-queue channel", queue));
 
-  return el("section", { class: "botsettings" },
+  return el("section", { class: "hasbar" },
     el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
       "A field left empty uses the bot's .env value."),
     el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
     form,
-    bar);
+    bar.box);
 }
 
 // --- runners -------------------------------------------------------------------------

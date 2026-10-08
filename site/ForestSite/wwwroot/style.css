@@ -305,9 +305,9 @@ td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 .chcat > summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 .chcat > .check { margin-left: 14px; }
 div.chcat > .check { margin-left: 0; }
-/* Discord's unsaved-changes bar: pinned to the bottom while the form differs from what was
-   saved; it shakes and turns red when leaving is refused. */
-.botsettings { padding-bottom: 80px; }
+/* Discord's unsaved-changes bar (Bot tab, Categories): pinned to the bottom while a form differs
+   from what was saved; it shakes and turns red when leaving is refused. */
+.hasbar { padding-bottom: 96px; }   /* room under the last field for the bar */
 .unsaved {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 10;
   width: min(720px, calc(100% - 32px)); display: flex; flex-wrap: wrap; gap: 8px 16px;
