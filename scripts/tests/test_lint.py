@@ -522,5 +522,39 @@ class RenderObject(unittest.TestCase):
         self.assertEqual(text(L.check_render(hits)), "")
 
 
+WEB_OK = """// UnityWebRequest in a comment
+var t = Type.GetType("UnityEngine.Networking.UnityWebRequest, UnityEngine");
+var h = t.GetProperty("downloadHandler");
+var c = t.GetProperty("responseCode");
+"""
+
+
+class WebRequests(unittest.TestCase):
+    def test_reader_with_response_code_passes(self):
+        self.assertEqual(L.web_request_hits("src/Core/A.cs", WEB_OK), [])
+
+    def test_reader_without_response_code_hits(self):
+        bad = WEB_OK.replace("responseCode", "isError")
+        self.assertEqual(L.web_request_hits("src/Core/A.cs", bad), [("src/Core/A.cs", 2)])
+
+    def test_response_code_only_in_a_comment_does_not_count(self):
+        bad = WEB_OK.replace('GetProperty("responseCode")', 'GetProperty("isError")') + "// responseCode\n/* responseCode */\n"
+        self.assertEqual(len(L.web_request_hits("src/Core/A.cs", bad)), 1)
+
+    def test_file_without_a_request_or_a_body_read_passes(self):
+        self.assertEqual(L.web_request_hits("a.cs", "var x = responseCode;\n"), [])
+        self.assertEqual(L.web_request_hits("a.cs", 'var t = Type.GetType("UnityWebRequest");\n'), [])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_web_requests([("src/Core/A.cs", 2)]))
+        self.assertIn("ERROR: src/Core/A.cs:2 reads a UnityWebRequest but never checks responseCode", out)
+        self.assertIn("gotcha 15", out)
+        self.assertIn("FIX: read the request's responseCode", out)
+
+    def test_repo_readers_all_check(self):
+        hits = [h for p, t in L.src_texts() for h in L.web_request_hits(p, t)]
+        self.assertEqual(text(L.check_web_requests(hits)), "")
+
+
 if __name__ == "__main__":
     unittest.main()

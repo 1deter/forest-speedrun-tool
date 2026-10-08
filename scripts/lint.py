@@ -24,6 +24,7 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+Code that reads a UnityWebRequest also checks responseCode (gotcha 15).
 Every OnRenderObject in src/ checks DrawTarget.ShouldDraw() (gotcha 12).
 scripts/deploy.ps1 copies the plugin DLL only (gotcha 10).
 Text files (gotcha 9): no tracked file holds PowerShell 5.1 mojibake.
@@ -566,6 +567,28 @@ def check_render(hits):
             for path, n, cls in hits]
 
 
+# ---------------------------------------------------------------- UnityWebRequest
+
+def web_request_hits(path, text):
+    """[(path, first line)] when a src/ file reads a UnityWebRequest's body (downloadHandler) but never looks at
+    responseCode (gotcha 15). The type is reached by reflection, so its name is in a string: only comments are cut."""
+    code = [(n, strip_comment(l)) for n, l in enumerate(strip_block_comments(text).splitlines(), 1)]
+    uses = [n for n, c in code if "UnityWebRequest" in c]
+    reads = any("downloadHandler" in c for n, c in code)
+    if uses and reads and not any("responseCode" in c for n, c in code):
+        return [(path, uses[0])]
+    return []
+
+
+def check_web_requests(hits):
+    return [Problem("%s:%d reads a UnityWebRequest but never checks responseCode" % (path, n),
+                    "Unity 5.6's UnityWebRequest does not treat a 404 as an error: the 'Not Found' body arrives as "
+                    "ordinary data (gotcha 15)",
+                    "read the request's responseCode (see Core/WebRequest.cs) and treat anything but 200 as a failure "
+                    "before using the body")
+            for path, n in hits]
+
+
 # ---------------------------------------------------------------- UI heuristics
 
 LABEL_20 = re.compile(r'GUI\.Label\(\s*new\s+Rect\((?:[^()]|\([^()]*\))*,\s*20f?\s*\)\s*,\s*(?=[^"\s])')
@@ -872,6 +895,7 @@ def main(argv=None):
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
+    probs += check_web_requests([h for p, t in src_texts() for h in web_request_hits(p, t)])
     probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
     probs += check_mojibake(tracked_text())
     probs += check_deploy(read(DEPLOY))
