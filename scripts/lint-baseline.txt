@@ -6,6 +6,26 @@ alloc	src/Modules/PracticeRunModule.cs	_compareCfg.Value = kind.ToString();   //
 alloc	src/Modules/PracticeRunModule.cs	_rowStyle = new GUIStyle(GUI.skin.label);
 alloc	src/Modules/UpdateModule.cs	y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
 alloc	src/Plugin.cs	Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
+findall	src/Game/DrawingsReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/InventoryReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/MemoryCensus.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
+findall	src/Game/MemoryCensus.cs	try { all = Resources.FindObjectsOfTypeAll(typeof(UnityEngine.Object)); }
+findall	src/Game/NatureGuideReader.cs	try { found = Resources.FindObjectsOfTypeAll(_hostType); }
+findall	src/Game/ObjectProbe.cs	? Resources.FindObjectsOfTypeAll(t)
+findall	src/Game/ObjectProbe.cs	? Resources.FindObjectsOfTypeAll(typeof(GameObject))
+findall	src/Game/ObjectProbe.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(GameObject));
+findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] mats = Resources.FindObjectsOfTypeAll(typeof(Material));
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] rs = Resources.FindObjectsOfTypeAll(typeof(Renderer));
+findall	src/Game/SavestateBridge.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_ragdollifyType);
+findall	src/Game/SlidingDoorKeeper.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/SlidingDoorKeeper.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/SurvivalBookReader.cs	try { found = Resources.FindObjectsOfTypeAll(type); }
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(lodType);
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(zoneType);
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] lods = high != null ? Resources.FindObjectsOfTypeAll(lodType) : new UnityEngine.Object[0];
+findall	src/Game/WorldDump.cs	foreach (UnityEngine.Object o in Resources.FindObjectsOfTypeAll(type))
 label20	src/Modules/DeathModule.cs	GUI.Label(new Rect(0, y, w, 20), ChoiceTitle);
 label20	src/Modules/DeathModule.cs	GUI.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
 label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);

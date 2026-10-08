@@ -7,9 +7,9 @@ Every failure prints WHAT / WHY / FIX, so the fix is in the message.
                                               # a tag about to be pushed (pre-push hook)
     python scripts/lint.py --update-baseline  # accept today's heuristic hits
 
-The two UI heuristics (a fixed 20 px GUI.Label with variable text, an
-allocation in an OnGUI / DrawTab body) cannot tell a list row or a
-constant from a bug, so the hits that existed when they were added sit in
+The baselined heuristics (a fixed 20 px GUI.Label with variable text, an
+allocation in an OnGUI / DrawTab body, a Resources.FindObjectsOfTypeAll
+call site) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
 scripts/lint-baseline.txt and only new ones fail (author, 2026-10-07).
 Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
@@ -604,6 +604,25 @@ def alloc_hits(path, text):
     return hits
 
 
+FIND_ALL = re.compile(r"\bResources\.FindObjectsOfTypeAll\s*\(")
+
+
+def code_lines(text):
+    """[(line number, code)] - the text without /* */ and // comments and with string contents blanked."""
+    return [(n, blank_strings(strip_comment(l))) for n, l in enumerate(strip_block_comments(text).splitlines(), 1)]
+
+
+def findall_hits(path, text):
+    """Every Resources.FindObjectsOfTypeAll call site (gotcha 11, T-0125); the hits that existed sit in the baseline."""
+    lines = text.splitlines()
+    return [("findall", path, n, lines[n - 1].strip()) for n, code in code_lines(text) if FIND_ALL.search(code)]
+
+
+def source_hits(path, text):
+    """The baselined source-text rules for one src/ file."""
+    return findall_hits(path, text)
+
+
 def ui_hits(root=ROOT):
     hits = []
     for dirpath, dirs, files in os.walk(os.path.join(root, "src")):
@@ -616,6 +635,7 @@ def ui_hits(root=ROOT):
                 text = fh.read()
             hits.extend(label_hits(rel, text))
             hits.extend(alloc_hits(rel, text))
+            hits.extend(source_hits(rel, text))
     return hits
 
 
@@ -628,6 +648,10 @@ UI_TEXT = {
               "OnGUI runs several times a frame; garbage there is a GC hitch (src/CLAUDE.md: never allocate in DrawTab/OnGUI)",
               "build the string in Tick (throttled) and keep it / its GUIContent in a field; a false positive (no allocation): "
               "python scripts/lint.py --update-baseline"),
+    "findall": ("a Resources.FindObjectsOfTypeAll call",
+                "it walks every loaded object (22-25 ms in ForestMain); on a refresh it was a visible stutter (gotcha 11)",
+                "find once and keep it (Game/SceneCache), rate-limit the re-search, or use the game's static handle; a one-off "
+                "dump / probe that runs on a command: python scripts/lint.py --update-baseline"),
 }
 
 
@@ -819,7 +843,7 @@ def main(argv=None):
     if probs:
         print("lint: %d problem(s)" % len(probs), file=sys.stderr)
         return 1
-    print("lint: ok (%d UI hit(s), all baselined)" % len(hits))
+    print("lint: ok (%d baselined hit(s), all accepted)" % len(hits))
     return 0
 
 

@@ -435,5 +435,39 @@ class Deploy(unittest.TestCase):
         self.assertEqual(L.check_deploy(L.read(L.DEPLOY)), [])
 
 
+FINDALL_SRC = """class A {
+    // Resources.FindObjectsOfTypeAll(t) in a comment
+    /* Resources.FindObjectsOfTypeAll(t) in a block */
+    object[] Tick() { return Resources.FindObjectsOfTypeAll(typeof(Foo)); }
+    string s = "Resources.FindObjectsOfTypeAll(";
+    object[] Other() { return Object.FindObjectsOfType(typeof(Foo)); }
+}
+"""
+
+
+class FindAll(unittest.TestCase):
+    def test_only_real_call_sites_hit(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("findall", 4)])
+
+    def test_new_call_fails_with_fix_text(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        probs, stale = L.check_ui(hits, {})
+        out = text(probs)
+        self.assertIn("ERROR: a Resources.FindObjectsOfTypeAll call in src/Game/A.cs:4", out)
+        self.assertIn("gotcha 11", out)
+        self.assertIn("FIX: find once and keep it (Game/SceneCache)", out)
+
+    def test_baselined_call_passes_and_a_second_one_fails(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        self.assertEqual(L.check_ui(hits, {L.baseline_key(hits[0]): 1}), ([], 0))
+        twice = hits + hits
+        self.assertEqual(len(L.check_ui(twice, {L.baseline_key(hits[0]): 1})[0]), 1)
+
+    def test_repo_hits_are_all_baselined(self):
+        probs, stale = L.check_ui(L.ui_hits(), L.load_baseline())
+        self.assertEqual((text(probs), stale), ("", 0))
+
+
 if __name__ == "__main__":
     unittest.main()
