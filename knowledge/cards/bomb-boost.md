@@ -4,10 +4,10 @@ title: Bomb boost
 aliases: bb, bomb boosting, pause boost, menu boost, explosion boost, explosive boost, dynamite boost, bomb jump, esc boost, pause buffer boost, knockback boost
 tags: movement, tech, explosion, physics, fps
 confidence: live
-checked: 2026-10-03
-sources: game-notes "Speedrun tech and the endgame gate" (Bomb boost; Overnight sweep: Bomb boost, refined; measured with real pauses); sxczurass's bomb boost measurements by fps (QA, 2026-09-26); the author's QA post 2026-09-26; docs/run-mode.md "Banned moves: detection"
+checked: 2026-10-08
+sources: game-notes "Speedrun tech and the endgame gate" (Bomb boost; Overnight sweep: Bomb boost, refined; measured with real pauses; The multi-thrower and the Cave 6 body slide: knockback direction); sxczurass's bomb boost measurements by fps (QA, 2026-09-26); the author's QA post 2026-09-26; docs/run-mode.md "Banned moves: detection"
 related: knockback-sources, player-physics, pausing-and-game-time, tunnelling-and-speed-cap, movement-tricks
-code: playerHitReactions.enableExplodeCamera, PlayerStats.Explosion, PlayerStats.ExplosionPlayer, Explode.RunExplode, playerAnimatorControl.Update, HudGui.TogglePauseMenu
+code: playerHitReactions.enableExplodeCamera, playerHitReactions.lookAtExplosion, PlayerStats.Explosion, PlayerStats.ExplosionPlayer, Explode.RunExplode, playerAnimatorControl.Update, HudGui.TogglePauseMenu
 ---
 
 # Bomb boost
@@ -24,12 +24,13 @@ pause decides how long you keep that speed.
 ## How runners do it
 
 1. Set up a small bomb (or another explosive) so it goes off within 15 m of
-   you, facing **away** from where you want to fly - the push goes out of
-   your back.
+   you, on the **opposite side** from where you want to fly - the push goes
+   straight away from the blast. Which way you face does not matter: the
+   blast turns you to face it [live].
 2. The instant the explosion hits you, press **Esc** (the pause menu).
 3. Wait in the menu - longer = faster, up to what the landing and the path
    allow.
-4. Close the menu. You launch along the direction your back was facing.
+4. Close the menu. You launch straight away from the blast.
 5. Uncapped / high fps makes each second in the menu worth more.
 
 ## Why it works
@@ -84,9 +85,27 @@ if (fullBodyState2.tagHash == explodeHash)
   the **vertical** speed is kept. That is why a boost that hits a slope can
   turn into a huge launch straight up.
 
-**The direction** is your back at each pushing frame. Mouse look is
-switched off during the knockback (both rotators disabled), so in practice
-it is where your back faced at the blast.
+**The direction** is your back at each pushing frame - but on the frame of
+the hit the explosion **turns you to face it** first. Right after
+`Explosion`, `Explode.RunExplode` sends `lookAtExplosion(bomb position)` to
+the player, and `playerHitReactions.lookAtExplosion` does:
+
+```csharp
+if (!LocalPlayer.AnimControl.onRope)
+{
+    Vector3 worldPosition = pos;
+    worldPosition.y = transform.position.y;   // level: only your yaw changes
+    transform.LookAt(worldPosition, transform.up);
+}
+```
+
+Mouse look is then switched off for the knockback (both rotators
+disabled), so your back - and the push - stays pointed **straight away
+from the blast, in the horizontal plane**, whatever way you were facing.
+Live with a real timed bomb 4.2 m behind the player and off to one side,
+the player snapped round to face it (yaw 200 -> 44) and flew directly
+away from it [live]. The closer the bomb is to straight under
+you, the more a small offset swings that direction [inferred].
 
 **Why it cannot go through walls**: the knockback switches the player to
 Continuous collision detection (CCD). The capsule is swept along its path,
@@ -143,8 +162,9 @@ pause ~0.02-0.03 s after the blast gives, i.e. a human reaction time.
 4. **Pause length = the distance you need.** The distance is linear in time
    paused only while nothing is hit; a longer pause is a faster boost that
    is *more* likely to meet a slope or object within its 0.16 s.
-5. Face exactly away from the target at the blast; you cannot steer during
-   the knockback.
+5. Put the bomb exactly on the line from your target through you (on the
+   far side); you cannot steer during the knockback, and your facing at
+   the blast does not count - the game turns you toward the bomb [live].
 
 ## Why it goes wrong
 
@@ -178,8 +198,9 @@ Anything that calls `Explosion` on the player with a distance under 15 m
 starts the same coroutine, so the same pause stacking works: bombs and
 other explosives, the **large swinging rock trap** (confirmed by the author:
 works, but slower to build and less versatile than a small bomb trap),
-thrown rocks over 12 m/s (enemies' and the player-built multi-thrower's),
-the fat creepy's charge. **Not** melee hits. See `knockback-sources`.
+thrown rocks moving at 7.2 m/s or more (enemies' and the player-built
+multi-thrower's - live), the fat creepy's charge. **Not** melee hits. See
+`knockback-sources`.
 
 ## Evidence
 
@@ -189,6 +210,11 @@ the fat creepy's charge. **Not** melee hits. See `knockback-sources`.
   menu through the game's own Esc input, explosions at the player, speeds
   and positions read every physics step; air and ground runs; the pause
   delay sweep; CCD against the gold door.
+- The direction (2026-10-08, v0.24.256): a real timed bomb placed beside
+  the player, twice, facing different ways - the player turned to face the
+  bomb and was pushed straight away from it both times. (The 2026-10-03
+  tests triggered the knockback without a bomb, so they never turned the
+  player - that is where "your back at the blast" came from.)
 - ForestOverlay's run mode detects the boost from the mechanism itself
   (pushes made while game time is stopped) - every real boost reported,
   plain knockbacks silent.

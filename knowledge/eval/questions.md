@@ -81,6 +81,25 @@ cards: knockback-sources
 must:
 - no - melee sends the explosion to trees, not the player; a normal hit reaction
 
+### knockback-direction
+question: for a bomb boost do I have to face away from where I want to fly?
+cards: bomb-boost, knockback-sources
+must:
+- the explosion turns you to face it on the hit, so the push goes straight away from the bomb
+- your facing does not matter; put the bomb on the far side from your target
+not:
+- says the push goes out of your back wherever you were facing
+
+### multi-thrower
+question: can the multi-thrower knock me back for a boost?
+cards: knockback-sources
+must:
+- a rock moving at 7.2 m/s or more whose 2 m hit sphere reaches you gives the same knockback as a bomb (25 damage), pause-stackable
+- the hit sphere switches on 0.75 s after the launch; shots land 2.2 m from the aim point after 2.4-2.6 s
+- one knockback per 2.2 s, so three rocks give one
+not:
+- says a rock needs 12 m/s
+
 ### knockback-cooldown
 question: can I chain two bombs for a double boost?
 cards: knockback-sources
@@ -102,10 +121,12 @@ question: how does the slide cancel / sliding on bodies avoid fall damage?
 cards: fall-damage
 must:
 - prevVelocity is only written on a new collision enter
-- sliding in contact means no new enter, so the landing is judged on the slow slide contact
+- the fast hit on a steep body face does not ground you; the fall turns into a slide and the next new contact is slow, so the landing is judged on that slow contact
+- it works only on certain spots of the piles (about half of the spots tried), so runners use one exact spot
 - also avoids the 3.8 s death
 not:
-- claims it has been reproduced live
+- claims the runners' own jump down the shaft has been reproduced
+- says landing anywhere on the bodies avoids the damage
 
 ### fall-terrain
 question: can I slide down a steep hill to avoid fall damage?
