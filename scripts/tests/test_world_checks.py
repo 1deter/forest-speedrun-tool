@@ -50,5 +50,31 @@ class PlacedDumps(unittest.TestCase):
         self.assertEqual(1, len(W.duplicate_placements(d)))
 
 
+class NearBlackTextures(unittest.TestCase):
+    def test_threshold(self):
+        self.assertTrue(W.is_near_black(0.0))
+        self.assertTrue(W.is_near_black(W.NEAR_BLACK))
+        self.assertFalse(W.is_near_black(W.NEAR_BLACK + 0.5))
+        self.assertFalse(W.is_near_black(96.0))
+
+    def test_the_one_known_black_texture_passes(self):
+        self.assertIsNone(W.black_message({"BlackFadeIntoCaves (t/12)": 0.0}, 523))
+        self.assertIsNone(W.black_message({}, 523))
+
+    def test_one_more_fails_and_names_them(self):
+        black = {"BlackFadeIntoCaves (t/12)": 0.0, "Concrete (t/40)": 0.3}
+        msg = W.black_message(black, 523)
+        self.assertTrue(msg.startswith("WHAT: 2 of 523 textures"))
+        self.assertIn("Concrete (t/40)", msg)
+        self.assertIn("WHY:", msg)
+        self.assertIn("FIX:", msg)
+
+    def test_the_regression_19_black_textures_fails(self):
+        black = {"tex%d (t/%d)" % (i, i): 0.0 for i in range(20)}   # 19 + the meant one
+        msg = W.black_message(black, 523)
+        self.assertIn("20 of 523", msg)
+        self.assertEqual(20, msg.count("(mean 0.00)"))   # the worst 20 are listed
+
+
 if __name__ == "__main__":
     unittest.main()
