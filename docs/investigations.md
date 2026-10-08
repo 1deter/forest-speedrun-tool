@@ -157,17 +157,28 @@ Every number: game-notes *Frame time: where the main thread goes* and
   author's config has 12 and 13 on.
 - Never skip a screen camera mid-frame (v0.24.119 froze the screen,
   gotcha 51).
-- **sxczurass is rendering-bound** (Frame test `1553515759936999506`):
-  only fewer camera renders / draw calls help him. Asked
-  (`1553517261149442159`, `docs/tests/2026-09-26-sxczurass-fps-v0.24.128.md`)
-  for 1 min at a lower resolution (fps up = GPU, same = render thread)
-  and the two camera switches on vs off; also his hardware specs.
+- **sxczurass is render-thread bound** (Frame test `1553515759936999506`;
+  answered 2026-09-27, `1553661518703497236`): 1280x1080 vs 1920x1080 gave
+  the same fps (not the graphics card), the two Experimental camera
+  switches no visible difference, ~5 fps more in a cave. His lever is
+  fewer camera renders / draw calls, not resolution or GPU options.
+- **ParticleCam: no safe cut** (T-0030, 2026-10-08, game-notes *Frame
+  time*, the ParticleCam bullet): it draws layer 1, which ~4.7k renderers
+  of ~200 kinds use (held lighter / flare / torch, the book's close tab,
+  building ghosts, blood, foot dust, rain, water, fires...), most spawned
+  at runtime - only Unity's culling knows whether one is in view, so a
+  skip would drop something. Its whole cost, measured with it off: 0.30
+  ms of a 5.0 ms surface frame. The other secondary cameras: Camera_HUD
+  always has its HUD draw call, the grass-bending camera always the
+  player's trail, the Ceto reflection and far shadow are graphics
+  options, Sunshine has its Experimental switch, ActionIconCamera is
+  T-0032.
 
-**Next:** (1) sxczurass's answer: render-thread bound -> draw-call cuts
-(ActionIconCamera, ParticleCam, then the main camera's draw calls); GPU ->
-resolution is his lever. (2) (dropped: 30 Hz physics, removed). (3)
+**Next:** (1) the main camera's draw calls (838 renderers in its frustum
+at (428, 78, -4), 252 in Cave 6) - the one lever left for a render-thread
+bound machine; no task yet. (2) (dropped: 30 Hz physics, removed). (3)
 Cheesecake's Frame test (`1553493823840321557`). (4) ActionIconCamera by
-hand-`Render()` only with the author's eyes on the picture.
+hand-`Render()` only with the author's eyes on the picture (T-0032).
 
 ## Performance / loads - what is left, by payoff
 
