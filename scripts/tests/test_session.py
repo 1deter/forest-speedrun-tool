@@ -75,6 +75,27 @@ class Badges(unittest.TestCase):
         self.assertEqual(S.badge_state(""), "unknown")
 
 
+class LocalBranchesToDelete(unittest.TestCase):
+    """cleanup.py lists each merged branch once (T-0169)."""
+    def wt(self, branch, state):
+        return ({"path": "/w/" + str(branch), "branch": branch}, state)
+
+    def test_a_merged_worktree_branch_is_listed_once(self):
+        local = [("agent-a", True), ("wip", False)]
+        self.assertEqual(C.local_to_delete(local, [self.wt("agent-a", "merged")]), ["agent-a"])
+
+    def test_branch_only_known_from_its_worktree_is_added(self):
+        self.assertEqual(C.local_to_delete([("old", True)], [self.wt("agent-b", "merged")]), ["old", "agent-b"])
+
+    def test_unmerged_live_dirty_detached_and_kept_are_skipped(self):
+        wts = [self.wt("a", "live"), self.wt("b", "dirty"), self.wt(None, "merged"), self.wt("main", "merged")]
+        self.assertEqual(C.local_to_delete([("a", False)], wts), [])
+
+    def test_two_worktrees_on_one_branch_do_not_repeat_it(self):
+        wts = [self.wt("x", "merged"), self.wt("x", "merged")]
+        self.assertEqual(C.local_to_delete([], wts), ["x"])
+
+
 class Git(unittest.TestCase):
     def test_ahead_behind(self):
         self.assertEqual(S.ahead_behind("2\t5"), (2, 5))
