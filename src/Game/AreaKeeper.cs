@@ -30,7 +30,8 @@ namespace ForestOverlay.Game
     // and the Sahara cave's outside was invisible while its corridors
     // showed. Clearing both by hand fixed it (author, v0.24.42). So a
     // teleport landing outside every section's renderers leaves the active
-    // area and clears the overlook flag; one landing inside a section is
+    // area and clears the overlook flag; one landing inside a section (in
+    // its renderers' bounds, or on its floor: OnASectionFloor, T-0151) is
     // left alone (the gates re-enter areas as you walk). The endgame flag
     // too (v0.24.61): a teleport from the lab to the surface kept
     // IsInEndgame and the surface was lit like a cave.
@@ -141,6 +142,7 @@ namespace ForestOverlay.Game
                 bool vault = InVaultEntrance(dest);
                 if (live == null && !overlook && !endgame && !vault) return "";
                 if (InsideASection(dest)) return "";
+                if (!vault && OnASectionFloor(dest)) return "";
 
                 string note = "";
                 if (live != null)
@@ -221,6 +223,37 @@ namespace ForestOverlay.Game
                 }
             }
             return false;
+        }
+
+        // The red elevator's lower stop (T-0151, bridge 2026-10-08): the only
+        // section renderers around it are the car's own, and the ride takes
+        // the car ~3000 m away to the overlook - so with the car up, a spot
+        // in the car (website spot 'Elevator Boost', teleport only) read as
+        // outside every section. The teleport then left HellCorridor and
+        // sent ExitEndgame, whose listener on LoadEndgame (DelayedUnload,
+        // 2 s) ForceUnloads endgame_streaming: the floor under the player
+        // went and they fell through the void (a runner's game froze and
+        // crashed there). The shaft's floor is a collider of the section
+        // (Sections/HellCorridor/Collision/Collision, renderer off), so a
+        // destination standing on a section's collider is inside it too.
+        private const float FloorReach = 10f;
+
+        private bool OnASectionFloor(Vector3 p)
+        {
+            if (!Bind()) return false;
+            RaycastHit[] hits = Physics.RaycastAll(p + Vector3.up * 0.5f, Vector3.down, FloorReach + 0.5f,
+                                                   Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            Collider nearest = null;
+            float best = float.MaxValue;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider c = hits[i].collider;
+                if (c == null || hits[i].distance >= best) continue;
+                if (c.transform.root.CompareTag("Player")) continue;   // a restart where you stand
+                nearest = c;
+                best = hits[i].distance;
+            }
+            return nearest != null && nearest.GetComponentInParent(_type) != null;
         }
 
         /// After a Quick load; returns the log note ("" when nothing to do).

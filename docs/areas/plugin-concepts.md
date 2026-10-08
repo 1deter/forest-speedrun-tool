@@ -91,6 +91,15 @@ concept before changing its feature. Where the code lives:
   *Check community now*; written to `segments/community.txt`, shown
   under **Community**, read-only (Duplicate = own copy, start state
   included); the runner's ids win; attempts ignored.
+  **Website spots** (Import view, `CommunityModule.Website`) are the
+  segment only: the site never keeps a start state (`Runs.Upload`,
+  `/api/spots/{id}/foseg`), so a spot recorded with one arrives with its
+  `startstate = <hash>` line (the route's identity, so the board still
+  compares) but no `[startstate]` data, and every restart is a teleport
+  (`Restart '<id>': no start state - teleport only.`). Checked on
+  'Elevator Boost' (s-9cdb6a6808ad, maks: `startstate = ef0edf9e`, no
+  data; T-0151). Without the state nothing world-side is reset: after one
+  red-elevator ride the car stays at the overlook with its one use spent.
 - **Runs** record position at 30 Hz and ~60 named player-state channels at
   5 Hz (read only when a sample is due), discovered by reflection so a game
   update adds stats for free. Attempts persist per segment id and carry a
