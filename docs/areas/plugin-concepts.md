@@ -15,6 +15,34 @@ concept before changing its feature. Where the code lives:
   double-purposes"). **Go only teleports**, start state or not. Restoring
   is **Restart**: F7, the Runs tab's Restart, a death revive, and the
   *Restart* button on the editor's Start state row.
+- **TAS record / replay is inputs, not positions** (experimental, practice
+  only). Record (Runs tab, or every timed run with `[TAS] RecordTimedRuns`)
+  restarts the current spot and, from the frame after the player is placed
+  (frame 0), stores every value the game reads through
+  `TheForest.Utils.Input` - changes only, plus position and look at 30 Hz -
+  to `runs/<id>/inputs/<stamp>.tas`. Replay restarts the same spot and
+  replaces what the game reads with the recording's values on the same frame
+  numbers, which also blocks the player's own input; at the end the 30 Hz
+  positions are compared and the log says the max drift. It is not
+  deterministic (physics, loading), so drift is reported, not hidden. With
+  `LockFrameRateOnReplay` (default on) each frame runs with its recorded
+  delta time (`Time.captureFramerate`), put back afterwards. A timed run
+  the replay itself times is never saved as the runner's attempt. Stop is
+  `]`. Run mode refuses it (feature `tas`, not in any category). Log prefix
+  `TAS:`.
+- **The trajectory preview predicts a let-go flight and only reads the
+  game** (experimental, Debug views switch, off at every launch, practice
+  marked; run mode refuses it unless a category allows feature
+  `trajectory`). Ten times a second it steps the player's live velocity with
+  the game's gravity (Physics -16 plus the controller's 10), the 55 m/s cap
+  and the rigidbody's drag, sweeping the body's capsule along the path until
+  it hits something, and draws it with GL lines: blue, orange during an
+  explosion knockback, a green / red landing mark (red = fall damage). Your
+  steering in the air is not simulated. In the pause menu during a
+  knockback it shows the bomb boost the pushes piling up will give. One log
+  line per flight (`Trajectory preview:`) compares the prediction made at
+  its start with where the player really landed. Known gap: off where a
+  jump clips an edge (T-0088).
 - **Triggers** (`zone`, `box`, `item`, `event`, `manual`) are the spine —
   splits, segment bounds and eventually autosplits are all "a trigger fired".
   Item triggers can be **relative** (`+3` = three more than at the start).
