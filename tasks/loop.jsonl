@@ -38,3 +38,5 @@
 {"at": "2026-10-08T06:43:55", "event": "round", "run": "R-0003", "round": 5, "task": "T-0036", "reviews_before": 0}
 {"at": "2026-10-08T06:44:09", "event": "end", "run": "R-0003", "round": 5, "task": "T-0036", "status": "todo", "progress": false, "parked": false, "summary": "T-0036 (results-panel style instead of the 1.2 s toast after a timed segment with auto-restart on) handed back unworked: the unmerged ui-redesign branch (T-0025) rewrites toasts and the results panel's look, so doing it on main now would conflict. Now blocked by T-0025."}
 {"at": "2026-10-08T06:44:10", "event": "stop", "run": "R-0003", "reason": "5 rounds done (the run's limit)"}
+{"at": "2026-10-08T06:44:29", "event": "begin", "run": "R-0004", "max_rounds": 5, "bridge": true, "by": "main"}
+{"at": "2026-10-08T06:44:29", "event": "round", "run": "R-0004", "round": 1, "task": "T-0186", "reviews_before": 0}
