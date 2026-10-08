@@ -23,8 +23,13 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
 - **`scripts/lint.py`** - the csproj version = `Plugin.PluginVersion` = a
   `CHANGELOG.md` section; every top-level folder with C# in the csproj's
   three `Remove` lines (gotcha 92); a fixed 20 px `GUI.Label` with
-  variable text and allocations in `OnGUI` / `DrawTab` bodies (heuristics:
-  the hits that existed on 2026-10-07 sit in `scripts/lint-baseline.txt`,
+  variable text and allocations in `OnGUI` / `DrawTab` bodies; one check
+  per gotcha that can be checked (mojibake, deploy copies the DLL only,
+  `FindObjectsOfTypeAll` sites, `OnRenderObject` draw target, web request
+  `responseCode`, `MoveTo` callers, config writes per keystroke, the bot's
+  globalization, lifecycle wrappers) - each gotcha's index line names its
+  check (heuristics:
+  the hits that existed on 2026-10-07 / -08 sit in `scripts/lint-baseline.txt`,
   only new ones fail; `--update-baseline` accepts a false positive or drops
   fixed ones). Runs in CI, before every commit (`.githooks/pre-commit`) and
   before a `v*` tag is pushed (`.githooks/pre-push`: the tag's commit
