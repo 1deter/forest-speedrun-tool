@@ -132,6 +132,7 @@ namespace ForestOverlay.Modules
         // The last run cut short (a restart, an abort, a death) - kept to
         // see where it went wrong (maks, sxczurass; v0.24.200).
         private readonly LineBuffer _failedLine = new LineBuffer();
+        private bool _failedFromOtherSegment;   // set around ArmRun when the Go switched segments
         private int _ghostHint;
 
         // ------------------------------------------------------------------
@@ -351,8 +352,12 @@ namespace ForestOverlay.Modules
             _armSource = source;
             if (source == ArmSource.RunMode && !Enabled)
                 Ctx.Log.LogInfo("Run '" + s.Id + "': timed by run mode (practice mode is off).");
+            // Another segment's still-running attempt is not this one's failure.
+            _failedFromOtherSegment = _recorder.State == RunRecorder.RunState.Running &&
+                                      !(s.Id == _loadedSegmentId && s.RouteFingerprint() == _armedRoute);
             LoadAttemptsFor(s);
             ArmRun();
+            _failedFromOtherSegment = false;
         }
 
         // Run mode ended under a run it timed: back to the runner's own F9
@@ -407,7 +412,7 @@ namespace ForestOverlay.Modules
 
             _recorder.StateChannels = Ctx.PlayerState.Channels;
             _recorder.Route = _armedRoute;
-            KeepFailed();   // a Go / restart without a start state re-arms mid-run
+            if (!_failedFromOtherSegment) KeepFailed();   // a Go / restart without a start state re-arms mid-run
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             MaybeFetchBoard();
