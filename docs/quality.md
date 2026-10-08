@@ -43,7 +43,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Release and updater | A | A | A | A | A | | 2026-10-08 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
 | Site maps and 3D world | C | C | B | C | B | T-0061, T-0062, T-0191 | 2026-10-08 |
-| Bot | C | A | A | A | C | T-0090 | 2026-10-07 |
+| Bot | B | A | A | A | B | T-0207, T-0209 | 2026-10-08 |
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | A | B | T-0016 | 2026-10-08 |
 
@@ -261,10 +261,11 @@ Paths: `bot/` `.github/workflows/bot.yml` `docs/knowledge-bot.md` `docs/areas/bo
   files under 320 lines.
 - Stability **A**: the tests are deterministic; the eval is warn-only and
   skips busy answers (gotcha 94).
-- Gaps **C**: short-answer length not yet proved in the eval (T-0090:
-  the CI log now lists each failed check, T-0157, but quota left the
-  length questions busy so far). A model
-  timeout now rests the model like a 503 (T-0156, confirmed live).
+- Gaps **B**: the 2026-10-08 full eval (285/353, 80.7%, 0 busy) proved
+  short answers stay short (T-0090: 4 of 5 within their limit); two
+  regressions (fall-how, categories-bombs-normal, T-0207) and three
+  weak answers (T-0209) are open. A model timeout rests the model like a
+  503 (T-0156, confirmed live).
 
 ### Knowledge
 
