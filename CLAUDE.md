@@ -194,33 +194,33 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
-- **Night run 2026-10-07/08 (author away, unattended):** loop runs back to
-  back (`loop.py report` R-0002..), no-game tasks sent to cloud sessions
-  (one-time routines, branches `cloud/*`, merged by main after a checker;
-  they share the account's 5-hour limit, not the cloud credit). Hook: every
-  ask is a refusal while a loop run is open (T-0024 round). Parked for the
-  author: T-0194 (runner spots' start state on the site), T-0198 / T-0203
-  (Experimental / small perf switches), T-0109 / T-0111 / T-0112 (run-mode
-  design calls), T-0024 (needs
-  the redesign build in game, author present).
+- **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
+  20 loop rounds + ~40 cloud-session tasks; releases v0.24.252..258 (the
+  restart hitches, the endgame material leak, the red-elevator restart,
+  the 100% tab's errors, another segment's red line, the armed log line,
+  the Inventory log cap); bot full eval 285/353 and three record-holder
+  answers fixed; Megan / multi-thrower / body-slide research live.
+  Cloud sessions (one-time routines, `cloud/*` branches, merged after a
+  checker) share the account's 5-hour limit. Task-file writes take a lock
+  (T-0197 / T-0201). While a loop run is open every hook ask is a refusal.
+- **Parked for the author** (`tasks.py list --needs author-decision`):
+  T-0194 (runner spots' start state on the site), T-0207 (bot prompt
+  length rule - proposal on branch `t-0207-prompt-proposal`), T-0198 /
+  T-0203 (Experimental / small perf switches), T-0109 / T-0111 / T-0112
+  (run-mode design calls). Author-present: T-0024, T-0204, T-0210.
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
-  check (T-0123..T-0135). Left: T-0016 Stage B (after Stage A runs a week
+  check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
   without a fix). **First harness review open:** the Stop hook's "commits
   not pushed" line is off for the 5 tasks finished from 2026-10-08
   (docs/quality.md *Simplification log*); session-start counts them, then
   skill `harness-review` compares. **Order (author, 2026-10-07):** harness
   first, the redesign after.
-- **Next loop run** would take `tasks.py next --bridge`; T-0016 waits
-  (Stage B after a week of Stage A). Built and waiting on the next full
-  eval: T-0158, T-0163.
+- **Next loop run** would take `tasks.py next --bridge` (T-0202 the
+  restore's ~40 MB, T-0199 main camera draw calls, T-0190, T-0184, ...).
+  Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
-  pushed; T-0018..T-0025) plus merged agent worktrees (`cleanup.py`).
-  **Released:** v0.24.256 (T-0033: the 100% tab's 21 errors a second;
-  in-play garbage measured, T-0202 / T-0203 next); v0.24.255 (T-0192,
-  T-0193, T-0110); v0.24.254 (T-0151: a restart into the red elevator after
-  its ride keeps the endgame loaded); v0.24.253 (T-0149 endgame material
-  leak, dead code, T-0188); v0.24.252 (T-0148 restart hitches). Nothing
-  unreleased.
+  pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
+  (`python scripts/cleanup.py`). **Released:** v0.24.258, nothing unreleased.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
