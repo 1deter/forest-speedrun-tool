@@ -203,11 +203,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Cloud sessions (one-time routines, `cloud/*` branches, merged after a
   checker) share the account's 5-hour limit. Task-file writes take a lock
   (T-0197 / T-0201). While a loop run is open every hook ask is a refusal.
-- **Parked for the author** (`tasks.py list --needs author-decision`):
-  T-0194 (runner spots' start state on the site), T-0207 (bot prompt
-  length rule - proposal on branch `t-0207-prompt-proposal`), T-0198 /
-  T-0203 (Experimental / small perf switches), T-0109 / T-0111 / T-0112
-  (run-mode design calls). Author-present: T-0024, T-0204, T-0210.
+- **Answered 2026-10-08** (ready to build): T-0194 runner spots keep
+  their start state; T-0207 try the prompt proposal (branch
+  `t-0207-prompt-proposal`); T-0198 / T-0203 perf switches (no sign-off
+  needed - docs/decisions.md *Plugin*). **Present at the next session
+  start as a list of decisions** (author's ask): T-0109 / T-0111 / T-0112
+  (run mode), T-0212 (lab-skip restarts), and the author-present T-0024,
+  T-0204, T-0210.
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
