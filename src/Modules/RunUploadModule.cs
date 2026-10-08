@@ -199,6 +199,7 @@ namespace ForestOverlay.Modules
                     _state = "uploaded " + _uploaded + " run(s) this session (" + DateTime.Now.ToString("HH:mm") + ")";
                     Ctx.Log.LogInfo("Upload: " + name + " -> " + added + " new, " + existing + " already on the site" +
                                     Skipped(body) + ".");
+                    if (SiteProtocol.Field(body, "startstate") == "wanted") QueueStartState(text);
                     break;
                 case UploadOutcome.Refused:
                     Refuse(path, "HTTP " + code + ": " + (SiteProtocol.Field(body, "error") ?? body));
@@ -219,6 +220,39 @@ namespace ForestOverlay.Modules
                     break;
             }
             _busy = false;
+        }
+
+        /// The site keeps a runner spot's start state so a download restores
+        /// it (T-0194); it asks for one its route has a hash for but no data.
+        /// The same bundle goes again with the state - its runs come back
+        /// "already on the site" - once: a bundle that carried one is never
+        /// re-sent (SiteProtocol.StartStateResend).
+        private void QueueStartState(string bundleText)
+        {
+            try
+            {
+                string why;
+                SegmentBundle b = SegmentBundle.Parse(bundleText, out why, null);
+                if (b == null) return;
+                SavestateModule savestates = Host.Find<SavestateModule>();
+                string state = savestates != null ? savestates.ReadStartStateText(b.Segment) : null;
+                string again = SiteProtocol.StartStateResend(bundleText, state, out why);
+                if (again == null)
+                {
+                    Ctx.Log.LogInfo("Upload: the site has no start state for '" + b.Segment.Id + "' - not sent: " + why + ".");
+                    return;
+                }
+                Directory.CreateDirectory(_pendingDir);
+                string name = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + "_" + (_seq++).ToString("000") + "_" +
+                              Safe(b.Segment.Id) + SegmentBundle.Extension;
+                File.WriteAllText(Path.Combine(_pendingDir, name), again, new UTF8Encoding(false));
+                _nextTry = 0f;
+                Ctx.Log.LogInfo("Upload: the site has no start state for '" + b.Segment.Id + "' - queued it.");
+            }
+            catch (Exception ex)
+            {
+                Ctx.Log.LogWarning("Upload: start state not queued: " + ex.Message);
+            }
         }
 
         private IEnumerator Register(string baseUrl, string bundleText, Action<bool> done)

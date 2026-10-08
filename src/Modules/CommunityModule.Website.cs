@@ -132,8 +132,43 @@ namespace ForestOverlay.Modules
             if (err != null) { WebStatus = "Not saved: " + err; yield break; }
             entry.Added = true;
             WebRelabel();
-            WebStatus = (update ? "Updated '" : "Added '") + entry.Spot.Name + "' under Website.";
-            Ctx.Log.LogInfo("Website spots: " + (update ? "updated" : "added") + " '" + entry.Spot.Id + "'.");
+            string state = WebStartState(bundle);
+            WebStatus = (update ? "Updated '" : "Added '") + entry.Spot.Name + "' under Website" +
+                        (state == "start state" ? " with its start state." : state.Length > 0 ? " (" + state + ")." : ".");
+            Ctx.Log.LogInfo("Website spots: " + (update ? "updated" : "added") + " '" + entry.Spot.Id + "'" +
+                            (state.Length > 0 ? ", " + state : "") + ".");
+        }
+
+        /// The spot's start state from the website (T-0194): written as the
+        /// segment's own, so a restart restores it like a community spot's.
+        /// Without one, a left-over state that is not the route's goes (a
+        /// state that is the route's - a community pack's - stays). Returns
+        /// "start state", "" (none), or what went wrong.
+        private string WebStartState(SegmentBundle bundle)
+        {
+            SavestateModule savestates = Host.Find<SavestateModule>();
+            if (savestates == null) return "";
+            Segment s = bundle.Segment;
+            bool hashed = s.StartState.Length > 0;   // DeleteStartState clears it
+            try
+            {
+                if (bundle.StartState == null)
+                {
+                    string have = savestates.ReadStartStateText(s);
+                    if (have != null)
+                    {
+                        string perr;
+                        SavestateFile f = SavestateFile.Parse(have, out perr);
+                        if (hashed && f != null && Segment.HashText(f.Data) == s.StartState) return "start state";
+                        savestates.DeleteStartState(s);
+                    }
+                    return hashed ? "no start state on the website yet - restarts teleport only" : "";
+                }
+                if (savestates.ReadStartStateText(s) == bundle.StartState) return "start state";
+                string err = savestates.WriteStartStateText(s, bundle.StartState);
+                return err == null ? "start state" : "start state not written: " + err;
+            }
+            catch (Exception ex) { return "start state failed: " + ex.Message; }
         }
 
         public void WebRemove(WebEntry entry)
@@ -146,6 +181,12 @@ namespace ForestOverlay.Modules
             if (all.Count == before) { entry.Added = false; WebRelabel(); return; }
             string err = WebWrite(all);
             if (err != null) { WebStatus = "Not saved: " + err; return; }
+            // Its start state goes with it (website ids are never the
+            // runner's own - WebAdd refuses those - nor a community pack's).
+            SavestateModule savestates = Host.Find<SavestateModule>();
+            Segment gone = new Segment();
+            gone.Id = entry.Spot.Id;
+            if (savestates != null && savestates.HasStartState(gone)) savestates.DeleteStartState(gone);
             entry.Added = false;
             WebRelabel();
             WebStatus = "Removed '" + entry.Spot.Name + "'.";

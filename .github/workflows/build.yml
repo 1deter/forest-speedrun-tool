@@ -36,6 +36,23 @@ jobs:
       - name: Test
         run: dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj -c Release --nologo
 
+      # The task file (docs/harness.md 6) against the rules, and docs/tasks.md
+      # generated from it.
+      - name: Tasks
+        run: |
+          python3 scripts/tasks.py check
+
+      # Every scripts/tests/test_*.py, found by unittest - a new test file runs
+      # in CI without being listed here (T-0147).
+      - name: Script tests
+        run: python3 -m unittest discover scripts/tests
+
+      # The machine gates (docs/harness.md 5a, 5b, 7b): the lints over the
+      # tree (WHAT / WHY / FIX on failure; with the log catalogue, 9a).
+      - name: Lint
+        run: |
+          python3 scripts/lint.py
+
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:

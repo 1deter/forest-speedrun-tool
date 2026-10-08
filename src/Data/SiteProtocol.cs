@@ -156,6 +156,29 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        /// The upload to send again with the route's start state after the
+        /// site answered `"startstate": "wanted"` (T-0194): the same bundle
+        /// plus `stateText` (the spot's .fosave here). Null, with why, when
+        /// there is nothing right to send - the bundle already carried one
+        /// (the site refused it: never loop), the segment has no startstate
+        /// line, there is no state here, or it is not the one the route was
+        /// timed from.
+        public static string StartStateResend(string bundleText, string stateText, out string why)
+        {
+            string error;
+            SegmentBundle b = SegmentBundle.Parse(bundleText, out error, null);
+            if (b == null) { why = "the queued file is unreadable (" + error + ")"; return null; }
+            if (b.StartState != null) { why = "the site did not keep the start state sent"; return null; }
+            if (string.IsNullOrEmpty(b.Segment.StartState)) { why = "the spot has no start state"; return null; }
+            if (stateText == null) { why = "no start state for it on this PC"; return null; }
+            SavestateFile f = SavestateFile.Parse(stateText, out error);
+            if (f == null) { why = "the start state here is unreadable (" + error + ")"; return null; }
+            if (Segment.HashText(f.Data) != b.Segment.StartState) { why = "the start state here is not the one the route was timed from"; return null; }
+            b.StartState = stateText;
+            why = null;
+            return b.Write();
+        }
+
         /// `s-` + 12 to 32 hex digits (PracticeModule.NewId).
         public static bool IsRandomId(string id)
         {

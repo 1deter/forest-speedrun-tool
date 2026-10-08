@@ -78,19 +78,33 @@ public sealed class ModelUnavailableException : Exception
 // ------------------------------------------------------------------
 // A model API call with two quick retries on 5xx ("high demand" spikes
 // are usually seconds long - seen on the first live test, 2026-10-03).
-// 429 is not retried here: the chain rests that model instead.
+// 429 is not retried here: the chain rests that model instead. A call
+// that hits HttpClient.Timeout is not retried either (another 120 s):
+// it counts as overloaded, so the chain rests the model and moves on
+// (T-0156 - it used to escape as TaskCanceledException, the runner got
+// "typing" and no reply, the eval stopped with no score).
 // ------------------------------------------------------------------
 public static class Retry
 {
     public static TimeSpan[] Delays = { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5) };
+    public static TimeSpan TimeoutRest = TimeSpan.FromSeconds(20);
 
     public static async Task<(HttpResponseMessage resp, string text)> SendAsync(HttpClient http, Func<HttpRequestMessage> make, CancellationToken ct)
     {
         for (int attempt = 0; ; attempt++)
         {
             using HttpRequestMessage req = make();
-            HttpResponseMessage resp = await http.SendAsync(req, ct);
-            string text = await resp.Content.ReadAsStringAsync(ct);
+            HttpResponseMessage resp;
+            string text;
+            try
+            {
+                resp = await http.SendAsync(req, ct);
+                text = await resp.Content.ReadAsStringAsync(ct);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new ModelUnavailableException("timed out after " + (int)http.Timeout.TotalSeconds + " s", TimeoutRest, overloaded: true);
+            }
             if ((int)resp.StatusCode < 500 || attempt >= Delays.Length) return (resp, text);
             resp.Dispose();
             await Task.Delay(Delays[attempt], ct);

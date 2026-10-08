@@ -30,8 +30,6 @@ public sealed class HybridSearch : IDisposable
     private readonly IEmbedder _embedder;
     private readonly float[][] _vectors;
 
-    public bool HasVectors => _embedder != null;
-
     /// `cachePath`: a SQLite file keeping chunk vectors by text hash, so a
     /// restart only embeds what changed. Null = no cache.
     public HybridSearch(Corpus corpus, IEmbedder embedder, string cachePath, Action<string> log)
@@ -79,10 +77,6 @@ public sealed class HybridSearch : IDisposable
         if (hits.Count > limit) hits.RemoveRange(limit, hits.Count - limit);
         return hits;
     }
-
-    /// Cosine similarity of two texts by the embedder (the answer cache's
-    /// "same question" test); -1 without an embedder.
-    public float Similarity(float[] a, float[] b) => a == null || b == null ? -1 : Vectors.Dot(a, b);
 
     public float[] EmbedQuery(string text) => _embedder?.EmbedQuery(text);
 

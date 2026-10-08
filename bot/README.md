@@ -40,7 +40,10 @@ forest-bot search "<query>"    # what search finds (no model, no keys)
 forest-bot code <Type.Member>  # the code tool's answer; code search <text>
 forest-bot ask "<question>"    # one answer on the console, with its lookups
 forest-bot chat                # a console conversation (follow-ups)
-forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota)
+forest-bot eval [ids...]       # score knowledge/eval/questions.md (spends quota); --summary <file> appends the report
+                               # busy (no quota) questions are skipped, not scored; an unknown id exits 2
+                               # each failed check prints under its score line (so the CI log shows why)
+                               # the full set runs on CI, not here: bot.yml workflow_dispatch (`gh workflow run bot.yml -f eval_ids=all`), skill bot-review
 forest-bot queue               # the open research queue
 forest-bot answer <id>         # a stored answer in full (the queue's "answer #n")
 forest-bot resolve <id>        # close a queue item once it is dealt with
@@ -62,6 +65,8 @@ knowledge comes from the build output (`kb/`), the decompiled code from
 | `FOREST_BOT_DMS` | on | `off` to refuse DMs |
 | `FOREST_BOT_QUEUE_CHANNEL` | - | a channel id for research-queue posts |
 | `FOREST_BOT_PER_HOUR` / `_PER_DAY` | 15 / 60 | per-user limits |
+| `FOREST_BOT_TOKEN` | - | the bot's token for the site (same value as the site's `FOREST_BOT_TOKEN`): turns on the live settings from the site's /admin Bot tab - read about once a minute, applied with no restart, the last good ones cached in `<data>/site-settings.json` and used at start. Unset = the `.env` values alone. The channels / DMs / limits / models / thinking / queue lines above are then the **defaults**: the site's value wins, a setting it lacks (or a failed fetch with no cache) uses the `.env` one |
+| `FOREST_BOT_SITE_URL` | `https://forest.deter.cloud` | where those settings come from; the bot reports its version, applied revision and visible channels there |
 | `FOREST_BOT_TEST_GUILD` | - | register `/ask` in one server instantly (global takes up to an hour) |
 | `FOREST_BOT_KNOWLEDGE` | `<exe>/kb` | a folder with `knowledge/` + `docs/` |
 | `FOREST_BOT_CODE` | the author's local copy | the decompiled Assembly-CSharp folder |

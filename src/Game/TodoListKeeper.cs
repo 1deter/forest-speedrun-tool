@@ -66,7 +66,7 @@ namespace ForestOverlay.Game
             try
             {
                 if (!Resolve()) return;
-                _before = UnityEngine.Object.FindObjectOfType(_host) as MonoBehaviour;
+                _before = SceneCache.One(_host) as MonoBehaviour;   // a scene walk, kept (T-0148)
                 if (_before == null) return;
                 for (int i = 0; i < Tasks.Count; i++) Old.Add(Tasks[i].GetValue(_before));
             }

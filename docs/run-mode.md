@@ -502,11 +502,14 @@ than the table's plan:
 
 ## Known gaps (phase 1)
 
+**Open items here are tasks since 2026-10-07** (`python scripts/tasks.py list --open --area plugin`); this section keeps the detail.
+
 - The game's debug console has `_timescale`, `_speedyrun` and more
   (game-notes *The game ships a debug console*). The report flags
   `Cheats.DebugConsole` being on, but not what was typed into it. A
   `Time.timeScale` watch could be added.
-- A bridge `go` / `restart` refused by run mode still answers `ok`.
+- A bridge `go` / `restart` refused by run mode answers the refusal
+  (T-0110, done).
 - The report reads the game's file on disk at startup, not the loaded
   assembly. Per-type hashes (phase 3) can hash the loaded code instead.
 - BepInEx's own patches on .NET methods are skipped by assembly (mscorlib,

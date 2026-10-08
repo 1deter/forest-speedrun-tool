@@ -1,6 +1,6 @@
 # Savestates - how they work
 
-The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). IL and game internals are in game-notes *Saving and loading*.
+The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-26). IL and game internals are in game-notes *Saving and loading*.
 
 - **Savestates** (no tab: Practice start states + the bridge; practice-only; game-notes *Saving and
   loading* has the IL). The game's own level serialization
@@ -114,6 +114,24 @@ The detail behind CLAUDE.md *Key concepts - Savestates* (moved out 2026-09-26). 
   put back (was Idle, overcast 0, fog 1294 m)` in the restore line (Quick)
   or `Savestate after the load: weather: ...` (Full). Not kept: a
   rainbow, a lightning flash, when the next roll comes (random anyway).
+  **The frames after a Quick load** (T-0148, 2026-10-07, unreleased): every
+  spot restart was followed by two `Load timing: hitch` lines (the author:
+  ~380 + ~255 ms). The first is the restore's continuation (all the keepers
+  in one frame): six scene walks (`FindObjectOfType` / `FindObjectsOfType`,
+  20-37 ms each) - now kept between restores in `Game/SceneCache` (rules in
+  `Data/LookupCache`, tested: until a scene loads / unloads or a kept
+  object dies or goes inactive; nothing found is never kept). Single
+  objects and the trees only; the elevators are still searched every
+  restore (~24 ms - they could appear without a scene event). The second
+  is the plane wreck the Quick load re-creates running the game's crash
+  clearing again (~165-195 ms): when a wreck already stands at that spot
+  (`Data/WreckSites`, tested) its plant / LOD removal still runs as the
+  game's does (~25 ms) and only the grass cut is skipped - it only ever
+  writes 0, already there (`Game/WreckClearing`, `Plane wreck:` line).
+  The restore line ends
+  `after the load: N ms, S scene search(es), K kept`. Left: LoadNow's own
+  frames (150 + 170 ms on the Labskip spot) - the game's deserializer
+  (game-notes *The frames of an in-place restore*).
 
 ## Category start states true to the game (2026-10-05, unreleased)
 
@@ -152,7 +170,7 @@ expected - the same list now filled first).
 
 ## Reload the save in place on death (2026-10-04, unreleased)
 
-The author's idea (CLAUDE.md *Next up* 3). Deaths tab, under the reload:
+The author's idea (the author's old *Next up* list, item 3). Deaths tab, under the reload:
 **Reload the save: with a load (as the game does) / in place (fast)** -
 `[Deaths] ReloadInPlace`, **off by default** (the game's own load stays
 the default: true to the game, and the only one run mode uses). A *Quick

@@ -76,9 +76,15 @@ switch (mode)
     }
     case "eval":
     {
+        // eval [ids...] [--summary <file>]: the report is also appended to
+        // the file (CI passes $GITHUB_STEP_SUMMARY).
+        int at = Array.IndexOf(args, "--summary");
+        string summaryPath = at > 0 && at + 1 < args.Length ? args[at + 1] : null;
+        HashSet<string> ids = args.Skip(1).Where((a, i) => at < 0 || (i + 1 != at && i + 1 != at + 1)).ToHashSet();
         using Brain brain = new Brain(cfg, log);
         string path = Path.Combine(cfg.KnowledgeRoot, "knowledge", "eval", "questions.md");
-        await new EvalRunner(brain, Console.WriteLine).RunAsync(path, args.Skip(1).ToHashSet(), CancellationToken.None);
+        try { await new EvalRunner(brain, Console.WriteLine).RunAsync(path, ids, CancellationToken.None, summaryPath); }
+        catch (ArgumentException ex) { Console.Error.WriteLine(ex.Message); return 2; }
         return 0;
     }
     case "queue":

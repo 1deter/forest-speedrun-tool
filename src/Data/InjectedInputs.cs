@@ -30,6 +30,10 @@ namespace ForestOverlay.Data
         }
 
         private readonly Dictionary<string, Entry> _entries = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        // The same entries in order, for the walks: Dictionary.Values makes
+        // a new collection object on every call on this Mono, and Settle
+        // walks once a frame (T-0033: ~5 KB/s while the bridge held a key).
+        private readonly List<Entry> _list = new List<Entry>();
         private readonly List<string> _drop = new List<string>();
 
         /// Any injection still around (the patches return at once when not).
@@ -68,8 +72,11 @@ namespace ForestOverlay.Data
         public int ReleaseAll(int frame)
         {
             int n = 0;
-            foreach (Entry e in _entries.Values)
+            for (int i = 0; i < _list.Count; i++)
+            {
+                Entry e = _list[i];
                 if (e.Up > frame + 1) { e.Up = Math.Max(frame + 1, e.Down); n++; }
+            }
             return n;
         }
 
@@ -121,19 +128,21 @@ namespace ForestOverlay.Data
         public void Settle(int frame, float now)
         {
             _drop.Clear();
-            foreach (Entry e in _entries.Values)
+            for (int i = 0; i < _list.Count; i++)
             {
+                Entry e = _list[i];
                 Resolve(e, frame, now);
                 if (e.Up != int.MaxValue && frame > e.Up) _drop.Add(e.Name);
             }
-            for (int i = 0; i < _drop.Count; i++) _entries.Remove(_drop[i]);
+            for (int i = 0; i < _drop.Count; i++) Remove(_drop[i]);
         }
 
         public void Describe(int frame, float now, List<string> o)
         {
             if (_entries.Count == 0) { o.Add("nothing pressed or held"); return; }
-            foreach (Entry e in _entries.Values)
+            for (int i = 0; i < _list.Count; i++)
             {
+                Entry e = _list[i];
                 Resolve(e, frame, now);
                 string what = e.IsAxis ? "axis " + e.Name + " = " + e.Value.ToString("0.###", CultureInfo.InvariantCulture) : e.Name;
                 string state = frame < e.Down ? "starts next frame"
@@ -152,8 +161,18 @@ namespace ForestOverlay.Data
             e.IsAxis = axis;
             e.Value = value;
             e.Down = frame + 1;
+            Remove(name);
             _entries[name] = e;
+            _list.Add(e);
             return e;
+        }
+
+        private void Remove(string name)
+        {
+            Entry old;
+            if (!_entries.TryGetValue(name, out old)) return;
+            _entries.Remove(name);
+            _list.Remove(old);
         }
 
         private Entry Find(string name, bool axis, int frame, float now)

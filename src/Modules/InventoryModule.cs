@@ -75,6 +75,8 @@ namespace ForestOverlay.Modules
         // Logs in the inventory (Game/LogStore).
         private ConfigEntry<bool> _logsCfg;
         private ConfigEntry<int> _logCapCfg;
+        private int _capLive = -1;         // < 0 = the config's value
+        private float _capWriteAt;
         // Kept across launches (v0.24.191).
         private ConfigEntry<bool> _hidePhantomsCfg, _showZerosCfg;
 
@@ -151,6 +153,7 @@ namespace ForestOverlay.Modules
 
         public override void Shutdown()
         {
+            FlushLogCap(true);
             LogStore.Full = null;
             LogStore.Shutdown();
             ItemCapPatch.Uninstall();
@@ -190,9 +193,17 @@ namespace ForestOverlay.Modules
             RebuildWatchLines();
         }
 
+        private void FlushLogCap(bool force)
+        {
+            if (_capLive < 0 || (!force && Time.unscaledTime < _capWriteAt)) return;
+            _logCapCfg.Value = _capLive;
+            _capLive = -1;
+        }
+
         private void TickLogs()
         {
-            int logCap = Ctx.Run.Forces("logs") && Ctx.Run.Category != null ? Ctx.Run.Category.EffectiveLogCap : Mathf.Clamp(_logCapCfg.Value, 1, 99);
+            FlushLogCap(false);
+            int logCap = Ctx.Run.Forces("logs") && Ctx.Run.Category != null ? Ctx.Run.Category.EffectiveLogCap : Mathf.Clamp(_capLive >= 0 ? _capLive : _logCapCfg.Value, 1, 99);
             if (logCap != LogStore.Cap || _runLogCapText.text.Length == 0) _runLogCapText.text = logCap + "   (the run's category)";
             LogStore.Cap = logCap;
             LogStore.Maintain(LogsOn && !PlayerRef.AtTitleScreen);
@@ -648,7 +659,13 @@ namespace ForestOverlay.Modules
                 {
                     _capText = t;
                     int cap;
-                    if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99) _logCapCfg.Value = cap;
+                    if (int.TryParse(t, out cap) && cap >= 1 && cap <= 99)
+                    {
+                        // Held here and written once the typing stops (FlushLogCap): a config write
+                        // saves the whole file, on every keystroke otherwise (gotcha 60).
+                        _capLive = cap;
+                        _capWriteAt = Time.unscaledTime + 0.5f;
+                    }
                 }
             }
             y += 26f;

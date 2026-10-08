@@ -145,8 +145,8 @@ namespace ForestOverlay.Game
         private static Component FindHost()
         {
             // player/ControllerObjects/SpecialItems/TickOff, active in play.
-            // Once per restore: a full scan is fine here.
-            try { return UnityEngine.Object.FindObjectOfType(_host) as Component; }
+            // Once per restore - a scene walk, 20-25 ms: kept (T-0148).
+            try { return SceneCache.One(_host); }
             catch (Exception) { return null; }
         }
     }

@@ -1,7 +1,7 @@
 ---
 id: categories-and-rules
 title: Speedrun categories and their rules (speedrun.com)
-aliases: categories, category, rules, leaderboard, leaderboards, speedrun.com, src, any%, any percent, any% no explosive glitch, no explosives glitch, neg, bombless, any% bombs, glitchless, any% glitchless, coop, co-op, co-op any%, coop glitchless, inbounds, inbounds%, oob, out of bounds, vr%, vr, bathrobe%, shark%, 100%, hundo, world record, wr, records, difficulty, peaceful, normal, hardmode, hard mode, creative category, timing rules, when does the timer start, when does the run end, banned, allowed, is it legal
+aliases: categories, category, rules, speedrun.com, src, any%, any percent, any% no explosive glitch, no explosives glitch, neg, bombless, any% bombs, glitchless, any% glitchless, coop, co-op, co-op any%, coop glitchless, inbounds, inbounds%, oob, out of bounds, vr%, vr, bathrobe%, shark%, 100%, hundo, difficulty, peaceful, normal, hardmode, hard mode, creative category, timing rules, when does the timer start, when does the run end, banned, allowed, is it legal
 tags: categories, rules, timing
 confidence: runner
 checked: 2026-10-03
@@ -93,6 +93,11 @@ running and coyote time (`movement-tricks`), the fall damage slide cancel
 (`pausing-and-game-time`). Some of these may still count as "glitches" to
 a moderator for *Glitchless* - the rule names only OOB and wall clips.
 
+The **fall damage slide cancel is allowed in Glitchless** [runner: a speedrunner in the
+knowledge-testing feedback, 2026-10-05: slides to avoid fall damage "are more of a physics
+quirk than a specific bug" and were ruled allowed in glitchless; not on the rules page].
+The written Glitchless rules name only OOB and clipping through walls.
+
 ## Difficulty matters
 
 - **Creative** turns on god mode, infinite energy and no survival
@@ -121,7 +126,7 @@ a moderator for *Glitchless* - the rule names only OOB and wall clips.
 - Real time only: load times count, and so does any time spent paused
   (a bomb boost's seconds in the menu are on the clock).
 
-## Records, top runners and moderators
+## Where the times and holders are
 
 The top 3 of every board, who holds the most of them, what the gaps
 between categories say, and the moderators: `top-runners`. The full 100%

@@ -132,6 +132,7 @@ namespace ForestOverlay.Modules
         // The last run cut short (a restart, an abort, a death) - kept to
         // see where it went wrong (maks, sxczurass; v0.24.200).
         private readonly LineBuffer _failedLine = new LineBuffer();
+        private bool _failedFromOtherSegment;   // set around ArmRun when the Go switched segments
         private int _ghostHint;
 
         // ------------------------------------------------------------------
@@ -326,6 +327,7 @@ namespace ForestOverlay.Modules
         private void OnPlacedAtSpot()
         {
             if (_practice == null) return;
+            string cause = _practice.PlaceCause.Take();   // read once, whatever happens below
             // A run spot's run start is timed whatever F9 says (run mode).
             ArmSource source = RunTiming.Source(Enabled, _practice.PlacingRunStart);
             if (source == ArmSource.None) return;
@@ -351,8 +353,12 @@ namespace ForestOverlay.Modules
             _armSource = source;
             if (source == ArmSource.RunMode && !Enabled)
                 Ctx.Log.LogInfo("Run '" + s.Id + "': timed by run mode (practice mode is off).");
+            // Another segment's still-running attempt is not this one's failure.
+            _failedFromOtherSegment = _recorder.State == RunRecorder.RunState.Running &&
+                                      !(s.Id == _loadedSegmentId && s.RouteFingerprint() == _armedRoute);
             LoadAttemptsFor(s);
-            ArmRun();
+            ArmRun(cause);
+            _failedFromOtherSegment = false;
         }
 
         // Run mode ended under a run it timed: back to the runner's own F9
@@ -378,7 +384,7 @@ namespace ForestOverlay.Modules
             _armSource = Enabled ? ArmSource.Practice : ArmSource.None;
         }
 
-        private void ArmRun()
+        private void ArmRun(string cause)
         {
             // Priming (rather than firing) on the first evaluation is what
             // stops the start trigger going off while you are still standing
@@ -407,7 +413,7 @@ namespace ForestOverlay.Modules
 
             _recorder.StateChannels = Ctx.PlayerState.Channels;
             _recorder.Route = _armedRoute;
-            KeepFailed();   // a Go / restart without a start state re-arms mid-run
+            if (!_failedFromOtherSegment) KeepFailed();   // a Go / restart without a start state re-arms mid-run
             _recorder.Arm(_segment.HasSpawn ? _segment.SpawnPosition : PlayerPosition(), _segment.Id);
 
             MaybeFetchBoard();
@@ -415,6 +421,7 @@ namespace ForestOverlay.Modules
             SelectReference();
             ArmSplits();
             _status = "armed: " + _segment.Name;
+            Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed after " + cause + " (start: " + _segment.Start.Describe() + ").");
         }
 
         private void CollectReferencedItemIds(Segment s)
@@ -474,7 +481,7 @@ namespace ForestOverlay.Modules
                 {
                     Ctx.Log.LogInfo("Run '" + _segment.Id + "': auto-restart" + (checkpoint >= 0 ? " from checkpoint " + (checkpoint + 1) : "") + ".");
                     if (checkpoint >= 0) RestartFromCheckpoint(checkpoint);
-                    else _practice.ReturnToSpot();
+                    else _practice.ReturnToSpot("auto-restart");
                 }
             }
 
@@ -508,7 +515,7 @@ namespace ForestOverlay.Modules
                 _recorder.State != RunRecorder.RunState.Running)
             {
                 LoadAttemptsFor(_segment);
-                ArmRun();
+                ArmRun("segment edit");
                 _status = "segment edited - re-armed";
             }
 
@@ -775,7 +782,7 @@ namespace ForestOverlay.Modules
             ClearRunPreview();
             _status = "aborted";
 
-            if (_segment != null) ArmRun();
+            if (_segment != null) ArmRun("abort");
         }
 
         // Practice deleted a spot: if it is the armed one, the run, the

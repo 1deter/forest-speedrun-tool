@@ -19,15 +19,26 @@ on:
       - '.github/workflows/bot.yml'
   pull_request:
     paths: ['bot/**', 'knowledge/**']
+  # By hand: the eval only (job eval-manual) - never a build or a deploy
+  # (T-0141, the bot-review skill). `all` = every question in
+  # knowledge/eval/questions.md, or a space-separated list of ids.
   workflow_dispatch:
-
-concurrency:
-  group: bot-deploy
-  cancel-in-progress: false
+    inputs:
+      eval_ids:
+        description: 'Eval questions: "all" or space-separated ids'
+        required: false
+        default: 'all'
+        type: string
 
 jobs:
   bot:
+    # A dispatch only evals (below): it must not test, publish or deploy.
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # On the job, not the workflow: the eval job below must not hold it.
+    concurrency:
+      group: bot-deploy
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v5
@@ -41,13 +52,13 @@ jobs:
 
       - name: Publish (linux-arm64)
         run: |
-          dotnet publish bot/ForestBot -c Release -r linux-arm64 --self-contained false -o out
+          dotnet publish bot/ForestBot -c Release -r linux-arm64 --self-contained false -p:SourceRevisionId=${{ github.sha }} -o out
           test -f out/kb/knowledge/glossary.md
           tar czf bot.tgz -C out .
           ls -l bot.tgz
 
       - name: Deploy
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           KEY: ${{ secrets.BOT_DEPLOY_KEY }}
@@ -61,3 +72,105 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes -o BatchMode=yes forestbotdeploy@"$HOST" < bot.tgz
+
+  # A small eval subset on the live bot's key (author 2026-10-07: it
+  # shares the free daily quota, so few questions, one cheap model).
+  # Warn-only, in its own job and concurrency group: it never fails the
+  # run and the next push's deploy never queues behind it (a newer push
+  # cancels a running eval). Busy questions are skipped, not scored
+  # (gotcha 94). No code tools or embedding model here, so it checks the
+  # cards and the prompt. The subset includes two short-question items
+  # (T-0090: short-bomb-fps with its expand follow-up, short-coyote); the
+  # runner checks their max-length / min-length as facts, so a wall of
+  # text for a 3-word question lowers the score. Both are card-only.
+  eval:
+    needs: bot
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    concurrency:
+      group: bot-eval
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Eval subset (warn-only)
+        timeout-minutes: 20
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FOREST_BOT_MODELS: gemini:gemini-3.5-flash-lite
+          EVAL_SUBSET: bomb-why fall-how zipline keycardless injection short-bomb-fps short-coyote
+          WARN_BELOW: 70
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::GEMINI_API_KEY secret not set (bot/deploy/README.md) - eval skipped."
+            exit 0
+          fi
+          dotnet run --project bot/ForestBot -c Release -- eval $EVAL_SUBSET --summary "$GITHUB_STEP_SUMMARY" | tee eval.txt
+          line=$(grep '^Score:' eval.txt || true)
+          pct=$(echo "$line" | sed -n 's/^Score: [0-9]*\/[0-9]* = \([0-9.]*\)%.*/\1/p')
+          answered=$(echo "$line" | sed -n 's/.*, \([0-9]*\) answered.*/\1/p')
+          if [ -z "$pct" ]; then echo "::warning::Eval printed no score."; exit 0; fi
+          if [ "${answered:-0}" = 0 ]; then echo "::warning::Eval: every question was busy (quota) - nothing scored."; exit 0; fi
+          if awk -v p="$pct" -v w="$WARN_BELOW" 'BEGIN{exit !(p < w)}'; then
+            echo "::warning::Eval subset scored $pct% (under $WARN_BELOW%) - $line"
+          else
+            # An annotation, not a log line: the run page shows it without sign-in.
+            echo "::notice::Eval subset: $line"
+          fi
+
+  # The full eval by hand (T-0141): `gh workflow run bot.yml -f eval_ids=all`
+  # (or ids). It runs on DeepSeek, the live bot's first model, which is
+  # PAID per token (author, 2026-10-08) - so it runs only by hand: the
+  # full set once per bot review, named ids once per task fix, never in a
+  # loop (docs/decisions.md *Knowledge bot*). The automatic subset above
+  # stays on free Gemini. Never deploys: no publish, no ssh. Prints one line per question and the score; busy
+  # questions are skipped, not scored (gotcha 94). Warn-only like the subset.
+  eval-manual:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 90
+    # Its own group: in the subset's group (cancel-in-progress) a push
+    # cancelled a running full eval (2026-10-08, run 37786044535). The two
+    # use different models (DeepSeek / free Gemini), so they may overlap.
+    concurrency:
+      group: bot-eval-manual
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Eval (full set or the named ids)
+        timeout-minutes: 80
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # DeepSeek only: an empty balance shows as busy-skipped questions,
+          # never as a silent switch to another model's scores.
+          FOREST_BOT_MODELS: deepseek:deepseek-chat@https://api.deepseek.com/v1
+          EVAL_IDS: ${{ inputs.eval_ids }}
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::error::DEEPSEEK_API_KEY secret not set (bot/deploy/README.md) - eval skipped."
+            exit 1
+          fi
+          ids="$EVAL_IDS"
+          if [ "$ids" = "all" ]; then ids=""; fi
+          # (an empty list - "all" - passes: grep sees no line for it)
+          if [ -n "$ids" ] && ! printf '%s\n' "$ids" | grep -Eq '^[A-Za-z0-9_ -]+$'; then
+            echo "::error::eval_ids must be 'all' or space-separated question ids."
+            exit 1
+          fi
+          # $ids unquoted on purpose: one argument per id.
+          dotnet run --project bot/ForestBot -c Release -- eval $ids --summary "$GITHUB_STEP_SUMMARY" | tee eval.txt
+          grep '^Score:' eval.txt || echo "::warning::Eval printed no score."

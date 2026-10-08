@@ -18,6 +18,9 @@ using Microsoft.AspNetCore.RateLimiting;
 //                       adds it, so a request straight to the VPS (past
 //                       Cloudflare, with a made-up CF-Connecting-IP) is
 //                       refused (site/deploy/README.md *Origin lock*).
+//   FOREST_BOT_TOKEN    the knowledge bot's own token (X-Bot-Token): it reads its
+//                       settings and reports what it applies (BotSettings).
+//                       Unset = those two endpoints answer 403.
 //   FOREST_DISCORD_WEBHOOK  a Discord webhook URL: a new PB on a community
 //                       spot or a run spot is posted there (PbWebhook).
 //                       Unset = off. Env or appsettings.json.
@@ -36,6 +39,8 @@ string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? 
 string originSecret = Environment.GetEnvironmentVariable("FOREST_ORIGIN_SECRET") ?? "";
 var store = new Store(dataDir);
 var categories = new Categories(store);
+var bot = new BotSettings(store);
+string botToken = Environment.GetEnvironmentVariable("FOREST_BOT_TOKEN") ?? "";
 var runs = new Runs(store, c => categories.IsPublished(c));
 var attempts = new Attempts(store, dataDir, null, categories);
 var webhook = new PbWebhook(builder.Configuration["FOREST_DISCORD_WEBHOOK"], builder.Configuration["FOREST_SITE_URL"]);
@@ -76,6 +81,9 @@ builder.Services.AddRateLimiter(o =>
     // out of reach of guessing at this rate.
     o.AddPolicy("admin", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+    // The bot polls about once a minute and reports as often.
+    o.AddPolicy("bot", c => RateLimitPartition.GetFixedWindowLimiter(ClientIp(c),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -270,7 +278,8 @@ var api = app.MapGroup("/api");
 api.MapGet("/spots", () => Results.Json(runs.Spots())).RequireRateLimiting("read");
 
 // The plugin's "Website spots" (src/Data/SiteSpots): the list as text, one
-// spot's segment as a .foseg. Read-only, no start state (the site keeps none).
+// spot's segment as a .foseg, with the route's start state when the site has
+// one (T-0194). Read-only.
 api.MapGet("/spots.txt", () => Results.Text(runs.SpotsText(), "text/plain; charset=utf-8")).RequireRateLimiting("read");
 
 api.MapGet("/spots/{id}/foseg", (string id) =>
@@ -325,7 +334,7 @@ api.MapPost("/runs", async (HttpRequest req) =>
     if (res.Pb is { } pb)
         try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId)), runner); }
         catch (Exception ex) { app.Logger.LogWarning("Discord webhook: {m}", ex.Message); }
-    return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped });
+    return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped, startstate = res.StartState });
 }).RequireRateLimiting("upload");
 
 // A runner deleting their own spot (the game's Practice -> Share ->
@@ -412,6 +421,28 @@ api.MapGet("/categories.txt", (HttpContext c) =>
 api.MapGet("/categories/{id}/{version:int}", (string id, int version) =>
     Categories.View(categories.Version(id, version)) is { } v ? Results.Json(v) : Problem(404, "no such category version")).RequireRateLimiting("read");
 
+// --- the knowledge bot (BotSettings; docs/knowledge-bot.md) -----------------------
+// The bot's own token, not an admin's: it can read the settings and report,
+// nothing else. Constant-time compare; unset = refused.
+bool IsBot(HttpContext c)
+{
+    string given = c.Request.Headers["X-Bot-Token"].FirstOrDefault() ?? "";
+    return botToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+        Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(botToken));
+}
+api.MapGet("/bot/settings", (HttpContext c) =>
+{
+    if (!IsBot(c)) return Problem(403, "bot token required");
+    var (settings, rev) = bot.Current();
+    return Results.Json(new { rev, settings });
+}).RequireRateLimiting("bot");
+api.MapPost("/bot/report", async (HttpContext c) =>
+{
+    if (!IsBot(c)) return Problem(403, "bot token required");
+    string error = bot.SaveReport(await Body(c.Request));
+    return error == null ? Results.Ok() : Problem(400, error);
+}).RequireRateLimiting("bot");
+
 static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue(out string s) ? s : "";
 
 // --- the author ----------------------------------------------------------------
@@ -469,6 +500,21 @@ admin.MapDelete("/spots/{id}", (string id) =>
     return error == "no such spot" ? Problem(404, error) : error != null ? Problem(400, error) : Results.Json(new { runs = n });
 });
 admin.MapGet("/log", () => Results.Json(store.AdminLog()));
+
+// The knowledge bot's settings: the owner only (a named admin's token must
+// not steer the bot).
+admin.MapGet("/bot", (HttpContext c) =>
+{
+    if (!IsOwner(c)) return Problem(403, "only the owner changes the bot's settings");
+    var (settings, rev) = bot.Current();
+    return Results.Json(new { settings, rev, report = bot.Report(), botToken = botToken.Length > 0 });
+});
+admin.MapPut("/bot", async (HttpContext c) =>
+{
+    if (!IsOwner(c)) return Problem(403, "only the owner changes the bot's settings");
+    var (rev, error) = bot.Save(await Body(c.Request));
+    return error == null ? Results.Json(new { rev }) : Problem(400, error);
+});
 
 // Admins: the owner only.
 admin.MapGet("/admins", (HttpContext c) => IsOwner(c) ? Results.Json(store.Admins()) : Problem(403, "only the owner manages admins"));

@@ -193,26 +193,34 @@ namespace ForestOverlay.Game
 
         private void Update()
         {
-            if (!ShowColliders && !ShowTriggers) { _found.Clear(); return; }
-            if (Time.unscaledTime < _nextRefresh) return;
-            _nextRefresh = Time.unscaledTime + RefreshInterval;
-            Refresh();
+            try
+            {
+                if (!ShowColliders && !ShowTriggers) { _found.Clear(); return; }
+                if (Time.unscaledTime < _nextRefresh) return;
+                _nextRefresh = Time.unscaledTime + RefreshInterval;
+                Refresh();
+            }
+            catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.Update", ex); }
         }
 
         // Drawn after the camera's image effects when Game/LatePass can
         // (true colours); OnRenderObject is the fallback.
-        private void OnEnable() { LatePass.Register(this); }
-        private void OnDisable() { LatePass.Unregister(this); }
-        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        private void OnEnable() { try { LatePass.Register(this); } catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.OnEnable", ex); } }
+        private void OnDisable() { try { LatePass.Unregister(this); } catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.OnDisable", ex); } }
+        private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.LateUpdate", ex); } }
         public bool WantsLateDraw { get { return _found.Count > 0; } }
         public void DrawLate(Camera camera) { DrawLines(); }
 
         private void OnRenderObject()
         {
-            if (!WantsLateDraw) return;
-            if (!DrawTarget.ShouldDraw()) return;
-            if (LatePass.Covers(Camera.current)) return;
-            DrawLines();
+            try
+            {
+                if (!WantsLateDraw) return;
+                if (!DrawTarget.ShouldDraw()) return;
+                if (LatePass.Covers(Camera.current)) return;
+                DrawLines();
+            }
+            catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.OnRenderObject", ex); }
         }
 
         private void DrawLines()
@@ -342,7 +350,11 @@ namespace ForestOverlay.Game
 
         private void OnDestroy()
         {
-            if (_material != null) UnityEngine.Object.Destroy(_material);
+            try
+            {
+                if (_material != null) UnityEngine.Object.Destroy(_material);
+            }
+            catch (Exception ex) { Lifecycle.Fail("DebugDrawBehaviour.OnDestroy", ex); }
         }
     }
 
@@ -360,17 +372,29 @@ namespace ForestOverlay.Game
 
         private void OnPreRender()
         {
-            if (Enabled) GL.wireframe = true;
+            try
+            {
+                if (Enabled) GL.wireframe = true;
+            }
+            catch (Exception ex) { Lifecycle.Fail("WireframeBehaviour.OnPreRender", ex); }
         }
 
         private void OnPostRender()
         {
-            GL.wireframe = false;
+            try
+            {
+                GL.wireframe = false;
+            }
+            catch (Exception ex) { Lifecycle.Fail("WireframeBehaviour.OnPostRender", ex); }
         }
 
         private void OnDisable()
         {
-            GL.wireframe = false;
+            try
+            {
+                GL.wireframe = false;
+            }
+            catch (Exception ex) { Lifecycle.Fail("WireframeBehaviour.OnDisable", ex); }
         }
     }
 
@@ -547,45 +571,57 @@ namespace ForestOverlay.Game
 
         private void Update()
         {
-            if (_camera == null) return;
-            if (!InputEnabled) return;
+            try
+            {
+                if (_camera == null) return;
+                if (!InputEnabled) return;
 
-            _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
-            _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;
-            _pitch = Mathf.Clamp(_pitch, -89f, 89f);
+                _yaw += Input.GetAxis("Mouse X") * LookSensitivity;
+                _pitch -= Input.GetAxis("Mouse Y") * LookSensitivity;
+                _pitch = Mathf.Clamp(_pitch, -89f, 89f);
 
-            float speed = Speed;
-            if (Input.GetKey(KeyCode.LeftShift)) speed *= FastMultiplier;
-            if (Input.GetKey(KeyCode.LeftControl)) speed *= SlowMultiplier;
+                float speed = Speed;
+                if (Input.GetKey(KeyCode.LeftShift)) speed *= FastMultiplier;
+                if (Input.GetKey(KeyCode.LeftControl)) speed *= SlowMultiplier;
 
-            Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
-            Vector3 forward = rot * Vector3.forward;
-            Vector3 right = rot * Vector3.right;
+                Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
+                Vector3 forward = rot * Vector3.forward;
+                Vector3 right = rot * Vector3.right;
 
-            Vector3 move = Vector3.zero;
-            if (Input.GetKey(KeyCode.W)) move += forward;
-            if (Input.GetKey(KeyCode.S)) move -= forward;
-            if (Input.GetKey(KeyCode.D)) move += right;
-            if (Input.GetKey(KeyCode.A)) move -= right;
-            if (Input.GetKey(KeyCode.E)) move += Vector3.up;
-            if (Input.GetKey(KeyCode.Q)) move -= Vector3.up;
+                Vector3 move = Vector3.zero;
+                if (Input.GetKey(KeyCode.W)) move += forward;
+                if (Input.GetKey(KeyCode.S)) move -= forward;
+                if (Input.GetKey(KeyCode.D)) move += right;
+                if (Input.GetKey(KeyCode.A)) move -= right;
+                if (Input.GetKey(KeyCode.E)) move += Vector3.up;
+                if (Input.GetKey(KeyCode.Q)) move -= Vector3.up;
 
-            _pos += move.normalized * speed * Time.unscaledDeltaTime;
+                _pos += move.normalized * speed * Time.unscaledDeltaTime;
+            }
+            catch (Exception ex) { Lifecycle.Fail("FreeCamBehaviour.Update", ex); }
         }
 
         // The camera is still a child of the player's head, which the game
         // moves; the pose is written late in the frame, from our own state.
         private void LateUpdate()
         {
-            if (_camera == null) return;
-            Transform t = _camera.transform;
-            t.position = _pos;
-            t.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+            try
+            {
+                if (_camera == null) return;
+                Transform t = _camera.transform;
+                t.position = _pos;
+                t.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+            }
+            catch (Exception ex) { Lifecycle.Fail("FreeCamBehaviour.LateUpdate", ex); }
         }
 
         private void OnDestroy()
         {
-            End();
+            try
+            {
+                End();
+            }
+            catch (Exception ex) { Lifecycle.Fail("FreeCamBehaviour.OnDestroy", ex); }
         }
     }
 
@@ -621,18 +657,22 @@ namespace ForestOverlay.Game
 
         // Drawn after the camera's image effects when Game/LatePass can
         // (true colours); OnRenderObject is the fallback.
-        private void OnEnable() { LatePass.Register(this); }
-        private void OnDisable() { LatePass.Unregister(this); }
-        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        private void OnEnable() { try { LatePass.Register(this); } catch (Exception ex) { Lifecycle.Fail("MarkerBehaviour.OnEnable", ex); } }
+        private void OnDisable() { try { LatePass.Unregister(this); } catch (Exception ex) { Lifecycle.Fail("MarkerBehaviour.OnDisable", ex); } }
+        private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (Exception ex) { Lifecycle.Fail("MarkerBehaviour.LateUpdate", ex); } }
         public bool WantsLateDraw { get { return Count > 0; } }
         public void DrawLate(Camera camera) { DrawLines(); }
 
         private void OnRenderObject()
         {
-            if (!WantsLateDraw) return;
-            if (!DrawTarget.ShouldDraw()) return;
-            if (LatePass.Covers(Camera.current)) return;
-            DrawLines();
+            try
+            {
+                if (!WantsLateDraw) return;
+                if (!DrawTarget.ShouldDraw()) return;
+                if (LatePass.Covers(Camera.current)) return;
+                DrawLines();
+            }
+            catch (Exception ex) { Lifecycle.Fail("MarkerBehaviour.OnRenderObject", ex); }
         }
 
         private void DrawLines()
@@ -728,18 +768,22 @@ namespace ForestOverlay.Game
 
         // Drawn after the camera's image effects when Game/LatePass can
         // (true colours); OnRenderObject is the fallback.
-        private void OnEnable() { LatePass.Register(this); }
-        private void OnDisable() { LatePass.Unregister(this); }
-        private void LateUpdate() { LatePass.Sync(DrawTarget.View()); }
+        private void OnEnable() { try { LatePass.Register(this); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnEnable", ex); } }
+        private void OnDisable() { try { LatePass.Unregister(this); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDisable", ex); } }
+        private void LateUpdate() { try { LatePass.Sync(DrawTarget.View()); } catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.LateUpdate", ex); } }
         public bool WantsLateDraw { get { return Show && (ReferenceCount >= 2 || CurrentCount >= 2 || FailedCount >= 2 || HasGhost || PathCount >= 2); } }
         public void DrawLate(Camera camera) { DrawLines(); }
 
         private void OnRenderObject()
         {
-            if (!WantsLateDraw) return;
-            if (!DrawTarget.ShouldDraw()) return;
-            if (LatePass.Covers(Camera.current)) return;
-            DrawLines();
+            try
+            {
+                if (!WantsLateDraw) return;
+                if (!DrawTarget.ShouldDraw()) return;
+                if (LatePass.Covers(Camera.current)) return;
+                DrawLines();
+            }
+            catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnRenderObject", ex); }
         }
 
         private void DrawLines()
@@ -823,7 +867,11 @@ namespace ForestOverlay.Game
 
         private void OnDestroy()
         {
-            if (_material != null) UnityEngine.Object.Destroy(_material);
+            try
+            {
+                if (_material != null) UnityEngine.Object.Destroy(_material);
+            }
+            catch (Exception ex) { Lifecycle.Fail("RunLineBehaviour.OnDestroy", ex); }
         }
     }
 }

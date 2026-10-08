@@ -10,7 +10,8 @@ namespace ForestBot.Llm;
 // ------------------------------------------------------------------
 public sealed class ModelChain
 {
-    private readonly List<IChatModel> _models;
+    // Replaced as a whole by reference (live settings), never mutated: readers keep a consistent list.
+    private volatile IReadOnlyList<IChatModel> _models;
     private readonly Dictionary<string, DateTime> _restUntil = new Dictionary<string, DateTime>();
     private readonly object _lock = new object();
     private readonly Action<string> _log;
@@ -19,7 +20,7 @@ public sealed class ModelChain
 
     public ModelChain(IEnumerable<IChatModel> models, Action<string> log)
     {
-        _models = new List<IChatModel>(models);
+        _models = new List<IChatModel>(models).AsReadOnly();
         _log = log ?? (_ => { });
     }
 
@@ -60,6 +61,26 @@ public sealed class ModelChain
         }
         log("Models: " + (models.Count == 0 ? "none configured" : string.Join(" -> ", models.Select(m => m.Name))));
         return new ModelChain(models, log);
+    }
+
+    /// Swaps the models in place (live settings: a new order). Resting times are kept by name.
+    public void Replace(IEnumerable<IChatModel> models)
+    {
+        _models = new List<IChatModel>(models).AsReadOnly();
+    }
+
+    /// Live settings: swaps in `fresh` (built from `spec`) unless it is empty - a typo, an unknown
+    /// provider or a missing key must not leave the bot with no model. False = kept the current ones.
+    public bool ReplaceIfAny(IReadOnlyList<IChatModel> fresh, string spec)
+    {
+        if (fresh.Count == 0)
+        {
+            _log("Site settings: model order '" + spec + "' has no usable model - keeping " +
+                 (_models.Count == 0 ? "the current (none)" : string.Join(" -> ", _models.Select(m => m.Name))));
+            return false;
+        }
+        Replace(fresh);
+        return true;
     }
 
     /// The first model not resting, or null.

@@ -10,6 +10,37 @@ namespace ForestOverlay.Tests
     // ------------------------------------------------------------------
     public class SiteProtocolTests
     {
+        [Fact]
+        public void StartStateResend_AddsOnlyTheRoutesOwnState()
+        {
+            var state = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data" };
+            var seg = new Segment { Id = "s-0123456789ab", Name = "Boost" };
+            seg.StartState = Segment.HashText(state.Data);
+            var b = new SegmentBundle { Segment = seg, Exported = "now", PluginVersion = "test" };
+            b.Attempts.Add("duration = 1");
+            string why;
+
+            string again = SiteProtocol.StartStateResend(b.Write(), state.Write(), out why);
+            Assert.Null(why);
+            SegmentBundle sent = SegmentBundle.Parse(again, out why, null);
+            Assert.Equal(state.Write(), sent.StartState);
+            Assert.Single(sent.Attempts);
+
+            // Sent once already: never again (the site refused it).
+            Assert.Null(SiteProtocol.StartStateResend(again, state.Write(), out why));
+            Assert.Contains("did not keep", why);
+
+            // No state here, or another one.
+            Assert.Null(SiteProtocol.StartStateResend(b.Write(), null, out why));
+            var other = new SavestateFile { Name = "boost", Level = "TheForest", Data = "other data" };
+            Assert.Null(SiteProtocol.StartStateResend(b.Write(), other.Write(), out why));
+            Assert.Contains("not the one", why);
+
+            // A teleport-only spot has none to send.
+            seg.StartState = "";
+            Assert.Null(SiteProtocol.StartStateResend(b.Write(), state.Write(), out why));
+        }
+
         [Theory]
         [InlineData(200, UploadOutcome.Done)]
         [InlineData(400, UploadOutcome.Refused)]

@@ -3,11 +3,11 @@ id: fall-damage
 title: Fall damage and the slide cancel
 aliases: fall damage, fall damage cancel, slide cancel, fall cancel, body slide, slide on bodies, sliding on bodies, cave 6 drop, keycard drop, fall death, fell too long, 3.8 seconds, hard landing, landing stun, landing lag, prevVelocity, fall height
 tags: physics, tech, damage, caves
-confidence: code
-checked: 2026-10-03
-sources: game-notes "Deaths" (What a landing hurts from), "Speedrun tech and the endgame gate" (Fall damage and the slide cancel; The game's timers and pauses; the runners' words mapped); sxczurass's Creative Bombless Any% Guide (2025); docs/run-mode.md "Banned moves: detection" (fall damage cancel)
+confidence: live
+checked: 2026-10-08
+sources: game-notes "Deaths" (What a landing hurts from), "Speedrun tech and the endgame gate" (Fall damage and the slide cancel; The game's timers and pauses; the runners' words mapped); game-notes "The multi-thrower and the Cave 6 body slide" (2026-10-08); sxczurass's Creative Bombless Any% Guide (2025); docs/run-mode.md "Banned moves: detection" (fall damage cancel)
 related: player-physics, deaths-and-revives, pausing-and-game-time, movement-tricks
-code: FirstPersonCharacter.HandleLanded, FirstPersonCharacter.OnCollisionEnterProxied, FirstPersonCharacter.HandleStartJumping, FirstPersonCharacter.fallDamageTimer, playerHitReactions.doHardfallRoutine, PlayerStats.Hit
+code: FirstPersonCharacter.HandleLanded, FirstPersonCharacter.OnCollisionEnterProxied, FirstPersonCharacter.OnCollisionStayProxied, RigidBodyCollisionFlags.OnCollisionStayProxied, FirstPersonCharacter.HandleStartJumping, FirstPersonCharacter.fallDamageTimer, playerHitReactions.doHardfallRoutine, PlayerStats.Hit
 ---
 
 # Fall damage and the slide cancel
@@ -24,13 +24,41 @@ falling. That is the slide cancel.
 ## How runners do it
 
 The known use: the **Cave 6 drop to the keycard** - runners "slide on the
-bodies to not get fall damage" (sxczurass's guide). The steep colliders of
-the bodies piled at the bottom turn the fall into a slide, so the landing is
-judged on the slide's slow contact [runner + code; not reproduced live].
+bodies to not get fall damage" (sxczurass's guide); the Glitchless route
+lands "on a rock, then on the hole in the bodies while spamming jump"
+[runner]. The keycard room sits under a ~25-30 m rope shaft, and its floor
+is covered with piles of bodies. Hitting the right part of a pile turns the
+fall into a short slide, and the landing is judged on the slide's slow
+contact instead of the fall [live: drops onto the piles, and the runners'
+own jumps done by hand].
+
+**"A rock, then the hole in the bodies"** is two slides: first the rope
+drop just before the keycard area (~33 m), where runners slide on a rock,
+then the keycard shaft onto the bodies (d.eter's reading of the guide).
+Both were done by hand with real input on 2026-10-08 [live]: every clean
+line took **no damage** (the rock 3 of 3, the bodies 2 of 2); a missed
+line on the rock was a full hard landing (52 damage).
+
+**Spamming jump does nothing.** Tries with and without jump spam on the
+same line took the same damage (none) and landed within half a metre of
+each other [live]; the game judges the landing before a jump can start
+[code]. A try that lands further on is a different line, not the jump.
+
+**It depends on the exact spot.** In a grid of 80 drops from ~20 m
+(~32 m/s measured at the impact) over the piles and the floor around them [live]:
+- straight onto the bare floor: damage 20 times out of 21;
+- touching a pile (staying on it or sliding off it onto the floor): **no
+  damage 20 times out of 45**, damage the other 25;
+- the same drop point always gave the same result - the piles are fixed
+  (the same bodies in the same places on every load) and the physics are
+  repeatable.
+From the height of the shaft (~30 m) four good spots cancelled every time;
+from ~40 m only two of them did. So a runner's line is one exact spot ("the
+hole in the bodies"), not "anywhere on the bodies".
 
 ## Why it works
 
-Two pieces of `FirstPersonCharacter`:
+Three pieces of `FirstPersonCharacter`:
 
 **1. `prevVelocity` is written on every new collision, and nowhere else:**
 
@@ -68,18 +96,37 @@ So a landing does **no damage at all** - not even the 3.8 s death - unless
 - not already in a landing (`jumpLand`), not the opening plane crash;
 - not riding a shell / gliding faster than 32 m/s.
 
-**Ways the stored value ends up small:**
-- **Contact kept while sliding**: you touch a steep surface (a body, a
-  rock face) at a shallow angle - a slow collision enter - then slide down
-  it keeping contact. No new enter happens, so when `Grounded` finally turns
-  true the stored value is still the slide's small one.
+**3. You only count as landed on a contact low on your body.** `Grounded`
+is set while a contact *stays* (`OnCollisionStay`), and only for a contact
+low on your capsule (around your feet) [code]. Hitting a steep face starts
+a collision - and stores its speed - but does not land you [live].
+
+**The body slide, as measured** [live] - three drops from the same height
+(~32 m/s measured at the impact), read every frame:
+- **Bare floor**: the collision starts at 32.5 m/s, you stop dead, the next
+  physics step grounds you -> judged 32.5 -> **34 damage**.
+- **A pile, bad spot**: the collision starts at 31.6 m/s, the lump deflects
+  you sideways but you stay on it, and two steps later the same contact
+  grounds you -> judged 31.6 -> **32 damage**.
+- **A pile, good spot**: the collision starts at 32.1 m/s on a face too
+  steep to stand on. The physics turns the fall into a slide down it
+  (13 m/s, only ~5 m/s of it downward) and you are **not** grounded. Then
+  the slide carries you onto the floor / the next body: **new collisions
+  at 6.2 and 3.5 m/s** overwrite the stored speed, and only then are you
+  grounded -> judged 3.5 -> **no damage**, after 1.5 s in the air.
+
+So the slide cancel needs two things in that order: the fast impact on a
+face too steep to land on, and the next *new* contact made at the slide's
+slow speed. Other ways the stored value can end up small [code]:
 - **A slow enter just before the landing**: grazing a seam between two
   colliders, an edge, a small prop - any new contact at low vertical speed
   overwrites the fast value.
 
 **Steep terrain alone does not do it** [live]: the game holds the player on
 a 55-80° terrain slope at ~3 m/s, so no speed builds while you keep
-contact - you cannot "slide-fall" down terrain.
+contact - you cannot "slide-fall" down terrain. The bodies are different:
+each pile is one lumpy mesh about 1.6 m high and 7 m across, full of
+steep faces you hit at full speed [live].
 
 ## Numbers
 
@@ -121,6 +168,11 @@ jump until `resetAnimSpine` 1 s later (plus ~0.5 s to blend back). About
   grounding is a fresh collision at speed (the ground itself after leaving
   the slide), that enter stores the fast value and you take full damage.
   The slide must carry you onto the ground in contact.
+- **The wrong part of the pile**: a lump flat enough to stand on grounds
+  you on the first contact, and the landing is judged at full speed (32
+  damage from ~20 m) [live]. Half a metre can decide it.
+- **More height, less margin**: from ~40 m only half of the spots that
+  worked from ~30 m still cancelled [live].
 - **Over 3.8 s in the air**: the 1000-damage "fell too long" sits inside
   the same `prevVelocity > 28` check, so a cancelled landing avoids even
   that - but only if the last collision enter really was slow. Any fast
@@ -129,7 +181,11 @@ jump until `resetAnimSpine` 1 s later (plus ~0.5 s to blend back). About
 ## Evidence
 
 - Code: decompiled `FirstPersonCharacter.HandleLanded` and
-  `OnCollisionEnterProxied` (above), `HandleStartJumping`.
+  `OnCollisionEnterProxied` (above), `HandleStartJumping`,
+  `OnCollisionStayProxied` / `RigidBodyCollisionFlags` (grounding).
+- Live, Cave 6 (2026-10-08): the piles are static mesh colliders
+  (`DeadBodyPile_01` / `_02` greebles, the same on every load); drops onto
+  them traced frame by frame (the three cases above) and the 80-drop grid.
 - Live: an 82 m drop onto ground was judged at 55 m/s; a drop into the big
   lake was judged at 0 but swimming (no damage either way); terrain slopes
   never build speed; faking the cancel's state (stored speed zeroed every
@@ -139,5 +195,4 @@ jump until `resetAnimSpine` 1 s later (plus ~0.5 s to blend back). About
 
 ## Open questions
 
-- The runners' own Cave 6 body slide has not been reproduced with real
-  input yet.
+- None open about the Cave 6 slides since the by-hand tries (2026-10-08).

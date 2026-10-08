@@ -406,7 +406,7 @@ namespace ForestOverlay.Game
                 object rotator = _mainRotator != null ? _mainRotator.GetValue(null) : null;
                 if (rotator != null && _rotationSpeed != null) _rotationSpeed.SetValue(rotator, 5f);   // the game's own value
 
-                _log.LogInfo(logLine);
+                _log.LogInfo(logLine);   // log: Death, No stagger, Landing after a mid-air restore / teleport
             }
             catch (Exception ex)
             {
@@ -457,8 +457,6 @@ namespace ForestOverlay.Game
             }
             catch (Exception) { }
         }
-
-        public static bool CanClearBlood { get { return _bloodAmount != null; } }
 
         // ------------------------------------------------------------------
         // Mirrors KillPlayer's branches, evaluated before it runs: DeadTimes

@@ -32,7 +32,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.248";
+        public const string PluginVersion = "0.24.259";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -79,6 +79,7 @@ namespace ForestOverlay
             try
             {
                 Logger.LogInfo(PluginName + " v" + PluginVersion + " loading (net35 / Unity 5.6).");
+                Lifecycle.Log = Logger;
 
                 string configDir = Path.Combine(Paths.ConfigPath, PluginName);
                 if (!Directory.Exists(configDir)) Directory.CreateDirectory(configDir);
@@ -97,7 +98,7 @@ namespace ForestOverlay
                 UpdateChecker.TidyPluginFolder(System.Reflection.Assembly.GetExecutingAssembly().Location, Logger);
 
                 _bridge = new GameBridge(Logger);
-                LatePass.Log = line => Logger.LogInfo(line);
+                LatePass.Log = line => Logger.LogInfo(line);   // log: Late pass
                 _player = new PlayerRef(Logger);
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
@@ -139,7 +140,7 @@ namespace ForestOverlay
                 _host.Hotkeys.Add("ui.toggleInfo", KeyCode.None,
                                   "Show / hide the info box", ToggleInfoBox);
 
-                Logger.LogInfo(_host.Count + " modules registered.");
+                Logger.LogInfo("Modules: " + _host.Count + " registered.");
                 Logger.LogInfo("Keys: " + _host.Hotkeys.Describe());
             }
             catch (Exception ex)
@@ -184,11 +185,11 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private void Update()
         {
-            if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
-            if (_host == null) return;
-
             try
             {
+                if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
+                if (_host == null) return;
+
                 _player.Tick();
 
                 // Before modules, so a split fires in the frame its
@@ -210,17 +211,14 @@ namespace ForestOverlay
                 useGUILayout = !PerfPatches.OverlayLayout ||
                                (_host.UiVisible && (_host.AnyPanelOpen() || _notice.Active));
             }
-            catch (Exception ex)
-            {
-                Logger.LogError("Update() threw: " + ex);
-            }
+            catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.Update", ex); }
         }
 
         private void ToggleAllUi()
         {
             _host.UiVisible = !_host.UiVisible;
-            Logger.LogInfo(_host.UiVisible ? "UI shown (show / hide all key)."
-                                           : "UI hidden (show / hide all key) - press it again to show.");
+            Logger.LogInfo("UI " + (_host.UiVisible ? "shown (show / hide all key)."
+                                                  : "hidden (show / hide all key) - press it again to show."));
         }
 
         private void ToggleInfoBox()
@@ -236,10 +234,14 @@ namespace ForestOverlay
 
         private void OnDestroy()
         {
-            try { if (_host != null) _host.Shutdown(); }
-            catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
+            try
+            {
+                try { if (_host != null) _host.Shutdown(); }
+                catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
 
-            if (_events != null) _events.Uninstall();
+                if (_events != null) _events.Uninstall();
+            }
+            catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.OnDestroy", ex); }
         }
 
         // ------------------------------------------------------------------

@@ -66,7 +66,7 @@ namespace ForestOverlay.Updater
 
         private static void Log(string message)
         {
-            _log.LogInfo(message);
+            _log.LogInfo("Updater: " + message);
         }
 
         /// Reads the staged file's assembly name without loading it. Only

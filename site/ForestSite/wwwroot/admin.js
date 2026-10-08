@@ -63,12 +63,13 @@ async function adminPage(tab) {
     ["allowed", "Allowed mods", 0],
     ["activity", "Activity", 0],
   ];
-  if (me.owner) tabs.push(["admins", "Admins", 0]);
+  if (me.owner) tabs.push(["bot", "Bot", 0], ["admins", "Admins", 0]);
   tab = tabs.some(t => t[0] === tab) ? tab : "submissions";
   let body;
   try {
     body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners)
       : tab === "spots" ? spotsView(spots) : tab === "activity" ? activityView(await adminCall("GET", "/log"))
+      : tab === "bot" ? botView(await adminCall("GET", "/bot"))
       : tab === "admins" ? adminsView(await adminCall("GET", "/admins"))
       : tab === "allowed" ? allowedView(await adminCall("GET", "/allowed"))
       : tab === "categories" ? categoriesView(await adminCall("GET", "/categories"), spots) : submissionsView(subs);
@@ -544,6 +545,95 @@ function adminsView(list) {
     el("div", { class: "tablewrap" }, el("table", { class: "admin" },
       el("thead", null, el("tr", null, el("th", null, "Admin"), el("th", { class: "r" }, "Added"))),
       rows)));
+}
+
+// --- the knowledge bot (the owner only) -------------------------------------------------
+
+/// Channels the bot answers in (by name, from what it reports seeing), DMs, limits,
+/// models, thinking, the research-queue channel. A field left empty = the bot's .env default.
+function botView(data) {
+  const s = data.settings || {}, report = data.report;
+  const seen = (report && report.channels) || [];
+  // Stored channels, or - never saved - what the bot really answers in now (its .env ones).
+  const stored = Array.isArray(s.channels);
+  const answering = report && !report.allChannels ? (report.answersIn || []) : [];
+  const chosen = new Set((stored ? s.channels : answering).map(String));
+  let touched = false;
+  const known = new Set(seen.map(c => c.id));
+  const label = c => (c.guild ? c.guild + " / " : "") + "#" + c.name;
+
+  const boxes = seen.map(c => {
+    const box = el("input", { type: "checkbox", value: c.id, onchange: () => { touched = true; } });
+    box.checked = chosen.has(c.id);
+    return el("label", { class: "check" }, box, " " + label(c));
+  });
+  // Saved ids the bot no longer lists stay visible, so saving does not drop them silently.
+  for (const id of chosen) if (!known.has(id)) {
+    const box = el("input", { type: "checkbox", value: id });
+    box.checked = true;
+    boxes.push(el("label", { class: "check" }, box, " (unknown channel " + id + ")"));
+  }
+
+  const dms = el("input", { type: "checkbox" });
+  dms.checked = s.dms !== false;
+  const perHour = el("input", { class: "search", type: "number", min: 1, max: 1000, placeholder: "default 15", "aria-label": "Questions per user per hour" });
+  perHour.value = s.perHour || "";
+  const perDay = el("input", { class: "search", type: "number", min: 1, max: 10000, placeholder: "default 60", "aria-label": "Questions per user per day" });
+  perDay.value = s.perDay || "";
+  const models = el("input", { class: "search", maxlength: 300, placeholder: "provider:model,provider:model (empty = .env)", "aria-label": "Model order" });
+  models.value = s.models || "";
+  const thinking = el("select", { "aria-label": "Thinking level" },
+    ["", "low", "high"].map(v => el("option", { value: v }, v || "model default")));
+  thinking.value = s.thinking || "";
+  const queue = el("select", { "aria-label": "Research queue channel" },
+    el("option", { value: "" }, "none (or the .env one)"),
+    seen.map(c => el("option", { value: c.id }, label(c))));
+  if (s.queueChannel && !known.has(s.queueChannel)) queue.append(el("option", { value: s.queueChannel }, "(unknown channel " + s.queueChannel + ")"));
+  queue.value = s.queueChannel || "";
+
+  const save = actions(el("button", { class: "chip", onclick: async () => {
+    // With no boxes (the bot has not listed its channels) the channels stay as stored, or absent:
+    // sending [] would silence the bot.
+    const body = {
+      channels: !boxes.length ? s.channels
+        : !stored && !touched && !answering.length ? undefined   // never saved, bot answers everywhere: stay that way
+        : boxes.map(l => l.firstChild).filter(b => b.checked).map(b => b.value), dms: dms.checked,
+      perHour: perHour.value ? Number(perHour.value) : null, perDay: perDay.value ? Number(perDay.value) : null,
+      models: models.value.trim(), thinking: thinking.value, queueChannel: queue.value,
+    };
+    save.say("…");
+    try { const r = await adminCall("PUT", "/bot", JSON.stringify(body)); save.say("Saved as revision " + r.rev + ". The bot applies it within a minute."); setTimeout(() => adminPage("bot"), 900); }
+    catch (e) { save.say("Not saved: " + e.message); }
+  } }, "Save"));
+
+  const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
+
+  let status;
+  if (!data.botToken) status = "The site has no FOREST_BOT_TOKEN, so the bot cannot read these settings (set it in /opt/forest-site/.env and the bot's .env, then restart both).";
+  else if (!report) status = "The bot has not reported yet.";
+  else {
+    const hhmm = t => t ? new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null;
+    const runs = "bot " + (report.version || "?");
+    if (data.rev === 0 && report.rev === 0) status = "No settings saved yet - the bot runs its .env values (" + runs + ", last reported " + date(report.at) + ").";
+    else if (report.rev === data.rev) status = "Applied " + (hhmm(report.appliedAt) || "(time unknown)") + ", " + runs + " - saved rev " + data.rev + " is running.";
+    else status = "Saved rev " + data.rev + ", bot runs rev " + report.rev + " (" + (report.appliedAt ? "applied " + hhmm(report.appliedAt) + ", " : "") + runs + ", last reported " + date(report.at) + ") - not applied yet.";
+  }
+
+  return el("section", null,
+    el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
+      "A field left empty uses the bot's .env value."),
+    el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
+    el("div", { class: "catform" },
+    el("h3", null, "Channels it answers in"),
+    boxes.length ? el("div", null, boxes) : el("p", { class: "sub" }, "The bot has not listed its channels yet."),
+    el("p", { class: "sub" }, "Once saved here, the ticked channels are the whole list: none ticked = the bot answers in no channel (direct messages follow the setting below). Before the first save the bot uses its .env channels (ticked here when it has reported them; with none, it answers in every channel until you tick some)."),
+    el("label", { class: "check" }, dms, " Answer direct messages"),
+    field("Questions per user per hour", perHour),
+    field("Questions per user per day", perDay),
+    field("Model order", models, "First is preferred; the next answers when it fails."),
+    field("Thinking level", thinking),
+    field("Research-queue channel", queue),
+    save.box));
 }
 
 // --- runners -------------------------------------------------------------------------

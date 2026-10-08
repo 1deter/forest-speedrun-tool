@@ -64,11 +64,21 @@ Inside the body, mark claims whose confidence differs from the card's with
 `[live]`, `[code]`, `[runner]` or `[inferred]` at the end of the sentence or
 bullet. Sections that do not apply are left out; a card may add its own.
 
+`[dev]` marks our own test setup (scripts, the bridge, `anim watch`): the
+bot reads it as background only and never passes it on to a runner or
+gives it as advice; at most it says the thing was not reproduced in our
+tests (T-0163, author 2026-10-07). A tagged heading covers its section.
+A tag's first word must be one of live, code, runner, inferred, dev,
+arithmetic (`Card_tags_are_known` in the bot tests checks every
+lowercase `[word ...]` that is not a link).
+
 **When a card changes the knowledge** (a test, a correction), update
 `docs/game-notes.md` too - it stays the reference for sessions; cards are
 the explained version for runners.
 
 ## Cards
+
+**Open items here are tasks since 2026-10-07** (`python scripts/tasks.py list --open --area knowledge`); this section keeps the detail.
 
 Written 2026-10-03 (23): player-physics, movement-tricks, bomb-boost,
 knockback-sources, fall-damage, cave-force-load, smash-clip,
@@ -95,9 +105,9 @@ to it):
 - Where keycard 242 lies.
 - The wall-side swim jump (1.5x) and wall-side swim speed.
 - Zipline exit distances by height and angle.
-- Megan: her hits' damage live, a timed fight within 35 m vs bombs, births
-  before the block, what kills the boss-room babies, weapon damage to her
-  (`megan-boss`).
+- Megan: a timed fight within 35 m vs bombs, weapon damage to her, what
+  cuts her cooldown short (`megan-boss`; hit damage, births and the
+  boss-room babies were checked live in T-0044).
 - Categories: whether a bomb without the pause menu is
   "the explosives glitch"; what the empty "Any% Bombs" board was for
   (`categories-and-rules`; questions for the moderators / runners).

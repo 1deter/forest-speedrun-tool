@@ -111,6 +111,7 @@ namespace ForestOverlay.Modules
             "In the pause menu during a knockback it shows the bomb boost the menu is piling up and what each more second adds. " +
             "The HUD's Flight / Boost lines show the numbers with the window closed.");
 
+        private AreaKeeper _areas;
         private Vector2 _scroll;
         private float _contentHeight = 600f;
 
@@ -135,6 +136,11 @@ namespace ForestOverlay.Modules
             _aerial.MovePlayer = to =>
             {
                 Ctx.Bridge.SyncCaveState(to);
+                // As Go and the bridge's tp: the endgame's area and flags (and a ride)
+                // outlive a plain move (gotcha 34).
+                if (_areas == null) _areas = new AreaKeeper(Ctx.Log);
+                string area = _areas.ForTeleport(to);
+                if (area.Length > 0) Ctx.Log.LogInfo("Aerial capture: " + area);
                 bool moved = Ctx.Player.MoveTo(to, Ctx.Player.Transform.rotation);
                 Ctx.Bridge.EndFall();
                 return moved;
@@ -205,7 +211,7 @@ namespace ForestOverlay.Modules
             List<string> lines = AllocationTracker.Report();
             string ours = Host != null ? Host.TakeAllocReport(Time.unscaledTime - _allocWindowStart) : "";
             if (ours.Length > 0) lines.Add(ours);
-            for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
+            for (int i = 0; i < lines.Count; i++) Ctx.Log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);   // log: Allocations
             _allocReport = string.Join("\n", lines.ToArray());
         }
 
@@ -327,7 +333,7 @@ namespace ForestOverlay.Modules
 
                 if (!_freeCam.Begin(cam)) { _status = "freecam: " + _freeCam.LastReport; return; }
                 _freeCamOn = true;
-                Ctx.Log.LogInfo(_freeCam.LastReport);
+                Ctx.Log.LogInfo(_freeCam.LastReport);   // log: Freecam
 
                 // The host holds the player (HoldsPlayer), which writes
                 // game state.

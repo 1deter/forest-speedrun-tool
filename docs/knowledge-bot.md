@@ -5,37 +5,10 @@ A learning tool for the wider runner community: a runner asks
 work, and what is the optimal version?" and gets a thorough, sourced
 answer, then asks follow-ups by replying to it.
 
-## Decisions (author, 2026-10-03)
+## Decisions
 
-- **Audience: the wider runner community**, not only the QA team -
-  "understand complex mechanics exhaustively like bomb boosts, axe
-  clips, and their deep technical reasoning and why they work and what
-  an optimal version of this tech would look like". **Answers of the
-  highest quality, so a runner ends with full understanding.**
-- **Follow-up questions about previous answers** (author): a runner
-  replies to an answer and the bot carries on the conversation.
-- **A regular bot** (author: "i would really just prefer a regular bot"):
-  a gateway bot, not an interactions-only endpoint. **No public knowledge
-  pages on forest.deter.cloud** - "people won't really be using the site
-  all that much as the discord". Feedback lives on the bot's answers.
-  No `/about` command.
-- **Runtime on the Gemini API free tier** - operational cost ~0. The
-  author's two Claude Pro plans (our sessions) build the knowledge base
-  and the tools.
-- **A new Discord application** for it (not the QA bot's).
-- **The Gemini API key**: the author creates it (Google AI Studio) when
-  the bot is built; store it as a User environment variable like the
-  others, never printed.
-- **Retrieval is local; the model only writes** (author asked "is there a
-  better free model?", 2026-10-03; Claude's call, agreed): search runs on
-  the VPS (SQLite FTS5 + the bge-small embedding model through ONNX) - free,
-  private, no quota. The writer: **Gemini Flash first, Mistral's free
-  "Experiment" tier as the fallback** (any OpenAI-compatible provider is a
-  config line); the test questions decide the order with scores.
-- **The game's code, decompiled to C#, is kept privately on the server
-  and quoted freely in answers** (author: "i'm not distributing it, i'm
-  simply describing its functionality ... you don't need to limit how
-  much you quote"). It is never served as files or made downloadable.
+In [`docs/decisions.md`](decisions.md) *Knowledge bot*. The bot area
+(commands, the queue, gotchas): [`docs/areas/bot.md`](areas/bot.md).
 
 ## Design (agreed 2026-10-03)
 
@@ -61,7 +34,10 @@ cover.
   thresholds) - read live over the bridge.
 - **Test questions** (`knowledge/eval/questions.md`): 40-50 questions with
   the facts each answer must contain. Run on every model swap or big
-  knowledge change; a swap that scores worse is not made.
+  knowledge change; a swap that scores worse is not made. An optional
+  `max-length:` / `min-length:` (characters) checks the answer's length:
+  the bot answers a short question briefly and a "how / why" or an
+  "elaborate" reply in full (T-0090).
 - **Secondary sources** the bot also searches: `docs/game-notes.md` (by
   heading), `docs/fsm/*.txt` (PlayMaker FSMs, by state), the decompiled
   game code (by type / method, private, on the server only), and the
@@ -159,3 +135,47 @@ redo after a game update: `ilspycmd "<Managed>/Assembly-CSharp.dll" -r
    a queue channel).
 4. A research pass on whatever the queue shows runners ask most (Megan's
    AI is the author's example).
+
+## Bot settings page on /admin (built, T-0028)
+
+Site: docs/website.md *What is built* (*Bot settings*). Bot
+(`bot/ForestBot/SiteSettings.cs`, `BotConfig.ApplySettings`): with
+`FOREST_BOT_TOKEN` set it polls `GET <FOREST_BOT_SITE_URL>/api/bot/settings`
+(`X-Bot-Token`) every minute and applies it live; a changed model order /
+thinking level rebuilds the model chain in place (`Brain.ReloadModels`). The
+last good answer is cached in `<data>/site-settings.json` and applied at
+start. `.env` values are the defaults: a setting the site lacks, an unusable
+value, or no site and no cache = the `.env` one. Channels are the exception:
+once the site has saved settings its list is the whole list (none ticked = no
+channel; DMs follow `dms`); never saved = the `.env` channels. A poll builds
+the new values aside and swaps one immutable snapshot (`BotConfig.Live`), so a
+message never sees a half-applied mix. The reported version is the deploy's
+commit (`bot.yml` publishes with `SourceRevisionId`) + the knowledge version. `POST /api/bot/report`
+(version, revision applied, text channels it sees; not sent before Discord
+is connected) feeds the page's channel list and its "applied" line.
+**VPS:** the same random `FOREST_BOT_TOKEN` in `/opt/forest-site/.env` and
+`/opt/forest-bot/.env`, then recreate both containers once.
+
+Asked for so channels / limits change without editing `/opt/forest-bot/.env`
+and recreating the container. The fallback (no `FOREST_BOT_TOKEN`, or the
+site never saved): edit `.env` (`FOREST_BOT_CHANNELS=id,id`), then
+`cd /opt/forest-bot && sudo docker compose up -d --force-recreate`.
+
+Design (agreed in chat):
+- **Owner-only "Bot" tab on the site's /admin**, behind the existing admin
+  token. Settings: channels it answers in (**by name, checkboxes** - the bot
+  posts the channels it can see to the site), DMs on / off, per-user
+  limits (hour / day), model order, thinking level, research-queue channel.
+- **Live, no restart**: the bot polls the site for its settings about once a
+  minute (a bot-only token, its own header) and applies them; on a failed
+  fetch it keeps the last good settings (cached in its data dir). `.env`
+  values are the defaults / fallback.
+- **Secrets stay in `.env`** - the Discord token and model API keys never
+  pass through a web page (a stolen admin token can change channels, not
+  read keys).
+- The page shows **what the bot is running**: "applied hh:mm, bot vX" from
+  the bot's last poll, so a change that did not take is visible.
+- Work: site endpoint + store + /admin tab (forest-site), bot poller +
+  `BotConfig` live reload (bot/), tests on both sides. Medium-sized.
+- Alternative not chosen: owner-only Discord slash commands (no overview,
+  clumsy beyond channels).

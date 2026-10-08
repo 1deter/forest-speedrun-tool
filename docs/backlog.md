@@ -1,5 +1,7 @@
 # Deferred runner feedback
 
+**Open items are tasks since 2026-10-07** (`python scripts/tasks.py list --open`); this file keeps their detail, and each task's `notes` points to its section here.
+
 Moved out of CLAUDE.md (2026-09-26). **Deferred** until *Next up* is done (author: finish the list, then QoL/UX), unless critical. New runner requests that are not scheduled go here.
 
 **Deferred** until Next up is done (author: finish the list, then QoL/UX),
@@ -110,14 +112,8 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 - **A full security audit of forest.deter.cloud** before 1.0, once the site is finished (author,
   QA 2026-10-01: "ensure there's no vulns left in by accident") - start from docs/website.md
   *Security* (what the 2026-10-01 review covered) and re-check everything added since.
-- **Megan fight: health bar empty, died only a few hits later** (author,
-  2026-09-27, v0.24.143, during the Megan-fight Quick load tests; log
-  rotated out). Probably the game's last stand (`hitFromEnemy`, game-notes
-  *Deaths*: ~1 health left, adrenaline), but that says the *next* hit
-  kills - "a few" does not fit. Check live: god mode off, Quick load
-  `ruben-megan`, log `Stats.Health` every few tenths while the author
-  fights, and note which hit drops it and which kills (Megan's vs the
-  babies' damage path; the start state's own health).
+- Megan fight "health bar empty, died a few hits later" (author, 2026-09-27):
+  answered by T-0044 - the last stand re-arms (game-notes *Deaths*, `RechargeHealth`).
 
 ## Website (author, QA #general 2026-09-27)
 
@@ -182,3 +178,30 @@ Requests (sxczurass, QA #general, 2026-09-27, messages
 - **A maintainability review of the codebase** (author, QA #general
   2026-10-02, `1555520127967952967`): once the features are mostly done,
   review it so it can be picked up and updated easily in the future.
+
+## Author's notes in QA, 2026-10-05/06 (read 2026-10-06, not started)
+
+Sorted by area. The QA message id is in brackets.
+
+**UI redesign (branch `ui-redesign`, before merge):**
+- HUD customiser: items ticked on show nothing - they hung off the old top-left frame; "own" is the only way to show them. Ship a **default layout** close to the pre-overhaul positions / order, then tweaks + a **profile switcher** (Momentum Mod) [1556644373586911333].
+- **Snapping** while dragging: to centres, other widgets' edges, 25 / 50 / 75 % of the screen [same].
+- Checkboxes look squished horizontally - make them square; label text sits above the box's centre. Sweep every control for alignment and padding (not over-padded); ask the author if unsure [1556646024075026542].
+- Large widgets lose sharpness - crisp at every size; **drop the text shadow** [1556647131249647636]; reference picture of Momentum's contrast [1556660431601533029].
+- Changing values (speed): an optional **trend colour** - gaining / losing / steady (Momentum: blue when gaining) [1556647254503329853].
+
+**Plugin:**
+- Turning run lines off stops them but leaves the drawn line on screen [1556808081755603048] - **fixed on main, not released** (`Game/LatePass` drew every drawer once any wanted the pass; now each drawer's own `WantsLateDraw`). Ships with the next release; check in game with run lines off + a marker / replay up.
+- Trajectory preview is slightly off where a jump just clips an edge (labskip, the finest cuts) [1556843287539875921]; no use for bomb boosts, done backwards - needs a plan [1556843375947284571].
+- Two report zips from the author, 2026-10-06 01:57 and 02:36 [1556842694758760559] - read 2026-10-07 (T-0026): findings filed as T-0148..T-0153.
+
+**Website:** community sum of best for categories / official runs, or any spot with segments [1556796583406862417].
+
+**Knowledge bot:**
+- Answer length to match the question's effort (short question = short answer, a reply asks for more) [1556658561470304418].
+- Ways to improve it: efficiency, usefulness, self-learning [same]; how to scrape / learn from all the Forest Discords [1556657503456985291].
+- Research: similar LLM community projects - https://proto.bar/ftesurf/, https://jrik.dev/ [1556988625281884160].
+
+**Community / Discord ideas (author, QA 2026-10-06 19:34-19:45, not scheduled):** challenge someone to a 1v1 from Discord (bot or webhook) - they click a link to join / sync, like jrik.dev; minigames hosted through the bot with a link out to the page, e.g. a Forest-themed Wordle and a Forest GeoGuessr (photo map) - to keep the community active when it goes quiet [1557098847816384553, 1557101594296983602].
+
+**Later (after all features, on top of TAS / tech research):** a route optimiser - points in, fastest order / path out, with collisions, stamina, sodas and sprint timing as runner-given rules (itsSlack's idea [1556792528622059542]; the author's C5 / C6 vector maths from the speedrun Discord, 2026-01-28 [1556848901829558312]; [1556849581491224608]).

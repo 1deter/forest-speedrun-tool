@@ -1,0 +1,58 @@
+# scripts/lint.py: UI heuristic hits accepted on purpose (rule, file, line text).
+# Written by `python scripts/lint.py --update-baseline` - new code fixes the line instead.
+alloc	src/Modules/MapModule.cs	_goStatus.text = r.Length > 0 ? r : "Moved to '" + sel.Name + "'.";
+alloc	src/Modules/PracticeModule.cs	if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
+alloc	src/Modules/PracticeRunModule.cs	_compareCfg.Value = kind.ToString();   // one write per click
+alloc	src/Modules/PracticeRunModule.cs	_rowStyle = new GUIStyle(GUI.skin.label);
+alloc	src/Modules/UpdateModule.cs	y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
+alloc	src/Plugin.cs	Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
+cfgwrite	src/Modules/PracticeModule.cs	f.Value = p3;
+findall	src/Game/DrawingsReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/InventoryReader.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/MemoryCensus.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(MonoBehaviour));
+findall	src/Game/MemoryCensus.cs	try { all = Resources.FindObjectsOfTypeAll(typeof(UnityEngine.Object)); }
+findall	src/Game/NatureGuideReader.cs	try { found = Resources.FindObjectsOfTypeAll(_hostType); }
+findall	src/Game/ObjectProbe.cs	? Resources.FindObjectsOfTypeAll(t)
+findall	src/Game/ObjectProbe.cs	? Resources.FindObjectsOfTypeAll(typeof(GameObject))
+findall	src/Game/ObjectProbe.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(GameObject));
+findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] mats = Resources.FindObjectsOfTypeAll(typeof(Material));
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] rs = Resources.FindObjectsOfTypeAll(typeof(Renderer));
+findall	src/Game/SavestateBridge.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_ragdollifyType);
+findall	src/Game/SlidingDoorKeeper.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/SlidingDoorKeeper.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_type);
+findall	src/Game/SurvivalBookReader.cs	try { found = Resources.FindObjectsOfTypeAll(type); }
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(lodType);
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(zoneType);
+findall	src/Game/WorldDump.cs	UnityEngine.Object[] lods = high != null ? Resources.FindObjectsOfTypeAll(lodType) : new UnityEngine.Object[0];
+findall	src/Game/WorldDump.cs	foreach (UnityEngine.Object o in Resources.FindObjectsOfTypeAll(type))
+label20	src/Modules/DeathModule.cs	GUI.Label(new Rect(0, y, w, 20), ChoiceTitle);
+label20	src/Modules/DeathModule.cs	GUI.Label(new Rect(20, y, w - 20, 20), ReloadHowTitle);
+label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _hiddenLabel);
+label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
+label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(74, y, w - 86, 20), _largestLabels[i]);
+label20	src/Modules/MapModule.cs	GUI.Label(new Rect(x + 14f, y - 2f, tw, 20f), _legend[i]);
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(0, y, 74, 20), label);
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(0, y, labelW, 20), label);
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), DegreesLabel(slot, 6, "turn", t.Yaw));
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, 1, "radius", t.Radius));
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 34f, 20), PointName(i));
+label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), ItemLabel(slot, t.ItemId));
+label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(130f + sliderW, y, 60, 20), _lineAheadText);
+label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(130f + sliderW, y, 60, 20), _lineOpacityText);
+label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
+label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
+label20	src/Modules/PracticeRunModule.Site.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
+label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(0, y, 70, 20), title);
+label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
+label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _panelSizeText);
+label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _precisionText);
+label20	src/Modules/UpdateModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
+moveto	src/Game/EndgameLoader.cs	player.MoveTo(_holdAt, _holdRotation);
+moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (Ctx.Player.Found && at != Vector3.zero) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (pin && Ctx.Player.Found) Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);
+moveto	src/Modules/SavestateModule.cs	if (pin && Ctx.Player.Found) { Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation); Ctx.Bridge.EndFall(); }

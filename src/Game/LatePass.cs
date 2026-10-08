@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -120,58 +121,75 @@ namespace ForestOverlay.Game
 
         private void OnRenderObject()
         {
-            // The camera's target is bound while it renders the scene: keep
-            // it (and its depth buffer) for the late draw.
-            if (Camera.current != _camera) return;
-            _scene = RenderTexture.active;
-            _sceneFrame = Time.frameCount;
+            try
+            {
+                // The camera's target is bound while it renders the scene: keep
+                // it (and its depth buffer) for the late draw.
+                if (Camera.current != _camera) return;
+                _scene = RenderTexture.active;
+                _sceneFrame = Time.frameCount;
+            }
+            catch (Exception ex) { Lifecycle.Fail("LatePass.OnRenderObject", ex); }
         }
 
         private void OnRenderImage(RenderTexture src, RenderTexture dst)
         {
-            string why = Usable(src);
-            if (why != null)
+            try
             {
-                Graphics.Blit(src, dst);
-                _retryAt = Time.realtimeSinceStartup + 5f;
-                enabled = false;
-                if (why != _lastFailure)
+                string why = Usable(src);
+                if (why != null)
                 {
-                    _lastFailure = why;
-                    Say("Late pass: not used (" + why + ") - overlays drawn before the image effects, retry in 5 s");
-                }
-                return;
-            }
-
-            Graphics.SetRenderTarget(src.colorBuffer, _scene.depthBuffer);
-            GL.PushMatrix();
-            GL.LoadProjectionMatrix(_camera.projectionMatrix);
-            GL.modelview = _camera.worldToCameraMatrix;
-            for (int i = 0; i < Drawers.Count; i++)
-            {
-                ILateDrawer d = Drawers[i];
-                if (d == null) continue;
-                try { d.DrawLate(_camera); }
-                catch (Exception e)
-                {
-                    // Once per message: this runs every frame.
-                    if (_lastFailure != e.Message)
+                    Graphics.Blit(src, dst);
+                    _retryAt = Time.realtimeSinceStartup + 5f;
+                    enabled = false;
+                    if (why != _lastFailure)
                     {
-                        _lastFailure = e.Message;
-                        Say("Late pass: " + d.GetType().Name + " threw: " + e.Message);
+                        _lastFailure = why;
+                        Say("Late pass: not used (" + why + ") - overlays drawn before the image effects, retry in 5 s");
+                    }
+                    return;
+                }
+
+                Graphics.SetRenderTarget(src.colorBuffer, _scene.depthBuffer);
+                GL.PushMatrix();
+                GL.LoadProjectionMatrix(_camera.projectionMatrix);
+                GL.modelview = _camera.worldToCameraMatrix;
+                for (int i = 0; i < Drawers.Count; i++)
+                {
+                    ILateDrawer d = Drawers[i];
+                    // Each drawer's own switch: one wanting the pass drew them all
+                    // (run lines off still drawn while markers were up, 2026-10-06).
+                    if (d == null || !d.WantsLateDraw) continue;
+                    try { d.DrawLate(_camera); }
+                    catch (Exception e)
+                    {
+                        // Once per message: this runs every frame.
+                        if (_lastFailure != e.Message)
+                        {
+                            _lastFailure = e.Message;
+                            Say("Late pass: " + d.GetType().Name + " threw: " + e.Message);
+                        }
                     }
                 }
-            }
-            GL.PopMatrix();
-            Graphics.Blit(src, dst);
-            Frames++;
+                GL.PopMatrix();
+                Graphics.Blit(src, dst);
+                Frames++;
 
-            if (!_loggedFirst)
+                if (!_loggedFirst)
+                {
+                    _loggedFirst = true;
+                    Say("Late pass: drawing on '" + _camera.name + "' after its image effects (picture " + src.width + "x" + src.height +
+                        " " + src.format + (src.sRGB ? " sRGB" : " linear") + ", scene depth from '" + _scene.name + "' " +
+                        _scene.width + "x" + _scene.height + ", " + _scene.depth + "-bit)");
+                }
+            }
+            catch (Exception ex)
             {
-                _loggedFirst = true;
-                Say("Late pass: drawing on '" + _camera.name + "' after its image effects (picture " + src.width + "x" + src.height +
-                    " " + src.format + (src.sRGB ? " sRGB" : " linear") + ", scene depth from '" + _scene.name + "' " +
-                    _scene.width + "x" + _scene.height + ", " + _scene.depth + "-bit)");
+                Lifecycle.Fail("LatePass.OnRenderImage", ex);
+                // A throw before the Blit would leave this frame unwritten (a
+                // second Blit after a late throw is harmless).
+                try { Graphics.Blit(src, dst); }
+                catch (Exception) { }
             }
         }
 
@@ -190,7 +208,11 @@ namespace ForestOverlay.Game
 
         private void OnDestroy()
         {
-            if (_pass == this) _pass = null;
+            try
+            {
+                if (_pass == this) _pass = null;
+            }
+            catch (Exception ex) { Lifecycle.Fail("LatePass.OnDestroy", ex); }
         }
     }
 }

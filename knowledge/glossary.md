@@ -5,11 +5,17 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 
 | Term | Meaning | Card |
 |---|---|---|
+| neg, neg creative, no explosive glitch record | Any% No Explosive Glitch board; Creative record holder and the world-record counts are on the top-runners card | top-runners |
+| wr, world record holder, most wrs | speedrun.com record holders, per category | top-runners |
+| maks, max | the runner yirequ (same person; Any% Glitchless and neg Creative world records) | top-runners |
+| d.eter, deter | ForestOverlay's developer (the speedrun tool and forest.deter.cloud); a former world-record holder in the old Any% Normal category (his own account) | top-runners |
 | bb, bomb boost, pause boost, menu boost | explosion knockback stacked while the pause menu is open | bomb-boost |
 | trap boost, rock trap boost | the large swinging rock trap's knockback, stacked like a bomb boost | knockback-sources |
-| knockback | `PlayerStats.Explosion`'s push: 8 m/s per frame for ~0.16 s | knockback-sources |
+| knockback | `PlayerStats.Explosion`'s push: 8 m/s per frame for ~0.16 s, straight away from the source | knockback-sources |
+| multi-thrower, multithrower, rock thrower, catapult | the player-built thrower; its rocks knock you back like a bomb | knockback-sources |
 | last usable frame | the end of the knockback's free push window (~0.13-0.16 s of game time) | bomb-boost |
 | slide cancel, fall damage cancel, body slide | landing judged on a slow last collision, so no fall damage | fall-damage |
+| fall damage, fall damage formula, how fall damage works | damage only if the last collision-enter speed is over 28 m/s: 0.9 x v^2 / 27.5, 1000 (death) over 3.8 s in the air, needs over 0.75 s of air time | fall-damage |
 | fell too long, 3.8 s | over 3.8 s in the air = 1000 damage | fall-damage |
 | hard landing, landing stun | the 1 s freeze after a damaging landing | fall-damage |
 | force load, cave force load | cave state left on at the surface by a cut-short cave entry | cave-force-load |
@@ -21,8 +27,8 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | cannibals, enemy ai, stealth, detection | sight range computed on the player (light, crouch, bushes, trees, running, lighter); running is heard at ~59 m, walking is silent | cannibal-ai |
 | stalking, stalker | a passive cannibal watching you: attacks within 8 m, rolls within 24 m | cannibal-ai |
 | families, cannibal spawns | spawner groups by day (day 0: 6 skinny); the 4 nearest spawn points are skipped | cannibal-ai |
-| megan, boss fight, megan ai | the endgame boss: within 35 m she attacks every cycle (picked by distance); beyond 35 m she rolls, and births babies | megan-boss |
-| boss babies, baby spawn | Megan's births: only when you stay beyond 35 m, stop for good after 3+ spawners | megan-boss |
+| megan, boss fight, megan ai | the endgame boss: within 35 m she attacks every cycle (picked by distance); beyond 35 m she rolls, and births babies; her dodges throw her 30-55 m back, past 35 m | megan-boss |
+| boss babies, baby spawn | Megan's births: only from her roll beyond 35 m (her dodges get her there); one birth drops 6 babies; none while 3+ spawners exist, and a dead baby frees its spawner | megan-boss |
 | lab skip, gold door skip, megan skip | past the gold door over invisible collision + a clip, skipping Timmy / Megan / boss | lab-skip |
 | timmy forehead skip, forehead skip, bed skip | runner-reported: aim at Timmy's scar at ~15-18 fps to skip the bed part of his cutscene (not researched) | timmy-forehead-skip |
 | invisible section, invisible collision | the lab's collision (`EndCollision`), always present, drawn only through area gates | lab-skip |
@@ -53,8 +59,9 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | dev console, itemhack, goto | the game's built-in developer console | dev-console-and-creative |
 | Creative | god mode + infinite energy + no survival, set by the mode | dev-console-and-creative |
 | categories, glitchless, inbounds%, peaceful | speedrun.com's boards: rules, difficulties, timing, records | categories-and-rules |
-| top runners, wr, records, leaderboard, top 3 | every board's top 3 on speedrun.com; Cheesecake404, sxczurass, yirequ hold most | top-runners |
+| top runners, wr, records, leaderboard, top 3, co-op records, itsslack | every board's top 3 on speedrun.com (nothing below 3rd), first-place counts solo and co-op, each runner's places; Cheesecake404, sxczurass, yirequ hold most | top-runners |
 | 100%, hundo, all items, passenger manifest | the 100% rules and the full item list, nature guide, passengers, to-do list | hundred-percent |
+| bomb boost on Normal, bombs in a category, is the bomb boost allowed | Normal is run under No Explosive Glitch (bans the bomb boost) or Glitchless; unrestricted Any% only for Creative; moderators decide edge cases | categories-and-rules |
 | explosives glitch, OOB | the bomb boost; out of bounds - banned by board | categories-and-rules |
 | route, K4 skip, Sahara | the runs step by step; Sahara = the cave to the vault door | routes |
 | stamina, energy, sodas, stamina mix, shift reset | sprint 3.5/s, regen 6/s (not while sprint held), capped by energy | crafting-and-building |

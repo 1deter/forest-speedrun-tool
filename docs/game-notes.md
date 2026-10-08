@@ -556,6 +556,7 @@ All in `PlayerStats` (IL):
 | `CheckDeath` | Returns under `Cheats.GodMode`. `Health <= 0` and not `Dead`: swimming → `DeathInWater`, else `Dead = true` → `FallDownDead`. Called from `Hit`, `Explosion` |
 | `Fell` | `Health -= 200`; if `<= 0`, `Dead = true` → `KillPlayer`. No IL callers — sent by name, from fall triggers |
 | `hitFromEnemy` | **The last stand**: above `GreyZoneThreshold` (10), a hit that would kill is clamped to leave `Health` just over 1 (bridge: 50 - 80 -> 1.02), and `AdrenalineRush` starts; only the next hit can kill. An "empty" health bar that does not die after cannibal hits is this (runner Tom, v0.24.112) |
+| `CheckStats` / `RechargeHealth` | **The last stand re-arms**: `CheckStats` (every 2 s) starts `Invoke("RechargeHealth", 12)` while `Health <= 10` (not while `Run`); it sets `Health = 11` (`HealthTarget` stays). 11 is above the grey zone, so the next would-be-lethal enemy hit is clamped to 1 again. Bridge 2026-10-08 (T-0044, god mode off, `hitFromEnemy 28` calls): 100 -> 72 -> 44 -> 16 -> 1, 12-14 s later 11, another 28 -> 1, alive. Only a hit while `Health <= 10` kills - why "the bar was empty, then I died a few hits later" (author, Megan fight, 2026-09-27): Megan hits for 28 (live) |
 | `DeathInWater` | drowning; `Invoke("KillMeFast", 7)` — **always** a real death |
 | `KillMeFast` | death animation, `Invoke("GameOver", …)`, `KillPlayer` |
 | `KillPlayer` | `DeadTimes++`. SP: in the endgame and `IsFightingBoss` → `EndgameWakeUp`; `DeadTimes > 1` → dead cam, `Cheats.PermaDeath` deletes the save, `Invoke("GameOver", 6)`; otherwise the **capture** (wake in a cave) |
@@ -792,6 +793,25 @@ state, not scenes (areas: `same as at capture`).
   The box's `EnterEndgame` (Player registry) reaches
   `LocalPlayer.SetInEndGame` through an `EventListener` on
   `player/ControllerObjects` (and a snow-cave artifact listener).
+- **ExitEndgame unloads the endgame, 2 s later** (bridge, 2026-10-08,
+  T-0151). `LoadEndgame`'s `_onCrossingBackwards` has one persistent call,
+  `SendEvent` on its child emitter `ExitEndgame` (Player registry); an
+  `EventListener` on `LoadEndgame` itself (event `ExitEndgame`) calls
+  `DelayedUnload.BeginDelay` (`DoAfter`, `_delay` 2), whose callback is
+  `SceneLoadTrigger.ForceUnload` -> `UnloadScene` (`endgame_streaming`
+  unloaded, then `UnloadUnusedAssets` + `GC.Collect`). So sending it with
+  the player still standing in the endgame drops them through the void
+  (~55 m/s, y -4100 after 75 s, no death). IL: `ForceUnload`'s only code
+  callers are `PlayerStats.KillPlayer` and `PlayerRespawnMP.Respawn`.
+- **The red elevator's lower stop is outside every section's renderers
+  once the car has gone up.** At the stop (-714.8, -433.3, 967) the only
+  `AreaMembers` renderers containing the spot (bounds + 2 m) are the car's
+  (`Sections/HellCorridor/Elevator_01a`, a child of the section); the ride
+  moves the car to the overlook (-542.4, 704.8, -1967.5). Car down: inside;
+  car up (`MoveToDownPosition`): outside. The floor there is
+  `Sections/HellCorridor/Collision/Collision` (BoxCollider, not a trigger,
+  layer 25 Blocker, renderer off, scene `endgame_streaming`) - a collider
+  of the section, under `Sections/HellCorridor` (`Area` + `AreaMembers`).
 
 **Held items after a Full load** (bridge + IL, 2026-09-24). After a Full
 load the inventory had the axe and lighter equipped (`RightHand` /
@@ -944,8 +964,10 @@ cutscene transforms **the same** `girlMutant(Clone)` into the boss
 (`creepyAnimatorControl.activateGirlMutant`: `girlFullyTransformed`, a new
 `girlSpawnGo` root at her seat, `girlStartPos`). None of it is in the save.
 She spawns babies as `bossBabySpawner(Clone)` + `mutant_baby(Clone)NNNN`
-roots (`girlMutantAiManager.spawnedBabies` = the spawners); they die a
-moment after her. Her death leaves `girlMutant_RAGDOLL(Clone)` +
+roots (`girlMutantAiManager.spawnedBabies` = the spawners); they do
+**not** die with her (2026-10-08: three alive 36 s after her death - the
+earlier "a moment after her" was most likely their 300 s timer; *Megan's
+boss AI* below). Her death leaves `girlMutant_RAGDOLL(Clone)` +
 `girl_Pickup(Clone)` and destroys `girlMutant(Clone)`; destroying her
 directly drops nothing (`creepyAnimEvents.OnDisable` stops the boss music).
 Resetting the trigger / sequence and re-arming `setupGirlMutant` with a new
@@ -1022,7 +1044,7 @@ Explained for runners in `knowledge/cards/cannibal-ai.md`; the facts:
   overlapping after a rope); the 5.5 m/s `doClampVelocity` has no caller in
   code (`ilscan strings` finds none).
 
-## Megan's boss AI (FSM export + code + bridge, 2026-10-03)
+## Megan's boss AI (FSM export + code + bridge, 2026-10-03, 2026-10-08)
 
 The runner-facing version is `knowledge/cards/megan-boss.md`; FSMs in
 `docs/fsm/megan-*.txt`. PlayMaker checks **global transitions before the
@@ -1035,16 +1057,70 @@ reach `chooseAction`, the weighted roll `girlMutantAiManager.setAiParams`
 feeds (births 6, attack 0.5 + 5, walk forward 2 beyond 35 m). `chooseAttack`
 picks by `targetDist` alone (8 / 13 / 27 / 38 / 50 m bands).
 `chanceToDodge` checks `gettingHit` (1.3 s after a hit) first: 1 : 0.4
-attack / walk back, no 15 s lock; else dodge weight 0 for 15 s after
+attack / walk back, no 15 s lock - in the code only: live it never comes
+up, her next roll is at least 1.6 s after a hit (45 hits, 0 uses, T-0044); else dodge weight 0 for 15 s after
 `activateGirlMutant`, then 0.25 : 1. A hit -> `gotHit` -> counter after
 0.2 s (live). `SendRandomEvent` normalises its weights
 (`ActionHelpers.GetRandomWeightedIndex`, IL): the spin roll (close / mid /
 counter only) is 0.03 / 0.63 = 4.76%. Co-op health: `Health + Health/3 x n`,
 n = every player within 350 m incl. you (616 / 739 / 800 cap). Thrown spear
 (plain and upgraded) `ArrowDamage.damage` 40 (live), no head bonus. Explosion: flat 30 (live 370 -> 340), 25%
-stagger for 10 s. 370 health on Normal (live). Births stop once
-`spawnedBabies` (the spawners, never destroyed) holds more than 2 - live 6
-spawners / 5 babies in `ruben-megan`. Melee 28 x `creepyDamageRatio`.
+stagger for 10 s. 370 health on Normal (live). Melee 28 x
+`creepyDamageRatio`.
+
+**Checked live 2026-10-08 (T-0044, bridge, `ruben-megan`, Normal, v0.24.256).**
+Method: PlayMaker's own transition log - `set static:HutongGames.PlayMaker.FsmLog
+LoggingEnabled true`, then `PlayMakerFSM.Fsm.MyLog.Entries[i].TextWithTimecode`
+(`ENTER:` / `EXIT:` / `EVENT:` lines; `.Time` is `FsmTime.RealtimeSinceStartup`).
+**`Fsm.Init` sets `LoggingEnabled = false` outside the editor**
+(PlayMaker.dll, decompiled), so every new FSM (a restore, a baby spawning)
+turns it off - re-set it every few frames. Three fights, ~1100 s, the
+player in god mode, polled 6x a second for her distance:
+- Dodge roll: 0 of 6 in the first 15 s, 17 of 97 after (0.25 : 1 = 20%).
+  The `gettingHit` branch never came up: 45 `HitReal 1` calls at 0.3-2.5 s
+  gaps, 12 dodge rolls after them, `attackOrDodge` 0 times. By the FSM it
+  cannot: every hit goes `gotHit` (0.2 s) -> `counterAttack` (1.2 s swing,
+  or `toMainAttack` -> `chooseAttack` beyond 8 m, 38 of 45), and the next
+  `chanceToDodge` is >= 1.6 s after the hit; `resetGettingHit` runs at 1.3 s.
+- **A dodge carries her far**: `doDodge2` (animator `dodgePlayer`, root
+  motion) moved her 28-55 m in 2.5 s (5 dodges), `doWalkback` up to 35 m;
+  she ends 35-65 m from a still player -> leap / run / `chooseAction`.
+- `chooseAttack`: 130 picks, all in their bands (stomp 2.4-7.7 m, close
+  8.3-11.9, mid 13-23.7, long 32-35.7, leap 38.5-47.2, run 50.6+; a few
+  outliers within the poll's 0.4 s timing). `runToPlayer 2` -> second run +
+  arm smash 14 of 26. Spin: 10 of 161 close / mid / counter rolls (6.2%);
+  `fsmSpinAttackWeight` 0.03 read.
+- `chooseAction` (walk 1.0-2.0 s first, 50 timed): 27 birth / 32 attack /
+  11 walk forward of 70, plus 5 with the player beyond 105 m ->
+  `moveAroundWorld` -> `findWaypoint`.
+- `setAiParams` runs **twice a second** (`InvokeRepeating` 1 s + its own
+  `Update` timer 1 s): a weight set to 99 every 3 frames was reset at a
+  fixed phase (x.65 s) and a drifting one (x.72 -> x.83 s).
+- Births: one `tempBirth` drops **6** spawners (0 -> 2 -> 3 -> 4 -> 6 in
+  1.4 s, twice; `birthLeft` / `birthRight` fire 3x each). A blocked roll
+  (`fsmBlockBabySpawn`, > 2 spawners) -> `moveAwayFromPlayer 2` -> `return`
+  -> `chooseAction` the same frame (24 times). **Spawners are destroyed
+  when their baby dies** (`removeFromSpawn` -> `amount_baby--` ->
+  `updateSpawnConditions` destroys an empty spawner; `setAiParams` drops
+  nulls): `killThisEnemy` on one baby 6 -> 5 at once; the 300 s baby timer
+  6 -> 0 exactly 300 s after a birth, then she gave birth again. First birth
+  28.8 s into a fight with the player standing still (a dodge 12 -> 65 m).
+  Three babies alive 36 s after Megan died in the boss room (health 5).
+- Explosions: 13 calls at 0-60 m, each -30; two calls two frames apart
+  40 -> 10 -> 10 (`explodeBlock`, reset by `Invoke(.., 0.1)`). Stagger 2
+  of 9 rolls, lasted 10.00 s, explosions during it do not re-roll; the
+  flinch (`hitExplode`) 1.0 s. On the seated (untransformed) Megan two
+  explosions left 370 and the FSM in `init`.
+- Leash: `girlStartPos` is (0, 0, 0) until `activateGirlMutant`, so
+  `fsmGoHomeBool` is true then (read live) and every fight starts with
+  `moveToPlayer` -> `goToHome` -> `findHomePoint` -> `runForward` (returns
+  at once, home = her seat); first attack 2.16 s after `begin` (both logged
+  starts). `girlStartPos` moved 305 m from the player: false; 315 m: true,
+  next cycle `findHomePoint` -> `runForward` (7 s, or `targetDist` < 24).
+- Megan's hits on the player, god mode off: 100 -> 72 -> 44 -> 16 -> 1
+  (the last stand) -> dead 2.2 s later (`Death (BossWake, Automatic)`).
+- `coolDown` lasted 0.37-0.81 s (85; its `Wait` is 0.8 s) - what cuts it
+  short is not known.
 
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 
@@ -1255,6 +1331,69 @@ hides a taken wreck pickup is unchecked), then the old wreck is
 destroyed. Nothing is left, but a pickup listing in that window reads
 `Axe Plane x2` - since v0.24.63 the "not at capture" listing waits for
 the wreck clear.
+
+**The new wreck clears its crash path again** (bridge + IL, 2026-10-07,
+v0.24.251, T-0148): `Hull(Clone)/PlaneReal/Hull` carries `CrashClearing`
+(Radius 15, Length 70, PreferBurning false); its `Start` calls `OnCrash`:
+`FindObjectsOfType<LOD_Base>()` over the world, `Destroy` of every
+`LOD_Base` within Radius of 5 steps along the path (or `Burn()` with
+PreferBurning), and `NeoGrassCutter.Cut` per step (firstpass: one
+`TerrainData.SetDetailLayer` per grass cell per detail prototype).
+`OnCrash` is otherwise called only by `TriggerCutScene` (the opening).
+Cost: `call ... CrashClearing.OnCrash` on the live wreck 191-195 ms every
+time; the game profiler (`*::Start` hooked) showed `CrashClearing.Start`
+max 195 ms, once per restore - the second of the two hitches after a spot
+restart. A repeat finds nothing of the scene's own trees (`LOD_Base`
+within 100 m stayed 407 across a repeat); what it does find is pooled
+greeble plants spawned near the player since (`Pooling/Pool_Greebles/
+Chicory(Clone)004`: 415 -> 407 on the first repeat after a teleport
+there) - their `LOD_Base` destroyed on a pooled object.
+- **Signatures** (ilscan `type CrashClearing`, 2026-10-08): `void Start()`,
+  `void OnCrash()`, private `int GetStepCount()`, private `Vector3
+  GetPosition(float progress)`; fields `Radius`, `Length`, `PreferBurning`.
+  `LOD_Base.Burn()` returns `bool`.
+- **Where the time goes** (bridge, 2026-10-08, Slot 1 at the wreck):
+  `OnCrash` 161-167 ms; `call static:NeoGrassCutter Cut <step> 15 false`
+  at each of the 5 steps 27-30 ms (~140 ms); so the `LOD_Base` search and
+  removal ~25 ms (`LOD_Base` 30825 objects).
+- **The grass only ever goes down:** in Assembly-CSharp-firstpass
+  (decompiled) the only `SetDetailLayer` calls are `NeoGrassCutter.Edit`'s;
+  in Assembly-CSharp only the `GrassCut*` / `GrassCutter` debug scripts
+  (Space key) call it, and `NeoGrassCutter.Grow` only
+  `DebugConsole._growgrass`. A cut repeated at the same place writes 0
+  over 0.
+
+## The frames of an in-place restore (bridge, 2026-10-07, v0.24.251, T-0148)
+
+Measured with one `get static:UnityEngine.Time realtimeSinceStartup` a
+frame after `call ..._modules[9].BridgeRestart <id>` (maks's Labskip
+Jumping Section, Slot 1, 1366x768 and 2560x1440 alike): the start frame
+~70 ms, ~22 short frames (the restore's waits before LoadNow), LoadNow's frames
+150 + 170 ms, 33 ms (streaming back), **216 ms** (the continuation: every
+keeper), 7 short frames, **209 ms** (the new wreck's `Start`s: the crash
+clearing and its nav cut). The two bold frames are the two `Load timing:
+hitch` lines (205 / 204 ms in the log; the author's longer session:
+~380 / ~255).
+- Each `FindObjectOfType` / `FindObjectsOfType` walks the scene: 20-25 ms
+  in ForestMain whatever the type (`type <T>` timings; `CoopTreeId` 8628
+  objects 37-41 ms, `LOD_Trees` 12570 55 ms). In the continuation:
+  NatureKeeper 93 ms (the tree manager twice, `TreeLodGrid`, every
+  `CoopTreeId`), Megan's `setupGirlMutant` 25, the `ElevatorSystem`s 24,
+  the nature guide's `TickOffSystem` 26 - 168 of the 216 ms; in the start
+  frame the to-do list's `SurvivalBookTodo` 24 and Megan again 25.
+- Between two in-place restores in the lab every one of those objects is
+  the same instance (handles unchanged: both `ElevatorSystem`s,
+  `girlTransformPrefab1`, `MassDestructionSaveManager`, the player's
+  `TickOff` / `TodoList`, both `TreeLodGrid`s - `AiMaster` and `LOD
+  Manager`); a restart from the surface reloads the endgame scenes and the
+  elevators are new objects. All 8628 `CoopTreeId` are active, in a cave
+  too (`type ... all` = the active count); no game code instantiates one
+  or adds the component (ilscan `refs CoopTreeId`), and the game keeps the
+  list once itself (`CoopPlayerCallbacks.AllTrees`: `FindObjectsOfType
+  <CoopTreeId>` ordered by Id, cached in `_allTrees`;
+  `MassDestructionSaveManager` builds an Id dictionary the same way).
+- `TheForest.Utils.Scene.GreebleZonesManager` is the
+  `MassDestructionSaveManager` GameObject (same handle).
 
 ## Blood on the player (bridge + IL, 2026-09-24)
 
@@ -2207,7 +2346,58 @@ patched (`Game/PerfPatches`, v0.24.92-94): ~216 KB/s left. Not patched
 (behaviour): `MaterialTween.Output.SendMessage` boxes a float for
 `Component.SendMessage` each frame; Unity's own `Collision` /
 `ContactPoint[]` per physics callback; strings (~1100/s, source not yet
-found). During play it is ~2 MB/s (maks: a GC every ~5 s).
+found). "~2 MB/s during play" (maks, v0.24.8x) was his restart loop and
+that version's overlay (+750 KB/s) - see *Garbage in play* below.
+
+**Garbage in play** (bridge, v0.24.255, 2026-10-08, Slot 2 Normal,
+`AllocationTrackerAtStartup` + a fresh launch, 30 s windows, tracker
+alone - the game profiler only for attribution, then a restart, gotcha
+42). The game's own: plane idle 54-58 KB/s (~950 objects/s), book open
+59, cannibal camp idle 104, running into a tree ~85, Cave 6 pushing a
+wall 121, inventory open (time stopped) 16; GC x0 in every 30 s window.
+At ~100 KB/s a collection from volume alone (~200 MB, above) comes every
+~30 min - **in play, garbage is not what makes the pauses**; the
+restart loop is (below). Per source:
+- **Unity's physics-callback objects, 30-60% of it, not patchable**:
+  `UnityEngine.ControllerColliderHit` 30-50 KB/s (390-650/s, one per
+  `CharacterController.Move` hit: the player and every awake cannibal -
+  `mutantAnimatorControl.OnAnimatorMove` -> `controller.Move` was charged
+  30 KB/s), and `Collision` + `ContactPoint[]` 12-21 KB/s (60-120/s). Unity
+  5.6 builds them natively before calling any script that has the message
+  (`PlayMakerFSM` itself defines `OnControllerColliderHit`, so every
+  CharacterController with an FSM gets one); there is no
+  `Physics.reuseCollisionCallbacks` before Unity 2018.3.
+- Strings 4-16 KB/s (75-380/s): source not found (not in any hooked
+  Update / LateUpdate / FixedUpdate / OnGUI / render / stay message).
+- `Byte[]` ~7 KB/s, also at the title screen: not the world's.
+- Ocean: `Ceto.WaveSpectrum.CreateConditions` -> `NewSpectrumConditionKey`
+  makes a `UnifiedSpectrumConditionKey` every Update it runs (every
+  second frame on land) only to compare it by value - 3.8 KB/s (~97/s).
+- `TerrainHelper.GetProminantTextureIndex` (firstpass), from
+  `FirstPersonCharacter.HandleHeightAdjustments` every fixed step:
+  `terrainData.GetAlphamaps(x, z, 1, 1)` returns a new `float[1,1,L]` -
+  3.8 KB/s (60/s). Unity 5.6 has no non-allocating read.
+- `animalController` (144 of them) `InvokeRepeating` `callSpawnCreatures`
+  every 4 s -> `StartCoroutine("spawnFish")`: iterator + `Coroutine`
+  3.2 KB/s (36/s).
+- In caves `mutantController.sortCaveSpawnsByDistance`: a closure + a
+  `Comparison<GameObject>` each call, 7.5 KB/s (60/s).
+- Ours: the 100% tab's book reader threw 21 `InvalidCastException`s a
+  second (3.4 KB/s with their stack traces; fixed T-0033, gotcha 101);
+  the bridge's input injection 5 KB/s while it holds a key (fixed).
+**The restart loop** (a Quick load of the same state every ~6.6 s): 6.1
+MB/s (4.7 on the main thread) - `Vector3[]` 1.7 MB/s (~280 KB arrays,
+~1.5 a restore), strings 1 MB/s, `Int32[]` 0.9, `Object[]` 0.6,
+`Serialization.Entry`, `GreebleDefinition`: the game's deserializer and
+the streamed scenes reloading, ~40 MB a restore; GC x4-9 per 30 s, i.e.
+1-2 a restore, mostly the forced ones after the asset clean-ups. The
+author's lab restarts (2026-10-06 report): heap +1.3-2.4 MB/s, GC x1-3
+per 30 s, overlay `practicerun` ~280 KB/s (the restore runs inside that
+module's tick).
+**The game profiler's hooks stay after it is switched off**: the methods
+it hooked keep running Harmony's copy, whose `foreach` enumerators box
+(`List.Enumerator<CullingGrid.Cell>` 390/s, three `Dictionary.Enumerator`s
+in `AssetBundleManager.Update` 193/s each, ...) - ~60 KB/s until a restart.
 
 **Asset clean-ups.** `TheForest.Utils.ResourcesHelper.UnloadUnusedAssets`
 (`Debug.Log` + `Resources.UnloadUnusedAssets`) walks every loaded object;
@@ -2462,7 +2652,29 @@ withdrew it ten minutes later. Never skip a screen camera mid-frame.
   (`LayerContents 1`: 18 renderers on the surface, 2 in view) - so it
   nearly always has something to draw; not worth a skip. Also: it sets
   the Sun's and Moon's shadows to None and back to **Soft** every frame,
-  whatever they were.
+  whatever they were. **No skip is safe** (T-0030, 2026-10-08, v0.24.254,
+  bridge + the game files): an offline census (UnityPy, every level /
+  sharedassets / resources / AssetBundles file) finds ~4.7k renderers on
+  layer 1 in ~200 kinds - the player's held lighter / flare / torch /
+  molotov / dynamite / chainsaw smoke / hairspray and the survival book's
+  "Text - Close", every building ghost (`Ghost_*`, 3.4k in
+  resources.assets), blood hits, foot dust, rain, water ripples, fish,
+  fires, arrows, exploded bodies, broken stalagmites, cassette sheens,
+  the surface and cave waterfalls. Most are prefabs instantiated at
+  runtime (pools, FX), so only Unity's own culling - the render itself
+  - knows whether anything is in view; a list of our own cannot be
+  complete. Nothing else in the game touches the component (IL), and
+  the two lights' Unity shadows are written only by it, SunshineCamera
+  (None around the main camera, then restored) and the quality options
+  for other lights. Live, surface (428, 78, -4): the component off for
+  10 s = 4.98 -> 4.68 ms/frame (the most a skip could ever save) and
+  the held lighter's flame gone from the screenshot; a camera's fixed
+  cost does not depend on the sun's shadows (bare camera, mask 0: 0.220
+  ms with Soft, 0.233 with None); the flame adds 0.05 ms (bare camera,
+  mask 2: 0.261 vs 0.214). Cave 6: 3.44 ms/frame, MainCamNew 0.68,
+  ParticleCam 0.25 +0.05, Camera_HUD 0.30, ActionIconCamera 0.25,
+  Sunshine 0.29 every other frame; 111 layer-1 renderers loaded, 0 in
+  view.
 - **Far shadow** (0.29 ms): re-rendered every main-camera OnPreCull
   (`refresh` 1) along the sun's direction, which moves every frame - a
   skip would change the picture.
@@ -2486,6 +2698,31 @@ by the options menu only. It renders in caves too (0.55 ms). Its own
 game (only the constructor); `AfterXFrames` 2 re-renders on even frames
 (`SunshineCamera.NeedsRefresh`): 0.66 -> 0.32 ms a frame. Shipped as
 the Experimental switch `SunShadowsEveryOtherFrame` (v0.24.125, off).
+
+**The endgame leaks one Material a frame** (T-0149; bridge + IL,
+2026-10-08, v0.24.252). In the endgame `Sunshine`'s GameObject is
+inactive (`activeInHierarchy` False, `enabled` True; its OnDisable ran
+`DestroyResources`: `Ready` False, `PostScatterMaterial` / `Lightmap`
+null), so `PostProcessSupported` and `RequiresPostprocessing` are
+false. Every frame `SunshineCamera.Update` sets the main camera's
+`SunshinePostprocess.enabled` to that false and
+`ImageEffectOptimizer.Update` sets it true again; `SunshinePostprocess
+.OnEnable` does `blitMaterial = new Material(Shader.Find("Hidden/Post
+FX/Blit"))` and its OnDisable never destroys the old one. Live: the
+Material count grows by exactly the frame count (+3093 over 3093
+frames, +1511 / 1511 after a plain Slot 1 load in the lab - no restore
+involved), `blitMaterial`'s instance id changes between two reads 0.5
+s apart, the allocation tracker shows `UnityEngine.Material` at the
+frame rate charged to `ImageEffectOptimizer.Update` (6.5 KB/s = 24
+bytes x 278 fps), and with `ImageEffectOptimizer.enabled` false the
+count stops (+0 over 1519 frames). Not on the surface or in a cave
+(Cave 6: +0; Sunshine active there). The materials are not DontSave:
+`Resources.UnloadUnusedAssets` frees them, so leaving the endgame by a
+load or a teleport out dropped 68k to 2060 - but in-place restarts in
+the lab never run one (the author's 01-57 report: 1.47M Materials,
++243821 over 111 restarts of Labskip Jumping Section). Fixed by the
+performance switch `SunPostProcessKeepMaterial` (a prefix on OnEnable
+keeps the live material; nothing writes a property on it).
 
 **Far shadow** (`FarShadowCascade.SetShadowCamera`, from MainCamNew's
 OnPreCull): renders `__Far_Shadow Camera` every call with
@@ -2591,6 +2828,65 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   `4A35955D96D04F0A89A4669DC0C913D11`, on symbolserver.unity3d.com
   (`scripts/symbolize-crash.py`, cached in
   `%LOCALAPPDATA%\ForestOverlay\symbols`).
+
+## The native crash in LOD_SimpleToggle at a title load (dump + PDB + IL + bridge, 2026-10-07, T-0143)
+
+One crash in ~6 e2e launches (`2026-10-07_115524`, v0.24.250-251): an
+access violation reading `0x500011eb4` at `Renderer_Set_Custom_PropEnabled+0x12`,
+in the frame where ForestMain_v08 had just loaded (the log's last line:
+`Load timing: scene 'ForestMain_v08' loaded`).
+
+- **The name is one of six.** The linker folded identical icalls: the PDB
+  has `Behaviour_`, `Cloth_`, `Collider_`, `LODGroup_`, `ParticleEmitter_`
+  and `Renderer_Set_Custom_PropEnabled` at one address (RVA 0x8918b0). The
+  code: `self->m_CachedPtr` (`[rcx+0x10]`), null -> NullReferenceException,
+  else a virtual call (`[vtable+0xe0]`) with the bool. `rdx` = 1: the value
+  set was `true`.
+- **Not a destroyed object.** Destroying clears `m_CachedPtr` (an exception,
+  no crash). Here it held `0x500011eb4` - not 8-aligned, not a native
+  pointer: the managed wrapper's memory held something else (a wrapper
+  freed and reused, or a slot pointing at another object).
+- **The frames** (rbp chain, see the gotcha): `DelayedCallManager` ->
+  `MonoBehaviour::Start` -> `InvokeMethodOrCoroutineChecked` -> mono's
+  runtime invoke -> a shared `void ()` invoke wrapper (old JIT code at
+  0x6e7f440) -> C at 0x13fb32c60 (the method pointer handed to the invoke;
+  new code beside B's, so JIT-compiled during this load)
+  -> at C+0x8a, B (also new code) -> a managed-to-native wrapper (old code,
+  its LMF holds r12-r15) -> the icall. Stale above it: `Transform::GetPosition`
+  (a `transform.position` just before).
+- **Whose Start: `LOD_SimpleToggle` on `CaveWoodplanks/woodplanksSolid/Plank2`.**
+  C's and B's frames hold the Vector3 (-450.65207, -16.603535, 664.35791);
+  live (bridge `find` / `get`), Plank2's `Transform.position` is
+  (-450.6521, -16.6035, 664.3579) - to 4 decimals. Plank2 carries
+  `MeshRenderer`, `BoxCollider` x2, `BreakWoodSimple` and `LOD_SimpleToggle`
+  (`Renderers` = its own MeshRenderer + `fracture2_Plank_2_Chunk_3` +
+  `Plank_2_Chunk_1_fracture2`, `Components` empty). `LOD_SimpleToggle.Start`
+  (IL): `position = transform.position; ThreadedRefresh();
+  RefreshVisibility(force: true)`; `RefreshVisibility` reads
+  `transform.position` again and sets `Renderers[i].enabled = nextVisibility`
+  for each not `IsNull()` (`== null`). `nextVisibility` starts `true` and
+  `ThreadedRefresh` only changes it once `LocalPlayer.Transform` is set -
+  not yet in that frame, so `true`, as the dump says. `ThreadedRefresh` also
+  runs on WorkScheduler's worker thread (`IThreadSafeTask`, registered in
+  `OnEnable`).
+- **No plugin code on that path.** Nothing in the plugin names
+  `LOD_SimpleToggle`, the planks or `Renderer.enabled` on game objects at a
+  load; no patch site in `src/Game` (92 patched methods live, bridge
+  `Harmony.GetAllPatchedMethods`) is on it. What the plugin runs in a load
+  frame: its `sceneLoaded` handlers, its own `Update`, and the postfixes
+  the load hits (AstarPath awake, the FocusLostAudio copy removal).
+- **Not reproduced:** 26 more game restarts + Slot 1 loads from the title
+  (the same journey, v0.24.251, 2026-10-07 evening): no crash. A wrapper
+  whose memory is reused is a managed-heap fault (the GC freeing what a
+  serialized array still holds, or a write into freed memory); safe code
+  cannot cause it, so the suspects are the runtime (Boehm + async scene
+  loading) or anything in the process that writes raw memory - which the
+  dump cannot tell apart.
+- **A second signature, not this one** (`2026-10-04_083030`,
+  `2026-10-05_120832`): the render thread (`GfxDeviceWorker::RunCommand` ->
+  `UploadTextureSubData2D` -> `TexturesD3D11Base::UploadTexture2D`) reads
+  `0xec` in `d3d11.dll+0x152a5a` - a texture upload (`Texture2D.Apply`) to a
+  null D3D resource; the main thread waits in `GfxDeviceClient::BeginFrame`.
 
 ## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
 
@@ -2902,7 +3198,10 @@ moved the player 4 m; with 1.0 s in the pause menu the velocity after closing
 was **1,564 m/s** (8 x ~196 frames) - 270 m and 350 m up in 4 s. So the
 distance goes with fps x time paused (sxczurass's table,
 `Downloads\qa-reports\sxczurass\image.png`); the direction is the player's
-back at each frame (the mouse rotators are off during the knockback).
+back at each frame (the mouse rotators are off during the knockback) - and a
+real explosion first turns the player to face it (`lookAtExplosion`, live
+2026-10-08: *The multi-thrower and the Cave 6 body slide* below), so the
+push goes straight away from the blast.
 `FirstPersonCharacter.Update` zeroes the horizontal velocity while the pause
 menu is up, but forces waiting for the physics step are untouched.
 Other senders of `Explosion` to the player start the same knockback, so the
@@ -2911,7 +3210,8 @@ same stacking: the **large swinging rock trap** (confirmed by the author
 versatile than a small bomb trap)
 (`trapHit.registerTrapHit`: `largeSwingingRock`, rock speed > 11 m/s,
 `Explosion(-1)` to whatever it hits - `Player` / `playerHitDetect`
-included), enemy thrown rocks (`thrownRockDamage`), the fat creepy's charge
+included), thrown rocks (`thrownRockDamage`: enemies' and the multi-thrower's,
+live 2026-10-08 below), the fat creepy's charge
 (`fatCreepyCharger`) - not melee (corrected in the overnight sweep below). No other
 per-frame push on the player exists (every `AddForce` on its rigidbody
 checked: zipline exit, glider drop, raft are one-off or other bodies).
@@ -2925,7 +3225,10 @@ runs on the `Grounded` rising edge in `FixedUpdate`; damage =
 is not a new collision enter (contact kept while sliding off a smooth edge),
 or one preceded by a new enter at low vertical speed (grazing a seam between
 colliders), is judged on that small value: no damage, and no 3.8 s death
-either. Likely the runners' slide cancel; not reproduced. Steep terrain
+either. The runners' slide cancel: reproduced on the Cave 6 body piles
+(live 2026-10-08, *The multi-thrower and the Cave 6 body slide* below - a
+steep face deflects the fall into a slide without grounding, and the next
+enter is slow). Steep terrain
 does not give one by itself (live, 2026-10-03): the game holds the player
 on a 55-80 degree terrain slope at ~3 m/s, so no speed builds while the
 contact is kept. Detected since v0.24.230 (docs/run-mode.md). `jumpingTimer`
@@ -3053,7 +3356,9 @@ So the long boost is "pause the instant the bomb goes off". The menu's
 `LockView` makes a grounded player kinematic (forces would be lost), but
 during the knockback `OnAnimatorMove` sets `isKinematic = false` every frame
 (root motion is on), so the push keeps piling up even from the ground. The
-direction is the player's back at the blast (both mouse rotators are off).
+direction is the player's back at the blast (both mouse rotators are off) -
+and a real blast turns the player to face it first, so: away from the blast
+(live 2026-10-08, *The multi-thrower and the Cave 6 body slide*).
 Against the runners' open questions (author's post: "why sometimes they are
 hitting game objects or flying off course", what the velocity at the pause
 does, a way to visualise it):
@@ -3096,7 +3401,8 @@ does, a way to visualise it):
   hit decides the sideways drift. Off course = something touched inside
   the window; a level runway (or a jump just before) is the optimal setup.
 - **A boost visualiser** (not built; Experimental if wanted): the path is a
-  straight line along the player's back, length 8 x frames paused x the
+  straight line along the player's back (after the hit: straight away from
+  the blast, level - `lookAtExplosion`), length 8 x frames paused x the
   window left (0.163 s - game time since the blast), swept with the
   player's capsule (`Physics.CapsuleCast`) to show the first hit - where
   the boost bends and launches.
@@ -3106,9 +3412,10 @@ The inventory cannot replace the pause menu: it refuses to open while
 `useRootMotion` (the knockback) or `jumping`.
 Knockback sources (`Explosion(dist)` with dist < 15 to the player): bombs and
 explosives (`Explode`), the large swinging rock trap (`trapHit`, rock faster
-than 11 m/s, `Explosion(-1)`), thrown rocks faster than 12 m/s
+than 11 m/s, `Explosion(-1)`), thrown rocks with `checkVel` >= 12
 (`thrownRockDamage`: enemies' rocks and the player-built multi-thrower's
-projectiles, `MultiThrowerProjectile`), the fat creepy's charge
+projectiles, `MultiThrowerProjectile`; `checkVel` is speed x 1.667, so
+7.2 m/s - live 2026-10-08, *The multi-thrower and the Cave 6 body slide*), the fat creepy's charge
 (`fatCreepyCharger`), and in co-op the server's explosion event. A second
 explosion within 2.2 s is ignored (`isExplode`); a swimming player only gets
 the hit state. **Correction:** `enemyWeaponMelee` sends `Explosion` to *trees*
@@ -3343,7 +3650,8 @@ uncapped fps for the panel clip (fps dependence not explained yet);
 crouch-smash-uncrouch above; "slide on the bodies to not get fall damage"
 (cave 6 drop to the keycard) = the fall-damage rule above (*Fall damage and
 the slide cancel*: damage is judged on the last collision enter, and a body's
-steep collider turns the fall into a slide; untested); "custom wall ... boost
+steep collider turns the fall into a slide; reproduced by drops onto the
+piles 2026-10-08, not with the runners' input); "custom wall ... boost
 yourself to the top" = the depenetration lift; "spam 1 after the keycard
 pickup" = equipping cancels the pickup animation before the book opens;
 "a trigger loads the rest of the caves" (cave 4) - pass it or the cave stays
@@ -3457,6 +3765,109 @@ Read for the knowledge bot's research queue; offline, no live game.
   `SmoothDamp(0.1)` and calls `ScaleCapsuleForCrouching(val)` with the raw
   0-10 value (the `Lerp` clamps), so the capsule only changes below 1:
   ~0.2-0.46 s after the release at a steady frame rate (computed).
+
+### The multi-thrower and the Cave 6 body slide (IL + bridge, 2026-10-08, T-0043)
+
+Bridge on v0.24.256, Slot 1 (Creative), god mode off for the measurements
+(god mode resets `Health` to 100 every `Update`, so a landing's damage only
+shows with it off); `Physics.gravity` -16, fixed step 1/60 s.
+
+**Knockback direction: away from the source, not out of the player's back
+(live).** Every knockback sender that reaches the player through
+`playerHitDetect` also sends `lookAtExplosion(sourcePos)` right after
+`Explosion` (`Explode.RunExplode`, `thrownRockDamage`, `trapHit`,
+`fatCreepyCharger`); `playerDamage.lookAtExplosion` ->
+`playerHitReactions.lookAtExplosion` does `transform.LookAt(source with
+y = the player's y)` on the player root (skipped on a rope). So the player
+is turned to face the blast on the hit frame, and the knockback's
+`-forward * 8` pushes straight away from it horizontally. Live, a real
+timed bomb (`MTP_BombTimed` instantiated, `enableGoReceiver.doEnableGo`,
+`Bomb.WaitTime` 3 s): player facing yaw 0, bomb 4 m at +x -> yaw 87.3,
+thrown 33 m to -x; facing yaw 200, bomb at (+3, +3) -> yaw 44.1, pushed
+along (-0.72, -0.69). The bomb-boost measurements above called
+`Stats.Explosion` directly (no `lookAtExplosion`), which is why they saw
+"the player's back".
+
+**The multi-thrower** (`MultiThrowerBuilt`, `BuildingTypes.RockThrower`;
+IL + live). Ammo: timed bomb 29, rock 53, molotov 71, skull 94, dynamite
+175 (`MultiThrowerItemHolder._whiteListedItemIds`), up to 3 per shot.
+`rockThrowerAnimEvents.throwRocks` spawns each `MultiThrowerProjectile` at
+`releasePos + up*2` (±0.6 m) and gives it the ballistic velocity
+(`calculateBestThrowSpeed`) to land on a point **exactly 2.2 m from the aim
+point** (`randomCircle2` = `insideUnitCircle.normalized * 2.2`) in a random
+**2.4-2.6 s**. A rock-type projectile's `damage` child (`thrownRockDamage`,
+a kinematic trigger sphere, radius 5 x scale 0.4 = **2 m**, layer 25) is
+switched on **0.75 s** after launch (`Invoke("enableDamageGo")`); an
+explosive (the ammo's `MTP_*` renderer has an `enableGoReceiver`) destroys
+the pickup and damage children and arms the item itself instead (the timed
+bomb's own 3 s `Bomb.WaitTime`). `thrownRockDamage.OnTriggerEnter` on
+`playerHitDetect` needs `checkVel >= 12`, where `checkVel` = distance moved
+in the last `FixedUpdate` x 100 - with the 1/60 s step that is **speed x
+1.667, i.e. the rock must move at 7.2 m/s or more**; then
+`SendMessageUpwards("Explosion", 8)` (an `int`, received by
+`PlayerStats.Explosion(float)`) and `lookAtExplosion`. Live with a spawned
+projectile (`Object.Instantiate` of the prefab, `InitProjectile 53 null`,
+gravity off, velocity set): 15 m/s -> `checkVel` 25, knockback when its
+centre was 1.75 m from the player, 25 damage, yaw 0 -> 90.2 (facing the
+rock), pushed away at +8 m/s per frame up to 167 m/s; 8 m/s -> `checkVel`
+13.3, knockback (from the front, pushed back); 6 m/s -> `checkVel` 10.0,
+no knockback although it bounced off the player. A real shot
+(`throwRocks` on an instantiated thrower 20 m away, aimed at the player's
+feet) knocked the player back on landing (yaw 0 -> 315.8, 25 damage). A
+landing rock is always well over 7.2 m/s (about 20 m/s downward for a
+level target: `dy/t - g*t/2` with g 16, t 2.5 - computed), so a shot that
+lands within ~2 m of a player knocks them back - one knockback per 2.2 s
+(`isExplode`), so 3 rocks give one. The thrower itself:
+`playerEnterRockThrowerAction.doThrower` holds the player kinematic at the
+seat; Fire1 shoots, Take leaves at once (`exitThrower`). `thrownRockDamage`
+disables itself 8 s after its `Start` (`enabled = false`), so `checkVel`
+stops updating then - whether a trigger still fires after that is not
+tested.
+
+**The Cave 6 body slide** (live). The keycard room's bodies are zone
+greebles `Pooling/Pool_Greebles/DeadBodyPile_01(Clone)NNN` / `_02`
+(deterministic, `WorldDump.Greebles` matched them): each a static,
+**non-convex `MeshCollider`** child `Collision` (1,001 vertices, layer 0
+Default, tag `enemyCollide`, no physic material, no rigidbody), a lumpy
+mound ~1.6 m high and ~7 m across, scale 3.5. The rope shaft above
+(`C6_Props/C6_secretRoom02/ropeClimbTemp_underground`, top ~y -42, bottom
+ledge ~-67 at (1273, 573)) drops onto the room's floor (player y -70.59)
+beside the piles (around (1278-1288, 579-593)). Per-frame traces (player
+position / velocity / `PrevVelocity` / `Grounded` / health):
+- **Floor**: enter at 32.5 m/s, stopped dead, `Grounded` the next steps,
+  judged 32.5 -> 34 damage. The rope-bottom ledge alike: 37.27 -> 45.
+- **Pile, damage**: enter at 31.63, deflected to (-7, +1, -4.6) but still
+  touching, `Grounded` 2 steps later on the same contact -> judged 31.63,
+  32 damage.
+- **Pile, cancelled**: enter at 32.07, deflected into a slide down a
+  steep face at (-8, -5, 9.8) m/s, **not grounded**; then new enters at
+  6.22 and 3.47 (the floor / another lump at the slide's speed) and only
+  then `Grounded` -> judged 3.47, no damage, after 1.5 s in the air.
+So the cancel is: the fast first contact is a face too steep to ground on
+(PhysX turns the fall into a slide and removes most of the speed), and the
+next collision **enter** - which overwrites `prevVelocity` - happens at the
+slide's speed before any grounded step. A grid of 80 drops from y -50
+(~20 m; 32.5 m/s measured at the impact - more than g 16 over 20 m
+gives, not explained yet) over x 1277-1287.5, z 579-593 (1.5 m step): straight onto
+the floor 20 of 21 took damage; drops that touched a pile were cancelled
+20 of 45 times (on the pile or after sliding off it onto the floor);
+14 stopped on rock ledges at y -49..-54. At four cancelling spots, from
+y -40 (~30 m) 4 of 4 cancelled, from y -30 (~40 m) 2 of 4 (34 and 60
+damage on the others). Repeating a drop from the same point gave the same
+result (deterministic). It works on specific spots of the piles, not on
+bodies in general - the runners' fixed line ("the hole in the bodies").
+**By hand (T-0204, 2026-10-08, the author's real input, health read per
+try):** the guide's "a rock, then the hole in the bodies" is two slides -
+the rope drop before the keycard area (top (1254.9, 9.2, 436.0), ~33 m):
+3 clean lines 0 damage, landing ~(1262-1264, -24.6, 476-483), a missed
+line 52; the keycard shaft (ledge (1269.7, -36.6, 562.1)): 2 clean slides
+0 damage, landing ~(1282, -70.4, 608-610). Jump spam changes nothing: spam
+and no-spam on the same line landed 0.5 m apart, both 0 damage (as
+`HandleLanded` says - it judges before a jump can start).
+The plugin's `Move seen: fall-damage-cancel` caught all 5 clean slides
+(practice, no attempt): every one really fell at 40-41 m/s; the bodies
+were judged at 8.4-9.7 m/s, the rock at 21.4-22.4 m/s (closer to the 28
+threshold - the tighter line); 52-55 damage at the real speed.
 
 ## How to extend this file
 

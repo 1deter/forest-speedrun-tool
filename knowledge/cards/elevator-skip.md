@@ -67,8 +67,8 @@ skips the rest of the 25 s wait. Live: a capsule set 0.07 m past a leaf's
 middle is pushed out the far side by depenetration - so the clip needs only
 a few centimetres past mid-leaf. From the arrival spot a plain sprint stops
 against the leaf (x -538.27) [live]. The runners use the axe smash clip
-(see `smash-clip`); scripted attempts with the real inputs have not got
-through yet, so the exact angle and timing are the runners' knowledge.
+(see `smash-clip`); it has not been reproduced in our tests, so the exact
+angle and timing are the runners' knowledge.
 
 ## Splits
 
@@ -91,8 +91,9 @@ live].
 
 Live over the bridge (2026-10-03): the ride without keycard 242, the lock
 during the ride, the teleport of a player outside the door, the sprint
-stop, the depenetration test, the scripted smash attempts. Wiring read
-live from the UnityEvents (`m_PersistentCalls`); code decompiled.
+stop, the depenetration test. Wiring read live from the UnityEvents
+(`m_PersistentCalls`); code decompiled. Our scripted smash attempts at the
+door did not clip (`smash-clip`) [dev].
 
 ## Open questions
 

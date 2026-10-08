@@ -27,6 +27,24 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void APressAgainReplacesTheEntryOnce()
+        {
+            InjectedInputs s = new InjectedInputs();
+            s.Hold("Run", 0, 0f, 0f);
+            s.Press("run", 5, 1);                    // replaces the hold, any case
+            List<string> o = new List<string>();
+            s.Describe(5, 0f, o);
+            Assert.Single(o);
+            Assert.Equal(1, s.ReleaseAll(5));        // up on 6
+            s.Settle(6, 0f);                         // kept through its up frame
+            Assert.True(s.Any);
+            s.Settle(7, 0f);
+            Assert.False(s.Any);
+            s.Describe(7, 0f, o);
+            Assert.Equal("nothing pressed or held", o[1]);
+        }
+
+        [Fact]
         public void NamesIgnoreCase()
         {
             InjectedInputs s = new InjectedInputs();

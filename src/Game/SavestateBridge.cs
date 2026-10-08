@@ -939,7 +939,7 @@ namespace ForestOverlay.Game
         private void EnsurePrefabs(string what)
         {
             string prefabs = PrefabList.Ensure();
-            if (prefabs != null) _log.LogInfo(what + ": " + prefabs + ".");
+            if (prefabs != null) _log.LogInfo(what + ": " + prefabs + ".");   // log: Savestate restore, Savestate slot load
         }
 
         /// The cheats a game mode owns (GameMode_Creative turns the first
@@ -1185,7 +1185,7 @@ namespace ForestOverlay.Game
                                                  topBefore + " -> " + topAfter + ")");
             for (int i = 0; i < playerMisses.Count; i++) sb.Append(i == 0 ? "; player misses: " : ", ").Append(playerMisses[i]);
             for (int i = 0; i < otherMisses.Count; i++) sb.Append(i == 0 ? "; other misses: " : ", ").Append(otherMisses[i]);
-            _log.LogInfo(sb.Append('.').ToString());
+            _log.LogInfo(sb.Append('.').ToString());   // log: Savestate
             return null;
         }
 

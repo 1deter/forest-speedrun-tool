@@ -1,7 +1,9 @@
 # Open investigations, unverified items and test assets
 
-Detail for threads that run across sessions. CLAUDE.md *Pick up here*
-names them in one line each and links here; read the section before
+**Open items are tasks since 2026-10-07** (`python scripts/tasks.py list --open`); this file keeps the detail (what was ruled out, test assets), and each task's `notes` points to its section here.
+
+Detail for threads that run across sessions. Each task's `notes`
+names its section here; read the section before
 working on it. When one finishes: a line in `docs/confirmed.md` (or the
 fix's commit / CHANGELOG), and delete it here.
 
@@ -155,17 +157,28 @@ Every number: game-notes *Frame time: where the main thread goes* and
   author's config has 12 and 13 on.
 - Never skip a screen camera mid-frame (v0.24.119 froze the screen,
   gotcha 51).
-- **sxczurass is rendering-bound** (Frame test `1553515759936999506`):
-  only fewer camera renders / draw calls help him. Asked
-  (`1553517261149442159`, `docs/tests/2026-09-26-sxczurass-fps-v0.24.128.md`)
-  for 1 min at a lower resolution (fps up = GPU, same = render thread)
-  and the two camera switches on vs off; also his hardware specs.
+- **sxczurass is render-thread bound** (Frame test `1553515759936999506`;
+  answered 2026-09-27, `1553661518703497236`): 1280x1080 vs 1920x1080 gave
+  the same fps (not the graphics card), the two Experimental camera
+  switches no visible difference, ~5 fps more in a cave. His lever is
+  fewer camera renders / draw calls, not resolution or GPU options.
+- **ParticleCam: no safe cut** (T-0030, 2026-10-08, game-notes *Frame
+  time*, the ParticleCam bullet): it draws layer 1, which ~4.7k renderers
+  of ~200 kinds use (held lighter / flare / torch, the book's close tab,
+  building ghosts, blood, foot dust, rain, water, fires...), most spawned
+  at runtime - only Unity's culling knows whether one is in view, so a
+  skip would drop something. Its whole cost, measured with it off: 0.30
+  ms of a 5.0 ms surface frame. The other secondary cameras: Camera_HUD
+  always has its HUD draw call, the grass-bending camera always the
+  player's trail, the Ceto reflection and far shadow are graphics
+  options, Sunshine has its Experimental switch, ActionIconCamera is
+  T-0032.
 
-**Next:** (1) sxczurass's answer: render-thread bound -> draw-call cuts
-(ActionIconCamera, ParticleCam, then the main camera's draw calls); GPU ->
-resolution is his lever. (2) (dropped: 30 Hz physics, removed). (3)
+**Next:** (1) the main camera's draw calls (838 renderers in its frustum
+at (428, 78, -4), 252 in Cave 6) - the one lever left for a render-thread
+bound machine; no task yet. (2) (dropped: 30 Hz physics, removed). (3)
 Cheesecake's Frame test (`1553493823840321557`). (4) ActionIconCamera by
-hand-`Render()` only with the author's eyes on the picture.
+hand-`Render()` only with the author's eyes on the picture (T-0032).
 
 ## Performance / loads - what is left, by payoff
 
@@ -176,9 +189,14 @@ behaviour-preserving patches on by default, each with its own switch and
 one log line, measured before / after in one session; anything changing
 timing or outcomes is Experimental, labelled (*Standing decisions*).
 
-1. Garbage in play (~216 KB/s idle, ~2 MB/s in play per maks): strings,
-   `MaterialTween` `SendMessage` boxing, Unity's collision objects.
-   Measure during play (`AllocationTrackerAtStartup` + restart).
+1. Garbage in play - measured (T-0033, 2026-10-08; game-notes *Garbage
+   in play*): the game makes 50-150 KB/s in play (a volume GC every
+   ~30 min), 30-60% Unity's physics-callback objects (not patchable);
+   the rest is small sources of 3-8 KB/s each (ocean key, alphamap read,
+   fish coroutines, cave spawn sort) left alone pending the author
+   (tasks/notes/T-0033.md). Ours fixed: 21 caught exceptions a second in
+   the 100% tab. Open: the strings (4-16 KB/s, source not found) and the
+   restart loop (~40 MB and 1-2 forced GCs per Quick load).
 2. The old world held 30-70 s after each Full load / death reload (~25 ms
    longer pauses meanwhile). Root unknown; low payoff.
 3. The live heap: mostly the A* navmesh, needed.
@@ -232,9 +250,9 @@ timing or outcomes is Experimental, labelled (*Standing decisions*).
   `physA`, `elevPre`, `elevMid`, `rope104`, `axe-held` / `axe-lighter`
   (Slot 2), `maks-boost`, Tom's `tom-c6boss`, `tom-c6`, `tom-c6exit`,
   `tom-bigjump`, `tom-megan` (Normal).
-- **Test spots to remove** (CLAUDE.md *Removing test spots*):
-  `s-splitstest01` ("Splits test"; backup before it
-  `%TEMP%/my-segments.before-splits-test.txt`), and once Tom answers
+- **Test spots to remove** (docs/bridge.md *Test spots*):
+  (`s-splitstest01` removed 2026-10-08, T-0068; backup
+  `segments/my-segments.txt.deter-backup`), and once Tom answers
   `s-191b90c5ab6f` (Cave 6) / `s-afcb5c720847` (Megan) with their
   `savestates/segments/*.fosave`.
 - **Backups**: photo map `%TEMP%/claude/aer/` (`aerial-0928`, `final` =

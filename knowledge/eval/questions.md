@@ -6,7 +6,11 @@ each), the cards it should read, and things it must **not** say. A
 follow-up (`then:`) is asked as a reply to the first answer.
 
 Format: `### <id>`, then `question:`, `cards:`, `must:` bullets, optional
-`not:` bullets and `then:` (a follow-up with its own `must:`).
+`not:` bullets, optional `max-length:` / `min-length:` (answer length in
+characters; before `then:` it bounds the first answer, after it the
+follow-up) and `then:` (a follow-up with its own `must:`). A length limit
+counts as one more fact in the score. Short questions get `max-length`
+(the bot answers short questions briefly, T-0090).
 
 ### bomb-why
 question: why does a bomb boost work?
@@ -77,6 +81,25 @@ cards: knockback-sources
 must:
 - no - melee sends the explosion to trees, not the player; a normal hit reaction
 
+### knockback-direction
+question: for a bomb boost do I have to face away from where I want to fly?
+cards: bomb-boost, knockback-sources
+must:
+- the explosion turns you to face it on the hit, so the push goes straight away from the bomb
+- your facing does not matter; put the bomb on the far side from your target
+not:
+- says the push goes out of your back wherever you were facing
+
+### multi-thrower
+question: can the multi-thrower knock me back for a boost?
+cards: knockback-sources
+must:
+- a rock moving at 7.2 m/s or more whose 2 m hit sphere reaches you gives the same knockback as a bomb (25 damage), pause-stackable
+- the hit sphere switches on 0.75 s after the launch; shots land 2.2 m from the aim point after 2.4-2.6 s
+- one knockback per 2.2 s, so three rocks give one
+not:
+- says a rock needs 12 m/s
+
 ### knockback-cooldown
 question: can I chain two bombs for a double boost?
 cards: knockback-sources
@@ -98,10 +121,21 @@ question: how does the slide cancel / sliding on bodies avoid fall damage?
 cards: fall-damage
 must:
 - prevVelocity is only written on a new collision enter
-- sliding in contact means no new enter, so the landing is judged on the slow slide contact
+- the fast hit on a steep body face does not ground you; the fall turns into a slide and the next new contact is slow, so the landing is judged on that slow contact
+- it works only on certain spots of the piles (about half of the spots tried), so runners use one exact spot
 - also avoids the 3.8 s death
 not:
-- claims it has been reproduced live
+- says landing anywhere on the bodies avoids the damage
+
+### slide-jump-spam
+question: does spamming jump help the cave 6 body slide?
+cards: fall-damage
+must:
+- no - spamming jump changes neither the damage nor where you land
+- the landing is judged before a jump can start
+- what matters is the exact line / spot
+not:
+- says spamming jump reduces or avoids the fall damage
 
 ### fall-terrain
 question: can I slide down a steep hill to avoid fall damage?
@@ -250,6 +284,7 @@ question: why didn't I die with an empty health bar after a cannibal hit?
 cards: deaths-and-revives
 must:
 - the last stand: above the grey zone an enemy hit that would kill leaves just over 1 health and starts the adrenaline rush
+- it re-arms: 12-14 s after dropping to 10 or less (no hit in between) the game sets health to 11 (RechargeHealth), so the next would-be-lethal hit is clamped again
 
 ### splits
 question: when does the vault door split happen?
@@ -287,9 +322,12 @@ not:
 question: how do i stop megan spawning babies?
 cards: megan-boss
 must:
-- stay within 35 m - births come only from the roll she reaches beyond 35 m
+- births come only from the roll she reaches after 1-2 s with you beyond 35 m
+- her dodges throw her 30-55 m back, so follow her back within 35 m after a dodge
 - beyond 35 m the birth weight is 6 of 13.5 (about 44%)
-- she stops for good once more than 2 spawners exist; spawners are never destroyed
+- one birth drops 6 babies; she cannot give birth again while more than 2 of their spawners exist - kill 4 of the 6 (or wait out their 300 s timer)
+not:
+- says the spawners are never destroyed or that she stops giving birth for good
 
 ### megan-spin
 question: what are the odds of megan doing her spin attack? is it 3%?
@@ -309,6 +347,16 @@ must:
 - 370 health (Normal), an explosion takes a flat 30 regardless of distance
 - about 13 explosions with nothing else
 - each explosion has a 25% chance to stagger her for 10 s
+- two explosions within 0.1 s of each other count once
+
+### megan-empty-health-bar
+question: in the megan fight my health bar was empty but i only died a few hits later - why?
+cards: megan-boss, deaths-and-revives
+must:
+- the last stand: above 10 health a hit that would kill leaves you on 1
+- while at 10 or less, 12 s later (checked every 2 s) the game sets health to 11, which re-arms the last stand
+- only a hit within that 12-14 s window kills; hits further apart are clamped to 1 again
+- megan hits for 28 on normal
 
 ### unknown-gold-card-spot
 question: where exactly is the gold keycard?
@@ -350,6 +398,7 @@ must:
 not:
 - states as fact that a clip gives no velocity
 - presents an invented explanation as fact
+- explains the speed as position change over time / a big move in one step, as fact
 - writes LaTeX or $...$ math
 
 ### dev-leftovers
@@ -429,6 +478,8 @@ must:
 - Cave 6 for the keycard: clips, custom wall boosts, sliding on the bodies to avoid fall damage
 - Cave 4 (K4 skip) to the vault door, passing the cave loading trigger
 - lab skip or the normal corridors, then the red elevator with the elevator skip
+not:
+- lists climbing axe cliff climbs as part of the route
 
 ### route-glitchless-stamina
 question: how do people manage stamina in glitchless?
@@ -530,3 +581,176 @@ must:
 - physics stays at 60 Hz, so higher fps does not add collision checks
 not:
 - that physics or collision checks run once per rendered frame
+- tells the runner how we tested it (scripted / automated testing, the test bridge) or gives our test setup as advice
+
+### short-coyote
+question: coyote time?
+cards: movement-tricks
+max-length: 600
+must:
+- yes, 0.21 s after the last grounded step
+
+### short-diagonal
+question: diagonal faster?
+cards: movement-tricks
+max-length: 600
+must:
+- yes, 10% - input is clamped to length 1.1
+
+### short-terminal
+question: max fall speed?
+cards: player-physics
+max-length: 600
+must:
+- 55.43 m/s
+
+### short-elevator-card
+question: elevator needs keycard?
+cards: elevator-skip
+max-length: 600
+must:
+- no - nothing in the elevator's chain checks the keycard
+- the keycard is only checked at the gold door
+
+### short-bomb-fps
+question: fps and bomb boost?
+cards: bomb-boost
+max-length: 700
+must:
+- yes - one push per rendered frame, so more fps = more pushes per second paused
+then: why exactly? explain how it works in detail
+min-length: 1200
+must:
+- the knockback pushes 8 m/s backwards once per rendered frame (a coroutine)
+- the pause menu stops physics / game time but the loop keeps running, so the pushes pile up
+- the knockback disables the character controller, so the 55 m/s cap does not apply
+
+### who-is-itsslack
+question: who is itsslack?
+cards: top-runners
+must:
+- a runner on the speedrun.com boards (itsSlack): 2nd in Any% Glitchless Peaceful (19:25.166) and Hardmode (19:30.483)
+- 2 top-3 solo places
+not:
+- says the knowledge base has no record of him
+
+### who-is-deter
+question: can u tell me something about d.eter?
+cards: top-runners
+must:
+- the developer of ForestOverlay (the speedrun tool) and forest.deter.cloud
+- a former world-record holder in the old Any% Normal category
+not:
+- says the knowledge base has no record of them
+- invents a time or date for his record
+
+### who-holds-neg-creative
+question: who holds the Any% No Explosive Glitch Creative record?
+cards: top-runners
+must:
+- yirequ, 5:48.433
+- sxczurass is 2nd (5:50.050), Cheesecake404 3rd
+not:
+- credits sxczurass with the 5:48 record
+
+### most-world-records
+question: who has the most world records in the forest?
+cards: top-runners
+must:
+- counted by first places: Cheesecake404 and yirequ have 5 solo boards each, sxczurass 4
+- yirequ is on the first-place team of all 8 co-op boards
+- the 14 / 8 / 5 figures are top-3 places, not records
+not:
+- ranks by top-3 places and calls that the world-record count
+
+### yirequ-records
+question: what world records does yirequ hold?
+cards: top-runners
+must:
+- solo: Any% Glitchless on all four difficulties (Normal 18:54.266) and No Explosive Glitch Creative (5:48.433)
+- co-op: part of the first-place team on all 8 co-op Any% and Glitchless boards (e.g. Normal Any% 5:45.083 with sxczurass)
+not:
+- says the co-op records are not in the knowledge base
+
+### neg-normal-vs-creative
+question: why is any% no explosive glitch normal faster than creative?
+cards: top-runners, routes
+must:
+- the boards: Normal 5:11.633 (sxczurass) vs Creative 5:48.433 (yirequ), about 37 s apart
+- the reason is not documented; runners' chat names a lab skip, a soda box and the hanging-cutscene skip, labelled as runner reports
+not:
+- states reasons as fact (blueprint delays, Creative physics, one board being less competitive)
+- says Creative is faster
+
+### hanging-skip
+question: do you know the first solo death animation skip, where you pre-grab the plane axe and cut earlier into the hanging animation?
+cards: deaths-and-revives
+must:
+- says the skip is not researched / not in the knowledge base yet
+not:
+- explains how the skip works as if it were known
+then: here is a video of it, please learn from the forest discords
+must:
+- says it cannot watch the video, and does not describe or explain what the video shows
+- does not claim it will queue, learn or note anything; says the way to flag a gap is a thumbs-down with a comment
+
+### bot-learns
+question: can you learn from the forest speedrun discords and remember this?
+cards: (none)
+must:
+- no - it cannot read Discord history or change its own knowledge from chat
+- corrections reach the author through a thumbs-down with a comment
+not:
+- says it added something to a queue or will remember it
+
+### bot-self
+question: are you running offline? how much quota do you have left on your model?
+cards: forestoverlay
+max-length: 600
+must:
+- has no access to usage or quota numbers
+not:
+- says it is an offline or local bot
+
+### redman-locations
+question: where can you see the red man in the game?
+cards: (none; decompiled redmanSpawner)
+must:
+- searches the game's code rather than answering from the speedrun cards
+- spawn spots: the yacht (player 150-390 m away), cliffs (110-160 m), two caves (cave 1 80-100 m, cave 2 100-160 m), each needing you to look towards it (within 60 degrees)
+not:
+- says the red man is not documented anywhere
+
+### glitchless-items
+question: what items do I need to collect for a glitchless normal any% run?
+cards: routes
+must:
+- the vault keycard 210 from Cave 6, and the rebreather (no tank) from Cave 5
+- 5 stamina mixes (coneflower + chicory) and a spear (two sticks), crafted in Cave 6
+- sodas: 3 on the way from Cave 6, a box of 4 near the vault door, 7 bought at the soda machine for 100 coins each
+
+### glitchless-slides-allowed
+question: are fall damage slides allowed in any% glitchless?
+cards: categories-and-rules
+must:
+- the written rules ban only OOB and clipping through walls
+- a runner report says the fall damage slide is allowed in Glitchless
+not:
+- says the rules ban body slides or fall damage cancels in Glitchless
+
+### theoretical-fastest
+question: what's the theoretical fastest time for any%?
+cards: top-runners, categories-and-rules
+must:
+- no theoretical best time is documented; gives the current records it has instead
+not:
+- an estimated best-possible time (e.g. "under 2 minutes") stated without a source
+
+### endgame-cutscene-flag
+question: what does endGameCutScene do? could a tool use it as a god mode?
+cards: endgame-splits, knockback-sources
+must:
+- it is the flag every endgame cutscene sets; the autosplitter splits on its rising edge
+- PlayerStats.Explosion returns early while it is set, so no explosion knockback or damage from that call
+not:
+- calls it a god mode, or says it blocks all damage, without code that shows it

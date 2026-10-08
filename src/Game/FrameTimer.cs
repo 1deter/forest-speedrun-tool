@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -83,28 +84,40 @@ namespace ForestOverlay.Game
 
         private void FixedUpdate()
         {
-            long now = Stopwatch.GetTimestamp();
-            MarkStart(now);
-            Timeline.FixedStep(now);
+            try
+            {
+                long now = Stopwatch.GetTimestamp();
+                MarkStart(now);
+                Timeline.FixedStep(now);
+            }
+            catch (Exception ex) { Lifecycle.Fail("FrameTimer.FixedUpdate", ex); }
         }
 
         private void Update()
         {
-            long now = Stopwatch.GetTimestamp();
-            MarkStart(now);
-            Timeline.Update(now);
-            // The load test: a fixed cost on the main thread, inside the
-            // "Update to LateUpdate" phase (Diagnostics, off by default).
-            if (TestLoadMs > 0.0)
+            try
             {
-                long until = now + (long)(TestLoadMs * Stopwatch.Frequency / 1000.0);
-                while (Stopwatch.GetTimestamp() < until) { }
+                long now = Stopwatch.GetTimestamp();
+                MarkStart(now);
+                Timeline.Update(now);
+                // The load test: a fixed cost on the main thread, inside the
+                // "Update to LateUpdate" phase (Diagnostics, off by default).
+                if (TestLoadMs > 0.0)
+                {
+                    long until = now + (long)(TestLoadMs * Stopwatch.Frequency / 1000.0);
+                    while (Stopwatch.GetTimestamp() < until) { }
+                }
             }
+            catch (Exception ex) { Lifecycle.Fail("FrameTimer.Update", ex); }
         }
 
         private void LateUpdate()
         {
-            Timeline.LateUpdate(Stopwatch.GetTimestamp());
+            try
+            {
+                Timeline.LateUpdate(Stopwatch.GetTimestamp());
+            }
+            catch (Exception ex) { Lifecycle.Fail("FrameTimer.LateUpdate", ex); }
         }
 
         // The frame's start, before our first callback of the frame.
@@ -149,7 +162,7 @@ namespace ForestOverlay.Game
             List<string> lines = Timeline.Report(seconds, Stopwatch.Frequency, 16);
             Timeline.Reset();
             if (Log != null)
-                for (int i = 0; i < lines.Count; i++) Log.LogInfo((i == 0 ? "Snapshot " : "  ") + lines[i]);
+                for (int i = 0; i < lines.Count; i++) Log.LogInfo((i == 0 ? "Snapshot " : "  ") + lines[i]);   // log: Snapshot
             if (_instance != null) _instance._snapshotStart = now;
             return lines.Count == 0 ? "no frames" : string.Join("\n", lines.ToArray());
         }

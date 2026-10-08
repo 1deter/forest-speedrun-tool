@@ -714,7 +714,7 @@ namespace ForestOverlay.BridgeMcp
             return text.Length <= chars ? text : "...(" + (text.Length - chars) + " chars cut)\n" + text.Substring(text.Length - chars);
         }
 
-        private static string RepoRoot()
+        internal static string RepoRoot()
         {
             DirectoryInfo d = new DirectoryInfo(AppContext.BaseDirectory);
             while (d != null && !File.Exists(Path.Combine(d.FullName, "ForestOverlay.csproj"))) d = d.Parent;
@@ -744,7 +744,7 @@ namespace ForestOverlay.BridgeMcp
             string managed = ForestPaths.Env("FOREST_MANAGED_PATH") ?? Path.Combine(_paths.Root, "TheForest_Data", "Managed");
             psi.Environment["FOREST_MANAGED_PATH"] = managed;
 
-            using Process p = Process.Start(psi);
+            using Process p = ChildProcess.Start(psi);   // closed stdin (gotcha 95)
             Task<string> stdout = p.StandardOutput.ReadToEndAsync(ct);
             Task<string> stderr = p.StandardError.ReadToEndAsync(ct);
             using (CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(ct))

@@ -23,6 +23,10 @@ or anything) ->
   Developer Mode in Discord's settings if the option is missing).
 
 **2. The model keys:**
+- DeepSeek (the first model since 2026-10-08, paid, prepaid balance):
+  platform.deepseek.com -> top up -> API keys. This is `DEEPSEEK_API_KEY`
+  (in `.env` and as a GitHub secret for the manual eval); the model line is
+  `deepseek:deepseek-chat@https://api.deepseek.com/v1`.
 - Gemini: aistudio.google.com -> Get API key -> Create (free tier). This is
   `GEMINI_API_KEY`.
 - Mistral (the fallback, optional): console.mistral.ai -> the free

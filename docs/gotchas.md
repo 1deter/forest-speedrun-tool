@@ -1,6 +1,6 @@
 # Gotchas learned the hard way
 
-The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are stable - commits and docs cite them ("gotcha 25").
+The full story behind each lesson; the one-line index is split by area (`docs/areas/*.md` *Gotchas*). Numbers are stable - commits and docs cite them ("gotcha 25").
 
 
 1. **The game re-asserts state every frame — use its flags, don't fight it.**
@@ -13,7 +13,10 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
 2. **`OnGUI` runs several times per frame.** Never allocate in it.
 
 3. **A throwing `Awake` silently kills the plugin** while BepInEx still logs
-   "loaded". Every lifecycle method is individually try/caught.
+   "loaded". Every lifecycle method is individually try/caught: the whole body
+   in try, `catch (Exception ex) { Lifecycle.Fail("Class.Method", ex); }`
+   (logged once per method), plain guards only before it. `lint.py`
+   (`check_lifecycle`) fails an unwrapped Unity message method in `src/`.
 
 4. **Don't trust assumed names.** Everything in `src/Game/` was confirmed from
    a dump or IL. `docs/game-notes.md` once contained a guess that was wrong
@@ -53,7 +56,18 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     once, keep it, re-search only when it goes fake-null, and rate-limit the
     search (there is nothing to find at the main menu). `ModuleHost` logs any
     module Tick over 5 ms as `Slow tick: '<id>'` — check the log for it before
-    guessing at a hitch.
+    guessing at a hitch. Plain `FindObjectOfType` / `FindObjectsOfType`
+    walk the scene too: **22-25 ms each in ForestMain** (measured
+    2026-10-07, T-0150: one per run finish was most of a 26-33 ms
+    `Slow tick: 'practicerun'`; the comment over it said "a few ms").
+    Measure a suspect with the bridge (every reply ends in its own ms;
+    `type <Type>` times the scan) and look for the game's static handle
+    first (`TheForest.Utils.Scene.*`, ilscan `writes`). Six of them in one
+    restore frame were a 216 ms hitch after every spot restart (T-0148);
+    the restore keepers go through `Game/SceneCache`. To find which frame
+    a hitch is, `get static:UnityEngine.Time realtimeSinceStartup` once a
+    frame after a `call` that starts the action (one bridge line a frame);
+    to find whose code, the game profiler with `*::Start` hooked.
 
 12. **`OnRenderObject` runs once per camera**, reflections and UI included.
     GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn
@@ -84,7 +98,9 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     that line is what gets asked for. Log what a hotkey **acted on**, not
     just that it ran: F7 restarted a different spot than the one the
     author had just set up, and only a `Restart '<id>'` line would have
-    shown it.
+    shown it. Every prefix, who writes it and what it means:
+    `docs/log-lines.md` (`scripts/log-catalogue.py`; the lint keeps every
+    call prefixed and the catalogue current, T-0012).
 
 17. **A library method that "does X" may only do X in one mode.**
     UnitySerializer's `LoadNow` deletes objects missing from the save — but
@@ -294,7 +310,13 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     and the next); and hooking 1588 methods with Harmony nearly doubled
     the GC pause (90 -> 165 ms) through the patches' own objects. When a
     number surprises you, first ask what the instrument adds, and
-    measure baselines on a fresh launch with the instrument off.
+    measure baselines on a fresh launch with the instrument off. The
+    profiler's hooks also outlive it: after "Game profiler: off" the
+    methods it hooked keep Harmony's rewritten copy, and its boxed
+    `foreach` enumerators (~190/s each, ~60 KB/s) stayed in the
+    allocation tracker's figures until the game restarted (T-0033,
+    2026-10-08) - restart between a profiler session and a by-type
+    measurement.
 
 43. **A switch can be latched off before you arrive.** v0.24.90's
     allocation tracker installed Mono's profiler correctly and counted
@@ -842,3 +864,92 @@ The full story behind each lesson indexed in CLAUDE.md (*Gotchas*). Numbers are 
     limit; the eval waits out short rests. Honesty fixes must hold on the
     weaker model: an inline `[inferred]` was skimmed past until `read_card`
     put a NOT CONFIRMED list on top.
+
+95. **A process the MCP server starts inherits its stdin - the MCP pipe.**
+    (2026-10-07, T-0007, `qa_todo from_tasks`.) The server ran `python
+    scripts/tasks.py qa-todo`, which ran `git tag --list`; git blocked
+    for good (0 CPU, parent gone), the 30 s limit fired and the server
+    reported it as a bare "cancelled" (any `OperationCanceledException`
+    in a tool call is). The same command ran in 118 ms from a shell and
+    from a test program with a normal stdin. The MCP stdio pipe never
+    closes, so a child that touches stdin waits forever. Fix: a child of
+    the server gets `RedirectStandardInput` + `StandardInput.Close()`,
+    `tasks.py`'s git calls `stdin=DEVNULL`, and a timeout kills the
+    child and says so. A "cancelled" from a forest tool: look for a hung
+    child of the `forest-bridge-mcp` process first.
+
+96. **A "still gone" check needs a "there before" control - and the
+    plugin's keepers hold inactive copies.** (2026-10-07, T-0010, the e2e
+    restores journey.) The check "the cut bush is still cut after a Full
+    load" was `find GreenBush_40 all` returning nothing. Run alone it
+    passed; after a journey that had used savestates it failed right
+    after the cut: NatureKeeper keeps each cut bush's copy under an
+    inactive holder once savestates are armed, and `find ... all` sees
+    inactive objects. Had the lookup been broken the other way, every
+    "still cut" would have passed with nothing tested. Look for the live
+    object at its scene path (`find <name>` without `all`, path
+    `Nature_Spawned/<name>`), and assert it is found before the action
+    that should remove it.
+
+97. **A merged branch rides along with the next push to main - and a push
+    to main deploys.** (2026-10-07, loop R-0001 round 2, T-0028.) main
+    merged the maker's branch, the checker came back *revise*, and the next
+    commit - only a task-file note - was pushed "to keep the repo in
+    sync". The push carried the unchecked site and bot code with it, and
+    both deployed (inert only because the new token was not set yet). Until
+    the checker accepts, keep the merge local (or merge only after accept);
+    the Stop hook's "commits not pushed" is answered with the reason, not
+    with a push. A revise after a local merge: `git revert -m 1` the merge
+    on main, and `git revert` that revert before merging the fixed branch.
+
+98. **Commit the contract before spawning the maker.** (2026-10-07, loop
+    R-0001 round 2.) `isolation: worktree` branches from HEAD: a contract
+    written with `tasks.py start` but not committed is not in the
+    worktree, and the maker reported "verify / scope are empty" and built
+    from the prompt instead. Commit (and push) the task file after
+    `tasks.py start`, then spawn.
+
+99. **An agent that does not know where a file lives crawls the whole
+    drive - and the crawl outlives it.** (2026-10-07, T-0150's in-game
+    check.) The prompt named `BepInEx/config/.../my-segments.txt` as a
+    relative path; forest-tester ran `tasks.py show ...; find / -path
+    "*my-segments.txt"`, the call timed out into the background, the
+    agent re-ran the `show` alone and finished - and the `find` kept
+    walking every drive for 22 min until the author asked what was
+    running ("noticed it a couple of times"). The transcripts held two
+    more: `find /c/Users/deter -maxdepth 4` for a file in Temp. Prompts
+    give absolute paths; the PreToolUse hook (`wide_search`) refuses a
+    search from `/`, a drive root, the home folder or C:/Users deeper
+    than 2 (find, ls -R, grep -r, rg, Get-ChildItem -Recurse, dir /s,
+    where /r, a Python walk) and its reason lists the real paths: the
+    game, the plugin's config folder, the log, the saves, the QA zips,
+    the repo. Replayed over the 10,963 commands in the transcripts it
+    refuses exactly those three.
+
+100. **A crash dump's function name can be one of several, and Mono's
+    frames are readable.** (2026-10-07, T-0143.) The dump said
+    `Renderer_Set_Custom_PropEnabled`, and the task was filed as "a
+    destroyed renderer"; the linker had folded six identical icalls
+    (Behaviour, Cloth, Collider, LODGroup, ParticleEmitter, Renderer
+    `.enabled` setters) into one address, so the name proved nothing - and
+    a destroyed object cannot reach that crash (its `m_CachedPtr` is 0, an
+    exception). The JIT frames, "nameless", still told the story: Mono's
+    code keeps an RBP chain (`[rbp]` caller's rbp, `[rbp+8]` return), old
+    JIT code can sit below 4 GB, the address mono's runtime invoke holds is
+    the invoked method's start, and the floats left in a frame (a Vector3)
+    matched one object's live position to 4 decimals - which named the
+    component. `scripts/symbolize-crash.py` now prints the folded names,
+    the registers and the rbp chain, and marks values below rsp as stale.
+
+101. **A swallowed exception is garbage nobody sees.** (2026-10-08,
+    T-0033.) The 100% tab's book reader bound every field whose type
+    carries a `_done` - meant for the 21 to-do tasks (`bool _done`), but
+    each task's `<name>GOs` sibling has a `GameObject _done` too. Reading
+    those as bool threw `InvalidCastException` once a second each, and a
+    `catch (Exception) { continue; }` hid it: the tab was right, the game
+    carried 21 exception objects and stack traces a second (~3.4 KB/s,
+    the overlay's biggest idle garbage). The allocation tracker showed it
+    as `System.InvalidCastException` + `System.IntPtr[]` at the same rate;
+    the title screen (no book) was the control. When binding by shape,
+    check the member's type too; an exception type in an allocation report
+    is a bug looking for its catch.

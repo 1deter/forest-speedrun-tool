@@ -209,11 +209,16 @@ namespace ForestOverlay.Game
             }
             Status = "unhooking " + _next + " of " + _hooked.Count + " methods...";
             if (_next < _hooked.Count) return;
+            // Unhooked methods keep running Harmony's rewritten copy: the
+            // boxed foreach enumerators it adds stay until the game restarts
+            // (bridge, T-0033: the same ~190/s after "off") - allocation
+            // figures taken after a profiler session are not the game's own.
             _log.LogInfo("Game profiler: off, " + _hooked.Count + " method(s) unhooked in " +
-                         (Time.realtimeSinceStartup - _phaseStart).ToString("0.0") + " s.");
+                         (Time.realtimeSinceStartup - _phaseStart).ToString("0.0") + " s (until a restart, the methods it hooked " +
+                         "still box their foreach loops - restart before measuring allocations).");
             _hooked.Clear();
             _phase = Phase.Off;
-            Status = "off";
+            Status = "off (restart the game before measuring allocations: hooked methods keep some extra garbage)";
         }
 
         private void Count()
@@ -225,7 +230,7 @@ namespace ForestOverlay.Game
             Table.ExactAllocation = AllocationTracker.Counting;
             List<string> lines = Table.Report(seconds, _frames, Stopwatch.Frequency, Top);
             if (_unknown > 0) lines.Add("unmatched calls: " + _unknown);
-            for (int i = 0; i < lines.Count; i++) _log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);
+            for (int i = 0; i < lines.Count; i++) _log.LogInfo(i == 0 ? lines[i] : "  " + lines[i]);   // log: Game profile
             if (lines.Count > 0) LastReport = string.Join("\n", lines.ToArray());
             Table.Reset();
             _unknown = 0;

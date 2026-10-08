@@ -55,7 +55,6 @@ namespace ForestOverlay.Game
 
         public bool Available { get { return _stats != null && _fields != null; } }
         public string[] Channels { get { return _channels; } }
-        public int ChannelCount { get { return _channels == null ? 0 : _channels.Length; } }
 
         public PlayerStateReader(ManualLogSource log)
         {
@@ -182,23 +181,6 @@ namespace ForestOverlay.Game
             }
 
             return _values;
-        }
-
-        /// Value of one named channel right now, for HUD readouts.
-        public bool TryGet(string channel, out float value)
-        {
-            value = 0f;
-            if (!Available) return false;
-
-            for (int i = 0; i < _channels.Length; i++)
-            {
-                if (!string.Equals(_channels[i], channel, StringComparison.OrdinalIgnoreCase)) continue;
-                float[] v = Read();
-                if (v == null) return false;
-                value = v[i];
-                return true;
-            }
-            return false;
         }
     }
 }

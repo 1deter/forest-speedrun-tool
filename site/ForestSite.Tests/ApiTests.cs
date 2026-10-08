@@ -154,6 +154,59 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task StartState_KeptPerRoute_WhenItsHashMatches()
+    {
+        var state = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data 1" };
+        string stateText = state.Write();
+        Segment seg = TestSegment();
+        seg.StartState = Segment.HashText(state.Data);
+        string ta = await Register(A), tb = await Register(B);
+
+        // Uploaded without its state: the site asks its owner for it.
+        var first = await (await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("wanted", first["startstate"]?.GetValue<string>());
+        Assert.Null(SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null).StartState);
+
+        // Not the owner: never asked, and a state sent is not kept.
+        var bb = new SegmentBundle { Segment = seg, Exported = "now", PluginVersion = "test", StartState = stateText };
+        bb.Attempts.Add(RunText(seg, B, 11f, 4f, 4));
+        var notOwner = await (await Upload(tb, bb.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(notOwner["startstate"]?.GetValue<string>());
+        Assert.Null(SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null).StartState);
+
+        // Another state than the route was timed from is refused.
+        var wrong = new SavestateFile { Name = "boost", Level = "TheForest", Data = "level data 2" };
+        var b = new SegmentBundle { Segment = seg, Exported = "now", PluginVersion = "test", StartState = wrong.Write() };
+        b.Attempts.Add(RunText(seg, A, 10f, 4f, 1));
+        var refused = await (await Upload(ta, b.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("wanted", refused["startstate"]?.GetValue<string>());
+        Assert.Contains(refused["skipped"].AsArray(), x => x.GetValue<string>().Contains("start state"));
+
+        // The matching one is kept and comes with the spot's .foseg.
+        b.StartState = stateText;
+        var stored = await (await Upload(ta, b.Write())).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("stored", stored["startstate"]?.GetValue<string>());
+        SegmentBundle got = SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null);
+        Assert.Equal(stateText, got.StartState);
+        Assert.Equal(seg.RouteFingerprint(), got.Segment.RouteFingerprint());
+
+        // Kept: later uploads are not asked again.
+        var later = await (await Upload(ta, Bundle(seg, RunText(seg, A, 9f, 4f, 2)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(later["startstate"]?.GetValue<string>());
+
+        // A teleport-only spot is never asked for one.
+        Segment plain = TestSegment("s-0123456789cd");
+        var p = await (await Upload(ta, Bundle(plain, RunText(plain, A, 10f, 4f, 3)))).Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Null(p["startstate"]?.GetValue<string>());
+
+        // Deleting the spot (an admin: B has a run on it) takes its state with it.
+        var del = new HttpRequestMessage(HttpMethod.Delete, "/api/admin/spots/" + seg.Id);
+        del.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(del)).StatusCode);
+        Assert.Empty(Directory.GetFiles(Path.Combine(_data, "startstates")));
+    }
+
+    [Fact]
     public async Task OwnersRenameReachesTheSite_OthersDoNot()
     {
         Segment seg = TestSegment();
@@ -1154,4 +1207,24 @@ public sealed class ApiTests : IDisposable
     [InlineData("ground/3/12_7.jpg\n", false)]
     [InlineData("ground/3/../../12_7.jpg", false)]
     public void AerialUploadPaths(string path, bool allowed) => Assert.Equal(allowed, UploadPath.IsTile(path));
+
+    /// scripts/site-smoke.py seeds the throwaway site with smoke-run.foseg;
+    /// this keeps it uploadable as the formats move. Rewrite it with
+    /// FOREST_WRITE_SMOKE_FIXTURE=1 dotnet test --filter SmokeFixture.
+    [Fact]
+    public async Task SmokeFixture_Uploads()
+    {
+        string dir = AppContext.BaseDirectory;
+        while (dir != null && !Directory.Exists(Path.Combine(dir, "site", "ForestSite.Tests"))) dir = Path.GetDirectoryName(dir);
+        Assert.NotNull(dir);
+        string path = Path.Combine(dir, "site", "ForestSite.Tests", "smoke-run.foseg");
+        if (Environment.GetEnvironmentVariable("FOREST_WRITE_SMOKE_FIXTURE") == "1")
+        {
+            Segment seg = TestSegment("s-5a0ce0000001");
+            File.WriteAllText(path, Bundle(seg, RunText(seg, A, 12.5f, 6.25f)));
+        }
+        var r = await Upload(await Register(A), File.ReadAllText(path));
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Single((await r.Content.ReadFromJsonAsync<JsonObject>())["added"].AsArray());
+    }
 }

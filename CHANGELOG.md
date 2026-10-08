@@ -5,6 +5,52 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.259 - 2026-10-08
+
+- Website spots now come with the start state their creator recorded, so a restart restores the spot instead of only teleporting. A creator's next upload on a spot sends its state to the website.
+
+## v0.24.258 - 2026-10-08
+
+- Timed runs now log a line when they arm, naming what armed them (Go, F7 restart, start-state restore, auto-restart, ...), so a run that fails to start after a restore can be traced in the log.
+
+## v0.24.257 - 2026-10-08
+
+- Going from a run in progress to a different timed segment no longer shows the first run's red 'failed' line on the new segment.
+
+## v0.24.256 - 2026-10-08
+
+- The 100% tab no longer throws and catches 21 errors a second in the background while a save is loaded.
+
+## v0.24.255 - 2026-10-08
+
+- Typing the log cap in the Inventory tab no longer hitches: the setting is saved once you stop typing.
+
+## v0.24.254 - 2026-10-08
+
+- A teleport-only restart into the red elevator after its ride no longer unloads the endgame and drops you through the map.
+
+## v0.24.253 - 2026-10-08
+
+- In the endgame the game made a new material every frame that only a load out of the area freed (over a million after an hour of lab restarts); a new Performance switch, on by default, keeps the one it has.
+- If the overlay's late drawing step ever fails, the frame is still shown instead of being left blank.
+
+## v0.24.252 - 2026-10-08
+
+- Restarting a spot in place no longer hitches twice right after the load (two ~0.2 s frames before the fix, measured on maks's Labskip Jumping Section): the restore's look-ups are kept between restores, and the plane wreck the game re-creates no longer re-cuts the grass on its crash path.
+
+## v0.24.251 - 2026-10-07
+
+- Sturdier overlays: if a line, marker, replay or free-camera drawing ever hits an error, it is now caught and written to the log once instead of repeating every frame.
+
+## v0.24.250 - 2026-10-07
+
+- Finishing a run no longer stutters on the finish frame: looking up your save's plane crash site took 22-25 ms each finish and now takes under 1 ms.
+
+## v0.24.249 - 2026-10-07
+
+- Run lines off now hides every run line, even while a marker or a replay is up.
+- More log lines start with a clear name (Update:, Update download:, Item catalogue:, Segments:, Locations:, Modules:), so a report reads more easily.
+
 ## v0.24.248 - 2026-10-05
 
 - Practice, Import: a new "Website spots" button lists the spots other runners uploaded to forest.deter.cloud - one click adds one under "Website" to practise, and their best run shows up under Compare to. Duplicate makes your own copy.

@@ -3,3 +3,8 @@
 # Scripts that run on Linux keep LF on Windows checkouts.
 site/deploy/* text eol=lf
 bot/deploy/* text eol=lf
+# Git hooks are sh scripts (no extension).
+.githooks/* text eol=lf
+
+# Savestate fixtures for scripts/e2e.py: byte for byte as the plugin wrote them
+tests/e2e/states/*.fosave -text

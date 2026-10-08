@@ -41,6 +41,36 @@ public class KnowledgeTests
         Card live = Card.Parse(Sample, "x");
         Assert.Empty(live.Unconfirmed());
         Assert.DoesNotContain("NOT CONFIRMED", live.Render());
+        Assert.DoesNotContain("DEV NOTES", live.Render());
+    }
+
+    [Fact]
+    public void Card_lists_dev_notes_on_top()
+    {
+        string text = "---\nid: clip\ntitle: Clip\nconfidence: code\n---\n\n# Clip\n\nA clip.\n\n## Why\n\n" +
+            "It works [code]. A script pressed crouch at 0.25 s [dev]. Done.\n\n" +
+            "## What our tests tried [dev]\n\nScripted inputs.\n";
+        Card c = Card.Parse(text, "clip");
+        Assert.Equal(new[]
+        {
+            "A script pressed crouch at 0.25 s [dev].",
+            "The section 'What our tests tried [dev]' as a whole.",
+        }, c.DevNotes());
+        Assert.Empty(c.Unconfirmed());
+        string r = c.Render();
+        Assert.True(r.IndexOf("DEV NOTES", StringComparison.Ordinal) < r.IndexOf("# Clip", StringComparison.Ordinal));
+    }
+
+    private static readonly string[] KnownTags = { "live", "code", "runner", "inferred", "dev", "arithmetic" };
+
+    [Fact]
+    public void Card_tags_are_known()
+    {
+        // [word ...] not followed by "(" (a link): the first word is a confidence tag
+        var tag = new System.Text.RegularExpressions.Regex(@"\[([a-z]+)[^\]\n]*\](?!\()");
+        foreach (string file in Directory.GetFiles(Path.Combine(RepoRoot(), "knowledge", "cards"), "*.md"))
+            foreach (System.Text.RegularExpressions.Match m in tag.Matches(File.ReadAllText(file)))
+                Assert.True(KnownTags.Contains(m.Groups[1].Value), Path.GetFileName(file) + ": unknown tag " + m.Value);
     }
 
     [Fact]
@@ -163,5 +193,55 @@ public class KnowledgeTests
         Assert.Equal("q2?", qs[0].Then);
         Assert.Equal(new[] { "g1" }, qs[0].ThenMust);
         Assert.Empty(qs[1].Cards);
+    }
+
+    [Fact]
+    public void Eval_parser_reads_length_limits_and_a_too_long_answer_fails()
+    {
+        string md = "### a\nquestion: q1?\nmax-length: 600\nmust:\n- f\nthen: more\nmin-length: 1200\nmust:\n- g\n";
+        EvalQuestion q = EvalQuestions.Parse(md).Single();
+        Assert.Equal(600, q.MaxLength);
+        Assert.Equal(0, q.MinLength);
+        Assert.Equal(1200, q.ThenMinLength);
+        Assert.Equal(0, q.ThenMaxLength);
+        Assert.Equal(new[] { "f" }, q.Must);
+        Assert.Equal(new[] { "g" }, q.ThenMust);
+        Assert.True(EvalQuestion.CheckLength(new string('x', 600), 600, 0).ok);
+        (bool ok, string line) = EvalQuestion.CheckLength(new string('x', 601), 600, 0);
+        Assert.False(ok);
+        Assert.Contains("TOO LONG", line);
+        Assert.False(EvalQuestion.CheckLength("short", 0, 1200).ok);
+        Assert.Null(EvalQuestion.CheckLength("anything", 0, 0).line);
+    }
+
+    [Fact]
+    public void Eval_select_keeps_file_order_and_refuses_unknown_ids()
+    {
+        List<EvalQuestion> qs = EvalQuestions.Parse("### a\nquestion: q?\nmust:\n- f\n### b\nquestion: q?\nmust:\n- f\n### c\nquestion: q?\nmust:\n- f\n");
+        Assert.Equal(3, EvalQuestions.Select(qs, new HashSet<string>()).Count);
+        Assert.Equal(new[] { "a", "c" }, EvalQuestions.Select(qs, new HashSet<string> { "c", "a" }).Select(q => q.Id));
+        ArgumentException ex = Assert.Throws<ArgumentException>(() => EvalQuestions.Select(qs, new HashSet<string> { "a", "gone" }));
+        Assert.Contains("gone", ex.Message);
+    }
+
+    [Fact]
+    public void Eval_score_counts_only_answered_questions()
+    {
+        EvalScore s = new EvalScore { Passed = 7, Total = 9, Answered = 3, Busy = 2 };
+        Assert.Equal("Score: 7/9 = 77.8%, 3 answered, 2 busy skipped", s.Line());
+        Assert.Equal(0, new EvalScore { Busy = 5 }.Percent);
+    }
+
+    /// CI's eval subset (bot.yml EVAL_SUBSET) names real questions - a
+    /// rename would otherwise fail only after a deploy.
+    [Fact]
+    public void Ci_eval_subset_names_real_questions()
+    {
+        string root = RepoRoot();
+        string line = File.ReadAllLines(Path.Combine(root, ".github", "workflows", "bot.yml")).Single(l => l.Trim().StartsWith("EVAL_SUBSET:"));
+        string[] ids = line.Substring(line.IndexOf(':') + 1).Trim().Trim('\'', '"').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Assert.InRange(ids.Length, 3, 8);
+        List<EvalQuestion> qs = EvalQuestions.Parse(File.ReadAllText(Path.Combine(root, "knowledge", "eval", "questions.md")));
+        Assert.Equal(ids.Length, EvalQuestions.Select(qs, ids.ToHashSet()).Count);
     }
 }

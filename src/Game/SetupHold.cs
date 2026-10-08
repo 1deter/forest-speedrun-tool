@@ -47,9 +47,6 @@ namespace ForestOverlay.Game
         /// The game called startSetupFamilies while armed (and was skipped).
         public static bool Requested { get { return _requestedAt >= 0f; } }
 
-        /// Seconds from Arm to the game's first skipped call; -1 if none.
-        public static float RequestedAfter { get { return _requestedAt >= 0f ? _requestedAt - _armedAt : -1f; } }
-
         public SetupHold(ManualLogSource log)
         {
             _log = log;

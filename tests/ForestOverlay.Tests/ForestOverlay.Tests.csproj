@@ -32,6 +32,7 @@
   <!-- Logic under test, compiled from the real source. -->
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
+    <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
     <Compile Include="../../src/Data/LoadTimes.cs" Link="Linked/LoadTimes.cs" />
     <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
@@ -51,6 +52,8 @@
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />
     <Compile Include="../../src/Data/PickupMatch.cs" Link="Linked/PickupMatch.cs" />
     <Compile Include="../../src/Data/CapturedAreas.cs" Link="Linked/CapturedAreas.cs" />
+    <Compile Include="../../src/Data/LookupCache.cs" Link="Linked/LookupCache.cs" />
+    <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../src/Data/UpdateStaging.cs" Link="Linked/UpdateStaging.cs" />
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
@@ -97,6 +100,7 @@
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />
     <Compile Include="../../tools/BridgeMcp/DiscordText.cs" Link="Linked/DiscordText.cs" />
+    <Compile Include="../../tools/BridgeMcp/ChildProcess.cs" Link="Linked/ChildProcess.cs" />
   </ItemGroup>
 
 </Project>

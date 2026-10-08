@@ -313,7 +313,7 @@ namespace ForestOverlay.Game
             int was = Logs(c);
             SetLogs(c, Math.Min(logs, Cap));
             PutHeldAway(c);
-            _log.LogInfo(context + ": logs in the inventory " + was + " -> " + Logs(c) + " (as captured).");
+            _log.LogInfo(context + ": logs in the inventory " + was + " -> " + Logs(c) + " (as captured).");   // log: Savestate restore, Savestate after the load
         }
 
         private static bool AmountPrefix(ref int __result) { __result = 0; return false; }
