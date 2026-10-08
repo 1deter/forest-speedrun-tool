@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 665 log calls.
+216 prefixes from 666 log calls.
 
 ## `Aerial capture`
 
@@ -1280,6 +1280,7 @@ Written by PracticeRunModule.Checkpoints.cs, PracticeRunModule.Splits.cs, Practi
 - info `Run '<_segment.Id>': <..> - left the level, <where> (not saved).`
 - info `Run '<_segment.Id>': <..> - run mode ended, practice mode (F9) is off.`
 - info `Run '<_segment.Id>': aborted - restarting the spot.`
+- info `Run '<_segment.Id>': armed.`
 - info `Run '<_segment.Id>': auto-restart<..>.`
 - info `Run '<_segment.Id>': autosplit on <why> at <..>.`
 - info `Run '<_segment.Id>': checkpoint <_splits.Count> split by hand at <..>.`

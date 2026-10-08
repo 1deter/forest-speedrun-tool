@@ -420,6 +420,7 @@ namespace ForestOverlay.Modules
             SelectReference();
             ArmSplits();
             _status = "armed: " + _segment.Name;
+            Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed.");
         }
 
         private void CollectReferencedItemIds(Segment s)
