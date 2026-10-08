@@ -24,6 +24,14 @@ conversation concrete. Once there is a ruling, circle back and enforce it.
 
 Flower/plant coordinate display is **out of scope by the author's own call**.
 
+### The tool first (author, 2026-10-08)
+
+"Focus development on the tool rather than anything external to it, as i want
+to get the tool done ASAP." `tasks.py next` takes plugin, release and research
+tasks before site, bot and knowledge ones, whatever their priority
+(`FOCUS_AREAS` in `scripts/tasks.py`). The author still picks external work
+when they want it.
+
 ### Conventions
 
 - **Data, not code.** Locations, segments and the 100% checklist are text files

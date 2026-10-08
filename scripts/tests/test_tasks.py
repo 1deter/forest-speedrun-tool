@@ -248,6 +248,11 @@ class Next(unittest.TestCase):
         ts = [task("T-0003", priority=2), task("T-0001", priority=3), task("T-0002", priority=2)]
         self.assertEqual(T.pick_next(ts)["id"], "T-0002")
 
+    def test_the_tool_before_the_site_and_the_bot(self):
+        ts = [task("T-0001", priority=1, area="bot"), task("T-0002", priority=1, area="site"),
+              task("T-0003", priority=4, area="plugin")]
+        self.assertEqual(T.pick_next(ts)["id"], "T-0003")
+
     def test_skips_what_an_agent_cannot_do_alone(self):
         ts = [task("T-0001", priority=1, needs="author-eyes"),
               task("T-0002", priority=1, needs="author-decision", question="?"),
