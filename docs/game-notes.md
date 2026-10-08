@@ -556,6 +556,7 @@ All in `PlayerStats` (IL):
 | `CheckDeath` | Returns under `Cheats.GodMode`. `Health <= 0` and not `Dead`: swimming → `DeathInWater`, else `Dead = true` → `FallDownDead`. Called from `Hit`, `Explosion` |
 | `Fell` | `Health -= 200`; if `<= 0`, `Dead = true` → `KillPlayer`. No IL callers — sent by name, from fall triggers |
 | `hitFromEnemy` | **The last stand**: above `GreyZoneThreshold` (10), a hit that would kill is clamped to leave `Health` just over 1 (bridge: 50 - 80 -> 1.02), and `AdrenalineRush` starts; only the next hit can kill. An "empty" health bar that does not die after cannibal hits is this (runner Tom, v0.24.112) |
+| `CheckStats` / `RechargeHealth` | **The last stand re-arms**: `CheckStats` (every 2 s) starts `Invoke("RechargeHealth", 12)` while `Health <= 10` (not while `Run`); it sets `Health = 11` (`HealthTarget` stays). 11 is above the grey zone, so the next would-be-lethal enemy hit is clamped to 1 again. Bridge 2026-10-08 (T-0044, god mode off, `hitFromEnemy 28` calls): 100 -> 72 -> 44 -> 16 -> 1, 12-14 s later 11, another 28 -> 1, alive. Only a hit while `Health <= 10` kills - why "the bar was empty, then I died a few hits later" (author, Megan fight, 2026-09-27): Megan hits for 28 (live) |
 | `DeathInWater` | drowning; `Invoke("KillMeFast", 7)` — **always** a real death |
 | `KillMeFast` | death animation, `Invoke("GameOver", …)`, `KillPlayer` |
 | `KillPlayer` | `DeadTimes++`. SP: in the endgame and `IsFightingBoss` → `EndgameWakeUp`; `DeadTimes > 1` → dead cam, `Cheats.PermaDeath` deletes the save, `Invoke("GameOver", 6)`; otherwise the **capture** (wake in a cave) |
@@ -963,8 +964,10 @@ cutscene transforms **the same** `girlMutant(Clone)` into the boss
 (`creepyAnimatorControl.activateGirlMutant`: `girlFullyTransformed`, a new
 `girlSpawnGo` root at her seat, `girlStartPos`). None of it is in the save.
 She spawns babies as `bossBabySpawner(Clone)` + `mutant_baby(Clone)NNNN`
-roots (`girlMutantAiManager.spawnedBabies` = the spawners); they die a
-moment after her. Her death leaves `girlMutant_RAGDOLL(Clone)` +
+roots (`girlMutantAiManager.spawnedBabies` = the spawners); they do
+**not** die with her (2026-10-08: three alive 36 s after her death - the
+earlier "a moment after her" was most likely their 300 s timer; *Megan's
+boss AI* below). Her death leaves `girlMutant_RAGDOLL(Clone)` +
 `girl_Pickup(Clone)` and destroys `girlMutant(Clone)`; destroying her
 directly drops nothing (`creepyAnimEvents.OnDisable` stops the boss music).
 Resetting the trigger / sequence and re-arming `setupGirlMutant` with a new
@@ -1041,7 +1044,7 @@ Explained for runners in `knowledge/cards/cannibal-ai.md`; the facts:
   overlapping after a rope); the 5.5 m/s `doClampVelocity` has no caller in
   code (`ilscan strings` finds none).
 
-## Megan's boss AI (FSM export + code + bridge, 2026-10-03)
+## Megan's boss AI (FSM export + code + bridge, 2026-10-03, 2026-10-08)
 
 The runner-facing version is `knowledge/cards/megan-boss.md`; FSMs in
 `docs/fsm/megan-*.txt`. PlayMaker checks **global transitions before the
@@ -1061,9 +1064,62 @@ attack / walk back, no 15 s lock; else dodge weight 0 for 15 s after
 counter only) is 0.03 / 0.63 = 4.76%. Co-op health: `Health + Health/3 x n`,
 n = every player within 350 m incl. you (616 / 739 / 800 cap). Thrown spear
 (plain and upgraded) `ArrowDamage.damage` 40 (live), no head bonus. Explosion: flat 30 (live 370 -> 340), 25%
-stagger for 10 s. 370 health on Normal (live). Births stop once
-`spawnedBabies` (the spawners, never destroyed) holds more than 2 - live 6
-spawners / 5 babies in `ruben-megan`. Melee 28 x `creepyDamageRatio`.
+stagger for 10 s. 370 health on Normal (live). Melee 28 x
+`creepyDamageRatio`.
+
+**Checked live 2026-10-08 (T-0044, bridge, `ruben-megan`, Normal, v0.24.256).**
+Method: PlayMaker's own transition log - `set static:HutongGames.PlayMaker.FsmLog
+LoggingEnabled true`, then `PlayMakerFSM.Fsm.MyLog.Entries[i].TextWithTimecode`
+(`ENTER:` / `EXIT:` / `EVENT:` lines; `.Time` is `FsmTime.RealtimeSinceStartup`).
+**`Fsm.Init` sets `LoggingEnabled = false` outside the editor**
+(PlayMaker.dll, decompiled), so every new FSM (a restore, a baby spawning)
+turns it off - re-set it every few frames. Three fights, ~1100 s, the
+player in god mode, polled 6x a second for her distance:
+- Dodge roll: 0 of 6 in the first 15 s, 17 of 97 after (0.25 : 1 = 20%).
+  The `gettingHit` branch never came up: 45 `HitReal 1` calls at 0.3-2.5 s
+  gaps, 12 dodge rolls after them, `attackOrDodge` 0 times. By the FSM it
+  cannot: every hit goes `gotHit` (0.2 s) -> `counterAttack` (1.2 s swing,
+  or `toMainAttack` -> `chooseAttack` beyond 8 m, 38 of 45), and the next
+  `chanceToDodge` is >= 1.6 s after the hit; `resetGettingHit` runs at 1.3 s.
+- **A dodge carries her far**: `doDodge2` (animator `dodgePlayer`, root
+  motion) moved her 28-55 m in 2.5 s (5 dodges), `doWalkback` up to 35 m;
+  she ends 35-65 m from a still player -> leap / run / `chooseAction`.
+- `chooseAttack`: 130 picks, all in their bands (stomp 2.4-7.7 m, close
+  8.3-11.9, mid 13-23.7, long 32-35.7, leap 38.5-47.2, run 50.6+; a few
+  outliers within the poll's 0.4 s timing). `runToPlayer 2` -> second run +
+  arm smash 14 of 26. Spin: 10 of 161 close / mid / counter rolls (6.2%);
+  `fsmSpinAttackWeight` 0.03 read.
+- `chooseAction` (walk 1.0-2.0 s first, 50 timed): 27 birth / 32 attack /
+  11 walk forward of 70, plus 5 with the player beyond 105 m ->
+  `moveAroundWorld` -> `findWaypoint`.
+- `setAiParams` runs **twice a second** (`InvokeRepeating` 1 s + its own
+  `Update` timer 1 s): a weight set to 99 every 3 frames was reset at a
+  fixed phase (x.65 s) and a drifting one (x.72 -> x.83 s).
+- Births: one `tempBirth` drops **6** spawners (0 -> 2 -> 3 -> 4 -> 6 in
+  1.4 s, twice; `birthLeft` / `birthRight` fire 3x each). A blocked roll
+  (`fsmBlockBabySpawn`, > 2 spawners) -> `moveAwayFromPlayer 2` -> `return`
+  -> `chooseAction` the same frame (24 times). **Spawners are destroyed
+  when their baby dies** (`removeFromSpawn` -> `amount_baby--` ->
+  `updateSpawnConditions` destroys an empty spawner; `setAiParams` drops
+  nulls): `killThisEnemy` on one baby 6 -> 5 at once; the 300 s baby timer
+  6 -> 0 exactly 300 s after a birth, then she gave birth again. First birth
+  28.8 s into a fight with the player standing still (a dodge 12 -> 65 m).
+  Three babies alive 36 s after Megan died in the boss room (health 5).
+- Explosions: 13 calls at 0-60 m, each -30; two calls two frames apart
+  40 -> 10 -> 10 (`explodeBlock`, reset by `Invoke(.., 0.1)`). Stagger 2
+  of 9 rolls, lasted 10.00 s, explosions during it do not re-roll; the
+  flinch (`hitExplode`) 1.0 s. On the seated (untransformed) Megan two
+  explosions left 370 and the FSM in `init`.
+- Leash: `girlStartPos` is (0, 0, 0) until `activateGirlMutant`, so
+  `fsmGoHomeBool` is true then (read live) and every fight starts with
+  `moveToPlayer` -> `goToHome` -> `findHomePoint` -> `runForward` (returns
+  at once, home = her seat); first attack 2.16 s after `begin` (both logged
+  starts). `girlStartPos` moved 305 m from the player: false; 315 m: true,
+  next cycle `findHomePoint` -> `runForward` (7 s, or `targetDist` < 24).
+- Megan's hits on the player, god mode off: 100 -> 72 -> 44 -> 16 -> 1
+  (the last stand) -> dead 2.2 s later (`Death (BossWake, Automatic)`).
+- `coolDown` lasted 0.37-0.81 s (85; its `Wait` is 0.8 s) - what cuts it
+  short is not known.
 
 ## Enemies across an in-place restore (IL, v0.24.5, corrected v0.24.10)
 

@@ -1,13 +1,13 @@
 ---
 id: deaths-and-revives
 title: Deaths - the first-death cave warp, death in water, the last stand
-aliases: death, dying, first death, death warp, cave warp, wake up in cave, captured, drag away, cave 2 dead place, death skip, second death, game over, permadeath, last stand, adrenaline, grey zone, drowning, death in water, boss fight death, reload save on death, quick load
+aliases: death, dying, first death, death warp, cave warp, wake up in cave, captured, drag away, cave 2 dead place, death skip, second death, game over, permadeath, last stand, adrenaline, grey zone, drowning, death in water, boss fight death, empty health bar, health recharge, rechargehealth, reload save on death, quick load
 tags: deaths, route, caves
 confidence: live
-checked: 2026-10-03
+checked: 2026-10-08
 sources: game-notes "Deaths", "Speedrun tech and the endgame gate" (First death; Overnight sweep: Deaths)
 related: pausing-and-game-time, fall-damage, swimming, caves-and-loading, forestoverlay
-code: PlayerStats.KillPlayer, PlayerStats.CheckDeath, PlayerStats.DeathInWater, PlayerStats.KillMeFast, PlayerStats.hitFromEnemy, PlayerStats.Fell, DeadSpotController, PlayerStats.EndgameWakeUp
+code: PlayerStats.KillPlayer, PlayerStats.CheckDeath, PlayerStats.DeathInWater, PlayerStats.KillMeFast, PlayerStats.hitFromEnemy, PlayerStats.RechargeHealth, PlayerStats.Fell, DeadSpotController, PlayerStats.EndgameWakeUp
 ---
 
 # Deaths
@@ -51,6 +51,15 @@ An "empty" health bar that survives cannibal hits is this [live]. Fall
 damage and explosions do not go through this path (fall damage calls `Hit`
 directly).
 
+**It re-arms.** While your health is 10 or less the game checks every 2 s
+and, 12 s later, sets it to 11 (`RechargeHealth`; not while sprinting).
+At 11 you are above the grey zone again, so the next hit that would kill
+you leaves you on 1 again. With an empty-looking bar you survive every
+enemy hit that comes 12-14 s or more after the last one; only a hit
+inside that window kills [code + live: 1 health, 12-14 s later 11,
+another 28-damage hit -> 1, alive]. This is how "my bar was empty but I
+died only a few hits later" happens in the Megan fight (megan-boss).
+
 ## Fall deaths
 
 - A landing over 28 m/s does `0.9 x v² / 27.5` damage; at the max fall
@@ -71,4 +80,6 @@ and a spot set, it can revive you at the spot instead (practice only).
 
 The DeadSpots read live (all seven entries the same object); the death
 paths read from the decompiled `PlayerStats`; the last stand reproduced over
-the bridge (50 health - 80 damage -> 1.02).
+the bridge (50 health - 80 damage -> 1.02); its re-arm (1 -> 11 after
+12-14 s, then another lethal hit -> 1) and Megan's hits (28 each, 100 -> 1
+-> dead) over the bridge 2026-10-08 (T-0044).
