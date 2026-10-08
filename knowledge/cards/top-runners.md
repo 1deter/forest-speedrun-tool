@@ -1,11 +1,11 @@
 ---
 id: top-runners
 title: Top runners, records and leaderboards (speedrun.com)
-aliases: who holds the record, who holds the wr, no explosive glitch record, neg record, neg creative record, any% no explosive glitch creative, who is d.eter, who is deter, about d.eter, top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates, d.eter, deter, 1deter
+aliases: who holds the record, who holds the wr, no explosive glitch record, neg record, neg creative record, any% no explosive glitch creative, who is d.eter, who is deter, about d.eter, top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, maks, max, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates, d.eter, deter, 1deter
 tags: categories, community
 confidence: runner
 checked: 2026-10-04
-sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04; d.eter: the author's own account, 2026-10-07
+sources: speedrun.com API v1, game w6j5341j (The Forest): every full-game board's top 3 with players and dates, and the moderators, read 2026-10-04; d.eter: the author's own account, 2026-10-07; yirequ = maks / max: d.eter, 2026-10-08
 related: categories-and-rules, hundred-percent, routes
 code: Categories.Seeds
 ---
@@ -66,7 +66,7 @@ with yirequ, and with the co-op boards counted yirequ has the most
   Hardmode / Creative. Co-op: 2nd (with RF) on all four Co-op Any% boards
   and Coop Glitchless Normal / Hardmode / Creative, 3rd in Coop
   Glitchless Peaceful (with CrypticAurum and RF). One of the moderators.
-- **yirequ** - solo: 1st Any% Glitchless Peaceful 18:59.966, Normal
+- **yirequ** (also goes by maks or max) - solo: 1st Any% Glitchless Peaceful 18:59.966, Normal
   18:54.266, Hardmode 18:54.300, Creative 15:09.733; 1st No Explosive
   Glitch Creative 5:48.433. Co-op: 1st on all 8 boards - Co-op Any%
   Peaceful 6:07.333, Normal 5:45.083, Hardmode 5:45.600, Creative 5:08.550

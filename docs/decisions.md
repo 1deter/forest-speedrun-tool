@@ -319,9 +319,13 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   trigger", "Session-start line"). A `workflow_dispatch` input on bot.yml
   runs the full set or a named list; local live-model runs stay off
   (bot/CLAUDE.md). The session-start report counts new 👎 / partial queue
-  items and knowledge-testing messages since the last review; any new one
-  makes the review due (Claude's default for the threshold - the author
-  can raise it).
+  items and uses of the bot in knowledge-testing (`/ask` answers, mentions,
+  replies to it - not runners chatting: author, 2026-10-08, three reviews
+  flagged by chat) since the last review; any new one makes the review due
+  (Claude's default for the threshold - the author can raise it). Runners
+  mostly `/ask` in the speedrun server's general chat, which the bot cannot
+  read (its admins have to grant the permission - author, 2026-10-08), so
+  the answer log is the better signal (T-0220).
 - **Scope: any Forest-related question** (author, 2026-10-07): "it can
   answer any forest-related question, whether it's tech, routing, or
   information about a specific runner" - everything around speedrunning

@@ -7,6 +7,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 |---|---|---|
 | neg, neg creative, no explosive glitch record | Any% No Explosive Glitch board; Creative record holder and the world-record counts are on the top-runners card | top-runners |
 | wr, world record holder, most wrs | speedrun.com record holders, per category | top-runners |
+| maks, max | the runner yirequ (same person; Any% Glitchless and neg Creative world records) | top-runners |
 | d.eter, deter | ForestOverlay's developer (the speedrun tool and forest.deter.cloud); a former world-record holder in the old Any% Normal category (his own account) | top-runners |
 | bb, bomb boost, pause boost, menu boost | explosion knockback stacked while the pause menu is open | bomb-boost |
 | trap boost, rock trap boost | the large swinging rock trap's knockback, stacked like a bomb boost | knockback-sources |

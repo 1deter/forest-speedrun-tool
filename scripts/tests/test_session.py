@@ -186,13 +186,17 @@ class BotFeedback(unittest.TestCase):
         self.assertEqual(S.parse_queue_ids(out), [12, 15])
         self.assertEqual(S.parse_queue_ids(""), [])
 
-    def test_new_messages_are_humans_after_the_mark(self):
-        msgs = [{"id": "999", "author": {"id": "1"}},
-                {"id": "1001", "author": {"id": "2", "bot": True}},
-                {"id": "1002", "author": {"id": "3"}},
-                {"id": "10000", "author": {"id": "4"}}]   # compared as ints, not strings
-        self.assertEqual([m["id"] for m in S.new_messages(msgs, "1000")], ["1002", "10000"])
-        self.assertEqual(S.new_messages(msgs, "1000", bot_id="3")[0]["id"], "10000")
+    def test_bot_use_only_counts_messages_involving_the_bot(self):
+        bot = {"id": "9", "bot": True}
+        msgs = [{"id": "999", "author": {"id": "1"}, "mentions": [bot]},                 # before the mark
+                {"id": "1001", "author": {"id": "2"}},                                    # runners chatting
+                {"id": "1002", "author": {"id": "3"}, "mentions": [{"id": "2"}]},         # mentions a person
+                {"id": "1003", "author": {"id": "3"}, "mentions": [bot]},                 # @bot question
+                {"id": "1004", "author": bot, "interaction_metadata": {"id": "5"}},       # /ask answer
+                {"id": "1005", "author": bot},                                            # the bot's own follow-up
+                {"id": "1006", "author": {"id": "2"}, "referenced_message": {"author": bot}},  # reply to an answer
+                {"id": "10000", "author": {"id": "4"}, "mentions": [bot]}]               # compared as ints, not strings
+        self.assertEqual([m["id"] for m in S.bot_use(msgs, "1000")], ["1003", "1004", "1006", "10000"])
 
     def test_mark(self):
         self.assertEqual(S.read_mark('{"date":"2026-10-07","queue_id":12,"message_id":"1000"}'), self.MARK)
@@ -232,7 +236,7 @@ class BotFeedback(unittest.TestCase):
             S.check_testing_messages = lambda after: ([{"id": "1001"}], None)
             line, due = S.check_bot_feedback()
             self.assertTrue(due)
-            self.assertIn("2 new thumbs-down / partial queue items, 1 new knowledge-testing messages", line)
+            self.assertIn("2 new thumbs-down / partial queue items, 1 new uses of the bot in knowledge-testing", line)
         finally:
             S.REVIEW_MARK, S.check_queue_ids, S.check_testing_messages = saved
 

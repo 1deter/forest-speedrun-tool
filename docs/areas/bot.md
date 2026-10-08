@@ -40,8 +40,10 @@ model is the author's later call (after research sessions polish
 
 **The bot review** (T-0141, author 2026-10-07: as often as there is
 feedback): the session-start report's "bot feedback" line counts the 👎 /
-partial queue items and the humans' knowledge-testing messages newer than
-`docs/bot-reviews/mark.json`; any new one = `! bot review due`, and skill
+partial queue items and the uses of the bot in knowledge-testing (an
+`/ask` answer, an @mention of the bot, a reply to the bot) newer than
+`docs/bot-reviews/mark.json` - runners chatting there don't count (author,
+2026-10-08: three reviews in a row flagged by chat); any new one = `! bot review due`, and skill
 `bot-review` runs it (full eval, queue, channel, research, a report in
 `docs/bot-reviews/<date>.md`, the mark moved). The full eval is bot.yml's
 `workflow_dispatch` (`gh workflow run bot.yml -f eval_ids=all`, or ids):

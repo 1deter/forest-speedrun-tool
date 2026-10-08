@@ -186,14 +186,21 @@ def parse_queue_ids(text):
     return [int(m.group(1)) for m in re.finditer(r"^#(\d+) ", text or "", re.M)]
 
 
-def new_messages(msgs, after_id, bot_id=None):
-    """Humans' messages newer than the mark: Discord messages (dicts), snowflake ids compared as ints."""
+def bot_use(msgs, after_id):
+    """Messages newer than the mark that involve the bot (Discord messages as dicts, snowflake ids
+    compared as ints): an /ask answer, a human mentioning a bot, or a human replying to a bot.
+    Runners chatting with each other in the channel do not count (a false review flag, 2026-10-08)."""
     out = []
     for m in msgs or []:
-        a = m.get("author") or {}
-        if a.get("bot") or (bot_id and a.get("id") == bot_id):
+        if int(m["id"]) <= int(after_id or 0):
             continue
-        if int(m["id"]) > int(after_id or 0):
+        a = m.get("author") or {}
+        if a.get("bot"):
+            if m.get("interaction_metadata") or m.get("interaction"):
+                out.append(m)
+            continue
+        ref = m.get("referenced_message") or {}
+        if any(u.get("bot") for u in m.get("mentions") or []) or (ref.get("author") or {}).get("bot"):
             out.append(m)
     return out
 
@@ -212,7 +219,7 @@ def feedback_line(mark, queue_new, msgs_new, notes=()):
     if mark is None:
         return ("bot feedback: no review mark (docs/bot-reviews/mark.json) - the first review is due, skill bot-review", True)
     parts = []
-    for n, what in ((queue_new, "new thumbs-down / partial queue items"), (msgs_new, "new knowledge-testing messages")):
+    for n, what in ((queue_new, "new thumbs-down / partial queue items"), (msgs_new, "new uses of the bot in knowledge-testing")):
         parts.append("%s unknown" % what if n is None else "%d %s" % (n, what))
     due = bool((queue_new or 0) + (msgs_new or 0))
     s = "bot feedback since the review of %s: %s" % (mark["date"], ", ".join(parts))
@@ -323,7 +330,7 @@ def check_queue_ids():
 
 
 def check_testing_messages(after_id):
-    """(humans' messages since after_id, note) from the knowledge-testing channel, read-only REST.
+    """(messages since after_id that involve the bot, note) from the knowledge-testing channel, read-only REST.
     The QA bot token is read from the environment and never printed or put in a message."""
     token = user_env("FOREST_QA_BOT_TOKEN")
     if not token:
@@ -339,7 +346,7 @@ def check_testing_messages(after_id):
         return None, "channel: Discord answered %d" % e.code
     except Exception as e:
         return None, "channel: %s" % type(e).__name__
-    return new_messages(msgs, after_id), None
+    return bot_use(msgs, after_id), None
 
 
 def check_bot_feedback():
@@ -509,7 +516,7 @@ def report(force_local=False):
         fb_line, fb_due = f_feedback.result(timeout=60)
         lines.append(fb_line)
         if fb_due:
-            problems.append("bot review due - skill bot-review (new queue items / knowledge-testing messages)")
+            problems.append("bot review due - skill bot-review (new queue items / uses of the bot in knowledge-testing)")
     except Exception as e:
         lines.append("bot feedback: check failed (%s)" % type(e).__name__)
 
