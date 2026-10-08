@@ -3790,7 +3790,8 @@ So the cancel is: the fast first contact is a face too steep to ground on
 (PhysX turns the fall into a slide and removes most of the speed), and the
 next collision **enter** - which overwrites `prevVelocity` - happens at the
 slide's speed before any grounded step. A grid of 80 drops from y -50
-(~20 m, ~32 m/s) over x 1277-1287.5, z 579-593 (1.5 m step): straight onto
+(~20 m; 32.5 m/s measured at the impact - more than g 16 over 20 m
+gives, not explained yet) over x 1277-1287.5, z 579-593 (1.5 m step): straight onto
 the floor 20 of 21 took damage; drops that touched a pile were cancelled
 20 of 45 times (on the pile or after sliding off it onto the floor);
 14 stopped on rock ledges at y -49..-54. At four cancelling spots, from

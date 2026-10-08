@@ -33,7 +33,7 @@ contact instead of the fall [live: drops onto the piles; the runners' own
 jump from the shaft is not reproduced].
 
 **It depends on the exact spot.** In a grid of 80 drops from ~20 m
-(~32 m/s) over the piles and the floor around them [live]:
+(~32 m/s measured at the impact) over the piles and the floor around them [live]:
 - straight onto the bare floor: damage 20 times out of 21;
 - touching a pile (staying on it or sliding off it onto the floor): **no
   damage 20 times out of 45**, damage the other 25;
@@ -90,7 +90,7 @@ low on your capsule (around your feet) [code]. Hitting a steep face starts
 a collision - and stores its speed - but does not land you [live].
 
 **The body slide, as measured** [live] - three drops from the same height
-(~32 m/s), read every frame:
+(~32 m/s measured at the impact), read every frame:
 - **Bare floor**: the collision starts at 32.5 m/s, you stop dead, the next
   physics step grounds you -> judged 32.5 -> **34 damage**.
 - **A pile, bad spot**: the collision starts at 31.6 m/s, the lump deflects

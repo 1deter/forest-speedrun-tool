@@ -86,8 +86,8 @@ sphere of **2 m** radius, switched on **0.75 s after the launch** (during
 the first 0.75 s of its flight it hits nothing). If that sphere reaches
 your body while the rock moves at **7.2 m/s or more**, you get the full
 knockback - 25 damage, turned to face the rock, pushed straight away from
-it - exactly like a bomb, and it can be pause-stacked the same way
-(`bomb-boost`). A slower rock does nothing, even if it bounces off you.
+it - exactly like a bomb. By the code it can be pause-stacked the same way
+(`bomb-boost`) [code - not tried after a rock hit]. A slower rock does nothing, even if it bounces off you.
 
 Why 7.2 m/s: the game's check is `checkVel >= 12`, where `checkVel` is
 the distance the rock moved in the last physics step x 100. The physics
