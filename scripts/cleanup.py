@@ -79,6 +79,22 @@ def same_path(a, b):
     return os.path.normcase(os.path.normpath(a)) == os.path.normcase(os.path.normpath(b))
 
 
+def local_to_delete(local, worktrees):
+    """Local branches to delete: the merged ones survey() found plus those of the merged worktrees
+    just removed (a branch is free once its worktree is gone). Each name once - survey() already
+    lists a merged worktree's branch, and a second `branch -D` of it fails (T-0169)."""
+    names = [name for name, merged in local if merged]
+    for wt, st in worktrees:
+        if st == "merged" and wt["branch"] and wt["branch"] not in KEEP_BRANCHES:
+            names.append(wt["branch"])
+    seen, out = set(), []
+    for name in names:
+        if name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
+
+
 def survey():
     """What is merged and what is live. Read-only; session-start prints it.
 
@@ -224,14 +240,11 @@ def main(argv=None):
         elif state == "dirty":
             print("kept worktree %s (%s): uncommitted changes" % (wt["path"], wt["branch"] or "detached"))
     # A branch a just-removed worktree held is free now.
-    removed_wt_branches = {wt["branch"] for wt, st in s["worktrees"] if st == "merged" and wt["branch"]}
-    local = s["local"] + [(b, True) for b in removed_wt_branches if b not in KEEP_BRANCHES]
-    for name, merged in local:
-        if merged:
-            did += 1
-            if not a.dry_run:
-                git("branch", "-D", name, check=True)   # merged into origin/main, checked above
-            print("%s local branch %s (merged)" % (verb, name))
+    for name in local_to_delete(s["local"], s["worktrees"]):
+        did += 1
+        if not a.dry_run:
+            git("branch", "-D", name, check=True)   # merged into origin/main, checked above
+        print("%s local branch %s (merged)" % (verb, name))
     gone = [name for name, merged in s["remote"] if merged]
     if gone:
         did += len(gone)
