@@ -5,6 +5,8 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 
 | Term | Meaning | Card |
 |---|---|---|
+| neg, neg creative, no explosive glitch record | Any% No Explosive Glitch board; Creative record holder and the world-record counts are on the top-runners card | top-runners |
+| wr, world record holder, most wrs, d.eter, deter | speedrun.com record holders and who d.eter is (ForestOverlay's developer) | top-runners |
 | bb, bomb boost, pause boost, menu boost | explosion knockback stacked while the pause menu is open | bomb-boost |
 | trap boost, rock trap boost | the large swinging rock trap's knockback, stacked like a bomb boost | knockback-sources |
 | knockback | `PlayerStats.Explosion`'s push: 8 m/s per frame for ~0.16 s, straight away from the source | knockback-sources |

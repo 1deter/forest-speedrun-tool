@@ -1,7 +1,7 @@
 ---
 id: top-runners
 title: Top runners, records and leaderboards (speedrun.com)
-aliases: top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates, d.eter, deter, 1deter
+aliases: who holds the record, who holds the wr, no explosive glitch record, neg record, neg creative record, any% no explosive glitch creative, who is d.eter, who is deter, about d.eter, top runners, top 3, top three, best runners, best speedrunners, fastest runners, top speedrunners, who is the best, world record, world records, wr, wr holder, records, record holder, leaderboard, leaderboards, rankings, ranking, pb, most world records, most wrs, first place, first places, co-op records, coop records, co-op wr, worst runner, bottom of the board, cheesecake, cheesecake404, sxczurass, yirequ, fruich, crypticaurum, setzspeed, itsslack, slack, buntstift, swaggyswaggster, rf, monsterkar, moderators, mods, who moderates, d.eter, deter, 1deter
 tags: categories, community
 confidence: runner
 checked: 2026-10-04
@@ -22,6 +22,12 @@ Snapshot of 2026-10-04; the boards change, so check speedrun.com for the
 current ones.
 
 ## Who is on top: world records (solo and co-op) and top-3 places
+
+**Quick answers.** No Explosive Glitch (neg) Creative record: yirequ
+5:48.433 (2nd sxczurass 5:50.050, 3rd Cheesecake404 5:54.350). Most world
+records: by first places Cheesecake404 and yirequ tie with 5 solo boards
+each (sxczurass 4); yirequ is also on the first-place team of all 8 co-op
+boards. Who is d.eter: see the last entry of *Each runner's places*.
 
 **What this card has:** only the **top 3** of each board. Places below 3rd
 (who is 4th, who is last, how many runs a board has) are not in it - for

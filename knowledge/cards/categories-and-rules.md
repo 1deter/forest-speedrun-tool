@@ -1,7 +1,7 @@
 ---
 id: categories-and-rules
 title: Speedrun categories and their rules (speedrun.com)
-aliases: categories, category, rules, leaderboard, leaderboards, speedrun.com, src, any%, any percent, any% no explosive glitch, no explosives glitch, neg, bombless, any% bombs, glitchless, any% glitchless, coop, co-op, co-op any%, coop glitchless, inbounds, inbounds%, oob, out of bounds, vr%, vr, bathrobe%, shark%, 100%, hundo, world record, wr, records, difficulty, peaceful, normal, hardmode, hard mode, creative category, timing rules, when does the timer start, when does the run end, banned, allowed, is it legal
+aliases: categories, category, rules, speedrun.com, src, any%, any percent, any% no explosive glitch, no explosives glitch, neg, bombless, any% bombs, glitchless, any% glitchless, coop, co-op, co-op any%, coop glitchless, inbounds, inbounds%, oob, out of bounds, vr%, vr, bathrobe%, shark%, 100%, hundo, difficulty, peaceful, normal, hardmode, hard mode, creative category, timing rules, when does the timer start, when does the run end, banned, allowed, is it legal
 tags: categories, rules, timing
 confidence: runner
 checked: 2026-10-03
@@ -126,7 +126,7 @@ The written Glitchless rules name only OOB and clipping through walls.
 - Real time only: load times count, and so does any time spent paused
   (a bomb boost's seconds in the menu are on the clock).
 
-## Records, top runners and moderators
+## Where the times and holders are
 
 The top 3 of every board, who holds the most of them, what the gaps
 between categories say, and the moderators: `top-runners`. The full 100%
