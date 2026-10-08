@@ -570,10 +570,12 @@ class AtomicSave(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "tasks.jsonl")
             T.save([task("T-0001")], path, None)
-            before = open(path, encoding="utf-8").read()
+            with open(path, encoding="utf-8") as f:
+                before = f.read()
             with self.assertRaises(T.TaskError):
                 T.save([task("T-0001"), task("T-0001")], path, None)  # duplicate id: validate refuses
-            self.assertEqual(open(path, encoding="utf-8").read(), before)
+            with open(path, encoding="utf-8") as f:
+                self.assertEqual(f.read(), before)
             self.assertEqual(os.listdir(d), ["tasks.jsonl"])
 
     def test_replace_is_retried_on_a_permission_error(self):

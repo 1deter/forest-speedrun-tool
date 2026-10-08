@@ -88,8 +88,9 @@ and is taken over: the waiter renames it to a name of its own, checks its age
 again there, and puts it back if it turns out fresh, so a takeover never
 deletes a lock another waiter has just made. `save()` writes a temp file next
 to the target and `os.replace()`s it (retrying ~1 s on Windows'
-`PermissionError` while a reader has the file open), so a reader sees the old
-file or the new one, and a crash leaves the old one. Slow git calls stay
+`PermissionError` while a reader has the file open; readers - `load()`,
+`lint.py` - retry their open the same way while the swap happens), so a
+reader sees the old file or the new one, and a crash leaves the old one. Slow git calls stay
 outside the lock (`bump.py` asks git first, then re-plans under the lock from
 the cached answers; `loop.py` locks only to save a park). Recovery: if a
 command says the file is locked and no tasks.py / loop.py / bump.py is

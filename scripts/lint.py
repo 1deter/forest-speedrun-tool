@@ -38,6 +38,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _spec = importlib.util.spec_from_file_location("log_catalogue", os.path.join(ROOT, "scripts", "log-catalogue.py"))
@@ -201,12 +202,23 @@ def index_lines(root=ROOT):
 
 
 def task_statuses(root=ROOT):
+    # Windows refuses the open for a moment while tasks.py os.replace()s the
+    # file (T-0201): retry briefly instead of failing the lint.
+    path = os.path.join(root, TASKS)
+    for attempt in range(50):
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                text = f.read()
+            break
+        except PermissionError:
+            if attempt == 49:
+                raise
+            time.sleep(0.1)
     out = {}
-    with open(os.path.join(root, TASKS), encoding="utf-8-sig") as f:
-        for line in f:
-            if line.strip():
-                t = json.loads(line)
-                out[t["id"]] = t["status"]
+    for line in text.splitlines():
+        if line.strip():
+            t = json.loads(line)
+            out[t["id"]] = t["status"]
     return out
 
 
