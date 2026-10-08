@@ -233,7 +233,7 @@ Spots, runs, attempts, categories, admin, the API, the PB webhook.
 
 ### Site maps and 3D world
 
-Paths: `site/ForestSite/wwwroot/{map.js,map3d.js,world3d.js}` `site/ForestSite/wwwroot/terrain/` `site/ForestSite/wwwroot/vendor/` `scripts/{aerial-bake,aerial-upload,cave-bake,terrain-bake,world-extract,world_pack,site-look,site-measure}.py`
+Paths: `site/ForestSite/wwwroot/{map.js,map3d.js,world3d.js}` `site/ForestSite/wwwroot/terrain/` `site/ForestSite/wwwroot/vendor/` `scripts/{aerial-bake,aerial-upload,cave-bake,terrain-bake,world-extract,world_pack,world_checks,site-look,site-measure}.py`
 
 The photo map, caves, the 3D world and the export / bake pipeline.
 - Verification **C**: checked by eye (gotcha 68: render the page and

@@ -54,6 +54,7 @@ import sys
 
 import numpy as np
 import UnityPy
+import world_checks
 import world_pack
 from UnityPy.helpers.MeshHelper import MeshHandler
 
@@ -805,8 +806,16 @@ class Export:
 
 
 def export(out):
-    e = Export(out)
     world = os.path.join(os.path.dirname(GAME), "BepInEx", "config", "ForestOverlay", "world")
+    # Before the long read: a diagnostic Placed dump left in the folder is a second copy of the geometry (gotcha 78).
+    dumps = {}
+    for n in world_checks.placed_files(os.listdir(world) if os.path.isdir(world) else []):
+        with open(os.path.join(world, n), encoding="utf-8") as f:
+            dumps[os.path.join(world, n)] = f.readlines()
+    problem = world_checks.duplicates_message(world_checks.duplicate_placements(dumps))
+    if problem:
+        sys.exit(problem)
+    e = Export(out)
     e.read_members(os.path.join(world, "area-members.txt"))
     for level in [2, 7, 11] + list(range(15, 31)):
         e.scene(level)
