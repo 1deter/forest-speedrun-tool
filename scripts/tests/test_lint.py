@@ -360,8 +360,326 @@ class Lifecycle(unittest.TestCase):
         (c, m, n, body), = L.message_methods(src)
         self.assertTrue(L.body_wrapped(body))
 
+    def test_brace_in_a_block_comment_is_not_a_brace(self):
+        src = ("public class A : MonoBehaviour\n{\n    private void Update()\n    {\n"
+               "        /* old: if (x) { */\n        try { Go(); }\n        catch (Exception ex) { Lifecycle.Fail(\"A.Update\", ex); }\n"
+               "        /*\n         }\n        */\n    }\n    private void LateUpdate() { Go(); }\n}\n")
+        got = [(c, m, n, b is not None and L.body_wrapped(b)) for c, m, n, b in L.message_methods(src)]
+        self.assertEqual(got, [("A", "Update", 3, True), ("A", "LateUpdate", 12, False)])
+
+    def test_block_comment_strip_keeps_lines_and_strings(self):
+        src = 'a /* x\n y */ b "/* not */" // /* nor */\nc'
+        out = L.strip_block_comments(src)
+        self.assertEqual(out.count("\n"), src.count("\n"))
+        self.assertIn('"/* not */"', out)
+        self.assertIn("// /* nor */", out)
+        self.assertNotIn(" x", out)
+
     def test_repo_has_no_unwrapped_method(self):
         self.assertEqual(L.lifecycle_hits(), [])
+
+
+class Mojibake(unittest.TestCase):
+    EM_DASH_GARBLED = "\u00e2\u20ac\u201d"
+
+    def test_clean_text_passes(self):
+        self.assertEqual(L.check_mojibake({"a.md": "plain \u2014 dash, caf\u00e9, \u00c9cole\n"}), [])
+
+    def test_garbled_dash_fails_with_fix_text(self):
+        out = text(L.check_mojibake({"docs/x.md": "ok\nthe %s here\n" % self.EM_DASH_GARBLED}))
+        self.assertIn("ERROR: docs/x.md has PowerShell mojibake on line(s) 2", out)
+        self.assertIn("gotcha 9", out)
+        self.assertIn("FIX: restore the file from git (git checkout -- docs/x.md)", out)
+
+    def test_garbled_accent_and_nbsp_fail(self):
+        for bad in ("caf\u00c3\u00a9", "a\u00c2\u00a0b"):
+            self.assertEqual(len(L.check_mojibake({"a.cs": bad})), 1, bad)
+
+    def test_quoting_docs_are_allowed(self):
+        self.assertEqual(L.check_mojibake({"docs/gotchas.md": self.EM_DASH_GARBLED}), [])
+
+    def test_repo_has_none(self):
+        self.assertEqual(text(L.check_mojibake(L.tracked_text())), "")
+
+
+DEPLOY_OK = """<#
+    Copy-Item is only mentioned here.
+#>
+$dll = Join-Path $root "bin\\$Configuration\\net35\\ForestOverlay.dll"
+Copy-Item $dll $pluginDir -Force   # the DLL
+"""
+
+
+class Deploy(unittest.TestCase):
+    def test_dll_only_passes(self):
+        self.assertEqual(L.check_deploy(DEPLOY_OK), [])
+
+    def test_data_copy_fails_with_fix_text(self):
+        out = text(L.check_deploy(DEPLOY_OK + 'Copy-Item "$root\\locations" $pluginDir -Recurse\n'))
+        self.assertIn("ERROR: scripts/deploy.ps1:6 copies", out)
+        self.assertIn("gotcha 10", out)
+        self.assertIn("FIX: embed the data in the DLL", out)
+
+    def test_other_copy_commands_fail(self):
+        for cmd in ("xcopy data $pluginDir", "robocopy data $pluginDir", "Copy-Item -Path data -Destination $pluginDir",
+                    "cp data $pluginDir"):
+            self.assertEqual(len(L.check_deploy(DEPLOY_OK + cmd + "\n")), 1, cmd)
+
+    def test_dll_by_path_flag_passes(self):
+        self.assertEqual(L.check_deploy(DEPLOY_OK.replace("Copy-Item $dll", "Copy-Item -Path $dll")), [])
+
+    def test_no_copy_at_all_fails(self):
+        self.assertEqual(len(L.check_deploy("$dll = 'ForestOverlay.dll'\n")), 1)
+
+    def test_repo_script_is_clean(self):
+        self.assertEqual(L.check_deploy(L.read(L.DEPLOY)), [])
+
+
+FINDALL_SRC = """class A {
+    // Resources.FindObjectsOfTypeAll(t) in a comment
+    /* Resources.FindObjectsOfTypeAll(t) in a block */
+    object[] Tick() { return Resources.FindObjectsOfTypeAll(typeof(Foo)); }
+    string s = "Resources.FindObjectsOfTypeAll(";
+    object[] Other() { return Object.FindObjectsOfType(typeof(Foo)); }
+}
+"""
+
+
+class FindAll(unittest.TestCase):
+    def test_only_real_call_sites_hit(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("findall", 4)])
+
+    def test_new_call_fails_with_fix_text(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        probs, stale = L.check_ui(hits, {})
+        out = text(probs)
+        self.assertIn("ERROR: a Resources.FindObjectsOfTypeAll call in src/Game/A.cs:4", out)
+        self.assertIn("gotcha 11", out)
+        self.assertIn("FIX: find once and keep it (Game/SceneCache)", out)
+
+    def test_baselined_call_passes_and_a_second_one_fails(self):
+        hits = L.findall_hits("src/Game/A.cs", FINDALL_SRC)
+        self.assertEqual(L.check_ui(hits, {L.baseline_key(hits[0]): 1}), ([], 0))
+        twice = hits + hits
+        self.assertEqual(len(L.check_ui(twice, {L.baseline_key(hits[0]): 1})[0]), 1)
+
+    def test_repo_hits_are_all_baselined(self):
+        probs, stale = L.check_ui(L.ui_hits(), L.load_baseline())
+        self.assertEqual((text(probs), stale), ("", 0))
+
+
+RENDER_SRC = """public class Good : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try
+        {
+            if (!DrawTarget.ShouldDraw()) return;
+            Draw();
+        }
+        catch (Exception ex) { Lifecycle.Fail("Good.OnRenderObject", ex); }
+    }
+}
+public class Bad : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try { Draw(); }
+        catch (Exception ex) { Lifecycle.Fail("Bad.OnRenderObject", ex); }
+    }
+    private void Update() { }
+}
+public class Mentions : MonoBehaviour
+{
+    private void OnRenderObject()
+    {
+        try { /* DrawTarget.ShouldDraw() */ Draw(); }
+        catch (Exception ex) { Lifecycle.Fail("Mentions.OnRenderObject", ex); }
+    }
+}
+"""
+
+
+class RenderObject(unittest.TestCase):
+    def test_unchecked_draw_hits(self):
+        hits = L.render_hits("src/Game/X.cs", RENDER_SRC)
+        self.assertEqual([(c, n) for p, n, c in hits], [("Bad", 15), ("Mentions", 24)])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_render(L.render_hits("src/Game/X.cs", RENDER_SRC)[:1]))
+        self.assertIn("ERROR: Bad.OnRenderObject in src/Game/X.cs:15 does not check DrawTarget.ShouldDraw()", out)
+        self.assertIn("gotcha 12", out)
+        self.assertIn("FIX: start the body with if (!DrawTarget.ShouldDraw()) return;", out)
+
+    def test_allow_listed_class_is_skipped(self):
+        src = "public class LatePass : MonoBehaviour\n{\n    private void OnRenderObject() { try { Go(); } catch (Exception) { } }\n}\n"
+        self.assertEqual(L.render_hits("src/Game/LatePass.cs", src), [])
+        self.assertEqual(len(L.render_hits("src/Game/Other.cs", src)), 1)
+
+    def test_repo_overlays_all_check(self):
+        hits = [h for p, t in L.src_texts() for h in L.render_hits(p, t)]
+        self.assertEqual(text(L.check_render(hits)), "")
+
+
+WEB_OK = """// UnityWebRequest in a comment
+var t = Type.GetType("UnityEngine.Networking.UnityWebRequest, UnityEngine");
+var h = t.GetProperty("downloadHandler");
+var c = t.GetProperty("responseCode");
+"""
+
+
+class WebRequests(unittest.TestCase):
+    def test_reader_with_response_code_passes(self):
+        self.assertEqual(L.web_request_hits("src/Core/A.cs", WEB_OK), [])
+
+    def test_reader_without_response_code_hits(self):
+        bad = WEB_OK.replace("responseCode", "isError")
+        self.assertEqual(L.web_request_hits("src/Core/A.cs", bad), [("src/Core/A.cs", 2)])
+
+    def test_response_code_only_in_a_comment_does_not_count(self):
+        bad = WEB_OK.replace('GetProperty("responseCode")', 'GetProperty("isError")') + "// responseCode\n/* responseCode */\n"
+        self.assertEqual(len(L.web_request_hits("src/Core/A.cs", bad)), 1)
+
+    def test_file_without_a_request_or_a_body_read_passes(self):
+        self.assertEqual(L.web_request_hits("a.cs", "var x = responseCode;\n"), [])
+        self.assertEqual(L.web_request_hits("a.cs", 'var t = Type.GetType("UnityWebRequest");\n'), [])
+
+    def test_fails_with_fix_text(self):
+        out = text(L.check_web_requests([("src/Core/A.cs", 2)]))
+        self.assertIn("ERROR: src/Core/A.cs:2 reads a UnityWebRequest but never checks responseCode", out)
+        self.assertIn("gotcha 15", out)
+        self.assertIn("FIX: read the request's responseCode", out)
+
+    def test_repo_readers_all_check(self):
+        hits = [h for p, t in L.src_texts() for h in L.web_request_hits(p, t)]
+        self.assertEqual(text(L.check_web_requests(hits)), "")
+
+
+MOVE_SRC = """class M {
+    private string Good(Vector3 to)
+    {
+        string area = _areas.ForTeleport(to);
+        if (!Ctx.Player.MoveTo(to, rot)) return "no";
+        return area;
+    }
+    private void Bad(Vector3 at)
+    {
+        Ctx.Player.MoveTo(at, rot);
+    }
+    public bool Other(Vector3 at)
+    {
+        // Ctx.Player.MoveTo(at, rot);
+        return Ctx.Camera.MoveTo(at);
+    }
+    private void AlsoBad(Vector3 at)
+    {
+        player.MoveTo(at, rot);
+    }
+}
+"""
+
+
+class MoveTo(unittest.TestCase):
+    def test_only_callers_without_for_teleport_hit(self):
+        hits = L.moveto_hits("src/Modules/M.cs", MOVE_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("moveto", 10), ("moveto", 19)])
+
+    def test_for_teleport_in_another_method_does_not_cover(self):
+        src = "class M {\n  void A() { _areas.ForTeleport(x); }\n  void B()\n  {\n    Ctx.Player.MoveTo(x, r);\n  }\n}\n"
+        self.assertEqual(len(L.moveto_hits("m.cs", src)), 1)
+
+    def test_statements_do_not_start_a_method(self):
+        src = ("class M {\n  void A(Vector3 x)\n  {\n    _areas.ForTeleport(x);\n    if (ok)\n    {\n"
+               "      return Foo(x);\n    }\n    Ctx.Player.MoveTo(x, r);\n  }\n}\n")
+        self.assertEqual(L.moveto_hits("m.cs", src), [])
+
+    def test_fails_with_fix_text_and_baseline_allows_it(self):
+        hits = L.moveto_hits("src/Modules/M.cs", MOVE_SRC)
+        out = text(L.check_ui(hits, {})[0])
+        self.assertIn("ERROR: a player MoveTo call in a method that does not run AreaKeeper.ForTeleport in src/Modules/M.cs:10", out)
+        self.assertIn("gotcha 34", out)
+        self.assertIn("FIX: call string area = _areas.ForTeleport(dest) before MoveTo", out)
+        base = {L.baseline_key(h): 1 for h in hits}
+        self.assertEqual(L.check_ui(hits, base), ([], 0))
+
+    def test_the_definition_is_not_a_caller(self):
+        self.assertEqual(L.moveto_hits("src/Game/PlayerRef.cs", "public bool MoveTo(Vector3 position, Quaternion rotation)\n{\n}\n"), [])
+
+
+CFG_SRC = """class M {
+    float Bad(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (op != Opacity) _opacityCfg.Value = op;
+        return y;
+    }
+    string BadText(float y)
+    {
+        string t = GUI.TextField(new Rect(0, y, 90, 22), _name);
+        if (t != _name) { _name = t; _nameCfg.Value = t; }
+        return t;
+    }
+    float Settled(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (op != Opacity) { _now = op; _writeAt = Time.unscaledTime + 0.5f; }
+        if (Time.unscaledTime > _writeAt) _opacityCfg.Value = _now;
+        return y;
+    }
+    float OnRelease(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        if (Event.current.type == EventType.MouseUp) _opacityCfg.Value = op;
+        return y;
+    }
+    void Toggle(float y)
+    {
+        float op = GUI.HorizontalSlider(new Rect(0, y, 90, 16), Opacity, 0f, 1f);
+        bool on = GUI.Toggle(new Rect(0, y, 90, 16), _on.Value, "x");
+        if (on != _on.Value) _on.Value = on;
+        if (a == b) c = d;
+    }
+}
+"""
+
+
+class CfgWrite(unittest.TestCase):
+    def test_write_on_every_change_hits(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        self.assertEqual([(h[0], h[2]) for h in hits], [("cfgwrite", 5), ("cfgwrite", 11)])
+
+    def test_only_the_unsettled_writes_hit(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        self.assertEqual(sorted(set(h[2] for h in hits)), [5, 11])
+
+    def test_fails_with_fix_text_and_baseline_allows_it(self):
+        hits = L.cfgwrite_hits("src/Modules/M.cs", CFG_SRC)
+        out = text(L.check_ui(hits, {})[0])
+        self.assertIn("ERROR: a ConfigEntry .Value write right after a slider / text field in src/Modules/M.cs:5", out)
+        self.assertIn("gotcha 60", out)
+        self.assertIn("FIX: keep the value in the module while it changes and write once it settles", out)
+        self.assertEqual(L.check_ui(hits, {L.baseline_key(h): 1 for h in hits}), ([], 0))
+
+    def test_comment_is_not_a_write(self):
+        src = "void A()\n{\n    float v = GUI.HorizontalSlider(r, x, 0, 1);\n    // cfg.Value = v;\n}\n"
+        self.assertEqual(L.cfgwrite_hits("m.cs", src), [])
+
+
+class BotGlobalization(unittest.TestCase):
+    def test_false_and_absent_pass(self):
+        self.assertEqual(L.check_bot_globalization("<Project><PropertyGroup><InvariantGlobalization>false</InvariantGlobalization></PropertyGroup></Project>"), [])
+        self.assertEqual(L.check_bot_globalization("<Project><PropertyGroup><InvariantGlobalization> False </InvariantGlobalization></PropertyGroup></Project>"), [])
+        self.assertEqual(L.check_bot_globalization("<Project></Project>"), [])
+
+    def test_true_fails_with_fix_text(self):
+        out = text(L.check_bot_globalization("<InvariantGlobalization>true</InvariantGlobalization>"))
+        self.assertIn("ERROR: bot/ForestBot/ForestBot.csproj sets InvariantGlobalization to true", out)
+        self.assertIn("gotcha 93", out)
+        self.assertIn("FIX: set <InvariantGlobalization>false</InvariantGlobalization>", out)
+
+    def test_repo_bot_keeps_it_false(self):
+        self.assertEqual(L.check_bot_globalization(L.read(L.BOT_CSPROJ)), [])
 
 
 if __name__ == "__main__":

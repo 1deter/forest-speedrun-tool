@@ -257,7 +257,7 @@ tool break on quoting (a long Python heredoc failed again this session); a
 One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, version and fix - read the entry before working near it). A new lesson gets the next number there and its one line here, in the area it belongs to, ending with its marker: `[check: <lint / test>]`, `[check: T-n]` (the task building it) or `[judgement]` (`lint.py` checks it; T-0009).
 
 8. **Test against real payloads** - a trimmed real response, not a remembered one. [check: ReleaseJsonTests]
-9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`). [check: pre_tool.py warning, T-0123]
+9. **Never round-trip text through PowerShell 5.1** - it garbles UTF-8 (`â€”`). [check: pre_tool.py warning, lint.py check_mojibake]
 19. **Multi-line edits go through a script file** - Write a Python helper, raw strings; no long heredocs. [judgement]
 28. **Compare both sides the same way** - same dedup and filters before pairing lists. [judgement]
 95. **A child of the MCP server inherits its never-closing stdin** - close it (git hung; the tool said "cancelled"). [check: T-0133]

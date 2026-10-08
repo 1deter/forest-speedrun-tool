@@ -7,9 +7,10 @@ Every failure prints WHAT / WHY / FIX, so the fix is in the message.
                                               # a tag about to be pushed (pre-push hook)
     python scripts/lint.py --update-baseline  # accept today's heuristic hits
 
-The two UI heuristics (a fixed 20 px GUI.Label with variable text, an
-allocation in an OnGUI / DrawTab body) cannot tell a list row or a
-constant from a bug, so the hits that existed when they were added sit in
+The baselined heuristics (a fixed 20 px GUI.Label with variable text, an
+allocation in an OnGUI / DrawTab body, a Resources.FindObjectsOfTypeAll
+call site, a player MoveTo without AreaKeeper.ForTeleport, a config write
+right after a slider / text field) cannot tell a list row, a constant or a one-off probe from a bug, so the hits that existed when they were added sit in
 scripts/lint-baseline.txt and only new ones fail (author, 2026-10-07).
 Fix a baselined line and its entry goes stale; --update-baseline drops it.
 The community index is checked by CommunityPacksTests, not here.
@@ -24,6 +25,11 @@ every tracked file falls under some area's Paths.
 Unity message methods (gotcha 3): every Awake / Update / OnRenderObject /
 ... on a MonoBehaviour in src/ is wrapped in try / catch, after plain
 guards only (author, 2026-10-07: wrap all, no baseline).
+bot/ForestBot.csproj keeps InvariantGlobalization false (gotcha 93).
+Code that reads a UnityWebRequest also checks responseCode (gotcha 15).
+Every OnRenderObject in src/ checks DrawTarget.ShouldDraw() (gotcha 12).
+scripts/deploy.ps1 copies the plugin DLL only (gotcha 10).
+Text files (gotcha 9): no tracked file holds PowerShell 5.1 mojibake.
 """
 import argparse
 import importlib.util
@@ -393,6 +399,19 @@ GUARD = re.compile(r"^if\s*\(([\w.!=<>&|\s]*)\)\s*return\s*;\s*")
 STRING_LIT = re.compile(r'@"(?:[^"]|"")*"|\$?"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)+\'')
 
 
+# Strings, // comments and /* */ comments in one scan, so a "/*" inside a
+# string or after a // is not a comment start.
+COMMENT_OR_STRING = re.compile(r'@"(?:[^"]|"")*"|\$?"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\]|\\.)+\'|//[^\n]*|/\*.*?\*/', re.S)
+
+
+def strip_block_comments(text):
+    """The text with every /* */ comment blanked to spaces (newlines kept, so line numbers hold): a brace in one is not a brace (T-0187)."""
+    def blank(m):
+        t = m.group(0)
+        return re.sub(r"[^\n]", " ", t) if t.startswith("/*") else t
+    return COMMENT_OR_STRING.sub(blank, text)
+
+
 def blank_strings(line):
     """The line with every string / char literal's inside blanked (same length), so a '{' in one is not a brace."""
     return STRING_LIT.sub(lambda m: m.group(0)[0] + " " * (len(m.group(0)) - 2) + m.group(0)[-1], line)
@@ -447,7 +466,7 @@ def body_wrapped(body):
 
 def message_methods(text):
     """(class, method, line) of every Unity message method on a MonoBehaviour / BaseUnityPlugin, and its body text (None: no block body)."""
-    code = [blank_strings(strip_comment(l)) for l in text.splitlines()]
+    code = [blank_strings(strip_comment(l)) for l in strip_block_comments(text).splitlines()]
     out = []
     # (class name, or None when not a MonoBehaviour; the brace depth of its body):
     # a method belongs to the class whose body it sits directly in, so a
@@ -507,6 +526,86 @@ def check_lifecycle(hits):
                     "(Core/Lifecycle logs it once); only plain guards (if (x == null) return;) may stay before the try"
                     % (cls, method))
             for path, n, cls, method in hits]
+
+
+# ---------------------------------------------------------------- OnRenderObject
+
+# OnRenderObject methods that draw nothing, so there is no view to pick.
+RENDER_NO_DRAW = {
+    ("src/Game/LatePass.cs", "LatePass"): "only records the camera's render target for the late pass; draws nothing",
+}
+
+
+def src_texts(root=ROOT):
+    """[(path, text)] of every .cs under src/."""
+    out = []
+    for dirpath, dirs, files in os.walk(os.path.join(root, "src")):
+        dirs[:] = [d for d in dirs if d not in ("bin", "obj")]
+        for f in sorted(files):
+            if f.endswith(".cs"):
+                full = os.path.join(dirpath, f)
+                with open(full, encoding="utf-8-sig") as fh:
+                    out.append((os.path.relpath(full, root).replace("\\", "/"), fh.read()))
+    return out
+
+
+def render_hits(path, text):
+    """(path, line, class) of every OnRenderObject that never calls DrawTarget.ShouldDraw() (gotcha 12)."""
+    out = []
+    for cls, method, n, body in message_methods(text):
+        if method != "OnRenderObject" or (path, cls) in RENDER_NO_DRAW:
+            continue
+        if body is None or not re.search(r"\bDrawTarget\.ShouldDraw\s*\(\s*\)", body):
+            out.append((path, n, cls))
+    return out
+
+
+def check_render(hits):
+    return [Problem("%s.OnRenderObject in %s:%d does not check DrawTarget.ShouldDraw()" % (cls, path, n),
+                    "OnRenderObject runs once per camera - reflections and UI included; without the check a GL overlay is "
+                    "drawn into every view (gotcha 12)",
+                    "start the body with if (!DrawTarget.ShouldDraw()) return; (inside the try); if it draws nothing, "
+                    "add (file, class) to RENDER_NO_DRAW in scripts/lint.py with the reason")
+            for path, n, cls in hits]
+
+
+# ---------------------------------------------------------------- UnityWebRequest
+
+def web_request_hits(path, text):
+    """[(path, first line)] when a src/ file reads a UnityWebRequest's body (downloadHandler) but never looks at
+    responseCode (gotcha 15). The type is reached by reflection, so its name is in a string: only comments are cut."""
+    code = [(n, strip_comment(l)) for n, l in enumerate(strip_block_comments(text).splitlines(), 1)]
+    uses = [n for n, c in code if "UnityWebRequest" in c]
+    reads = any("downloadHandler" in c for n, c in code)
+    if uses and reads and not any("responseCode" in c for n, c in code):
+        return [(path, uses[0])]
+    return []
+
+
+def check_web_requests(hits):
+    return [Problem("%s:%d reads a UnityWebRequest but never checks responseCode" % (path, n),
+                    "Unity 5.6's UnityWebRequest does not treat a 404 as an error: the 'Not Found' body arrives as "
+                    "ordinary data (gotcha 15)",
+                    "read the request's responseCode (see Core/WebRequest.cs) and treat anything but 200 as a failure "
+                    "before using the body")
+            for path, n in hits]
+
+
+# ---------------------------------------------------------------- bot globalization
+
+BOT_CSPROJ = "bot/ForestBot/ForestBot.csproj"
+
+
+def check_bot_globalization(csproj):
+    """The bot keeps InvariantGlobalization false (gotcha 93): absent is the .NET default (false) and fine."""
+    m = re.search(r"<InvariantGlobalization>\s*([^<\s]*)\s*</InvariantGlobalization>", csproj)
+    if m and m.group(1).lower() != "false":
+        return [Problem("%s sets InvariantGlobalization to %s" % (BOT_CSPROJ, m.group(1)),
+                        "Discord.Net builds CultureInfo(\"en-US\") from every server's locale; with invariant "
+                        "globalization it throws in GUILD_CREATE, the server never loads and every message is an "
+                        "\"Unknown Channel\" (gotcha 93; the setting was copied from the site, which keeps it true)",
+                        "set <InvariantGlobalization>false</InvariantGlobalization> in %s (or remove the line)" % BOT_CSPROJ)]
+    return []
 
 
 # ---------------------------------------------------------------- UI heuristics
@@ -589,6 +688,78 @@ def alloc_hits(path, text):
     return hits
 
 
+FIND_ALL = re.compile(r"\bResources\.FindObjectsOfTypeAll\s*\(")
+
+
+def code_lines(text):
+    """[(line number, code)] - the text without /* */ and // comments and with string contents blanked."""
+    return [(n, blank_strings(strip_comment(l))) for n, l in enumerate(strip_block_comments(text).splitlines(), 1)]
+
+
+def findall_hits(path, text):
+    """Every Resources.FindObjectsOfTypeAll call site (gotcha 11, T-0125); the hits that existed sit in the baseline."""
+    lines = text.splitlines()
+    return [("findall", path, n, lines[n - 1].strip()) for n, code in code_lines(text) if FIND_ALL.search(code)]
+
+
+PLAYER_MOVE = re.compile(r"\b\w*[Pp]layer\.MoveTo\s*\(")
+METHOD_SIG = re.compile(r"^\s*(?:(?:public|private|protected|internal|static|override|virtual|sealed|async)\s+)*"
+                        r"(?!(?:return|new|else|if|while|for|foreach|switch|using|lock|throw|await|yield|case|goto|do)\b)"
+                        r"[\w<>\[\],.?]+\s+\w+\s*\(")
+
+
+def moveto_hits(path, text):
+    """Every player MoveTo( call in a method that never runs AreaKeeper.ForTeleport (gotcha 34, T-0128): a teleport
+    that skips it leaves the endgame / cave flag of the old place set. The callers that exist sit in the baseline."""
+    lines = text.splitlines()
+    code = code_lines(text)
+    out = []
+    for i, (n, c) in enumerate(code):
+        if not PLAYER_MOVE.search(c):
+            continue
+        j = i
+        while j > 0 and not (METHOD_SIG.match(code[j][1]) and "=" not in code[j][1].split("(")[0]):
+            j -= 1
+        if not any("ForTeleport(" in cc for _, cc in code[j:i + 1]):
+            out.append(("moveto", path, n, lines[n - 1].strip()))
+    return out
+
+
+SLIDER_OR_FIELD = re.compile(r"\bGUI(?:Layout)?\.(?:HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+OTHER_CONTROL = re.compile(r"\bGUI(?:Layout)?\.(?:Button|Toggle|Label|Box|Toolbar|SelectionGrid|HorizontalSlider|VerticalSlider|TextField|TextArea)\s*\(")
+CONFIG_WRITE = re.compile(r"\.Value\s*=(?!=)")
+# A write that waits for the value to settle: a timer, or the mouse release.
+SETTLED = re.compile(r"MouseUp|unscaledTime|realtimeSinceStartup|_writeAt|[Ss]ettle|[Dd]ebounce")
+
+
+def cfgwrite_hits(path, text):
+    """A ConfigEntry .Value write in the lines right after a slider / text field call, with nothing that waits for the
+    value to settle (gotcha 60, T-0129): each write saves the whole config file (86 ms), once per drag step / keystroke.
+    The window runs to the next GUI control or method signature, at most 12 lines."""
+    lines = text.splitlines()
+    code = code_lines(text)
+    out = []
+    for i, (n, c) in enumerate(code):
+        if not SLIDER_OR_FIELD.search(c):
+            continue
+        window = [code[i]]
+        for j in range(i + 1, min(i + 13, len(code))):
+            if OTHER_CONTROL.search(code[j][1]) or METHOD_SIG.match(code[j][1]):
+                break
+            window.append(code[j])
+        if any(SETTLED.search(cc) for _, cc in window):
+            continue
+        for k, cc in window:
+            if CONFIG_WRITE.search(cc):
+                out.append(("cfgwrite", path, k, lines[k - 1].strip()))
+    return out
+
+
+def source_hits(path, text):
+    """The baselined source-text rules for one src/ file."""
+    return findall_hits(path, text) + moveto_hits(path, text) + cfgwrite_hits(path, text)
+
+
 def ui_hits(root=ROOT):
     hits = []
     for dirpath, dirs, files in os.walk(os.path.join(root, "src")):
@@ -601,6 +772,7 @@ def ui_hits(root=ROOT):
                 text = fh.read()
             hits.extend(label_hits(rel, text))
             hits.extend(alloc_hits(rel, text))
+            hits.extend(source_hits(rel, text))
     return hits
 
 
@@ -613,6 +785,20 @@ UI_TEXT = {
               "OnGUI runs several times a frame; garbage there is a GC hitch (src/CLAUDE.md: never allocate in DrawTab/OnGUI)",
               "build the string in Tick (throttled) and keep it / its GUIContent in a field; a false positive (no allocation): "
               "python scripts/lint.py --update-baseline"),
+    "findall": ("a Resources.FindObjectsOfTypeAll call",
+                "it walks every loaded object (22-25 ms in ForestMain); on a refresh it was a visible stutter (gotcha 11)",
+                "find once and keep it (Game/SceneCache), rate-limit the re-search, or use the game's static handle; a one-off "
+                "dump / probe that runs on a command: python scripts/lint.py --update-baseline"),
+    "moveto": ("a player MoveTo call in a method that does not run AreaKeeper.ForTeleport",
+               "a teleport that skips it leaves the endgame flag of the old place set - the bridge's tp once left the "
+               "surface lit like a cave (gotcha 34)",
+               "call string area = _areas.ForTeleport(dest) before MoveTo, as Go and the bridge's tp do; a restore or "
+               "pin that stays in one area: python scripts/lint.py --update-baseline"),
+    "cfgwrite": ("a ConfigEntry .Value write right after a slider / text field",
+                 "setting .Value saves the whole config file (86 ms): on every drag step or keystroke that is a hitch (gotcha 60)",
+                 "keep the value in the module while it changes and write once it settles (a 0.5 s timer after the last change, "
+                 "as the splits opacity slider does; a drag: on mouse release); a false positive (a click, not a drag): "
+                 "python scripts/lint.py --update-baseline"),
 }
 
 
@@ -662,6 +848,99 @@ def write_baseline(hits, path=BASELINE):
             f.write(k + "\n")
 
 
+# ---------------------------------------------------------------- PowerShell mojibake
+
+# What Windows PowerShell 5.1 leaves when it reads BOM-less UTF-8 as cp1252 and
+# writes it back (gotcha 9, T-0123): an em dash becomes a-circumflex, euro, quote.
+# Spelled with escapes so this file does not trip its own check.
+MOJIBAKE = re.compile("\u00e2\u20ac"
+                      "|\u00c3[\u0080-\u00bf\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u0192\u02c6\u02dc\u2013-\u203a\u20ac\u2122]"
+                      "|\u00c2[\u00a0-\u00bf]")
+# Files that quote the garbled form to warn about it.
+MOJIBAKE_QUOTED = {
+    "CLAUDE.md": "the rule that names it",
+    "docs/gotchas.md": "gotcha 9 shows the garbled form and the grep that finds it",
+    "docs/areas/workflow.md": "the gotcha 9 index line shows the garbled form",
+}
+
+
+def tracked_text(root=ROOT):
+    """{path: text} of every tracked file that is UTF-8 text."""
+    out = {}
+    for f in tracked_files(root):
+        try:
+            with open(os.path.join(root, f), "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            continue
+        if b"\0" in raw:
+            continue
+        try:
+            out[f] = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+    return out
+
+
+def check_mojibake(files):
+    """No tracked text file holds the garbled UTF-8 a PowerShell 5.1 round trip leaves (gotcha 9)."""
+    probs = []
+    for path, text in sorted(files.items()):
+        if path in MOJIBAKE_QUOTED:
+            continue
+        lines = [n for n, l in enumerate(text.splitlines(), 1) if MOJIBAKE.search(l)]
+        if lines:
+            probs.append(Problem(
+                "%s has PowerShell mojibake on line(s) %s" % (path, ", ".join(str(n) for n in lines[:6]) + (" ..." if len(lines) > 6 else "")),
+                "Windows PowerShell 5.1 read the UTF-8 file as cp1252 and wrote it back: every em dash became "
+                "three garbled characters (gotcha 9)",
+                "restore the file from git (git checkout -- %s) and redo the edit with the Edit tool or a Python script "
+                "with encoding=\"utf-8\"; never Get-Content | Set-Content" % path))
+    return probs
+
+
+# ---------------------------------------------------------------- deploy script
+
+DEPLOY = "scripts/deploy.ps1"
+PS_COPY = re.compile(r"(?:^|[;|(]|\s)(Copy-Item|Move-Item|xcopy|robocopy|cp|copy|Expand-Archive)\b(.*)$", re.I)
+
+
+def ps_code(text):
+    """A PowerShell script without <# #> blocks and # comments (the script holds no '#' in a string)."""
+    text = re.sub(r"<#.*?#>", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
+    return [re.sub(r"#.*$", "", l) for l in text.splitlines()]
+
+
+def check_deploy(text):
+    """scripts/deploy.ps1 copies the plugin DLL and nothing else (gotcha 10): runners only get what is in the DLL."""
+    code = ps_code(text)
+    probs = []
+    why = ("a file only deploy.ps1 copies is missing for every runner, who installs the DLL alone (gotcha 10: "
+           "the 100% list did exactly that)")
+    fix = "embed the data in the DLL (src/Data/ShippedData.cs, an EmbeddedResource) and keep deploy.ps1 copying $dll only"
+    dll_var = None
+    for l in code:
+        m = re.match(r"\s*\$(\w+)\s*=.*ForestOverlay\.dll", l)
+        if m:
+            dll_var = m.group(1)
+    copies = 0
+    for n, l in enumerate(code, 1):
+        m = PS_COPY.search(l)
+        if not m:
+            continue
+        copies += 1
+        args = [a for a in m.group(2).replace(",", " ").split() if not a.startswith("-") or a.lower() == "-path"]
+        args = [a for a in args if a.lower() != "-path"]
+        src = args[0] if args else ""
+        if dll_var is None or src.strip("\"'") != "$" + dll_var:
+            probs.append(Problem("%s:%d copies %s, not the plugin DLL: %s" % (DEPLOY, n, src or "?", l.strip()), why, fix))
+    if copies == 0:
+        probs.append(Problem("%s has no Copy-Item of the plugin DLL" % DEPLOY,
+                             "the script's one job is to put ForestOverlay.dll in BepInEx/plugins",
+                             "copy the built ForestOverlay.dll with Copy-Item $dll $pluginDir"))
+    return probs
+
+
 # ---------------------------------------------------------------- main
 
 def git_show(rev, path):
@@ -698,6 +977,11 @@ def main(argv=None):
     probs += log_catalogue.check()
     probs += check_quality(*quality_doc(read(QUALITY)), statuses=task_statuses(), files=tracked_files())
     probs += check_lifecycle(lifecycle_hits())
+    probs += check_bot_globalization(read(BOT_CSPROJ))
+    probs += check_web_requests([h for p, t in src_texts() for h in web_request_hits(p, t)])
+    probs += check_render([h for p, t in src_texts() for h in render_hits(p, t)])
+    probs += check_mojibake(tracked_text())
+    probs += check_deploy(read(DEPLOY))
     ui, stale = check_ui(hits, load_baseline())
     probs += ui
     for p in probs:
@@ -709,7 +993,7 @@ def main(argv=None):
     if probs:
         print("lint: %d problem(s)" % len(probs), file=sys.stderr)
         return 1
-    print("lint: ok (%d UI hit(s), all baselined)" % len(hits))
+    print("lint: ok (%d baselined hit(s), all accepted)" % len(hits))
     return 0
 
 

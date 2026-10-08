@@ -148,7 +148,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 5. **The F11 dump is metadata only** - behaviour questions go to `tools/ILScan` (`strings` finds `SendMessage` callers). [judgement]
 6. **Cached component references go stale across a load** - re-resolve; prefer the game's statics. [judgement]
 7. **Edge semantics** - a start zone fires on crossing, checkpoints / ends on entry. [check: CrossingTests]
-12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: T-0126]
+12. **`OnRenderObject` runs once per camera** - GL overlays check `DrawTarget.ShouldDraw()`. [check: lint.py check_render]
 13. **Search `strings` for every method of an action** - cutscenes start by `SendMessage`, invisible to `refs`. [judgement]
 14. **Labels from memory are guesses** - confirm runner-visible names against a log. [judgement]
 16. **The log and the bridge are the test harness** - every mechanism logs one line saying what it acted on; every prefix and its meaning: `docs/log-lines.md`. [check: lint.py log catalogue]
@@ -182,7 +182,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 20. **A restore can bring back a flag without its effects** - send the game's message for the state (`InACave`). [judgement]
 21. **Ids are per game, not per scene** - cross-save work maps ids (`AdoptPlayer`). [judgement]
 26. **A restore runs frames** - judge the "before" state when the restore starts. [judgement]
-34. **One teleport, many callers** - `grep MoveTo(` and cover every caller. [check: T-0128]
+34. **One teleport, many callers** - `grep MoveTo(` and cover every caller. [check: lint.py moveto baseline]
 35. **Parity with Full load stops where the save stops** - decide against the capture. [judgement]
 36. **A diagnostic read mid-rebuild reports the rebuild** - re-read a few seconds later. [judgement]
 37. **"Left alone" is not "stopped"** - stop an action in flight, apply its end state, then restore. [judgement]
@@ -199,7 +199,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 
 ### Performance and rendering
 
-11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep (`Game/SceneCache`), rate-limit re-searches; check `Slow tick:` lines first. [check: T-0125]
+11. **`Resources.FindObjectsOfTypeAll` is a stutter** (and `FindObjectOfType`: 22-25 ms in ForestMain) - prefer the game's static handle, else find once, keep (`Game/SceneCache`), rate-limit re-searches; check `Slow tick:` lines first. [check: lint.py findall baseline]
 42. **Measure the measurement** - ask what the instrument adds; baselines on a fresh launch. [judgement]
 45. **Load waits are not their stated time, and diagnostics can be the hitch** - time in real seconds; cost every on-event diagnostic. [judgement]
 49. **One heap reading after a load is not a trend** - read `GetTotalMemory(true)` over a minute, with a control. [judgement]
@@ -210,7 +210,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 ### UI
 
 31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through. [check: lint.py label20, e2e tabs (shots, for eyes)]
-60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: T-0129]
+60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: lint.py cfgwrite baseline]
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
 
 ### Run mode and detectors
