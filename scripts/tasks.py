@@ -418,9 +418,37 @@ def first_tag(commits):
     return min(common, key=lambda v: [int(x) for x in re.findall(r"\d+", v)])
 
 
-def release_plan(tasks, version, in_head=None, tag_of=first_tag):
-    """[(task, release)] for built plugin tasks whose commits are all in HEAD; raises if one
-    of them may not be released yet (the checker gate), so bump.py stops before editing."""
+# What a plugin release ships (skill release: src/, patcher/, locations/, collectibles/, qa/).
+PLUGIN_PATHS = ("src/", "patcher/", "locations/", "collectibles/", "qa/", "ForestOverlay.csproj")
+
+
+def commit_files(sha):
+    """Paths a commit touches, or None when git cannot say (no such commit here). A merge
+    counts against its first parent (-m --first-parent: plain `git show` lists nothing for it,
+    T-0196); -z keeps a path with spaces whole."""
+    try:
+        r = subprocess.run(["git", "show", "-m", "--first-parent", "--name-only", "-z", "--format=", sha],
+                           cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=30, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return [f for f in r.stdout.split("\0") if f.strip()] if r.returncode == 0 else None
+
+
+def touches_plugin(commits, files_of=None):
+    """True when a commit touches a plugin path; unknown commits count as plugin. No commits: False."""
+    files_of = files_of or commit_files
+    for c in commits:
+        files = files_of(c)
+        if files is None or any(f.startswith(PLUGIN_PATHS) for f in files):
+            return True
+    return False
+
+
+def release_plan(tasks, version, in_head=None, tag_of=first_tag, files_of=None):
+    """[(task, release)] for built plugin tasks whose commits are all in HEAD and touch a plugin
+    path (the rule loop.py's needs_release uses); raises if one of them may not be released yet
+    (the checker gate), so bump.py stops before editing."""
     in_head = in_head or (lambda c: git_ok(["merge-base", "--is-ancestor", c, "HEAD"]))
     plan, refused = [], []
     for t in tasks:
@@ -428,6 +456,8 @@ def release_plan(tasks, version, in_head=None, tag_of=first_tag):
             continue
         if not all(in_head(c) for c in t["commits"]):
             continue  # on another branch (e.g. a worktree's): ships with its merge
+        if not touches_plugin(t["commits"], files_of):
+            continue  # scripts / docs only: nothing to release (T-0154)
         if t.get("checker") and not accepted(t):
             refused.append(t["id"])
             continue
