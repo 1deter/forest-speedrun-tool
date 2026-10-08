@@ -458,8 +458,6 @@ namespace ForestOverlay.Game
             catch (Exception) { }
         }
 
-        public static bool CanClearBlood { get { return _bloodAmount != null; } }
-
         // ------------------------------------------------------------------
         // Mirrors KillPlayer's branches, evaluated before it runs: DeadTimes
         // is incremented inside KillPlayer, so "> 1 after" is ">= 1 now".
