@@ -3141,7 +3141,10 @@ moved the player 4 m; with 1.0 s in the pause menu the velocity after closing
 was **1,564 m/s** (8 x ~196 frames) - 270 m and 350 m up in 4 s. So the
 distance goes with fps x time paused (sxczurass's table,
 `Downloads\qa-reports\sxczurass\image.png`); the direction is the player's
-back at each frame (the mouse rotators are off during the knockback).
+back at each frame (the mouse rotators are off during the knockback) - and a
+real explosion first turns the player to face it (`lookAtExplosion`, live
+2026-10-08: *The multi-thrower and the Cave 6 body slide* below), so the
+push goes straight away from the blast.
 `FirstPersonCharacter.Update` zeroes the horizontal velocity while the pause
 menu is up, but forces waiting for the physics step are untouched.
 Other senders of `Explosion` to the player start the same knockback, so the
@@ -3150,7 +3153,8 @@ same stacking: the **large swinging rock trap** (confirmed by the author
 versatile than a small bomb trap)
 (`trapHit.registerTrapHit`: `largeSwingingRock`, rock speed > 11 m/s,
 `Explosion(-1)` to whatever it hits - `Player` / `playerHitDetect`
-included), enemy thrown rocks (`thrownRockDamage`), the fat creepy's charge
+included), thrown rocks (`thrownRockDamage`: enemies' and the multi-thrower's,
+live 2026-10-08 below), the fat creepy's charge
 (`fatCreepyCharger`) - not melee (corrected in the overnight sweep below). No other
 per-frame push on the player exists (every `AddForce` on its rigidbody
 checked: zipline exit, glider drop, raft are one-off or other bodies).
@@ -3164,7 +3168,10 @@ runs on the `Grounded` rising edge in `FixedUpdate`; damage =
 is not a new collision enter (contact kept while sliding off a smooth edge),
 or one preceded by a new enter at low vertical speed (grazing a seam between
 colliders), is judged on that small value: no damage, and no 3.8 s death
-either. Likely the runners' slide cancel; not reproduced. Steep terrain
+either. The runners' slide cancel: reproduced on the Cave 6 body piles
+(live 2026-10-08, *The multi-thrower and the Cave 6 body slide* below - a
+steep face deflects the fall into a slide without grounding, and the next
+enter is slow). Steep terrain
 does not give one by itself (live, 2026-10-03): the game holds the player
 on a 55-80 degree terrain slope at ~3 m/s, so no speed builds while the
 contact is kept. Detected since v0.24.230 (docs/run-mode.md). `jumpingTimer`
@@ -3292,7 +3299,9 @@ So the long boost is "pause the instant the bomb goes off". The menu's
 `LockView` makes a grounded player kinematic (forces would be lost), but
 during the knockback `OnAnimatorMove` sets `isKinematic = false` every frame
 (root motion is on), so the push keeps piling up even from the ground. The
-direction is the player's back at the blast (both mouse rotators are off).
+direction is the player's back at the blast (both mouse rotators are off) -
+and a real blast turns the player to face it first, so: away from the blast
+(live 2026-10-08, *The multi-thrower and the Cave 6 body slide*).
 Against the runners' open questions (author's post: "why sometimes they are
 hitting game objects or flying off course", what the velocity at the pause
 does, a way to visualise it):
@@ -3335,7 +3344,8 @@ does, a way to visualise it):
   hit decides the sideways drift. Off course = something touched inside
   the window; a level runway (or a jump just before) is the optimal setup.
 - **A boost visualiser** (not built; Experimental if wanted): the path is a
-  straight line along the player's back, length 8 x frames paused x the
+  straight line along the player's back (after the hit: straight away from
+  the blast, level - `lookAtExplosion`), length 8 x frames paused x the
   window left (0.163 s - game time since the blast), swept with the
   player's capsule (`Physics.CapsuleCast`) to show the first hit - where
   the boost bends and launches.
@@ -3345,9 +3355,10 @@ The inventory cannot replace the pause menu: it refuses to open while
 `useRootMotion` (the knockback) or `jumping`.
 Knockback sources (`Explosion(dist)` with dist < 15 to the player): bombs and
 explosives (`Explode`), the large swinging rock trap (`trapHit`, rock faster
-than 11 m/s, `Explosion(-1)`), thrown rocks faster than 12 m/s
+than 11 m/s, `Explosion(-1)`), thrown rocks with `checkVel` >= 12
 (`thrownRockDamage`: enemies' rocks and the player-built multi-thrower's
-projectiles, `MultiThrowerProjectile`), the fat creepy's charge
+projectiles, `MultiThrowerProjectile`; `checkVel` is speed x 1.667, so
+7.2 m/s - live 2026-10-08, *The multi-thrower and the Cave 6 body slide*), the fat creepy's charge
 (`fatCreepyCharger`), and in co-op the server's explosion event. A second
 explosion within 2.2 s is ignored (`isExplode`); a swimming player only gets
 the hit state. **Correction:** `enemyWeaponMelee` sends `Explosion` to *trees*
@@ -3582,7 +3593,8 @@ uncapped fps for the panel clip (fps dependence not explained yet);
 crouch-smash-uncrouch above; "slide on the bodies to not get fall damage"
 (cave 6 drop to the keycard) = the fall-damage rule above (*Fall damage and
 the slide cancel*: damage is judged on the last collision enter, and a body's
-steep collider turns the fall into a slide; untested); "custom wall ... boost
+steep collider turns the fall into a slide; reproduced by drops onto the
+piles 2026-10-08, not with the runners' input); "custom wall ... boost
 yourself to the top" = the depenetration lift; "spam 1 after the keycard
 pickup" = equipping cancels the pickup animation before the book opens;
 "a trigger loads the rest of the caves" (cave 4) - pass it or the cave stays
@@ -3696,6 +3708,100 @@ Read for the knowledge bot's research queue; offline, no live game.
   `SmoothDamp(0.1)` and calls `ScaleCapsuleForCrouching(val)` with the raw
   0-10 value (the `Lerp` clamps), so the capsule only changes below 1:
   ~0.2-0.46 s after the release at a steady frame rate (computed).
+
+### The multi-thrower and the Cave 6 body slide (IL + bridge, 2026-10-08, T-0043)
+
+Bridge on v0.24.256, Slot 1 (Creative), god mode off for the measurements
+(god mode resets `Health` to 100 every `Update`, so a landing's damage only
+shows with it off); `Physics.gravity` -16, fixed step 1/60 s.
+
+**Knockback direction: away from the source, not out of the player's back
+(live).** Every knockback sender that reaches the player through
+`playerHitDetect` also sends `lookAtExplosion(sourcePos)` right after
+`Explosion` (`Explode.RunExplode`, `thrownRockDamage`, `trapHit`,
+`fatCreepyCharger`); `playerDamage.lookAtExplosion` ->
+`playerHitReactions.lookAtExplosion` does `transform.LookAt(source with
+y = the player's y)` on the player root (skipped on a rope). So the player
+is turned to face the blast on the hit frame, and the knockback's
+`-forward * 8` pushes straight away from it horizontally. Live, a real
+timed bomb (`MTP_BombTimed` instantiated, `enableGoReceiver.doEnableGo`,
+`Bomb.WaitTime` 3 s): player facing yaw 0, bomb 4 m at +x -> yaw 87.3,
+thrown 33 m to -x; facing yaw 200, bomb at (+3, +3) -> yaw 44.1, pushed
+along (-0.72, -0.69). The bomb-boost measurements above called
+`Stats.Explosion` directly (no `lookAtExplosion`), which is why they saw
+"the player's back".
+
+**The multi-thrower** (`MultiThrowerBuilt`, `BuildingTypes.RockThrower`;
+IL + live). Ammo: timed bomb 29, rock 53, molotov 71, skull 94, dynamite
+175 (`MultiThrowerItemHolder._whiteListedItemIds`), up to 3 per shot.
+`rockThrowerAnimEvents.throwRocks` spawns each `MultiThrowerProjectile` at
+`releasePos + up*2` (±0.6 m) and gives it the ballistic velocity
+(`calculateBestThrowSpeed`) to land on a point **exactly 2.2 m from the aim
+point** (`randomCircle2` = `insideUnitCircle.normalized * 2.2`) in a random
+**2.4-2.6 s**. A rock-type projectile's `damage` child (`thrownRockDamage`,
+a kinematic trigger sphere, radius 5 x scale 0.4 = **2 m**, layer 25) is
+switched on **0.75 s** after launch (`Invoke("enableDamageGo")`); an
+explosive (the ammo's `MTP_*` renderer has an `enableGoReceiver`) destroys
+the pickup and damage children and arms the item itself instead (the timed
+bomb's own 3 s `Bomb.WaitTime`). `thrownRockDamage.OnTriggerEnter` on
+`playerHitDetect` needs `checkVel >= 12`, where `checkVel` = distance moved
+in the last `FixedUpdate` x 100 - with the 1/60 s step that is **speed x
+1.667, i.e. the rock must move at 7.2 m/s or more**; then
+`SendMessageUpwards("Explosion", 8)` (an `int`, received by
+`PlayerStats.Explosion(float)`) and `lookAtExplosion`. Live with a spawned
+projectile (`Object.Instantiate` of the prefab, `InitProjectile 53 null`,
+gravity off, velocity set): 15 m/s -> `checkVel` 25, knockback when its
+centre was 1.75 m from the player, 25 damage, yaw 0 -> 90.2 (facing the
+rock), pushed away at +8 m/s per frame up to 167 m/s; 8 m/s -> `checkVel`
+13.3, knockback (from the front, pushed back); 6 m/s -> `checkVel` 10.0,
+no knockback although it bounced off the player. A real shot
+(`throwRocks` on an instantiated thrower 20 m away, aimed at the player's
+feet) knocked the player back on landing (yaw 0 -> 315.8, 25 damage). A
+landing rock is always well over 7.2 m/s (about 20 m/s downward for a
+level target: `dy/t - g*t/2` with g 16, t 2.5 - computed), so a shot that
+lands within ~2 m of a player knocks them back - one knockback per 2.2 s
+(`isExplode`), so 3 rocks give one. The thrower itself:
+`playerEnterRockThrowerAction.doThrower` holds the player kinematic at the
+seat; Fire1 shoots, Take leaves at once (`exitThrower`). `thrownRockDamage`
+disables itself 8 s after its `Start` (`enabled = false`), so `checkVel`
+stops updating then - whether a trigger still fires after that is not
+tested.
+
+**The Cave 6 body slide** (live). The keycard room's bodies are zone
+greebles `Pooling/Pool_Greebles/DeadBodyPile_01(Clone)NNN` / `_02`
+(deterministic, `WorldDump.Greebles` matched them): each a static,
+**non-convex `MeshCollider`** child `Collision` (1,001 vertices, layer 0
+Default, tag `enemyCollide`, no physic material, no rigidbody), a lumpy
+mound ~1.6 m high and ~7 m across, scale 3.5. The rope shaft above
+(`C6_Props/C6_secretRoom02/ropeClimbTemp_underground`, top ~y -42, bottom
+ledge ~-67 at (1273, 573)) drops onto the room's floor (player y -70.59)
+beside the piles (around (1278-1288, 579-593)). Per-frame traces (player
+position / velocity / `PrevVelocity` / `Grounded` / health):
+- **Floor**: enter at 32.5 m/s, stopped dead, `Grounded` the next steps,
+  judged 32.5 -> 34 damage. The rope-bottom ledge alike: 37.27 -> 45.
+- **Pile, damage**: enter at 31.63, deflected to (-7, +1, -4.6) but still
+  touching, `Grounded` 2 steps later on the same contact -> judged 31.63,
+  32 damage.
+- **Pile, cancelled**: enter at 32.07, deflected into a slide down a
+  steep face at (-8, -5, 9.8) m/s, **not grounded**; then new enters at
+  6.22 and 3.47 (the floor / another lump at the slide's speed) and only
+  then `Grounded` -> judged 3.47, no damage, after 1.5 s in the air.
+So the cancel is: the fast first contact is a face too steep to ground on
+(PhysX turns the fall into a slide and removes most of the speed), and the
+next collision **enter** - which overwrites `prevVelocity` - happens at the
+slide's speed before any grounded step. A grid of 80 drops from y -50
+(~20 m, ~32 m/s) over x 1277-1287.5, z 579-593 (1.5 m step): straight onto
+the floor 20 of 21 took damage; drops that touched a pile were cancelled
+20 of 45 times (on the pile or after sliding off it onto the floor);
+14 stopped on rock ledges at y -49..-54. At four cancelling spots, from
+y -40 (~30 m) 4 of 4 cancelled, from y -30 (~40 m) 2 of 4 (34 and 60
+damage on the others). Repeating a drop from the same point gave the same
+result (deterministic). It works on specific spots of the piles, not on
+bodies in general - the runners' fixed line ("the hole in the bodies").
+Not checked: the runners' own jump from the shaft (a `tp` and a set
+velocity on the ledge are overwritten by ground movement - real input), and
+what "spamming jump" on the way down adds (nothing in `HandleLanded` reads
+a jump: it judges before a jump can start).
 
 ## How to extend this file
 

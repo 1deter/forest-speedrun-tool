@@ -7,7 +7,8 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 |---|---|---|
 | bb, bomb boost, pause boost, menu boost | explosion knockback stacked while the pause menu is open | bomb-boost |
 | trap boost, rock trap boost | the large swinging rock trap's knockback, stacked like a bomb boost | knockback-sources |
-| knockback | `PlayerStats.Explosion`'s push: 8 m/s per frame for ~0.16 s | knockback-sources |
+| knockback | `PlayerStats.Explosion`'s push: 8 m/s per frame for ~0.16 s, straight away from the source | knockback-sources |
+| multi-thrower, multithrower, rock thrower, catapult | the player-built thrower; its rocks knock you back like a bomb | knockback-sources |
 | last usable frame | the end of the knockback's free push window (~0.13-0.16 s of game time) | bomb-boost |
 | slide cancel, fall damage cancel, body slide | landing judged on a slow last collision, so no fall damage | fall-damage |
 | fell too long, 3.8 s | over 3.8 s in the air = 1000 damage | fall-damage |
