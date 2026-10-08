@@ -116,10 +116,22 @@ def id_num(tid):
 
 
 def load(path=TASKS):
-    if not os.path.exists(path):
-        return []
-    with open(path, encoding="utf-8") as f:
-        return parse(f.read())
+    # On Windows opening a file while os.replace swaps it raises PermissionError (or, for an
+    # instant, FileNotFoundError): retry briefly; Linux never shows either.
+    deadline = time.time() + 5.0
+    while True:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return parse(f.read())
+        except FileNotFoundError:
+            if not os.path.exists(path) and time.time() > deadline - 4.9:
+                return []
+            if time.time() > deadline:
+                raise
+        except PermissionError:
+            if time.time() > deadline:
+                raise
+        time.sleep(0.005)
 
 
 LOCK_TIMEOUT = 20.0   # seconds a writer waits for the lock before it fails
