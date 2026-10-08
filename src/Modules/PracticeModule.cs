@@ -478,7 +478,7 @@ namespace ForestOverlay.Modules
             // A run spot's Restart starts (or resets) a run - the one Restart
             // run mode allows.
             bool runStart = _runMode != null && s.RunCategory.Length > 0 && _savestates != null && _savestates.HasStartState(s);
-            if (!runStart && Ctx.Run.Refuse("restart", "restart (F7)")) { _status = Ctx.Run.RefusedText("Restart"); return; }
+            if (!runStart && Ctx.Run.Refuse("restart", "restart (F7)")) { _status = _refusedByRun = Ctx.Run.RefusedText("Restart"); return; }
 
             // The pause menu and the inventory stop game time, and a restore
             // runs over game time: F7 in the ESC menu sat half-loaded until
@@ -527,7 +527,7 @@ namespace ForestOverlay.Modules
         /// v0.22.0: one button, one job - restoring is Restart / F7).
         private void Teleport(Segment s)
         {
-            if (Ctx.Run.Refuse("go", "Go (teleport)")) { _status = Ctx.Run.RefusedText("Go"); return; }
+            if (Ctx.Run.Refuse("go", "Go (teleport)")) { _status = _refusedByRun = Ctx.Run.RefusedText("Go"); return; }
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
             PlaceAt(s, true);
         }
@@ -618,8 +618,9 @@ namespace ForestOverlay.Modules
             Segment s = _library.ById(id);
             if (s == null) return "no practice entry '" + id + "' (spots lists them)";
             if (!s.HasSpawn) return "'" + id + "' has no spawn point";
+            _refusedByRun = null;
             Teleport(s);
-            return null;
+            return _refusedByRun;   // run mode's refusal, not ok
         }
 
         /// `id` null: the current spot, as F7.
@@ -629,9 +630,13 @@ namespace ForestOverlay.Modules
             if (s == null) return id == null ? "no current spot" : "no practice entry '" + id + "' (spots lists them)";
             if (!s.HasSpawn) return "'" + s.Id + "' has no spawn point";
             if (_savestates != null && _savestates.Busy) return "a savestate action is still running";
+            _refusedByRun = null;
             Restart(s);
-            return null;
+            return _refusedByRun;   // run mode's refusal, not ok
         }
+
+        // Set where run mode refuses a Go / Restart, so the bridge can answer it.
+        private string _refusedByRun;
 
         /// The Map tab (Modules/MapModule): select an entry as a click on
         /// it in the list does.

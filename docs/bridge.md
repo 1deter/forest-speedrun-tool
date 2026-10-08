@@ -221,8 +221,9 @@ bridge, 15 community, 16 upload (`_url.Value`, `_token.Value`,
 **Run mode starts on a run spot's Restart** (a spot with `run =
 <category>` and a start state - always a Full load; a new game has not
 started one since v0.24.213, docs/run-mode.md *What starts a run*):
-during it Go / `restart` / savestates are refused (the bridge still
-answers `ok`; check the player moved) and the attempt is flagged "the
+during it Go / `restart` / savestates are refused (`go` / `restart`
+answer the refusal since T-0110; for the other commands check the
+player moved) and the attempt is flagged "the
 test bridge is on". `call ..._modules[17].EndRunMode` unlocks. **Slot 1
 is a Creative save** (Peaceful underneath; god mode and infinite energy
 come from the mode). New game:
