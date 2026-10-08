@@ -363,3 +363,4 @@ Confirmed 2026-10-08 (game, bridge, v0.24.255): **aerial capture from the endgam
 
 Confirmed 2026-10-08 (game, bridge, v0.24.256): **the 100% tab no longer throws 21 errors a second (T-0033)** - 30 s idle and Run-held windows: no InvalidCastException / IntPtr[] / InjectedInputs.Entry in the report, collectibles 0.3 KB/s (was 3.4-3.6), _taskFields 21 ("1/21 tasks done"). bridge 2026-10-08.
 Confirmed 2026-10-08 (game, bridge, v0.24.257): **another segment's Go leaves no run line (T-0049)** - A Running, Go to timed C: FailedCount 0 / `_failedLine` 0 (was 2); restart mid-run keeps the red line (2); Go to a plain spot hides lines. Bridge 2026-10-08.
+Confirmed 2026-10-08 (game, bridge, v0.24.257): **weapon-upgrade receivers kept on a cross-save Quick load (T-0050)** - UpgradeViewReceiver 35 before / 35 after (Slot1 capture into Slot5), "deleted 0 not in the save, kept 33 weapon-upgrade receiver(s) the save lacks". bridge 2026-10-08.
