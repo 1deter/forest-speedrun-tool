@@ -345,7 +345,7 @@ function categoriesView(data, spots) {
     bar.say("Saving…");
     const done = [];
     for (const [e, out] of outs) {
-      try { const r = await adminCall("PUT", "/categories/" + out.id, categoryText(out)); done.push(out.name + " v" + r.version); e.say("Saved as version " + r.version + "."); }
+      try { const r = await adminCall("PUT", "/categories/" + out.id, categoryText(out)); done.push(out.name + " v" + r.version); e.saved(); e.say("Saved as version " + r.version + "."); }
       catch (err) {
         e.say("Failed: " + err.message);
         bar.busy(false);
@@ -486,10 +486,11 @@ function categoryEditor(x, features, spots, onChange) {
     field("Rules (one per line)", rules),
     c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),
     msg);
-  const loaded = state();
+  let loaded = state();
   // The caps picker adds and removes by click / Enter, the rest by input / change.
   for (const ev of ["input", "change", "click", "keyup"]) node.addEventListener(ev, () => onChange());
-  return { node, dirty: () => state() !== loaded, collect, say, name: () => name.value.trim() || x.name };
+  // saved(): a save went through, so a retry after a later editor fails does not save it again.
+  return { node, dirty: () => state() !== loaded, saved: () => { loaded = state(); }, collect, say, name: () => name.value.trim() || x.name };
 }
 
 // The game's item list (wwwroot/items.json, read from the game's database):

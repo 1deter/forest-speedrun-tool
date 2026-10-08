@@ -84,7 +84,7 @@ function writeFolded(v) { try { localStorage.setItem(FOLDED_KEY, JSON.stringify(
 // --- router -------------------------------------------------------------------------
 
 let cleanup = null;
-/// A page with unsaved changes (the admin Bot tab) sets this to { dirty(), blocked() }: while
+/// A page with unsaved changes (the admin Bot and Categories tabs) sets this to { dirty(), blocked() }: while
 /// dirty() is true, leaving by a link or Back is refused and blocked() shows the page's own
 /// warning (Discord's unsaved-changes bar); closing or reloading the tab asks the browser.
 let unsaved = null;
