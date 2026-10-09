@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.267 - 2026-10-10
+
+- Making a savestate no longer changes the save slot's stats shown on the load screen (or their Steam Cloud copy).
+
 ## v0.24.266 - 2026-10-09
 
 - Restarting (F7, a spot or a savestate) while the game's own death is playing now stops it: no more being sent to the main menu a few seconds later, captured anyway, or left upside down with the hanging rope still attached.
