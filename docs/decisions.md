@@ -119,7 +119,8 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   plays (the fall, the drag-away, the capture's hanging, the dead cam)
   stops it and undoes its leftovers by hand, keeping the fast restore -
   not a Full load instead; only a death the cleanup cannot end falls
-  back to a Full load. The death count a load gives (0) applies to every
+  back to a Full load (a savestate / spot restore; the Deaths tab's slot
+  reload in place and Go have no file to load and only log it). The death count a load gives (0) applies to every
   restore in place.
 - **Deleting a spot here never deletes it online** (author, 2026-10-09,
   T-0265): the local Delete and *Delete from the website* are separate;
