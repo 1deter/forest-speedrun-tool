@@ -47,7 +47,8 @@ A "no" is a finding. The source is in brackets.
    labelled)? [NN/g; author: one journey, one place]
 6. Does a task that spans tabs (start a timed segment: spot, state,
    practice mode, arm) finish in one place? Count the tabs and clicks.
-   [author: one journey, one place]
+   Baseline 2026-10-10 (T-0256): 5 clicks, 2 tabs, practice mode off
+   (the default). [author: one journey, one place]
 
 ### B. Say it once, short, where it is used
 
@@ -199,3 +200,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 
 - 2026-10-09 - written (T-0252); no review run yet.
 - 2026-10-09 - smoke run: plugin Settings tab on v0.24.260, Keys and Info box (HUD) views, checks A-F; 6 tasks (T-0259..T-0264, 2 parked), notes on T-0226 and T-0021. First review: the brief's `open_tab` schema listed no `scroll_tour` but it worked.
+- 2026-10-10 - T-0256 design proposal (not a review): Practice + Runs flow read on ui-redesign, toured on v0.24.267; 3 options in tasks/notes/T-0256.md, parked; 0 findings filed. Click baseline for check 6 / 32 added.
