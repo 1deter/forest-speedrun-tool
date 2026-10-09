@@ -112,6 +112,28 @@ when they want it.
 
 ## Plugin
 
+- **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
+  the goal is a tool that looks good and is easy to learn without
+  flooding a new runner. Less on screen, fewer things to click, is faster
+  to learn. Rules on top of the 2026-09-23 / 10-05 ones (one button one
+  job, name + toggle with the description on hover, no clipped text):
+  - **Settings stay functionally separate.** A setting that serves two
+    features is split into one per feature (or a copy of the control
+    under each); controls that serve the whole HUD sit together as
+    general HUD options. A child setting is not hidden while it still
+    does something elsewhere - hidden-but-active settings confuse.
+  - **Pictures over instructions**: instructional text a runner must read,
+    match up and apply (the Map tab's lines) becomes a legend or a visual
+    on the thing itself.
+  - **Automatic unless it can lose work**: lists refresh by themselves
+    (local ones on change or when the tab opens; site / community ones
+    when the tab opens, rate-limited); settings already save on change.
+    Anything that creates, overwrites or deletes keeps an explicit button,
+    with a confirm or undo when it destroys - nothing saves by accident.
+    The author may revise once it is built.
+  - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
+    and every feature that adds much UI; the author's rules are a floor,
+    not the whole list - it brings in established UX guidance.
 - **Performance switches need no sign-off** (author, 2026-10-08; the
   admins agree): a switch that helps and is tested not to change any game
   mechanic or logic runners rely on for fair, consistent timing ships on
