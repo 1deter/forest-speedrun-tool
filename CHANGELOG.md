@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.265 - 2026-10-09
+
+- Restarting a spot from the title screen works again after you quit to the menu from a game (it said 'the title screen's load buttons were not found').
+- Quick-load on death no longer stops at the main menu when it reloads through the title screen.
+
 ## v0.24.264 - 2026-10-09
 
 - Run report: entering the endgame area shows once per visit (it was listed two to four times).
