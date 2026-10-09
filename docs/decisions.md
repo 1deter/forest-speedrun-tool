@@ -114,6 +114,12 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **A quick load during the game's own death cleans it up in place**
+  (author, 2026-10-09, T-0248): F7 / a restart / a Go while the death
+  plays (the fall, the drag-away, the capture's hanging, the dead cam)
+  stops it and undoes its leftovers by hand, keeping the fast restore -
+  not a Full load instead. The death count a load gives (0) applies to
+  every restore in place.
 - **Deleting a spot here never deletes it online** (author, 2026-10-09,
   T-0265): the local Delete and *Delete from the website* are separate;
   the owner can add their spot back from the site, edit it and upload

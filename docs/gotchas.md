@@ -970,3 +970,15 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     `enteringACave` counts. Before reading a flag as "X happened", list its
     writers; a distance-based "placement" guard needs the game's own snaps
     excepted.
+
+103. **A restore in place keeps everything outside the save - running
+    code included.** (2026-10-09, T-0248.) A Full load builds new objects;
+    a restore in place only overwrites `[SerializeThis]` fields of the live
+    ones. The game's death chain (Invokes, coroutines, cutscene clones, the
+    camera rig, the death count) ran on through every restart: the capture
+    went ahead, `GameOver` still sent maks to the menu, the hanging rope
+    stayed on his hips. To find what a restore misses, diff the player's
+    components (`fields` over the bridge) after a Full load of the spot
+    against after a restore in place of it; then check what the game's own
+    timers (`IsInvoking`) and coroutines still have queued - a diff of
+    fields cannot see those.

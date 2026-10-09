@@ -709,6 +709,14 @@ namespace ForestOverlay.Modules
             if (menu.Length > 0) fall += (fall.Length > 0 ? ", " : "") + menu;
             string book = BookClose.IfOpen();
             if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
+            // The game's own death in progress (its timers and cutscenes
+            // carried on through the restore: the menu, the capture, the
+            // hanging rope), and the death count the save does not hold -
+            // a load gives 0 (runner maks, T-0248).
+            string death = DeathSequence.End();
+            if (death.Length > 0) fall += (fall.Length > 0 ? ", " : "") + death;
+            string deaths = DeathSequence.ForgetDeaths();
+            if (deaths.Length > 0) fall += (fall.Length > 0 ? ", " : "") + deaths;
             string anim = AnimReset.Cancel();
             if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
             // A blueprint in the hands is outside the save (runner

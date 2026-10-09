@@ -132,6 +132,26 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   `after the load: N ms, S scene search(es), K kept`. Left: LoadNow's own
   frames (150 + 170 ms on the Labskip spot) - the game's deserializer
   (game-notes *The frames of an in-place restore*).
+  **A Quick load during the game's own death** (T-0248, 2026-10-09,
+  unreleased; runner maks): the death ran on through the restore - the
+  capture went ahead, a real death's `GameOver` still loaded the title,
+  a restart while hanging in the cave left the player at the spot upside
+  down with the rope on the hips - and `DeadTimes` (not in the save) kept
+  counting, so the death after a capture was a real one. Every Quick load
+  now sets `DeadTimes` 0 / `doneDragScene` false as a load does, and one
+  that finds the death in progress (`Dead`, hanging, the drag-away's
+  cannibals, the death view, a pending chain Invoke, a dead cam) ends it
+  first (`Game/DeathSequence`, game-notes *The death chain and a restore
+  in place*): PlayerStats' coroutines and the chain's Invokes stopped,
+  the cutscene clones and the rope destroyed, controls, look, body
+  physics, animator, cameras and HUD as the game's wake-ups leave them.
+  Go does the same before it moves the player. Proved step by step over
+  the bridge (the fall, the drag-away, the hanging, the dead cam) and
+  diffed against a Full load of the spot: left over only `CamRotator`'s
+  range (the game's own reset 135 vs a fresh player's 145) and what is
+  not the death's (body temperature, cave flags). Log, in the restore's
+  done line: `ended the game's death (hanging in the cave; removed 1
+  cutscene object(s))`, `death count 2 -> 0 (as a load)`.
 
 ## Category start states true to the game (2026-10-05, unreleased)
 

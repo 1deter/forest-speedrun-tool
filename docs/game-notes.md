@@ -586,6 +586,36 @@ The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
 `Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the
 death sequence has run when they act.
 
+**The death chain and a restore in place** (decompiled `PlayerStats` +
+bridge, 2026-10-09, T-0248). The game's own death is PlayerStats Invokes
+and coroutines: `FallDownDead` (`Dead`, inventory / controller / rotator
+off, `deathBool`, both FSMs `toDeath`, `Invoke("BlackScreen", 4)`) ->
+`BlackScreen` (`SleepCam` on; `DeadTimes == 0` outside a cave:
+`dragAwayCutScene`, else `Invoke("KillPlayer", 3 / 0.5)`) ->
+`dragAwayCutScene` (two `player_ANIM_dragAway_MUTANT*` clones in
+`mutant1` / `mutant2`, root motion + `lockGravity`, ends with
+`Invoke("KillPlayer", 0.1)`) -> `KillPlayer` (capture: teleport to a
+`DeadSpots` entry, `CaveDeadCam`, `WakeInCave` -> `Dead = false` ->
+`hangingInCaveCutScene`: upside down, `hangingBool`, no rotator, the rope
+`CutScene/hangingPlayerRopeGo` parented to `hipsJnt`; the release is
+`releaseFromHanging` once the plane axe is in hand). A real death:
+`DeadCam` + `PlayerDeadCam`, `Invoke("GameOver", 6)`. **Not in the save:**
+`DeadTimes`, `doneDragScene`, `Dead` (bridge: set, capture, change,
+restore in place - the live value stays; a Full load gives 0 / false), so
+a restore in place after a capture made the next death a real one. **The
+chain outlives a restore in place** (bridge): restored during the
+drag-away the player was captured anyway; during the hanging, back at the
+spot upside down with the rope on the hips; during the dead cam
+`GameOver` was still pending (the title screen). `doneHangingScene` *is*
+saved. With `useRootMotion` and `lockGravity` set,
+`playerAnimatorControl.Update` keeps the body kinematic without gravity;
+the game's releases clear `lockGravity` a frame before root motion, which
+frees it - clearing both at once leaves it kinematic (bridge). The body
+layer's idle is `Base Layer.idle` (its hash matches the `anim` state).
+The damage FSM's `death` state returns to `startState` by itself after
+4 s (hit layer 31 -> 15). `Game/DeathSequence` ends the chain on a
+restore in place or a Go.
+
 **The hard landing runs after the fall damage.**
 `FirstPersonCharacter.HandleLanded` (IL) calls `PlayerStats.Hit` for fall
 damage — where a death, and so a revive, happens — and then, for a hard
