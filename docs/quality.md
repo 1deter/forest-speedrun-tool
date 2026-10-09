@@ -31,7 +31,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-07 |
-| Timed runs | B | A | B | A | B | T-0144 (in-game check) | 2026-10-09 |
+| Timed runs | B | A | B | A | B | T-0266 | 2026-10-09 |
 | Practice | C | A | C | A | B | T-0046 | 2026-10-07 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
@@ -87,8 +87,9 @@ LiveSplit, uploads.
   into eight partials under 810; plugin.md and plugin-concepts.md cover it.
 - Stability **A**.
 - Gaps **B**: (another segment's Go clears the red line since v0.24.257,
-  T-0049); a deleted attempt leaves the list since T-0144 (built, not yet
-  seen in game); replay
+  T-0049); a deleted attempt leaves the list (T-0144, confirmed in game
+  v0.24.262; a lighter site answer is T-0266); cave mouths log their cave
+  and rope-grab is ropes only (T-0242, confirmed v0.24.262); replay
   labels done in one spot print over each other (confirmed.md,
   2026-10-04).
 
