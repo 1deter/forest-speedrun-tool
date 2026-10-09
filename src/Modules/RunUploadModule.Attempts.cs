@@ -452,7 +452,7 @@ namespace ForestOverlay.Modules
                 return;
             }
             _recentDirty = true;
-            _attemptState = "attempt " + id + " was deleted on the website - taken off this list";
+            _attemptState = "attempt " + id + " was deleted on the website";
             Ctx.Log.LogInfo("Attempts: " + id + " was deleted on the site (404) - taken off the Runs tab's list (sent.txt).");
         }
     }
