@@ -193,6 +193,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
+  (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
+  every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
+  The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
+  branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
+  Desktop (`cloud-T-*.txt`, branches `cloud/*`: merge + check locally).
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
 - **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
