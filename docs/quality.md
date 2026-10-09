@@ -108,7 +108,7 @@ sharing and community packs, the gameplay mods ("ON NOW").
 
 ### Run mode
 
-Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport}.cs` `docs/run-mode.md`
+Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
 
 - Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
   RunCategory, RunReport, AttemptChain; the e2e `runmode` journey;

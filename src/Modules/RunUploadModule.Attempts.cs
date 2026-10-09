@@ -24,7 +24,8 @@ namespace ForestOverlay.Modules
     //     in order. The link exists at once - the id is made here.
     //
     // Sent attempts are listed in uploads/attempts/sent.txt (id, verdict,
-    // when) for the Runs tab's links.
+    // when) for the Runs tab's links; one deleted on the site leaves it
+    // when the tab next opens (Data/SentAttempts, T-0144).
     // ------------------------------------------------------------------
     public sealed partial class RunUploadModule
     {
@@ -42,6 +43,7 @@ namespace ForestOverlay.Modules
         private readonly List<string> _recentIds = new List<string>();
         private readonly List<GUIContent> _recentText = new List<GUIContent>();
         private bool _recentDirty = true;
+        private int _recentWaiting;   // the first n of _recentIds are still in the outbox
         private string _attemptState = "";
 
         /// Run mode's attempts reach the site (nonce, checkpoints, logs).
@@ -212,6 +214,7 @@ namespace ForestOverlay.Modules
         private void TickAttempts()
         {
             if (_recentDirty) RebuildRecent();
+            if (_recentCheckDue && !_recentCheckBusy && Time.frameCount <= _recentDrawnFrame + 2) CheckRecent();
             if (_attemptBusy || !AttemptsOn || Time.unscaledTime < _nextAttemptTry) return;
             _nextAttemptTry = Time.unscaledTime + 5f;
             string next = OldestAttempt();
@@ -263,6 +266,7 @@ namespace ForestOverlay.Modules
                     string verdict = SiteProtocol.Field(answer, "verdict") ?? "?";
                     TryDelete(path);
                     AppendSent(id, verdict);
+                    _sentThere.Add(id);
                     _attemptFailures = 0;
                     _nextAttemptTry = 0f;
                     _attemptState = "attempt " + id + " sent (" + verdict + ")";
@@ -325,6 +329,7 @@ namespace ForestOverlay.Modules
         private void RebuildRecent()
         {
             _recentDirty = false;
+            _recentCheckDue = true;
             _recentIds.Clear();
             List<string> rows = new List<string>();
 
@@ -339,6 +344,7 @@ namespace ForestOverlay.Modules
                     rows.Add(IdOfFile(files[i]) + " - waiting to be sent");
                 }
             }
+            _recentWaiting = _recentIds.Count;
             try
             {
                 if (File.Exists(_sentList))
@@ -368,6 +374,10 @@ namespace ForestOverlay.Modules
         /// links. Returns the new y.
         public float DrawAttempts(float y, float w)
         {
+            // Not drawn for a few frames = the Runs tab (or the window) just
+            // opened: the listed attempts are asked about again.
+            if (Time.frameCount > _recentDrawnFrame + 2) { _askedThisOpen.Clear(); _recentCheckDue = true; }
+            _recentDrawnFrame = Time.frameCount;
             bool on = GUI.Toggle(new Rect(0, y, w, 20), _attemptsOn.Value, " Send run mode attempts to the website (codes + log, for checking runs)");
             if (on != _attemptsOn.Value) { _attemptsOn.Value = on; _tokenBad = false; _nextAttemptTry = 0f; }
             y += 22f;
@@ -389,5 +399,61 @@ namespace ForestOverlay.Modules
         }
 
         private readonly GUIContent _attemptStateText = new GUIContent("");
+
+        // --- attempts deleted on the site (T-0144) ---------------------------------------
+
+        private readonly HashSet<string> _sentThere = new HashSet<string>();      // 200 this session
+        private readonly HashSet<string> _askedThisOpen = new HashSet<string>();  // since the tab opened
+        private int _recentDrawnFrame = -100;
+        private bool _recentCheckDue, _recentCheckBusy;
+
+        /// While the Runs tab shows the list: one GET per listed attempt not
+        /// known to be on the site (at most RecentShown), one at a time.
+        private void CheckRecent()
+        {
+            _recentCheckDue = false;
+            List<string> ids = SentAttempts.ToCheck(_recentIds, _recentWaiting, _sentThere, _askedThisOpen);
+            if (ids.Count == 0) return;
+            for (int i = 0; i < ids.Count; i++) _askedThisOpen.Add(ids[i]);
+            _recentCheckBusy = true;
+            Ctx.Runner.StartCoroutine(CheckSent(ids));
+        }
+
+        private IEnumerator CheckSent(List<string> ids)
+        {
+            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
+            for (int i = 0; i < ids.Count; i++)
+            {
+                long code = 0; string answer = null;
+                yield return Ctx.Runner.StartCoroutine(WebRequest.Send("GET", baseUrl + "/api/attempts/" + ids[i], null, null,
+                    null, 10f, delegate(long c, string b, string e) { code = c; answer = b; }));
+                SentCheck meaning = SentAttempts.Meaning(code, answer);
+                if (meaning == SentCheck.There) _sentThere.Add(ids[i]);
+                else if (meaning == SentCheck.Gone) DropSent(ids[i]);
+                // Offline or the site in trouble: the rest stay listed too,
+                // asked again the next time the tab opens.
+                else break;
+            }
+            _recentCheckBusy = false;
+        }
+
+        private void DropSent(string id)
+        {
+            try
+            {
+                if (!File.Exists(_sentList)) return;
+                string kept = SentAttempts.Without(File.ReadAllText(_sentList), id);
+                if (kept == null) return;
+                File.WriteAllText(_sentList, kept, new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                Ctx.Log.LogWarning("Attempts: " + id + " is deleted on the site but could not be taken off sent.txt: " + ex.Message);
+                return;
+            }
+            _recentDirty = true;
+            _attemptState = "attempt " + id + " was deleted on the website - taken off this list";
+            Ctx.Log.LogInfo("Attempts: " + id + " was deleted on the site (404) - taken off the Runs tab's list (sent.txt).");
+        }
     }
 }
