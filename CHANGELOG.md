@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.264 - 2026-10-09
+
+- Run report: entering the endgame area shows once per visit (it was listed two to four times).
+
 ## v0.24.263 - 2026-10-09
 
 - Run mode now catches the log boost: shooting up off a custom wall while adding logs shows in the attempt's moves (it was missed before).
