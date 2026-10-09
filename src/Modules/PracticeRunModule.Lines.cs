@@ -5,7 +5,7 @@ using UnityEngine;
 namespace ForestOverlay.Modules
 {
     // ------------------------------------------------------------------
-    // Run line options (Runs -> Line options; QA Discord 2026-09-26,
+    // Run line options (Runs -> Run options, under Run lines; QA Discord 2026-09-26,
     // v0.24.191): the lines' opacity (sxczurass: at full they hid what was
     // behind them) and showing only the next few seconds of the comparison
     // line (author), so a long route is not one tangle. The colours already

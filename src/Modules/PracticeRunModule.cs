@@ -763,7 +763,7 @@ namespace ForestOverlay.Modules
         }
 
         /// A running attempt about to be dropped: its line stays as the
-        /// failed one (Runs -> Line options).
+        /// failed one (Runs -> Run lines -> Keep the last unfinished run's line).
         private void KeepFailed()
         {
             if (_recorder.State != RunRecorder.RunState.Running || _recorder.Current == null) return;

@@ -21,7 +21,7 @@ namespace ForestOverlay.Game
     {
         public bool ShowBuildings = true;
         public bool ShowMarkers = true;
-        /// 0..1, the run lines' opacity (Runs -> Line options).
+        /// 0..1, the ghost and replay's opacity (Runs -> Ghost and replay; T-0253).
         public float Opacity = 1f;
         /// The replay time: buildings show from their time on (a blueprint
         /// until it is finished); +inf = the end state.
