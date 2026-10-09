@@ -36,6 +36,10 @@ jobs:
       - name: Test
         run: dotnet test tests/ForestOverlay.Tests/ForestOverlay.Tests.csproj -c Release --nologo
 
+      # The offline IL scanner (tools/ILScan) over a fixture assembly (T-0146).
+      - name: ILScan tests
+        run: dotnet test tests/ILScan.Tests/ILScan.Tests.csproj -c Release --nologo
+
       # The task file (docs/harness.md 6) against the rules, and docs/tasks.md
       # generated from it.
       - name: Tasks

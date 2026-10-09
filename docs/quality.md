@@ -38,7 +38,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
 | Performance and loads | C | B | B | A | C | T-0202, T-0190 | 2026-10-08 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
-| Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
+| Dev tools | B | B | B | B | A | | 2026-10-09 |
 | Bridge, e2e and QA | B | A | A | B | A | | 2026-10-08 |
 | Release and updater | A | A | A | A | A | | 2026-10-08 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
@@ -47,8 +47,8 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | A | B | T-0016 | 2026-10-08 |
 
-Lowest first: Savestates, Practice, Performance and loads, Dev tools,
-Site maps and 3D world, Bot (C).
+Lowest first: Savestates, Practice, Performance and loads, Site maps and
+3D world, Knowledge (C).
 
 ## Areas
 
@@ -182,7 +182,7 @@ Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/D
 
 ### Dev tools
 
-Paths: `src/Modules/{DebugViewModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/VolumeFilter.cs` `tools/ILScan/`
+Paths: `src/Modules/{DebugViewModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/{VolumeFilter,DumpText}.cs` `tools/ILScan/` `tests/ILScan.Tests/`
 
 Debug views and freecam, the explorer, dumps, the FSM / terrain / world
 exports, the offline IL scanner.
@@ -190,8 +190,10 @@ exports, the offline IL scanner.
   by the author (v0.17.0); VolumeFilter tested.
 - Legibility **B**: `DebugDraw.cs` 829 (also draws run lines and
   markers); ILScan is documented in game-notes and plugin.md.
-- Stability **C**: no automated test of the dumps, the exports or ILScan
-  (T-0146).
+- Stability **B**: ILScan's modes, errors and cap run in CI over a
+  fixture assembly; the FSM export's value text and the dumps' cleaners
+  are `Data/DumpText` with tests (T-0146). The game-walking parts of the
+  dumps are proved only by use.
 - Gaps **A**.
 
 ### Bridge, e2e and QA

@@ -5,6 +5,7 @@ using System.Text;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -415,39 +416,10 @@ namespace ForestOverlay
             return types;
         }
 
-        private static string SafeTypeName(Type t)
-        {
-            if (t == null) return "?";
-            try { return t.Name; }
-            catch (Exception) { return "?"; }
-        }
+        private static string SafeTypeName(Type t) { return DumpText.TypeName(t); }
 
-        private static string ParamList(MethodInfo m)
-        {
-            try
-            {
-                ParameterInfo[] ps = m.GetParameters();
-                if (ps.Length == 0) return "";
+        private static string ParamList(MethodInfo m) { return DumpText.ParamList(m); }
 
-                string s = "";
-                for (int i = 0; i < ps.Length; i++)
-                {
-                    if (i > 0) s += ", ";
-                    s += SafeTypeName(ps[i].ParameterType) + " " + ps[i].Name;
-                }
-                return s;
-            }
-            catch (Exception) { return "?"; }
-        }
-
-        private static string MakeFilenameSafe(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "all";
-            char[] bad = Path.GetInvalidFileNameChars();
-            for (int i = 0; i < bad.Length; i++)
-                s = s.Replace(bad[i], '_');
-            s = s.Replace('.', '_').Replace(' ', '_');
-            return s.Length > 40 ? s.Substring(0, 40) : s;
-        }
+        private static string MakeFilenameSafe(string s) { return DumpText.FilenameSafe(s); }
     }
 }

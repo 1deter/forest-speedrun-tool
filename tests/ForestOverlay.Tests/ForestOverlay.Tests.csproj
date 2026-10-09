@@ -95,6 +95,7 @@
     <Compile Include="../../src/Data/ReplayMarks.cs" Link="Linked/ReplayMarks.cs" />
     <Compile Include="../../src/Data/ReplayLabels.cs" Link="Linked/ReplayLabels.cs" />
     <Compile Include="../../src/Data/ReplayCamera.cs" Link="Linked/ReplayCamera.cs" />
+    <Compile Include="../../src/Data/DumpText.cs" Link="Linked/DumpText.cs" />
     <!-- The bridge MCP server's pure text side (a dev tool, not the plugin). -->
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />
