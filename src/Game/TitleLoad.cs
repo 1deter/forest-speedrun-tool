@@ -101,8 +101,7 @@ namespace ForestOverlay.Game
             object title = FindTitle(t);
             MethodInfo single = t != null ? t.GetMethod("OnSinglePlayer", inst, null, Type.EmptyTypes, null) : null;
             MethodInfo slotSel = t != null ? t.GetMethod("OnSlotSelection", inst, null, new[] { typeof(int) }, null) : null;
-            if (single == null || slotSel == null) return "the title screen's load buttons were not found";
-            if (title == null) return "the title screen was not found - load from the menu";
+            if (title == null || single == null || slotSel == null) return "the title screen's load buttons were not found";
 
             Type setup = GameBridge.FindGameType("TheForest.Utils.GameSetup");
             _slotProp = setup != null ? setup.GetProperty("Slot", stat) : null;
