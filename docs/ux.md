@@ -175,6 +175,12 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
    check number, the severity, and the screenshot; a design choice (what
    to cut, a new word, a layout) is parked for the author with
    `--needs author-decision --question`. It never edits code.
+   Method notes (2026-10-09): measure text height on the PNG the shot
+   printed (the file on disk is the full frame; `region` crops only the
+   returned image) - rows of bright pixels, ascender to descender, then
+   scale to 1080p for check 25; read every `set` flag back at the end
+   (`fields` on the module); `Hotkeys.Bindings.Count` and `HudLines.All`
+   give the true list sizes for check 23.
 6. Adds what it learned to this file (a new check, a sharper one, a
    section for a new surface) and a line to the log below.
 
@@ -192,3 +198,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 ## Review log
 
 - 2026-10-09 - written (T-0252); no review run yet.
+- 2026-10-09 - smoke run: plugin Settings tab on v0.24.260, Keys and Info box (HUD) views, checks A-F; 6 tasks (T-0259..T-0264, 2 parked), notes on T-0226 and T-0021. First review: the brief's `open_tab` schema listed no `scroll_tour` but it worked.
