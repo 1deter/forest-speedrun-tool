@@ -16,8 +16,10 @@ startup + /clear) does it unprompted. It reports:
   - the site up, the VPS containers (ssh, skipped without the key);
   - bot feedback: new thumbs-down / partial queue items (the VPS) and new
     humans' messages in the knowledge-testing channel (Discord REST, read-only)
-    since the last bot review (docs/bot-reviews/mark.json); any new = the
-    review is due, skill bot-review (T-0141);
+    since the last bot review (docs/bot-reviews/mark.json): handled in passing
+    (skill bot-review, the queue step), never a `!` problem; the full eval
+    only when knowledge/ or bot/ changed since the last one and 7 days passed
+    (author, 2026-10-09);
   - tasks: in progress, parked questions, what is next;
   - quality (docs/quality.md): the lowest grades, and the rows whose paths
     changed after their Reviewed date (re-grade them);
@@ -209,13 +211,24 @@ def read_mark(text):
     """The mark file -> dict with date / queue_id / message_id, or None when absent or unreadable."""
     try:
         d = json.loads(text)
-        return {"date": str(d["date"]), "queue_id": int(d.get("queue_id", 0)), "message_id": str(d.get("message_id", "0"))}
+        return {"date": str(d["date"]), "queue_id": int(d.get("queue_id", 0)), "message_id": str(d.get("message_id", "0")),
+                "eval": str(d.get("eval", d["date"]))}
     except (TypeError, ValueError, KeyError):
         return None
 
 
-def feedback_line(mark, queue_new, msgs_new, notes=()):
-    """(line, due): queue_new / msgs_new are counts, or None when that source could not be read."""
+def eval_due(mark, today, changed):
+    """The full eval is due when knowledge/ or bot/ changed since the last one and 7 days passed (author, 2026-10-09)."""
+    try:
+        last = datetime.date.fromisoformat(mark["eval"])
+    except (TypeError, ValueError, KeyError):
+        return bool(changed)
+    return bool(changed) and (datetime.date.fromisoformat(today) - last).days >= 7
+
+
+def feedback_line(mark, queue_new, msgs_new, notes=(), eval_is_due=False):
+    """(line, due): queue_new / msgs_new are counts, or None when that source could not be read.
+    due = something new to handle in passing; it is never a problem line (author, 2026-10-09)."""
     if mark is None:
         return ("bot feedback: no review mark (docs/bot-reviews/mark.json) - the first review is due, skill bot-review", True)
     parts = []
@@ -223,7 +236,9 @@ def feedback_line(mark, queue_new, msgs_new, notes=()):
         parts.append("%s unknown" % what if n is None else "%d %s" % (n, what))
     due = bool((queue_new or 0) + (msgs_new or 0))
     s = "bot feedback since the review of %s: %s" % (mark["date"], ", ".join(parts))
-    s += " -> review due, skill bot-review" if due else " (no review due)"
+    s += " -> handle in passing (skill bot-review, the queue; no eval)" if due else " (nothing new)"
+    if eval_is_due:
+        s += "; full eval due (knowledge/ or bot/ changed, last eval %s)" % mark["eval"]
     if notes:
         s += " [%s]" % "; ".join(notes)
     return s, due
@@ -366,7 +381,12 @@ def check_bot_feedback():
     if note:
         notes.append(note)
     q_new = None if ids is None else len([i for i in ids if i > mark["queue_id"]])
-    return feedback_line(mark, q_new, None if msgs is None else len(msgs), notes)
+    try:
+        changed = cleanup.git("log", "--since=" + mark["eval"], "--format=%h", "--", "knowledge", "bot").strip()
+    except Exception:
+        changed = ""
+    due = eval_due(mark, datetime.date.today().isoformat(), changed)
+    return feedback_line(mark, q_new, None if msgs is None else len(msgs), notes, due)
 
 
 def managed_path():
@@ -513,10 +533,7 @@ def report(force_local=False):
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
     try:
-        fb_line, fb_due = f_feedback.result(timeout=60)
-        lines.append(fb_line)
-        if fb_due:
-            problems.append("bot review due - skill bot-review (new queue items / uses of the bot in knowledge-testing)")
+        lines.append(f_feedback.result(timeout=60)[0])
     except Exception as e:
         lines.append("bot feedback: check failed (%s)" % type(e).__name__)
 

@@ -349,8 +349,12 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   (bot/CLAUDE.md). The session-start report counts new 👎 / partial queue
   items and uses of the bot in knowledge-testing (`/ask` answers, mentions,
   replies to it - not runners chatting: author, 2026-10-08, three reviews
-  flagged by chat) since the last review; any new one makes the review due
-  (Claude's default for the threshold - the author can raise it). Runners
+  flagged by chat) since the last review. **Sizes (author, 2026-10-09):**
+  new feedback is a quick pass (queue + channel, file tasks, move the mark;
+  no eval, no report) and never a `!` problem ahead of plugin work; the full
+  eval + report only when knowledge/ or bot/ changed since the last eval and
+  7 days passed, or when the author asks (five full reviews on 2026-10-08,
+  each 20-60 min of eval wait). Runners
   mostly `/ask` in the speedrun server's general chat, which the bot cannot
   read (its admins have to grant the permission - author, 2026-10-08), so
   the answer log is the better signal (T-0220).
