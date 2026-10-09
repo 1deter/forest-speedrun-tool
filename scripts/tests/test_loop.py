@@ -165,7 +165,7 @@ class ReleaseStep(unittest.TestCase):
 
 class End(unittest.TestCase):
     def setUp(self):
-        self.ts = [task("T-0001", area="site", checker=True), task("T-0002")]
+        self.ts = [task("T-0001", area="site", checker=True), task("T-0002", area="bot")]
         self.ev = []
         run(self.ev, L.cmd_begin, self.ts)
         run(self.ev, L.cmd_next, self.ts)
@@ -339,7 +339,7 @@ class ThroughMain(unittest.TestCase):
         return L.main(list(argv), loop_path=self.loop, tasks_path=self.tasks)
 
     def test_third_revise_parks_and_moves_on(self):
-        self.write([task("T-0001", area="plugin", checker=True, priority=1), task("T-0002")])
+        self.write([task("T-0001", area="plugin", checker=True, priority=1), task("T-0002", area="site")])
         self.assertEqual(self.main("begin"), 0)
         self.assertEqual(self.main("next"), 0)
         ts = T.load(self.tasks)
