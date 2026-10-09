@@ -468,6 +468,14 @@ than the table's plan:
     structure was touched** in the episode (`BuildingHealth` /
     `BuildingHealthChunk` up the parents) - walking into the yacht cabin's
     bench lifts the 4.6 m capsule 1.2 m too (logged, not reported).
+  - **Launch** (the log boost, v0.24.263, T-0243): the runners' log boost
+    is not that lift but a launch (live, recorded twice at the cave 6
+    spots: jump, hold E to add logs to a custom wall blueprint under them,
+    55-80 m/s up while logs go in, 24-32 m), so its rise is all speed. Also
+    reported as a `lift`: 3+ physics steps rising faster than 25 m/s by
+    position (a jump ~13, the cave 6 body bounce 22), 3 m or more, not in a
+    knockback, with a player-built structure touched within 1.5 s before or
+    during it; without one, logged only.
   - **Clip**: the line from the last place the capsule's centre was clear
     of every touched solid to the next one enters a solid through a front
     face (ending inside a rock counts; a face crossed from behind does not)

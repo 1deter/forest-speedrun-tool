@@ -93,6 +93,17 @@ namespace ForestOverlay.Data
     // closing door) is not a lift either: the mover pushed them (live,
     // v0.24.231: walking on the yacht read as a 1.0 m lift).
     //
+    // The runners' log boost is not that lift: it is a launch (live,
+    // v0.24.262, T-0243: jumping and holding E to add logs to a custom wall
+    // blueprint under them sends them up at 55-80 m/s for as long as logs go
+    // in, 24-32 m), so the rise is all speed and the lift above never counts
+    // it. So also: physics steps rising faster than LaunchSpeed (a jump is
+    // ~13 m/s, the bounce off the cave 6 bodies 22), measured from the
+    // position, at least LaunchSteps of them and LaunchReport metres in one
+    // episode (a teleport is one step), not during a knockback; reported as
+    // a lift when a player-built structure was touched within
+    // ClipSmashWindow before or during it, else only logged (SmallLift).
+    //
     // Clip through a solid. The capsule's centre ends up on the other side
     // of a solid collider the player had touched (Game/ClipWatch casts the
     // line from the last place the centre was clear of every solid to the
@@ -142,6 +153,9 @@ namespace ForestOverlay.Data
         public const float ClipRepeat = 2f;        // game seconds: the same collider again = the same clip
         public const float SettleSeconds = 0.5f;   // game seconds after a teleport when nothing counts
         public const float ClipSmashWindow = 1.5f; // game seconds after a ground smash a clip counts
+        public const float LaunchSpeed = 25f;      // m/s rising, from the position: over a jump (~13) and the body bounce (22)
+        public const int LaunchSteps = 3;          // physics steps at least (a teleport is one)
+        public const float LaunchReport = 3f;      // m risen in one launch
 
         public sealed class Move
         {
@@ -202,6 +216,9 @@ namespace ForestOverlay.Data
         private float _sinceSmash = 1000f, _sinceStand = 1000f, _sinceStructure = 1000f;
         private string _clipStructure = "";
         private bool _wasCrouching;
+        private Move _launch;
+        private float _launchQuiet;
+        private string _launchStructure = "";
 
         // --- clips: the last one, to merge repeats ---
         private string _clipWhat = "";
@@ -235,6 +252,8 @@ namespace ForestOverlay.Data
             _stepHas = false;
             if (_lift != null && !drop) EndLift();
             _lift = null;
+            if (_launch != null && !drop) EndLaunch();
+            _launch = null;
             _clipWhat = "";
         }
 
@@ -375,6 +394,7 @@ namespace ForestOverlay.Data
             _stopPushes = 0;
             if (_huge != null) EndHuge();
             if (_lift != null) EndLift();
+            if (_launch != null) EndLaunch();
         }
 
         /// One physics step (our FixedUpdate: `pos` = the capsule's centre
@@ -397,6 +417,7 @@ namespace ForestOverlay.Data
             {
                 _stepHas = false;
                 if (_lift != null) EndLift();
+                if (_launch != null) EndLaunch();
                 return false;
             }
             if (!_stepHas)
@@ -419,6 +440,7 @@ namespace ForestOverlay.Data
             {
                 // A teleport: not the physics'.
                 if (_lift != null) EndLift();
+                if (_launch != null) EndLaunch();
                 _settle = SettleSeconds;
                 return false;
             }
@@ -453,6 +475,7 @@ namespace ForestOverlay.Data
                 _liftQuiet += dt;
                 if (_liftQuiet >= LiftQuiet) EndLift();
             }
+            Launch(dt, pos, d, contact, structure, carried);
             if (_lift != null)
             {
                 float far = Vector3.Distance(_liftFrom, pos);
@@ -605,6 +628,55 @@ namespace ForestOverlay.Data
             }
             m.Detail = "the physics pushed the player up out of a structure they built (" + built + "): " + text +
                        " - how a log boost or a custom wall boost lifts them";
+            Ready.Add(m);
+        }
+
+        private void Launch(float dt, Vector3 pos, Vector3 d, string contact, string structure, bool carried)
+        {
+            float rising = d.y / dt;
+            if (rising >= LaunchSpeed && !carried && !_excused)
+            {
+                if (_launch == null)
+                {
+                    _launch = new Move();
+                    _launch.Kind = LiftKind;
+                    _launch.Position = pos - d;
+                    _launch.Detail = "";
+                    _launchStructure = _sinceStructure <= ClipSmashWindow ? _clipStructure : "";
+                }
+                _launch.Distance += d.y;
+                _launch.Seconds += dt;
+                _launch.PausedPushes++;   // steps that rose that fast
+                if (rising > _launch.PeakSpeed) _launch.PeakSpeed = rising;
+                if (!string.IsNullOrEmpty(contact)) _launch.Detail = contact;
+                if (!string.IsNullOrEmpty(structure)) _launchStructure = structure;
+                _launchQuiet = 0f;
+            }
+            else if (_launch != null)
+            {
+                if (!string.IsNullOrEmpty(structure)) _launchStructure = structure;
+                _launchQuiet += dt;
+                if (_launchQuiet >= LiftQuiet) EndLaunch();
+            }
+        }
+
+        private void EndLaunch()
+        {
+            Move m = _launch;
+            _launch = null;
+            string built = _launchStructure;
+            _launchStructure = "";
+            if (m.PausedPushes < LaunchSteps || m.Distance < LaunchReport) return;
+            string text = "launched up " + Meters2(m.Distance) + " m at up to " + Speed(m.PeakSpeed) + " m/s over " +
+                          m.PausedPushes.ToString(CultureInfo.InvariantCulture) + " physics steps (" +
+                          m.Seconds.ToString("0.00", CultureInfo.InvariantCulture) + " s; a jump is about 13 m/s)" +
+                          (m.Detail.Length > 0 ? ", last touching " + m.Detail : "");
+            if (built.Length == 0)
+            {
+                SmallLift = text + " (no player-built structure touched)";
+                return;
+            }
+            m.Detail = "the player shot up off a structure they built (" + built + "): " + text + " - how a log boost launches them";
             Ready.Add(m);
         }
 
