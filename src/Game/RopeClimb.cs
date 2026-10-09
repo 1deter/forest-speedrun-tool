@@ -108,14 +108,16 @@ namespace ForestOverlay.Game
         /// (playerEnterCaveAction.doCave sets `enteringACave` for its whole
         /// length, entering and leaving). It snaps the player to the mouth's
         /// enter / exit spot the frame it sets the cave (bridge: 9 m at
-        /// cave 6), which is not a teleport.
+        /// cave 6), which is not a teleport. The rope enters set the flag
+        /// too and only resetClimbRope clears it, so a rope climb is not a
+        /// cave mouth (a restore onto a rope must stay a placement).
         public static bool IsEnteringCave()
         {
             try
             {
                 if (!Resolve() || _enteringCaveGet == null) return false;
                 object anim = _animControl.GetValue(null) as UnityEngine.Object;
-                return anim != null && _enteringCaveGet(anim);
+                return anim != null && _enteringCaveGet(anim) && !IsOnRope();
             }
             catch (Exception) { return false; }
         }
