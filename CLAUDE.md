@@ -199,9 +199,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   cameras), Full load if it cannot; every restore in place sets
   `DeadTimes` 0 as a load does (maks: menu after 2 deaths, rope stuck on
   the hips). Proved over the bridge step by step + a field diff against a
-  Full load (gotcha 103); the DLL itself waits for forest-tester: die
-  again -> captured again, a real death + F7 within 6 s stays in game,
-  F7 while hanging. New: T-0269 (body temperature not in the save).
+  Full load (gotcha 103). **Confirmed in game** by forest-tester (drag-
+  away, hanging, death count, real death + restore, plain restore).
+  New: T-0269 (body temperature not in the save).
 - **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
   title after a return to it (pause-menu exit). There `TitleScreen.Instance`
   is null and the component disabled (bridge; game-notes *Loading a save
