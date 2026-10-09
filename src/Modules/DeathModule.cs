@@ -156,6 +156,7 @@ namespace ForestOverlay.Modules
 
         // Title screen reflection.
         private FieldInfo _titleInstance;
+        private Type _titleType;
         private MethodInfo _onSinglePlayer;
         private MethodInfo _onLoad;
         private MethodInfo _onSlotSelection;
@@ -476,7 +477,8 @@ namespace ForestOverlay.Modules
             ResolveTitle();
             if (_titleInstance == null) return;
 
-            UnityEngine.Object title = _titleInstance.GetValue(null) as UnityEngine.Object;
+            // Instance is null on a return to the title (T-0247).
+            UnityEngine.Object title = TitleLoad.FindTitle(_titleType);
             if (title == null) return;
 
             // Give the title screen a frame after it appears, so its own
@@ -509,7 +511,8 @@ namespace ForestOverlay.Modules
             Type t = GameBridge.FindGameType("TitleScreen");
             if (t != null)
             {
-                _titleInstance = t.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                _titleType = t;
+                _titleInstance =t.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
                 _onSinglePlayer = t.GetMethod("OnSinglePlayer", inst, null, Type.EmptyTypes, null);
                 _onLoad = t.GetMethod("OnLoad", inst, null, Type.EmptyTypes, null);
                 _onSlotSelection = t.GetMethod("OnSlotSelection", inst, null, new Type[] { typeof(int) }, null);

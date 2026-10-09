@@ -573,7 +573,14 @@ Full health is 100 (`Health`, `HealthTarget`).
 `OnSinglePlayer` → `GameSetup.SetPlayerMode(SP)`; `OnLoad` →
 `SetInitType(Continue)`; `OnSlotSelection(int)` → `SetSlot`,
 `LoadSave.ShouldLoad = true`, activates `MyLoader`. The current slot is static
-`GameSetup.Slot`.
+`GameSetup.Slot`. **On a return to the title `Instance` is null** (bridge,
+2026-10-09, pause menu `MenuMain.OnExitMenu`, with the plugin's
+FocusLostAudio clean-up on and off): the scene's one
+`TitleSceneMain/TitleScreen` is there but disabled - what its `OnDestroy`
+leaves (only `Awake` / `OnDestroy` write `Instance`; why it runs is not
+known). A fresh launch has both. Its buttons still work on it
+(`OnLoad` + `OnSlotSelection(1)` loaded Slot 1); `Game/TitleLoad.FindTitle`
+looks it up by path (T-0247).
 
 The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
 `Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 671 log calls.
+216 prefixes from 672 log calls.
 
 ## `Aerial capture`
 
@@ -1735,6 +1735,7 @@ Written by TitleLoad.cs; info / warning.
 - warning `TitleLoad: <ex.Message>`
 - warning `TitleLoad: LevelSerializer.Resume / CanResume / LoadSavedLevel not found - no restores from the title screen.`
 - warning `TitleLoad: LoadSavedLevel threw: <..>`
+- info `TitleLoad: TitleScreen.Instance is null (a return to the title) - using TitleSceneMain/TitleScreen<..>.`
 - info `TitleLoad: done (<_resumes> Resume call(s) replaced; <slot>).`
 - info `TitleLoad: the menu's load started (slot <slot>), the capture in place of the slot's save.`
 - warning `TitleLoad: the pending title-screen load timed out - Resume reads the slot again.`
