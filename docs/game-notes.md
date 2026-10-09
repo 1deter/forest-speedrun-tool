@@ -1831,6 +1831,8 @@ file is kept as `…prev`; with Steam Cloud on it is also uploaded
 (`CoopSteamCloud.CloudSave`). `CanResume` = that file exists (or the cloud
 copy).
 
+**The slot's `info` file** (IL + bridge, 2026-10-10, T-0214). `GameStats.OnSerializing` sets `_stats._day = Clock.Day`, then writes the BinaryFormatter bytes of `GameStats.Stats` to `GetLocalSlotPath() + "info"` and `CoopSteamCloud.CloudSave(GetCloudSlotPath() + "info")`. It runs on **every** `LevelSerializer.SerializeLevel` (the serializer SendMessages `OnSerializing`), not only on a real save. The bytes are read back only by `LoadSaveSlotInfo.LoadStats` (the load screen) and the debug console's `_showgamestats`. A savestate capture skips it (`Game/SlotInfoGuard`).
+
 **Saving** — `PlayerStats.OnSaveSlotSelectedRoutine` (from `JustSave` /
 `OnSaveSlotSelected`), in order: drop the glider, close the inventory/pause
 view, hide HUD and cams, **force-unload streamed content**
