@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -44,20 +45,18 @@ namespace ForestOverlay.Game
         private const BindingFlags Stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-        // PlayerStats' Invokes in the death chain (FallDownDead, KnockOut,
-        // BlackScreen, KillPlayer, KillMeFast, the cutscene wake-ups).
-        private static readonly string[] Invokes =
-        {
-            "BlackScreen", "KillPlayer", "GameOver", "CutSceneWake", "CutSceneBlackToMorning",
-            "disablePlayerControl", "resetInjuredBool", "EnableGhostMode", "CheckArmsStart",
-            "PlayWakeMusic", "ResetHit",
-        };
+        /// End()'s answer when the death could not be ended in place - the
+        /// restore then does a Full load instead (author, 2026-10-09).
+        private const string FailPrefix = "death: ";
 
         private static readonly int BaseIdle = Animator.StringToHash("Base Layer.idle");
 
+        // EndgameWakeUp's clip planes (decompiled), put back only at its end.
+        private const float WakeFar = 600f, WakeNear = 0.1f;
+
         // The main camera when the death started: the drag-away changes the
         // culling mask, the boss-fight wake-up the clip planes, and each
-        // puts them back only at its end.
+        // puts them back only at its end. Used once, dropped on a load.
         private static bool _haveCam;
         private static int _cullingMask;
         private static float _near, _far;
@@ -75,6 +74,18 @@ namespace ForestOverlay.Game
                 _haveCam = true;
             }
             catch (Exception) { }
+        }
+
+        /// A load finished: a new player, nothing of an earlier death.
+        public static void Forget()
+        {
+            _haveCam = false;
+        }
+
+        /// End() could not end the death in place.
+        public static bool Failed(string note)
+        {
+            return note != null && note.StartsWith(FailPrefix);
         }
 
         /// Every restore in place: the deaths the save does not hold, as a
@@ -108,7 +119,7 @@ namespace ForestOverlay.Game
 
                 List<string> notes = new List<string>();
                 stats.StopAllCoroutines();
-                for (int i = 0; i < Invokes.Length; i++) stats.CancelInvoke(Invokes[i]);
+                for (int i = 0; i < DeathProgress.Cancelled.Length; i++) stats.CancelInvoke(DeathProgress.Cancelled[i]);
                 MonoBehaviour hit = Get(stats, "hitReaction") as MonoBehaviour;
                 if (hit != null)
                 {
@@ -126,26 +137,37 @@ namespace ForestOverlay.Game
                 Hud(local, stats);
                 DeathHooks.ClearBlood();
 
+                // Whatever still shows the death means a step did not take:
+                // the caller loads instead.
+                string still = Running(local, stats);
+                if (still.Length > 0) return FailPrefix + "still running after the end (" + still + ")";
                 return "ended the game's death (" + why + (notes.Count > 0 ? "; " + string.Join(", ", notes.ToArray()) : "") + ")";
             }
-            catch (Exception ex) { return "death: end failed (" + (ex.InnerException ?? ex).Message + ")"; }
+            catch (Exception ex) { return FailPrefix + "end failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }
 
-        // What shows a death in progress; "" when none.
+        // What shows a death in progress; "" when none (Data/DeathProgress).
         private static string Running(Type local, MonoBehaviour stats)
         {
-            if (Get(stats, "Dead") is bool && (bool)Get(stats, "Dead")) return "dead";
             object anim = Static(local, "AnimControl");
-            if (anim != null && Get(anim, "upsideDown") is bool && (bool)Get(anim, "upsideDown")) return "hanging in the cave";
-            if (Alive(Get(stats, "mutant1")) || Alive(Get(stats, "mutant2"))) return "drag-away";
             object inv = Static(local, "Inventory");
-            if (inv != null && Convert.ToString(Get(inv, "CurrentView")) == "Death") return "death view";
-            for (int i = 0; i < Invokes.Length; i++)
-                if (stats.IsInvoking(Invokes[i])) return Invokes[i] + " pending";
             object cams = Static(SceneType(), "Cams");
-            if (cams != null && (Active(Get(cams, "DeadCam")) || Active(Get(cams, "CaveDeadCam")))) return "dead cam";
-            if (Active(Static(local, "PlayerDeadCam"))) return "dead cam";
-            return "";
+            string pending = null;
+            for (int i = 0; i < DeathProgress.Signs.Length && pending == null; i++)
+                if (stats.IsInvoking(DeathProgress.Signs[i])) pending = DeathProgress.Signs[i];
+            return DeathProgress.Reason(
+                IsTrue(Get(stats, "Dead")),
+                anim != null && IsTrue(Get(anim, "upsideDown")),
+                Alive(Get(stats, "mutant1")) || Alive(Get(stats, "mutant2")),
+                inv != null && Convert.ToString(Get(inv, "CurrentView")) == "Death",
+                pending,
+                (cams != null && (Active(Get(cams, "DeadCam")) || Active(Get(cams, "CaveDeadCam")))) ||
+                    Active(Static(local, "PlayerDeadCam")));
+        }
+
+        private static bool IsTrue(object o)
+        {
+            return o is bool && (bool)o;
         }
 
         // The drag-away's two cannibals and the hanging rope (on the hips).
@@ -293,13 +315,21 @@ namespace ForestOverlay.Game
             GameObject own = Static(local, "PlayerDeadCam") as GameObject;
             if (own != null && own.activeSelf) own.SetActive(false);
 
+            // Only what the chain set: the drag-away's mask, the boss
+            // wake-up's clip planes - back to the values at the death's start.
             Camera cam = Static(local, "MainCam") as Camera;
+            object stats = Static(local, "Stats");
             if (cam != null && _haveCam)
             {
-                cam.cullingMask = _cullingMask;
-                cam.nearClipPlane = _near;
-                cam.farClipPlane = _far;
+                object dragMask = stats != null ? Get(stats, "dragAwayCullingMask") : null;
+                if (dragMask is LayerMask && cam.cullingMask == ((LayerMask)dragMask).value) cam.cullingMask = _cullingMask;
+                if (cam.farClipPlane == WakeFar && cam.nearClipPlane == WakeNear)
+                {
+                    cam.nearClipPlane = _near;
+                    cam.farClipPlane = _far;
+                }
             }
+            _haveCam = false;
         }
 
         private static void Hud(Type local, object stats)

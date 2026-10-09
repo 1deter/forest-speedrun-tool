@@ -446,6 +446,7 @@ namespace ForestOverlay.Game
         public static void ForgetDeath()
         {
             _lastStats = null;
+            DeathSequence.Forget();
         }
 
         /// Clears the blood overlay on demand - it builds up after

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 672 log calls.
+216 prefixes from 674 log calls.
 
 ## `Aerial capture`
 
@@ -1491,6 +1491,8 @@ Written by LogStore.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `<prefix>: <note>.` *(declared)*
 - info `Savestate restore <what> in place: <note> - <..> after <..> s.`
 - info `Savestate restore <what> in place: starting.`
+- warning `Savestate restore <what>: <death> - a Full load instead.`
+- info `Savestate restore <what>: <death>.`
 - info `Savestate restore <what>: <n> world pickup(s) not at capture (<sb>) - moved, or new since the capture.`
 - info `Savestate restore <what>: <note>.`
 - info `Savestate restore <what>: <slotNote>.`

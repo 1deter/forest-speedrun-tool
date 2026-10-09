@@ -139,19 +139,24 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   down with the rope on the hips - and `DeadTimes` (not in the save) kept
   counting, so the death after a capture was a real one. Every Quick load
   now sets `DeadTimes` 0 / `doneDragScene` false as a load does, and one
-  that finds the death in progress (`Dead`, hanging, the drag-away's
-  cannibals, the death view, a pending chain Invoke, a dead cam) ends it
-  first (`Game/DeathSequence`, game-notes *The death chain and a restore
-  in place*): PlayerStats' coroutines and the chain's Invokes stopped,
-  the cutscene clones and the rope destroyed, controls, look, body
-  physics, animator, cameras and HUD as the game's wake-ups leave them.
-  Go does the same before it moves the player. Proved step by step over
+  that finds the death in progress (`Data/DeathProgress`, tested: `Dead`,
+  hanging, the drag-away's cannibals, the death view, a pending
+  `BlackScreen` / `KillPlayer` / `GameOver`, a dead cam - each set only by
+  the death chain in single player) ends it before anything else
+  (`Game/DeathSequence`, game-notes *The death chain and a restore in
+  place*): PlayerStats' coroutines and the chain's Invokes stopped, the
+  cutscene clones and the rope destroyed, controls, look, body physics,
+  animator, cameras (only what the chain changed) and HUD as the game's
+  wake-ups leave them. If anything still shows the death after that, or
+  a step throws, the restore is a Full load instead (author: only then).
+  Go ends it the same way before it moves the player. Proved step by step over
   the bridge (the fall, the drag-away, the hanging, the dead cam) and
   diffed against a Full load of the spot: left over only `CamRotator`'s
   range (the game's own reset 135 vs a fresh player's 145) and what is
-  not the death's (body temperature, cave flags). Log, in the restore's
-  done line: `ended the game's death (hanging in the cave; removed 1
-  cutscene object(s))`, `death count 2 -> 0 (as a load)`.
+  not the death's (body temperature, cave flags; T-0269). Log:
+  `Savestate restore <what>: ended the game's death (hanging in the cave;
+  removed 1 cutscene object(s)).`, the fallback's warning `... - a Full
+  load instead.`, and `death count 2 -> 0 (as a load)` in the done line.
 
 ## Category start states true to the game (2026-10-05, unreleased)
 

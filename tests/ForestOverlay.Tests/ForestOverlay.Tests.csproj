@@ -92,6 +92,7 @@
     <Compile Include="../../src/Data/TextMemo.cs" Link="Linked/TextMemo.cs" />
     <Compile Include="../../src/Data/ClockText.cs" Link="Linked/ClockText.cs" />
     <Compile Include="../../src/Data/DeathPlan.cs" Link="Linked/DeathPlan.cs" />
+    <Compile Include="../../src/Data/DeathProgress.cs" Link="Linked/DeathProgress.cs" />
     <Compile Include="../../src/Data/SlotSaveFlags.cs" Link="Linked/SlotSaveFlags.cs" />
     <Compile Include="../../src/Data/ReplayMarks.cs" Link="Linked/ReplayMarks.cs" />
     <Compile Include="../../src/Data/ReplayLabels.cs" Link="Linked/ReplayLabels.cs" />

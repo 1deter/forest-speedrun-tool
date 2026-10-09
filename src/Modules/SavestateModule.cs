@@ -563,12 +563,17 @@ namespace ForestOverlay.Modules
                 return;
             }
 
+            FullLoad(f, "restore '" + f.Name + "' with load", done);
+        }
+
+        private void FullLoad(SavestateFile f, string what, Action<string> done)
+        {
             Ctx.Practice.Mark("savestate restore (load)");
             PickupKeeper.Armed = true;
             CloseMenuBeforeLoad();
             _greebles.Restore(f.Greebles, false);
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty);
-            StartLoad("restore '" + f.Name + "' with load", err, AfterLoad(f, done));
+            StartLoad(what, err, AfterLoad(f, done));
         }
 
         // ------------------------------------------------------------------
@@ -672,6 +677,19 @@ namespace ForestOverlay.Modules
         {
             if (_busy) { if (after != null) after("a savestate action is still running"); return; }
             if (RefusedAtTitle("restore", after)) return;
+            // The game's own death in progress: its timers and cutscenes
+            // carried on through the restore - the menu, the capture, the
+            // hanging rope (runner maks, T-0248). Ended first; one that
+            // cannot be ended in place gets a Full load, which builds a new
+            // player (author, 2026-10-09).
+            string death = DeathSequence.End();
+            if (DeathSequence.Failed(death) && file != null)
+            {
+                Ctx.Log.LogWarning("Savestate restore " + what + ": " + death + " - a Full load instead.");
+                FullLoad(file, what + " with load", after);
+                return;
+            }
+            if (death.Length > 0) Ctx.Log.LogInfo("Savestate restore " + what + ": " + death + ".");
             // A spot past the vault door on a save that has not opened it:
             // the endgame first, as a Full load does (EndgameLoader).
             bool tried = _endgameTried;
@@ -709,12 +727,8 @@ namespace ForestOverlay.Modules
             if (menu.Length > 0) fall += (fall.Length > 0 ? ", " : "") + menu;
             string book = BookClose.IfOpen();
             if (book.Length > 0) fall += (fall.Length > 0 ? ", " : "") + book;
-            // The game's own death in progress (its timers and cutscenes
-            // carried on through the restore: the menu, the capture, the
-            // hanging rope), and the death count the save does not hold -
-            // a load gives 0 (runner maks, T-0248).
-            string death = DeathSequence.End();
-            if (death.Length > 0) fall += (fall.Length > 0 ? ", " : "") + death;
+            // The death count the save does not hold - a load gives 0
+            // (runner maks, T-0248: the death after a capture was a real one).
             string deaths = DeathSequence.ForgetDeaths();
             if (deaths.Length > 0) fall += (fall.Length > 0 ? ", " : "") + deaths;
             string anim = AnimReset.Cancel();
