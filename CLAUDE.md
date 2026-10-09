@@ -259,18 +259,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   author's channel untick had never been saved (rev 1 still ticks The
   Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
   the nature guide map - answered, maks's route, registration research).
-- **Redesign (2026-10-08):** main (v0.24.260) merged into `ui-redesign`
-  (pushed). T-0024 built + checker-accepted. **T-0226 built +
-  checker-accepted** (cc3bab7): a *Developer* tab (last: bridge,
-  benchmarks, experimental, TAS, memory census, dumps), Settings as folds
-  (Keys, Info box, Performance, Loads and savestates), Debug views ->
-  *Views*, the Deaths tab's *Reload save on death* toggle gone (fallback
-  always reloads) - old -> new place table in `tasks/notes/T-0226.md`;
-  **not seen in game** (the game runs v0.24.260; a branch build there
-  needs the author's OK to hand-deploy). Follow-ups T-0240 (settings never
-  contradict, tool-wide), T-0241 (QA tab out at the public release).
-  Next on the branch: T-0018..T-0022 (author present), then T-0025 (QA,
-  merge, release - its notes carry both checkers' lists).
+- **Redesign (2026-10-10):** main (v0.24.267) merged into `ui-redesign`
+  (2997114, pushed; 31 -> 34 commits ahead). Built + checker-accepted on
+  the branch: T-0024 (cursor), T-0226 (*Developer* tab, Settings as folds;
+  old -> new table in `tasks/notes/T-0226.md`), **T-0253** (c5804c2: one
+  setting, one feature - a ghost switch + Ghost-and-replay opacity apart
+  from the run lines' options, Settings > *HUD* with HUD-wide compact /
+  size / position, the results panel's own load-time line; design calls
+  in `tasks/notes/T-0253.md`). **None seen in game** (a branch build in
+  the author's install needs their OK to hand-deploy). T-0025 (QA, merge,
+  release) waits on T-0018 / T-0020 / T-0021 / T-0022 (author present);
+  also for the branch: T-0254 / T-0256 / T-0257 (unblocked), T-0258,
+  T-0259 / T-0260 / T-0263, T-0019, T-0023. T-0025's notes carry every
+  checker's list and T-0253's CHANGELOG lines.
+- **Bot paused (author, 2026-10-10)** until it is trained on the message
+  history and a much larger Forest data set (decisions.md *Knowledge bot*;
+  session-start says "paused").
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
