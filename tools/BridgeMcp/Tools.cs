@@ -212,7 +212,7 @@ namespace ForestOverlay.BridgeMcp
                        P("screenshot", "boolean", "Return a screenshot of it too."),
                        P("scroll_tour", "boolean", "Screenshot every scrolled frame of every scroll view on the tab."),
                        P("step", "number", "Scroll step between tour frames in GUI pixels (default 250; frames overlap)."),
-                       P("max_frames", "number", "Most frames per scroll view (default 12; the step grows to fit)."),
+                       P("max_frames", "number", "Most frames per scroll view (default 12; the step grows to fit - a low cap can step past a whole view and skip rows)."),
                        P("max_width", "integer", "Tour screenshots scaled to this width (default 1280)."),
                        P("region", "integer[]", "Crop each tour screenshot: [x, y, width, height] in screen pixels.")),
                 OpenTab);
