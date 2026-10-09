@@ -251,11 +251,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
-  (`python scripts/cleanup.py`). **Released:** v0.24.261 (T-0146: ILScan
-  tests in CI (`tests/ILScan.Tests`), the dumps' / FSM export's text in
-  `Data/DumpText` with tests; export format confirmed unchanged by
-  forest-tester; Dev tools re-graded B), nothing unreleased. Its smoke:
-  journeys pass, Slot 1's `info` rewritten again - T-0214. The game runs
-  v0.24.261.
+  (`python scripts/cleanup.py`). **Released:** v0.24.262 (T-0242: cave
+  mouths log the cave - the crawl's 9 m snap had read as a teleport;
+  rope-grab only on ropes, not cutscenes - gotcha 102; T-0144: deleted
+  attempts leave the Runs tab, wording per the author; its lighter site
+  answer is T-0266), nothing unreleased. Both wait for in-game
+  confirmation (forest-tester: cave 6 crawl in / out, a cave 4 rope, a
+  restore on a rope stays silent; a 404 drops a Runs row).
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
