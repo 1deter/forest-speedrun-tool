@@ -193,10 +193,16 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
+  (the game publishes EnterEndgame at the box crossing and again after the
+  door's load; a Publish prefix drops an enter while `IsInEndgame` is
+  already true, a leave while already out). Waits for forest-tester: a
+  vault-door entry logs one enter, and a first enter after a restore / Go
+  still logs (the checker: AreaKeeper sets the flag by hand).
 - **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
   launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
   recorded live with the author), not the zero-speed lift. Waits for
-  forest-tester in game. T-0243 keeps the rest (notes: the bouncy body
+  forest-tester in game. T-0243 is `needs: tester` now (the bouncy body
   slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
   log, asked in QA). The run in T-0243's QA message is maks's
   a-58adeca311c01f61.
