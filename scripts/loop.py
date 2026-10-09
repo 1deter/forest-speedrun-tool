@@ -164,7 +164,10 @@ def revises_this_round(t, rnd):
 def context_tokens(repo=None, home=None):
     """The context size of this repo's most recent main session (its newest transcript's last
     API call: input + cache reads + cache writes), or None when it cannot be read. Claude Code
-    keeps main transcripts as ~/.claude/projects/<repo slug>/<session>.jsonl."""
+    keeps main transcripts as ~/.claude/projects/<repo slug>/<session>.jsonl. The newest by mtime
+    is taken as the orchestrator: a second live session in the repo can be read instead (a wrong
+    stop / refusal says the size, so it is visible), and an unreadable tail returns None, which
+    leaves the guard off rather than blocking the loop."""
     home = home or os.path.expanduser("~")
     slug = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(repo or T.ROOT))
     files = glob.glob(os.path.join(home, ".claude", "projects", slug, "*.jsonl"))

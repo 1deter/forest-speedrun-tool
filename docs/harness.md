@@ -720,6 +720,12 @@ Asked after the deeper pass; each replaces an "open question" above.
    **all but the safety guards** (rules 2, 4, 13, 15 and their hooks) -
    five tasks of stats cannot show the worth of a guard against a rare,
    costly event.
+- **Usage (author, 2026-10-09, T-0249):** of the measured cuts
+  (tasks/notes/T-0249.md) only one: the loop stops a run once the
+  orchestrator's context passes 200k and refuses a new run in that
+  session. Researcher model, cloud offload and the cold start stay as
+  they are. The bot's full eval runs only after a knowledge / bot change
+  and 7 days (docs/decisions.md *Bot review*).
 
 ---
 

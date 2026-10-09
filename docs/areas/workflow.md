@@ -144,7 +144,9 @@ end. Author's calls (2026-10-07, harness.md *Decisions* 7):
   so the main context grows by one summary per round, not by the work.
   A loop run is the exception to *one session, one task* below.
 - **Stops by machine check**: 5 rounds done, nothing left in the pool,
-  or 3 rounds in a row without progress. A task's 3rd checker revise in
+  3 rounds in a row without progress, or this session's context past
+  200k - `begin` refuses a new run then too, so the next run starts in a
+  fresh session (author, 2026-10-09, T-0249). A task's 3rd checker revise in
   its round parks it (`needs: author-decision`, the faults as its
   question) and the loop moves on.
 - **The pool is `needs: none`** (+ bridge when the game is up):
