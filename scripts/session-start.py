@@ -364,6 +364,12 @@ def check_testing_messages(after_id):
     return bot_use(msgs, after_id), None
 
 
+# The bot is paused (author, 2026-10-10, decisions.md *Knowledge bot*): no
+# queue / eval prompts until it is trained on much more data. False brings
+# the 'bot feedback' line back.
+BOT_PAUSED = True
+
+
 def check_bot_feedback():
     """The 'bot feedback' line and whether the review is due. Read-only; never raises."""
     try:
@@ -444,7 +450,7 @@ def report(force_local=False):
     f_site = pool.submit(check_site)
     f_vps = pool.submit(check_vps)
     f_survey = pool.submit(cleanup.survey)
-    f_feedback = pool.submit(check_bot_feedback)
+    f_feedback = None if BOT_PAUSED else pool.submit(check_bot_feedback)
 
     g = "git: %s at %s" % (branch, head[:7])
     g += ", fetched" if fetched.returncode == 0 else ", FETCH FAILED (%s)" % fetched.stderr.strip()[:80]
@@ -532,10 +538,13 @@ def report(force_local=False):
     except (OSError, ValueError, T.TaskError) as e:
         problems.append("docs/quality.md: %s - `python scripts/lint.py` says what is wrong" % e)
 
-    try:
-        lines.append(f_feedback.result(timeout=60)[0])
-    except Exception as e:
-        lines.append("bot feedback: check failed (%s)" % type(e).__name__)
+    if f_feedback is None:
+        lines.append("bot feedback: paused - no bot work until it has much more data (author, 2026-10-10; decisions.md *Knowledge bot*)")
+    else:
+        try:
+            lines.append(f_feedback.result(timeout=60)[0])
+        except Exception as e:
+            lines.append("bot feedback: check failed (%s)" % type(e).__name__)
 
     lines.append("QA: run `qa_read new_only` (forest MCP) and file each new message as a task")
     head_line = "Session start (%.1f s)%s" % (time.time() - t0, "" if not problems else " - %s" % plural(len(problems), "problem"))

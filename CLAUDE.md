@@ -156,7 +156,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `release` - fetch, bump, build, test, tag, push, wait for the DLL, handoff.
 - `bridge-test` - an in-game test over the bridge (backup, uploads off, notices, proof, clean-up) and QA lists.
 - `deploy-watch` - after a push that deploys the site or the bot: `scripts/watch-deploy.py`, then look at the change.
-- `bot-review` - the bot's review when session-start says it is due: full eval on CI, the thumbs-down queue, the knowledge-testing channel, research movement, `docs/bot-reviews/`.
+- `bot-review` - **paused** (author, 2026-10-10: no bot work until it has much more data; decisions.md *Knowledge bot*). The bot's review when session-start says it is due: full eval on CI, the thumbs-down queue, the knowledge-testing channel, research movement, `docs/bot-reviews/`.
 - `work-loop` - "run the loop": up to 5 tasks in one session, main orchestrates, `scripts/loop.py` names each step and stops the run.
 - `weekly-cleanup` - when session-start says it is due: `scripts/audit.py`, check each candidate, file tasks, re-grade quality rows.
 - `harness-review` - monthly, when due: one harness component off for 5 tasks, stats before / after, the author decides.

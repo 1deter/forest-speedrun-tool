@@ -314,6 +314,12 @@ working on the site - i'm pretty excited to see what can be done").
 
 Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
 
+- **Paused until it has much more to draw on** (author, 2026-10-10): no
+  polishing - the 👎 queue, answer fixes, cards, evals, skill `bot-review`
+  - until the bot is trained on the Discord message history and a much
+  larger body of Forest information; polishing answers over today's small
+  knowledge base is wasted effort. Work toward that bigger data set only
+  when the author asks.
 - **Audience: the wider runner community**, not only the QA team -
   "understand complex mechanics exhaustively like bomb boosts, axe
   clips, and their deep technical reasoning and why they work and what
