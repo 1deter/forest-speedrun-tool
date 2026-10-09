@@ -66,6 +66,9 @@ ALONE_BRIDGE = ("none", "bridge")
 # The tool itself comes first (author, 2026-10-08: "get the tool done ASAP"): next takes these
 # areas before the site, the bot and the knowledge base, whatever their priority.
 FOCUS_AREAS = ("plugin", "release", "research")
+# Work that compounds comes before what it serves (author, 2026-10-09: "work that will compound and
+# provide value to lesser tasks should be prioritised first"): the harness ahead of the tool.
+FIRST_AREAS = ("harness",)
 # Areas a plugin release ships; bump.py marks their built tasks released when a commit touches a plugin
 # path (scripts / docs-only ones stay built and confirm on test evidence, T-0196; docs/harness.md 6c).
 RELEASED_AREAS = ("plugin",)
@@ -453,6 +456,11 @@ def confirm_gate(t):
                             "(also: --by author, --by qa:<tester>)" % tid)
 
 
+def area_rank(area):
+    """0 the harness, 1 the tool, 2 the site / bot / knowledge (decisions.md: The tool first)."""
+    return 0 if area in FIRST_AREAS else 1 if area in FOCUS_AREAS else 2
+
+
 def pick_next(tasks, bridge=False, by=None, skip=()):
     """The highest-priority task an agent can do alone, or None.
 
@@ -472,7 +480,7 @@ def pick_next(tasks, bridge=False, by=None, skip=()):
         if any(ids[d]["status"] not in ("built", "released", "confirmed") for d in t.get("blocked_by") or []):
             continue
         ready.append(t)
-    ready.sort(key=lambda t: (t["area"] not in FOCUS_AREAS, t.get("priority", 3), id_num(t["id"])))
+    ready.sort(key=lambda t: (area_rank(t["area"]), t.get("priority", 3), id_num(t["id"])))
     return ready[0] if ready else None
 
 

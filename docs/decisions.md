@@ -30,7 +30,9 @@ Flower/plant coordinate display is **out of scope by the author's own call**.
 to get the tool done ASAP." `tasks.py next` takes plugin, release and research
 tasks before site, bot and knowledge ones, whatever their priority
 (`FOCUS_AREAS` in `scripts/tasks.py`). The author still picks external work
-when they want it.
+when they want it. **Compounding work first** (author, 2026-10-09): "work
+that will compound and provide value to lesser tasks should be prioritised
+first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ### Conventions
 
@@ -131,6 +133,15 @@ when they want it.
     Anything that creates, overwrites or deletes keeps an explicit button,
     with a confirm or undo when it destroys - nothing saves by accident.
     The author may revise once it is built.
+  - **Advanced as a per-tab toggle** (author, 2026-10-09): a tab shows the
+    common options; its advanced toggle switches to a fuller version of the
+    same menu that is designed and organised in its own right - never the
+    old cluttered layout brought back.
+  - **One journey, one place**: starting a timed segment today takes the
+    Practice tab (spot, then the savestate list on its right), then the
+    Runs tab (practice mode on, Restart to arm) - the author's example of
+    what to fix. On-screen panels resize and move by dragging, not +/-
+    buttons (the splits panel), as modern apps do.
   - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
     and every feature that adds much UI; the author's rules are a floor,
     not the whole list - it brings in established UX guidance.
