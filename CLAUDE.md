@@ -198,7 +198,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
   The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
   branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
-  Desktop (`cloud-T-*.txt`, branches `cloud/*`: merge + check locally).
+  Desktop: T-0144 merged + checker-accepted (unreleased - needs a release
+  + in-game check), T-0216 / T-0221 closed (author). New: T-0265 (local
+  spot delete stays local; owner re-edits from the site).
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
 - **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**

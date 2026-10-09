@@ -114,6 +114,10 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **Deleting a spot here never deletes it online** (author, 2026-10-09,
+  T-0265): the local Delete and *Delete from the website* are separate;
+  the owner can add their spot back from the site, edit it and upload
+  the changes over it.
 - **Look: yellow on black** (author, 2026-10-09): the plugin's window and
   HUD follow the original game's art style - The Forest's yellow on black,
   the same palette as the site (*Site: Look*: the loading screen's yellow
