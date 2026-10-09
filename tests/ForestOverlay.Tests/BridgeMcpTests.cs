@@ -123,5 +123,49 @@ namespace ForestOverlay.Tests
         {
             Assert.Equal("2- b\n3- c\n", LogSearch.Tail(new List<string> { "a", "b", "c" }, 2));
         }
+
+        [Fact]
+        public void ScrollFields_takes_the_modules_own_vector2_scrolls()
+        {
+            // The shape `fields` printed for SettingsModule (v0.24.260).
+            var lines = new List<string>
+            {
+                "{SettingsModule}  (ForestOverlay.Modules.SettingsModule)",
+                "  _scroll = (0, 0)",
+                "  _scrollLabel = \"x\"",
+                "  _hudView = False",
+                "  _hudScroll = (0, 12.5)",
+                "  _sizeShown = -1",
+                "  -- from ForestOverlay.Core.OverlayModule",
+                "  _baseScroll = (0, 0)",
+            };
+            var found = BridgeText.ScrollFields(lines);
+            Assert.Equal(2, found.Count);
+            Assert.Equal("_scroll", found[0].Key);
+            Assert.Equal("_hudScroll", found[1].Key);
+            Assert.Equal(12.5, found[1].Value[1]);
+        }
+
+        [Fact]
+        public void Vector2_reads_the_bridges_shape_only()
+        {
+            Assert.Equal(new[] { 0.0, 403.0 }, BridgeText.Vector2("(0, 403)"));
+            Assert.Equal(new[] { -1.5, 2.0 }, BridgeText.Vector2(" (-1.5, 2) "));
+            Assert.Null(BridgeText.Vector2("(1, 2, 3)"));
+            Assert.Null(BridgeText.Vector2("0, 4"));
+            Assert.Null(BridgeText.Vector2(null));
+        }
+
+        [Fact]
+        public void TourOffsets_overlap_and_end_at_the_end()
+        {
+            Assert.Equal(new[] { 0.0, 250, 403 }, BridgeText.TourOffsets(403, 250, 12));
+            Assert.Equal(new[] { 0.0 }, BridgeText.TourOffsets(0, 250, 12));
+            Assert.Equal(new[] { 0.0, 250 }, BridgeText.TourOffsets(250, 250, 12));
+            // Too many frames: the step grows, the count is capped, the end is kept.
+            List<double> capped = BridgeText.TourOffsets(10000, 250, 5);
+            Assert.Equal(5, capped.Count);
+            Assert.Equal(10000, capped[4]);
+        }
     }
 }

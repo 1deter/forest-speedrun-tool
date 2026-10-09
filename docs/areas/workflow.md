@@ -191,7 +191,14 @@ restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
 over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
 `forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
 the QA Discord), `forest-checker` (Sonnet, high - author, 2026-10-07: the
-only independent review; reviews a built task, *The checker* above).
+only independent review; reviews a built task, *The checker* above),
+`forest-ux` (Sonnet, high; Opus for a full audit, set at spawn - T-0252:
+the UX review against `docs/ux.md`; it tours each tab scrolled to its end
+with `open_tab` `scroll_tour`, files findings as tasks and parks design
+choices; never edits code). **Spawn `forest-ux` with "Review T-n" for
+every redesign task and every feature that adds much UI**, at `built`
+next to the checker (the checker judges the code, forest-ux what a runner
+sees); a UI task waits for its findings before release.
 Run 2-3 at a time (5+ Opus agents emptied a 5-hour window in under 15
 minutes), one driving the game at a time; give the task in a few lines -
 the agent file holds the rules. The code agents (dev, researcher, site,

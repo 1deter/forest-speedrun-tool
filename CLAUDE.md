@@ -162,7 +162,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `harness-review` - monthly, when due: one harness component off for 5 tasks, stats before / after, the author decides.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
-`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
+`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-ux` reviews what a runner sees (`Review T-n`, every UI task; `docs/ux.md`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
 
 ## Where everything else lives
 
@@ -172,6 +172,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 | [`docs/decisions.md`](docs/decisions.md) | Before any design choice: everything the author decided, with who and when |
 | [`src/CLAUDE.md`](src/CLAUDE.md), [`tests/CLAUDE.md`](tests/CLAUDE.md) | Any plugin code / test change: the module rules, the test shim (they load by themselves in that folder) |
 | [`docs/areas/plugin.md`](docs/areas/plugin.md) | Plugin work: feature -> files, UI and hotkeys, what works, the plugin's gotchas |
+| [`docs/ux.md`](docs/ux.md) | Before building or reviewing any UI (plugin, site, bot messages): the checks, severity, how forest-ux reviews |
 | [`docs/areas/plugin-concepts.md`](docs/areas/plugin-concepts.md) | How a plugin feature behaves (spots, triggers, splits, deaths, savestates, runs, loads) |
 | [`docs/areas/release.md`](docs/areas/release.md) | Releasing, the updater, the patcher, runners' update problems |
 | [`docs/areas/site.md`](docs/areas/site.md) | The website (then the section of `docs/website.md` it names) |
