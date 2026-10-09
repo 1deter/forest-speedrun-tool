@@ -30,7 +30,9 @@ Flower/plant coordinate display is **out of scope by the author's own call**.
 to get the tool done ASAP." `tasks.py next` takes plugin, release and research
 tasks before site, bot and knowledge ones, whatever their priority
 (`FOCUS_AREAS` in `scripts/tasks.py`). The author still picks external work
-when they want it.
+when they want it. **Compounding work first** (author, 2026-10-09): "work
+that will compound and provide value to lesser tasks should be prioritised
+first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ### Conventions
 
@@ -123,6 +125,55 @@ when they want it.
   one (radio), or picking one disables the other (the Deaths tab's
   *Reload save on death* toggle went for this). The Info box and the
   legacy `locations/*.txt` import stay.
+- **A quick load during the game's own death cleans it up in place**
+  (author, 2026-10-09, T-0248): F7 / a restart / a Go while the death
+  plays (the fall, the drag-away, the capture's hanging, the dead cam)
+  stops it and undoes its leftovers by hand, keeping the fast restore -
+  not a Full load instead; only a death the cleanup cannot end falls
+  back to a Full load (a savestate / spot restore; the Deaths tab's slot
+  reload in place and Go have no file to load and only log it). The death count a load gives (0) applies to every
+  restore in place.
+- **Deleting a spot here never deletes it online** (author, 2026-10-09,
+  T-0265): the local Delete and *Delete from the website* are separate;
+  the owner can add their spot back from the site, edit it and upload
+  the changes over it.
+- **Look: yellow on black** (author, 2026-10-09): the plugin's window and
+  HUD follow the original game's art style - The Forest's yellow on black,
+  the same palette as the site (*Site: Look*: the loading screen's yellow
+  `rgb(229, 197, 1)` on black). This replaces the redesign draft's
+  blue-grey panels and its green accent (`docs/ui-redesign.md`); T-0258
+  moves the branch over.
+- **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
+  the goal is a tool that looks good and is easy to learn without
+  flooding a new runner. Less on screen, fewer things to click, is faster
+  to learn. Rules on top of the 2026-09-23 / 10-05 ones (one button one
+  job, name + toggle with the description on hover, no clipped text):
+  - **Settings stay functionally separate.** A setting that serves two
+    features is split into one per feature (or a copy of the control
+    under each); controls that serve the whole HUD sit together as
+    general HUD options. A child setting is not hidden while it still
+    does something elsewhere - hidden-but-active settings confuse.
+  - **Pictures over instructions**: instructional text a runner must read,
+    match up and apply (the Map tab's lines) becomes a legend or a visual
+    on the thing itself.
+  - **Automatic unless it can lose work**: lists refresh by themselves
+    (local ones on change or when the tab opens; site / community ones
+    when the tab opens, rate-limited); settings already save on change.
+    Anything that creates, overwrites or deletes keeps an explicit button,
+    with a confirm or undo when it destroys - nothing saves by accident.
+    The author may revise once it is built.
+  - **Advanced as a per-tab toggle** (author, 2026-10-09): a tab shows the
+    common options; its advanced toggle switches to a fuller version of the
+    same menu that is designed and organised in its own right - never the
+    old cluttered layout brought back.
+  - **One journey, one place**: starting a timed segment today takes the
+    Practice tab (spot, then the savestate list on its right), then the
+    Runs tab (practice mode on, Restart to arm) - the author's example of
+    what to fix. On-screen panels resize and move by dragging, not +/-
+    buttons (the splits panel), as modern apps do.
+  - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
+    and every feature that adds much UI; the author's rules are a floor,
+    not the whole list - it brings in established UX guidance.
 - **Performance switches need no sign-off** (author, 2026-10-08; the
   admins agree): a switch that helps and is tested not to change any game
   mechanic or logic runners rely on for fair, consistent timing ships on
@@ -360,8 +411,12 @@ Plan and design: [`docs/knowledge-bot.md`](knowledge-bot.md).
   (bot/CLAUDE.md). The session-start report counts new 👎 / partial queue
   items and uses of the bot in knowledge-testing (`/ask` answers, mentions,
   replies to it - not runners chatting: author, 2026-10-08, three reviews
-  flagged by chat) since the last review; any new one makes the review due
-  (Claude's default for the threshold - the author can raise it). Runners
+  flagged by chat) since the last review. **Sizes (author, 2026-10-09):**
+  new feedback is a quick pass (queue + channel, file tasks, move the mark;
+  no eval, no report) and never a `!` problem ahead of plugin work; the full
+  eval + report only when knowledge/ or bot/ changed since the last eval and
+  7 days passed, or when the author asks (five full reviews on 2026-10-08,
+  each 20-60 min of eval wait). Runners
   mostly `/ask` in the speedrun server's general chat, which the bot cannot
   read (its admins have to grant the permission - author, 2026-10-08), so
   the answer log is the better signal (T-0220).

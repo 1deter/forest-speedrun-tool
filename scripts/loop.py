@@ -19,7 +19,10 @@ begin / round / park / end / intervene / stop.
 
 Stop conditions (author, 2026-10-07): max rounds done (5), nothing left in the
 pool (`tasks.py next`: needs none, + bridge with --bridge), no progress for 3
-rounds in a row. A task given a third checker revise in its round is parked
+rounds in a row; and the orchestrator's own context past 200k (author,
+2026-10-09, T-0249: the night run's main session grew to 541k and was 15 % of
+four days' usage) - `begin` refuses then too, so the next run starts in a
+fresh session. A task given a third checker revise in its round is parked
 (needs author-decision, the faults as its question) and the loop moves on.
 
 Errors print WHAT / WHY / FIX and exit 1, like tasks.py. `next` exits 0 with
@@ -27,8 +30,10 @@ an action, 3 with STOP (so a shell loop can tell them apart).
 """
 import argparse
 import datetime
+import glob
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -40,6 +45,7 @@ MAX_ROUNDS = 5          # per run (author, 2026-10-07)
 MAX_REVISES = 2         # checker revises a task may take in its round; the next one parks it
 NO_PROGRESS_STOP = 3    # rounds in a row without progress stop the run (docs/harness.md 12)
 MIN_SUMMARY = 40        # characters; a summary is a paragraph, not "done"
+MAX_CONTEXT = 200000    # tokens in the orchestrator's context; past it the run stops (T-0249)
 EXIT_STOP = 3
 # A round ends on one of these; progress = the task moved forward for good.
 PROGRESS = ("built", "released", "confirmed", "wontfix")
@@ -155,8 +161,49 @@ def revises_this_round(t, rnd):
     return [r for r in new if r.get("verdict") == "revise"]
 
 
+def context_tokens(repo=None, home=None):
+    """The context size of this repo's most recent main session (its newest transcript's last
+    API call: input + cache reads + cache writes), or None when it cannot be read. Claude Code
+    keeps main transcripts as ~/.claude/projects/<repo slug>/<session>.jsonl. The newest by mtime
+    is taken as the orchestrator: a second live session in the repo can be read instead (a wrong
+    stop / refusal says the size, so it is visible), and an unreadable tail returns None, which
+    leaves the guard off rather than blocking the loop."""
+    home = home or os.path.expanduser("~")
+    slug = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(repo or T.ROOT))
+    files = glob.glob(os.path.join(home, ".claude", "projects", slug, "*.jsonl"))
+    if not files:
+        return None
+    try:
+        with open(max(files, key=os.path.getmtime), "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 2000000))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        u = (e.get("message") or {}).get("usage") if isinstance(e, dict) else None
+        if e.get("type") == "assistant" and u:
+            return sum(u.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens",
+                                               "cache_creation_input_tokens"))
+    return None
+
+
+def context_reason(tokens):
+    if tokens is not None and tokens > MAX_CONTEXT:
+        return ("the orchestrator's context is %dk (over %dk) - hand off and end this session; "
+                "the next run starts in a fresh one" % (tokens // 1000, MAX_CONTEXT // 1000))
+    return None
+
+
 def stop_reason(run, tasks):
     """Why the run must stop before opening another round, or None."""
+    why = context_reason(context_tokens())
+    if why:
+        return why
     done = [r for r in run["rounds"] if r["end"]]
     limit = run["begin"].get("max_rounds", MAX_ROUNDS)
     if len(done) >= limit:
@@ -242,6 +289,9 @@ def cmd_begin(events, tasks, max_rounds=MAX_ROUNDS, bridge=False, by="main"):
     if run:
         raise LoopError("run %s is still open" % run["id"], "one loop run at a time",
                         "`loop.py next` continues it, `loop.py stop --reason \"...\"` ends it")
+    why = context_reason(context_tokens())
+    if why:
+        raise LoopError("no new run in this session", why, "the handoff, then a new session (/clear) runs `loop.py begin`")
     rid = new_run_id(events)
     new = [{"at": now(), "event": "begin", "run": rid, "max_rounds": max_rounds, "bridge": bridge, "by": by}]
     parked = [t for t in tasks if t.get("question") and t["status"] not in T.DONE]

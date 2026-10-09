@@ -957,3 +957,28 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     the title screen (no book) was the control. When binding by shape,
     check the member's type too; an exception type in an allocation report
     is a bug looking for its catch.
+
+102. **A flag named for one thing is set by many, and a game move can look
+    like a teleport.** (2026-10-09, T-0242.) The run report's "Rope / wall
+    climb" read `playerAnimatorControl.onRope`; `ilscan writes` shows ten
+    writers - every cave-mouth crawl, the keycard door, the red elevator,
+    the artifact, Goodbye Timmy, the drag-away cutscene - so maks's run
+    logged a "climb" at each. The same crawl sets the cave and snaps the
+    player 9 m to the mouth in one frame, and WorldEvents' 2 m placement
+    guard dropped the cave 6 enter as a teleport. A rope is now `onRope`
+    plus the rope action's `_currentRopeRoot`; a cave change during
+    `enteringACave` counts. Before reading a flag as "X happened", list its
+    writers; a distance-based "placement" guard needs the game's own snaps
+    excepted.
+
+103. **A restore in place keeps everything outside the save - running
+    code included.** (2026-10-09, T-0248.) A Full load builds new objects;
+    a restore in place only overwrites `[SerializeThis]` fields of the live
+    ones. The game's death chain (Invokes, coroutines, cutscene clones, the
+    camera rig, the death count) ran on through every restart: the capture
+    went ahead, `GameOver` still sent maks to the menu, the hanging rope
+    stayed on his hips. To find what a restore misses, diff the player's
+    components (`fields` over the bridge) after a Full load of the spot
+    against after a restore in place of it; then check what the game's own
+    timers (`IsInvoking`) and coroutines still have queued - a diff of
+    fields cannot see those.

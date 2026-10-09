@@ -5,6 +5,38 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.267 - 2026-10-10
+
+- Making a savestate no longer changes the save slot's stats shown on the load screen (or their Steam Cloud copy).
+
+## v0.24.266 - 2026-10-09
+
+- Restarting (F7, a spot or a savestate) while the game's own death is playing now stops it: no more being sent to the main menu a few seconds later, captured anyway, or left upside down with the hanging rope still attached.
+- After a restart the game counts deaths from zero again, as after loading a save - a death after being captured is a capture again, not a trip to the main menu.
+
+## v0.24.265 - 2026-10-09
+
+- Restarting a spot from the title screen works again after you quit to the menu from a game (it said 'the title screen's load buttons were not found').
+- Quick-load on death no longer stops at the main menu when it reloads through the title screen.
+
+## v0.24.264 - 2026-10-09
+
+- Run report: entering the endgame area shows once per visit (it was listed two to four times).
+
+## v0.24.263 - 2026-10-09
+
+- Run mode now catches the log boost: shooting up off a custom wall while adding logs shows in the attempt's moves (it was missed before).
+
+## v0.24.262 - 2026-10-09
+
+- Run report: crawling or climbing through a cave mouth (cave 6 and others) now logs which cave you entered or left; it used to be missed or logged as a rope climb.
+- Run report: rope climbs are logged only on real ropes - the keycard door, red elevator and other cutscenes no longer show a rope / wall climb.
+- Runs tab: attempts deleted on the website leave your recent attempts list.
+
+## v0.24.261 - 2026-10-09
+
+- Developer tools: the FSM export and the dumps share one tested text helper - their files read exactly as before.
+
 ## v0.24.260 - 2026-10-08
 
 - Elevator Boost: restarting after a ride that reached the top no longer turns the overlook and the shaft foggy-white until a game restart.

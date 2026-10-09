@@ -75,6 +75,7 @@
     <Compile Include="../../src/Data/ProfileTable.cs" Link="Linked/ProfileTable.cs" />
     <Compile Include="../../src/Data/FrameTimeline.cs" Link="Linked/FrameTimeline.cs" />
     <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
+    <Compile Include="../../src/Data/SentAttempts.cs" Link="Linked/SentAttempts.cs" />
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
     <Compile Include="../../src/Data/SiteSpots.cs" Link="Linked/SiteSpots.cs" />
     <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />
@@ -92,10 +93,12 @@
     <Compile Include="../../src/Data/TextMemo.cs" Link="Linked/TextMemo.cs" />
     <Compile Include="../../src/Data/ClockText.cs" Link="Linked/ClockText.cs" />
     <Compile Include="../../src/Data/DeathPlan.cs" Link="Linked/DeathPlan.cs" />
+    <Compile Include="../../src/Data/DeathProgress.cs" Link="Linked/DeathProgress.cs" />
     <Compile Include="../../src/Data/SlotSaveFlags.cs" Link="Linked/SlotSaveFlags.cs" />
     <Compile Include="../../src/Data/ReplayMarks.cs" Link="Linked/ReplayMarks.cs" />
     <Compile Include="../../src/Data/ReplayLabels.cs" Link="Linked/ReplayLabels.cs" />
     <Compile Include="../../src/Data/ReplayCamera.cs" Link="Linked/ReplayCamera.cs" />
+    <Compile Include="../../src/Data/DumpText.cs" Link="Linked/DumpText.cs" />
     <!-- The bridge MCP server's pure text side (a dev tool, not the plugin). -->
     <Compile Include="../../tools/BridgeMcp/BridgeText.cs" Link="Linked/BridgeText.cs" />
     <Compile Include="../../tools/BridgeMcp/LogSearch.cs" Link="Linked/LogSearch.cs" />

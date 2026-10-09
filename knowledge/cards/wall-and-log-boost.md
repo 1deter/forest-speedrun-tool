@@ -4,7 +4,7 @@ title: Wall boost, log boost and structure clips (depenetration)
 aliases: wall boost, log boost, custom wall boost, climbing wall boost, defensive wall boost, structure boost, build boost, log clip, wall clip, keycard cave clip, depenetration, pushed out, placed wall under player, building on yourself
 tags: tech, physics, building, clip
 confidence: live
-checked: 2026-10-03
+checked: 2026-10-09
 sources: game-notes "Speedrun tech and the endgame gate" (Axe / wall clips and log boosts; Overnight sweep: Depenetration, Movers in the world, the runners' words mapped); docs/run-mode.md "Banned moves: detection" (lifts and clips); sxczurass's Creative Bombless Any% Guide (2025)
 related: player-physics, smash-clip, endgame-gate, tunnelling-and-speed-cap
 code: FirstPersonCharacter.FixedUpdate, Craft_Structure.Build
@@ -16,15 +16,17 @@ When a solid object appears overlapping the player, Unity's physics
 (PhysX) pushes the player's capsule out along the shortest way, in a single
 physics step, with no speed limit. Build a wall or drop logs where you
 stand, and the shortest way out is often **up** - onto the top of it. That
-is the "custom wall ... boost yourself to the top" in the runners' guide,
-and the log boost. When the shortest way out is through thin rock behind
+is the "custom wall ... boost yourself to the top" in the runners' guide
+(the log boost is a launch instead - below). When the shortest way out is through thin rock behind
 you, the same push is a **clip**.
 
 ## How runners do it
 
 - **Wall boost**: build a custom (or climbing) wall so that it overlaps
   you; finish it and you are pushed up onto it [runner].
-- **Log boost**: logs placed / squeezed into the player lift them [runner].
+- **Log boost**: jump, look down and hold E to add logs to a custom wall
+  blueprint under you; you shoot up at 55-80 m/s for as long as logs go in,
+  24-32 m at the two cave 6 log boost spots [live, recorded 2026-10-09].
 - **Keycard cave clip** (true any%): a log or stone wall squeezing the
   player into thin rock pushes them through it [runner, the author's
   description].
@@ -40,7 +42,8 @@ you, the same push is a **clip**.
   rock.
 - No game script moves the player here - it is pure physics.
 
-**It is a lift, not a launch** [live]: a box moved 0.3 / 1 / 2 m into the
+**A box into the player is a lift, not a launch** [live] - the log boost
+above is a launch, its own mechanism (not yet read in IL): a box moved 0.3 / 1 / 2 m into the
 player's feet lifted the player out by **exactly that depth**, in one step,
 with **zero velocity left over**. You end up standing on top; you do not
 fly. Any extra height has to come from a jump after it. That test moved a

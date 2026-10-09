@@ -214,6 +214,7 @@ namespace ForestOverlay.Tests
         public void A_knockback_upwards_is_speed()
         {
             var s = Started();
+            s.D.KnockbackStarted();   // MoveWatch's hook on the knockback coroutine
             s.Vel = new Vector3(0f, 100f, 80f);
             s.Ballistic();
             Assert.Empty(s.Moves);
@@ -353,6 +354,107 @@ namespace ForestOverlay.Tests
             s.Step(new Vector3(0f, 1.2f, 0f));   // settled: a lift again
             s.Run(0.5f);
             Assert.Single(s.Moves);
+        }
+
+        // --- launches (the log boost; live, v0.24.262, T-0243) ---------------
+
+        /// The recorded log boost: 63 m/s up at once, slowing to ~35 m/s
+        /// over 0.6 s while logs go in, then a fall.
+        private static void LogBoost(Sim s)
+        {
+            s.Vel = new Vector3(0f, 63f, 0f);
+            for (int i = 0; i < 36; i++) { s.Step(Vector3.zero); s.Vel = new Vector3(0f, s.Vel.y - 0.8f, 0f); }
+            s.Vel = new Vector3(0f, -8f, 0f);
+            s.Run(0.5f);
+        }
+
+        [Fact]
+        public void A_log_boost_launch_off_a_built_wall_is_reported()
+        {
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            LogBoost(s);
+            Assert.Single(s.Moves);
+            var m = s.Moves[0];
+            Assert.Equal(MoveDetector.LiftKind, m.Kind);
+            Assert.InRange(m.Distance, 20f, 40f);
+            Assert.InRange(m.PeakSpeed, 60f, 64f);
+            Assert.Contains("Ex_WallChunkBuilt", m.Detail);
+            Assert.Contains("log boost", m.Detail);
+        }
+
+        [Fact]
+        public void A_launch_still_going_when_the_attempt_ends_is_reported()
+        {
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            s.Vel = new Vector3(0f, 60f, 0f);
+            for (int i = 0; i < 10; i++) s.Step(Vector3.zero);
+            s.D.Flush();
+            Assert.Single(s.D.Ready);
+            Assert.Contains("log boost", s.D.Ready[0].Detail);
+        }
+
+        [Fact]
+        public void A_launch_cut_by_a_load_is_dropped()
+        {
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            s.Vel = new Vector3(0f, 60f, 0f);
+            for (int i = 0; i < 10; i++) s.Step(Vector3.zero);
+            s.D.Reset(drop: true);
+            s.D.Flush();
+            Assert.Empty(s.D.Ready);
+        }
+
+        [Fact]
+        public void A_launch_after_touching_a_built_wall_counts()
+        {
+            // The wall is touched just before the launch, not during it.
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            s.Step(Vector3.zero);
+            s.Structure = "";
+            LogBoost(s);
+            Assert.Single(s.Moves);
+            Assert.Contains("Ex_WallChunkBuilt", s.Moves[0].Detail);
+        }
+
+        [Fact]
+        public void A_launch_with_no_built_structure_is_only_logged()
+        {
+            var s = Started();
+            s.Structure = "";
+            s.Run(2f);   // nothing built touched for longer than the window
+            LogBoost(s);
+            Assert.Empty(s.Moves);
+            Assert.Contains("launched up", s.D.TakeSmallLift());
+        }
+
+        [Fact]
+        public void A_jump_or_the_body_bounce_beside_a_wall_is_not_a_launch()
+        {
+            var s = Started();
+            s.Vel = new Vector3(0f, 13f, 0f);   // a jump
+            s.Ballistic();
+            s.Vel = new Vector3(0f, 22f, 0f);   // the cave 6 body bounce (T-0267)
+            s.Ballistic();
+            s.Run(0.5f);
+            Assert.Empty(s.Moves);
+            Assert.DoesNotContain("launched", s.D.TakeSmallLift());
+        }
+
+        [Fact]
+        public void A_short_fast_rise_is_not_a_launch()
+        {
+            // Two steps at 30 m/s: under LaunchSteps and LaunchReport.
+            var s = Started();
+            s.Vel = new Vector3(0f, 30f, 0f);
+            s.Step(Vector3.zero);
+            s.Step(Vector3.zero);
+            s.Vel = Vector3.zero;
+            s.Run(0.5f);
+            Assert.Empty(s.Moves);
         }
     }
 }

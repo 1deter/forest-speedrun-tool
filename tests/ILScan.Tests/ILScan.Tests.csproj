@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests for tools/ILScan (dev-time only, never shipped). Each test runs
+    ilscan's Main over this test assembly itself: Fixture.cs holds the
+    small, known IL the five modes are checked against, so no game files
+    are needed (CI runs it).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>ILScan.Tests</AssemblyName>
+    <RootNamespace>ForestOverlay.ILScan.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../tools/ILScan/ILScan.csproj" />
+  </ItemGroup>
+
+</Project>

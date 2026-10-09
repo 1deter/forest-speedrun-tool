@@ -71,7 +71,10 @@ a `-f`-style file - scripts), `find` (name or `type`), `roots`,
 `screenshot` (returned as an image: 1280 px JPEG by default,
 `region` crops at full resolution to read small text, `delay_s`),
 `notice`, `open_tab` (by name; `explorer`; `close` closes every
-window), `wait`, `log` (regex / tail, `session` 1-2 = the kept older
+window; `scroll_tour` - T-0252 - sets each of the tab's Vector2
+`*scroll*` fields past the end, reads the clamped end back a frame later
+and screenshots every `step` from top to end, then puts it back; a
+field that does not clamp is a sub-view not drawn now and is named), `wait`, `log` (regex / tail, `session` 1-2 = the kept older
 logs), `ilscan`, `game` (close / launch / restart; through Steam,
 waits until the bridge answers) and `update_game` (the plugin's own
 Check + Download, then restart; one GitHub API call - never loop

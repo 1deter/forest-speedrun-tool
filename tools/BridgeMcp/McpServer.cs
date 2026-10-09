@@ -49,6 +49,16 @@ namespace ForestOverlay.BridgeMcp
             return this;
         }
 
+        /// Moves another result's text and images to the end of this one.
+        public ToolResult AddFrom(ToolResult other)
+        {
+            List<JsonNode> nodes = new List<JsonNode>();
+            foreach (JsonNode n in other._content) nodes.Add(n);
+            other._content.Clear();
+            foreach (JsonNode n in nodes) _content.Add(n);
+            return this;
+        }
+
         public JsonObject ToJson()
         {
             return new JsonObject { ["content"] = _content, ["isError"] = IsError };

@@ -196,6 +196,57 @@ namespace ForestOverlay.BridgeMcp
             return s;
         }
 
+        /// A tab's scroll views, from a `fields` reply on its module: every
+        /// Vector2 field of the module's own (above the first "-- from"
+        /// line) whose name holds "scroll", as (name, x, y).
+        public static List<KeyValuePair<string, double[]>> ScrollFields(IList<string> lines)
+        {
+            List<KeyValuePair<string, double[]>> found = new List<KeyValuePair<string, double[]>>();
+            if (lines == null) return found;
+            foreach (string line in lines)
+            {
+                if (line.TrimStart().StartsWith("--", StringComparison.Ordinal)) break;
+                Match m = ScrollLine.Match(line);
+                if (!m.Success) continue;
+                double[] v = Vector2(m.Groups[2].Value);
+                if (v != null) found.Add(new KeyValuePair<string, double[]>(m.Groups[1].Value, v));
+            }
+            return found;
+        }
+
+        private static readonly Regex ScrollLine =
+            new Regex(@"^\s*(\w*[Ss]croll\w*) = (\([^)]*\))\s*(?:\(Vector2\))?\s*$", RegexOptions.CultureInvariant);
+
+        /// "(0, 403)" or "(0.5, 12.25)" -> {x, y}; anything else -> null.
+        public static double[] Vector2(string s)
+        {
+            if (s == null) return null;
+            s = s.Trim();
+            if (s.Length < 5 || s[0] != '(' || s[s.Length - 1] != ')') return null;
+            string[] parts = s.Substring(1, s.Length - 2).Split(',');
+            if (parts.Length != 2) return null;
+            double x, y;
+            if (!double.TryParse(parts[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out x) ||
+                !double.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out y)) return null;
+            return new[] { x, y };
+        }
+
+        /// The scroll offsets a tour shows: 0, step, 2 step, ... and the end
+        /// itself, the step grown so there are at most maxFrames (a short
+        /// overlap between frames is the point: no row falls between two).
+        public static List<double> TourOffsets(double end, double step, int maxFrames)
+        {
+            List<double> offsets = new List<double> { 0 };
+            if (end <= 0) return offsets;
+            if (step <= 0) step = end;
+            if (maxFrames < 2) maxFrames = 2;
+            double frames = Math.Ceiling(end / step) + 1;
+            if (frames > maxFrames) step = end / (maxFrames - 1);
+            for (double y = step; y < end - 0.5; y += step) offsets.Add(Math.Round(y));
+            offsets.Add(end);
+            return offsets;
+        }
+
         /// The version in the newest "== bridge on, ForestOverlay vX, ..."
         /// banner of out.txt text, or null.
         public static string BannerVersion(string text)

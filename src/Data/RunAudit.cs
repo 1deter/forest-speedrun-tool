@@ -104,8 +104,8 @@ namespace ForestOverlay.Data
                 case "clothing": return "Clothing put on";
                 case "passenger": return "Passenger found";
                 case "first-input": return "First input";
-                case "rope-grab": return "Rope / wall climb started";
-                case "rope-leave": return "Rope / wall climb ended";
+                case "rope-grab": return "Rope climb started";
+                case "rope-leave": return "Rope climb ended";
                 case "keycard-door": return "Keycard door";
                 case "red-elevator": return "Red elevator";
                 case "timmy-pickup": return "Found Timmy";
@@ -220,7 +220,7 @@ namespace ForestOverlay.Data
             if (hits > 0) lines.Add(Count(hits, "hit taken from enemies", "hits taken from enemies"));
             if (bombs > 0) lines.Add(Count(bombs, "bomb went off", "bombs went off"));
             if (rides > 0) lines.Add(Count(rides, "ride", "rides") + ": " + Join(rideNames, 4));
-            if (ropes > 0) lines.Add(Count(ropes, "rope / wall climb", "rope / wall climbs"));
+            if (ropes > 0) lines.Add(Count(ropes, "rope climb", "rope climbs"));
             if (pauses > 0)
                 lines.Add("Pause menu opened " + Count(pauses, "time", "times") +
                           (pausedMs > 0 ? ", " + Seconds(pausedMs) + " in all" : ""));

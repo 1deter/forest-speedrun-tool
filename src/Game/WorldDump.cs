@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -563,7 +564,7 @@ namespace ForestOverlay.Game
             for (t = t.parent; t != null; t = t.parent) p = t.name + "/" + p;
             return p;
         }
-        private static string Clean(string s) { return string.IsNullOrEmpty(s) ? "-" : s.Replace('\t', ' ').Replace('\n', ' ').Replace(';', ','); }
-        private static string F(float v) { return v.ToString("0.#####", CultureInfo.InvariantCulture); }
+        private static string Clean(string s) { return DumpText.Clean(s); }
+        private static string F(float v) { return DumpText.Num(v); }
     }
 }

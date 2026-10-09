@@ -205,9 +205,16 @@ namespace ForestOverlay.BridgeMcp
             Add("open_tab",
                 "Opens the ForestOverlay window on a tab by name (Practice, Map, Runs, Deaths, Views, " +
                 "Inventory, 100%, Settings, QA, Updates, Developer...), opens the type explorer (`explorer`), or closes the window " +
-                "(`close`). Unknown names list the tabs.",
+                "(`close`). Unknown names list the tabs. `scroll_tour` scrolls each of the tab's scroll views from top " +
+                "to end with a screenshot per frame (UI review: forest-ux), then puts the scroll back; a view the " +
+                "tab is not drawing now (another sub-view) is named and skipped.",
                 Schema(P("tab", "string", "Tab title or module id, or close.", true),
-                       P("screenshot", "boolean", "Return a screenshot of it too.")),
+                       P("screenshot", "boolean", "Return a screenshot of it too."),
+                       P("scroll_tour", "boolean", "Screenshot every scrolled frame of every scroll view on the tab."),
+                       P("step", "number", "Scroll step between tour frames in GUI pixels (default 250; frames overlap)."),
+                       P("max_frames", "number", "Most frames per scroll view (default 12; the step grows to fit - a low cap can step past a whole view and skip rows)."),
+                       P("max_width", "integer", "Tour screenshots scaled to this width (default 1280)."),
+                       P("region", "integer[]", "Crop each tour screenshot: [x, y, width, height] in screen pixels.")),
                 OpenTab);
 
             Add("wait",
@@ -635,9 +642,77 @@ namespace ForestOverlay.BridgeMcp
                 }
             }
 
+            if (a.Bool("scroll_tour") && !want.Equals("close", StringComparison.OrdinalIgnoreCase))
+                return await ScrollTour(Match(mods, want), done, a, ct);
             if (!a.Bool("screenshot")) return ToolResult.Text(done);
             ToolResult shot = await Screenshot(new Args(new JsonObject { ["delay_s"] = 0.3 }), ct);
             return shot.IsError ? ToolResult.Fail(done + "; the screenshot failed") : shot.AddText(done);
+        }
+
+        /// Far past any tab's end: a scroll view being drawn clamps it to its
+        /// real end on the next frame; one not drawn keeps it (T-0252, seen
+        /// live on Settings: _scroll -> 403, the hidden _hudScroll stayed).
+        private const double PastTheEnd = 1000000;
+
+        /// open_tab's scroll_tour: for each Vector2 *scroll* field of the
+        /// tab's module, find its end, screenshot every step from the top to
+        /// it, then put the scroll back where it was.
+        private async Task<ToolResult> ScrollTour(ModuleInfo m, string done, Args a, CancellationToken ct)
+        {
+            string self = Host + "._modules[" + m.Index + "]";
+            var (lines, err) = await Lines(BridgeText.Command("fields", Plugin, self), ct);
+            if (lines == null) return ToolResult.Fail(done + "; could not read its fields: " + err);
+            var views = BridgeText.ScrollFields(lines);
+            if (views.Count == 0)
+            {
+                ToolResult one = await Screenshot(new Args(new JsonObject { ["delay_s"] = 0.3 }), ct);
+                return one.AddText(done + "; no scroll view on this tab - one frame is all of it");
+            }
+
+            double step = a.Num("step", 250);
+            int maxFrames = (int)a.Num("max_frames", 12);
+            // Doubles, not ints: Args.Num reads a JSON number back as a double only.
+            JsonObject shotArgs = new JsonObject { ["delay_s"] = 0.2, ["max_width"] = Math.Floor(a.Num("max_width", 1280)) };
+            List<string> region = a.List("region");
+            if (region.Count > 0)
+            {
+                JsonArray r = new JsonArray();
+                foreach (string s in region) r.Add(Math.Floor(double.Parse(s, CultureInfo.InvariantCulture)));
+                shotArgs["region"] = r;
+            }
+
+            ToolResult result = ToolResult.Text(done + "; scroll views: " + string.Join(", ", views.Select(v => v.Key)));
+            foreach (var view in views)
+            {
+                string path = self + "." + view.Key;
+                string back = F(view.Value[0]) + "," + F(view.Value[1]);
+                var (end, problem) = await GetValues(new[]
+                {
+                    BridgeText.Command("set", Plugin, path, F(view.Value[0]) + "," + F(PastTheEnd)),
+                    "wait 0.1",
+                    BridgeText.Command("get", Plugin, path),
+                }, ct);
+                double[] clamped = end == null ? null : BridgeText.Vector2(end[end.Count - 1]);
+                if (clamped == null || clamped[1] >= PastTheEnd - 1)
+                {
+                    await Lines(BridgeText.Command("set", Plugin, path, back), ct);
+                    result.AddText(view.Key + ": not drawn now (a sub-view that is not open?) - skipped" +
+                                   (clamped == null ? " (" + (problem ?? "no value") + ")" : ""));
+                    continue;
+                }
+
+                List<double> offsets = BridgeText.TourOffsets(clamped[1], step, maxFrames);
+                result.AddText(view.Key + ": end at " + F(clamped[1]) + " px, " + offsets.Count + " frame(s)");
+                for (int i = 0; i < offsets.Count; i++)
+                {
+                    var (_, e) = await Lines(BridgeText.Command("set", Plugin, path, F(view.Value[0]) + "," + F(offsets[i])), ct);
+                    if (e != null) { result.AddText(view.Key + ": scrolling failed: " + e); break; }
+                    ToolResult shot = await Screenshot(new Args((JsonObject)shotArgs.DeepClone()), ct);
+                    result.AddText(view.Key + " frame " + (i + 1) + "/" + offsets.Count + " at " + F(offsets[i]) + " px").AddFrom(shot);
+                }
+                await Lines(BridgeText.Command("set", Plugin, path, back), ct);
+            }
+            return result;
         }
 
         /// TogglePanel toggles: read PanelOpen first. True when it closed one.

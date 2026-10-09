@@ -367,3 +367,11 @@ Confirmed 2026-10-08 (game, bridge, v0.24.257): **weapon-upgrade receivers kept 
 
 Confirmed 2026-10-08 (game, bridge, v0.24.258): **a timed run logs what armed it (T-0051)** - "armed after F7 restart" (no start state), "armed after Go", once "armed after start-state restore" after F7 with a start state; moving then ran the timer. bridge 2026-10-08.
 Confirmed 2026-10-08 (game, bridge, v0.24.260): **Elevator Boost restarts keep the endgame dark sky after the car reached the overlook (T-0222)** - R10 off right after the restart (x2), "overlook: left (... ExitOverlookArea sent, outdoor sky off)", dark cliffs; tp to the surface keeps R10 on and the surface lit. bridge 2026-10-08.
+Confirmed 2026-10-09 (game, bridge, v0.24.261): **FSM export text unchanged after moving value formatting to Data/DumpText (T-0146)** - 6 player FSMs diffed against docs/fsm/, only runtime values differ. bridge 2026-10-09.
+
+Confirmed 2026-10-09 (game, bridge, v0.24.262): **cave mouths log cave-enter / cave-exit (cave06), no rope-grab; real rope logs rope-grab / rope-leave; plain tp logs no cave event (T-0242)**. bridge 2026-10-09.
+Confirmed 2026-10-09 (game, bridge, v0.24.262): **an attempt id the site answers 404 for drops from the Runs tab on opening, status "attempt <id> was deleted on the website" (T-0144)**. bridge 2026-10-09.
+Confirmed 2026-10-09 (game, bridge, v0.24.265): **spot restart and death quick-load from the title after a return to the title (TitleScreen.Instance null) load the slot through TitleSceneMain/TitleScreen (T-0247)**. bridge 2026-10-09.
+Confirmed 2026-10-09 (game, bridge, v0.24.266): **a Quick load during the game's own death ends it (drag-away, hanging in the cave: no rope, upsideDown False, walks; real death restore stays in ForestMain; death count N -> 0 as a load, next death is a Capture again; plain restore logs no "ended" line) (T-0248)**. bridge 2026-10-09.
+
+Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves the save slot's info file alone (smoke hygiene: Slot1 unchanged after the restart journey's start-state capture) (T-0214)**. tests/e2e/reports/20261010-002837.smoke.md.

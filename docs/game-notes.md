@@ -315,13 +315,13 @@ polls the same fields once a frame:
 
 | Event | Field | Notes |
 |---|---|---|
-| `cave-enter-<cave>` / `cave-exit-<cave>`, `cave-enter` / `cave-exit` | `LocalPlayer.ActiveAreaInfo._currentCave` (`CaveNames`) | Written only by `SetCurrentCave` (from `activateCave` / `CaveTriggers.Update`, `EnterSnowCaveHelper`, `PlayerStats.KillPlayer`) and `SetInCaves`. **A teleport does not change it** (our tp / Go use `GotoCave`: `_currentCave` stays `NotInCaves`), and the endgame lab is `NotInCaves` with `IsInCaves` true - the ASL never splits there. Since v0.24.193 a Go sets it from the spot's `cave` (`GameBridge.SetCurrentCave`); a bridge `tp` still does not. **`CaveOptimizer.Update`**: in caves with `CurrentCave == NotInCaves` it streams **every** cave's props in (16 scenes, `Cave_01_Props_Streaming` ...); with a cave set, only that one (bridge: 2 scenes). |
+| `cave-enter-<cave>` / `cave-exit-<cave>`, `cave-enter` / `cave-exit` | `LocalPlayer.ActiveAreaInfo._currentCave` (`CaveNames`) | Written only by `SetCurrentCave` (from `activateCave` / `CaveTriggers.Update`, `EnterSnowCaveHelper`, `PlayerStats.KillPlayer`) and `SetInCaves`. **A teleport does not change it** (our tp / Go use `GotoCave`: `_currentCave` stays `NotInCaves`), and the endgame lab is `NotInCaves` with `IsInCaves` true - the ASL never splits there. Since v0.24.193 a Go sets it from the spot's `cave` (`GameBridge.SetCurrentCave`); a bridge `tp` still does not. **`CaveOptimizer.Update`**: in caves with `CurrentCave == NotInCaves` it streams **every** cave's props in (16 scenes, `Cave_01_Props_Streaming` ...); with a cave set, only that one (bridge: 2 scenes). **A crawl / climb mouth snaps** (IL + bridge, 2026-10-09, T-0242): `activateCave.Update` on Take calls `SetCurrentCave(CaveNum)` (the inside trigger's `CaveNum` is `NotInCaves`: leaving) and the same frame `enterCave` / `exitCave` -> `playerEnterCaveAction.doCave`, whose first step parents the player to `enterPos` / `exitPos` - the cave 6 crawl (`Cave_EntranceCave3 (1)`, beside `Caves/Cave6Door2`) moved the player 9 m in, 3.6 m out, within a frame. `AnimControl.enteringACave` is true for the whole `doCave` (set at its start, cleared at its end), so WorldEvents counts a cave change during it although the move looks like a placement - but `PlayerClimbRopeAction.enterClimbRope` / `enterClimbRopeTop` set it true as well and only `resetClimbRope` clears it, so it is also true for a whole rope climb: `RopeClimb.IsEnteringCave` excludes a rope climb (a restore onto a rope stays a placement). Rope mouths (`CaveTriggers`, cave 4) set the cave as the player climbs past - no snap. |
 | `clothing-<id>` | `LocalPlayer.Clothing._wornClothingItems` (List<int>) | Names: `ClothingItemDatabase._instance._items[i]._displayName` ("RED BEANIE"), 33 items. |
 | `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
 | `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
 | `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. A placement settles for a frame or two (bridge: -0.87 m/s after a restart from a cave), so since v0.24.188 a move of more than 2 m in one frame resets it - still again first. |
 | `first-input` | Rewired `Input.player.GetAnyButton()` or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). |
-| `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` (`RopeClimb.IsOnRope`) | v0.24.193. |
+| `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` **and** `PlayerClimbRopeAction._currentRopeRoot` set (`RopeClimb.IsOnRope`) | v0.24.193; the rope root since T-0242. `onRope` alone is not a rope (IL writers): `enterClimbMode` (rope, cliff and wall climb actions), `playerEnterCaveAction.doCave` (every crawl / climb cave mouth), `playerOpenKeypadDoorAction.openDoorRoutine` (keycard door, red elevator), `playerPlaceArtifactAction`, `PlayerGoodbyeTimmyAction`, `PlayerStats.dragAwayCutScene`, `playerHitReactions.enableExplodeCamera`, `playerEnterRockThrowerAction.exitThrower` - maks's run logged a "climb" at each cave mouth, the vault door and the red elevator. The game's wall climb (`PlayerClimbWallAction`, `activateClimb.climbType == wallClimb`) has no trigger in the main scene: all 21 `activateClimb` are `ropeClimb` (cave ropes + 12 fishing stands; bridge, 2026-10-09). |
 
 ### Segment events from the game's event bus and the rides (IL, not yet seen live)
 
@@ -573,11 +573,48 @@ Full health is 100 (`Health`, `HealthTarget`).
 `OnSinglePlayer` → `GameSetup.SetPlayerMode(SP)`; `OnLoad` →
 `SetInitType(Continue)`; `OnSlotSelection(int)` → `SetSlot`,
 `LoadSave.ShouldLoad = true`, activates `MyLoader`. The current slot is static
-`GameSetup.Slot`.
+`GameSetup.Slot`. **On a return to the title `Instance` is null** (bridge,
+2026-10-09, pause menu `MenuMain.OnExitMenu`, with the plugin's
+FocusLostAudio clean-up on and off): the scene's one
+`TitleSceneMain/TitleScreen` is there but disabled - what its `OnDestroy`
+leaves (only `Awake` / `OnDestroy` write `Instance`; why it runs is not
+known). A fresh launch has both. Its buttons still work on it
+(`OnLoad` + `OnSlotSelection(1)` loaded Slot 1); `Game/TitleLoad.FindTitle`
+looks it up by path (T-0247).
 
 The plugin's quick-load and practice revive (`Game/DeathHooks.cs`,
 `Modules/DeathModule.cs`) prefix `CheckDeath` and `Fell`, so nothing of the
 death sequence has run when they act.
+
+**The death chain and a restore in place** (decompiled `PlayerStats` +
+bridge, 2026-10-09, T-0248). The game's own death is PlayerStats Invokes
+and coroutines: `FallDownDead` (`Dead`, inventory / controller / rotator
+off, `deathBool`, both FSMs `toDeath`, `Invoke("BlackScreen", 4)`) ->
+`BlackScreen` (`SleepCam` on; `DeadTimes == 0` outside a cave:
+`dragAwayCutScene`, else `Invoke("KillPlayer", 3 / 0.5)`) ->
+`dragAwayCutScene` (two `player_ANIM_dragAway_MUTANT*` clones in
+`mutant1` / `mutant2`, root motion + `lockGravity`, ends with
+`Invoke("KillPlayer", 0.1)`) -> `KillPlayer` (capture: teleport to a
+`DeadSpots` entry, `CaveDeadCam`, `WakeInCave` -> `Dead = false` ->
+`hangingInCaveCutScene`: upside down, `hangingBool`, no rotator, the rope
+`CutScene/hangingPlayerRopeGo` parented to `hipsJnt`; the release is
+`releaseFromHanging` once the plane axe is in hand). A real death:
+`DeadCam` + `PlayerDeadCam`, `Invoke("GameOver", 6)`. **Not in the save:**
+`DeadTimes`, `doneDragScene`, `Dead` (bridge: set, capture, change,
+restore in place - the live value stays; a Full load gives 0 / false), so
+a restore in place after a capture made the next death a real one. **The
+chain outlives a restore in place** (bridge): restored during the
+drag-away the player was captured anyway; during the hanging, back at the
+spot upside down with the rope on the hips; during the dead cam
+`GameOver` was still pending (the title screen). `doneHangingScene` *is*
+saved. With `useRootMotion` and `lockGravity` set,
+`playerAnimatorControl.Update` keeps the body kinematic without gravity;
+the game's releases clear `lockGravity` a frame before root motion, which
+frees it - clearing both at once leaves it kinematic (bridge). The body
+layer's idle is `Base Layer.idle` (its hash matches the `anim` state).
+The damage FSM's `death` state returns to `startState` by itself after
+4 s (hit layer 31 -> 15). `Game/DeathSequence` ends the chain on a
+restore in place or a Go.
 
 **The hard landing runs after the fall damage.**
 `FirstPersonCharacter.HandleLanded` (IL) calls `PlayerStats.Hit` for fall
@@ -1793,6 +1830,8 @@ base64, useSlots: true)` writes `SaveSlotUtils.GetLocalSlotPath()` +
 file is kept as `…prev`; with Steam Cloud on it is also uploaded
 (`CoopSteamCloud.CloudSave`). `CanResume` = that file exists (or the cloud
 copy).
+
+**The slot's `info` file** (IL + bridge, 2026-10-10, T-0214). `GameStats.OnSerializing` sets `_stats._day = Clock.Day`, then writes the BinaryFormatter bytes of `GameStats.Stats` to `GetLocalSlotPath() + "info"` and `CoopSteamCloud.CloudSave(GetCloudSlotPath() + "info")`. It runs on **every** `LevelSerializer.SerializeLevel` (the serializer SendMessages `OnSerializing`), not only on a real save. The bytes are read back only by `LoadSaveSlotInfo.LoadStats` (the load screen) and the debug console's `_showgamestats`. A savestate capture skips it (`Game/SlotInfoGuard`).
 
 **Saving** — `PlayerStats.OnSaveSlotSelectedRoutine` (from `JustSave` /
 `OnSaveSlotSelected`), in order: drop the glider, close the inventory/pause

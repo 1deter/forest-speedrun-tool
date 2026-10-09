@@ -61,6 +61,14 @@ namespace ForestOverlay.Game
     // general name at most every 2 s (hits and trees come in bursts).
     // With no attempt running the postfix costs one dictionary lookup by
     // reference per publish.
+    //
+    // ONE ENTER PER ENTER (T-0245): the game publishes EnterEndgame more
+    // than once per visit - the LoadEndgame box's forward crossing and its
+    // `_onFinishedLoading` after the vault door (game-notes *In a run*),
+    // maks's log had four in a row. A prefix reads LocalPlayer.IsInEndgame
+    // before the publish (its listeners set / clear it): an EnterEndgame
+    // with the player already in, or an ExitEndgame already out, is a
+    // repeat and is neither audited nor raised.
     // ------------------------------------------------------------------
     public static class AuditWatch
     {
@@ -144,6 +152,8 @@ namespace ForestOverlay.Game
         };
 
         private static readonly Dictionary<object, int> ByEvent = new Dictionary<object, int>();
+        // TfEvent.EnterEndgame / ExitEndgame, for the repeat check.
+        private static object _enterEndgame, _exitEndgame;
         // General segment event -> Time.unscaledTime it was last logged.
         private static readonly Dictionary<string, float> LoggedAt = new Dictionary<string, float>();
         private const float LogEvery = 2f;
@@ -172,8 +182,10 @@ namespace ForestOverlay.Game
                         FieldInfo f = tfEvent.GetField(Table[i].Field, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
                         object key = f != null ? f.GetValue(null) : null;
                         if (key != null && !ByEvent.ContainsKey(key)) ByEvent[key] = i;
+                        if (Table[i].Field == "EnterEndgame") _enterEndgame = key;
+                        else if (Table[i].Field == "ExitEndgame") _exitEndgame = key;
                     }
-                    _harmony.Patch(publish, postfix: Hook("PublishPostfix"));
+                    _harmony.Patch(publish, prefix: Hook("PublishPrefix"), postfix: Hook("PublishPostfix"));
                     watching.Add("the game's events (" + ByEvent.Count + "/" + Table.Length + ")");
                 }
                 else missing.Add("the game's events");
@@ -231,9 +243,23 @@ namespace ForestOverlay.Game
 
         // --- postfixes: read-only, never throw into the game ---------------------
 
-        private static void PublishPostfix(object eventType, object eventParameter)
+        // __state: this publish repeats the endgame state the player is
+        // already in (read before the game's listeners change it).
+        private static void PublishPrefix(object eventType, out bool __state)
         {
+            __state = false;
             if (eventType == null) return;
+            try
+            {
+                if (eventType == _enterEndgame) __state = AreaReport.InEndgame();
+                else if (eventType == _exitEndgame) __state = !AreaReport.InEndgame();
+            }
+            catch (Exception) { }
+        }
+
+        private static void PublishPostfix(object eventType, object eventParameter, bool __state)
+        {
+            if (eventType == null || __state) return;
             try
             {
                 int at;

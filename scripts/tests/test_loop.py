@@ -12,6 +12,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import loop as L  # noqa: E402
 import tasks as T  # noqa: E402
 
+REAL_CONTEXT = L.context_tokens
+L.context_tokens = lambda *a, **k: None  # the tests never read this machine's own session
+
 SUMMARY = "Built the thing, the suite proves it, nothing is left for the next round."
 
 
@@ -162,7 +165,7 @@ class ReleaseStep(unittest.TestCase):
 
 class End(unittest.TestCase):
     def setUp(self):
-        self.ts = [task("T-0001", area="site", checker=True), task("T-0002")]
+        self.ts = [task("T-0001", area="site", checker=True), task("T-0002", area="bot")]
         self.ev = []
         run(self.ev, L.cmd_begin, self.ts)
         run(self.ev, L.cmd_next, self.ts)
@@ -255,6 +258,45 @@ class Stops(unittest.TestCase):
         self.assertEqual(L.open_run(ev)["id"], "R-0002")
 
 
+class Context(unittest.TestCase):
+    def tearDown(self):
+        L.context_tokens = lambda *a, **k: None
+
+    def test_reads_the_newest_main_transcripts_last_call(self):
+        import json
+        import time
+        home = tempfile.mkdtemp()
+        repo = os.path.join(home, "repo")
+        slug = __import__("re").sub(r"[^A-Za-z0-9]", "-", os.path.abspath(repo))
+        d = os.path.join(home, ".claude", "projects", slug)
+        os.makedirs(d)
+        old = os.path.join(d, "old.jsonl")
+        with open(old, "w") as f:
+            f.write(json.dumps({"type": "assistant", "message": {"usage": {"input_tokens": 999999}}}) + "\n")
+        time.sleep(0.05)
+        with open(os.path.join(d, "new.jsonl"), "w") as f:
+            for n in (1000, 2000):
+                f.write(json.dumps({"type": "assistant", "message": {"usage": {
+                    "input_tokens": 1, "cache_read_input_tokens": n, "cache_creation_input_tokens": 10}}}) + "\n")
+            f.write(json.dumps({"type": "user", "message": {"content": "hi"}}) + "\n")
+        os.utime(old, (1, 1))
+        self.assertEqual(REAL_CONTEXT(repo, home), 2011)
+        self.assertIsNone(REAL_CONTEXT(os.path.join(home, "other"), home))
+        shutil.rmtree(home)
+
+    def test_a_big_context_stops_the_run_and_refuses_a_new_one(self):
+        ev = []
+        run(ev, L.cmd_begin, [task("T-0001")])
+        L.context_tokens = lambda *a, **k: 250000
+        text, code = run(ev, L.cmd_next, [task("T-0001")])
+        self.assertEqual(code, L.EXIT_STOP)
+        self.assertIn("250k", text)
+        with self.assertRaises(L.LoopError):
+            L.cmd_begin(ev, [task("T-0001")])
+        L.context_tokens = lambda *a, **k: 150000
+        self.assertEqual(run(ev, L.cmd_begin, [task("T-0001")])[1], 0)
+
+
 class Report(unittest.TestCase):
     def test_report_and_stats(self):
         ts = [task("T-0001"), task("T-0002")]
@@ -297,7 +339,7 @@ class ThroughMain(unittest.TestCase):
         return L.main(list(argv), loop_path=self.loop, tasks_path=self.tasks)
 
     def test_third_revise_parks_and_moves_on(self):
-        self.write([task("T-0001", area="plugin", checker=True, priority=1), task("T-0002")])
+        self.write([task("T-0001", area="plugin", checker=True, priority=1), task("T-0002", area="site")])
         self.assertEqual(self.main("begin"), 0)
         self.assertEqual(self.main("next"), 0)
         ts = T.load(self.tasks)

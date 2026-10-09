@@ -98,8 +98,7 @@ namespace ForestOverlay.Game
             BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             BindingFlags stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             Type t = GameBridge.FindGameType("TitleScreen");
-            FieldInfo instance = t != null ? t.GetField("Instance", stat) : null;
-            object title = instance != null ? instance.GetValue(null) : null;
+            object title = FindTitle(t);
             MethodInfo single = t != null ? t.GetMethod("OnSinglePlayer", inst, null, Type.EmptyTypes, null) : null;
             MethodInfo slotSel = t != null ? t.GetMethod("OnSlotSelection", inst, null, new[] { typeof(int) }, null) : null;
             if (title == null || single == null || slotSel == null) return "the title screen's load buttons were not found";
@@ -132,6 +131,38 @@ namespace ForestOverlay.Game
                 return "the title screen refused: " + (ex.InnerException ?? ex).Message;
             }
         }
+
+        /// The title screen's TitleScreen, null when there is none.
+        /// TitleScreen.Instance is null on a return to the title (the pause
+        /// menu's exit; bridge, 2026-10-09: the scene's one TitleScreen is
+        /// there but disabled, Instance null - a fresh launch has both;
+        /// T-0247), and its buttons still work on it - so the scene's
+        /// object is looked up then.
+        public static UnityEngine.Object FindTitle(Type titleType)
+        {
+            if (titleType == null) return null;
+            FieldInfo instance = titleType.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            UnityEngine.Object title = instance != null ? instance.GetValue(null) as UnityEngine.Object : null;
+            if (title != null) return title;
+
+            // Its place in the title scene (bridge, both visits).
+            GameObject go = GameObject.Find(TitlePath);
+            Component c = go != null ? go.GetComponent(titleType) : null;
+            if (c == null) return null;
+            int id = c.GetInstanceID();
+            if (id != _sceneTitleLogged && _log != null)
+            {
+                _sceneTitleLogged = id;
+                Behaviour b = c as Behaviour;
+                _log.LogInfo("TitleLoad: TitleScreen.Instance is null (a return to the title) - using " + TitlePath +
+                             (b != null && !b.enabled ? " (disabled)" : "") + ".");
+            }
+            return c;
+        }
+
+        private const string TitlePath = "TitleSceneMain/TitleScreen";
+
+        private static int _sceneTitleLogged;
 
         /// The load finished or failed: Resume reads slots again.
         public static void Clear()

@@ -553,6 +553,10 @@ namespace ForestOverlay.Modules
             // outlive leaving the endgame (AreaKeeper). A restore sets its own.
             string area = syncCave ? _areas.ForTeleport(s.SpawnPosition) : "";
             if (area.Length > 0) cave += (cave.Length > 0 ? ", " : "") + area;
+            // The game's own death in progress would carry on at the spot
+            // (the capture, the menu) - T-0248. After a restore it has run.
+            string death = syncCave ? DeathSequence.End() : "";
+            if (death.Length > 0) cave += (cave.Length > 0 ? ", " : "") + death;
             // A rope climb outlives a move (runner maks, cave 4); after a
             // start state the restore has put back the captured one.
             string rope = syncCave ? RopeClimb.Leave() : "";

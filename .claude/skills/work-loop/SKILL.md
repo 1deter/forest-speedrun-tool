@@ -43,7 +43,10 @@ again. Never move a task by your own say-so - the gates in `tasks.py` and
 4. **At STOP**: `python scripts/loop.py report` into chat, then the
    handoff (docs current, router *Where we are*, quality rows of the areas
    the run touched), commit and push. The run ends the session's work:
-   name the next run, don't start one.
+   name the next run, don't start one. `loop.py` also stops a run once
+   this session's context passes 200k, and `begin` refuses a new run then
+   (T-0249: one night session grew to 541k, 15 % of four days' usage) -
+   a night of runs is one fresh session per run, never one long session.
 
 ## Boundaries
 

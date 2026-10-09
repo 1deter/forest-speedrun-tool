@@ -179,7 +179,7 @@ class Tests(unittest.TestCase):
 
 
 class BotFeedback(unittest.TestCase):
-    MARK = {"date": "2026-10-07", "queue_id": 12, "message_id": "1000"}
+    MARK = {"date": "2026-10-07", "queue_id": 12, "message_id": "1000", "eval": "2026-10-07"}
 
     def test_queue_ids(self):
         out = "#12 2026-10-06 thumbs-down (answer #3): q\n    detail\n#15 2026-10-07 partial (answer #9): q2\n    #99 not an item\n"
@@ -206,11 +206,18 @@ class BotFeedback(unittest.TestCase):
     def test_line_due_only_when_something_is_new(self):
         line, due = S.feedback_line(self.MARK, 0, 0)
         self.assertFalse(due)
-        self.assertIn("no review due", line)
+        self.assertIn("nothing new", line)
         line, due = S.feedback_line(self.MARK, 2, 0)
         self.assertTrue(due)
         self.assertIn("2 new thumbs-down", line)
         self.assertTrue(S.feedback_line(self.MARK, 0, 5)[1])
+
+    def test_eval_due_only_after_a_change_and_a_week(self):
+        m = dict(self.MARK, eval="2026-10-01")
+        self.assertFalse(S.eval_due(m, "2026-10-09", ""))
+        self.assertFalse(S.eval_due(m, "2026-10-05", "abc123"))
+        self.assertTrue(S.eval_due(m, "2026-10-09", "abc123"))
+        self.assertIn("full eval due", S.feedback_line(m, 0, 0, (), True)[0])
 
     def test_unreadable_source_is_said_not_counted(self):
         line, due = S.feedback_line(self.MARK, None, 0, ["queue skipped (no ssh key here)"])

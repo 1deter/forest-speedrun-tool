@@ -31,14 +31,14 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Area | Grade | Verification | Legibility | Stability | Gaps | Tasks | Reviewed |
 |---|---|---|---|---|---|---|---|
 | Savestates | C | A | C | A | C | T-0046, T-0058, T-0065, T-0067 | 2026-10-07 |
-| Timed runs | B | A | B | A | B | T-0144 | 2026-10-08 |
+| Timed runs | B | A | B | A | B | T-0266 | 2026-10-09 |
 | Practice | C | A | C | A | B | T-0046 | 2026-10-07 |
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
 | Performance and loads | C | B | B | A | C | T-0202, T-0190 | 2026-10-08 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
-| Dev tools | C | B | B | C | A | T-0146 | 2026-10-07 |
+| Dev tools | B | B | B | B | A | | 2026-10-09 |
 | Bridge, e2e and QA | B | A | A | B | A | | 2026-10-08 |
 | Release and updater | A | A | A | A | A | | 2026-10-08 |
 | Site app | A | A | A | A | A | | 2026-10-07 |
@@ -47,8 +47,8 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Knowledge | C | B | A | B | C | T-0158, T-0163, T-0168 | 2026-10-07 |
 | Harness | B | A | B | A | B | T-0016 | 2026-10-08 |
 
-Lowest first: Savestates, Practice, Performance and loads, Dev tools,
-Site maps and 3D world, Bot (C).
+Lowest first: Savestates, Practice, Performance and loads, Site maps and
+3D world, Knowledge (C).
 
 ## Areas
 
@@ -59,7 +59,7 @@ projects (they are each area's evidence) and the root files.
 
 ### Savestates
 
-Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,Stance,SunSync,TitleLoad,WreckClearing}.cs` `src/Data/{BlueprintState,BookPageState,CapturedAreas,CheckpointStates,LookupCache,WreckSites,EnemyRecord,GreebleRecord,PickupMatch,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
+Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,DeathSequence,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,SlotInfoGuard,Stance,SunSync,TitleLoad,WreckClearing}.cs` `src/Data/{BlueprintState,DeathProgress,BookPageState,CapturedAreas,CheckpointStates,LookupCache,WreckSites,EnemyRecord,GreebleRecord,PickupMatch,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
 
 - Verification **A**: SavestateFile (33), CheckpointStates (21) and the
   record tests; the e2e `restores` journey (in place, with a load, the
@@ -87,7 +87,9 @@ LiveSplit, uploads.
   into eight partials under 810; plugin.md and plugin-concepts.md cover it.
 - Stability **A**.
 - Gaps **B**: (another segment's Go clears the red line since v0.24.257,
-  T-0049); a deleted attempt stays listed with a dead link (T-0144); replay
+  T-0049); a deleted attempt leaves the list (T-0144, confirmed in game
+  v0.24.262; a lighter site answer is T-0266); cave mouths log their cave
+  and rope-grab is ropes only (T-0242, confirmed v0.24.262); replay
   labels done in one spot print over each other (confirmed.md,
   2026-10-04).
 
@@ -108,7 +110,7 @@ sharing and community packs, the gameplay mods ("ON NOW").
 
 ### Run mode
 
-Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport}.cs` `docs/run-mode.md`
+Paths: `src/Modules/RunModeModule*.cs` `src/Modules/RunUploadModule.Attempts.cs` `src/Core/RunMode.cs` `src/Game/{AuditWatch,ClipWatch,MoveWatch,RunIntegrity}.cs` `src/Data/{AttemptChain,AttemptOwners,MoveDetector,RunAudit,RunCategory,RunReport,SentAttempts}.cs` `docs/run-mode.md`
 
 - Verification **A**: MoveDetector (36 + 21 physics), RunAudit,
   RunCategory, RunReport, AttemptChain; the e2e `runmode` journey;
@@ -182,7 +184,7 @@ Paths: `src/Modules/TasModule.cs` `src/Game/{TasInput,TrajectoryView}.cs` `src/D
 
 ### Dev tools
 
-Paths: `src/Modules/{DebugViewModule,DeveloperModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/VolumeFilter.cs` `tools/ILScan/`
+Paths: `src/Modules/{DebugViewModule,DeveloperModule,DumpModule,ExplorerModule}.cs` `src/{GameDumper,TypeExplorer}.cs` `src/Game/{AerialCapture,AnimProbe,DebugDraw,FsmExport,TerrainDump,WorldDump}.cs` `src/Data/{VolumeFilter,DumpText}.cs` `tools/ILScan/` `tests/ILScan.Tests/`
 
 Debug views and freecam, the explorer, dumps, the FSM / terrain / world
 exports, the offline IL scanner.
@@ -190,8 +192,10 @@ exports, the offline IL scanner.
   by the author (v0.17.0); VolumeFilter tested.
 - Legibility **B**: `DebugDraw.cs` 829 (also draws run lines and
   markers); ILScan is documented in game-notes and plugin.md.
-- Stability **C**: no automated test of the dumps, the exports or ILScan
-  (T-0146).
+- Stability **B**: ILScan's modes, errors and cap run in CI over a
+  fixture assembly; the FSM export's value text and the dumps' cleaners
+  are `Data/DumpText` with tests (T-0146). The game-walking parts of the
+  dumps are proved only by use.
 - Gaps **A**.
 
 ### Bridge, e2e and QA

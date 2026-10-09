@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-220 prefixes from 675 log calls.
+221 prefixes from 682 log calls.
 
 ## `Aerial capture`
 
@@ -53,13 +53,15 @@ Written by AreaKeeper.cs; warning.
 
 ## `Attempts`
 
-Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried.
+Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried. Also: a sent attempt deleted on the site, taken off the Runs tab's list (T-0144).
 Written by RunUploadModule.Attempts.cs; info / warning.
 
+- warning `Attempts: <id> is deleted on the site but could not be taken off sent.txt: <ex.Message>`
 - warning `Attempts: <id> log not sent: <..>; retry in <..> s.`
 - warning `Attempts: <id> log refused - <msg> (moved to uploads/attempts/refused).`
 - info `Attempts: <id> log sent - <verdict><..>.`
 - info `Attempts: <id> never ended (the game closed during it) - its log is <..>`
+- info `Attempts: <id> was deleted on the site (404) - taken off the Runs tab's list (sent.txt).`
 - warning `Attempts: cannot read <..>: <ex.Message>`
 - warning `Attempts: checkpoint <attemptId> step <step> not taken: <..>.`
 - info `Attempts: checkpoint <attemptId> step <step> sent.`
@@ -1519,6 +1521,8 @@ Written by LogStore.cs, SavestateBridge.cs, SavestateModule.cs; info / warning.
 - info `<prefix>: <note>.` *(declared)*
 - info `Savestate restore <what> in place: <note> - <..> after <..> s.`
 - info `Savestate restore <what> in place: starting.`
+- warning `Savestate restore <what>: <death> - a Full load instead.`
+- info `Savestate restore <what>: <death>.`
 - info `Savestate restore <what>: <n> world pickup(s) not at capture (<sb>) - moved, or new since the capture.`
 - info `Savestate restore <what>: <note>.`
 - info `Savestate restore <what>: <slotNote>.`
@@ -1629,6 +1633,14 @@ Written by SlidingDoorKeeper.cs; warning.
 
 - warning `SlidingDoorKeeper: AutomatedDoorSystem fields not found - sliding doors are not kept.`
 - warning `SlidingDoorKeeper: capture failed: <ex.Message>`
+
+## `SlotInfoGuard`
+
+Meaning: A savestate capture leaves the save slot's info file alone: GameStats.OnSerializing not found or patch failed (captures then rewrite it).
+Written by SlotInfoGuard.cs; warning.
+
+- warning `SlotInfoGuard: <ex.Message>`
+- warning `SlotInfoGuard: GameStats.OnSerializing not found - a capture rewrites the slot's info file.`
 
 ## `Slow tick`
 
@@ -1763,6 +1775,7 @@ Written by TitleLoad.cs; info / warning.
 - warning `TitleLoad: <ex.Message>`
 - warning `TitleLoad: LevelSerializer.Resume / CanResume / LoadSavedLevel not found - no restores from the title screen.`
 - warning `TitleLoad: LoadSavedLevel threw: <..>`
+- info `TitleLoad: TitleScreen.Instance is null (a return to the title) - using TitleSceneMain/TitleScreen<..>.`
 - info `TitleLoad: done (<_resumes> Resume call(s) replaced; <slot>).`
 - info `TitleLoad: the menu's load started (slot <slot>), the capture in place of the slot's save.`
 - warning `TitleLoad: the pending title-screen load timed out - Resume reads the slot again.`

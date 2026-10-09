@@ -39,6 +39,11 @@
     </Reference>
   </ItemGroup>
 
+  <!-- tests/ILScan.Tests runs Main over a fixture assembly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ILScan.Tests" />
+  </ItemGroup>
+
   <!-- Fallback for a machine with no BepInEx install (e.g. CI). -->
   <ItemGroup Condition="!Exists('$(CecilPath)')">
     <PackageReference Include="Mono.Cecil" Version="0.11.5" />

@@ -225,7 +225,7 @@ namespace ForestOverlay.Game
 
         private static bool Handle(object stats, DeathKind kind)
         {
-            if (Decide == null) return true;
+            if (Decide == null) { DeathSequence.Started(); return true; }
 
             DeathAction action = Decide(kind);
             Deaths++;
@@ -253,6 +253,8 @@ namespace ForestOverlay.Game
             }
             else
             {
+                // The game's own death: a restore during it ends it (DeathSequence).
+                DeathSequence.Started();
                 return true;
             }
 
@@ -444,6 +446,7 @@ namespace ForestOverlay.Game
         public static void ForgetDeath()
         {
             _lastStats = null;
+            DeathSequence.Forget();
         }
 
         /// Clears the blood overlay on demand - it builds up after

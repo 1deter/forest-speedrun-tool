@@ -153,6 +153,9 @@ namespace ForestOverlay.Modules
 
         // Title screen reflection.
         private FieldInfo _titleInstance;
+        private Type _titleType;
+        private UnityEngine.Object _title;
+        private float _nextTitleLook;
         private MethodInfo _onSinglePlayer;
         private MethodInfo _onLoad;
         private MethodInfo _onSlotSelection;
@@ -312,6 +315,7 @@ namespace ForestOverlay.Modules
                 _pendingQuickLoad = true;
                 _quickLoadStarted = Time.unscaledTime;
                 _titleSeenFrame = -1;
+                _title = null;
                 _status = "reloading slot " + _quickLoadSlot + "...";
             }
         }
@@ -455,6 +459,7 @@ namespace ForestOverlay.Modules
             _pendingQuickLoad = true;
             _quickLoadStarted = Time.unscaledTime;
             _titleSeenFrame = -1;
+            _title = null;
             _status = status;
         }
 
@@ -471,8 +476,16 @@ namespace ForestOverlay.Modules
             ResolveTitle();
             if (_titleInstance == null) return;
 
-            UnityEngine.Object title = _titleInstance.GetValue(null) as UnityEngine.Object;
-            if (title == null) return;
+            // Instance is null on a return to the title (T-0247): the
+            // lookup by path runs four times a second while waiting.
+            if (_title == null)
+            {
+                if (Time.unscaledTime < _nextTitleLook) return;
+                _nextTitleLook = Time.unscaledTime + 0.25f;
+                _title = TitleLoad.FindTitle(_titleType);
+                if (_title == null) return;
+            }
+            UnityEngine.Object title = _title;
 
             // Give the title screen a frame after it appears, so its own
             // Awake/Start/OnEnable have run before we press its buttons.
@@ -504,6 +517,7 @@ namespace ForestOverlay.Modules
             Type t = GameBridge.FindGameType("TitleScreen");
             if (t != null)
             {
+                _titleType = t;
                 _titleInstance = t.GetField("Instance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
                 _onSinglePlayer = t.GetMethod("OnSinglePlayer", inst, null, Type.EmptyTypes, null);
                 _onLoad = t.GetMethod("OnLoad", inst, null, Type.EmptyTypes, null);

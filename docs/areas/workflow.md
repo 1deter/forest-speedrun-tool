@@ -144,7 +144,9 @@ end. Author's calls (2026-10-07, harness.md *Decisions* 7):
   so the main context grows by one summary per round, not by the work.
   A loop run is the exception to *one session, one task* below.
 - **Stops by machine check**: 5 rounds done, nothing left in the pool,
-  or 3 rounds in a row without progress. A task's 3rd checker revise in
+  3 rounds in a row without progress, or this session's context past
+  200k - `begin` refuses a new run then too, so the next run starts in a
+  fresh session (author, 2026-10-09, T-0249). A task's 3rd checker revise in
   its round parks it (`needs: author-decision`, the faults as its
   question) and the loop moves on.
 - **The pool is `needs: none`** (+ bridge when the game is up):
@@ -189,7 +191,14 @@ restore / physics / render bugs), `forest-tester` (Sonnet: in-game checks
 over the bridge, writes docs/confirmed.md), `forest-site` (Sonnet: site/),
 `forest-knowledge` (Sonnet: bot cards + the 👎 queue), `forest-qa` (Haiku:
 the QA Discord), `forest-checker` (Sonnet, high - author, 2026-10-07: the
-only independent review; reviews a built task, *The checker* above).
+only independent review; reviews a built task, *The checker* above),
+`forest-ux` (Sonnet, high; Opus for a full audit, set at spawn - T-0252:
+the UX review against `docs/ux.md`; it tours each tab scrolled to its end
+with `open_tab` `scroll_tour`, files findings as tasks and parks design
+choices; never edits code). **Spawn `forest-ux` with "Review T-n" for
+every redesign task and every feature that adds much UI**, at `built`
+next to the checker (the checker judges the code, forest-ux what a runner
+sees); a UI task waits for its findings before release.
 Run 2-3 at a time (5+ Opus agents emptied a 5-hour window in under 15
 minutes), one driving the game at a time; give the task in a few lines -
 the agent file holds the rules. The code agents (dev, researcher, site,

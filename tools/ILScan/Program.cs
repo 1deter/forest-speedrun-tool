@@ -20,7 +20,7 @@ namespace ForestOverlay.ILScan
     // Matching is case-insensitive substring over the full member name.
     internal static class Program
     {
-        private static int Main(string[] args)
+        internal static int Main(string[] args)
         {
             if (args.Length < 2)
             {

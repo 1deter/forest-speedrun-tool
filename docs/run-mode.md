@@ -165,7 +165,10 @@ closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
 `Modules/RunUploadModule.Attempts` (the nonce request, tried ~25 s; the
 checkpoint POST; the outbox `uploads/attempts/*.attempt`, sent oldest
 first, refused ones to `refused/`; `sent.txt` + the Runs tab's last 5
-with **Copy link**; `[Site] SendAttempts`, on).
+with **Copy link** - when the tab opens, each one not yet seen on the site
+this session gets one `GET /api/attempts/<id>`: the site's 404 ("no such attempt") takes it off
+`sent.txt`, 200 is not asked again, anything else leaves it, T-0144,
+`Data/SentAttempts`; `[Site] SendAttempts`, on).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),
@@ -458,13 +461,21 @@ than the table's plan:
   what the player really collides with, since the game unhooks pairs with
   `Physics.IgnoreCollision` in 50+ places and Unity 5.6 cannot read them
   back. One OverlapSphere + one raycast a step, nothing allocated.
-  - **Lift** (log boost, custom wall boost): depenetration leaves no
+  - **Lift** (custom wall boost; the log boost is the launch below): depenetration leaves no
     velocity (live: a box 0.8 m into the feet lifted the player 0.8 m at
     velocity 0), so `MoveDetector.PhysicsStep` sums the rise beyond what the
     vertical speed allows; reported at 1 m **only when a player-built
     structure was touched** in the episode (`BuildingHealth` /
     `BuildingHealthChunk` up the parents) - walking into the yacht cabin's
     bench lifts the 4.6 m capsule 1.2 m too (logged, not reported).
+  - **Launch** (the log boost, T-0268): the runners' log boost
+    is not that lift but a launch (live, recorded twice at the cave 6
+    spots: jump, hold E to add logs to a custom wall blueprint under them,
+    55-80 m/s up while logs go in, 24-32 m), so its rise is all speed. Also
+    reported as a `lift`: 3+ physics steps rising faster than 25 m/s by
+    position (a jump ~13, the cave 6 body bounce 22), 3 m or more, not in a
+    knockback, with a player-built structure touched within 1.5 s before or
+    during it; without one, logged only.
   - **Clip**: the line from the last place the capsule's centre was clear
     of every touched solid to the next one enters a solid through a front
     face (ending inside a rock counts; a face crossed from behind does not)

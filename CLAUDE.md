@@ -162,7 +162,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - `harness-review` - monthly, when due: one harness component off for 5 tasks, stats before / after, the author decides.
 
 ## Agents (`.claude/agents/`; when and how: docs/areas/workflow.md *Subagents*)
-`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
+`forest-dev`, `forest-researcher` (game internals), `forest-site`, `forest-knowledge` build in their own worktree; `forest-tester` checks in game; `forest-checker` reviews a built task (`Check T-n`); `forest-ux` reviews what a runner sees (`Review T-n`, every UI task; `docs/ux.md`); `forest-qa` the QA Discord. What each costs: `python scripts/agent-cost.py`.
 
 ## Where everything else lives
 
@@ -172,6 +172,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 | [`docs/decisions.md`](docs/decisions.md) | Before any design choice: everything the author decided, with who and when |
 | [`src/CLAUDE.md`](src/CLAUDE.md), [`tests/CLAUDE.md`](tests/CLAUDE.md) | Any plugin code / test change: the module rules, the test shim (they load by themselves in that folder) |
 | [`docs/areas/plugin.md`](docs/areas/plugin.md) | Plugin work: feature -> files, UI and hotkeys, what works, the plugin's gotchas |
+| [`docs/ux.md`](docs/ux.md) | Before building or reviewing any UI (plugin, site, bot messages): the checks, severity, how forest-ux reviews |
 | [`docs/areas/plugin-concepts.md`](docs/areas/plugin-concepts.md) | How a plugin feature behaves (spots, triggers, splits, deaths, savestates, runs, loads) |
 | [`docs/areas/release.md`](docs/areas/release.md) | Releasing, the updater, the patcher, runners' update problems |
 | [`docs/areas/site.md`](docs/areas/site.md) | The website (then the section of `docs/website.md` it names) |
@@ -192,6 +193,47 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.267 (2026-10-10, T-0214):** a savestate capture no longer
+  rewrites the loaded slot's `info` file + its Steam Cloud copy
+  (`GameStats.OnSerializing` runs on every `SerializeLevel`; game-notes
+  *The slot's info file*; `Game/SlotInfoGuard`). Ends the smoke's
+  "Slot 1 changed" hygiene problem. **Confirmed** by the v0.24.267 smoke.
+- **v0.24.266 (2026-10-09, T-0248):** a restore in place / Go during the
+  game's own death ends it (`Game/DeathSequence`: the chain's Invokes and
+  coroutines, the drag-away clones, the hanging rope, controls, body,
+  cameras), Full load if it cannot; every restore in place sets
+  `DeadTimes` 0 as a load does (maks: menu after 2 deaths, rope stuck on
+  the hips). Proved over the bridge step by step + a field diff against a
+  Full load (gotcha 103). **Confirmed in game** by forest-tester (drag-
+  away, hanging, death count, real death + restore, plain restore).
+  New: T-0269 (body temperature not in the save).
+- **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
+  title after a return to it (pause-menu exit). There `TitleScreen.Instance`
+  is null and the component disabled (bridge; game-notes *Loading a save
+  from the title screen*), so `TitleLoad.FindTitle` looks it up by path.
+  Also maks's MARK (quick load "shot back to main menu"). Confirmed in
+  game by forest-tester (restart + quick-load through the title).
+- **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
+  (the game publishes EnterEndgame at the box crossing and again after the
+  door's load; a Publish prefix drops an enter while `IsInEndgame` is
+  already true, a leave while already out). Waits for forest-tester: a
+  vault-door entry logs one enter, and a first enter after a restore / Go
+  still logs (the checker: AreaKeeper sets the flag by hand).
+- **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
+  launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
+  recorded live with the author), not the zero-speed lift. Waits for
+  forest-tester in game. T-0243 is `needs: tester` now (the bouncy body
+  slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
+  log, asked in QA). The run in T-0243's QA message is maks's
+  a-58adeca311c01f61.
+- **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
+  (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
+  every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
+  The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
+  branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
+  Desktop: T-0144 merged + checker-accepted (unreleased - needs a release
+  + in-game check), T-0216 / T-0221 closed (author). New: T-0265 (local
+  spot delete stays local; owner re-edits from the site).
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
 - **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
@@ -217,14 +259,18 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   author's channel untick had never been saved (rev 1 still ticks The
   Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
   the nature guide map - answered, maks's route, registration research).
-- **Redesign (2026-10-08):** main merged into `ui-redesign` (even with
-  v0.24.259 + its own commits); T-0024 built + checker-accepted (F2 over
-  the pause menu: cursor and player lock left to the game, author
-  confirmed). The author's game runs the branch build by hand-deploy
-  (author-approved); their v0.24.259 is `BepInEx/plugins/ForestOverlay.dll.mine`.
+- **Redesign (2026-10-08):** main (v0.24.260) merged into `ui-redesign`
+  (pushed). T-0024 built + checker-accepted. **T-0226 built +
+  checker-accepted** (cc3bab7): a *Developer* tab (last: bridge,
+  benchmarks, experimental, TAS, memory census, dumps), Settings as folds
+  (Keys, Info box, Performance, Loads and savestates), Debug views ->
+  *Views*, the Deaths tab's *Reload save on death* toggle gone (fallback
+  always reloads) - old -> new place table in `tasks/notes/T-0226.md`;
+  **not seen in game** (the game runs v0.24.260; a branch build there
+  needs the author's OK to hand-deploy). Follow-ups T-0240 (settings never
+  contradict, tool-wide), T-0241 (QA tab out at the public release).
   Next on the branch: T-0018..T-0022 (author present), then T-0025 (QA,
-  merge, release - its notes carry the checker's repeat list). The branch
-  needs main's v0.24.260 merged in (T-0222) before its next build.
+  merge, release - its notes carry both checkers' lists).
 - **Harness roadmap** (docs/harness.md *Status log*): steps 1-5, 3e, 8c,
   9a, 9b, 10d, 10e, 12 Stage A, 12d done; every checkable gotcha has its
   check. Left: T-0016 Stage B (blocked until 2026-10-14: a week of Stage A
@@ -238,10 +284,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
-  (`python scripts/cleanup.py`). **Released:** v0.24.260 (T-0222: a restore that
-  leaves the overlook sends the game's ExitOverlookArea - the outdoor sky
-  R10 off in the endgame; confirmed in game by forest-tester), nothing
-  unreleased. Its smoke: journeys pass, Slot 1's `info` rewritten - T-0214.
-  The game now runs v0.24.260 (author OK'd replacing the redesign build).
+  (`python scripts/cleanup.py`). **Released:** v0.24.262 (T-0242: cave
+  mouths log the cave - the crawl's 9 m snap had read as a teleport;
+  rope-grab only on ropes, not cutscenes - gotcha 102; T-0144: deleted
+  attempts leave the Runs tab, wording per the author; its lighter site
+  answer is T-0266), nothing unreleased. Both wait for in-game
+  confirmation (forest-tester: cave 6 crawl in / out, a cave 4 rope, a
+  restore on a rope stays silent; a 404 drops a Runs row).
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
