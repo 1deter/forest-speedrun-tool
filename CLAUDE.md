@@ -249,10 +249,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
-  (`python scripts/cleanup.py`). **Released:** v0.24.260 (T-0222: a restore that
-  leaves the overlook sends the game's ExitOverlookArea - the outdoor sky
-  R10 off in the endgame; confirmed in game by forest-tester), nothing
-  unreleased. Its smoke: journeys pass, Slot 1's `info` rewritten - T-0214.
-  The game now runs v0.24.260 (author OK'd replacing the redesign build).
+  (`python scripts/cleanup.py`). **Released:** v0.24.261 (T-0146: ILScan
+  tests in CI (`tests/ILScan.Tests`), the dumps' / FSM export's text in
+  `Data/DumpText` with tests; export format confirmed unchanged by
+  forest-tester; Dev tools re-graded B), nothing unreleased. Its smoke:
+  journeys pass, Slot 1's `info` rewritten again - T-0214. The game runs
+  v0.24.261.
 - **Nothing is published yet:** all live categories are drafts (the
   moderators publish); no community run spot exists (the author's call).
