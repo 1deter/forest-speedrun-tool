@@ -178,6 +178,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 58. **Switching a camera off changes Unity's "current" camera** - the last one drawn; `targetTexture` set on it outside rendering is a native crash. Native crash dumps are readable with Unity's player PDB. [judgement]
 62. **Record what changed, when the game changes it** - not a fixed list per sample: `ilscan writes` finds every writer to hook (v0.24.161 items). [judgement]
 100. **A dump's function name can be one of several folded functions** - check the PDB for others at the address; Mono JIT frames are read from the rbp chain, and a Vector3 left in a frame can name the object (T-0143). [judgement]
+102. **List a flag's writers before reading it as one event** - `onRope` is also every cave-mouth crawl and four cutscenes; a game snap (a cave mouth, 9 m) is not a teleport (T-0242). [judgement]
 
 ### Restores (savestates)
 

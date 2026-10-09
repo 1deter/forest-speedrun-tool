@@ -150,6 +150,8 @@ namespace ForestOverlay.Tests
             c.Event(16000, -1, RunAudit.Tree, true, 0, 0, 0, "4 trees cut down");
             c.Event(17000, -1, RunAudit.Built, true, 0, 0, 0, "LogCabin");
             c.Event(18000, -1, RunAudit.RideStart, true, 0, 0, 0, "zipline");
+            c.Event(18500, -1, "rope-grab", true, 0, 0, 0, null);
+            c.Event(18800, -1, "rope-leave", true, 0, 0, 0, null);
             c.Event(19000, -1, RunAudit.Setting, true, 0, 0, 0, "cheats allowed: True");
             c.Event(80000, -1, "keycard-door", true, 0, 0, 0, "Vault door (keycard) - door 'x', keycard 210");
             c.Event(90000, -1, RunAudit.Full, false, 0, 0, 0, "12 later events not written");
@@ -166,6 +168,7 @@ namespace ForestOverlay.Tests
             Assert.Contains("1 structure built", rundown);
             Assert.Contains("4 trees cut down", rundown);
             Assert.Contains("1 ride: zipline", rundown);
+            Assert.Contains("1 rope climb", rundown);
             Assert.Contains("Pause menu opened 1 time, 3.5 s in all", rundown);
             Assert.Contains("The audit log was full: 12 later events were not written", rundown);
         }
@@ -180,6 +183,9 @@ namespace ForestOverlay.Tests
             Assert.Equal("world", RunAudit.Group("something-new"));
             Assert.Equal("something-new", RunAudit.Label("something-new"));
             Assert.Equal("Found Timmy", RunAudit.Label("timmy-pickup"));
+            // T-0242: a rope only - cave mouths log the cave, cutscenes nothing
+            Assert.Equal("Rope climb started", RunAudit.Label("rope-grab"));
+            Assert.Equal("Rope climb ended", RunAudit.Label("rope-leave"));
             foreach (string g in RunAudit.Groups) Assert.False(string.IsNullOrEmpty(RunAudit.GroupLabel(g)));
             Assert.Equal("1:01:01", RunAudit.Clock(3661000));
             Assert.Equal(3, RunAudit.LeadingCount("3 trees"));

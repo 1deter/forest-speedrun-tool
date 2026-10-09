@@ -35,8 +35,10 @@ namespace ForestOverlay.Game
     //                                          with none (the rules' "takes control";
     //                                          not while a cursor shows - menus, the
     //                                          overlay window) (v0.24.193)
-    //   rope-grab / rope-leave                 a cave rope climb begins / ends
-    //                                          (playerAnimatorControl.onRope)
+    //   rope-grab / rope-leave                 a rope climb begins / ends (cave
+    //                                          and fishing-stand ropes:
+    //                                          RopeClimb.IsOnRope, not every
+    //                                          `onRope` - T-0242)
     //   <ride>-start / <ride>-end, and         zipline, sled, glider, cliff climb
     //   ride-start / ride-end                  (RideModes.Current, read at 10 Hz
     //                                          only for 3 s after a ride's enter /
@@ -51,6 +53,12 @@ namespace ForestOverlay.Game
     //
     // Unlike the ASL, a cave-to-cave change (no surface between) fires the
     // exit and the enter - a superset, the same frame.
+    //
+    // A crawl / climb cave mouth (activateCave: cave 6's, cave 1's ...)
+    // sets the cave on Take and snaps the player to the mouth the same
+    // frame - a jump, but the game's own walk through, so it counts while
+    // the cave-mouth action runs (RopeClimb.IsEnteringCave; T-0242: cave 6
+    // logged no enter). Rope mouths (CaveTriggers) never snap.
     //
     // A new component (a save load) re-reads the state without firing, so
     // loading a save in a cave is not an "enter". Teleports and restores
@@ -285,8 +293,9 @@ namespace ForestOverlay.Game
             string was = _lastCave;
             _lastCave = now;
             // A teleport / restore changed it (v0.24.193: a Go sets the
-            // spot's cave): not walking through a cave mouth.
-            if (_jumped) return;
+            // spot's cave): not walking through a cave mouth. The mouth's
+            // own snap is (T-0242).
+            if (_jumped && !RopeClimb.IsEnteringCave()) return;
             if (was != null)
             {
                 GameEvents.RecordWorld(CaveExit + "-" + was, null, true);

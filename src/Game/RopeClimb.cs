@@ -22,6 +22,12 @@ namespace ForestOverlay.Game
     // (body back to physics, FSM bools, then `resetClimbRope`). A restore
     // made while on the rope keeps the player on it at the captured spot
     // (bridge), so the rope is entered before the restore runs.
+    //
+    // `onRope` is not only ropes (IL, T-0242): cliff climbs, the cave-mouth
+    // crawl (playerEnterCaveAction.doCave) and the keypad door, artifact,
+    // Goodbye Timmy and drag-away cutscenes set it too. A rope climb is
+    // `onRope` with the rope action's `_currentRopeRoot` set (both enters
+    // set it, resetClimbRope clears it).
     // ------------------------------------------------------------------
     public static class RopeClimb
     {
@@ -29,6 +35,7 @@ namespace ForestOverlay.Game
         private static FieldInfo _specialActions; // static LocalPlayer.SpecialActions (GameObject)
         private static FieldInfo _onRope;         // playerAnimatorControl.onRope
         private static Func<object, bool> _onRopeGet;   // the same, read without boxing (every frame)
+        private static Func<object, bool> _enteringCaveGet; // playerAnimatorControl.enteringACave (null if missing)
         private static MethodInfo _exit;          // playerAnimatorControl.exitClimbMode()
         private static Type _ropeAction;          // PlayerClimbRopeAction
         private static FieldInfo _ropeRoot;       // PlayerClimbRopeAction._currentRopeRoot
@@ -84,10 +91,32 @@ namespace ForestOverlay.Game
             catch (Exception ex) { return "rope: failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }
 
-        /// On a cave rope now (WorldEvents' rope-grab / rope-leave).
+        /// On a rope now (WorldEvents' rope-grab / rope-leave) - not a cliff
+        /// climb, a cave mouth or a cutscene, which set `onRope` too.
         public static bool IsOnRope()
         {
-            try { return OnRope(); }
+            try
+            {
+                if (!OnRope()) return false;
+                Component action = Action();
+                return action != null && _ropeRoot.GetValue(action) as Transform != null;
+            }
+            catch (Exception) { return false; }
+        }
+
+        /// The game's cave-mouth crawl / climb is running
+        /// (playerEnterCaveAction.doCave sets `enteringACave` for its whole
+        /// length, entering and leaving). It snaps the player to the mouth's
+        /// enter / exit spot the frame it sets the cave (bridge: 9 m at
+        /// cave 6), which is not a teleport.
+        public static bool IsEnteringCave()
+        {
+            try
+            {
+                if (!Resolve() || _enteringCaveGet == null) return false;
+                object anim = _animControl.GetValue(null) as UnityEngine.Object;
+                return anim != null && _enteringCaveGet(anim);
+            }
             catch (Exception) { return false; }
         }
 
@@ -131,6 +160,8 @@ namespace ForestOverlay.Game
             if (_animControl == null || _specialActions == null || _onRope == null || _exit == null || _ropeRoot == null)
                 return false;
             _onRopeGet = FastField.Instance<bool>(_onRope);
+            FieldInfo entering = anim.GetField("enteringACave", inst);
+            if (entering != null && entering.FieldType == typeof(bool)) _enteringCaveGet = FastField.Instance<bool>(entering);
             _enterTop = enter;
             return _enterTop != null;
         }
