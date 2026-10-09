@@ -193,6 +193,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
+  launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
+  recorded live with the author), not the zero-speed lift. Waits for
+  forest-tester in game. T-0243 keeps the rest (notes: the bouncy body
+  slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
+  log, asked in QA). The run in T-0243's QA message is maks's
+  a-58adeca311c01f61.
 - **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
   (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
   every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
