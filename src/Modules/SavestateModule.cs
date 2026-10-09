@@ -130,6 +130,7 @@ namespace ForestOverlay.Modules
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             TitleLoad.Install(ctx.Log, OverlayPlugin.PluginGuid);
             NatureGuideKeeper.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            SlotInfoGuard.Install(ctx.Log, OverlayPlugin.PluginGuid);
             PathfindingWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             // The keepers' scene searches, kept between restores, and the
             // re-created plane wreck's crash clearing skipped (T-0148).
@@ -182,6 +183,7 @@ namespace ForestOverlay.Modules
             FullCapacityWatch.Uninstall();
             TitleLoad.Uninstall();
             NatureGuideKeeper.Uninstall();
+            SlotInfoGuard.Uninstall();
             PathfindingWatch.Uninstall();
             WreckClearing.Uninstall();
             SceneCache.Uninstall();

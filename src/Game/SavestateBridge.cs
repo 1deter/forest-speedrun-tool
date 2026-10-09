@@ -598,7 +598,10 @@ namespace ForestOverlay.Game
                     // only, and taken back after: a capture in flight used
                     // to end the flight (RideModes, v0.24.201).
                     glider = RideModes.DropForSave();
-                    r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string;
+                    // GameStats.OnSerializing would rewrite the slot's info (T-0214).
+                    SlotInfoGuard.Capturing = true;
+                    try { r.Data = _serializeLevel.Invoke(null, new object[] { false }) as string; }
+                    finally { SlotInfoGuard.Capturing = false; }
                     r.Ok = !string.IsNullOrEmpty(r.Data);
                     if (!r.Ok) r.Message = "SerializeLevel returned nothing";
                 }

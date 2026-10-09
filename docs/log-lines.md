@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 674 log calls.
+217 prefixes from 676 log calls.
 
 ## `Aerial capture`
 
@@ -1603,6 +1603,14 @@ Written by SlidingDoorKeeper.cs; warning.
 
 - warning `SlidingDoorKeeper: AutomatedDoorSystem fields not found - sliding doors are not kept.`
 - warning `SlidingDoorKeeper: capture failed: <ex.Message>`
+
+## `SlotInfoGuard`
+
+Meaning: A savestate capture leaves the save slot's info file alone: GameStats.OnSerializing not found or patch failed (captures then rewrite it).
+Written by SlotInfoGuard.cs; warning.
+
+- warning `SlotInfoGuard: <ex.Message>`
+- warning `SlotInfoGuard: GameStats.OnSerializing not found - a capture rewrites the slot's info file.`
 
 ## `Slow tick`
 
