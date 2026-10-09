@@ -306,14 +306,17 @@ namespace ForestOverlay.Modules
 
         // --- the Runs tab --------------------------------------------------------------------
 
-        private float DrawCameraSection(float y, float w)
+        private float DrawGhostLook(float y, float w)
         {
             GUI.Label(new Rect(0, y, 90, 20), "Ghost look:");
             bool figure = FigureLook;
             if (GUI.Toggle(new Rect(94, y, 80, 20), !figure, " marker") && figure) _ghostLookCfg.Value = GhostMarker;
             if (GUI.Toggle(new Rect(178, y, 160, 20), figure, " figure (facing)") && !figure) _ghostLookCfg.Value = GhostFigureLook;
-            y += 24f;
+            return y + 24f;
+        }
 
+        private float DrawCameraSection(float y, float w)
+        {
             y += UiText.Draw(0, y, w, CameraHeading);
             if (GUI.Button(new Rect(0, y, 200, 22), _camOn ? "Stop watching" : "Watch the comparison run")) ToggleReplayCamera();
             y += 26f;

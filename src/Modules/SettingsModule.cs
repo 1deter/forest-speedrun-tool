@@ -50,9 +50,9 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextKeys = new GUIContent("Keys");
         private static readonly GUIContent TipKeys = new GUIContent(
             "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
-        private static readonly GUIContent TextHud = new GUIContent("Info box (HUD)");
+        private static readonly GUIContent TextHud = new GUIContent("HUD");
         private static readonly GUIContent TipHud = new GUIContent(
-            "The values on screen: which lines show, their size and place, and the HUD layout editor.");
+            "The values on screen: the HUD layout editor, the whole HUD's look, the info box and which values show.");
         private static readonly GUIContent TextPerf = new GUIContent("Performance");
         private static readonly GUIContent TipPerf = new GUIContent(
             "Patches that make the game do less work each frame without changing what it does. On by default.");
@@ -62,7 +62,16 @@ namespace ForestOverlay.Modules
         private GUIContent[] _hudNames;
         private GUIContent[] _hudDescriptions;
         private static readonly GUIContent HudIntro = new GUIContent(
-            "Tick the lines you want. Hover one for what it shows.");
+            "Tick the values you want, in the info box or as widgets. Hover one for what it shows.");
+        private static readonly GUIContent HudWideText = new GUIContent("The whole HUD");
+        private static readonly GUIContent ValuesText = new GUIContent("Values");
+        private static readonly GUIContent SizeTip = new GUIContent(
+            "The info box and the practice / ON NOW warnings. A widget's size is set in Edit HUD layout.");
+        private static readonly GUIContent PlaceTip = new GUIContent(
+            "Where the info box sits, or the practice / ON NOW warnings without it. Drag it while this window is open.");
+        private static readonly GUIContent ResetValuesText = new GUIContent("Reset the values");
+        private static readonly GUIContent ResetValuesTip = new GUIContent(
+            "Every value back to its default on / off. Look, position and widgets stay.");
         private static readonly GUIContent EditLayoutText = new GUIContent("Edit HUD layout");
         private static readonly GUIContent EditLayoutTip = new GUIContent(
             "Move, resize and show / hide each value; drag a value out of the box to make it a widget of its own " +
@@ -72,7 +81,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent InfoBoxTip = new GUIContent(
             "The old box of values at the top left. Off, values you want on screen are HUD widgets (Edit HUD layout); practice and ON NOW warnings always show.");
         private static readonly GUIContent CompactNote = new GUIContent(
-            "Shorter values (no stack count, no units), labels without column padding, a short title.");
+            "Shorter values (no stack count, no units) in the info box and the widgets, labels without column padding, the box's short title.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
         private readonly GUIContent _sizeText = new GUIContent("");
         private readonly GUIContent _placeText = new GUIContent("");
@@ -237,34 +246,39 @@ namespace ForestOverlay.Modules
             }
             UiKit.Hint(editR, EditLayoutTip);
             y += 34f;
-            y += UiText.Note(4, y, cw - 8, HudIntro) + 4f;
 
-            bool box = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.InfoBox, InfoBoxText);
-            if (box != s.InfoBox) s.InfoBox = box;
-            UiKit.Hint(new Rect(4, y, cw - 8, 22), InfoBoxTip);
-            y += 24f;
-            bool compact = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.Compact, CompactText);
-            if (compact != s.Compact) s.Compact = compact;
+            // HUD-wide options first, then the box, then the values (T-0253,
+            // decisions.md *Easy to learn*): compact, size and position act
+            // with the box off too (widgets, the practice / ON NOW warnings),
+            // so none of them sits under the box.
+            GUI.Label(new Rect(4, y, cw - 8, 22), HudWideText, _labelStyle);
             y += 22f;
-            y += UiText.Note(28, y, cw - 32, CompactNote) + 4f;
+            Rect compactR = new Rect(4, y, cw - 8, 22);
+            bool compact = GUI.Toggle(compactR, s.Compact, CompactText);
+            if (compact != s.Compact) s.Compact = compact;
+            UiKit.Hint(compactR, CompactNote);
+            y += 24f;
 
             GUI.Label(new Rect(4, y, 160, 22), _sizeText, _labelStyle);
+            UiKit.Hint(new Rect(4, y, 160, 22), SizeTip);
             if (GUI.Button(new Rect(168, y, 30, 22), "-")) s.TextSize = HudLines.StepTextSize(s.TextSize, -1);
             if (GUI.Button(new Rect(202, y, 30, 22), "+")) s.TextSize = HudLines.StepTextSize(s.TextSize, +1);
             if (GUI.Button(new Rect(236, y, 70, 22), "default")) s.TextSize = 0;
             y += 26f;
 
-            y += Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
+            float placeH = Mathf.Max(22f, UiText.Draw(4, y, cw - 8, _placeText));
+            UiKit.Hint(new Rect(4, y, cw - 8, placeH), PlaceTip);
+            y += placeH;
             if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
-            if (GUI.Button(new Rect(140, y, 150, 22), "Reset the info box"))
-            {
-                s.ResetLook();
-                CollectiblesModule totals = Host.Find<CollectiblesModule>();
-                if (totals != null) totals.TotalsOnHud = false;
-            }
             y += 30f;
 
-            GUI.Label(new Rect(4, y, cw - 8, 22), "Lines", _labelStyle);
+            bool box = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.InfoBox, InfoBoxText);
+            if (box != s.InfoBox) s.InfoBox = box;
+            UiKit.Hint(new Rect(4, y, cw - 8, 22), InfoBoxTip);
+            y += 30f;
+
+            GUI.Label(new Rect(4, y, cw - 8, 22), ValuesText, _labelStyle);
+            UiKit.Hint(new Rect(4, y, cw - 8, 22), HudIntro);
             y += 22f;
             for (int i = 0; i < HudLines.All.Length; i++)
             {
@@ -291,6 +305,16 @@ namespace ForestOverlay.Modules
                 }
                 y += 24f;
             }
+
+            Rect resetR = new Rect(4, y + 2f, 150, 22);
+            if (GUI.Button(resetR, ResetValuesText))
+            {
+                s.ResetValues();
+                CollectiblesModule totals = Host.Find<CollectiblesModule>();
+                if (totals != null) totals.TotalsOnHud = false;
+            }
+            UiKit.Hint(resetR, ResetValuesTip);
+            y += 30f;
 
             return y + 6f;
         }

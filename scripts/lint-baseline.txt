@@ -40,8 +40,9 @@ label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), Metre
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), MetresLabel(slot, field, label, value * 2f));
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 34f, 20), PointName(i));
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, w - x0 - 6f, 20), ItemLabel(slot, t.ItemId));
-label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(130f + sliderW, y, 60, 20), _lineAheadText);
-label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(130f + sliderW, y, 60, 20), _lineOpacityText);
+label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(130f + sliderW, y, 60, 20), _replayOpacityText);
+label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineAheadText);
+label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(x + 130f + sliderW, y, 60, 20), _lineOpacityText);
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
 label20	src/Modules/PracticeRunModule.Site.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);

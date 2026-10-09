@@ -79,8 +79,12 @@ Tabs: Practice, Map, Runs, Inventory, 100%, Deaths, Views, Settings,
 QA, Updates, Developer. **Developer** (`Modules/DeveloperModule`, last) holds
 what a run never needs - test bridge, benchmarks, experimental features,
 TAS, memory census, dumps - each fold drawn by the module that owns it
-(T-0226). Settings is one page of folds: Keys, Info box (HUD), Performance,
-Loads and savestates. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
+(T-0226). Settings is one page of folds: Keys, HUD, Performance,
+Loads and savestates. **One setting, one feature** (T-0253): Settings > HUD
+puts the HUD-wide options (compact, text size, position) above the info box
+and the values; Runs keeps the run lines' options under *Run lines* (shown
+only while on) and the ghost's switch + an opacity for the ghost and replay
+under *Ghost and replay*; the results panel has its own load-time choice. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
 
 While the window is open the player is held (`LockView`) and the game's key

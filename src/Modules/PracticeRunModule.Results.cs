@@ -24,7 +24,8 @@ namespace ForestOverlay.Modules
     // - Buttons only while the cursor is the runner's (the F2 window or the
     //   pause menu): with the game's locked cursor a click lands in the
     //   middle of the screen and would hit them. Dragged by its title then.
-    // - [Splits] ResultsPanel turns it off.
+    // - [Splits] ResultsPanel turns it off; ResultsLoadTimeAlways shows the
+    //   load-removed time after a load-free run too.
     // ------------------------------------------------------------------
     public sealed partial class PracticeRunModule
     {
@@ -32,7 +33,7 @@ namespace ForestOverlay.Modules
         private const int ResMaxRows = 16;
         private const float ResRowH = 18f;
 
-        private ConfigEntry<bool> _resultsCfg;
+        private ConfigEntry<bool> _resultsCfg, _resLoadAlways;
         private ConfigEntry<float> _resX, _resY, _resWidth;
 
         private bool _resultsOpen;
@@ -82,6 +83,10 @@ namespace ForestOverlay.Modules
             _resX = c.Bind("Splits", "ResultsX", -1f, "Results panel position from the left, in pixels (-1 = centred).");
             _resY = c.Bind("Splits", "ResultsY", 120f, "Results panel position from the top, in pixels.");
             _resWidth = c.Bind("Splits", "ResultsWidth", 480f, "Results panel width in pixels.");
+            // Its own choice (T-0253); it followed the splits' LRT column
+            // before, so it starts from that.
+            _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
+                "Results panel: show the load-removed time after a run with no loads too (a run with loads always shows it).");
             for (int i = 0; i < ResLineLabels.Length; i++)
             {
                 _resLineLabels[i] = new GUIContent(ResLineLabels[i]);
@@ -127,7 +132,7 @@ namespace ForestOverlay.Modules
             _resVerdict.text = _result.Verdict;
             _resCompare.text = _result.CompareLine;
             _resGolds.text = _result.GoldLine;
-            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, p, _cols[(int)Col.Lrt].Value);
+            _result.LoadLine = RunResults.LoadLine(done.Duration, done.Loads, done.LoadTime, p, _resLoadAlways.Value);
             _resLoads.text = _result.LoadLine;
 
             // The table's cells: copied once, drawn every frame.

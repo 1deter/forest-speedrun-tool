@@ -718,8 +718,13 @@ namespace ForestOverlay.Game
         public int ReferenceCount;
         /// The first reference point drawn (a window of the line, v0.24.191).
         public int ReferenceStart;
-        /// Lines and ghost, 0..1 (Runs -> Line options).
+        /// Your run's lines (current, failed), 0..1 (Runs -> Run lines).
         public float Opacity = 1f;
+        /// The comparison line: the run lines' opacity during a run, the
+        /// replay's while the replay camera plays it (T-0253).
+        public float ReferenceOpacity = 1f;
+        /// The ghost, 0..1 (Runs -> Ghost and replay).
+        public float GhostOpacity = 1f;
 
         public Vector3[] CurrentLine;
         public int CurrentCount;
@@ -796,15 +801,15 @@ namespace ForestOverlay.Game
             GL.PushMatrix();
             GL.Begin(GL.LINES);
 
-            DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour));
-            DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour));
-            DrawStrip(FailedLine, 0, FailedCount, Faded(FailedColour));
+            DrawStrip(ReferenceLine, ReferenceStart, ReferenceCount, Faded(ReferenceColour, ReferenceOpacity));
+            DrawStrip(CurrentLine, 0, CurrentCount, Faded(CurrentColour, Opacity));
+            DrawStrip(FailedLine, 0, FailedCount, Faded(FailedColour, Opacity));
             DrawStrip(PathWindow, 0, PathCount, PathColour);
 
             int extra = PathCount > 1 ? 2 * (PathCount - 1) : 0;
             if (HasGhost)
             {
-                GL.Color(Faded(GhostColour));
+                GL.Color(Faded(GhostColour, GhostOpacity));
                 if (DrawFigure && FigureCount > 0)
                 {
                     int n = Mathf.Min(FigureCount, FigureVerts.Length) & ~1;
@@ -825,9 +830,9 @@ namespace ForestOverlay.Game
             DrawTarget.Record(start, 2 * (Mathf.Max(0, ReferenceCount - ReferenceStart - 1) + Mathf.Max(0, CurrentCount - 1)) + extra);
         }
 
-        private Color Faded(Color c)
+        private static Color Faded(Color c, float opacity)
         {
-            c.a *= Mathf.Clamp01(Opacity);
+            c.a *= Mathf.Clamp01(opacity);
             return c;
         }
 

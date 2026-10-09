@@ -971,7 +971,13 @@ namespace ForestOverlay.Modules
             // Lines belong to the selected entry only when it is the one
             // being run (author, 2026-09-24): selecting another entry hid
             // its zones but left this segment's line drawn.
-            _lines.Show = (_showLines || _camOn) && Enabled &&
+            // Each drawing follows its own feature's settings (T-0253): your
+            // lines and the comparison's during a run the run lines', the
+            // ghost its switch, and while the replay camera plays the
+            // comparison line and ghost the replay's (always shown there).
+            bool running = _recorder.State == RunRecorder.RunState.Running;
+            bool ghostOn = _camOn || (_ghostCfg.Value && running);
+            _lines.Show = (_showLines || ghostOn) && Enabled &&
                           (_practice == null || ReferenceEquals(_practice.SelectedSegment, _segment));
             if (!_lines.Show) return;
 
@@ -984,30 +990,34 @@ namespace ForestOverlay.Modules
             }
             _lines.ReferenceLine = _referenceLine.Points;
             _lines.ReferenceStart = 0;
-            _lines.ReferenceCount = _referenceLine.Count;
+            _lines.ReferenceCount = _camOn || _showLines ? _referenceLine.Count : 0;
             _lines.Opacity = LineOpacity;
-            if (_lineAheadOn.Value)
+            _lines.ReferenceOpacity = _camOn ? ReplayOpacity : LineOpacity;
+            _lines.GhostOpacity = ReplayOpacity;
+            if (!_camOn && _showLines && _lineAheadOn.Value)
             {
                 // Only the next few seconds of the comparison (author, QA
                 // 2026-09-26): from where its ghost is now, or its start.
-                float from = _camOn ? _clock.T : _recorder.State == RunRecorder.RunState.Running ? _recorder.Elapsed : 0f;
+                // The replay camera shows the whole line (its trajectory
+                // view frames the stretch it is on).
+                float from = running ? _recorder.Elapsed : 0f;
                 int s, e;
                 _referenceLine.Window(from, from + LineAhead, out s, out e);
                 _lines.ReferenceStart = s;
                 _lines.ReferenceCount = e;
             }
 
-            Attempt current = _recorder.Current;
+            Attempt current = _showLines ? _recorder.Current : null;
             if (current == null) _currentLine.Clear();
             else _currentLine.Sync(current.Samples);
             _lines.CurrentLine = _currentLine.Points;
             _lines.CurrentCount = _currentLine.Count;
             _lines.FailedLine = _failedLine.Points;
-            _lines.FailedCount = _keepFailedCfg.Value ? _failedLine.Count : 0;
+            _lines.FailedCount = _showLines && _keepFailedCfg.Value ? _failedLine.Count : 0;
 
             _lines.HasGhost = false;
             if (_reference != null && _camOn) SetGhost(_clock.T, Vector3.zero, true);
-            else if (_reference != null && _recorder.State == RunRecorder.RunState.Running)
+            else if (_reference != null && ghostOn)
             {
                 Vector3 ghost;
                 if (RunCompare.PositionAt(_reference.Samples, _reference.Duration, _recorder.Elapsed,
@@ -1232,10 +1242,10 @@ namespace ForestOverlay.Modules
                 if (lines != _showLines) { _showLines = lines; _showLinesCfg.Value = lines; }
                 UiKit.Hint(new Rect(0, y, cw, 22), TipLines);
                 y += 24f;
+                if (_showLines) y = DrawLineOptions(20f, y, cw);
                 bool auto = GUI.Toggle(new Rect(0, y, cw, 22), _autoRestart.Value, " Auto-restart when a run finishes");
                 if (auto != _autoRestart.Value) _autoRestart.Value = auto;
-                y += 24f;
-                y = DrawLineOptions(y, cw);
+                y += 28f;
                 if (GUI.Button(new Rect(0, y, 120, 24), "Clear times")) ClearTimes();
                 UiKit.Hint(new Rect(0, y, 120, 24), TipClear);
                 y += 30f;
@@ -1243,6 +1253,7 @@ namespace ForestOverlay.Modules
 
             if (UiKit.Section(0f, ref y, cw, "runs.replay", TextReplay, null, TipReplay, false))
             {
+                y = DrawGhostOptions(y, cw);
                 y = DrawReplayOptions(y, cw);
                 y = DrawCameraSection(y, cw);
             }
@@ -1274,10 +1285,10 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipSplitsSection = new GUIContent("The splits of the selected segment against the comparison. Options: columns, panel size and position, runner name.");
         private static readonly GUIContent TipCheckpoints = new GUIContent("Save the game at each checkpoint of a practice run, to restart from there.");
         private static readonly GUIContent TipSources = new GUIContent("Another runner's times from the website, or a LiveSplit .lss file, as the comparison.");
-        private static readonly GUIContent TipOptions = new GUIContent("Run lines, auto-restart, line look, clear times.");
-        private static readonly GUIContent TipLines = new GUIContent("Draw the path of your run and the comparison in the world.");
+        private static readonly GUIContent TipOptions = new GUIContent("Run lines and their look, auto-restart, clear times.");
+        private static readonly GUIContent TipLines = new GUIContent("Draw the path of your run (yellow) and the comparison (blue) in the world.");
         private static readonly GUIContent TipClear = new GUIContent("Clears the attempts from view; the files are kept.");
-        private static readonly GUIContent TipReplay = new GUIContent("Watch the comparison run as a ghost, chase or first-person.");
+        private static readonly GUIContent TipReplay = new GUIContent("The ghost and its look, what the replay shows, and watching the comparison run (chase, first person, trajectory).");
         private static readonly GUIContent TipUpload = new GUIContent("Finished runs go to forest.deter.cloud automatically; the queue and refused files are here.");
 
         // Tab text, rebuilt from Tick a few times a second - never in

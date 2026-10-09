@@ -192,7 +192,7 @@ namespace ForestOverlay.Modules
             _replay.MarkersPassed = running ? ReplayMarks.UpTo(_reference.Events, upTo) : int.MaxValue;
             _replay.ShowBuildings = _replayBuildingsCfg.Value;
             _replay.ShowMarkers = _replayMarkersCfg.Value;
-            _replay.Opacity = LineOpacity;
+            _replay.Opacity = ReplayOpacity;
 
             if (!_replayMarkersCfg.Value) { _labelCount = 0; _pickedCount = -1; return; }
             if (Time.unscaledTime < _nextLabelPick) return;

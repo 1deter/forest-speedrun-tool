@@ -714,6 +714,9 @@ namespace ForestOverlay.Modules
 
         /// The Runs tab's splits section: the table, then its options.
         private static readonly GUIContent SplitsOptionsText = new GUIContent("Splits panel and table options");
+        private static readonly GUIContent ResLoadAlwaysText = new GUIContent(" Load-removed time after a run with no loads too");
+        private static readonly GUIContent ResLoadAlwaysTip = new GUIContent(
+            "A run with loads always shows its time without them; this adds the line after a load-free run. The LRT column is the splits' own.");
 
         private float DrawSplitsSection(float y, float w)
         {
@@ -736,6 +739,14 @@ namespace ForestOverlay.Modules
             bool results = GUI.Toggle(new Rect(0, y, w, 20), _resultsCfg.Value, " Show a results panel when a run finishes (drag its title while ESC / F2 shows the cursor)");
             if (results != _resultsCfg.Value) { _resultsCfg.Value = results; if (!results) CloseResults(); }
             y += 22f;
+            if (_resultsCfg.Value)
+            {
+                Rect loadR = new Rect(20f, y, w - 20f, 20);
+                bool always = GUI.Toggle(loadR, _resLoadAlways.Value, ResLoadAlwaysText);
+                if (always != _resLoadAlways.Value) _resLoadAlways.Value = always;
+                UiKit.Hint(loadR, ResLoadAlwaysTip);
+                y += 22f;
+            }
 
             y = FlowToggles(y, w, "Columns:", _cols, _colOptionText);
             y = FlowToggles(y, w, "Lines:", _lines2, _lineOptionText);

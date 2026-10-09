@@ -4,9 +4,11 @@ using ForestOverlay.Data;
 namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
-    // The info box's settings, under [HUD] in the config: a switch per
-    // line (Data/HudLines), compact, text size and position. Defaults are
-    // the box as it always looked.
+    // The HUD's settings, under [HUD] in the config: a switch per value
+    // (Data/HudLines; the box's lines and the widgets), the box itself, and
+    // the HUD-wide compact, text size and position (the box, or the
+    // practice / ON NOW warnings without it). Defaults are the box as it
+    // always looked.
     //
     // Every write here is one click (a tick box, a size step) or a drag's
     // release - never per frame or per mouse event: a config write saves
@@ -37,9 +39,9 @@ namespace ForestOverlay.Core
             _infoBox = config.Bind("HUD", "InfoBox", false,
                 "The info box (top left). Off: only HUD widgets and the practice / ON NOW markers show (Settings -> Edit HUD layout).");
             _compact = config.Bind("HUD", "Compact", false,
-                "Info box: fewer words (shorter values, no column padding, a short title).");
+                "The whole HUD: fewer words (shorter values in the box and the widgets, no column padding, a short title).");
             _textSize = config.Bind("HUD", "TextSize", 0,
-                "Info box text size in px (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24).");
+                "Text size in px of the info box and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). Widgets have their own size.");
             _x = config.Bind("HUD", "X", DefaultX, "Info box position from the left, in pixels (drag it while the window is open).");
             _y = config.Bind("HUD", "Y", DefaultY, "Info box position from the top, in pixels.");
         }
@@ -94,17 +96,16 @@ namespace ForestOverlay.Core
             Version++;
         }
 
-        /// One file write for all of it (each entry would save the file).
-        public void ResetLook()
+        /// The values' switches back to their defaults, nothing else
+        /// (T-0253: compact, size and position are HUD-wide options with
+        /// their own default buttons). One file write for all of it (each
+        /// entry would save the file).
+        public void ResetValues()
         {
             bool saveEach = _config.SaveOnConfigSet;
             _config.SaveOnConfigSet = false;
             for (int i = 0; i < _show.Length; i++)
                 if (_show[i] != null) _show[i].Value = HudLines.All[i].DefaultOn;
-            _compact.Value = false;
-            _textSize.Value = 0;
-            _x.Value = DefaultX;
-            _y.Value = DefaultY;
             _config.SaveOnConfigSet = saveEach;
             _config.Save();
             Version++;
