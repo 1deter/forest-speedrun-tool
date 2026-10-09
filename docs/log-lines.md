@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-216 prefixes from 669 log calls.
+216 prefixes from 671 log calls.
 
 ## `Aerial capture`
 
@@ -53,13 +53,15 @@ Written by AreaKeeper.cs; warning.
 
 ## `Attempts`
 
-Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried.
+Meaning: A run attempt's log upload to the site: sent (with the site's verdict), refused (moved aside) or retried. Also: a sent attempt deleted on the site, taken off the Runs tab's list (T-0144).
 Written by RunUploadModule.Attempts.cs; info / warning.
 
+- warning `Attempts: <id> is deleted on the site but could not be taken off sent.txt: <ex.Message>`
 - warning `Attempts: <id> log not sent: <..>; retry in <..> s.`
 - warning `Attempts: <id> log refused - <msg> (moved to uploads/attempts/refused).`
 - info `Attempts: <id> log sent - <verdict><..>.`
 - info `Attempts: <id> never ended (the game closed during it) - its log is <..>`
+- info `Attempts: <id> was deleted on the site (404) - taken off the Runs tab's list (sent.txt).`
 - warning `Attempts: cannot read <..>: <ex.Message>`
 - warning `Attempts: checkpoint <attemptId> step <step> not taken: <..>.`
 - info `Attempts: checkpoint <attemptId> step <step> sent.`

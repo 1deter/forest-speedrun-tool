@@ -165,7 +165,10 @@ closing; the code box, `[RunMode] CodeX / CodeY / CodeSize`, drawn by
 `Modules/RunUploadModule.Attempts` (the nonce request, tried ~25 s; the
 checkpoint POST; the outbox `uploads/attempts/*.attempt`, sent oldest
 first, refused ones to `refused/`; `sent.txt` + the Runs tab's last 5
-with **Copy link**; `[Site] SendAttempts`, on).
+with **Copy link** - when the tab opens, each one not yet seen on the site
+this session gets one `GET /api/attempts/<id>`: the site's 404 ("no such attempt") takes it off
+`sent.txt`, 200 is not asked again, anything else leaves it, T-0144,
+`Data/SentAttempts`; `[Site] SendAttempts`, on).
 
 **Site**: `POST /api/attempts` (nonce; a retry gets the same one),
 `POST /api/attempts/<id>/checkpoints` (one per 20 s, 600 max),

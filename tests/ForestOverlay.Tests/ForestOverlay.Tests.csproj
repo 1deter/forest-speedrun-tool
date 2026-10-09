@@ -75,6 +75,7 @@
     <Compile Include="../../src/Data/ProfileTable.cs" Link="Linked/ProfileTable.cs" />
     <Compile Include="../../src/Data/FrameTimeline.cs" Link="Linked/FrameTimeline.cs" />
     <Compile Include="../../src/Data/SiteProtocol.cs" Link="Linked/SiteProtocol.cs" />
+    <Compile Include="../../src/Data/SentAttempts.cs" Link="Linked/SentAttempts.cs" />
     <Compile Include="../../src/Data/SiteBoard.cs" Link="Linked/SiteBoard.cs" />
     <Compile Include="../../src/Data/SiteSpots.cs" Link="Linked/SiteSpots.cs" />
     <Compile Include="../../src/Data/AttemptChain.cs" Link="Linked/AttemptChain.cs" />

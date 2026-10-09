@@ -482,7 +482,11 @@ public sealed class AttemptTests : IDisposable
         var del = new HttpRequestMessage(HttpMethod.Delete, "/api/admin/attempts/" + Id);
         del.Headers.Add("X-Admin-Token", "admin-secret");
         Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(del)).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/attempts/" + Id)).StatusCode);
+        var gone = await _http.GetAsync("/api/attempts/" + Id);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+        // The plugin drops a deleted attempt from its Runs tab on exactly this
+        // answer (src/Data/SentAttempts.GoneError, T-0144).
+        Assert.Equal("no such attempt", (await gone.Content.ReadFromJsonAsync<JsonObject>())["error"].GetValue<string>());
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/api/attempts/" + Id + "/log")).StatusCode);
     }
 
