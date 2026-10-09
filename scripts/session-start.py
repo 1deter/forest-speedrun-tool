@@ -276,7 +276,7 @@ def bust():
 def check_badges():
     out = {}
     for w in WORKFLOWS:
-        status, body, _ = http("https://github.com/%s/actions/workflows/%s.yml/badge.svg?branch=main&v=%s"
+        status, body, _ = http("https://github.com/%s/actions/workflows/%s.yml/badge.svg?branch=main&event=push&v=%s"
                                % (REPO, w, bust()))
         out[w] = badge_state(body) if status == 200 else "unreachable (%s)" % (status or body)
     return out
@@ -480,7 +480,7 @@ def report(force_local=False):
     base = f_base.result()
     if badges:
         red = [w for w, st in base.items() if st != "passing"]
-        lines.append("baseline (CI badges = last finished run on main; HEAD = origin/main): " + ", ".join("%s %s" % kv for kv in base.items()))
+        lines.append("baseline (CI badges = last finished push run on main; HEAD = origin/main): " + ", ".join("%s %s" % kv for kv in base.items()))
         if red:
             problems.append("CI not passing for %s - check the Actions page, or run "
                             "`python scripts/session-start.py --baseline` to test locally" % ", ".join(red))
