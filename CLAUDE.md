@@ -193,6 +193,13 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
+  title after a return to it (pause-menu exit). There `TitleScreen.Instance`
+  is null and the component disabled (bridge; game-notes *Loading a save
+  from the title screen*), so `TitleLoad.FindTitle` looks it up by path.
+  Also maks's MARK (quick load "shot back to main menu"). Waits for
+  forest-tester: exit via the pause menu, then F7 a start-state spot -> it
+  loads; log `TitleLoad: TitleScreen.Instance is null ... (disabled)`.
 - **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
   (the game publishes EnterEndgame at the box crossing and again after the
   door's load; a Publish prefix drops an enter while `IsInEndgame` is
