@@ -17,9 +17,9 @@ Where the other facts live (one home each):
   `src/CLAUDE.md`.
 - The plugin's visual tokens (palette, radius, spacing, type scale):
   `src/Core/UiKit.cs` and `docs/ui-redesign.md`, both on the
-  `ui-redesign` branch until T-0025 merges it. The accent colour is open
-  there (the doc says green, the author's 2026-10-05 note says the logo
-  yellow): a review flags it, never picks.
+  `ui-redesign` branch until T-0025 merges it. The look is yellow on
+  black, like the original game (`docs/decisions.md` *Plugin: Look*):
+  anything else on screen is a finding.
 - The site's tokens: `:root` in `site/ForestSite/wwwroot/style.css`.
 - Runner-facing words: `knowledge/glossary.md`; UI names fixed by the
   author (Quick load, Full load, Reload save on death, spot, segment):

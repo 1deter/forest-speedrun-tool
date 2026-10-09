@@ -114,6 +114,12 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 
 ## Plugin
 
+- **Look: yellow on black** (author, 2026-10-09): the plugin's window and
+  HUD follow the original game's art style - The Forest's yellow on black,
+  the same palette as the site (*Site: Look*: the loading screen's yellow
+  `rgb(229, 197, 1)` on black). This replaces the redesign draft's
+  blue-grey panels and its green accent (`docs/ui-redesign.md`); T-0258
+  moves the branch over.
 - **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
   the goal is a tool that looks good and is easy to learn without
   flooding a new runner. Less on screen, fewer things to click, is faster
