@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.263 - 2026-10-09
+
+- Run mode now catches the log boost: shooting up off a custom wall while adding logs shows in the attempt's moves (it was missed before).
+
 ## v0.24.262 - 2026-10-09
 
 - Run report: crawling or climbing through a cave mouth (cave 6 and others) now logs which cave you entered or left; it used to be missed or logged as a rope climb.
