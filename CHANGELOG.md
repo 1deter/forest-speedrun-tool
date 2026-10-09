@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.261 - 2026-10-09
+
+- Developer tools: the FSM export and the dumps share one tested text helper - their files read exactly as before.
+
 ## v0.24.260 - 2026-10-08
 
 - Elevator Boost: restarting after a ride that reached the top no longer turns the overlook and the shaft foggy-white until a game restart.
