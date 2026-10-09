@@ -69,7 +69,8 @@ namespace ForestOverlay.Data
     // decides. Live (2026-10-03): an 82 m drop onto the ground is judged at
     // 55 (the speed it hit at); a drop into the big lake at 1.3, swimming.
     //
-    // Lift out of a structure (the log boost, the custom wall boost). PhysX
+    // Lift out of a structure (the custom wall boost; the log boost is the
+    // launch below). PhysX
     // pushes a body out of a solid that appears or squeezes into it by moving
     // it, with no velocity left over (live, 2026-10-03: a box put 0.8 m into
     // the player's feet lifted them 0.8 m, velocity 0 throughout; game-notes
@@ -627,7 +628,7 @@ namespace ForestOverlay.Data
                 return;
             }
             m.Detail = "the physics pushed the player up out of a structure they built (" + built + "): " + text +
-                       " - how a log boost or a custom wall boost lifts them";
+                       " - how a custom wall boost lifts them";
             Ready.Add(m);
         }
 
@@ -673,7 +674,8 @@ namespace ForestOverlay.Data
                           (m.Detail.Length > 0 ? ", last touching " + m.Detail : "");
             if (built.Length == 0)
             {
-                SmallLift = text + " (no player-built structure touched)";
+                // A lift may have written SmallLift on the same step: keep both.
+                SmallLift = (string.IsNullOrEmpty(SmallLift) ? "" : SmallLift + "; ") + text + " (no player-built structure touched)";
                 return;
             }
             m.Detail = "the player shot up off a structure they built (" + built + "): " + text + " - how a log boost launches them";

@@ -461,14 +461,14 @@ than the table's plan:
   what the player really collides with, since the game unhooks pairs with
   `Physics.IgnoreCollision` in 50+ places and Unity 5.6 cannot read them
   back. One OverlapSphere + one raycast a step, nothing allocated.
-  - **Lift** (log boost, custom wall boost): depenetration leaves no
+  - **Lift** (custom wall boost; the log boost is the launch below): depenetration leaves no
     velocity (live: a box 0.8 m into the feet lifted the player 0.8 m at
     velocity 0), so `MoveDetector.PhysicsStep` sums the rise beyond what the
     vertical speed allows; reported at 1 m **only when a player-built
     structure was touched** in the episode (`BuildingHealth` /
     `BuildingHealthChunk` up the parents) - walking into the yacht cabin's
     bench lifts the 4.6 m capsule 1.2 m too (logged, not reported).
-  - **Launch** (the log boost, v0.24.263, T-0243): the runners' log boost
+  - **Launch** (the log boost, T-0268): the runners' log boost
     is not that lift but a launch (live, recorded twice at the cave 6
     spots: jump, hold E to add logs to a custom wall blueprint under them,
     55-80 m/s up while logs go in, 24-32 m), so its rise is all speed. Also

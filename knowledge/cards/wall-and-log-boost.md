@@ -16,8 +16,8 @@ When a solid object appears overlapping the player, Unity's physics
 (PhysX) pushes the player's capsule out along the shortest way, in a single
 physics step, with no speed limit. Build a wall or drop logs where you
 stand, and the shortest way out is often **up** - onto the top of it. That
-is the "custom wall ... boost yourself to the top" in the runners' guide,
-and the log boost. When the shortest way out is through thin rock behind
+is the "custom wall ... boost yourself to the top" in the runners' guide
+(the log boost is a launch instead - below). When the shortest way out is through thin rock behind
 you, the same push is a **clip**.
 
 ## How runners do it

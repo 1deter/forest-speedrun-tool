@@ -355,7 +355,6 @@ namespace ForestOverlay.Tests
             s.Run(0.5f);
             Assert.Single(s.Moves);
         }
-    
 
         // --- launches (the log boost; live, v0.24.262, T-0243) ---------------
 
@@ -382,6 +381,30 @@ namespace ForestOverlay.Tests
             Assert.InRange(m.PeakSpeed, 60f, 64f);
             Assert.Contains("Ex_WallChunkBuilt", m.Detail);
             Assert.Contains("log boost", m.Detail);
+        }
+
+        [Fact]
+        public void A_launch_still_going_when_the_attempt_ends_is_reported()
+        {
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            s.Vel = new Vector3(0f, 60f, 0f);
+            for (int i = 0; i < 10; i++) s.Step(Vector3.zero);
+            s.D.Flush();
+            Assert.Single(s.D.Ready);
+            Assert.Contains("log boost", s.D.Ready[0].Detail);
+        }
+
+        [Fact]
+        public void A_launch_cut_by_a_load_is_dropped()
+        {
+            var s = Started();
+            s.Structure = "'Ex_WallChunkBuilt(Clone)'";
+            s.Vel = new Vector3(0f, 60f, 0f);
+            for (int i = 0; i < 10; i++) s.Step(Vector3.zero);
+            s.D.Reset(drop: true);
+            s.D.Flush();
+            Assert.Empty(s.D.Ready);
         }
 
         [Fact]

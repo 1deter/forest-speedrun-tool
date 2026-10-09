@@ -37,7 +37,7 @@ card that explains it. Keep each meaning to one line; the card has the rest.
 | vault door, keycard 210 | the endgame entrance; opening it is what lets the lab load | endgame-gate |
 | gold keycard, keycard 242 | opens the gold door only | keycards-and-pickups |
 | spam 1 | equip right after the keycard pickup to cut its animation | keycards-and-pickups |
-| wall boost, custom wall boost, log boost | a structure built into the player pushes them out on top (depenetration) | wall-and-log-boost |
+| wall boost, custom wall boost, log boost | wall boost: a structure built into the player pushes them out on top (depenetration); log boost: holding E to add logs to a custom wall blueprint under you mid-jump launches you up at 55-80 m/s | wall-and-log-boost |
 | keycard cave clip | a built wall squeezing the player through thin rock | wall-and-log-boost |
 | depenetration | physics pushing an overlapping player out the shortest way | wall-and-log-boost |
 | zipline boost | keeping a zipline's exit speed (1 s of weak braking + air time) | zipline-boost |

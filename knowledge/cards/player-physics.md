@@ -57,8 +57,8 @@ diagonal; the rest read from the code and the player's live fields.
   door that closes on you), PhysX pushes the capsule out along the shortest
   way in one step. Live: a box moved 0.3 / 1 / 2 m into the feet lifted the
   player out by exactly that depth, **with no velocity left over** - a
-  lift, not a launch. This is the core of wall boosts, log boosts and most
-  clips (see `wall-and-log-boost`, `smash-clip`).
+  lift, not a launch. This is the core of wall boosts and most clips (see
+  `wall-and-log-boost`, `smash-clip`); the log boost is a launch instead.
 
 ## The player's colliders
 

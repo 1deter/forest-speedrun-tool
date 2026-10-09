@@ -57,7 +57,7 @@ slower **energy** bar; every soda and mix raises both.
   sxczurass places a custom wall on the way into Cave 6 and, coming back,
   uses the hole cutter on it "to boost yourself to the top" [runner]. How
   that turns into a boost has not been tested - the broken wall's pieces
-  appearing in the player and pushing them out (a log boost,
+  appearing in the player and pushing them out (the depenetration lift,
   `wall-and-log-boost`) would fit [inferred].
 - **Bomb trap / timed bomb** for a bomb boost (`bomb-boost`). Timed bomb
   recipe: 1 circuit board, 1 coins, 1 booze, 1 watch, 1 sticky tape [live];
