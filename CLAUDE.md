@@ -193,6 +193,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.267 (2026-10-10, T-0214):** a savestate capture no longer
+  rewrites the loaded slot's `info` file + its Steam Cloud copy
+  (`GameStats.OnSerializing` runs on every `SerializeLevel`; game-notes
+  *The slot's info file*; `Game/SlotInfoGuard`). Ends the smoke's
+  "Slot 1 changed" hygiene problem. **Confirmed** by the v0.24.267 smoke.
 - **v0.24.266 (2026-10-09, T-0248):** a restore in place / Go during the
   game's own death ends it (`Game/DeathSequence`: the chain's Invokes and
   coroutines, the drag-away clones, the hanging rope, controls, body,

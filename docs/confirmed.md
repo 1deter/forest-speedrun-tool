@@ -373,3 +373,5 @@ Confirmed 2026-10-09 (game, bridge, v0.24.262): **cave mouths log cave-enter / c
 Confirmed 2026-10-09 (game, bridge, v0.24.262): **an attempt id the site answers 404 for drops from the Runs tab on opening, status "attempt <id> was deleted on the website" (T-0144)**. bridge 2026-10-09.
 Confirmed 2026-10-09 (game, bridge, v0.24.265): **spot restart and death quick-load from the title after a return to the title (TitleScreen.Instance null) load the slot through TitleSceneMain/TitleScreen (T-0247)**. bridge 2026-10-09.
 Confirmed 2026-10-09 (game, bridge, v0.24.266): **a Quick load during the game's own death ends it (drag-away, hanging in the cave: no rope, upsideDown False, walks; real death restore stays in ForestMain; death count N -> 0 as a load, next death is a Capture again; plain restore logs no "ended" line) (T-0248)**. bridge 2026-10-09.
+
+Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves the save slot's info file alone (smoke hygiene: Slot1 unchanged after the restart journey's start-state capture) (T-0214)**. tests/e2e/reports/20261010-002837.smoke.md.
