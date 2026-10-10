@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.282 - 2026-10-10
+
+- A Quick load now warms you up the way a Full load does: body temperature, the cold and the frost on the screen go back to normal (a cold place makes you cold again).
+
 ## v0.24.281 - 2026-10-10
 
 - A Quick load no longer recalculates enemy paths around the re-created plane wreck twice, when the wreck has not moved: about half the garbage a restore (22 -> 10 MB measured), so fewer collection pauses. Enemy paths stay exactly as before. A switch in Debug views -> Performance (on).
