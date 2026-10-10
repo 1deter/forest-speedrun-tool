@@ -63,24 +63,35 @@ game's own GUI are untouched).
 
 ## HUD customiser
 
-- Every info-box line that has a switch (`Data/HudLines`) is a **widget**
-  with a key (its config key, e.g. `ShowSpeed`). Default: it lives inside the
-  info box as today.
-- **Edit mode** (Settings -> Info box -> *Edit layout*, or the HUD button on
-  the window's tab strip): the window collapses to a widget list (show
-  toggle, "own widget" toggle, size - / +, reset) and the screen shows an
-  outline on every widget and on the box. Drag a widget out of the box to
-  make it its own widget; drag its corner handle to resize (font scale
-  0.5 - 6x); right-click to put it back; drag the box to move it.
-- A free widget draws as a card: dim label above, the value big, in the
-  results panel's look (rounded dark card, optional). Label can be hidden.
+T-0018 (author, 2026-10-10; decisions.md *The HUD is a column of values*,
+*Flags, not headings*):
+
+- Every ticked value (`Data/HudLines`) shows. By default it sits in the
+  **column** at the HUD position (Settings -> HUD; top left), in the
+  pre-overhaul box's order, title first; no backing; a value not showing
+  leaves no gap. Then the orange **flags**: what changes the game (short
+  names, no "ON NOW" heading) and the practice tool used (its short name,
+  nothing while clean). The *Info box* option and *own* toggle are gone.
+- A value shows its **value only**, with the runner's own text before /
+  after it (Edit HUD -> *Text*). The 100% totals keep their labels (four
+  values on one line).
+- **Edit mode** (Settings -> HUD -> *Edit HUD layout*, or the HUD button on
+  the window's tab strip): the window (opened beside the column) lists the
+  panels and values (show toggle, *Text*, and for a placed value size - / +
+  and *To column*); the screen outlines the column, its grip and each
+  placed value. Drag a value out of the column to place it; drag it to
+  move, its corner to resize (0.5 - 6x); drop it on the column (it lights
+  up), right-click it or press *To column* to put it back. The column moves
+  by its grip (the bar beside it); with the window open but not editing,
+  the whole column drags.
 - Layout = `config/ForestOverlay/hud-layout.txt` (`Data/HudLayout`, tested):
   ```
   # ForestOverlay HUD layout
-  ShowSpeed: free, x=24, y=80, scale=2.5, label=off
-  ShowRunTimer: free, x=700, y=40, scale=3
+  ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s"
+  ShowPosition: before="Pos "
   ```
-  Only free widgets are listed; unknown tokens are ignored, numbers clamped.
+  Only changed values are listed; unknown tokens are ignored (`label=`
+  from the first builds too), numbers clamped, text one line, 40 characters.
 - The run timer as a widget replaces the old black box with yellow text:
   the splits panel also steps aside while the results panel is up (they
   overlapped on small screens).
