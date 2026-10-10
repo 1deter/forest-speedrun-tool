@@ -6,6 +6,8 @@ namespace ForestOverlay.Data
     // stands. A timed segment starts from there in two clicks (select,
     // Restart) - a runner's Restart on one turns practice mode on
     // (author, 2026-10-10; decisions.md *Plugin: One journey, one place*).
+    // Only what helps is said (author, 2026-10-10, T-0272: no clutter): a
+    // plain spot shows its name alone; a greyed or refused Restart says why.
     // ------------------------------------------------------------------
     public static class StartStrip
     {
@@ -13,8 +15,11 @@ namespace ForestOverlay.Data
         /// selected. `runCategory` non-empty with a start state = a run spot
         /// (its Restart starts a run mode run). `state` is the run's state
         /// for this spot (Idle when the armed run is another spot's).
+        /// `busy`: a savestate action is running (Restart greyed);
+        /// `restartLocked`: run mode locks Restart (all but a run spot's).
         public static string Text(string name, bool hasSpawn, bool timed, string runCategory,
-                                  bool hasStartState, bool practiceOn, RunRecorder.RunState state)
+                                  bool hasStartState, bool practiceOn, RunRecorder.RunState state,
+                                  bool busy, bool restartLocked)
         {
             if (name == null) return "Select a spot in the list, then Restart.";
             string quoted = "'" + name + "'";
@@ -22,9 +27,11 @@ namespace ForestOverlay.Data
             // A run in progress first - a run spot's run mode run too.
             if (state == RunRecorder.RunState.Running) return quoted + ": running.";
             if (state == RunRecorder.RunState.Armed) return quoted + ": armed - the timer starts at its start.";
-            if (!string.IsNullOrEmpty(runCategory) && hasStartState)
-                return quoted + ": Restart starts a run (" + runCategory + ", Full load).";
-            if (!timed) return quoted + " is a spot, not a timed segment.";
+            if (busy) return quoted + ": a savestate action is still running.";
+            bool runSpot = !string.IsNullOrEmpty(runCategory) && hasStartState;
+            if (runSpot) return quoted + ": Restart starts a run (" + runCategory + ", Full load).";
+            if (restartLocked) return quoted + ": run mode locks Restart.";
+            if (!timed) return quoted;
             return practiceOn
                 ? quoted + ": idle - Restart to arm."
                 : quoted + ": idle - Restart turns practice mode on and arms it.";

@@ -844,7 +844,7 @@ namespace ForestOverlay.Modules
         private Segment _stripFor;
         private string _stripName;
         private string _stripRunCategory;
-        private bool _stripSpawn, _stripTimed, _stripHasState, _stripPractice;
+        private bool _stripSpawn, _stripTimed, _stripHasState, _stripPractice, _stripBusy, _stripLocked;
         private RunRecorder.RunState _stripState;
         private static readonly GUIContent TextStripRestart = new GUIContent("Restart");
         private static readonly GUIContent TipStripRestart = new GUIContent(
@@ -909,6 +909,9 @@ namespace ForestOverlay.Modules
                               s.HasSpawn != _stripSpawn || s.IsTimed != _stripTimed))
                 changed = true;
             if (practice != _stripPractice || state != _stripState) changed = true;
+            bool busy = _savestates != null && _savestates.Busy;
+            bool locked = Ctx.Run.Locks("restart");
+            if (busy != _stripBusy || locked != _stripLocked) { _stripBusy = busy; _stripLocked = locked; changed = true; }
             if (!changed) return;
 
             _stripName = s != null ? s.Name : null;
@@ -917,7 +920,8 @@ namespace ForestOverlay.Modules
             _stripTimed = s != null && s.IsTimed;
             _stripPractice = practice;
             _stripState = state;
-            _stripText.text = StartStrip.Text(_stripName, _stripSpawn, _stripTimed, _stripRunCategory, _stripHasState, practice, state);
+            _stripText.text = StartStrip.Text(_stripName, _stripSpawn, _stripTimed, _stripRunCategory, _stripHasState, practice, state,
+                                              _stripBusy, _stripLocked);
         }
 
         private void EnsureStyles()
@@ -974,7 +978,12 @@ namespace ForestOverlay.Modules
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
+                {
+                    // Go selects its row too (author, 2026-10-10, T-0271): the
+                    // strip, F7 and the HUD's Spot then name the same spot.
+                    if (!isSelected) Select(entry);
                     Teleport(entry);
+                }
                 GUI.enabled = true;
             }
 

@@ -12,8 +12,9 @@ concept before changing its feature. Where the code lives:
   Restart follow the selection** (author, 2026-10-10, T-0256): the spot
   selected in the list when it was selected after the last placement,
   else the *current* spot (the last one teleported to, restarted or
-  captured on) - so Go on a row, then F7, still restarts there. A death's
-  restart and the auto-restart stay on the current spot.
+  captured on). Go on a list row selects that row too (T-0271), so the
+  strip, F7 and the HUD's Spot line name one spot. A death's restart and
+  the auto-restart stay on the current spot.
 - **One button, one job** (author, v0.22.0: "buttons shouldn't have
   double-purposes"). **Go only teleports**, start state or not. Restoring
   is **Restart**: F7, the Runs tab's Restart, a death revive, the

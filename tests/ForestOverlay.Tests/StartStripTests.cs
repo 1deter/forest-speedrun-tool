@@ -11,38 +11,50 @@ namespace ForestOverlay.Tests
         public void NothingSelectedSaysWhatToDo()
         {
             Assert.Equal("Select a spot in the list, then Restart.",
-                         StartStrip.Text(null, false, false, "", false, false, Idle));
+                         StartStrip.Text(null, false, false, "", false, false, Idle, false, false));
         }
 
         [Fact]
         public void NoSpawnComesFirst()
         {
-            Assert.Equal("'a' has no spawn point.", StartStrip.Text("a", false, true, "Any%", true, true, Idle));
+            Assert.Equal("'a' has no spawn point.", StartStrip.Text("a", false, true, "Any%", true, true, Idle, false, false));
         }
 
         [Fact]
         public void RunSpotStartsARunOnlyWithAStartState()
         {
-            Assert.Equal("'a': Restart starts a run (Any%, Full load).", StartStrip.Text("a", true, true, "Any%", true, false, Idle));
+            Assert.Equal("'a': Restart starts a run (Any%, Full load).", StartStrip.Text("a", true, true, "Any%", true, false, Idle, false, false));
             // Without a start state its Restart is a plain spot's (PracticeModule.Restart).
-            Assert.Equal("'a': idle - Restart to arm.", StartStrip.Text("a", true, true, "Any%", false, true, Idle));
+            Assert.Equal("'a': idle - Restart to arm.", StartStrip.Text("a", true, true, "Any%", false, true, Idle, false, false));
             // Its run in progress says so.
-            Assert.Equal("'a': running.", StartStrip.Text("a", true, true, "Any%", true, false, RunRecorder.RunState.Running));
+            Assert.Equal("'a': running.", StartStrip.Text("a", true, true, "Any%", true, false, RunRecorder.RunState.Running, false, false));
         }
 
         [Fact]
-        public void PlainSpot()
+        public void PlainSpotShowsItsNameAlone()
         {
-            Assert.Equal("'a' is a spot, not a timed segment.", StartStrip.Text("a", true, false, "", true, true, Idle));
+            Assert.Equal("'a'", StartStrip.Text("a", true, false, "", true, true, Idle, false, false));
         }
 
         [Fact]
         public void TimedSegmentStates()
         {
-            Assert.Equal("'a': idle - Restart turns practice mode on and arms it.", StartStrip.Text("a", true, true, "", false, false, Idle));
-            Assert.Equal("'a': idle - Restart to arm.", StartStrip.Text("a", true, true, "", false, true, Idle));
-            Assert.Equal("'a': armed - the timer starts at its start.", StartStrip.Text("a", true, true, "", true, true, RunRecorder.RunState.Armed));
-            Assert.Equal("'a': running.", StartStrip.Text("a", true, true, "", true, true, RunRecorder.RunState.Running));
+            Assert.Equal("'a': idle - Restart turns practice mode on and arms it.", StartStrip.Text("a", true, true, "", false, false, Idle, false, false));
+            Assert.Equal("'a': idle - Restart to arm.", StartStrip.Text("a", true, true, "", false, true, Idle, false, false));
+            Assert.Equal("'a': armed - the timer starts at its start.", StartStrip.Text("a", true, true, "", true, true, RunRecorder.RunState.Armed, false, false));
+            Assert.Equal("'a': running.", StartStrip.Text("a", true, true, "", true, true, RunRecorder.RunState.Running, false, false));
+        }
+
+        [Fact]
+        public void AGreyedOrRefusedRestartSaysWhy()
+        {
+            Assert.Equal("'a': a savestate action is still running.", StartStrip.Text("a", true, true, "", true, true, Idle, true, false));
+            Assert.Equal("'a': run mode locks Restart.", StartStrip.Text("a", true, true, "", true, false, Idle, false, true));
+            Assert.Equal("'a': run mode locks Restart.", StartStrip.Text("a", true, false, "", true, false, Idle, false, true));
+            // A run spot's Restart is the one run mode allows.
+            Assert.Equal("'a': Restart starts a run (Any%, Full load).", StartStrip.Text("a", true, true, "Any%", true, false, Idle, false, true));
+            // A run in progress outranks both.
+            Assert.Equal("'a': running.", StartStrip.Text("a", true, true, "Any%", true, false, RunRecorder.RunState.Running, true, true));
         }
 
         [Fact]
