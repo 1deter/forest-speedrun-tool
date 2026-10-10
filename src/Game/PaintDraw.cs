@@ -49,6 +49,28 @@ namespace ForestOverlay.Game
 
         private Material _material;
 
+        // The palette as written into the vertices. The game renders in
+        // linear colour space and vertex colours are not converted, so a
+        // swatch's sRGB values went in raw and came out lighter (red read
+        // as pink, author's shot 2026-10-10): converted once here.
+        private Color32[] _paletteFor;
+        private Color32[] _vertexPalette;
+
+        private Color32[] VertexPalette()
+        {
+            if (ReferenceEquals(_paletteFor, Palette)) return _vertexPalette;
+            _paletteFor = Palette;
+            _vertexPalette = new Color32[Palette.Length];
+            bool linear = QualitySettings.activeColorSpace == ColorSpace.Linear;
+            for (int i = 0; i < Palette.Length; i++)
+            {
+                Color c = Palette[i];
+                if (linear) { float a = c.a; c = c.linear; c.a = a; }
+                _vertexPalette[i] = c;
+            }
+            return _vertexPalette;
+        }
+
         static PaintDraw()
         {
             for (int k = 0; k < Rim; k++)
@@ -127,7 +149,7 @@ namespace ForestOverlay.Game
             _verts.Clear();
             _colours.Clear();
             _tris.Clear();
-            Color32[] palette = Palette;
+            Color32[] palette = VertexPalette();
 
             for (int i = from; i < to; i++)
             {

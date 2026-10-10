@@ -127,6 +127,19 @@ The plugin holds `Menu` while its window is open or freecam is on
 log line. The game clears `Menu` itself when the pause menu closes, so the
 plugin re-checks with `GetState` each frame.
 
+### The default bindings (bridge, 2026-10-10, T-0219)
+
+Rewired's data (`ReInput.UserData`: 53 actions, 5 map categories `Default`
+/ `Inventory` / `Chat` / `Menu` / `Book`, 5 keyboard maps, 4 mouse maps).
+The keyboard keys any map uses: Esc, W A S D, Space, Left Shift, Left
+Ctrl, `\`, `` ` ``, E, G, B, I, **Z** (`RestKey`, action 20), C, P, M, Q, L,
+R, Return, Tab, 1-4. Free letters: F H J K N O T U V X Y. The mouse maps
+use element ids 0-4 only (X / Y axes, wheel, left, right): the **side
+buttons (Mouse 4 / 5, Unity's `Mouse3` / `Mouse4`) are unbound**. Read
+with `get static:Rewired.ReInput UserData.keyboardMaps[i].actionElementMaps[j].keyCode`
+(mouse: `.elementIdentifierId`); a runner's own rebinds live in their
+saved maps, not here.
+
 ---
 
 ## `timeScale`

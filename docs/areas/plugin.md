@@ -48,6 +48,7 @@ Where things live:
 | Reload save on death / practice revive | `Modules/DeathModule` (Deaths tab), `Game/DeathHooks` (Harmony prefixes; `HandleLanded` prefix/postfix for the fall revive) |
 | Debug views, freecam, volume filters | `Modules/DebugViewModule`, `Game/DebugDraw`, `Data/VolumeFilter` |
 | TAS input record / replay (experimental, practice only) | `Modules/TasModule` (no tab: the Runs tab draws its section; `[TAS]` config; hotkeys `tas.stop` = `]`, `tas.record`, `tas.replayLatest`), `Game/TasInput` (Harmony postfixes on `TheForest.Utils.Input` via `Game/InputInject`: records what the game read each frame, replays by replacing the results; frame-rate lock with `Time.captureFramerate`), `Data/TasRecording` (`.tas` text in `runs/<id>/inputs/`, changes only; tested) |
+| Paint (practice mode only, T-0219) | `Modules/PaintModule` (hold keys `paint.paint` Mouse 4 / `paint.erase` Mouse 5, `paint.undo` X; the aiming cross; per-spot files `config/ForestOverlay/paint/<spot id>.txt`; Settings -> Paint: swatches, size, Undo, Clear all), `Game/PaintDraw` (crosshair raycast, discs + ribbons as chunked meshes in the late pass, palette made linear), `Data/PaintSet` (dots, strokes, erase, undo, file; tested) |
 | Trajectory preview (experimental, practice only) | `Modules/DebugViewModule` (switch in Debug views, hotkey `debug.trajectory`, HUD `Flight` / `Boost` lines), `Game/TrajectoryView` (10 Hz, reads the player's flight numbers, capsule sweeps, GL lines), `Data/Trajectory` (the physics step and knockback maths; tested) |
 | Perf log line, game profiler | `Core/PerfMonitor` (fed by `ModuleHost`, `Plugin.OnGUI`, `DrawTarget`; GC frame lengths), `Game/GameProfiler` + `Data/ProfileTable` (tested; Debug views switch), `Game/AllocationTracker` (Mono allocation profiler: exact bytes by type, by method with the profiler; Debug views switch), `Game/RestoreGarbage` + `Data/StepBytes` (a Quick load's garbage per step in its log line while the tracker counts, T-0202), `Game/PerfPatches` (behaviour-preserving allocation patches, `[Performance]` switches, Debug views), `Game/LoadTiming` (`Load timing:` lines: asset unloads, forced GCs, the game's own load timers, scenes, hitches), `Game/MemoryCensus.RunScene` (scene census, bridge only), `Game/FrameTimer` + `Data/FrameTimeline` (`Frame (30 s):` line: waiting vs scripts vs each camera; tested), `Game/RenderProbe` (bridge: what a camera draws, who reads a texture), `Game/CameraTrim` (cameras that drew for nothing), `Core/StallWatch` (`Stall:` lines: a background thread names the hook / module / tab the main thread was in when it stopped for 10 s, also into `logs/stall.log` during the hang; T-0284) |
 | Updates, changelog | `Core/UpdateChecker` (incl. `TidyPluginFolder`), `Modules/UpdateModule`, `Data/ReleaseJson` (`ExtractNotes`), `Data/UpdateStaging` (staging under any file name), `Core/UpdaterInstaller`, `patcher/`, `CHANGELOG.md` |
@@ -95,6 +96,8 @@ Settings shows *Game input: blocked* when that is working.
 | `F12` | Manual split / finish |
 | `[` | Abort run |
 | `Keypad *` | Freecam |
+| `Mouse 4` / `Mouse 5` (hold) | Paint / erase paint (practice mode) |
+| `X` | Undo the last paint stroke (practice mode) |
 | *(unbound)* | info box only; each tab |
 
 `F1` is deliberately free — the game's own dev console uses it.

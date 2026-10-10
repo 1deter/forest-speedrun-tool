@@ -324,6 +324,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   2026-10-10, T-0276: "yes" to both): `Unity:` lines (errors, asserts,
   exceptions, rate-limited) + `logs/unity.log`; at the next launch a Unity
   crash folder gets `ForestOverlay-LogOutput.log` + `ForestOverlay-unity.log`.
+- **Paint, like KSF paint** (author, 2026-10-10, T-0219): freehand lines
+  where the crosshair hits, **hold** keys (an F-key is "uncomfortable"):
+  paint Mouse 4, erase Mouse 5 (near the crosshair), undo X (last stroke;
+  Z was asked for but is the game's RestKey), Clear all in Settings ->
+  Paint; not append-only. Saved **per spot**; with no spot selected kept
+  for the session only. **Practice mode only** ("too much if it's allowed
+  in runs"). Colour = 8 swatches + a size, in Settings. A small crosshair
+  while a paint key is held (author's idea).
 
 ## Run mode
 

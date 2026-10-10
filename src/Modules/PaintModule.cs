@@ -65,6 +65,9 @@ namespace ForestOverlay.Modules
         private int _savedVersion;
 
         private bool _painting, _erasing;
+        // The aiming cross (author, 2026-10-10: "a small crosshair ... while
+        // the paint / eraser binds are held"); 0 none, 1 paint, 2 erase.
+        private int _cross;
         private int _erased;
         private float _offNoticeAt = -100f;
         private bool _fullSaid;
@@ -94,7 +97,7 @@ namespace ForestOverlay.Modules
             // Held keys: read in Tick, so their action does nothing.
             map.Add("paint.paint", KeyCode.Mouse3, "Paint (hold)", Nothing);
             map.Add("paint.erase", KeyCode.Mouse4, "Erase paint (hold)", Nothing);
-            map.Add("paint.undo", KeyCode.Z, "Undo the last paint stroke", UndoKey);
+            map.Add("paint.undo", KeyCode.X, "Undo the last paint stroke", UndoKey);
             for (int i = 0; i < map.Bindings.Count; i++)
             {
                 HotkeyMap.Binding b = map.Bindings[i];
@@ -145,6 +148,7 @@ namespace ForestOverlay.Modules
 
             bool paintHeld = Held(_paintKey);
             bool eraseHeld = Held(_eraseKey);
+            _cross = 0;
 
             if (!active || !Aiming)
             {
@@ -155,6 +159,8 @@ namespace ForestOverlay.Modules
                     SayOff();
                 return;
             }
+
+            _cross = paintHeld && !eraseHeld ? 1 : eraseHeld && !paintHeld ? 2 : 0;
 
             if (paintHeld && !eraseHeld) PaintFrame();
             else if (_painting) EndPaint();
@@ -328,6 +334,34 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("Paint: could not save " + path + ": " + ex.Message);
                 Ctx.Notice.Show("Paint could not be saved: " + ex.Message, 6f);
             }
+        }
+
+        private static readonly Color CrossShade = new Color(0f, 0f, 0f, 0.75f);
+
+        /// The aiming cross in the middle of the screen while a paint key is
+        /// held: the paint colour (white for erase), a dark edge around it.
+        public override void DrawScreen()
+        {
+            if (_cross == 0 || Event.current.type != EventType.Repaint) return;
+            float cx = Mathf.Round(Screen.width * 0.5f), cy = Mathf.Round(Screen.height * 0.5f);
+            const float arm = 7f, thick = 2f, gap = 2f;
+
+            Color old = GUI.color;
+            GUI.color = CrossShade;
+            CrossBars(cx, cy, arm + 2f, thick + 2f, gap - 1f);
+            GUI.color = _cross == 1 ? (Color)Palette[Colour] : Color.white;
+            CrossBars(cx, cy, arm, thick, gap);
+            GUI.color = old;
+        }
+
+        private static void CrossBars(float cx, float cy, float arm, float thick, float gap)
+        {
+            Texture2D t = Texture2D.whiteTexture;
+            float h = thick * 0.5f;
+            GUI.DrawTexture(new Rect(cx - gap - arm, cy - h, arm, thick), t);   // left
+            GUI.DrawTexture(new Rect(cx + gap, cy - h, arm, thick), t);         // right
+            GUI.DrawTexture(new Rect(cx - h, cy - gap - arm, thick, arm), t);   // up
+            GUI.DrawTexture(new Rect(cx - h, cy + gap, thick, arm), t);         // down
         }
 
         public override void Shutdown()
