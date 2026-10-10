@@ -261,18 +261,21 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
   the nature guide map - answered, maks's route, registration research).
 - **Redesign (2026-10-10):** main (v0.24.267) merged into `ui-redesign`
-  (2997114, pushed; 31 -> 34 commits ahead). Built + checker-accepted on
-  the branch: T-0024 (cursor), T-0226 (*Developer* tab, Settings as folds;
-  old -> new table in `tasks/notes/T-0226.md`), **T-0253** (c5804c2: one
-  setting, one feature - a ghost switch + Ghost-and-replay opacity apart
-  from the run lines' options, Settings > *HUD* with HUD-wide compact /
-  size / position, the results panel's own load-time line; design calls
-  in `tasks/notes/T-0253.md`). **None seen in game** (a branch build in
-  the author's install needs their OK to hand-deploy). T-0025 (QA, merge,
+  (2997114). Built + checker-accepted on the branch: T-0024 (cursor),
+  T-0226 (*Developer* tab, Settings as folds; `tasks/notes/T-0226.md`),
+  T-0253 (one setting, one feature; `tasks/notes/T-0253.md`), **T-0256**
+  (the Practice tab's start strip: Restart + a Practice mode copy + the run
+  state; a runner's Restart on a timed segment turns practice mode on; F7 /
+  Runs Restart follow the selection; Go on a row selects it - design in
+  `tasks/notes/T-0256.md`, decisions.md *One journey, one place*) with
+  follow-ups T-0270..T-0272. **T-0256 / T-0270..T-0272 seen in game** by
+  forest-tester on a hand-deployed branch build (f0e0707; the author's
+  install still runs it - the next release replaces it). Hand deploys are
+  fine now (rule 2 retired, author 2026-10-10). T-0025 (QA, merge,
   release) waits on T-0018 / T-0020 / T-0021 / T-0022 (author present);
-  also for the branch: T-0254 / T-0256 / T-0257 (unblocked), T-0258,
-  T-0259 / T-0260 / T-0263, T-0019, T-0023. T-0025's notes carry every
-  checker's list and T-0253's CHANGELOG lines.
+  also for the branch: T-0254 / T-0257 (unblocked), T-0258, T-0259 /
+  T-0260 / T-0263, T-0019, T-0023. T-0025's notes carry every checker's
+  list and the branch's CHANGELOG lines.
 - **Bot paused (author, 2026-10-10)** until it is trained on the message
   history and a much larger Forest data set (decisions.md *Knowledge bot*;
   session-start says "paused").
