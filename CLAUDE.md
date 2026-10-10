@@ -203,6 +203,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.278 (2026-10-10, T-0219):** paint, like KSF paint - in
+  practice mode hold Mouse 4 to paint where the crosshair hits, Mouse 5
+  erases, X undoes the last stroke (Z is the game's RestKey), a small
+  crosshair while held (author's idea), Clear all / 8 swatches / size in
+  Settings -> Paint; saved per spot (`config/ForestOverlay/paint/`),
+  session-only with no spot (decisions.md *Plugin*). Settings can bind
+  mouse buttons. The author painted with it on the branch build (true
+  colours after the linear fix); wording approved; checker accepted.
+  **T-0296** (new): paint partly hidden on some rocks / cliffs / bumpy
+  ground (theories in its notes). To confirm (not its maker):
+  forest-tester - erase, Clear all, a spot's paint back after a relaunch,
+  hidden with practice mode off, nothing painted with the window open,
+  `Perf (30 s)` while painting. T-0295 (ModAPI flag) waits on the
+  runner-facing word only (where: both - answered).
 - **v0.24.277 (2026-10-10, T-0246):** ForestOverlay runs with ModAPI
   mods (UltimateCheatmenu) - the preloader patcher `ModApiFix` repairs
   ModAPI's dropped parameter defaults (gotcha 106; release.md *How
