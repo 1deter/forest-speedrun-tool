@@ -128,7 +128,8 @@ self-installing updates **with a changelog in the Updates tab**, a
 **memory census on every load**, offline IL
 scanner, the live test bridge with its **MCP server** (drive the game,
 screenshots, logs, restart / update the game) and the **QA Discord bot**;
-a **LiveSplit-style splits table** (every column toggleable, Compare to:
+a **LiveSplit-style splits panel** on screen (every column toggleable, set
+up and sized in Edit HUD mode; Compare to:
 PB / best segments / another runner / a LiveSplit file), the autosplitter's
 events, one-click `.lss` import, run uploads to **forest.deter.cloud**
 (spots, runs, comparisons, photo map, 3D world), gameplay mods (god mode,

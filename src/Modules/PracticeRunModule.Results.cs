@@ -30,7 +30,10 @@ namespace ForestOverlay.Modules
     public sealed partial class PracticeRunModule
     {
         private const int ResCols = 5;   // name, time, delta, segment, saved / lost
-        private const int ResMaxRows = 16;
+        // Every split shows (author, 2026-10-10, T-0257); only a run with
+        // more than the screen holds is cut: its first rows and the end.
+        private int _resRowCap = int.MaxValue;
+        private int _resMoreFor;
         private const float ResRowH = 18f;
 
         private ConfigEntry<bool> _resultsCfg, _resLoadAlways;
@@ -156,8 +159,8 @@ namespace ForestOverlay.Modules
                 _resSavedLost[r] = row.Saved ? -1 : row.Lost ? 1 : 0;
                 _resGold[r] = row.Gold;
             }
-            int hidden = rows > ResMaxRows ? rows - ResMaxRows : 0;
-            _resMore.text = hidden > 0 ? hidden + " more row(s) - the Runs tab's splits table has them all." : "";
+            _resMore.text = "";
+            _resMoreFor = 0;
 
             // PB chance for the NEXT run (this one's is decided): this run in
             // the history, its time the PB if it beat it.
@@ -257,11 +260,11 @@ namespace ForestOverlay.Modules
                 }
             }
             y += ResRowH;
-            int visible = Mathf.Min(_resRows, ResMaxRows);
+            int visible = Mathf.Min(_resRows, _resRowCap);
             for (int k = 0; k < visible; k++)
             {
                 // The first rows, the end always last.
-                int r = _resRows > ResMaxRows && k == visible - 1 ? _resRows - 1 : k;
+                int r = _resRows > _resRowCap && k == visible - 1 ? _resRows - 1 : k;
                 if (draw)
                 {
                     GUI.Label(new Rect(x, y, nameW, ResRowH), _resCells[r * ResCols], _resGold[r] ? GoldName : _nameStyle);
@@ -362,8 +365,24 @@ namespace ForestOverlay.Modules
 
             float w = Mathf.Clamp(_resResizing ? _resLiveW : _resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
             float inner = w - 16f;
-            float h = real ? ResultsBody(0f, 0f, inner, false, false) + 12f
-                           : ResRowH + 8f + UiText.Height(inner, ResultsPlaceholder, _placeholderStyle) + 10f;
+            float h;
+            if (real)
+            {
+                _resRowCap = int.MaxValue;
+                h = ResultsBody(0f, 0f, inner, false, false) + 12f;
+                if (h > Screen.height && _resRows > 3)
+                {
+                    _resRowCap = Mathf.Max(3, _resRows - Mathf.CeilToInt((h - Screen.height) / ResRowH) - 1);
+                    h = ResultsBody(0f, 0f, inner, false, false) + 12f;
+                }
+                int hidden = _resRows - Mathf.Min(_resRows, _resRowCap);
+                if (hidden != _resMoreFor)   // built only when it changes (a resolution change)
+                {
+                    _resMoreFor = hidden;
+                    _resMore.text = hidden > 0 ? hidden + " more split(s) do not fit on the screen." : "";
+                }
+            }
+            else h = ResRowH + 8f + UiText.Height(inner, ResultsPlaceholder, _placeholderStyle) + 10f;
             float x, y;
             if (_resResizing) { x = _resResizeX; y = _resResizeY; }
             else

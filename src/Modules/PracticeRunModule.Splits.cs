@@ -96,11 +96,13 @@ namespace ForestOverlay.Modules
         private Vector2 _dragOffset;
         private float _dragX, _dragY;
 
-        // Resizing in Edit HUD mode (HandleResize): 1 width, 2 rows, 3 both.
+        // Resizing in Edit HUD mode (HandleResize): 1 right edge, 2 rows,
+        // 4 left edge, 3 / 6 a corner.
         // The live size is kept here and written once, on release.
         private int _resizeMode;
         private Vector2 _resizeStart;
-        private float _resizeStartW, _resizeX, _resizeY, _liveW;
+        private float _resizeStartW, _resizeStartX, _resizeX, _resizeY, _liveW;
+        private bool _resizeDocked;
         private int _resizeStartRows, _liveRows;
 
         // The runner field: one text box, pre-filled with the Steam name
@@ -591,6 +593,8 @@ namespace ForestOverlay.Modules
             // until the next run starts - except while the runner lays the
             // HUD out, when both show.
             bool real = PanelShowing && (editing || !ResultsShowing);
+            // Switched off, it is not drawn in edit mode either: the switch
+            // in the Edit HUD list is how it comes back.
             if (!real && !(editing && _splitsPanel.Value))
             {
                 if (_dragging) EndDrag();   // hidden mid-drag (the edit ended)
@@ -704,13 +708,17 @@ namespace ForestOverlay.Modules
                     bool corner = m.x >= panel.xMax - CornerSize && m.x <= panel.xMax + EdgeGrab &&
                                   m.y >= panel.yMax - CornerSize && m.y <= panel.yMax + EdgeGrab;
                     bool right = m.x >= panel.xMax - EdgeGrab && m.x <= panel.xMax + EdgeGrab && m.y >= panel.y && m.y <= panel.yMax;
+                    bool left = m.x >= panel.x - EdgeGrab && m.x <= panel.x + EdgeGrab && m.y >= panel.y && m.y <= panel.yMax;
                     bool bottom = m.y >= panel.yMax - EdgeGrab && m.y <= panel.yMax + EdgeGrab && m.x >= panel.x && m.x <= panel.xMax;
-                    int mode = corner ? 3 : (right ? 1 : 0) | (bottom ? 2 : 0);
+                    // 1 right edge, 4 left edge (a panel against the right edge
+                    // widens from there), 2 bottom; the corner is 1 + 2.
+                    int mode = corner ? 3 : (right ? 1 : left ? 4 : 0) | (bottom ? 2 : 0);
                     if (mode == 0) return;
                     _resizeMode = mode;
                     _resizeStart = m;
-                    _resizeX = panel.x;   // the left edge stays put, also for a panel against the right edge
+                    _resizeX = _resizeStartX = panel.x;
                     _resizeY = panel.y;
+                    _resizeDocked = _panelX.Value < 0f;
                     _liveW = _resizeStartW = panel.width;
                     _liveRows = _resizeStartRows = Mathf.Clamp(_panelRows.Value, MinPanelRows, MaxPanelRows);
                     _splitsDirty = true;
@@ -721,6 +729,14 @@ namespace ForestOverlay.Modules
                     if ((_resizeMode & 1) != 0)
                         _liveW = Mathf.Clamp(Mathf.Round(_resizeStartW + m.x - _resizeStart.x), MinPanelW,
                                              Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, Screen.width - _resizeX)));
+                    if ((_resizeMode & 4) != 0)
+                    {
+                        // The right edge stays put.
+                        float rightEdge = _resizeStartX + _resizeStartW;
+                        _liveW = Mathf.Clamp(Mathf.Round(_resizeStartW - (m.x - _resizeStart.x)), MinPanelW,
+                                             Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, rightEdge)));
+                        _resizeX = rightEdge - _liveW;
+                    }
                     if ((_resizeMode & 2) != 0)
                         _liveRows = Mathf.Clamp(_resizeStartRows + Mathf.RoundToInt((m.y - _resizeStart.y) / RowH), MinPanelRows, MaxPanelRows);
                     _splitsDirty = true;
@@ -738,16 +754,18 @@ namespace ForestOverlay.Modules
         // whole file: 86 ms, bridge 2026-09-27).
         private void EndResize()
         {
-            _resizeMode = 0;
             ConfigFile c = Ctx.Config;
             bool saveEach = c.SaveOnConfigSet;
             c.SaveOnConfigSet = false;
-            _panelX.Value = Mathf.Round(_resizeX);
+            // A panel against the right edge stays there unless its right
+            // edge was the one dragged.
+            _panelX.Value = _resizeDocked && (_resizeMode & 1) == 0 ? -1f : Mathf.Round(_resizeX);
             _panelY.Value = Mathf.Round(_resizeY);
             _panelWidth.Value = _liveW;
             _panelRows.Value = _liveRows;
             c.SaveOnConfigSet = saveEach;
             c.Save();
+            _resizeMode = 0;
             _splitsDirty = true;
             Ctx.Log.LogInfo("Splits panel resized to " + Mathf.RoundToInt(_liveW) + " px, " + _liveRows + " rows.");
         }
@@ -852,7 +870,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent SplitsPanelText = new GUIContent("Splits panel");
         private static readonly GUIContent SplitsPanelAbout = new GUIContent(
             "Your splits against the comparison, as in LiveSplit, while a timed segment is on. " +
-            "On screen: drag it to move, its right edge for the width, its bottom edge for the rows.");
+            "On screen: drag it to move, a side edge for the width, its bottom edge for the rows.");
         private static readonly GUIContent SplitsPlaceholder = new GUIContent(
             "Shows here while a timed segment is on. Drag the edges to size it.");
         private static readonly GUIContent SplitsOptionsTitle = new GUIContent("Columns, lines, decimals, background");

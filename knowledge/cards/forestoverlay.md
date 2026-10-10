@@ -48,7 +48,7 @@ F1 is left free (the game's own console).
 - **Savestates** (start states on spots): **Quick load** restores in place
   (fast, the default); **Full load** reloads the scene. Practice only.
 - **Timed runs** with live deltas, ghosts and run lines, a LiveSplit-style
-  splits table (every column toggleable), comparisons against your PB, best
+  splits panel on screen (every column toggleable, set up in Edit HUD), comparisons against your PB, best
   segments, other runners or a LiveSplit `.lss` file. Endgame splits are
   frame-identical to the LiveSplit autosplitter (`endgame-splits`).
 - **Reload on death** (what a death does when no spot applies; allowed in
