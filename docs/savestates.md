@@ -26,7 +26,11 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
     `Game/MeganKeeper`, v0.24.35-37; game-notes *Megan after a Quick
     load*); the endgame elevators and active area as at capture
     (`ElevatorKeeper`, `AreaKeeper`, v0.24.40-41; a ride under way is
-    stopped first, v0.24.64).
+    stopped first, v0.24.64). A capture outside the endgame restored with
+    the endgame flag set leaves it the game's way (`ExitEndgame`,
+    `CapturedAreas.ShouldLeaveEndgame`, T-0075): the flag is not in the
+    save, and with it set the caves' props scenes stay unloaded (a Cave 6
+    spot restarted from the lab had no body piles, ropes or planks).
   - **Full load** = with a scene load (~5-15 s): `LoadSavedLevel` — the
     second half of the game's own load. Afterwards (v0.24.25-0.24.28): the
     player is held at the captured spot until every scene loaded at

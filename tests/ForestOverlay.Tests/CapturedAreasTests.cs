@@ -69,6 +69,28 @@ namespace ForestOverlay.Tests
             Assert.False(CapturedAreas.HadEndgame("caves ?, endgame ?, overlook ? | scenes: ForestMain_v08, endgame_animPrefabs | streamed: (none bound)"));
         }
 
+        // Cave 6's body slide spot, captured in the cave (2026-10-09).
+        private const string InCave6 =
+            "caves yes, endgame no, overlook no | scenes: CaveProps_Streaming, Cave_06_Props_Streaming, ForestMain_v08, endgame_animPrefabs | streamed: MainSceneWorldStorySpots unloaded";
+
+        [Fact]
+        public void AnOutsideCaptureRestoredInTheEndgameLeavesIt()
+        {
+            // T-0075: restarted from the lab, the flag stayed and Cave 6's
+            // props scene never loaded.
+            Assert.True(CapturedAreas.ShouldLeaveEndgame(InCave6, true));
+            Assert.True(CapturedAreas.ShouldLeaveEndgame(Surface, true));
+            Assert.True(CapturedAreas.ShouldLeaveEndgame(SurfaceAfterTp, true));
+            // Already out, or captured in the endgame: nothing to do.
+            Assert.False(CapturedAreas.ShouldLeaveEndgame(InCave6, false));
+            Assert.False(CapturedAreas.ShouldLeaveEndgame(InLab, true));
+            Assert.False(CapturedAreas.ShouldLeaveEndgame(VaultDoorOpening, true));
+            // No header (old files, a slot reload) or an unreadable flag.
+            Assert.False(CapturedAreas.ShouldLeaveEndgame("", true));
+            Assert.False(CapturedAreas.ShouldLeaveEndgame(null, true));
+            Assert.False(CapturedAreas.ShouldLeaveEndgame("caves ?, endgame ?, overlook ? | scenes: ForestMain_v08", true));
+        }
+
         [Fact]
         public void FlagsAreRead()
         {
