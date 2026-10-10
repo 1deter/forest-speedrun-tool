@@ -78,6 +78,7 @@ namespace ForestOverlay.Core
         public void Register(OverlayModule module)
         {
             module.Host = this;
+            module.Index = _modules.Count;
             _modules.Add(module);
             _drawsScreen.Add(Overrides(module, "DrawScreen"));
             _drawsAlways.Add(Overrides(module, "DrawScreenAlways"));
@@ -100,6 +101,14 @@ namespace ForestOverlay.Core
         }
 
         public int Count { get { return _modules.Count; } }
+
+        /// Module ids by index, for the stall watch.
+        public string[] ModuleNames()
+        {
+            string[] names = new string[_modules.Count];
+            for (int i = 0; i < names.Length; i++) names[i] = _modules[i].Id;
+            return names;
+        }
 
         /// Modules contributing tabs, in display order. Cached: the window
         /// asks on every OnGUI pass, and the list only changes when a
@@ -304,9 +313,11 @@ namespace ForestOverlay.Core
                 bool exact = ForestOverlay.Game.AllocationTracker.Counting;
                 long bytes0 = exact ? ForestOverlay.Game.AllocationTracker.MainBytes : 0;
                 long heap0 = Heap();
+                StallWatch.At(StallWatch.Hook.ModuleTick, i);
                 try { m.Tick(); }
                 catch (Exception ex) { Disable(m, "Tick", ex); }
                 CountHeap(i, heap0);
+                StallWatch.At(StallWatch.Hook.Update, -1);
                 if (exact && ForestOverlay.Game.AllocationTracker.Counting) CountAlloc(i, ForestOverlay.Game.AllocationTracker.MainBytes - bytes0);
 
                 double ms = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 /
@@ -435,11 +446,13 @@ namespace ForestOverlay.Core
                 if (!IsLive(m)) continue;
                 _hud.Source = m.Id;
                 long heap0 = Heap();
+                StallWatch.At(StallWatch.Hook.Hud, i);
                 try { m.ContributeHud(_hud); }
                 catch (Exception ex) { Disable(m, "ContributeHud", ex); }
                 CountHeap(i, heap0);
             }
             _hud.Source = null;
+            StallWatch.At(StallWatch.Hook.Update, -1);
         }
 
         // ------------------------------------------------------------------
@@ -450,6 +463,7 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!IsLive(m) || !_drawsScreen[i]) continue;
                 long heap0 = Heap();
+                StallWatch.At(StallWatch.Hook.DrawScreen, i);
                 try { m.DrawScreen(); }
                 catch (Exception ex) { Disable(m, "DrawScreen", ex); }
                 CountHeap(i, heap0);
@@ -463,6 +477,7 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!IsLive(m) || !_drawsAlways[i]) continue;
                 long heap0 = Heap();
+                StallWatch.At(StallWatch.Hook.DrawScreenAlways, i);
                 try { m.DrawScreenAlways(); }
                 catch (Exception ex) { Disable(m, "DrawScreenAlways", ex); }
                 CountHeap(i, heap0);
@@ -476,6 +491,7 @@ namespace ForestOverlay.Core
                 OverlayModule m = _modules[i];
                 if (!m.HasPanel || !m.PanelOpen || !IsLive(m)) continue;
                 long heap0 = Heap();
+                StallWatch.At(StallWatch.Hook.DrawPanel, i);
                 try { m.DrawPanel(BaseWindowId + i); CountHeap(i, heap0); }
                 catch (Exception ex)
                 {

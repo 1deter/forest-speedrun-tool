@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 693 log calls.
+219 prefixes from 696 log calls.
 
 ## `Aerial capture`
 
@@ -1667,6 +1667,15 @@ Written by StaleSubscribers.cs; info / warning.
 - warning `StaleSubscribers: OnTreeCutDown prune failed: <ex.Message>`
 - warning `StaleSubscribers: bind failed: <ex>`
 - warning `StaleSubscribers: registry prune failed: <ex.Message>`
+
+## `Stall`
+
+Meaning: The main thread stopped running frames for 10 s or more (T-0284): where it was - which plugin hook, module and tab, or outside the plugin (game code, a coroutine, a Harmony patch) - then how long it took to come back. During a hang the lines are in logs/stall.log; once the game runs again they are also logged here.
+Written by StallWatch.cs; info / warning.
+
+- warning `<..>` *(declared)*
+- warning `Stall: watch not started: <ex.Message>`
+- info `Stall: watching the main thread (a line when it stops for <..> s)`
 
 ## `Start state of`
 

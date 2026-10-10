@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Logging;
+using ForestOverlay.Core;
 using UnityEngine;
 
 namespace ForestOverlay
@@ -283,6 +284,13 @@ namespace ForestOverlay
         }
 
         private void DrawWindowContents(int id)
+        {
+            StallWatch.At(StallWatch.Hook.ExplorerWindow, -1);
+            try { DrawWindowContentsInner(); }
+            finally { StallWatch.Leave(); }
+        }
+
+        private void DrawWindowContentsInner()
         {
             float w = _windowRect.width;
             float h = _windowRect.height;
