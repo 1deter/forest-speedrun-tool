@@ -73,6 +73,8 @@ function categoryOf(s) {
 
 /// The spot list's folded groups, kept in this browser only.
 const FOLDED_KEY = "forest.folded";
+/// The folds key for "Show recent runs" on the home page (true = on).
+const RECENT_KEY = "official-recent";
 function readFolded() {
   try {
     const v = JSON.parse(localStorage.getItem(FOLDED_KEY) || "{}");
@@ -180,27 +182,35 @@ async function homePage() {
     if (!official.length) { officialBox.replaceChildren(); return; }
     const open = isOpen("official", true);
     const runs = official.reduce((n, c) => n + c.count, 0);
+    const recent = !!folded[RECENT_KEY];   // per viewer, kept with the folds
     officialBox.replaceChildren(el("section", { class: "group" + (open ? "" : " folded") },
       foldHeading("h2", "official", "Official runs", runs, open, true),
       !open ? null : [
-        el("p", { class: "note" }, "Finished run mode runs in the published categories, fastest first."),
+        el("p", { class: "note" }, "Each runner's best finished run mode run in the published categories, fastest first."),
+        el("button", { class: "chip" + (recent ? " on" : ""), type: "button", "aria-pressed": String(recent),
+          onclick: () => { folded[RECENT_KEY] = !recent; writeFolded(folded); renderOfficial(); } }, "Show recent runs"),
         ...official.map(c => {
           const key = "official/" + c.id, catOpen = isOpen(key, true);
           return el("div", { class: "subgroup" + (catOpen ? "" : " folded") },
             foldHeading("h3", key, c.name, c.count, catOpen, true),
             !catOpen ? null : !c.runs.length ? el("p", { class: "empty" }, "No finished runs yet.") : [
-              officialList(c.runs),
-              c.count > c.runs.length ? el("p", { class: "note" }, "The " + c.runs.length + " fastest of " + c.count + " runs.") : null,
+              officialList(c.runs, recent),
+              c.count > c.runs.length ? el("p", { class: "note" }, "The " + c.runs.length + " fastest of " + c.count + " runners.") : null,
             ]);
         }),
       ]));
   }
-  function officialList(runs) {
+  /// A runner's row: their best run (a link to its page). With recent runs
+  /// on, under it their latest runs, each a link, and the average of them.
+  function officialList(runs, recent) {
     return el("ul", { class: "spots" }, runs.map(r => el("li", null,
       el("a", { href: "/attempt/" + encodeURIComponent(r.id) },
         el("span", { class: "name" }, r.runnerName || r.runner),
         el("span", { class: "meta" }, date(r.at)),
-        el("span", { class: "best" }, time(r.timerMs / 1000))))));
+        el("span", { class: "best" }, time(r.timerMs / 1000))),
+      !recent ? null : el("div", { class: "recent" },
+        el("span", { class: "sub" }, "Latest " + r.recent.length + (r.recent.length === 1 ? " run" : " runs") + ", average " + time(r.avgMs / 1000) + ": "),
+        r.recent.map(x => el("a", { class: "chip small", href: "/attempt/" + encodeURIComponent(x.id), title: date(x.at) }, time(x.timerMs / 1000)))))));
   }
   function renderAll() { renderOfficial(); render(); }
   function isOpen(key, def) { return key in folded ? !folded[key] : def; }

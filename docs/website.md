@@ -713,28 +713,38 @@ section**, apart from the runners' spots.
 - **What counts**: a run mode attempt (`attempts`, docs/run-mode.md) whose
   category names a *published* category - by id, or by name as a run
   spot's `run = ` can (`Categories.IsPublished` reads it the same way) -
-  that **finished** (`end_reason = finished`, its log in, a timer above 0).
-  Resets, title-screen exits and attempts still running are not runs.
+  that **finished** (`end_reason = finished`, its log in, a timer above 0)
+  and whose **verdict is not red**. Resets, title-screen exits and attempts
+  still running are not runs. "Approved by moderation" (author, 2026-10-10)
+  is exactly that: the moderators' allow-list (`/admin`, *Allowed code*)
+  is the only moderation step, a red run is out until it clears (no
+  per-run flag). The verdict is the one the attempt page shows
+  (`JudgedLog`, cached).
+- **Each runner once** (author, 2026-10-10): the runner's fastest accepted
+  run is the row; their latest `OfficialRecent` (5) accepted runs and the
+  average of those come with it.
 - **`GET /api/official`** (`Attempts.Official`, rate limit `read`, no
   sign-in): `[{id, name, count, runs: [{id, runner, runnerName, timerMs,
-  at}]}]` per published category in name order (`Categories.Published`),
-  a category with no runs included (`runs: []`); runs fastest timer first,
-  the first `Attempts.OfficialShown` (100), `count` all of them; `at` =
-  when the attempt started (the site's start, else when its log arrived);
-  the runner's newest name. While nothing is published the answer is `[]`:
-  drafts and hidden categories are never named (tested:
-  `AttemptTests.Official_OnlyPublishedCategories_FinishedRunsFastestFirst_DraftsNeverNamed`;
-  the smoke checks the empty answer). Index `attempts_category`
-  (`CREATE INDEX IF NOT EXISTS`, so an existing database takes it at start).
+  at, avgMs, recent: [{id, timerMs, at}]}]}]` per published category in
+  name order, `count` = runners listed, runs = the first `OfficialShown`
+  (100) fastest; `at` = when the attempt started. While nothing is
+  published the answer is `[]`: drafts and hidden categories are never
+  named. Judging replays a log, so the answer is kept until a log arrives,
+  the allow-list changes or two minutes pass (at most 2000 finished runs
+  read per category). Tested: `AttemptTests.Official_OnlyPublished_...`;
+  the smoke checks the empty answer. Index `attempts_category`.
 - **The home page** (`app.js` `renderOfficial`): *Official runs* above the
-  spots' search, one fold per category (its name and count), each row the
-  runner, the date and the timer, linking to the attempt's page
-  (`/attempt/<id>`: its verdict, moves, timeline and log); "No finished
-  runs yet." for an empty category, "The 100 fastest of N runs." past the
-  cap. Hidden entirely while `/api/official` is empty; a failed request
-  never keeps the spots from showing.
-- **Open (tasks/notes/T-0223.md)**: whether each runner's best only, the
-  verdict on the row, and leaving out runs whose check found problems.
+  spots' search (author: placement stays above the spots), one fold per
+  category, each row the runner, the date and the best timer, linking to
+  the attempt; the button **Show recent runs** (per viewer, kept with the
+  folds) adds under each row the latest runs as links and their average.
+- **The attempt page's route replay** (`attempt.js`): `GET
+  /api/attempts/<id>` carries `path` - `[seconds, x, y, z, speed]` per
+  second from the log's `step` lines (`Attempts.PathOf`; "-" = a load,
+  skipped; not in `AttemptChain.Replay`, so no `src/Data` change) - and the
+  page draws it on `RunMap` (the spot page's map: photo / ground / relief
+  layers, line and dot) with play, a scrub bar and 1-8x speed. No map when
+  the log has fewer than two positions.
 
 ## Compare: two YouTube runs side by side (2026-10-04)
 

@@ -248,49 +248,98 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
             steps = row.Steps, flags = j?.Flags ?? 0, verdict = j?.Verdict ?? "running", why = j?.Why ?? Lines(row.Why),
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
-            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads,
+            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads, path = j?.Path,
         };
     }
 
     // --- official runs (T-0223) --------------------------------------------------------
 
-    /// How many runs a category lists (fastest first); the count says how many there are.
+    /// How many runners a category lists (fastest first); the count says how many there are.
     public const int OfficialShown = 100;
+    /// How many of a runner's latest runs the "recent runs" view holds.
+    public const int OfficialRecent = 5;
+    /// The most finished runs one category reads per answer (fastest first).
+    private const int OfficialRead = 2000;
+
+    private string _officialStamp;
+    private List<object> _officialList;
+    private long _officialAt;
 
     /// The official runs, per published category (author, 2026-10-08: only
     /// once a category is published, in their own section apart from the
-    /// runners' spots): its finished attempts, fastest timer first - runner,
-    /// timer, date, the attempt page's id. An attempt names its category by
-    /// id, or by a run spot's `run = ` (an id or a name, as IsPublished
-    /// reads it). Drafts are not named, so nothing about them leaves the site.
+    /// runners' spots; 2026-10-10: each runner's best only, plus their latest
+    /// runs and the average; a run whose check found problems only while
+    /// the moderators' allow-list clears it - "approved by moderation" is
+    /// the verdict not being red). A runner is listed once, with their
+    /// fastest accepted run; `recent` = their newest accepted runs
+    /// (OfficialRecent) and `avgMs` their average. An attempt names its
+    /// category by id, or by a run spot's `run = ` (an id or a name, as
+    /// IsPublished reads it). Drafts are not named, so nothing about them
+    /// leaves the site. Judging a log replays it, so the answer is kept
+    /// until a log arrives, the allow-list changes or two minutes pass.
     public List<object> Official()
     {
-        var list = new List<object>();
-        if (_categories == null) return list;
-        using var c = _store.Open();
-        foreach (var cat in _categories.Published())
+        if (_categories == null) return new List<object>();
+        var published = _categories.Published().ToList();
+        if (published.Count == 0) return new List<object>();
+        string stamp;
+        using (var c0 = _store.Open())
         {
-            const string finished = @"WHERE (a.category = $id OR a.category = $name COLLATE NOCASE)
-                                      AND a.end_reason = 'finished' AND a.log_ms IS NOT NULL AND a.final_timer_ms > 0";
-            using var count = c.CreateCommand();
-            count.CommandText = "SELECT COUNT(*) FROM attempts a " + finished;
-            count.Parameters.AddWithValue("$id", cat.Id);
-            count.Parameters.AddWithValue("$name", cat.Name);
-            long total = (long)count.ExecuteScalar();
+            using var s = c0.CreateCommand();
+            s.CommandText = "SELECT COUNT(*), COALESCE(MAX(log_ms), 0) FROM attempts WHERE end_reason = 'finished'";
+            using var r = s.ExecuteReader();
+            r.Read();
+            stamp = Volatile.Read(ref _allowedVersion) + "|" + r.GetInt64(0) + "|" + r.GetInt64(1) + "|" +
+                    string.Join(",", published.Select(p => p.Id + "=" + p.Name));
+        }
+        lock (_judged)
+            if (_officialList != null && _officialStamp == stamp && _now() - _officialAt < 120_000) return _officialList;
 
+        var list = new List<object>();
+        using var c = _store.Open();
+        foreach (var cat in published)
+        {
             using var cmd = c.CreateCommand();
             cmd.CommandText = @"SELECT a.id, a.runner_id, COALESCE(r.name, ''), a.final_timer_ms, COALESCE(a.issued_ms, a.log_ms)
-                                FROM attempts a LEFT JOIN runners r ON r.id = a.runner_id " + finished + @"
+                                FROM attempts a LEFT JOIN runners r ON r.id = a.runner_id
+                                WHERE (a.category = $id OR a.category = $name COLLATE NOCASE)
+                                  AND a.end_reason = 'finished' AND a.log_ms IS NOT NULL AND a.final_timer_ms > 0
                                 ORDER BY a.final_timer_ms, a.id LIMIT $n";
             cmd.Parameters.AddWithValue("$id", cat.Id);
             cmd.Parameters.AddWithValue("$name", cat.Name);
-            cmd.Parameters.AddWithValue("$n", OfficialShown);
-            var runs = new List<object>();
+            cmd.Parameters.AddWithValue("$n", OfficialRead);
+            var rows = new List<(string Id, string Runner, string Name, long Timer, long At)>();
             using (var r = cmd.ExecuteReader())
-                while (r.Read())
-                    runs.Add(new { id = r.GetString(0), runner = r.GetString(1), runnerName = r.GetString(2), timerMs = r.GetInt64(3), at = Iso(r.GetInt64(4)) });
-            list.Add(new { id = cat.Id, name = cat.Name, count = total, runs });
+                while (r.Read()) rows.Add((r.GetString(0), r.GetString(1), r.GetString(2), r.GetInt64(3), r.GetInt64(4)));
+
+            var accepted = new Dictionary<string, bool>();
+            bool Accepted(string id)
+            {
+                if (accepted.TryGetValue(id, out bool ok)) return ok;
+                var row = Row(id);
+                ok = row?.LogMs != null && JudgedLog(id, row).Verdict != "red";
+                accepted[id] = ok;
+                return ok;
+            }
+
+            var boards = new List<(long Timer, object Entry)>();
+            foreach (var g in rows.GroupBy(x => x.Runner))
+            {
+                var best = g.Where(x => Accepted(x.Id)).Select(x => ((string Id, string Runner, string Name, long Timer, long At)?)x).FirstOrDefault();
+                if (best == null) continue;
+                var recent = g.OrderByDescending(x => x.At).ThenBy(x => x.Id).Where(x => Accepted(x.Id)).Take(OfficialRecent).ToList();
+                var b = best.Value;
+                boards.Add((b.Timer, new
+                {
+                    id = b.Id, runner = b.Runner, runnerName = g.OrderByDescending(x => x.At).First().Name, timerMs = b.Timer, at = Iso(b.At),
+                    avgMs = (long)Math.Round(recent.Average(x => (double)x.Timer)),
+                    recent = recent.Select(x => new { id = x.Id, timerMs = x.Timer, at = Iso(x.At) }).ToList(),
+                }));
+            }
+            var ordered = boards.OrderBy(x => x.Timer).Select(x => x.Entry).ToList();
+            list.Add(new { id = cat.Id, name = cat.Name, count = ordered.Count, runs = ordered.Take(OfficialShown).ToList() });
         }
+        lock (_judged) { _officialStamp = stamp; _officialList = list; _officialAt = _now(); }
         return list;
     }
 
@@ -304,7 +353,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report, object Loads);
+                                 object Recording, string Report, object Loads, List<double[]> Path);
 
     /// The logs' size the cache may hold (characters of log text); past it,
     /// it starts again.
@@ -355,7 +404,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
             RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
-            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay));
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text));
         lock (_judged)
         {
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
@@ -367,6 +416,34 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             }
         }
         return j;
+    }
+
+    /// The attempt's 1 Hz positions for the page's map replay: [seconds, x, y, z, speed]
+    /// (metres; speed from the step before) from the log's `step|n|realMs|timer|x|y|z`
+    /// lines (centimetres; "-" = a load, no player: skipped). Read from the text
+    /// because AttemptChain.Replay keeps no positions.
+    public static List<double[]> PathOf(string text)
+    {
+        var path = new List<double[]>();
+        if (string.IsNullOrEmpty(text)) return path;
+        foreach (string line in text.Split('\n'))
+        {
+            if (!line.StartsWith("step|", StringComparison.Ordinal)) continue;
+            var p = line.TrimEnd('\r').Split('|');
+            if (p.Length != 7 || !long.TryParse(p[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out long ms) ||
+                !long.TryParse(p[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out long x) ||
+                !long.TryParse(p[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out long y) ||
+                !long.TryParse(p[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out long z)) continue;
+            double t = ms / 1000.0, speed = 0;
+            if (path.Count > 0)
+            {
+                var q = path[^1];
+                double dt = t - q[0], dx = x / 100.0 - q[1], dz = z / 100.0 - q[3];
+                if (dt > 0) speed = Math.Sqrt(dx * dx + dz * dz) / dt;
+            }
+            path.Add(new[] { t, x / 100.0, y / 100.0, z / 100.0, Math.Round(speed, 1) });
+        }
+        return path;
     }
 
     private void Forget(string id)

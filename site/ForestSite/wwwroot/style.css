@@ -388,3 +388,5 @@ table.cmptable td.name { min-width: 9em; }
   table.cmptable td, table.cmptable th { padding-left: 4px; padding-right: 4px; }
 }
 .note.small { font-size: 12px; margin-top: 16px; }
+.official .recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 0 8px 12px; }
+.official > section > .chip { margin: 4px 0 8px; }
