@@ -130,7 +130,7 @@ public sealed class PbPosts
         string url = PbNews.Target(pb.Official, Settings.Current, Official.Url);
         if (url == null) return false;
         PbWebhook sender = pb.Official ? Official : RunnerSpots;
-        string message = PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(sender.SiteUrl, pb.Segment, pb.Route, pb.RunId));
+        var message = PbNews.Embed(pb, PbNews.RunLink(sender.SiteUrl, pb.Segment, pb.Route, pb.RunId), DateTime.UtcNow);
         return sender.Enqueue(message, runnerId, url);
     }
 

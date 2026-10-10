@@ -14,6 +14,7 @@ namespace ForestSite;
 // /admin's PB posts tab, in that channel or their own (PbSettings, T-0232).
 // Uploads only queue a line here: a slow, failing or rate-limited
 // webhook never fails or holds up an upload (docs/website.md *Discord*).
+// A post is one Discord embed (PbNews.Embed).
 // ------------------------------------------------------------------
 
 /// The decisions, pure (tested).
@@ -42,19 +43,58 @@ public static class PbNews
     public static bool Announces(bool communityRoute, string runCategory, Func<string, bool> published) =>
         communityRoute || (!string.IsNullOrWhiteSpace(runCategory) && published != null && published(runCategory.Trim()));
 
-    /// The post: plain text, one line + the link.
-    public static string Message(string runner, string spot, float time, float previousBest, string url)
+    // Discord's limits: title 256, description 4096, field value 1024, author 256.
+    // Clipped as the site stores them - a spot's name in an upload is not
+    // clipped before this - so a long one never gets a post refused.
+    public const int MaxRunner = 40, MaxSpot = 80, MaxCategory = 40;
+
+    /// The embed colours: main category green, a runner's spot amber (the
+    /// mark is also written in the author line and the footer, so colour is
+    /// never the only cue).
+    public const int MainColour = 0x2E9E5B, RunnerSpotColour = 0xE0A030;
+
+    /// The post: one Discord embed (T-0232, author 2026-10-10: "more
+    /// informative, modern"). Author line = who and what happened (a runner's
+    /// spot says so); title = the spot, linking the run in the web viewer;
+    /// description = the time, big, and what it beat; fields = the category,
+    /// the rank among runners and the gap to the best; footer = the kind.
+    /// `now` is the embed's timestamp (null = none).
+    public static JsonObject Embed(Runs.PbFound pb, string url, DateTime? now = null)
     {
-        var sb = new StringBuilder();
-        // Clipped as the site stores them (a spot's name in an upload is not
-        // clipped before this): a long one would push the post past
-        // Discord's 2,000 characters and it would be refused.
-        sb.Append(Escape(Clip(runner, 40))).Append(float.IsNaN(previousBest) ? " finished " : " set a new PB on ").Append(Escape(Clip(spot, 80))).Append(": ")
-          .Append(Time(time));
-        if (float.IsNaN(previousBest)) sb.Append(" (their first run)");
-        else sb.Append(" (").Append(Time(previousBest - time)).Append(" faster than ").Append(Time(previousBest)).Append(')');
-        return sb.Append('\n').Append(url).ToString();
+        bool first = float.IsNaN(pb.PreviousBest);
+        string who = Plain(Clip(pb.Runner, MaxRunner)) + " \u00B7 " + (first ? "first run" : "new PB")
+                     + (pb.Official ? "" : " on a runner's spot");
+        var description = new StringBuilder("**").Append(Time(pb.Time)).Append("**\n");
+        description.Append(first ? "Their first run here" : "**" + Time(pb.PreviousBest - pb.Time) + "** faster than " + Time(pb.PreviousBest));
+
+        var fields = new JsonArray();
+        void Field(string name, string value) =>
+            fields.Add(new JsonObject { ["name"] = name, ["value"] = value, ["inline"] = true });
+        string category = Clip(pb.Category, MaxCategory);
+        if (category.Length > 0) Field("Category", Escape(category));
+        if (pb.Runners > 1 && pb.Rank > 0) Field("Rank", "#" + pb.Rank + " of " + pb.Runners + " runners");
+        if (!float.IsNaN(pb.OtherBest))
+            Field("Best on this spot", pb.Rank == 1
+                ? Time(pb.OtherBest - pb.Time) + " ahead of " + Time(pb.OtherBest)
+                : Time(pb.Time - pb.OtherBest) + " behind " + Time(pb.OtherBest));
+
+        var embed = new JsonObject
+        {
+            ["author"] = new JsonObject { ["name"] = who },
+            ["title"] = Escape(Clip(pb.Spot, MaxSpot)),
+            ["url"] = url,
+            ["description"] = description.ToString(),
+            ["color"] = pb.Official ? MainColour : RunnerSpotColour,
+            ["footer"] = new JsonObject { ["text"] = pb.Official ? "Main category" : "Runner's spot" },
+        };
+        if (fields.Count > 0) embed["fields"] = fields;
+        if (now != null) embed["timestamp"] = now.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        return new JsonObject { ["embeds"] = new JsonArray { embed } };
     }
+
+    /// A runner's text where Discord shows no markdown (author, footer):
+    /// one line, nothing else changed.
+    public static string Plain(string s) => (s ?? "").Replace('\n', ' ').Replace('\r', ' ');
 
     /// Data/SplitTable's format, three decimals: 9.500, 1:02.345, 1:02:03.456.
     public static string Time(double seconds)
@@ -115,7 +155,7 @@ public sealed class PbWebhook
     /// sets a few PBs an hour at most.
     public const int PerRunnerPerHour = 5;
 
-    private readonly Channel<(string url, string message)> _queue = Channel.CreateBounded<(string, string)>(new BoundedChannelOptions(QueueSize)
+    private readonly Channel<(string url, JsonObject message)> _queue = Channel.CreateBounded<(string, JsonObject)>(new BoundedChannelOptions(QueueSize)
         { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
     private readonly Queue<DateTime> _sent = new();
     private readonly Dictionary<string, Queue<DateTime>> _byRunner = new();
@@ -134,7 +174,7 @@ public sealed class PbWebhook
     /// The pause after each post (Discord's rate limits; tests shorten it).
     public TimeSpan Gap { get; set; } = TimeSpan.FromSeconds(2);
     /// The last messages queued, newest last (tests, diagnostics).
-    public readonly List<string> Recent = new();
+    public readonly List<JsonObject> Recent = new();
     /// The clock for the per-runner cap (tests move it).
     public Func<DateTime> Now { get; set; } = () => DateTime.UtcNow;
 
@@ -151,7 +191,7 @@ public sealed class PbWebhook
     /// Queues a post to `url` (default: Url); false when there is no URL,
     /// the runner (their id, when given) has had PerRunnerPerHour posts in
     /// the last hour, or the queue is full (dropped, logged).
-    public bool Enqueue(string message, string runner = null, string url = null)
+    public bool Enqueue(JsonObject message, string runner = null, string url = null)
     {
         url = string.IsNullOrWhiteSpace(url) ? Url : url.Trim();
         if (string.IsNullOrWhiteSpace(url)) return false;
@@ -196,7 +236,7 @@ public sealed class PbWebhook
         }
     }
 
-    private async Task Deliver(string url, string message)
+    private async Task Deliver(string url, JsonObject message)
     {
         // At most PerHour posts an hour; past that, dropped (a flood of PBs
         // is either a bug or abuse - the site keeps every run anyway).
@@ -224,10 +264,10 @@ public sealed class PbWebhook
 
     /// Posts one message: the HTTP status (0 = no answer) and Discord's
     /// retry-after in seconds for a 429.
-    private async Task<(int, double)> Post(string url, string message)
+    private async Task<(int, double)> Post(string url, JsonObject message)
     {
         // allowed_mentions: none - a runner named "@everyone" pings nobody.
-        var body = new JsonObject { ["content"] = message, ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() } };
+        var body = new JsonObject { ["embeds"] = message["embeds"].DeepClone(), ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() } };
         try
         {
             using var r = await Http.PostAsJsonAsync(url, body);

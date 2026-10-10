@@ -661,13 +661,21 @@ plugin change (Practice's Share row).
   `/opt/forest-site/.env` (site/deploy/README.md *Day to day*). When an
   upload adds a run that is the runner's new best on a **community route**
   or on a **run spot** (`run = ` names a *published* category - none yet),
-  one plain-text line is queued: "<runner> set a new PB on <spot>: 1:02.345
-  (0.512 faster than 1:02.857)" or "<runner> finished <spot>: ... (their
-  first run)", then the link `/spot/<id>/<route>?run=<run id>` (the spot
-  page focuses that run). Not posted: a runner's own practice spot (anyone
+  one **Discord embed** is queued (`PbNews.Embed`; T-0232, author
+  2026-10-10: "more informative, modern", not a copy of the KSF post):
+  the author line "<runner> · new PB" (or "· first run"), the title = the
+  spot (linking `/spot/<id>/<route>?run=<run id>`, the viewer focuses that
+  run - the replay a post can reach for now), the time in bold and "**0.512**
+  faster than 1:02.857" (or "Their first run here"), inline fields
+  *Category*, *Rank* ("#2 of 5 runners", only with 2+ runners; flagged and
+  hidden runs left out) and *Best on this spot* ("0.420 ahead of 9.000" /
+  "0.420 behind 9.000"), a timestamp, and a footer naming the kind:
+  *Main category* (green bar) or *Runner's spot* (amber bar; the author
+  line also says "on a runner's spot"). A first run posts as before (author
+  2026-10-10). No replay inside the post (nice-to-have only). Not posted: a runner's own practice spot (anyone
   can make one - a spam path; the owner can switch those on, next item),
   a run under review (flagged), a re-upload of a run already there, a
-  slower run. Names are markdown-escaped and the
+  slower run. Names are markdown-escaped (title, fields) and the
   post sets `allowed_mentions: none` (no @everyone). Sending: a queue of
   20, one post at a time 2 s apart, at most 30 an hour, one retry after a
   429's retry-after; any failure is logged (`Discord webhook: ...`) and
@@ -698,9 +706,10 @@ plugin change (Practice's Share row).
   `Discord webhook (runners' spots): ...` - the sender's name, never its
   URL. Tests: `ApiTests` *Webhook_RunnerSpots_*, *PbPostsSettings_*,
   *Webhook_Sender_* (a fake `HttpMessageHandler` as Discord - the senders'
-  `Http` and `Gap` are settable for that), *PbNews_Target*. Open: the
-  post's look (the author's example is a KSF surf timer WR post) and
-  whether a runner's-spot post says so - tasks/notes/T-0232.md.
+  `Http` and `Gap` are settable for that), *PbNews_Target*,
+  *Webhook_RankAndGapAgainstOtherRunners*. A runner's-spot PB is marked
+  apart in either channel setup (author 2026-10-10). The wording of the
+  embed is not settled - tasks/notes/T-0232.md *Words for the author*.
 
 ## Official runs (2026-10-10, T-0223)
 
