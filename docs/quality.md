@@ -59,7 +59,7 @@ projects (they are each area's evidence) and the root files.
 
 ### Savestates
 
-Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,DeathSequence,ElevatorRides,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PlayerKeep,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,SlotInfoGuard,Stance,SunSync,TitleLoad,WreckClearing,WreckNav}.cs` `src/Data/{BlueprintState,DeathProgress,BookPageState,CapturedAreas,CheckpointStates,KeepLoaded,LookupCache,StartedSet,WreckSites,WreckCuts,EnemyRecord,GreebleRecord,PickupMatch,PositionKey,KeptRead,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
+Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,ColdReset,CutsceneAudio,DeathSequence,ElevatorRides,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PlayerKeep,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,SlotInfoGuard,Stance,SunSync,TitleLoad,WreckClearing,WreckNav}.cs` `src/Data/{BlueprintState,DeathProgress,BookPageState,CapturedAreas,CheckpointStates,KeepLoaded,LookupCache,StartedSet,WreckSites,WreckCuts,EnemyRecord,GreebleRecord,PickupMatch,PositionKey,KeptRead,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
 
 - Verification **A**: SavestateFile (33), CheckpointStates (21) and the
   record tests; the e2e `restores` journey (in place, with a load, the

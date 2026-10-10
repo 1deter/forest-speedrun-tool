@@ -759,6 +759,10 @@ namespace ForestOverlay.Modules
             // (runner maks, T-0248: the death after a capture was a real one).
             string deaths = DeathSequence.ForgetDeaths();
             if (deaths.Length > 0) fall += (fall.Length > 0 ? ", " : "") + deaths;
+            // The cold is not in the save either - a load gives a warm
+            // player (T-0269: frozen since the capture stayed frozen).
+            string cold = ColdReset.AsLoad();
+            if (cold.Length > 0) fall += (fall.Length > 0 ? ", " : "") + cold;
             string anim = AnimReset.Cancel();
             if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
             // A blueprint in the hands is outside the save (runner

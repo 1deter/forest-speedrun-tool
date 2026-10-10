@@ -628,6 +628,19 @@ The damage FSM's `death` state returns to `startState` by itself after
 4 s (hit layer 31 -> 15). `Game/DeathSequence` ends the chain on a
 restore in place or a Go.
 
+**The player's cold is not in the save** (decompiled `PlayerStats` +
+bridge, 2026-10-10, T-0269): `BodyTemp` (initializer 37), `IsCold`
+(private set, through `SetCold(bool)` - also the skin variation),
+`coldSwitch` / `coldFloatBlend` (the animator's `coldFloat`, written
+every `UpdateStats`), the screen frost `FrostScript.coverage` (the main
+camera's `Frost`) and `FrostDamageSettings.CurrentTimer` / `DoDeFrost` /
+`TakingDamage`. A Full load of a spot gives 37 / false / false / 0 / 0 / 0
+(bridge, `axe-held` and `tom-c6`); a restore in place kept the live
+values. The game clears `IsCold` by itself in daylight on the surface, in
+the endgame, and when warm (a fire, sun, a building, the warmsuit) with
+no frost left, so a cold player was seen only with frost on the screen.
+`Game/ColdReset` sets the load's values on every restore in place.
+
 **The hard landing runs after the fall damage.**
 `FirstPersonCharacter.HandleLanded` (IL) calls `PlayerStats.Hit` for fall
 damage — where a death, and so a revive, happens — and then, for a hard

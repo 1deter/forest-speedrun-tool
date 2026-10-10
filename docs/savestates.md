@@ -180,10 +180,18 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   the bridge (the fall, the drag-away, the hanging, the dead cam) and
   diffed against a Full load of the spot: left over only `CamRotator`'s
   range (the game's own reset 135 vs a fresh player's 145) and what is
-  not the death's (body temperature, cave flags; T-0269). Log:
+  not the death's (body temperature - T-0269, cave flags). Log:
   `Savestate restore <what>: ended the game's death (hanging in the cave;
   removed 1 cutscene object(s)).`, the fallback's warning `... - a Full
   load instead.`, and `death count 2 -> 0 (as a load)` in the done line.
+  **The cold** (T-0269, 2026-10-10, unreleased): body temperature, the
+  cold flag, the shiver and the screen frost are not in the save either
+  (game-notes *The player's cold is not in the save*); every Quick load
+  sets them as a Full load does - 37, not cold, no frost
+  (`Game/ColdReset`) - and the game's cold routine sets them again from
+  the place (rain at night, the north, a cave swim). Log: `body
+  temperature 20 -> 37, cold off, frost 0.45 -> 0 (as a load)` in the
+  done line; nothing when the player was warm.
 
 ## Category start states true to the game (2026-10-05, unreleased)
 
