@@ -30,6 +30,15 @@ namespace ForestOverlay.Data
                 : quoted + ": idle - Restart turns practice mode on and arms it.";
         }
 
+        /// What F7 and the Runs tab's Restart act on (author, 2026-10-10):
+        /// the selection when it changed since the last placement, else the
+        /// current spot - a Go to a row, then F7, still restarts there.
+        /// Ids, not objects: a Reload rebuilds the entries under the same ids.
+        public static bool FollowsSelection(string selectedId, bool selectedHasSpawn, string selectedIdAtPlace)
+        {
+            return selectedId != null && selectedHasSpawn && selectedId != selectedIdAtPlace;
+        }
+
         /// A runner's Restart turns practice mode on only for a timed
         /// segment that is not a run spot (run mode times those itself,
         /// Data/RunTiming), and only when it is off.

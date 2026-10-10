@@ -483,7 +483,6 @@ namespace ForestOverlay.Modules
         /// on for a timed segment (T-0256); a death's or the auto-restart's
         /// never does. Its messages go where the click was.
         private enum RestartFrom { Auto, Editor, Strip, Key }
-        private RestartFrom _restartFrom;
 
         /// `cause` null = a plain restart (F7 / the buttons); the auto-restart names itself.
         private void Restart(Segment s, string cause, RestartFrom from)
@@ -510,7 +509,7 @@ namespace ForestOverlay.Modules
                 PlaceCause.Set(cause ?? "start-state restore");
                 if (OnRestartStarting != null) OnRestartStarting();
                 if (runStart) _runMode.SpotRunStarting(s);
-                RestartStatus(turnedOn + (runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load..."));
+                RestartStatus(s, from, turnedOn + (runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load..."));
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
                 _savestates.RestoreStartState(s, runStart, delegate(string error)
@@ -529,7 +528,7 @@ namespace ForestOverlay.Modules
                     Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
                     string msg = "Start state not restored - " + error + ". Teleported only.";
                     _status = "";   // said once, under the button clicked
-                    RestartStatus(msg);
+                    RestartStatus(s, from, msg);
                     if (!Host.AnyPanelOpen()) Ctx.Notice.Show(msg, 7f);
                 });
                 return;
@@ -539,7 +538,7 @@ namespace ForestOverlay.Modules
             string on = TurnPracticeOnFor(s, false, from);
             PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
-            if (on.Length > 0) RestartStatus(on.TrimEnd());
+            if (on.Length > 0) RestartStatus(s, from, on.TrimEnd());
         }
 
         /// A runner's Restart on a timed segment with practice mode off turns
@@ -549,7 +548,6 @@ namespace ForestOverlay.Modules
         /// closed (F7) it is said on screen as well.
         private string TurnPracticeOnFor(Segment s, bool runStart, RestartFrom from)
         {
-            _restartFrom = from;
             if (from == RestartFrom.Auto || _runs == null) return "";
             if (!StartStrip.TurnsPracticeOn(s.IsTimed, runStart, _runs.Enabled)) return "";
             _runs.TurnOnForRestart(s);
@@ -560,9 +558,11 @@ namespace ForestOverlay.Modules
         /// What a restart says, under the control that started it: the
         /// start strip's own line, else the editor's Start state line (as
         /// before - F7 and the Runs tab's Restart wrote there too).
-        private void RestartStatus(string text)
+        /// A restore's error arrives later: the strip only says it while it
+        /// still shows that spot.
+        private void RestartStatus(Segment s, RestartFrom from, string text)
         {
-            if (_restartFrom == RestartFrom.Strip) _stripStatus.text = text ?? "";
+            if (from == RestartFrom.Strip && ReferenceEquals(_selected, s)) _stripStatus.text = text ?? "";
             else StartStatus(text);
         }
 
@@ -628,7 +628,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("teleport: " + s.Name);
 
             _current = s;
-            _selectedAtPlace = _selected;
+            _selectedIdAtPlace = _selected != null ? _selected.Id : null;
             _status = "-> " + s.Name + (cave.Length > 0 ? " (" + cave + ")" : "");
 
             // Logged too: the status line is easy to miss, and the log is
@@ -664,13 +664,14 @@ namespace ForestOverlay.Modules
         {
             get
             {
-                if (_selected != null && _selected.HasSpawn && !ReferenceEquals(_selected, _selectedAtPlace)) return _selected;
-                return _current;
+                return StartStrip.FollowsSelection(_selected != null ? _selected.Id : null, _selected != null && _selected.HasSpawn, _selectedIdAtPlace)
+                    ? _selected : _current;
             }
         }
 
-        // _selected when the player was last placed at a spot.
-        private Segment _selectedAtPlace;
+        // The selection's id when the player was last placed at a spot (an
+        // id: a Reload rebuilds every entry object under the same ids).
+        private string _selectedIdAtPlace;
 
         /// A death's "Revive at the current spot" (Deaths tab): Go to the
         /// current spot, its start state left alone.
@@ -774,7 +775,9 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         public override void ContributeHud(HudBuilder hud)
         {
-            if (_current != null) hud.Pair("Spot", _current.Name);
+            // The spot F7 restarts (HudLines: "Spot").
+            Segment target = TargetSpot;
+            if (target != null) hud.Pair("Spot", target.Name);
             if (_status.Length > 0) hud.Pair("Prac", _status);
         }
 

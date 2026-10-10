@@ -46,6 +46,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void F7FollowsASelectionMadeAfterTheLastPlacement()
+        {
+            // Select A, nothing placed yet: A.
+            Assert.True(StartStrip.FollowsSelection("A", true, null));
+            // Go to row B with A still selected: B (the current spot), not A.
+            Assert.False(StartStrip.FollowsSelection("A", true, "A"));
+            // Then select C: C.
+            Assert.True(StartStrip.FollowsSelection("C", true, "A"));
+            // Restart C, then a Reload re-makes C under its id: still the current spot.
+            Assert.False(StartStrip.FollowsSelection("C", true, "C"));
+            // Nothing selected, or a selection with no spawn: the current spot.
+            Assert.False(StartStrip.FollowsSelection(null, false, "A"));
+            Assert.False(StartStrip.FollowsSelection("D", false, "A"));
+        }
+
+        [Fact]
         public void PracticeModeTurnsOnOnlyForATimedNonRunStartWhenOff()
         {
             Assert.True(StartStrip.TurnsPracticeOn(true, false, false));
