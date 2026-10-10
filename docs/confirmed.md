@@ -377,3 +377,5 @@ Confirmed 2026-10-09 (game, bridge, v0.24.266): **a Quick load during the game's
 Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves the save slot's info file alone (smoke hygiene: Slot1 unchanged after the restart journey's start-state capture) (T-0214)**. tests/e2e/reports/20261010-002837.smoke.md.
 
 Confirmed 2026-10-10 (game, bridge, v0.24.268): **a cave spot restarted in place from the endgame leaves it (ExitEndgame sent, IsInEndgame false, cave props/DeadBodyPile loaded); an in-cave restart sends nothing; the red elevator restart keeps the endgame (T-0075)**. bridge 2026-10-10.
+
+Confirmed 2026-10-10 (game, bridge, v0.24.269): **a Go / auto-restart arm costs 0-1 ms (was 23-24 ms) with no practicerun slow tick; a Go from an elevator ride still logs "elevator ride stopped" (T-0184)**. bridge 2026-10-10.
