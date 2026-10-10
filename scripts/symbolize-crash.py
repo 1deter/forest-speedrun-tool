@@ -1,6 +1,6 @@
 """Names the native functions in a Unity crash dump of The Forest.
 
-    python scripts/symbolize-crash.py <crash.dmp> [TheForest.exe]
+    python scripts/symbolize-crash.py <crash.dmp> [TheForest.exe] [--threads]
 
 Unity writes crash.dmp (a minidump: module list + thread stacks) into a
 crash-<date> folder beside TheForest.exe. This reads the exe's PDB record,
@@ -9,7 +9,10 @@ fetches the matching player PDB from Unity's public symbol server (cached in
 every stack value that points into the exe, mono.dll or JIT code (Mono JIT
 frames show as "(jit?)" - their names are not in the dump). The stack scan
 is raw: return addresses are real, older values can be stale; read it top
-down from the fault. Needs `pip install minidump`. Dev-time only (gotcha 58).
+down from the fault. --threads adds every other thread: its id, rip and the
+module frames from its rsp up (no stale values; the main thread shows what
+the game was doing when the render thread faulted, T-0190). Needs
+`pip install minidump`. Dev-time only (gotcha 58).
 """
 import bisect, os, struct, subprocess, sys, urllib.request
 
@@ -104,8 +107,10 @@ def read_publics(pdb):
 
 
 def main():
-    dmp = sys.argv[1]
-    exe = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_EXE
+    args = [a for a in sys.argv[1:] if a != "--threads"]
+    threads = "--threads" in sys.argv[1:]
+    dmp = args[0]
+    exe = args[1] if len(args) > 1 else DEFAULT_EXE
     name, key = pdb_record(exe)
     syms = read_publics(fetch_pdb(name, key))
     keys = [s[0] for s in syms]
@@ -174,6 +179,35 @@ def main():
         label, in_module = where(v)
         if label and (in_module or label == "(jit?)"):
             print(hex(lo + i), hex(v), label + ("   (below rsp: stale)" if lo + i < rsp else ""))
+    if threads:
+        print_threads(m, dmp, rec.ThreadId, where, names)
+
+
+def print_threads(m, dmp, faulting, where, names, frames=40):
+    """Every other thread: rip and the module frames from rsp up (T-0190)."""
+    with open(dmp, "rb") as f:
+        for t in m.threads.threads:
+            if t.ThreadId == faulting:
+                continue
+            f.seek(t.ThreadContext.Rva)
+            ctx = f.read(t.ThreadContext.DataSize)
+            if len(ctx) < 0x78 + 17 * 8:
+                continue
+            regs = dict(zip(names, struct.unpack_from("<17Q", ctx, 0x78)))
+            lo, size = t.Stack.StartOfMemoryRange, t.Stack.MemoryLocation.DataSize
+            f.seek(t.Stack.MemoryLocation.Rva)
+            data = f.read(size)
+            print("thread %d: rip %s" % (t.ThreadId, where(regs["rip"])[0]))
+            shown = 0
+            start = max(regs["rsp"], lo)
+            for a in range(start - start % 8, lo + size - 7, 8):
+                v = struct.unpack_from("<Q", data, a - lo)[0]
+                label, in_module = where(v)
+                if in_module:
+                    print("   ", hex(a), label)
+                    shown += 1
+                    if shown >= frames:
+                        break
 
 
 if __name__ == "__main__":
