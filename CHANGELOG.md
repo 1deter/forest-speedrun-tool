@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.278 - 2026-10-10
+
+- Paint (practice mode): hold Mouse 4 to paint lines where the crosshair points, like KSF paint - for lineups and routes. Hold Mouse 5 to erase, press X to undo the last stroke; a small crosshair shows while you paint.
+- Paint is saved with the selected spot. Colour, size and Clear all are in Settings -> Paint.
+- Keys can now be bound to the middle and side mouse buttons.
+
 ## v0.24.277 - 2026-10-10
 
 - ForestOverlay now runs alongside ModAPI mods such as UltimateCheatmenu - the game no longer crashes at launch with both installed.
