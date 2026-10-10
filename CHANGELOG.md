@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.283 - 2026-10-11
+
+- No more stutter (about 25 ms) on the frame practice mode is switched on, or on the first timed tick after a load.
+
 ## v0.24.282 - 2026-10-10
 
 - A Quick load now warms you up the way a Full load does: body temperature, the cold and the frost on the screen go back to normal (a cold place makes you cold again).
