@@ -229,6 +229,7 @@ namespace ForestOverlay.Modules
             _community = Host.Find<CommunityModule>();
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
+            _runs = Host.Find<PracticeRunModule>();   // the start strip (T-0256)
             _areas = new AreaKeeper(ctx.Log);
             _attempts = new AttemptStore(ctx.Log, ctx.ConfigDirectory);
             _showPreviewCfg = ctx.Config.Bind("Practice", "ShowZones", true,
@@ -258,7 +259,7 @@ namespace ForestOverlay.Modules
         public override void RegisterHotkeys(HotkeyMap map)
         {
             map.Add("practice.saveSpot", KeyCode.F6, "Save spot here", QuickSaveSpot);
-            map.Add("practice.goToSpot", KeyCode.F7, "Restart current spot (restores its start state)", ReturnToSpot);
+            map.Add("practice.goToSpot", KeyCode.F7, "Restart the selected spot (restores its start state)", RestartTarget);
             map.Add("tab.practice", KeyCode.None, "Open Practice tab", OpenMyTab);
         }
 
@@ -475,10 +476,17 @@ namespace ForestOverlay.Modules
         /// place, or with a load per the segment), then the teleport runs as
         /// before - it sets the view angles and the cave state, and fires
         /// OnPlacedAtSpot for the run module once the world is final.
-        private void Restart(Segment s) { Restart(s, null); }
+        private void Restart(Segment s) { Restart(s, null, RestartFrom.Editor); }
+
+        /// Who asked for a restart: a runner's (the editor's buttons, the
+        /// start strip, F7 / the Runs tab / the bridge) turns practice mode
+        /// on for a timed segment (T-0256); a death's or the auto-restart's
+        /// never does. Its messages go where the click was.
+        private enum RestartFrom { Auto, Editor, Strip, Key }
+        private RestartFrom _restartFrom;
 
         /// `cause` null = a plain restart (F7 / the buttons); the auto-restart names itself.
-        private void Restart(Segment s, string cause)
+        private void Restart(Segment s, string cause, RestartFrom from)
         {
             if (s == null || !s.HasSpawn) { _status = "That entry has no spawn point."; return; }
             // A run spot's Restart starts (or resets) a run - the one Restart
@@ -497,11 +505,12 @@ namespace ForestOverlay.Modules
             {
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
 
+                string turnedOn = TurnPracticeOnFor(s, runStart, from);
                 _current = s;
                 PlaceCause.Set(cause ?? "start-state restore");
                 if (OnRestartStarting != null) OnRestartStarting();
                 if (runStart) _runMode.SpotRunStarting(s);
-                StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
+                RestartStatus(turnedOn + (runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load..."));
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
                 _savestates.RestoreStartState(s, runStart, delegate(string error)
@@ -519,16 +528,42 @@ namespace ForestOverlay.Modules
                     // closed (F7, a death): the log alone went unseen.
                     Ctx.Log.LogWarning("Start state of '" + s.Id + "' not restored: " + error);
                     string msg = "Start state not restored - " + error + ". Teleported only.";
-                    _status = "";   // said once, under the Start state buttons
-                    StartStatus(msg);
+                    _status = "";   // said once, under the button clicked
+                    RestartStatus(msg);
                     if (!Host.AnyPanelOpen()) Ctx.Notice.Show(msg, 7f);
                 });
                 return;
             }
 
             if (_savestates != null) Ctx.Log.LogInfo("Restart '" + s.Id + "': no start state - teleport only.");
+            string on = TurnPracticeOnFor(s, false, from);
             PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
+            if (on.Length > 0) RestartStatus(on.TrimEnd());
+        }
+
+        /// A runner's Restart on a timed segment with practice mode off turns
+        /// it on (author, 2026-10-10, T-0256: starting a segment should not
+        /// need a trip to the Runs tab). "" when nothing changed, else the
+        /// words that go before the restart's own message. With the window
+        /// closed (F7) it is said on screen as well.
+        private string TurnPracticeOnFor(Segment s, bool runStart, RestartFrom from)
+        {
+            _restartFrom = from;
+            if (from == RestartFrom.Auto || _runs == null) return "";
+            if (!StartStrip.TurnsPracticeOn(s.IsTimed, runStart, _runs.Enabled)) return "";
+            _runs.TurnOnForRestart(s);
+            if (!Host.AnyPanelOpen()) Ctx.Notice.Show("Practice mode turned on - '" + s.Name + "' is timed.", 5f);
+            return "Practice mode turned on. ";
+        }
+
+        /// What a restart says, under the control that started it: the
+        /// start strip's own line, else the editor's Start state line (as
+        /// before - F7 and the Runs tab's Restart wrote there too).
+        private void RestartStatus(string text)
+        {
+            if (_restartFrom == RestartFrom.Strip) _stripStatus.text = text ?? "";
+            else StartStatus(text);
         }
 
         /// Go: a teleport and nothing else, start state or not (author,
@@ -593,6 +628,7 @@ namespace ForestOverlay.Modules
             Ctx.Practice.Mark("teleport: " + s.Name);
 
             _current = s;
+            _selectedAtPlace = _selected;
             _status = "-> " + s.Name + (cave.Length > 0 ? " (" + cave + ")" : "");
 
             // Logged too: the status line is easy to miss, and the log is
@@ -609,8 +645,32 @@ namespace ForestOverlay.Modules
         public void ReturnToSpot(string cause)
         {
             if (_current == null) { _status = "No entry selected."; return; }
-            Restart(_current, cause);
+            Restart(_current, cause, RestartFrom.Auto);
         }
+
+        /// F7 and the Runs tab's Restart (author, 2026-10-10, T-0256): the
+        /// spot selected in the list when the selection changed since the
+        /// last placement, else the current spot - so a Go to a row, then
+        /// F7, still restarts where the Go went.
+        public void RestartTarget()
+        {
+            Segment s = TargetSpot;
+            if (s == null) { _status = "No entry selected."; return; }
+            Restart(s, null, RestartFrom.Key);
+        }
+
+        /// What F7 restarts now (see RestartTarget).
+        public Segment TargetSpot
+        {
+            get
+            {
+                if (_selected != null && _selected.HasSpawn && !ReferenceEquals(_selected, _selectedAtPlace)) return _selected;
+                return _current;
+            }
+        }
+
+        // _selected when the player was last placed at a spot.
+        private Segment _selectedAtPlace;
 
         /// A death's "Revive at the current spot" (Deaths tab): Go to the
         /// current spot, its start state left alone.
@@ -638,7 +698,8 @@ namespace ForestOverlay.Modules
             return _refusedByRun;   // run mode's refusal, not ok
         }
 
-        /// `id` null: the current spot, as F7.
+        /// `id` null: the current spot (F7 follows the list's selection,
+        /// which the bridge does not drive). A runner's restart all the same.
         public string BridgeRestart(string id)
         {
             Segment s = id == null ? _current : _library.ById(id);
@@ -646,7 +707,7 @@ namespace ForestOverlay.Modules
             if (!s.HasSpawn) return "'" + s.Id + "' has no spawn point";
             if (_savestates != null && _savestates.Busy) return "a savestate action is still running";
             _refusedByRun = null;
-            Restart(s);
+            Restart(s, null, RestartFrom.Key);
             return _refusedByRun;   // run mode's refusal, not ok
         }
 
@@ -725,43 +786,135 @@ namespace ForestOverlay.Modules
 
             float w = _tabW;
 
+            // The front door: start the selected spot from here (T-0256).
+            float t = DrawStartStrip(w);
+
             // --- toolbar ---------------------------------------------------
-            if (GUI.Button(new Rect(0, 0, 70, 24), "New")) CreateNew();
+            if (GUI.Button(new Rect(0, t, 70, 24), "New")) CreateNew();
 
             GUI.enabled = _selected != null;
-            if (GUI.Button(new Rect(74, 0, 80, 24), "Duplicate")) Duplicate();
+            if (GUI.Button(new Rect(74, t, 80, 24), "Duplicate")) Duplicate();
             GUI.enabled = _selected != null && !SegmentLibrary.IsCommunity(_selected);
-            if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
+            if (GUI.Button(new Rect(158, t, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
-            if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
+            if (GUI.Toggle(new Rect(232, t, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
             GUI.enabled = _unsaved.Count > 0;
-            if (GUI.Button(new Rect(w - 160, 0, 70, 24), _saveLabel)) Save();
+            if (GUI.Button(new Rect(w - 160, t, 70, 24), _saveLabel)) Save();
             GUI.enabled = true;
-            if (GUI.Button(new Rect(w - 86, 0, 86, 24), "Reload")) Reload();
+            if (GUI.Button(new Rect(w - 86, t, 86, 24), "Reload")) Reload();
 
             // --- filter ----------------------------------------------------
-            GUI.Label(new Rect(0, 30, 36, 20), "Find");
-            string filter = GUI.TextField(new Rect(38, 28, ListWidth - 80, 22), _filter);
+            GUI.Label(new Rect(0, t + 30, 36, 20), "Find");
+            string filter = GUI.TextField(new Rect(38, t + 28, ListWidth - 80, 22), _filter);
             if (filter != _filter) { _filter = filter; RebuildVisible(); }
-            if (GUI.Button(new Rect(ListWidth - 38, 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
+            if (GUI.Button(new Rect(ListWidth - 38, t + 28, 38, 22), "x")) { _filter = ""; RebuildVisible(); }
 
             // Which zones are drawn (all / next only during a run / off).
             float zx = ListWidth + 14;
-            GUI.Label(new Rect(zx, 30, 46, 20), "Zones");
+            GUI.Label(new Rect(zx, t + 30, 46, 20), "Zones");
             ZoneMode mode = _zoneMode;
-            if (GUI.Toggle(new Rect(zx + 48, 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
-            if (GUI.Toggle(new Rect(zx + 96, 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
-            if (GUI.Toggle(new Rect(zx + 234, 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
+            if (GUI.Toggle(new Rect(zx + 48, t + 30, 46, 20), mode == ZoneMode.All, " all")) mode = ZoneMode.All;
+            if (GUI.Toggle(new Rect(zx + 96, t + 30, 136, 20), mode == ZoneMode.NextOnly, " next only (in a run)")) mode = ZoneMode.NextOnly;
+            if (GUI.Toggle(new Rect(zx + 234, t + 30, 46, 20), mode == ZoneMode.Off, " off")) mode = ZoneMode.Off;
             if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
 
             // Over the spot panel it is about, wrapped to that panel and as
             // tall as it needs (UiText); the editor starts below it.
             // Start-state messages sit under their own buttons.
-            float statusH = Mathf.Max(22f, UiText.Draw(ListWidth + 14, 54, w - ListWidth - 14, _status));
+            float statusH = Mathf.Max(22f, UiText.Draw(ListWidth + 14, t + 54, w - ListWidth - 14, _status));
 
-            DrawList(new Rect(0, 56, ListWidth, _tabH - 60));
-            DrawEditor(new Rect(ListWidth + 14, 56 + statusH, w - ListWidth - 14, _tabH - 60 - statusH));
+            DrawList(new Rect(0, t + 56, ListWidth, _tabH - t - 60));
+            DrawEditor(new Rect(ListWidth + 14, t + 56 + statusH, w - ListWidth - 14, _tabH - t - 60 - statusH));
+        }
+
+        // --- the start strip (T-0256) --------------------------------------
+        // Pinned on top for the selected spot: Restart, a copy of the Runs
+        // tab's Practice mode toggle (decisions.md: "a copy of the control
+        // under each") and the spot's run state, so a timed segment starts
+        // here in two clicks (select, Restart) with its state in view.
+        private PracticeRunModule _runs;
+        private readonly GUIContent _stripText = new GUIContent("");
+        private readonly GUIContent _stripStatus = new GUIContent("");
+        private float _stripH = 34f;
+        private float _stripNextCheck;
+        private Segment _stripFor;
+        private string _stripName;
+        private string _stripRunCategory;
+        private bool _stripSpawn, _stripTimed, _stripHasState, _stripPractice;
+        private RunRecorder.RunState _stripState;
+        private static readonly GUIContent TextStripRestart = new GUIContent("Restart");
+        private static readonly GUIContent TipStripRestart = new GUIContent(
+            "Restore the selected spot's start state and go there (F7). On a timed segment it arms the run, turning practice mode on if it is off.");
+        private static readonly GUIContent TipStripPractice = new GUIContent(
+            "Practice mode (F9) - the same switch as on the Runs tab: it times the segments and makes the overlay's tools usable.");
+
+        /// Draws the strip; returns where the rest of the tab starts.
+        private float DrawStartStrip(float w)
+        {
+            RefreshStripText();
+            float h = _stripH;
+            GUI.Box(new Rect(0, 0, w, h), GUIContent.none, UiKit.Card);
+
+            Segment s = _selected;
+            Rect r = new Rect(6, 5, 96, 24);
+            GUI.enabled = s != null && s.HasSpawn && (_savestates == null || !_savestates.Busy);
+            if (UiKit.PrimaryButton(r, TextStripRestart)) Restart(s, null, RestartFrom.Strip);
+            GUI.enabled = true;
+            UiKit.Hint(r, TipStripRestart);
+
+            float right = 6f;
+            if (_runs != null)
+            {
+                Rect m = new Rect(w - 136, 6, 130, 22);
+                bool on = GUI.Toggle(m, _runs.Enabled, " Practice mode");
+                if (on != _runs.Enabled) _runs.TogglePracticeMode();
+                UiKit.Hint(m, TipStripPractice);
+                right = 142f;
+            }
+
+            const float tx = 110f;
+            float y = 8f + UiText.Draw(tx, 8, w - tx - right, _stripText);
+            if (_stripStatus.text.Length > 0) y += UiText.Draw(tx, y, w - tx - 6, _stripStatus);
+            _stripH = Mathf.Max(34f, y + 4f);
+            return h + 6f;
+        }
+
+        /// The strip's line, rebuilt only when what it says changes (no
+        /// string per frame); the start-state file is looked at twice a second.
+        private void RefreshStripText()
+        {
+            Segment s = _selected;
+            bool changed = !ReferenceEquals(s, _stripFor);
+            if (changed)
+            {
+                _stripFor = s;
+                _stripStatus.text = "";   // never describes another spot
+                _stripNextCheck = 0f;
+            }
+
+            if (Time.unscaledTime >= _stripNextCheck)
+            {
+                _stripNextCheck = Time.unscaledTime + 0.5f;
+                bool has = s != null && _savestates != null && _runMode != null && s.RunCategory.Length > 0 && _savestates.HasStartState(s);
+                if (has != _stripHasState) { _stripHasState = has; changed = true; }
+            }
+
+            bool practice = _runs != null && _runs.Enabled;
+            RunRecorder.RunState state = _runs != null ? _runs.StateFor(s) : RunRecorder.RunState.Idle;
+            if (s != null && (!ReferenceEquals(s.Name, _stripName) || !ReferenceEquals(s.RunCategory, _stripRunCategory) ||
+                              s.HasSpawn != _stripSpawn || s.IsTimed != _stripTimed))
+                changed = true;
+            if (practice != _stripPractice || state != _stripState) changed = true;
+            if (!changed) return;
+
+            _stripName = s != null ? s.Name : null;
+            _stripRunCategory = s != null ? s.RunCategory : null;
+            _stripSpawn = s != null && s.HasSpawn;
+            _stripTimed = s != null && s.IsTimed;
+            _stripPractice = practice;
+            _stripState = state;
+            _stripText.text = StartStrip.Text(_stripName, _stripSpawn, _stripTimed, _stripRunCategory, _stripHasState, practice, state);
         }
 
         private void EnsureStyles()

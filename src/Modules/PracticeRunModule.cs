@@ -323,6 +323,31 @@ namespace ForestOverlay.Modules
             OnPlacedAtSpot();
         }
 
+        /// The Practice tab's copy of the toggle (its start strip, T-0256).
+        public void TogglePracticeMode() { ToggleMode(); }
+
+        /// A runner's Restart on a timed segment with practice mode off
+        /// (Modules/PracticeModule, T-0256): on, without arming here - the
+        /// restart's placement arms it at the spot. Never reached in run
+        /// mode (its Restart of a plain spot is refused, a run spot is run
+        /// mode's to time - Data/RunTiming).
+        public void TurnOnForRestart(Segment s)
+        {
+            if (Enabled) return;
+            Enabled = true;
+            if (_practiceModeCfg != null && !_practiceModeCfg.Value) _practiceModeCfg.Value = true;
+            _status = "practice mode turned on by Restart - '" + s.Name + "' is timed";
+            Ctx.Log.LogInfo("Run '" + s.Id + "': practice mode turned on by Restart.");
+        }
+
+        /// The run's state for this spot, Idle when the armed run is
+        /// another spot's or nothing times it (the start strip).
+        public RunRecorder.RunState StateFor(Segment s)
+        {
+            if (s == null || !ReferenceEquals(s, _segment) || !Timing) return RunRecorder.RunState.Idle;
+            return _recorder.State;
+        }
+
         /// Called when the player is placed at the current entry.
         private void OnPlacedAtSpot()
         {
@@ -1278,7 +1303,7 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent SummaryOn = new GUIContent("on");
         private static readonly GUIContent SummaryOff = new GUIContent("off");
         private static readonly GUIContent TipPracticeMode = new GUIContent("Practice mode makes the overlay's tools usable; the HUD says PRACTICE once one is used.");
-        private static readonly GUIContent TipRestart = new GUIContent("Back to the current spot with its start state (F7).");
+        private static readonly GUIContent TipRestart = new GUIContent("Back to the spot selected in Practice, with its start state (F7). On a timed segment it arms the run, turning practice mode on.");
         private static readonly GUIContent TipSplit = new GUIContent("Split by hand, or finish the run (F12).");
         private static readonly GUIContent TipAbort = new GUIContent("Throw the run away without saving a time ([).");
         private static readonly GUIContent TipCompare = new GUIContent("What the delta, the ghost and the lines compare against.");
@@ -1433,7 +1458,7 @@ namespace ForestOverlay.Modules
         private void Restart()
         {
             if (_practice == null) { _status = "no practice module"; return; }
-            _practice.ReturnToSpot();
+            _practice.RestartTarget();   // as F7: the selected spot (T-0256)
         }
 
         private void ClearTimes()

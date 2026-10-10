@@ -39,6 +39,7 @@
     <Compile Include="../../src/Data/RunHistory.cs" Link="Linked/RunHistory.cs" />
     <Compile Include="../../src/Data/RunResults.cs" Link="Linked/RunResults.cs" />
     <Compile Include="../../src/Data/RunTiming.cs" Link="Linked/RunTiming.cs" />
+    <Compile Include="../../src/Data/StartStrip.cs" Link="Linked/StartStrip.cs" />
     <Compile Include="../../src/Data/RunReport.cs" Link="Linked/RunReport.cs" />
     <Compile Include="../../src/Data/RunCategory.cs" Link="Linked/RunCategory.cs" />
     <Compile Include="../../src/Data/Segments.cs" Link="Linked/Segments.cs" />

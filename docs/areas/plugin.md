@@ -96,7 +96,7 @@ Settings shows *Game input: blocked* when that is working.
 | `F2` | Open the ForestOverlay window |
 | `F5` | Show / hide **all** overlay UI |
 | `F6` | Save spot here |
-| `F7` | Restart the current spot (restores its start state, if it has one) |
+| `F7` | Restart the selected spot (restores its start state, if it has one; a timed segment turns practice mode on) |
 | `F9` | Practice mode on / off |
 | `F10` | Type explorer |
 | `F11` | Write dumps |

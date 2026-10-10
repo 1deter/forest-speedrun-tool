@@ -8,13 +8,24 @@ concept before changing its feature. Where the code lives:
 
 - **Spots and segments are one thing.** Every Practice entry is somewhere to
   teleport; tick "Timed segment" and it gains start/end triggers and
-  checkpoints. There is no separate "anchor". **F7 restarts the *current*
-  spot** (the last one teleported to or captured on), not the editor's
-  selection.
+  checkpoints. There is no separate "anchor". **F7 and the Runs tab's
+  Restart follow the selection** (author, 2026-10-10, T-0256): the spot
+  selected in the list when it was selected after the last placement,
+  else the *current* spot (the last one teleported to, restarted or
+  captured on) - so Go on a row, then F7, still restarts there. A death's
+  restart and the auto-restart stay on the current spot.
 - **One button, one job** (author, v0.22.0: "buttons shouldn't have
   double-purposes"). **Go only teleports**, start state or not. Restoring
-  is **Restart**: F7, the Runs tab's Restart, a death revive, and the
-  *Restart* button on the editor's Start state row.
+  is **Restart**: F7, the Runs tab's Restart, a death revive, the
+  *Restart* button on the editor's Start state row and the Practice tab's
+  **start strip** (T-0256: pinned on top for the selected spot, with a
+  copy of the Practice mode toggle and the spot's run state).
+- **A runner's Restart on a timed segment turns practice mode on**
+  (author, 2026-10-10, T-0256) and says so under the button (on screen
+  with the window closed; log `Run '<id>': practice mode turned on by
+  Restart.`): a timed segment starts in two clicks, select + Restart.
+  Go, a death's restart and the auto-restart never turn it on; a run
+  spot's Restart is run mode's to time (`Data/RunTiming`).
 - **TAS record / replay is inputs, not positions** (experimental, practice
   only). Record (Runs tab, or every timed run with `[TAS] RecordTimedRuns`)
   restarts the current spot and, from the frame after the player is placed
