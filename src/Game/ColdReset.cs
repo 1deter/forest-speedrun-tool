@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Game
@@ -28,9 +29,6 @@ namespace ForestOverlay.Game
         private const BindingFlags Stat = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         private const BindingFlags Inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-        // A new player's body temperature (PlayerStats' initializer).
-        private const float Normal = 37f;
-
         private static Type _local;
 
         public static string AsLoad()
@@ -43,7 +41,7 @@ namespace ForestOverlay.Game
                 object stats = sf != null ? sf.GetValue(null) : null;
                 if (stats == null || !(stats as UnityEngine.Object)) return "";
 
-                float temp = AsFloat(Get(stats, "BodyTemp"), Normal);
+                float temp = AsFloat(Get(stats, "BodyTemp"), ColdNote.Normal);
                 bool cold = Get(stats, "IsCold") is bool && (bool)Get(stats, "IsCold");
                 bool shiver = Get(stats, "coldSwitch") is bool && (bool)Get(stats, "coldSwitch");
                 float blend = AsFloat(Get(stats, "coldFloatBlend"), 0f);
@@ -53,7 +51,7 @@ namespace ForestOverlay.Game
                 float timer = settings != null ? AsFloat(Get(settings, "CurrentTimer"), 0f) : 0f;
                 bool defrost = settings != null && Get(settings, "DoDeFrost") is bool && (bool)Get(settings, "DoDeFrost");
 
-                if (temp == Normal && !cold && !shiver && blend == 0f && coverage == 0f && timer == 0f && !defrost) return "";
+                if (ColdNote.AtRest(temp, cold, shiver, blend, coverage, timer, defrost)) return "";
 
                 if (cold)
                 {
@@ -61,10 +59,9 @@ namespace ForestOverlay.Game
                     if (m != null) m.Invoke(stats, new object[] { false });
                     else Set(stats, "IsCold", false);
                 }
-                Set(stats, "BodyTemp", Normal);
+                Set(stats, "BodyTemp", ColdNote.Normal);
                 Set(stats, "coldSwitch", false);
                 Set(stats, "coldFloatBlend", 0f);
-                Set(stats, "ShouldDoWetColdRoll", false);
                 if (frost != null && (frost as UnityEngine.Object)) Set(frost, "coverage", 0f);
                 if (settings != null)
                 {
@@ -73,11 +70,7 @@ namespace ForestOverlay.Game
                     Set(settings, "TakingDamage", false);
                 }
 
-                string what = temp != Normal ? "body temperature " + temp.ToString("0.#") + " -> 37" : "";
-                if (cold) what += (what.Length > 0 ? ", " : "") + "cold off";
-                if (coverage > 0f) what += (what.Length > 0 ? ", " : "") + "frost " + coverage.ToString("0.00") + " -> 0";
-                if (what.Length == 0) what = "cold reset";
-                return what + " (as a load)";
+                return ColdNote.Line(temp, cold, shiver, blend, coverage, timer, defrost);
             }
             catch (Exception ex) { return "cold: failed (" + (ex.InnerException ?? ex).Message + ")"; }
         }

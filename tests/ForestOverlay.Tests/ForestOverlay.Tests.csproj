@@ -35,6 +35,7 @@
   <ItemGroup>
     <Compile Include="../../src/Data/RunRecorder.cs" Link="Linked/RunRecorder.cs" />
     <Compile Include="../../src/Data/ArmCause.cs" Link="Linked/ArmCause.cs" />
+    <Compile Include="../../src/Data/ColdNote.cs" Link="Linked/ColdNote.cs" />
     <Compile Include="../../src/Data/LoadTimes.cs" Link="Linked/LoadTimes.cs" />
     <Compile Include="../../src/Data/AttemptFormat.cs" Link="Linked/AttemptFormat.cs" />
     <Compile Include="../../src/Data/SplitTable.cs" Link="Linked/SplitTable.cs" />
