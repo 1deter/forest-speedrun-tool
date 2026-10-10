@@ -203,6 +203,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.280 (2026-10-10, T-0297, QA):** a comparison run's replay
+  lasts the run's time (`ReplayCamera.EndOf` had capped it at the last
+  position sample: 11.186 vs the site's 11.197); checker accepted. To
+  confirm (not its maker): forest-tester - the replay camera on a spot's
+  comparison run shows `/ <the run's time>` as the site lists it.
 - **v0.24.279 (2026-10-10, T-0279):** a surface Quick load cancels the
   `DelayedCleanUp` asset sweep its own streaming unload queued
   (`[Performance] RestoreSkipStreamingSweep`, on; game-notes
