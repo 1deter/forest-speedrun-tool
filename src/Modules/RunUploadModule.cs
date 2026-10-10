@@ -72,7 +72,6 @@ namespace ForestOverlay.Modules
             string root = Path.Combine(ctx.ConfigDirectory, "uploads");
             _pendingDir = Path.Combine(root, "pending");
             _refusedDir = Path.Combine(root, "refused");
-            _deletesFile = Path.Combine(root, "deletes.txt");
             _state = _enabled.Value ? "on" : "off";
             _nextTry = Time.unscaledTime + 8f;   // not in the startup rush
             InitAttempts(ctx.Config, root);
@@ -139,7 +138,6 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             TickAttempts();
-            TickDeletes();
             if (_busy || !_enabled.Value || _tokenBad || Time.unscaledTime < _nextTry) return;
             _nextTry = Time.unscaledTime + 5f;
             string next = Oldest();
@@ -438,85 +436,6 @@ namespace ForestOverlay.Modules
             report(text);
             Ctx.Log.LogInfo("Delete: '" + segment.Id + "' on " + baseUrl + " - " + (code == 0 ? error : "HTTP " + code) +
                             (dropped > 0 ? ", " + dropped + " queued file(s) dropped" : "") + ": " + text);
-        }
-
-        // --- a spot deleted in game goes off the site by itself ----------------------
-
-        private string _deletesFile;
-        private float _nextDelete;
-        private int _deleteFailures;
-        private Action<string> _deleteReport;   // the answer for the delete just made (one only)
-
-        /// Practice deleted `segment`: drop its queued uploads and, when
-        /// uploads are on and this install has a token, queue a DELETE of it
-        /// on the site (sent at once, retried while the site is out of
-        /// reach). Returns a line for the runner when nothing will be sent
-        /// or it waits; null when the answer comes through `report` (and
-        /// nothing at all when the site had nothing of it).
-        public string DeleteSpotQuietly(Segment segment, Action<string> report)
-        {
-            int dropped = DropPending(segment.Id);
-            if (!_enabled.Value || string.IsNullOrEmpty(_token.Value)) return null;
-            try
-            {
-                string text = File.Exists(_deletesFile) ? File.ReadAllText(_deletesFile) : "";
-                Directory.CreateDirectory(Path.GetDirectoryName(_deletesFile));
-                File.WriteAllText(_deletesFile, SiteProtocol.QueueAdd(text, segment.Id), new UTF8Encoding(false));
-            }
-            catch (Exception ex)
-            {
-                Ctx.Log.LogWarning("Delete: could not queue '" + segment.Id + "' for the website: " + ex.Message);
-                return null;
-            }
-            _deleteReport = report;
-            _nextDelete = 0f;
-            Ctx.Log.LogInfo("Delete: '" + segment.Id + "' queued to come off " + HostName() +
-                            (dropped > 0 ? " (" + dropped + " queued upload file(s) dropped)" : "") + ".");
-            return null;
-        }
-
-        private void TickDeletes()
-        {
-            if (_deleting || !_enabled.Value || _tokenBad || Time.unscaledTime < _nextDelete) return;
-            if (_deletesFile == null || !File.Exists(_deletesFile)) { _nextDelete = Time.unscaledTime + EmptyQueueRecheck; return; }
-            string id;
-            try { id = SiteProtocol.QueueFirst(File.ReadAllText(_deletesFile)); }
-            catch (Exception) { _nextDelete = Time.unscaledTime + EmptyQueueRecheck; return; }
-            if (id == null) { _nextDelete = Time.unscaledTime + EmptyQueueRecheck; return; }
-            _nextDelete = Time.unscaledTime + 5f;
-            _deleting = true;
-            Ctx.Runner.StartCoroutine(PumpDelete(id));
-        }
-
-        private IEnumerator PumpDelete(string id)
-        {
-            string baseUrl = SiteProtocol.TrimUrl(_url.Value);
-            long code = 0; string body = null, error = null;
-            yield return Ctx.Runner.StartCoroutine(WebRequest.Send("DELETE", SiteProtocol.DeleteSpotUrl(baseUrl, id), null,
-                null, _token.Value, RequestTimeout, delegate(long c, string b, string e) { code = c; body = b; error = e; }));
-            _deleting = false;
-            Action<string> report = _deleteReport;
-            _deleteReport = null;
-            if (code == 401) _tokenBad = true;
-            if (SiteProtocol.DeleteSettled(code))
-            {
-                _deleteFailures = 0;
-                try { File.WriteAllText(_deletesFile, SiteProtocol.QueueRemove(File.ReadAllText(_deletesFile), id), new UTF8Encoding(false)); }
-                catch (Exception ex) { Ctx.Log.LogWarning("Delete: could not update the queue: " + ex.Message); }
-                _nextDelete = 0f;
-                bool quiet = SiteProtocol.DeleteQuiet(code, body);
-                Ctx.Log.LogInfo("Delete: '" + id + "' on " + baseUrl + " - HTTP " + code + (quiet ? " (nothing on the site)" : "") + ".");
-                if (!quiet && report != null) report(SiteProtocol.DeleteSpotMessage(code, body, error));
-                yield break;
-            }
-            _deleteFailures++;
-            float wait = Math.Min(300f, 10f * (1 << Math.Min(_deleteFailures, 5)));
-            _nextDelete = Time.unscaledTime + wait;
-            Ctx.Log.LogWarning("Delete: '" + id + "' not sent (" + (code == 0 ? error ?? "no answer" : "HTTP " + code) +
-                               "); queued, retrying in " + (int)wait + " s.");
-            if (report != null && _deleteFailures == 1)
-                report("The website could not be reached (" + (code == 0 ? error ?? "no answer" : "HTTP " + code) +
-                       ") - the spot comes off it by itself once it can.");
         }
 
         /// Deletes the queued upload files of one segment; how many.

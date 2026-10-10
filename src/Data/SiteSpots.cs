@@ -17,14 +17,20 @@ namespace ForestOverlay.Data
     //
     //   forest-spots 1
     //   spot|<id>|<runs>|<best s or ->|<by>|<name>
+    //   owner|<id>|<runner id>
     //
     // The name is last so a '|' in it survives; an id with a '|' is skipped.
+    // The owner line (T-0265) names the runner who first uploaded on the
+    // spot (the one whose token can change or delete it); plugins before it
+    // skip the line. Runner ids are public already (the board's lines).
     // ------------------------------------------------------------------
     public sealed class SiteSpot
     {
         public string Id = "";
         public string Name = "";
         public string By = "";
+        /// The owner's runner id; "" when the site did not say.
+        public string Owner = "";
         public int Runs;
         public float Best = float.NaN;
     }
@@ -34,6 +40,8 @@ namespace ForestOverlay.Data
         public const string Header = "forest-spots 1";
         public const string Category = "Website";
         public const string SegmentFile = "website.txt";
+        /// What the site keeps of a spot's name and category (Runs.Upload).
+        public const int MaxName = 80, MaxCategory = 40;
 
         public static string ListUrl(string baseUrl)
         {
@@ -55,6 +63,8 @@ namespace ForestOverlay.Data
                 sb.Append("spot|").Append(Clean(s.Id)).Append('|').Append(s.Runs.ToString(CultureInfo.InvariantCulture))
                   .Append('|').Append(float.IsNaN(s.Best) || float.IsInfinity(s.Best) ? "-" : s.Best.ToString("0.###", CultureInfo.InvariantCulture))
                   .Append('|').Append(Clean(s.By).Replace('|', ' ')).Append('|').Append(Clean(s.Name)).Append('\n');
+                if (!string.IsNullOrEmpty(s.Owner) && s.Owner.IndexOf('|') < 0)
+                    sb.Append("owner|").Append(Clean(s.Id)).Append('|').Append(Clean(s.Owner)).Append('\n');
             }
             return sb.ToString();
         }
@@ -70,6 +80,14 @@ namespace ForestOverlay.Data
             List<SiteSpot> list = new List<SiteSpot>();
             for (int i = 1; i < lines.Length; i++)
             {
+                if (lines[i].StartsWith("owner|"))
+                {
+                    string[] o = lines[i].Split('|');
+                    if (o.Length >= 3)
+                        for (int j = list.Count - 1; j >= 0; j--)
+                            if (list[j].Id == o[1]) { list[j].Owner = o[2].Trim(); break; }
+                    continue;
+                }
                 if (!lines[i].StartsWith("spot|")) continue;
                 string[] p = lines[i].Split('|');
                 if (p.Length < 6 || p[1].Length == 0) continue;
@@ -83,6 +101,47 @@ namespace ForestOverlay.Data
                 list.Add(s);
             }
             return list;
+        }
+
+        /// The site's spot is this runner's own: they first uploaded on it,
+        /// so their token's uploads change it (T-0265).
+        public static bool IsOwner(SiteSpot spot, string runnerId)
+        {
+            return spot != null && !string.IsNullOrEmpty(spot.Owner) && !string.IsNullOrEmpty(runnerId) &&
+                   string.Equals(spot.Owner, runnerId, StringComparison.Ordinal);
+        }
+
+        /// The website's copy of a spot says the same as the runner's own
+        /// (T-0218): the segment as the site keeps it - name and category
+        /// clipped, trimmed - with the start state hash left out, since the
+        /// runner's own start state is kept when they take the site's copy.
+        public static bool SameAsOwn(Segment site, Segment own)
+        {
+            if (site == null || own == null) return false;
+            return SegmentText(site) == SegmentText(own);
+        }
+
+        private static string SegmentText(Segment s)
+        {
+            StringBuilder sb = new StringBuilder();
+            SegmentFormat.WriteSegment(sb, s, "\n");
+            string[] lines = sb.ToString().Split('\n');
+            StringBuilder o = new StringBuilder();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string l = lines[i];
+                if (l.StartsWith("startstate =")) continue;
+                if (l.StartsWith("name     = ")) l = "name     = " + Clip(s.Name, MaxName);
+                else if (l.StartsWith("category = ")) l = "category = " + Clip(s.Category, MaxCategory);
+                o.Append(l).Append('\n');
+            }
+            return o.ToString();
+        }
+
+        private static string Clip(string s, int n)
+        {
+            s = (s ?? "").Trim();
+            return s.Length > n ? s.Substring(0, n) : s;
         }
 
         /// The website segment file's text: every segment under the Website

@@ -1758,6 +1758,42 @@ namespace ForestOverlay.Modules
             return ids;
         }
 
+        /// The runner's own (not community) entry with this id, or null.
+        public Segment OwnById(string id)
+        {
+            for (int i = 0; i < _library.All.Count; i++)
+            {
+                Segment s = _library.All[i];
+                if (!SegmentLibrary.IsCommunity(s) && string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase)) return s;
+            }
+            return null;
+        }
+
+        /// The runner's own spot from the website (T-0265 / T-0218): into
+        /// their own list under its id - editable; their uploads on it
+        /// change the site's copy - replacing their entry with that id when
+        /// there is one (in its file; its attempts stay, they go by the id).
+        /// Written at once and selected; an error text, or null.
+        public string TakeOwnFromWebsite(Segment incoming)
+        {
+            Segment mine = OwnById(incoming.Id);
+            string file = mine != null && !string.IsNullOrEmpty(mine.SourceFile) ? mine.SourceFile : SegmentLibrary.UserFileName;
+            if (mine != null)
+            {
+                if (ReferenceEquals(_current, mine)) _current = null;
+                if (ReferenceEquals(_selected, mine)) _selected = null;
+                if (ReferenceEquals(_shareFor, mine)) _shareFor = null;
+                _library.Remove(mine);
+                _unsaved.Remove(mine);
+            }
+            incoming.SourceFile = file;
+            _library.Add(incoming);
+            bool saved = WriteFile(file);
+            _selected = incoming;
+            RebuildVisible();
+            return saved ? null : "writing " + file + " failed - see the log";
+        }
+
         /// A community update rewrote community.txt: reload only that file
         /// and re-point what referred to its old objects (see Reload).
         public void ReloadCommunity()
@@ -1843,17 +1879,13 @@ namespace ForestOverlay.Modules
 
             // Written straight through: a delete that only existed in memory
             // would reappear on reload and look like a bug.
-            _status = WriteFile(file) ? "Deleted." : "Deleted here, but writing the file failed - see log.";
-
-            // Off the website too (the runner's own spot; quiet when it is not there).
-            if (_upload != null && !SegmentLibrary.IsCommunity(gone) && !string.IsNullOrEmpty(gone.Id))
-            {
-                string site = _upload.DeleteSpotQuietly(gone, delegate(string text)
-                {
-                    if (_selected == null) _status = "Deleted. " + text;
-                });
-                if (site != null) _status += " " + site;
-            }
+            bool written = WriteFile(file);
+            _status = written ? "Deleted." : "Deleted here, but writing the file failed - see log.";
+            // Here only (author, 2026-10-09, T-0265): the website copy stays
+            // until Share -> Delete from the website; the owner can add it
+            // back from Import -> Website spots.
+            Ctx.Log.LogInfo("Practice: deleted '" + gone.Id + "' here" + (written ? "" : " (the file was not written)") +
+                            "; any website copy stays.");
         }
 
         /// Writes every unsaved entry. One that cannot be saved is selected
@@ -2562,7 +2594,8 @@ namespace ForestOverlay.Modules
                 y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
 
                 // Runners' spots on the website: the list on a click, one
-                // click adds one (read-only, "Website").
+                // click adds one (read-only, "Website"; the runner's own
+                // into their own list).
                 GUI.enabled = !_community.WebBusy;
                 if (GUI.Button(new Rect(0, y + 2, 160, 22), "Website spots")) _community.WebRefresh();
                 GUI.enabled = true;
@@ -2589,10 +2622,17 @@ namespace ForestOverlay.Modules
                 {
                     CommunityModule.WebEntry we = _community.WebSpots[i];
                     GUI.enabled = !_community.WebBusy;
-                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Added ? "Update" : "Add")) { _community.WebAdd(we); break; }
+                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Armed ? "Replace?" : we.Added || we.Mine ? "Update" : "Add"))
+                    {
+                        _community.WebAdd(we);
+                        GUI.enabled = true;
+                        break;
+                    }
                     if (we.Added && GUI.Button(new Rect(78f, ry, 66f, 22f), "Remove")) { _community.WebRemove(we); GUI.enabled = true; break; }
                     GUI.enabled = true;
                     ry += Mathf.Max(24f, UiText.Draw(150f, ry + 2f, content.width - 154f, we.Label) + 4f) + 4f;
+                    // The answer to a click on this row, under it.
+                    if (we.Message.text.Length > 0) ry += UiText.Draw(4f, ry, content.width - 8f, we.Message) + 4f;
                 }
             }
             for (int i = 0; i < _imports.Count; i++)
