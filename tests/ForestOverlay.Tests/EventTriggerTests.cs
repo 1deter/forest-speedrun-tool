@@ -81,12 +81,15 @@ namespace ForestOverlay.Tests
         [Fact]
         public void TheMigratedStartRetiresOldTimes()
         {
-            Segment before = new Segment(), after = new Segment();
-            TriggerParser.Parse("event first-input", out before.Start);
-            after.Start = Event("moving");
-            TriggerParser.Parse("zone 0 0 0 5", out before.End);
-            TriggerParser.Parse("zone 0 0 0 5", out after.End);
-            Assert.NotEqual(after.RouteFingerprint(), before.RouteFingerprint());
+            // Old attempts carry the fingerprint of the `moving` text they
+            // were timed under; the same route read today has another one.
+            Segment old = new Segment(), read = new Segment();
+            old.Start = Event("moving");                          // as it was before T-0282
+            TriggerParser.Parse("event moving", out read.Start);  // the same file, read now
+            TriggerParser.Parse("zone 0 0 0 5", out old.End);
+            TriggerParser.Parse("zone 0 0 0 5", out read.End);
+            Assert.Equal("first-input", read.Start.EventName);
+            Assert.NotEqual(old.RouteFingerprint(), read.RouteFingerprint());
         }
     }
 }

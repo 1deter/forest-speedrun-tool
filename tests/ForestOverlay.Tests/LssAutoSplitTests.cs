@@ -218,9 +218,9 @@ namespace ForestOverlay.Tests
             TriggerState st = new TriggerState();
             Assert.False(TriggerEvaluator.Crossed(s.Start, ref st, Vector3.zero, null, null, null));
             Assert.True(TriggerEvaluator.Crossed(s.Start, ref st, Vector3.zero, null, "FIRST-INPUT", null));
-            Assert.False(TriggerEvaluator.EventMatches("hold-interact|moving", "hold"));
-            Assert.False(TriggerEvaluator.EventMatches("hold-interact|moving", "moving|"));
-            Assert.True(TriggerEvaluator.EventMatches("hold-interact | moving", "hold-interact"));
+            Assert.False(TriggerEvaluator.EventMatches("hold-interact|first-input", "hold"));
+            Assert.False(TriggerEvaluator.EventMatches("hold-interact|first-input", "first-input|"));
+            Assert.True(TriggerEvaluator.EventMatches("hold-interact | first-input", "hold-interact"));
         }
 
         [Fact]

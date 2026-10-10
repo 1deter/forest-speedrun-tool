@@ -1154,7 +1154,8 @@ namespace ForestOverlay.Modules
                         if (GUI.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
 
                         string name = GUI.TextField(new Rect(x0 + 58f, y - 2f, w - x0 - 64f, 22f), t.EventName ?? "");
-                        if (name != t.EventName) { t.EventName = name; Touch(); }
+                        // A typed `moving` is the first input now, as a stored one is (T-0282).
+                        if (name != t.EventName) { t.EventName = TriggerParser.MigrateEventName(name); Touch(); }
                         y += 24f;
 
                         y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
@@ -1205,7 +1206,7 @@ namespace ForestOverlay.Modules
             bool complete = true;
             switch (g)
             {
-                case 1: list = new[] { WorldEvents.FirstInput, WorldEvents.HoldInteract }; break;
+                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.FirstInput }; break;
                 case GroupCaves: list = WorldEvents.CaveEvents(); break;
                 case GroupClothing: list = WorldEvents.ClothingEvents(); complete = list.Length > 0; break;
                 case GroupPassengers: list = WorldEvents.PassengerEvents(); break;
@@ -2360,7 +2361,7 @@ namespace ForestOverlay.Modules
             string[] splits = e.Asl.SplitEvents();
             string start = starts.Length == 0 ? "starts by hand (F12)"
                          : starts.Length == 2 ? "starts on a hold-to-interact or on your first input"
-                         : starts[0] == LssAutoSplit.FirstInput ? "starts on your first input (its velocity start)" : "starts on a hold-to-interact (the plane meal)";
+                         : starts[0] == LssAutoSplit.FirstInput ? "starts on your first input (instead of LiveSplit's velocity start)" : "starts on a hold-to-interact (the plane meal)";
             string split = splits.Length == 0 ? "splits by hand (F12)"
                          : "splits on the next of " + splits.Length + " autosplitter setting" + (splits.Length == 1 ? "" : "s");
             return "Autosplitter" + (e.AslFrom != null ? " (from the layout " + e.AslFrom + ")" : "") + ": " + start + ", " + split + ".";

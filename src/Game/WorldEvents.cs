@@ -574,7 +574,7 @@ namespace ForestOverlay.Game
 
             if (e == "autosplit") return "The next autosplit: whichever event in the segment's Autosplit list comes next (a LiveSplit import)";
             if (e == HoldInteract) return "Hold-to-interact pressed (the autosplitter's plane meal start)";
-            if (e == FirstInput) return "First input - any button or movement after a moment idle, not the camera or Esc (the rules' \"takes control\"; replaces the autosplitter's velocity start)";
+            if (e == FirstInput) return "First input - any key, button or movement, not the camera or Esc (the rules' \"takes control\")";   // author 2026-10-10
             if (e == RopeGrab) return "Grabbed a cave rope";
             if (e == RopeLeave) return "Let go of a cave rope";
             return BusEvents.LabelFor(e);
