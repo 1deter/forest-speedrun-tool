@@ -993,15 +993,47 @@ public sealed class ApiTests : IDisposable
 
     // --- PB posts to Discord ---------------------------------------------------------------
 
-    /// The webhook switched on with a fake sender; the messages it was handed.
-    private List<string> FakeWebhook()
+    private const string OfficialHook = "https://discord.invalid/api/webhooks/test";
+    private const string OwnHook = "https://discord.com/api/webhooks/1234567890/run-spot_TOKEN";
+
+    /// A fake Discord behind the site's HttpClient: every POST it got (URL + JSON body); it answers
+    /// with Answer (204 by default). No real Discord call is ever made.
+    private sealed class FakeDiscord : HttpMessageHandler
     {
-        var hook = _factory.Services.GetRequiredService<PbWebhook>();
-        var sent = new List<string>();
-        hook.Url = "https://discord.invalid/api/webhooks/test";
-        hook.SiteUrl = "https://forest.deter.cloud";
-        hook.Send = m => { lock (sent) sent.Add(m); return Task.FromResult((204, 0.0)); };
-        return sent;
+        public readonly List<(string url, JsonObject body)> Posts = new();
+        public Func<HttpRequestMessage, HttpResponseMessage> Answer = _ => new HttpResponseMessage(HttpStatusCode.NoContent);
+
+        public List<string> Contents(string url = null)
+        {
+            lock (Posts) return Posts.Where(p => url == null || p.url == url).Select(p => (string)p.body["content"]).ToList();
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
+        {
+            var body = JsonNode.Parse(await r.Content.ReadAsStringAsync(ct)) as JsonObject;
+            lock (Posts) Posts.Add((r.RequestUri.ToString(), body));
+            return Answer(r);
+        }
+    }
+
+    /// The official webhook switched on, both senders posting to a fake Discord.
+    private FakeDiscord FakeWebhook()
+    {
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        var fake = new FakeDiscord();
+        posts.Official.Url = OfficialHook;
+        foreach (var hook in new[] { posts.Official, posts.RunnerSpots })
+        {
+            hook.SiteUrl = "https://forest.deter.cloud";
+            hook.Http = new HttpClient(fake);
+            hook.Gap = TimeSpan.FromMilliseconds(10);
+        }
+        return fake;
+    }
+
+    private static async Task Until(Func<bool> done)
+    {
+        for (int i = 0; i < 100 && !done(); i++) await Task.Delay(50);
     }
 
     private void MakeCommunity(Segment seg)
@@ -1014,7 +1046,7 @@ public sealed class ApiTests : IDisposable
     [Fact]
     public async Task Webhook_PostsANewPbOnACommunitySpot()
     {
-        List<string> sent = FakeWebhook();
+        FakeDiscord discord = FakeWebhook();
         var hook = _factory.Services.GetRequiredService<PbWebhook>();
         string ta = await Register(A);
         var seg = TestSegment("s-cccccccccccc");
@@ -1037,9 +1069,10 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(2, hook.Recent.Count);
         Assert.Contains("set a new PB on Plane to \\*cave\\*: 8.750 (1.250 faster than 10.000)", hook.Recent[1]);
 
-        // The queue delivers them (one post every couple of seconds).
-        for (int i = 0; i < 100 && sent.Count < 2; i++) await Task.Delay(100);
-        Assert.Equal(hook.Recent, sent);
+        // The queue delivers them to the webhook, mentions off.
+        await Until(() => discord.Contents().Count >= 2);
+        Assert.Equal(hook.Recent, discord.Contents(OfficialHook));
+        Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
     }
 
     [Fact]
@@ -1054,8 +1087,8 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f)))).StatusCode);
         Assert.Empty(hook.Recent);
 
-        FakeWebhook();
-        // A runner's own practice spot is never posted.
+        FakeDiscord discord = FakeWebhook();
+        // A runner's own practice spot is not posted (the default; /admin's PB posts tab).
         var own = TestSegment("s-aaaaaaaaaaaa");
         await Upload(ta, Bundle(own, RunText(own, A, 10f, 5f)));
         Assert.Empty(hook.Recent);
@@ -1067,7 +1100,7 @@ public sealed class ApiTests : IDisposable
         Assert.Single(hook.Recent);
 
         // A failing webhook never fails an upload.
-        hook.Send = _ => throw new HttpRequestException("down");
+        discord.Answer = _ => throw new HttpRequestException("down");
         Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 9f, 5f, 4)))).StatusCode);
     }
 
@@ -1092,6 +1125,168 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("@everyone \\[x\\]\\(http\\://e\\) \\_a\\_ b", PbNews.Escape("@everyone [x](http://e) _a_\nb"));
         Assert.Equal("deter set a new PB on Cave 5: 59.000 (1.000 faster than 1:00.000)\nhttps://x/spot/s-1/r?run=7",
                      PbNews.Message("deter", "Cave 5", 59f, 60f, PbNews.RunLink("https://x/", "s-1", "r", 7)));
+    }
+
+    // --- PB posts from runners' own spots (T-0232) -----------------------------------------
+
+    private Task<HttpResponseMessage> PutPbPosts(string json, string token = "admin-secret") =>
+        AdminSend(HttpMethod.Put, "/api/admin/pbposts", token, json);
+
+    private static string PbPostsJson(bool runnerSpots, string channel, string webhook) =>
+        new JsonObject { ["runnerSpots"] = runnerSpots, ["channel"] = channel, ["webhook"] = webhook }.ToJsonString();
+
+    [Fact]
+    public async Task Webhook_RunnerSpots_OffThenSameChannelThenOwnChannel()
+    {
+        FakeDiscord discord = FakeWebhook();
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        string ta = await Register(A);
+        var own = TestSegment("s-eeeeeeeeeeee");
+        own.Name = "My *dash*";
+        var com = TestSegment("s-ffffffffffff");
+        MakeCommunity(com);
+
+        // Off until the owner saves it on.
+        await Upload(ta, Bundle(own, RunText(own, A, 10f, 5f, 1)));
+        Assert.Empty(posts.RunnerSpots.Recent);
+
+        // The same channel as community / run spot PBs - through their own sender (own caps).
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "same", ""))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 9f, 5f, 2)));
+        Assert.Single(posts.RunnerSpots.Recent);
+        Assert.Empty(posts.Official.Recent);
+        Assert.Contains("set a new PB on My \\*dash\\*: 9.000 (1.000 faster than 10.000)", posts.RunnerSpots.Recent[0]);
+        await Until(() => discord.Contents().Count >= 1);
+        Assert.Equal(posts.RunnerSpots.Recent, discord.Contents(OfficialHook));
+
+        // Their own channel: runners' spots there, community spots still in the official one.
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "own", OwnHook))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 8f, 4f, 3)));
+        await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f, 4)));
+        await Until(() => discord.Contents().Count >= 3);
+        Assert.Contains("8.000", Assert.Single(discord.Contents(OwnHook)));
+        Assert.Equal(2, discord.Contents(OfficialHook).Count);
+        Assert.Contains("finished Test dash", discord.Contents(OfficialHook)[1]);
+        Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
+
+        // Off again: nothing more; the webhook is kept for next time.
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(false, "own", OwnHook))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 7f, 4f, 5)));
+        Assert.Equal(2, posts.RunnerSpots.Recent.Count);
+        var view = (await Admin("/api/admin/pbposts")).AsObject();
+        Assert.False((bool)view["settings"]["runnerSpots"]);
+        Assert.Equal(OwnHook, (string)view["settings"]["webhook"]);
+        Assert.True((bool)view["official"]);
+    }
+
+    [Fact]
+    public async Task PbPostsSettings_OwnerOnly_Validated_SecretKeptOutOfTheLog()
+    {
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        var made = await (await AdminSend(HttpMethod.Post, "/api/admin/admins", body: "maks")).Content.ReadFromJsonAsync<JsonObject>();
+        string named = (string)made["token"];
+
+        // The owner only: a named admin neither reads the secret nor changes it.
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/pbposts", named)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await PutPbPosts(PbPostsJson(true, "same", ""), named)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/pbposts", "")).StatusCode);
+
+        // Before a save: off, the same channel, no webhook; the official one is off in tests.
+        var view = (await Admin("/api/admin/pbposts")).AsObject();
+        Assert.False((bool)view["settings"]["runnerSpots"]);
+        Assert.Equal("same", (string)view["settings"]["channel"]);
+        Assert.Equal(0, (int)view["rev"]);
+        Assert.False((bool)view["official"]);
+
+        // Refused: nothing saved.
+        foreach (string bad in new[]
+        {
+            "not json", "[]", "{\"runnerSpots\":\"yes\"}", "{\"channel\":\"same\"}", PbPostsJson(true, "elsewhere", ""),
+            PbPostsJson(true, "own", ""),                                                  // their own channel needs one
+            PbPostsJson(true, "own", "https://example.com/api/webhooks/1/x"),              // only Discord (no SSRF)
+            PbPostsJson(true, "own", "http://discord.com/api/webhooks/1/x"),
+            PbPostsJson(true, "own", "https://discord.com.evil.io/api/webhooks/1/x"),
+            PbPostsJson(true, "own", "https://discord.com/api/webhooks/1/x?wait=true"),
+            PbPostsJson(false, "same", "https://discord.com/api/webhooks/1/x/../../../x"),
+            "{\"runnerSpots\":true,\"url\":\"x\"}",
+        })
+            Assert.Equal(HttpStatusCode.BadRequest, (await PutPbPosts(bad)).StatusCode);
+        Assert.Equal(0, (int)(await Admin("/api/admin/pbposts"))["rev"]);
+        Assert.False(posts.Settings.Current.RunnerSpots);
+
+        // Discord's other hosts and a versioned path are webhooks too; spaces around are trimmed.
+        foreach (string good in new[] { "https://canary.discord.com/api/v10/webhooks/1/x", "https://discordapp.com/api/webhooks/1/x", " " + OwnHook + " " })
+            Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "own", good))).StatusCode);
+        Assert.Equal(3, (int)(await Admin("/api/admin/pbposts"))["rev"]);
+        Assert.Equal(OwnHook, posts.Settings.Current.RunnerSpotsWebhook);
+
+        // Kept across a restart (read back from the database).
+        var again = new PbSettings(_factory.Services.GetRequiredService<Store>());
+        Assert.Equal(new PbSettings.Values(true, true, OwnHook), again.Current);
+
+        // The activity log names the save, never the URL; the public API has no trace of it.
+        string log = (await Admin("/api/admin/log")).ToJsonString();
+        Assert.Contains("PUT /api/admin/pbposts", log);
+        Assert.DoesNotContain("run-spot_TOKEN", log);
+        Assert.DoesNotContain("run-spot_TOKEN", await _http.GetStringAsync("/api/spots"));
+    }
+
+    [Fact]
+    public async Task Webhook_Sender_RetriesA429_AndLogsNoUrl()
+    {
+        var fake = new FakeDiscord();
+        int calls = 0;
+        fake.Answer = _ =>
+        {
+            if (Interlocked.Increment(ref calls) > 1) return new HttpResponseMessage(HttpStatusCode.NoContent);
+            var limited = new HttpResponseMessage((HttpStatusCode)429);
+            limited.Headers.Add("Retry-After", "1");
+            return limited;
+        };
+        var logged = new List<string>();
+        var hook = new PbWebhook(OwnHook, null, "Discord webhook (runners' spots)")
+        {
+            Http = new HttpClient(fake), Gap = TimeSpan.FromMilliseconds(10), Log = m => { lock (logged) logged.Add(m); },
+        };
+
+        // A 429: one retry after Discord's retry-after, the same post again.
+        Assert.True(hook.Enqueue("first"));
+        await Until(() => fake.Posts.Count >= 2);
+        Assert.Equal(new[] { "first", "first" }, fake.Contents(OwnHook));
+        Assert.Empty(logged);
+
+        // A refused post is dropped and logged - by the sender's name, never its URL.
+        fake.Answer = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
+        Assert.True(hook.Enqueue("second"));
+        await Until(() => logged.Count >= 1);
+        Assert.Equal("Discord webhook (runners' spots): post failed (HTTP 404), dropped.", Assert.Single(logged));
+        fake.Answer = _ => throw new HttpRequestException("Connection refused (discord.com:443)");
+        Assert.True(hook.Enqueue("third"));
+        await Until(() => logged.Count >= 2);
+        Assert.Equal(2, logged.Count);
+        Assert.All(logged, l => Assert.DoesNotContain("TOKEN", l));
+
+        // No URL: off, nothing queued.
+        Assert.False(new PbWebhook("", null).Enqueue("nothing"));
+    }
+
+    [Fact]
+    public void PbNews_Target()
+    {
+        var off = PbSettings.Values.Off;
+        var same = new PbSettings.Values(true, false, OwnHook);
+        var own = new PbSettings.Values(true, true, OwnHook);
+        // Community / run spots: the official webhook, whatever runners' spots do.
+        Assert.Equal(OfficialHook, PbNews.Target(true, off, OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(true, own, OfficialHook));
+        Assert.Null(PbNews.Target(true, own, ""));
+        // Runners' spots: off, the same channel, their own.
+        Assert.Null(PbNews.Target(false, off, OfficialHook));
+        Assert.Null(PbNews.Target(false, new PbSettings.Values(false, true, OwnHook), OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(false, same, OfficialHook));
+        Assert.Null(PbNews.Target(false, same, ""));                 // the same channel, and there is none
+        Assert.Equal(OwnHook, PbNews.Target(false, own, ""));        // their own works without the official one
+        Assert.Null(PbNews.Target(false, new PbSettings.Values(true, true, ""), OfficialHook));
     }
 
     // --- security audit (2026-10-04) -------------------------------------------------

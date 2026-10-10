@@ -10,7 +10,9 @@ namespace ForestSite;
 // A Discord post when an uploaded run sets a runner's new PB on a
 // community spot or a run spot (backlog: author, QA #general 2026-10-02).
 // FOREST_DISCORD_WEBHOOK (env / appsettings) is the webhook's URL; unset =
-// off. Uploads only queue a line here: a slow, failing or rate-limited
+// off. PBs on runners' own spots too when the owner switches them on in
+// /admin's PB posts tab, in that channel or their own (PbSettings, T-0232).
+// Uploads only queue a line here: a slow, failing or rate-limited
 // webhook never fails or holds up an upload (docs/website.md *Discord*).
 // ------------------------------------------------------------------
 
@@ -34,8 +36,9 @@ public static class PbNews
 
     /// Which spots are announced: a community route, or a spot whose
     /// `run = ` names a published run category (a run spot). A runner's
-    /// own practice spot is not - anyone can make one, so it would be a way
-    /// to post anything into the channel.
+    /// own practice spot is not by default - anyone can make one, so it is a
+    /// way to post anything into the channel; the owner can switch those on
+    /// (PbSettings), and the caps still hold.
     public static bool Announces(bool communityRoute, string runCategory, Func<string, bool> published) =>
         communityRoute || (!string.IsNullOrWhiteSpace(runCategory) && published != null && published(runCategory.Trim()));
 
@@ -89,6 +92,16 @@ public static class PbNews
         SiteUrl(siteUrl) + "/spot/" + Uri.EscapeDataString(segmentId) + "/" + Uri.EscapeDataString(route) + "?run=" + runId;
 
     public static string SiteUrl(string url) => string.IsNullOrWhiteSpace(url) ? "https://forest.deter.cloud" : url.Trim().TrimEnd('/');
+
+    /// Where a PB goes: the webhook URL, or null for no post. A community /
+    /// run spot's goes to the official webhook (empty = off); a runner's own
+    /// spot's only when the owner switched those on - to the same webhook,
+    /// or to their own one.
+    public static string Target(bool official, PbSettings.Values s, string officialUrl)
+    {
+        string url = official ? officialUrl : !s.RunnerSpots ? null : s.OwnChannel ? s.RunnerSpotsWebhook : officialUrl;
+        return string.IsNullOrWhiteSpace(url) ? null : url.Trim();
+    }
 }
 
 /// The sender: a small queue, one post at a time, spaced and capped.
@@ -101,23 +114,25 @@ public sealed class PbWebhook
     /// could otherwise fill the channel with their own name. A real runner
     /// sets a few PBs an hour at most.
     public const int PerRunnerPerHour = 5;
-    public static readonly TimeSpan Gap = TimeSpan.FromSeconds(2);
 
-    private readonly Channel<string> _queue = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueSize)
+    private readonly Channel<(string url, string message)> _queue = Channel.CreateBounded<(string, string)>(new BoundedChannelOptions(QueueSize)
         { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
     private readonly Queue<DateTime> _sent = new();
     private readonly Dictionary<string, Queue<DateTime>> _byRunner = new();
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
 
-    /// The webhook's URL; empty = off.
+    /// What this sender posts, for its log lines ("Discord webhook" /
+    /// "Discord webhook (runners' spots)"). Never the URL: it is a secret.
+    public string Name { get; }
+    /// The webhook's URL a post goes to when Enqueue names none; empty = off.
     public string Url { get; set; }
     /// The site's public address, for the run links.
     public string SiteUrl { get; set; }
     /// Where warnings go (Program sets the app's logger).
     public Action<string> Log { get; set; } = _ => { };
-    /// Posts one message: the HTTP status (0 = no answer) and Discord's
-    /// retry-after in seconds for a 429. Tests replace it.
-    public Func<string, Task<(int status, double retryAfter)>> Send { get; set; }
+    /// The HTTP client the posts go through (tests give it a fake handler).
+    public HttpClient Http { get; set; } = new() { Timeout = TimeSpan.FromSeconds(10) };
+    /// The pause after each post (Discord's rate limits; tests shorten it).
+    public TimeSpan Gap { get; set; } = TimeSpan.FromSeconds(2);
     /// The last messages queued, newest last (tests, diagnostics).
     public readonly List<string> Recent = new();
     /// The clock for the per-runner cap (tests move it).
@@ -125,23 +140,24 @@ public sealed class PbWebhook
 
     public bool On => !string.IsNullOrWhiteSpace(Url);
 
-    public PbWebhook(string url, string siteUrl)
+    public PbWebhook(string url, string siteUrl, string name = "Discord webhook")
     {
         Url = url ?? "";
         SiteUrl = PbNews.SiteUrl(siteUrl);
-        Send = Post;
+        Name = name;
         _ = Task.Run(Loop);
     }
 
-    /// Queues a post; false when off, the runner (their id, when given)
-    /// has had PerRunnerPerHour posts in the last hour, or the queue is full
-    /// (dropped, logged).
-    public bool Enqueue(string message, string runner = null)
+    /// Queues a post to `url` (default: Url); false when there is no URL,
+    /// the runner (their id, when given) has had PerRunnerPerHour posts in
+    /// the last hour, or the queue is full (dropped, logged).
+    public bool Enqueue(string message, string runner = null, string url = null)
     {
-        if (!On) return false;
+        url = string.IsNullOrWhiteSpace(url) ? Url : url.Trim();
+        if (string.IsNullOrWhiteSpace(url)) return false;
         if (runner != null && !RunnerSlot(runner))
         {
-            Log("Discord webhook: runner " + runner + " had " + PerRunnerPerHour + " posts in the last hour, one dropped.");
+            Log(Name + ": runner " + runner + " had " + PerRunnerPerHour + " posts in the last hour, one dropped.");
             return false;
         }
         lock (Recent)
@@ -149,8 +165,8 @@ public sealed class PbWebhook
             Recent.Add(message);
             if (Recent.Count > QueueSize) Recent.RemoveAt(0);
         }
-        if (_queue.Writer.TryWrite(message)) return true;
-        Log("Discord webhook: queue full, a PB post dropped.");
+        if (_queue.Writer.TryWrite((url, message))) return true;
+        Log(Name + ": queue full, a PB post dropped.");
         return false;
     }
 
@@ -173,32 +189,32 @@ public sealed class PbWebhook
 
     private async Task Loop()
     {
-        await foreach (string message in _queue.Reader.ReadAllAsync())
+        await foreach (var (url, message) in _queue.Reader.ReadAllAsync())
         {
-            try { await Deliver(message); }
-            catch (Exception ex) { Log("Discord webhook: " + ex.Message); }
+            try { await Deliver(url, message); }
+            catch (Exception ex) { Log(Name + ": " + ex.Message); }
         }
     }
 
-    private async Task Deliver(string message)
+    private async Task Deliver(string url, string message)
     {
         // At most PerHour posts an hour; past that, dropped (a flood of PBs
         // is either a bug or abuse - the site keeps every run anyway).
         DateTime now = DateTime.UtcNow;
         while (_sent.Count > 0 && now - _sent.Peek() > TimeSpan.FromHours(1)) _sent.Dequeue();
-        if (_sent.Count >= PerHour) { Log("Discord webhook: " + PerHour + " posts in the last hour, one dropped."); return; }
+        if (_sent.Count >= PerHour) { Log(Name + ": " + PerHour + " posts in the last hour, one dropped."); return; }
         _sent.Enqueue(now);
 
         for (int attempt = 0; attempt < 2; attempt++)
         {
-            var (status, retryAfter) = await Send(message);
+            var (status, retryAfter) = await Post(url, message);
             if (status >= 200 && status < 300) break;
             if (status == 429 && attempt == 0)
             {
                 await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(retryAfter, 1, 60)));
                 continue;
             }
-            Log("Discord webhook: post failed (" + (status == 0 ? "no answer: " + _lastError : "HTTP " + status) + "), dropped.");
+            Log(Name + ": post failed (" + (status == 0 ? "no answer: " + _lastError : "HTTP " + status) + "), dropped.");
             break;
         }
         await Task.Delay(Gap);
@@ -206,13 +222,15 @@ public sealed class PbWebhook
 
     private string _lastError = "";
 
-    private async Task<(int, double)> Post(string message)
+    /// Posts one message: the HTTP status (0 = no answer) and Discord's
+    /// retry-after in seconds for a 429.
+    private async Task<(int, double)> Post(string url, string message)
     {
         // allowed_mentions: none - a runner named "@everyone" pings nobody.
         var body = new JsonObject { ["content"] = message, ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() } };
         try
         {
-            using var r = await _http.PostAsJsonAsync(Url, body);
+            using var r = await Http.PostAsJsonAsync(url, body);
             double retry = 0;
             if ((int)r.StatusCode == 429)
             {

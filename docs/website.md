@@ -76,7 +76,9 @@ go to decisions.md; feature detail goes here.
   all its runs - an accidental upload; community spots are refused, and a
   deleted spot returns if its owner uploads on it again), Runners (runs,
   last upload, Ban, Reset token with a second click), Activity (every
-  change: who, what, the answer's status - `admin_log`).
+  change: who, what, the answer's status - `admin_log`); the owner also
+  has Bot, PB posts (Discord PB posts from runners' spots, *Spot
+  categories, owners deleting spots, Discord PB posts*) and Admins.
 - **Admins (author, 2026-09-27: not one shared key):** the env token
   (`FOREST_ADMIN_TOKEN`, in `/opt/forest-site/.env` on the VPS) is the
   **owner**; the owner's Admins tab makes a named `fa_...` token per admin
@@ -656,8 +658,9 @@ plugin change (Practice's Share row).
   (0.512 faster than 1:02.857)" or "<runner> finished <spot>: ... (their
   first run)", then the link `/spot/<id>/<route>?run=<run id>` (the spot
   page focuses that run). Not posted: a runner's own practice spot (anyone
-  can make one - a spam path), a run under review (flagged), a re-upload of
-  a run already there, a slower run. Names are markdown-escaped and the
+  can make one - a spam path; the owner can switch those on, next item),
+  a run under review (flagged), a re-upload of a run already there, a
+  slower run. Names are markdown-escaped and the
   post sets `allowed_mentions: none` (no @everyone). Sending: a queue of
   20, one post at a time 2 s apart, at most 30 an hour, one retry after a
   429's retry-after; any failure is logged (`Discord webhook: ...`) and
@@ -665,6 +668,32 @@ plugin change (Practice's Share row).
   `FOREST_SITE_URL` changes the link's address (default
   https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
   *PbNews_Decisions*.
+- **PB posts from runners' spots** (T-0232; author, 2026-10-08: "site
+  toggles for runner-spot PB posts, plus a choice of whether they go to
+  the same channel as official-run PBs or a separate one"): the owner's
+  **PB posts** tab on /admin (`GET / PUT /api/admin/pbposts`, owner only -
+  the answer holds a secret; `PbSettings.cs`, one JSON in `pb_settings`
+  with a revision, created on startup like `bot_settings`). *Post PBs on
+  runners' spots* (off until saved on), then *The same channel as
+  community and run spot PBs* (FOREST_DISCORD_WEBHOOK's) or *Their own
+  channel* (a webhook URL pasted there: only
+  `https://[ptb.|canary.]discord[app].com/api[/vN]/webhooks/<id>/<token>`
+  is accepted, so the site still posts to no other host; a password field
+  with Show; kept while off or on the same channel). A runner's spot is
+  any route that is neither a community route nor a run spot. The same
+  rules as above (new PB, not flagged, not a re-upload, the same line and
+  link); `PbPosts` routes each PB (`PbNews.Target`) and runners' spots have
+  **their own sender** - their own queue, 30 an hour and 5 a runner an hour
+  - so they never crowd out a community / run spot post, even in one
+  channel. Applies to the next PB, no restart. Saved with the Bot tab's
+  unsaved-changes bar (Reset, leaving refused). The startup line ends
+  `runners' spots off | same channel | own channel`; a failed post logs
+  `Discord webhook (runners' spots): ...` - the sender's name, never its
+  URL. Tests: `ApiTests` *Webhook_RunnerSpots_*, *PbPostsSettings_*,
+  *Webhook_Sender_* (a fake `HttpMessageHandler` as Discord - the senders'
+  `Http` and `Gap` are settable for that), *PbNews_Target*. Open: the
+  post's look (the author's example is a KSF surf timer WR post) and
+  whether a runner's-spot post says so - tasks/notes/T-0232.md.
 
 ## Official runs (2026-10-10, T-0223)
 
@@ -966,6 +995,14 @@ happens.
 like uploads, owner-only, never another runner's runs, logged; the
 Discord webhook's URL is a secret in `.env` and its posts carry no
 mentions (*Spot categories, owners deleting spots, Discord PB posts*).
+
+2026-10-10 (T-0232): `GET / PUT /api/admin/pbposts`, owner only (a named
+admin's token gets 403 - the answer holds the runners'-spots webhook URL,
+a secret). The URL must be a discord.com webhook address (no SSRF through
+the admin page), is never logged (the Activity log keeps the request path,
+not the body; the senders log their name), and reaches no public answer.
+Runners' spots are a spam path the caps bound: their own 30 an hour and 5
+a runner an hour, `allowed_mentions: none`, escaped and clipped names.
 
 2026-10-04: the CSP's one frame, `frame-src https://www.youtube-nocookie.com`
 (/compare's players, driven by postMessage; no YouTube script, no new

@@ -23,7 +23,9 @@ using Microsoft.AspNetCore.RateLimiting;
 //                       Unset = those two endpoints answer 403.
 //   FOREST_DISCORD_WEBHOOK  a Discord webhook URL: a new PB on a community
 //                       spot or a run spot is posted there (PbWebhook).
-//                       Unset = off. Env or appsettings.json.
+//                       Unset = off. Env or appsettings.json. PBs on runners'
+//                       own spots: the owner's PB posts tab on /admin
+//                       (PbSettings - there, or to their own webhook).
 //   FOREST_SITE_URL     the public address for links in those posts and
 //                       in link previews' og:url (default
 //                       https://forest.deter.cloud) - never the request's
@@ -44,12 +46,15 @@ string botToken = Environment.GetEnvironmentVariable("FOREST_BOT_TOKEN") ?? "";
 var runs = new Runs(store, c => categories.IsPublished(c));
 var attempts = new Attempts(store, dataDir, null, categories);
 var webhook = new PbWebhook(builder.Configuration["FOREST_DISCORD_WEBHOOK"], builder.Configuration["FOREST_SITE_URL"]);
+var pbPosts = new PbPosts(webhook, new PbWebhook("", builder.Configuration["FOREST_SITE_URL"], "Discord webhook (runners' spots)"),
+                          new PbSettings(store));
 // Link previews name the configured address, not the request's Host
 // (security audit, 2026-10-04: a Host header is the client's to choose).
 string siteUrl = PbNews.SiteUrl(builder.Configuration["FOREST_SITE_URL"]);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton(runs);
 builder.Services.AddSingleton(webhook);
+builder.Services.AddSingleton(pbPosts);
 builder.Services.AddSingleton(attempts);
 
 // Cloudflare names the visitor; everything else sees Caddy's address.
@@ -87,7 +92,7 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
-webhook.Log = m => app.Logger.LogWarning("{m}", m);
+webhook.Log = pbPosts.RunnerSpots.Log = m => app.Logger.LogWarning("{m}", m);
 
 // The origin lock (above): nothing else runs for a request that did not
 // come through Cloudflare. Constant-time, like the admin token.
@@ -243,8 +248,8 @@ if (Environment.GetEnvironmentVariable("FOREST_SRC_SYNC") != "off")
 }
 
 int packs = runs.LoadCommunity(Path.Combine(AppContext.BaseDirectory, "community"), m => app.Logger.LogWarning("{m}", m));
-app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}; Discord PB posts {hook}", dataDir, packs,
-                          adminToken.Length > 0 ? "on" : "off", webhook.On ? "on" : "off");
+app.Logger.LogInformation("Data in {dir}; {n} community pack(s); admin {admin}; Discord PB posts {hook}, runners' spots {spots}", dataDir, packs,
+                          adminToken.Length > 0 ? "on" : "off", webhook.On ? "on" : "off", pbPosts.RunnerSpotsState());
 // The world uploaded before Brotli has .gz copies only: its .br ones, once.
 _ = Task.Run(() =>
 {
@@ -332,7 +337,7 @@ api.MapPost("/runs", async (HttpRequest req) =>
     if (res.Added.Count == 0 && res.Existing.Count == 0) return Problem(422, string.Join("; ", res.Skipped));
     // Only queued: the webhook never fails or slows an upload.
     if (res.Pb is { } pb)
-        try { webhook.Enqueue(PbNews.Message(pb.Runner, pb.Spot, pb.Time, pb.PreviousBest, PbNews.RunLink(webhook.SiteUrl, pb.Segment, pb.Route, pb.RunId)), runner); }
+        try { pbPosts.Post(pb, runner); }
         catch (Exception ex) { app.Logger.LogWarning("Discord webhook: {m}", ex.Message); }
     return Results.Json(new { added = res.Added, existing = res.Existing, skipped = res.Skipped, startstate = res.StartState });
 }).RequireRateLimiting("upload");
@@ -516,6 +521,21 @@ admin.MapPut("/bot", async (HttpContext c) =>
 {
     if (!IsOwner(c)) return Problem(403, "only the owner changes the bot's settings");
     var (rev, error) = bot.Save(await Body(c.Request));
+    return error == null ? Results.Json(new { rev }) : Problem(400, error);
+});
+
+// Discord PB posts from runners' own spots (T-0232): the owner only - the
+// answer holds their own channel's webhook URL, a secret. `official` says
+// whether FOREST_DISCORD_WEBHOOK is set (never its URL).
+admin.MapGet("/pbposts", (HttpContext c) =>
+{
+    if (!IsOwner(c)) return Problem(403, "only the owner changes the PB posts");
+    return Results.Json(new { settings = PbSettings.ToJson(pbPosts.Settings.Current), rev = pbPosts.Settings.Rev, official = webhook.On });
+});
+admin.MapPut("/pbposts", async (HttpContext c) =>
+{
+    if (!IsOwner(c)) return Problem(403, "only the owner changes the PB posts");
+    var (rev, error) = pbPosts.Settings.Save(await Body(c.Request));
     return error == null ? Results.Json(new { rev }) : Problem(400, error);
 });
 
