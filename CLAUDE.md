@@ -195,13 +195,27 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 ## Where we are (replaced at each handoff)
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
-  is*: plugin correctness and stability - T-0246, T-0056, T-0276,
+  is*: plugin correctness and stability - T-0246, T-0056,
   T-0058, savestate gaps, perf; T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.274 (2026-10-10, T-0276):** Unity's own errors / asserts /
+  exceptions (render thread included) are logged as `Unity: [Error] ...`
+  (repeats differing only in digits counted, 30 lines a minute) and
+  written at once to `logs/unity.log`; at the next launch a Unity crash
+  folder (named after the *process start*, game-notes) gets
+  `ForestOverlay-LogOutput.log` + `ForestOverlay-unity.log`. Proved on the
+  branch build (managed + native errors, 50 repeats -> 2 lines, two test
+  crash folders); smoke PASS, and a Slot 1 load logs one real engine line
+  (`Setting mipmap mode of already created render texture`). Not proved:
+  an off-main-thread line (the bridge cannot log from another thread) -
+  the next d3d11 crash's folder should show it. To confirm (not its
+  maker): forest-tester - bridge `call static:UnityEngine.Debug LogError
+  "x id=1"` -> one `Unity:` line; a folder `<process start>` with
+  error.log beside TheForest.exe gets the copies at the next launch.
 - **v0.24.273 (2026-10-10, T-0284):** a main-thread stall watch
   (`Core/StallWatch`): a freeze of 10 s or more logs `Stall:` with the
   plugin hook / module / tab it was in, or "outside the plugin", and
