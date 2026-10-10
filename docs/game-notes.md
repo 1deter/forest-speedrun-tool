@@ -2530,6 +2530,27 @@ greeble scene's reload. Off the main thread ~9 MB (not attributed).
   the same with or without the extra cutters (`PathfindingWatch.NodeHash`
   over the box: 215 nodes, `12fc3c4f` with 1 or 4 cutters; a 6 m cutter
   moved into the box changed it to 216 / `7e5f61f8`).
+- **Both wreck updates recompute the navmesh already there** (IL + bridge,
+  2026-10-10, T-0278). The new wreck's cut: `gridObjectBlocker.doNavCut`
+  makes its `navCubeCutter` first, then starts `sceneTracker.
+  doGlobalStructureBoundsNavRemove(root, bounds)` (the load route; outside a
+  load `doStructureBoundsNavRemove`) - it adds the root to
+  `globalNavStructures`, waits 0.5 s and `waitForLoadSequence`, updates each
+  100 m group, `TileHandlerHelper.ForceUpdate` + `FlushWorkItems`, clears
+  the list, then `mutantController.calculateMainNavArea` (reads the
+  navmesh's areas only). The old one's removal: `setupNavRemoveRoot.
+  OnDestroy` -> `startDummyNavRemove(gameObject, position, combinedBounds)`
+  (no flag; skipped only when `MenuMain.exitingToMenu`). Skipping both
+  while a wreck at the same pose stands (PerfPatches 20,
+  `RestoreSkipSameWreckNav`): `axe-held`, 9 warm Quick loads 0 graph
+  updates (off: 5 in 3), main-thread garbage 22.0 / 16.1 MB -> 10.2 MB a
+  restore; NodeHash over the box 215 / `12fc3c4f` and a 200 m box 1849 /
+  `1a107e66` on, off and after a fresh Full load alike.
+- **The crash site is per save**: Slot 1's wreck stands at (360, 75,
+  1050), `axe-held`'s at (817, 88, 621). After the slot load Slot 1's
+  wreck cut through `doStructureBoundsNavRemove`, a Full load of
+  `axe-held` through `doGlobalStructureBoundsNavRemove`; a Quick load
+  from another save removes the old site's wreck with the game's update.
 - The restore's own streaming unload (`ForceUnloadStreaming`) makes the
   game sweep unused assets 0.1 s later (`SceneUnloadInCave` /
   `GreebleZonesManager.DelayedCleanUp`, merged): **320-490 ms** a surface
