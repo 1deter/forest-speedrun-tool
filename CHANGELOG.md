@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.269 - 2026-10-10
+
+- A Go, F7 on a spot without a start state and an auto-restart no longer hitch for about 24 ms.
+
 ## v0.24.268 - 2026-10-10
 
 - A cave spot restarted while you are in the endgame (lab) now has its body piles, ropes and planks, as when you walk out.
