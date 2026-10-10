@@ -5,10 +5,9 @@ with the call as JSON on stdin. It answers with a permission decision:
 
 - refuse a request to api.github.com (router rule 4),
 - refuse a forced push to main,
-- ask before a DLL deploy into the author's game install (router rule 2;
-  author, 2026-10-07: "just ask me"). Bridge tests install releases with
-  update_game and never come here; while a loop run is open (tasks/loop.jsonl)
-  the ask is a refusal so it never waits on the author (Stage A, docs/harness.md 12),
+- (a hand deploy into the game no longer asks: author, 2026-10-10;
+  while a loop run is open (tasks/loop.jsonl) any ask is a refusal so it
+  never waits on the author - Stage A, docs/harness.md 12),
 - refuse a search over a whole drive, the filesystem root or the home folder
   (find / ls -R / grep -r / rg / Get-ChildItem -Recurse / dir /s / where /r /
   a Python walk, deeper than 2) and name where the files are (gotcha 99),
@@ -25,7 +24,6 @@ import sys
 
 FETCHERS = re.compile(r"\b(curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|urllib|requests\.|http\.client|"
                       r"WebClient|HttpClient|fetch\()", re.I)
-COPIERS = re.compile(r"\b(cp|copy|Copy-Item|xcopy|robocopy|mv|move|Move-Item|shutil\.copy\w*|install)\b|>", re.I)
 
 
 def install_root():
@@ -105,31 +103,6 @@ def force_push(command, cwd, branch=None):
             return ("deny", "A forced push to main rewrites the history every other session, worktree and CI run "
                             "builds on (docs/harness.md 5b). Pull and merge instead (git pull --no-rebase, "
                             "scripts/merge-keepboth.py for add/add conflicts), or revert with a new commit.")
-    return None
-
-
-def game_root_arg(command):
-    m = re.search(r"-GameRoot\s+(\"[^\"]*\"|'[^']*'|\S+)", command, re.I)
-    return m.group(1) if m else None
-
-
-def dll_deploy(command, root):
-    reason = ("Router rule 2: never deploy a DLL into the author's game install by hand - it updates through the "
-              "real release path (update_game installs a release). Approve only if the author asked for this deploy.")
-    # Only a run counts: the name inside a grep pattern or a commit message is
-    # quoted text (a search for "deploy.ps1" asked, 2026-10-07); a quoted path
-    # still runs after `&` or `-File`.
-    text = HEREDOC.sub("", command)
-    if re.search(r"deploy\.ps1", QUOTED.sub(" ", text), re.I) \
-            or re.search(r"(&|-File)\s*[\"'][^\"']*deploy\.ps1", text, re.I):
-        arg = game_root_arg(command)
-        if arg is None or "forest_root" in arg.lower() or (root and norm(arg).startswith(norm(root))):
-            return ("ask", reason)
-        return None
-    # Reading the install's logs is fine; writing into its plugin / patcher folders is a deploy.
-    if mentions(command, root) and re.search(r"bepinex[/\\]+(plugins|patchers)", command, re.I) \
-            and COPIERS.search(command):
-        return ("ask", reason)
     return None
 
 
@@ -250,7 +223,7 @@ def decide(payload, root=None, branch=None):
     if not command:
         return None
     cwd = payload.get("cwd")
-    return (github_api(command) or force_push(command, cwd, branch) or dll_deploy(command, root)
+    return (github_api(command) or force_push(command, cwd, branch)
             or wide_search(command, root) or ps_round_trip(command, tool))
 
 

@@ -67,8 +67,11 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   deleting anything in the author's game or save slots, is fine while
   building or testing. Courtesy (author: "quality of life"): back up a
   slot before a test changes it (`SlotN.deter-backup`) and put it back,
-  sizes checked. Still: never deploy a DLL by hand; testers' saves in
-  Downloads are theirs to keep.
+  sizes checked. Testers' saves in Downloads are theirs to keep.
+- **Hand deploys are fine** (author, 2026-10-10: "copying by hand is
+  always fine"): `deploy.ps1` into the author's install (a branch build to
+  test in game) needs no ask. Replaces the 2026-09-22 rule that the
+  install updates only through the release path.
 - **No guessing** (author, 2026-10-06): minimise guesses to ideally
   zero. If something is not obvious from the context and instructions -
   intent, a design choice, a runner-facing word, scope - **ask**; facts

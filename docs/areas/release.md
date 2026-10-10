@@ -21,12 +21,13 @@ longer notes); it does not commit, tag or push.
 
 The author runs the latest release via the in-game updater (Slot 1).
 
-## Never deploy by hand
+## Deploying by hand
 
-Deploy fails with "user-mapped section open" if the game is running. **Do not
-deploy into the author's install unasked** — it now updates through the real
-release path (see *How updates work* below), and a hand-copied DLL hides whether
-that path works.
+Deploy fails with "user-mapped section open" if the game is running - close
+it first. **A hand deploy into the author's install is fine** (author,
+2026-10-10; it was refused from 2026-09-22 so the updater path stayed
+tested): a branch build goes in with `scripts/deploy.ps1`, and the next
+release the updater installs replaces it.
 
 ## How updates work
 

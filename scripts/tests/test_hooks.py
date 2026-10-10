@@ -66,21 +66,11 @@ class ForcePush(unittest.TestCase):
 
 
 class Deploy(unittest.TestCase):
-    def test_deploy_into_the_install_asks(self):
-        for cmd in ("./scripts/deploy.ps1",
-                    "./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT",
-                    './scripts/deploy.ps1 -GameRoot "G:\\SteamLibrary\\steamapps\\common\\The Forest"',
-                    'cp bin/Release/net35/ForestOverlay.dll "/g/SteamLibrary/steamapps/common/The Forest/BepInEx/plugins/"',
-                    'Copy-Item bin\\Release\\net35\\ForestOverlay.dll "G:\\SteamLibrary\\steamapps\\common\\The Forest\\BepInEx\\plugins"'):
-            kind, reason = decide(cmd)
-            self.assertEqual(kind, "ask", cmd)
-            self.assertIn("Router rule 2", reason)
-
-    def test_deploy_name_in_quoted_text_passes(self):
-        self.assertIsNone(decide('grep -rn -E "branch build|deploy.ps1" docs/areas/release.md'))
-        self.assertIsNone(decide("git commit -m 'deploy.ps1: a note'"))
-        kind, _ = decide('& "./scripts/deploy.ps1"')
-        self.assertEqual(kind, "ask")
+    def test_a_hand_deploy_passes(self):
+        # Author, 2026-10-10: copying by hand is always fine.
+        for cmd in ("./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT",
+                    'cp bin/Release/net35/ForestOverlay.dll "/g/SteamLibrary/steamapps/common/The Forest/BepInEx/plugins/"'):
+            self.assertIsNone(decide(cmd), cmd)
 
     def test_an_open_loop_run_refuses_the_ask(self):
         d = tempfile.mkdtemp()

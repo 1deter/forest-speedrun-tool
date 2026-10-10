@@ -319,7 +319,8 @@ check prints **what, why and how to fix it** (L9, L10), e.g.
 
   *Check:* each lint fails on a planted violation, with its fix text.
 - 5b. **PreToolUse hooks** for the dangerous ones:
-  - Block copying the DLL into the game folder (no hand deploys).
+  - Block copying the DLL into the game folder (no hand deploys) -
+    dropped 2026-10-10 (author: hand deploys are fine).
   - Block `api.github.com` polling.
   - Block `git push --force` to main.
   - Warn on `Get-Content | Set-Content` (gotcha 9).

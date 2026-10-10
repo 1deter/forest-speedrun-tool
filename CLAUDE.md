@@ -18,9 +18,10 @@ Each with its source and when it can go (rule hygiene, docs/harness.md 3f).
 1. **net35, Unity 5.6.5, no `Assembly-CSharp` reference** - game types by
    reflection, game names only in `src/Game/`. *(runtime facts below; until
    the game leaves Unity 5.6 / Mono 2.0)*
-2. **Never deploy a DLL into the game by hand** - the author's install
-   updates through the real release path. *(author; while the updater ships
-   releases - docs/areas/release.md; the PreToolUse hook asks)*
+2. **A hand deploy is fine** (`scripts/deploy.ps1` into the author's
+   install, e.g. a branch build to test in game) - close the game first.
+   *(author, 2026-10-10: "copying by hand is always fine"; replaces the
+   2026-09-22 rule that kept the install on the release path)*
 3. **Release with `scripts/bump.py`** (csproj + `Plugin.PluginVersion` + a
    `CHANGELOG.md` section, which CI requires), after `git fetch` and a look
    at `HEAD..origin/main`; chain a script edit to the bump with `&&`
@@ -104,7 +105,7 @@ dotnet build tools/BridgeMcp -c Release
 ```
 
 ```powershell
-./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build + copy the DLL into a game - never the author's install unasked (rule 2)
+./scripts/deploy.ps1 -GameRoot $env:FOREST_ROOT   # build + copy the DLL into a game (rule 2: fine, game closed)
 ```
 
 ```bash

@@ -47,11 +47,8 @@ Every failure says WHAT / WHY / FIX; follow the FIX line.
   and every tracked file sits in some area's *Paths* - a new folder
   fails until it is graded.
 - **PreToolUse** (`scripts/hooks/pre_tool.py`, Bash / PowerShell /
-  WebFetch): refuses `api.github.com` fetches and a forced push to main;
-  **asks** before a deploy into the author's install (`deploy.ps1` with
-  no / the `FOREST_ROOT` game root, or a copy into its `BepInEx/plugins`
-  - author 2026-10-07: "just ask me"; a test install passes; bridge tests
-  use `update_game` and never hit it); refuses a search over a whole
+  WebFetch): refuses `api.github.com` fetches and a forced push to main
+  (a hand deploy no longer asks - author, 2026-10-10); refuses a search over a whole
   drive, `/` or the home folder deeper than 2 (`find /`, `Get-ChildItem C:\
   -Recurse`, ...) and names the real paths (gotcha 99); warns on
   `Get-Content | Set-Content`.
@@ -167,7 +164,7 @@ re-testing something; add each new confirmation there).
 The author tests in game and reports back with the `LogOutput.log` path; they
 answer design questions quickly and mid-turn, and often send several
 messages while a turn runs. Releases: [`release.md`](release.md) *Releasing*.
-Do not deploy into the game folder. Record decisions made with the author
+Record decisions made with the author
 in [`docs/decisions.md`](../decisions.md), with who decided and when. The log is
 replaced on every game launch — read it before the author starts the game
 again. **Keep the handoff current without being asked** (author,
