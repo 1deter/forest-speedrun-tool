@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.270 - 2026-10-10
+
+- A timed run now starts on your first input - any key, button or movement - instead of when you start moving. Looking around with the camera and opening the pause menu (Esc) do not start it.
+- Spots and LiveSplit imports that started on moving now start on the first input; their old times count as a different route, since the start moved.
+
 ## v0.24.269 - 2026-10-10
 
 - A Go, F7 on a spot without a start state and an auto-restart no longer hitch for about 24 ms.
