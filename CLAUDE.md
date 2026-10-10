@@ -210,7 +210,9 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   load hang did not come back in 12 loads (10 fresh launches). The cause
   is **T-0290** (blocked on T-0284 until a hang is caught; if the line
   says "outside", try with `AllocationTrackerAtStartup` off - it is on in
-  the author's config). Waits for the smoke.
+  the author's config). Smoke PASS; to confirm (not its maker):
+  forest-tester repeats the forced stall (bridge `call static:System.Threading.Thread
+  Sleep 12000` -> `Stall:` naming `bridge`, then `back after`).
 - **v0.24.272 (2026-10-10, cloud branches merged):** spots autosave, no
   Save / Reload (T-0217); a local Delete stays local, your own spot comes
   back from the site, Replace? / take-back disarm the old route (T-0265,
