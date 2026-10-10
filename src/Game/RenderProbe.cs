@@ -437,6 +437,196 @@ namespace ForestOverlay.Game
             return shaders.Count + " shaders, " + marked.Count + " matching '" + mark + "' (log)";
         }
 
+        /// What the main camera may draw this frame, grouped by `group`
+        /// ("layer", "root" or "shader"; top `top` groups): renderers
+        /// active and enabled, on a layer of its mask, inside its frustum
+        /// and its per-layer cull distance (`layerCullDistances`, spherical
+        /// or planar as the camera says; 0 = its far plane). For each
+        /// group: renderers, draws (one per material slot - a draw call
+        /// each before batching), how many of those Unity drew for some
+        /// camera last frame (`Renderer.isVisible`: after LOD and occlusion
+        /// culling, shadows included), and the shadow casters among them;
+        /// plus the draws of renderers drawn last frame outside its view
+        /// (shadow casters behind it, other cameras' layers).
+        /// "root=Caves" / "shader=X" / "layer=13" lists that group's
+        /// renderers by path instead. T-0199: the main camera's draw table.
+        public static string MainCamDraws(string group, int top)
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return "no main camera";
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            string only = null, onlyValue = null;
+            int eq = (group ?? "").IndexOf('=');
+            if (eq > 0)
+            {
+                only = group.Substring(0, eq);
+                onlyValue = group.Substring(eq + 1);
+            }
+            Plane[] planes = GeometryUtility.CalculateFrustumPlanes(cam);
+            float[] cull = cam.layerCullDistances;
+            bool spherical = cam.layerCullSpherical;
+            Vector3 at = cam.transform.position;
+            Vector3 fwd = cam.transform.forward;
+            int mask = cam.cullingMask;
+            Dictionary<string, int[]> groups = new Dictionary<string, int[]>();
+            int[] total = new int[7];
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+                int layer = r.gameObject.layer;
+                if ((mask & (1 << layer)) == 0) continue;
+                Bounds b = r.bounds;
+                float limit = cull != null && layer < cull.Length && cull[layer] > 0f ? cull[layer] : cam.farClipPlane;
+                float d = spherical ? Mathf.Sqrt(b.SqrDistance(at)) : Vector3.Dot(b.center - at, fwd) - b.extents.magnitude;
+                bool inView = d <= limit && GeometryUtility.TestPlanesAABB(planes, b);
+                bool seen = r.isVisible;
+                if (!inView && !seen) continue;
+                string key;
+                Material[] ms = r.sharedMaterials;
+                string shader = ms.Length > 0 && ms[0] != null && ms[0].shader != null ? ms[0].shader.name : "(none)";
+                if (only != null)
+                {
+                    string value = only == "root" ? r.transform.root.name : only == "shader" ? shader : layer.ToString();
+                    if (value != onlyValue) continue;
+                    key = Path(r.transform) + " [" + shader + "]" + (seen ? "" : " (not drawn)");
+                }
+                else if (group == "root") key = r.transform.root.name;
+                else if (group == "shader") key = shader;
+                else if (group == "mesh") key = MeshKey(r, ms);
+                else key = layer + " " + LayerMask.LayerToName(layer);
+                int[] g;
+                if (!groups.TryGetValue(key, out g)) { g = new int[7]; groups[key] = g; }
+                int draws = ms.Length;
+                if (!inView) { Add(g, total, 6, draws); continue; }
+                bool caster = r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off;
+                Add(g, total, 0, 1);
+                Add(g, total, 1, draws);
+                if (seen) { Add(g, total, 2, 1); Add(g, total, 3, draws); }
+                if (seen && caster) Add(g, total, 4, draws);
+                if (r is SkinnedMeshRenderer) Add(g, total, 5, draws);
+            }
+            List<KeyValuePair<string, int[]>> list = new List<KeyValuePair<string, int[]>>(groups);
+            list.Sort((a, b) => b.Value[3].CompareTo(a.Value[3]));
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Render probe: main camera '").Append(cam.name).Append("' at ").Append(at.ToString("0"))
+              .Append(" by ").Append(group).Append(" (renderers / draws, drawn last frame: renderers / draws / of them shadow casters, skinned draws): all ")
+              .Append(total[0]).Append(" / ").Append(total[1]).Append(", drawn ").Append(total[2]).Append(" / ").Append(total[3])
+              .Append(" / ").Append(total[4]).Append(", skinned ").Append(total[5])
+              .Append("; drawn outside its view (shadows, other cameras) ").Append(total[6]).Append(" draws");
+            for (int i = 0; i < list.Count && i < top; i++)
+            {
+                int[] g = list[i].Value;
+                sb.Append(" | ").Append(list[i].Key).Append(": ").Append(g[0]).Append('/').Append(g[1])
+                  .Append(", drawn ").Append(g[2]).Append('/').Append(g[3]).Append('/').Append(g[4]);
+                if (g[5] > 0) sb.Append(", skinned ").Append(g[5]);
+                if (g[6] > 0) sb.Append(", outside ").Append(g[6]);
+            }
+            if (Log != null) Log.LogInfo(sb.ToString());   // log: Render probe
+            return total[2] + " renderers / " + total[3] + " draws drawn of " + total[1] + " (log)";
+        }
+
+        /// Mesh + materials of a renderer: renderers sharing it are what
+        /// GPU instancing could draw in one call (when the material allows
+        /// it - "inst" - and the shader has an instancing variant).
+        private static string MeshKey(Renderer r, Material[] ms)
+        {
+            MeshFilter mf = r.GetComponent<MeshFilter>();
+            Mesh mesh = mf != null ? mf.sharedMesh : null;
+            SkinnedMeshRenderer smr = r as SkinnedMeshRenderer;
+            if (smr != null) mesh = smr.sharedMesh;
+            StringBuilder sb = new StringBuilder();
+            sb.Append(mesh != null ? mesh.name : "(no mesh)");
+            for (int i = 0; i < ms.Length; i++)
+            {
+                Material m = ms[i];
+                sb.Append(i == 0 ? " | " : ", ").Append(m != null ? m.name : "null");
+                if (m != null && m.enableInstancing) sb.Append(" inst");
+            }
+            return sb.ToString();
+        }
+
+        /// Every Light loaded (scene and prefabs) whose shadows are not
+        /// None: path, type, range, active - who renders a shadow map.
+        public static string LightsWithShadows()
+        {
+            UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(Light));
+            StringBuilder sb = new StringBuilder();
+            int n = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                Light l = all[i] as Light;
+                if (l == null || l.shadows == LightShadows.None) continue;
+                n++;
+                sb.Append(n == 1 ? ": " : " | ").Append(Path(l.transform)).Append(' ').Append(l.type).Append(' ').Append(l.shadows)
+                  .Append(" range ").Append(l.range.ToString("0"))
+                  .Append(l.gameObject.activeInHierarchy && l.enabled ? " on" : " off")
+                  .Append(l.gameObject.scene.IsValid() ? "" : " (prefab)");
+            }
+            if (Log != null) Log.LogInfo("Render probe: " + n + " of " + all.Length + " lights cast shadows" + sb);
+            return n + " of " + all.Length + " lights cast shadows (log)";
+        }
+
+        private static readonly List<Renderer> _noShadow = new List<Renderer>();
+
+        /// Shadow casting off for the enabled renderers under scene root
+        /// `root` (and back on at the next call). A test only.
+        public static string ToggleShadowCasting(string root)
+        {
+            if (_noShadow.Count > 0)
+            {
+                for (int i = 0; i < _noShadow.Count; i++)
+                    if (_noShadow[i] != null) _noShadow[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                int back = _noShadow.Count;
+                _noShadow.Clear();
+                return back + " renderer(s) cast shadows again";
+            }
+            Renderer[] all = UnityEngine.Object.FindObjectsOfType(typeof(Renderer)) as Renderer[];
+            if (all == null) return "no renderers";
+            for (int i = 0; i < all.Length; i++)
+            {
+                Renderer r = all[i];
+                if (r == null || !r.enabled || r.transform.root.name != root) continue;
+                if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.On) continue;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _noShadow.Add(r);
+            }
+            return _noShadow.Count + " renderer(s) without shadows";
+        }
+
+        private static readonly List<Material> _instanced = new List<Material>();
+
+        /// GPU instancing on for every loaded material whose shader name is
+        /// `shader` and has it off (and back off at the next call). A test
+        /// only: whether instancing cuts the main camera's draw calls.
+        public static string ToggleInstancing(string shader)
+        {
+            if (_instanced.Count > 0)
+            {
+                for (int i = 0; i < _instanced.Count; i++)
+                    if (_instanced[i] != null) _instanced[i].enableInstancing = false;
+                int back = _instanced.Count;
+                _instanced.Clear();
+                return back + " material(s) back without instancing";
+            }
+            UnityEngine.Object[] mats = Resources.FindObjectsOfTypeAll(typeof(Material));
+            for (int i = 0; i < mats.Length; i++)
+            {
+                Material m = mats[i] as Material;
+                if (m == null || m.enableInstancing || m.shader == null || m.shader.name != shader) continue;
+                m.enableInstancing = true;
+                _instanced.Add(m);
+            }
+            return _instanced.Count + " material(s) instanced";
+        }
+
+        private static void Add(int[] g, int[] total, int i, int n)
+        {
+            g[i] += n;
+            total[i] += n;
+        }
+
         private static string Path(Transform t)
         {
             string p = t.name;

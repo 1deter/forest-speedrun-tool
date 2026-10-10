@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 678 log calls.
+218 prefixes from 680 log calls.
 
 ## `Aerial capture`
 
@@ -1224,8 +1224,9 @@ Written by DeathModule.cs; info.
 Meaning: Render probe readings (dev): what a camera, layer or texture renders and what it costs.
 Written by RenderProbe.cs; info.
 
-- info `<..>` *(declared)* (x5)
+- info `<..>` *(declared)* (x6)
 - info `<line>` *(declared)*
+- info `Render probe: <n> of <all.Length> lights cast shadows<sb>`
 - info `Render probe: camera '<name>' <n> renders: <..> ms each`
 - info `Render probe: late-enable test of '<_lateTarget.name>' done after <_lateFrames> frames.`
 

@@ -17,6 +17,8 @@ findall	src/Game/ObjectProbe.cs	? Resources.FindObjectsOfTypeAll(typeof(GameObje
 findall	src/Game/ObjectProbe.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(GameObject));
 findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
 findall	src/Game/PerfPatches.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(t);
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(typeof(Light));
+findall	src/Game/RenderProbe.cs	UnityEngine.Object[] mats = Resources.FindObjectsOfTypeAll(typeof(Material));
 findall	src/Game/RenderProbe.cs	UnityEngine.Object[] mats = Resources.FindObjectsOfTypeAll(typeof(Material));
 findall	src/Game/RenderProbe.cs	UnityEngine.Object[] rs = Resources.FindObjectsOfTypeAll(typeof(Renderer));
 findall	src/Game/SavestateBridge.cs	UnityEngine.Object[] all = Resources.FindObjectsOfTypeAll(_ragdollifyType);
