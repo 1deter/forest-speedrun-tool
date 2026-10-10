@@ -95,7 +95,7 @@ LiveSplit, uploads.
 
 ### Practice
 
-Paths: `src/Modules/{PracticeModule,DeathModule}.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,ItemCaps,LocationLibrary,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
+Paths: `src/Modules/{PracticeModule,DeathModule}.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,EditDebounce,ItemCaps,LocationLibrary,SafeFile,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
 
 Spots and their editor, teleports, Go / Restart, death reload and revive,
 sharing and community packs, the gameplay mods ("ON NOW").

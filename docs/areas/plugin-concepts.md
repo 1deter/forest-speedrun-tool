@@ -11,6 +11,13 @@ concept before changing its feature. Where the code lives:
   checkpoints. There is no separate "anchor". **F7 restarts the *current*
   spot** (the last one teleported to or captured on), not the editor's
   selection.
+- **Editor edits save themselves** (T-0217): an edit marks its entry
+  *(unsaved)* and is written to its local file once the edits pause
+  (1 s quiet, at most 5 s - `Data/EditDebounce`), or at once on selecting
+  another entry, Reload, Export / Submit and quitting. The file is replaced
+  through a `.tmp` (`Data/SafeFile`; a crash mid-write is put right at the
+  next load). Save only writes now / retries a failed write. Nothing is
+  uploaded by an edit.
 - **One button, one job** (author, v0.22.0: "buttons shouldn't have
   double-purposes"). **Go only teleports**, start state or not. Restoring
   is **Restart**: F7, the Runs tab's Restart, a death revive, and the
