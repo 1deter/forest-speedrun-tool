@@ -62,6 +62,7 @@
     <Compile Include="../../src/Data/KeptRead.cs" Link="Linked/KeptRead.cs" />
     <Compile Include="../../src/Data/PaintSet.cs" Link="Linked/PaintSet.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
+    <Compile Include="../../src/Data/WreckCuts.cs" Link="Linked/WreckCuts.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../patcher/DefaultRepair.cs" Link="Linked/DefaultRepair.cs" />
     <Compile Include="../../src/Game/ModApi.cs" Link="Linked/ModApi.cs" />

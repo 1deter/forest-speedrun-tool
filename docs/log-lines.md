@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 725 log calls.
+225 prefixes from 728 log calls.
 
 ## `Aerial capture`
 
@@ -1074,7 +1074,7 @@ Written by PerfMonitor.cs; info.
 ## `Performance`
 
 Meaning: Performance trims at work: camera trims, the endgame screen camera, skipped grass updates, merged asset clean-ups, the sun post-process material kept in the endgame (first time a session).
-Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
+Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / warning.
 
 - warning `Performance: camera trim scan failed: <ex.Message>`
 - info `Performance: endgame screen camera (<..>) renders only when its screen is drawn (<shows.Count> screen(s): <..>).`
@@ -1106,6 +1106,9 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
 - info `Performance: skipped the endgame-animation asset clean-up at load (<AnimSweepsSkipped> this session).`
 - info `Performance: the removed 30 Hz physics switch was on - physics back at 60 Hz (fixed step <..> s).`
 - info `Performance: the sun post-process was switched on again - kept its material instead of making a new one (the game does this every frame in the endgame).`
+- warning `Performance: plane wreck - nav cut check failed (<..>); the game's update runs.`
+- info `Performance: plane wreck - the old wreck's removal skipped its navmesh update; the new wreck at <..> keeps the same cut.`
+- info `Performance: plane wreck - the restore's new wreck skipped its navmesh update; the wreck at <..> already cut the same place.`
 
 ## `Performance patch`
 

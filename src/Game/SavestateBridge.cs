@@ -1908,6 +1908,7 @@ namespace ForestOverlay.Game
                         GameObject go = roots[i];
                         if (go == null || go == current || go.name != current.name) continue;
                         if (PerfPatches.RestoreRemoveWreckCutters) cutters += DestroyOwnCutters(go);
+                        WreckNav.Removing(go);
                         UnityEngine.Object.Destroy(go);
                         removed++;
                     }

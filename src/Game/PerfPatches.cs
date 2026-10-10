@@ -144,6 +144,11 @@ namespace ForestOverlay.Game
     //    the scenes take back. The restore cancels the invokes its own
     //    unload queued (SavestateBridge.ForceUnloadStreaming); one already
     //    queued by the game (entering a cave) is left alone.
+    // 20. The re-created plane wreck's navmesh updates (T-0278): the new
+    //    wreck's nav cut and the old one's removal each recalculated the
+    //    same box with the same cutter in it (~180 ms + ~7.7 MB each) -
+    //    skipped while a wreck at the same pose keeps the cut
+    //    (Game/WreckNav, Data/WreckCuts).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -288,6 +293,12 @@ namespace ForestOverlay.Game
                 "freeing memory the scenes take back a moment later. Skip that walk for the restore's own unload; the game's " +
                 "clean-ups on entering a cave are unchanged.",
                 delegate { RestoreSkipStreamingSweep = true; return ""; }, delegate { RestoreSkipStreamingSweep = false; });
+            Add(config, "RestoreSkipSameWreckNav", "Savestates: no enemy-path recalculation for the re-created plane wreck",
+                "A savestate restore brings back a new plane wreck where the old one stands, and the game recalculated enemy " +
+                "paths around it twice - for the new wreck and for the old one going - each a ~0.2 s frame and ~8 MB of garbage, " +
+                "with the same result as before (the same wreck at the same place). Skip both while a wreck at the same place " +
+                "keeps its path blocker; a wreck anywhere else, or the first one after a load, is recalculated as the game does.",
+                delegate { return WreckNav.Apply(_harmony, _log); }, WreckNav.Remove);
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -668,6 +679,8 @@ namespace ForestOverlay.Game
         {
             try
             {
+                // A re-created wreck's old one (WreckNav, fix 20): no update.
+                if (WreckNav.SkipsRemoval(__0) != null) { __result = Nothing(); return false; }
                 // The game's own batch from before the switch went on: join it.
                 if ((bool)_doingDummyNav.GetValue(__instance)) return true;
                 System.Collections.IList list = _dummyNavBounds.GetValue(__instance) as System.Collections.IList;
