@@ -173,6 +173,17 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
     it too (T-0271); the strip says only what helps - why Restart is
     greyed or refused, nothing beyond the name for a plain spot (T-0272:
     "if it has nothing useful to display, then don't show it").
+  - **Overlays are set up where they are shown** (author, 2026-10-10,
+    T-0257): a component whose purpose is to be on screen while running
+    (the splits panel, the results panel) is switched on and set up in
+    Edit HUD mode, moved and resized there by dragging, and not drawn
+    again inside a tab ("you cannot have it up while you are running";
+    the redesign removes useless clutter from the UI). Goal: easy like
+    LiveSplit, and out of the way once configured. A panel a newcomer may
+    not know (the results panel) says on screen what it is, so it is not
+    left off out of doubt. The runner name goes to the Runs tab's *Upload
+    to the website*; the PB / golds "when set" line tops *Attempts*
+    (provisional - forest-ux reviews it in game).
   - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
     and every feature that adds much UI; the author's rules are a floor,
     not the whole list - it brings in established UX guidance.
