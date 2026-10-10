@@ -2895,8 +2895,9 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   camera outside rendering crashes; only order of cameras decides it.
 - Symbols: `TheForest.exe` is Unity's `player_win_x64.pdb`, GUID+age
   `4A35955D96D04F0A89A4669DC0C913D11`, on symbolserver.unity3d.com
-  (`scripts/symbolize-crash.py`, cached in
-  `%LOCALAPPDATA%\ForestOverlay\symbols`).
+  (`scripts/symbolize-crash.py`, `--threads` for every thread; cached in
+  `%LOCALAPPDATA%\ForestOverlay\symbols`). Who calls a native function,
+  a virtual by its vtable slot: `scripts/native-callers.py` (T-0190).
 
 ## The native crash in LOD_SimpleToggle at a title load (dump + PDB + IL + bridge, 2026-10-07, T-0143)
 
@@ -2952,10 +2953,52 @@ in the frame where ForestMain_v08 had just loaded (the log's last line:
   loading) or anything in the process that writes raw memory - which the
   dump cannot tell apart.
 - **A second signature, not this one** (`2026-10-04_083030`,
-  `2026-10-05_120832`): the render thread (`GfxDeviceWorker::RunCommand` ->
-  `UploadTextureSubData2D` -> `TexturesD3D11Base::UploadTexture2D`) reads
-  `0xec` in `d3d11.dll+0x152a5a` - a texture upload (`Texture2D.Apply`) to a
-  null D3D resource; the main thread waits in `GfxDeviceClient::BeginFrame`.
+  `2026-10-05_120832`): the render thread reading `0xec` in
+  `d3d11.dll+0x152a5a` - the next section.
+
+## The render-thread crash on a font texture reset (dumps + PDB + exe disassembly + bridge, 2026-10-10, T-0190)
+
+Two crashes (`2026-10-04_083030`, `2026-10-05_120832`; the second while
+loading a save), the same to the byte. **The engine's, not the plugin's.**
+Threads, the plugin's texture paths and the live checks:
+`tasks/notes/T-0190.md`.
+
+- **The fault**: UnityGfxDeviceWorker, `RunCommand` ->
+  `GfxDeviceD3D11Base::UploadTextureSubData2D` ->
+  `TexturesD3D11::UploadTextureSubData2D` -> `ID3D11DeviceContext::UpdateSubresource`
+  with a **null destination resource** (`test dword [rdx+0xec]`, rdx 0).
+  The command: a 256 x 256 Alpha8 texture (DXGI 65), x 0 y 0, 65536 bytes.
+  The main thread waits in `GfxDeviceClient::BeginFrame`; no async load
+  in flight (UnityPreload idle).
+- **Only fonts and video send it.** `UploadTextureSubData2D` (GfxDevice
+  vtable +0x3c0) is called from `FontImpl::AddCharacterToTexture`,
+  `FontImpl::ResetCachedTexture` and `BaseVideoTexture::UploadTextureData`
+  only. `Texture2D.Apply` / `LoadRawTextureData` / `SetPixels` /
+  `ReadPixels` never send it (full creates, `UploadTexture2D`).
+  `ResetCachedTexture` zero-fills a dynamic font's whole atlas with exactly
+  the dumps' command (callers: `CacheFontForText` when the atlas is full,
+  `AwakeFromLoadImpl`, `CreateDynamicFont`, `LoadAllFonts`, `SetFontNames`).
+- **Why the resource is null**: `TexturesD3D11Base::UploadTexture2D`, when
+  `CreateTexture2D` fails, logs `d3d11: failed to create 2D texture id=..
+  width=.. height=.. mips=.. dxgifmt=.. [D3D error was %x]` and still
+  registers the texture id with a null resource; the next sub-upload to it
+  crashes. (A destroyed texture leaves no entry: `DeleteTexture` calls
+  `TextureIdMap::RemoveTexture`, and a sub-upload to a missing id returns.)
+  A 256 x 256 A8 create fails only with the device gone (driver reset /
+  removed) or out of memory; which one was never logged.
+- **The fonts** (bridge): IMGUI's skin (`GUISkin.current` = `GameSkin`)
+  draws with the dynamic `Arial`, atlas `Font Texture` 256 x 256 Alpha8 -
+  the dumps' shape; `RequestCharactersInTexture` at size 120 grew it to
+  1024 with a new native texture, no crash. The game's NGUI labels use
+  dynamic fonts too (`NGUIText.Update` / `Prepare` ->
+  `RequestCharactersInTexture`, `UILabel.OnEnable` -> `textureRebuilt`).
+- **Unity's errors are in no kept log.** `[Logging.Disk] WriteUnityLog =
+  false` keeps Unity messages out of LogOutput.log (bridge: `Debug.LogError`
+  and a native scene-not-found error appear only with
+  `DiskLogListener.WriteFromUnityLog` true), the game writes no
+  `output_log.txt`, and `Application.CallLogCallback` passes a message from
+  another thread (the d3d11 line is the render thread's) only to
+  `logMessageReceivedThreaded`.
 
 ## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
 

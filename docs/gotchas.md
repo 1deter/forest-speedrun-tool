@@ -990,3 +990,16 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     against after a restore in place of it; then check what the game's own
     timers (`IsInvoking`) and coroutines still have queued - a diff of
     fields cannot see those.
+
+104. **A render-thread crash names the command, not who queued it.**
+    (2026-10-10, T-0190.) The d3d11 crash's stack read as "a texture upload
+    (`Texture2D.Apply`)" and pointed at the plugin's textures. Listing every
+    `call [reg+0x3c0]` (the `UploadTextureSubData2D` vtable slot) in the
+    player exe showed only fonts and video send it - the plugin's Apply
+    calls cannot - and the command's own arguments on the worker stack
+    (256 x 256, Alpha8, 65536 bytes at 0,0) matched a dynamic font's atlas
+    reset. Find a native call's senders by vtable slot before suspecting
+    callers by name (`scripts/native-callers.py --vtable`). And look for
+    the engine's own error line first: here it is in no log we keep
+    (BepInEx `WriteUnityLog = false`, no `output_log.txt`, render-thread
+    messages only reach `logMessageReceivedThreaded`).

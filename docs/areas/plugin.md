@@ -180,6 +180,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 100. **A dump's function name can be one of several folded functions** - check the PDB for others at the address; Mono JIT frames are read from the rbp chain, and a Vector3 left in a frame can name the object (T-0143). [judgement]
 102. **List a flag's writers before reading it as one event** - `onRope` is also every cave-mouth crawl and four cutscenes; a game snap (a cave mouth, 9 m) is not a teleport (T-0242). [judgement]
 103. **A restore in place keeps everything outside the save, running Invokes and coroutines too** - diff the player's fields after a Full load vs in place, then check `IsInvoking` (T-0248). [judgement]
+104. **A render-thread crash names the command, not who queued it** - find a native call's senders by its vtable slot in the exe; Unity's own errors (the d3d11 line) are in no kept log (T-0190). [judgement]
 
 ### Restores (savestates)
 
