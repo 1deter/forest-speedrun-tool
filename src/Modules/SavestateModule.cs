@@ -1194,6 +1194,7 @@ namespace ForestOverlay.Modules
             // A cave capture (v0.24.17 files): its cave families put back at
             // once - the live ones kept, no setup run (RestoreCave).
             float start = Time.realtimeSinceStartup;
+            RestoreGarbage.Start garbage = RestoreGarbage.Current();
             string cave = null;
             if (enemies && file != null && file.InCave && file.Families != null && file.Families.Count > 0)
             {
@@ -1209,7 +1210,7 @@ namespace ForestOverlay.Modules
             _planeClears++;
             if (!enemies || cave != null)
             {
-                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + Since() + ".");
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + Since(garbage) + ".");
                 yield break;
             }
 
@@ -1222,7 +1223,7 @@ namespace ForestOverlay.Modules
                 string rebuilt = null;
                 yield return Ctx.Runner.StartCoroutine(_enemies.Rebuild(file.Families, file.Enemies ?? new List<string>(),
                                                                         delegate(string note) { rebuilt = note; }));
-                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + rebuilt + Since() + ".");
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + rebuilt + Since(garbage) + ".");
                 yield break;
             }
 
@@ -1240,12 +1241,12 @@ namespace ForestOverlay.Modules
             // (fix list 2 - author: "ideally in the same position").
             string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
-                            (positions.Length > 0 ? " | " + positions : "") + Since() + ".");
+                            (positions.Length > 0 ? " | " + positions : "") + Since(garbage) + ".");
         }
 
-        private static string Since()
+        private static string Since(RestoreGarbage.Start start)
         {
-            string g = RestoreGarbage.Since();
+            string g = RestoreGarbage.Since(start);
             return g.Length > 0 ? " | " + g : "";
         }
 

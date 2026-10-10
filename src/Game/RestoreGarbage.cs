@@ -43,12 +43,30 @@ namespace ForestOverlay.Game
             return "garbage (main thread) " + Steps.Describe() + ", GC x" + (GC.CollectionCount(0) - _gcStart);
         }
 
-        /// Since Begin, for the line a few seconds later; "" when off.
-        public static string Since()
+        /// This restore's start, kept by the caller for the line a few
+        /// seconds later (the next restore may have begun by then).
+        public struct Start
         {
-            if (!On || !Steps.Started) return "";
+            public bool On;
+            public long Bytes;
+            public int Gc;
+        }
+
+        public static Start Current()
+        {
+            Start s = new Start();
+            s.On = On && Steps.Started;
+            s.Bytes = _startBytes;
+            s.Gc = _gcStart;
+            return s;
+        }
+
+        /// Since `start`; "" when the tracker was or is off.
+        public static string Since(Start start)
+        {
+            if (!start.On || !AllocationTracker.Counting) return "";
             return "garbage (main thread) since the restore started " +
-                   StepBytes.Mb(AllocationTracker.MainBytesEver - _startBytes) + " MB, GC x" + (GC.CollectionCount(0) - _gcStart);
+                   StepBytes.Mb(AllocationTracker.MainBytesEver - start.Bytes) + " MB, GC x" + (GC.CollectionCount(0) - start.Gc);
         }
     }
 }
