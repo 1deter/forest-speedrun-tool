@@ -77,26 +77,51 @@ namespace ForestOverlay.Game
         {
             if (_stats != null) return;
 
-            // FindObjectOfType walks every loaded object. Called from a
-            // per-frame Tick, a miss (mid-load, or no PlayerStats) meant a
-            // full scene walk every frame - rate-limit the retry.
-            if (Time.unscaledTime < _nextResolve) return;
-            _nextResolve = Time.unscaledTime + RetryInterval;
+            // The static LocalPlayer.Stats, as the inventory reads its own:
+            // FindObjectOfType walked every loaded object, 20-25 ms on the
+            // frame practice mode came on and after every load (T-0275).
+            Component found = GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Stats") as Component;
+            if (found == null)
+            {
+                // Empty static: no save loaded, or mid-load.
+                if (StaticExists()) return;
 
-            Type t = GameBridge.FindGameType("PlayerStats");
-            if (t == null) return;
+                // Fallback for a build without the static. A miss here is a
+                // full scene walk, so the retry is rate-limited.
+                if (Time.unscaledTime < _nextResolve) return;
+                _nextResolve = Time.unscaledTime + RetryInterval;
 
-            UnityEngine.Object found;
-            try { found = UnityEngine.Object.FindObjectOfType(t); }
-            catch (Exception) { return; }
-            if (found == null) return;
+                Type ft = GameBridge.FindGameType("PlayerStats");
+                if (ft == null) return;
+                try { found = UnityEngine.Object.FindObjectOfType(ft) as Component; }
+                catch (Exception) { return; }
+                if (found == null) return;
+            }
 
-            _stats = found as Component;
+            _stats = found;
+            // The type does not change between loads: the getters bound for
+            // it already serve the new component.
+            Type t = found.GetType();
+            if (_fields != null && t == _boundType) return;
             Bind(t);
+        }
+
+        private int _staticExists = -1;
+        private Type _boundType;
+
+        private bool StaticExists()
+        {
+            if (_staticExists < 0)
+            {
+                Type local = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+                _staticExists = local != null && local.GetField("Stats", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) != null ? 1 : 0;
+            }
+            return _staticExists == 1;
         }
 
         private void Bind(Type t)
         {
+            _boundType = t;
             FieldInfo[] all = t.GetFields(BindingFlags.Instance | BindingFlags.Public |
                                           BindingFlags.NonPublic);
 
