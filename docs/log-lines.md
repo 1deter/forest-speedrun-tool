@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-221 prefixes from 702 log calls.
+222 prefixes from 710 log calls.
 
 ## `Aerial capture`
 
@@ -117,6 +117,18 @@ Written by BossHold.cs; info / warning.
 - info `BossHold: Megan is there after <..> s - starting the transformation.`
 - info `BossHold: Megan's transformation held - Megan not there yet (the game sets her up a few seconds after a load).`
 - warning `BossHold: starting the transformation failed: <..>`
+
+## `BreakableKeeper`
+
+Meaning: The cave stalagmites a restore puts back as captured (broken since -> whole, broken at capture -> broken): hooked, or why not.
+Written by BreakableKeeper.cs; info / warning.
+
+- warning `BreakableKeeper: <Status>`
+- info `BreakableKeeper: <Status>.`
+- warning `BreakableKeeper: break postfix failed: <ex.Message>`
+- warning `BreakableKeeper: break prefix failed: <ex.Message>`
+- warning `BreakableKeeper: removing an empty root failed: <ex.Message>`
+- warning `BreakableKeeper: spawn postfix failed: <ex.Message>`
 
 ## `Bridge`
 
@@ -1416,6 +1428,7 @@ Written by SavestateBridge.cs, SavestateModule.cs; info / warning.
 - warning `Savestate: removing sapling sticks failed: <ex.Message>`
 - warning `Savestate: removing thrown spears failed: <ex.Message>`
 - warning `Savestate: removing wreck pickups failed: <ex.Message>`
+- warning `Savestate: stalagmite capture failed: <ex.Message>`
 - info `Savestate: start state of '<s.Id>' deleted.`
 - info `Savestate: start state of '<s.Id>' is now <s.StartState> - route <..>.`
 - warning `Savestate: the start state file of '<s.Id>' is not the one the segment expects (<s.StartState>) - recapture it to make it so.`
@@ -1437,6 +1450,7 @@ Written by LogStore.cs, SavestateModule.cs; info / warning.
 - info `<context>: logs in the inventory <was> -> <..> (as captured).` *(declared)*
 - info `<prefix>: <..>.` *(declared)*
 - info `<prefix>: <note>.` *(declared)*
+- info `Savestate after the load: <..> (<late> broken as they spawned in the load).`
 - info `Savestate after the load: <..>.`
 - info `Savestate after the load: <again>.`
 - info `Savestate after the load: <greebles> (<late> set as they spawned in the load).`

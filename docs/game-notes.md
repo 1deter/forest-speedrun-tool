@@ -4180,6 +4180,16 @@ somewhere, a different one per visit, until a scene load builds fresh
 pools. Repair, by bridge: the zone's `Despawn()`, then
 `GreeblePlugin.Remove(root)` (`Pool.KillInstance`) on each empty root,
 then the zone's `Spawn()` - both spots had their capsules back.
+`GreebleZone.Spawn` calls `Despawn` itself, then `ScheduledSpawn`
+(instances over the next frames, each through `SpawnIndex(i)`; the zone's
+`instances[i]` is the root). The zones beside the swim room
+(`C6_Props/C6_Corridor01/Greeble_StalagmiteLarge` /
+`...Small`) are scene objects with manager `GZData`, `AllowRegrowth`
+false. The break's debris `Stalagmite4Broken(Clone)` is a scene root
+(`destroyAfter`, 25 chunks on layer 30) at the child's place, ~0.7 m
+below the root. A restore puts all this back as captured
+(`Game/BreakableKeeper`, T-0273, bridge 2026-10-10: 10 restores in a row
+kept 11 roots / 10 whole, a Full load re-broke the captured one).
 
 ## How to extend this file
 

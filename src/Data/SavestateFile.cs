@@ -36,6 +36,7 @@ namespace ForestOverlay.Data
     //   bushes = 3f2a9c1e-41234:7
     //   cutbushes = Nature_Spawned/GreenBush_40@426.3,76.09,-6.78;...
     //   greebles = 501.23,76.37,90.30:11525:fdfdfdfd;...
+    //   broken = 1230.8,-33.9,525.2;...
     //   weather = state=Raining type=Heavy dice=4,1,0 overcast=1,1 ... fog=300,300
     //   areas = caves no, endgame yes, overlook no | scenes: ... | streamed: ...
     //   data = <base64>
@@ -74,7 +75,11 @@ namespace ForestOverlay.Data
     // before v0.24.65. `greebles` the greeble zones on pooled trees near
     // the player (Data/GreebleRecord: place, seed, taken flags), given
     // back by Game/GreebleKeeper; absent before v0.24.70, and then the
-    // sticks around trees are whatever the pool draws. `weather` the rain,
+    // sticks around trees are whatever the pool draws. `broken` the
+    // breakable greebles (cave stalagmites) broken at capture, by where
+    // they stood (SpotKey; Game/BreakableKeeper breaks them again and
+    // puts back whole the ones broken since); absent when none was, and
+    // in files before T-0273 (then every one comes back whole). `weather` the rain,
     // clouds and fog distance (Data/WeatherState, Game/WeatherKeeper); absent
     // before it was added, and then the weather is left as it is. None of these is
     // in the start-state hash (only
@@ -164,6 +169,10 @@ namespace ForestOverlay.Data
         /// GreebleRecord entries.
         public List<string> Greebles;
 
+        /// Null when nothing breakable was broken at capture (or the file
+        /// predates the line); SpotKey entries (Game/BreakableKeeper).
+        public List<string> Broken;
+
         /// The blueprint out at capture (Game/BuildMode, a BuildingTypes
         /// name); "" for none.
         public string Blueprint = "";
@@ -250,6 +259,7 @@ namespace ForestOverlay.Data
             c.Families = Families != null ? new List<string>(Families) : null;
             c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
             c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
+            c.Broken = Broken != null ? new List<string>(Broken) : null;
             return c;
         }
 
@@ -296,6 +306,7 @@ namespace ForestOverlay.Data
             if (Bushes.Length > 0) Line(sb, "bushes", Bushes);
             if (CutBushes != null) Line(sb, "cutbushes", string.Join(";", CutBushes.ToArray()));
             if (Greebles != null) Line(sb, "greebles", string.Join(";", Greebles.ToArray()));
+            if (Broken != null && Broken.Count > 0) Line(sb, "broken", string.Join(";", Broken.ToArray()));
             Line(sb, "data", Data);
             return sb.ToString();
         }
@@ -388,6 +399,13 @@ namespace ForestOverlay.Data
                             for (int k = 0; k < keys.Length; k++) s.Greebles.Add(keys[k].Trim());
                             break;
                         }
+                    case "broken":
+                        {
+                            s.Broken = new List<string>();
+                            string[] keys = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            for (int k = 0; k < keys.Length; k++) s.Broken.Add(keys[k].Trim());
+                            break;
+                        }
                     case "panels":
                         {
                             s.Panels = new List<string>();
@@ -453,6 +471,13 @@ namespace ForestOverlay.Data
         public static string PickupKey(int itemId, float x, float y, float z)
         {
             return itemId.ToString(CultureInfo.InvariantCulture) + "@" + K(x) + "," + K(y) + "," + K(z);
+        }
+
+        /// A place as PickupKey writes it, without the item: "x,y,z" to
+        /// 0.1 m (PositionKey.TryParse reads it back as a number).
+        public static string SpotKey(float x, float y, float z)
+        {
+            return K(x) + "," + K(y) + "," + K(z);
         }
 
         // Rounded first so -0.04 reads "0.0", not "-0.0".

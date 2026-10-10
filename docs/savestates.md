@@ -65,7 +65,11 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   The file header lists the world pickups at capture and whether streaming
   was unloaded; `Data/SavestateFile` is pure and tested. Sticks / rocks
   around pooled trees are given back as captured (`greebles` header,
-  `Game/GreebleKeeper`, v0.24.70; game-notes *Greebles*). **Enemies**:
+  `Game/GreebleKeeper`, v0.24.70; game-notes *Greebles*). Breakable
+  cave stalagmites are put back as captured (`broken` header,
+  `Game/BreakableKeeper`, T-0273; game-notes *Breakable stalagmites*):
+  broken since -> whole, broken at capture -> broken again (in place and
+  after a Full load), a later break's debris removed. **Enemies**:
   capture writes `families` / `enemies`; after a Quick load on the
   surface and after a Full load, `EnemyKeeper.Rebuild` runs the game's
   `startSetupFamilies`, builds each captured family and places every

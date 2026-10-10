@@ -57,6 +57,7 @@ namespace ForestOverlay.Modules
         private AreaKeeper _area;
         private NatureKeeper _nature;
         private GreebleKeeper _greebles;
+        private BreakableKeeper _breakables;
         private EnemyKeeper _enemies;
         private readonly PlayerKeep _player = new PlayerKeep();
         private string _dir;
@@ -136,6 +137,8 @@ namespace ForestOverlay.Modules
             _nature.Install(OverlayPlugin.PluginGuid);
             _greebles = new GreebleKeeper(ctx.Log);
             _greebles.Install(OverlayPlugin.PluginGuid);
+            _breakables = new BreakableKeeper(ctx.Log);
+            _breakables.Install(OverlayPlugin.PluginGuid);
             CutsceneAudio.Install(ctx.Log, OverlayPlugin.PluginGuid);
             FullCapacityWatch.Install(ctx.Log, OverlayPlugin.PluginGuid);
             TitleLoad.Install(ctx.Log, OverlayPlugin.PluginGuid);
@@ -190,6 +193,7 @@ namespace ForestOverlay.Modules
             if (_panels != null) _panels.Uninstall();
             if (_nature != null) _nature.Uninstall();
             if (_greebles != null) _greebles.Uninstall();
+            if (_breakables != null) _breakables.Uninstall();
             if (_bossHold != null) _bossHold.Uninstall();
             if (_setupHold != null) _setupHold.Uninstall();
             CutsceneAudio.Uninstall();
@@ -209,6 +213,7 @@ namespace ForestOverlay.Modules
         {
             // A waiting greeble record never acts in another game.
             if (PlayerRef.AtTitleScreen && _greebles != null) _greebles.Clear();
+            if (PlayerRef.AtTitleScreen && _breakables != null) _breakables.Clear();
 
             if (_timingLoad) TimeLoad();
             if (_holdCheckAt > 0f && Time.realtimeSinceStartup >= _holdCheckAt)
@@ -431,6 +436,9 @@ namespace ForestOverlay.Modules
             List<string> greebles = null;
             try { greebles = _greebles.Capture(); }
             catch (Exception ex) { Ctx.Log.LogWarning("Savestate: greeble capture failed: " + ex.Message); }
+            List<string> broken = null;
+            try { broken = _breakables.Capture(); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Savestate: stalagmite capture failed: " + ex.Message); }
 
             // Before the capture force-unloads streaming: what is loaded as
             // the player sees it.
@@ -452,7 +460,7 @@ namespace ForestOverlay.Modules
             bool light = opts != null && opts.Light;
             Ctx.Runner.StartCoroutine(_bridge.Capture(light, delegate(SavestateBridge.Result r)
             {
-                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, stance, rope, ride, logs, blueprints, weather, opts);
+                string error = OnCaptured(r, name, path, pos, inCave, pickups, book, bookNote, held, heldBefore, panels, cutscene, cutsceneAt, megan, elevators, slidingDoors, activeArea, keypadDoor, blueprint, areas, enemies, families, enemyNote, bushes, cutBushes, greebles, broken, stance, rope, ride, logs, blueprints, weather, opts);
                 // Written on a worker thread: `after` runs once the file is
                 // on disk (DrainWrites, main thread).
                 if (error == null && opts != null && opts.Queued) { opts.After = after; return; }
@@ -469,7 +477,7 @@ namespace ForestOverlay.Modules
                                   string book, string bookNote, List<int> held, List<string> heldBefore, List<string> panels,
                                   string cutscene, float cutsceneAt, string megan, string elevators, string slidingDoors, string activeArea, string keypadDoor, string blueprint, string areas, List<string> enemies,
                                   List<string> families, string enemyNote, string bushes, List<string> cutBushes,
-                                  List<string> greebles, string stance, string rope, string ride, int logs, string blueprints,
+                                  List<string> greebles, List<string> broken, string stance, string rope, string ride, int logs, string blueprints,
                                   string weather, CaptureOptions opts)
         {
             _busy = false;
@@ -513,6 +521,7 @@ namespace ForestOverlay.Modules
                 f.Bushes = bushes;
                 f.CutBushes = cutBushes;
                 f.Greebles = greebles;
+                f.Broken = broken;
                 f.Areas = areas;
                 f.Enemies = enemies;
                 f.Families = families;
@@ -588,6 +597,7 @@ namespace ForestOverlay.Modules
             PickupKeeper.Armed = true;
             CloseMenuBeforeLoad();
             _greebles.Restore(f.Greebles, false);
+            _breakables.Restore(f.Broken, false);
             string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty);
             StartLoad(what, err, AfterLoad(f, done));
         }
@@ -921,6 +931,12 @@ namespace ForestOverlay.Modules
                 {
                     try { greebleNote = _greebles.Restore(file.Greebles, true); }
                     catch (Exception ex) { greebleNote = "greebles: failed (" + ex.Message + ")"; }
+                    // Stalagmites broken since are whole again, the ones
+                    // broken at capture broken (BreakableKeeper).
+                    string brokenNote;
+                    try { brokenNote = _breakables.Restore(file.Broken, true); }
+                    catch (Exception ex) { brokenNote = "stalagmites: failed (" + ex.Message + ")"; }
+                    if (brokenNote.Length > 0) greebleNote += (greebleNote.Length > 0 ? " | " : "") + brokenNote;
                 }
                 RestoreGarbage.Mark("greebles");
 
@@ -1626,6 +1642,16 @@ namespace ForestOverlay.Modules
                 catch (Exception ex) { greebles = "greebles: failed (" + ex.Message + ")"; }
                 Ctx.Log.LogInfo("Savestate after the load: " + greebles + " (" + late + " set as they spawned in the load).");
             }
+            // Spots broken at capture broke as their zones spawned in the
+            // load; the live pass breaks any standing whole since.
+            if (f.Broken != null)
+            {
+                int late = BreakableKeeper.Late;
+                string stalagmites;
+                try { stalagmites = _breakables.Restore(f.Broken, true); }
+                catch (Exception ex) { stalagmites = "stalagmites: failed (" + ex.Message + ")"; }
+                Ctx.Log.LogInfo("Savestate after the load: " + (stalagmites.Length > 0 ? stalagmites : "stalagmites: nothing to do") + " (" + late + " broken as they spawned in the load).");
+            }
             // A load builds the weather afresh (clear); the capture's back.
             string weatherNote = _weather.Restore(f.Weather);
             if (weatherNote.Length > 0) Ctx.Log.LogInfo("Savestate after the load: " + weatherNote + ".");
@@ -2017,6 +2043,7 @@ namespace ForestOverlay.Modules
                 PickupKeeper.Armed = true;
                 CloseMenuBeforeLoad();
                 _greebles.Restore(f.Greebles, false);
+                _breakables.Restore(f.Broken, false);
                 StartLoad(what + " with load", _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty), AfterLoad(f, done));
                 return;
             }
@@ -2139,6 +2166,7 @@ namespace ForestOverlay.Modules
                 PickupKeeper.Armed = true;
                 CloseMenuBeforeLoad();
                 _greebles.Restore(f.Greebles, false);
+                _breakables.Restore(f.Broken, false);
                 string err = _bridge.RestoreWithLoad(f.Data, f.Difficulty, f.BaseDifficulty);
                 // A run starts as a fresh game of the capture's mode: no
                 // cheat a console / bridge left on (statics outlive loads).

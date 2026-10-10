@@ -41,6 +41,7 @@ namespace ForestOverlay.Tests
             s.Families = new List<string> { "f1" };
             s.CutBushes = new List<string> { "b1" };
             s.Greebles = new List<string> { "g1" };
+            s.Broken = new List<string> { "1.0,2.0,3.0" };
             SavestateFile c = s.Copy();
             Assert.Equal(s.Write(), c.Write());
             int lists = 0;
@@ -51,7 +52,7 @@ namespace ForestOverlay.Tests
                 Assert.NotNull(fi.GetValue(s));
                 Assert.False(ReferenceEquals(fi.GetValue(s), fi.GetValue(c)), fi.Name + " is shared");
             }
-            Assert.Equal(8, lists);
+            Assert.Equal(9, lists);
             c.Pickups.Clear();
             Assert.Equal(2, s.Pickups.Count);
         }
@@ -170,6 +171,30 @@ namespace ForestOverlay.Tests
             Assert.Null(error);
             Assert.Equal(s.Greebles, back.Greebles);
             Assert.Equal(s.Data, back.Data);
+        }
+
+        // T-0273: the stalagmites broken at capture, by where they stood.
+        [Fact]
+        public void BrokenRoundTripsAndIsAbsentWhenNoneWas()
+        {
+            string error;
+            Assert.Null(SavestateFile.Parse(Sample().Write(), out error).Broken);
+
+            SavestateFile s = Sample();
+            s.Broken = new List<string> { SavestateFile.SpotKey(1230.81f, -33.94f, 525.16f), SavestateFile.SpotKey(-0.04f, 9.96f, 447f) };
+            Assert.Equal(new List<string> { "1230.8,-33.9,525.2", "0.0,10.0,447.0" }, s.Broken);
+            SavestateFile back = SavestateFile.Parse(s.Write(), out error);
+            Assert.Null(error);
+            Assert.Equal(s.Broken, back.Broken);
+
+            // The spot reads back as the number a live root's place gives.
+            long key;
+            Assert.True(PositionKey.TryParse(back.Broken[0], 0, out key));
+            Assert.Equal(PositionKey.Of(1230.81f, -33.94f, 525.16f), key);
+
+            // None broken writes no line.
+            s.Broken = new List<string>();
+            Assert.DoesNotContain("broken", s.Write());
         }
 
         [Fact]
