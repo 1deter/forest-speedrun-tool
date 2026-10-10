@@ -197,12 +197,21 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
   T-0058, savestate gaps (T-0029, T-0065, T-0067; T-0269 done in v0.24.282), perf (T-0072,
-  T-0274, T-0275, T-0277, T-0280; T-0278 done in v0.24.281); T-0290 waits for a `Stall:` line); group
+  T-0274, T-0277, T-0280; T-0278 done in v0.24.281, T-0275 in v0.24.283 - T-0280's
+  answer reads as "keep the forced GC", so it looks like a wontfix + a decisions.md line); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.283 (2026-10-11, T-0275):** the player's stats are found
+  through `LocalPlayer.Stats`, not a `FindObjectOfType` walk (20-25 ms,
+  measured) - no hitch on the frame practice mode comes on, nor on the
+  first armed tick after each load; getters kept while the type is the
+  same (`Game/PlayerStateReader`). Proved on a hand deploy: first
+  Resolve 30 -> 5 ms, re-resolve 23-26 -> 2 ms; checker accepted. To
+  confirm (not its maker): forest-tester - practice mode on with a
+  timed segment selected logs no `Slow tick: practicerun`.
 - **v0.24.282 (2026-10-10, T-0269):** a Quick load puts back the
   player's cold as a Full load gives it - body temperature 37, not cold,
   no screen frost, frost-damage timer 0 (`Game/ColdReset`, words in
