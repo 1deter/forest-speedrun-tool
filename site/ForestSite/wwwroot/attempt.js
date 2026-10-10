@@ -147,6 +147,50 @@ async function attemptPage(id) {
           el("tbody", null, rows)))));
   }
 
+  // The route on the map (the log's 1 Hz positions): the spot page's map,
+  // line and ghost dot, with a play / scrub bar. Not for a log with no
+  // positions (still running, or from before they were kept).
+  let replay = null;
+  const path = a.path || [];
+  if (path.length >= 2) {
+    const canvas = el("canvas", { "aria-label": "Map of the attempt's route" });
+    const map = new RunMap(canvas);
+    const layers = mapLayers(map, null);
+    const end = path[path.length - 1][0];
+    const clk = el("span", { class: "clock" }, clock(0));
+    const slider = el("input", { type: "range", min: 0, max: 1000, value: 0, step: 1, "aria-label": "Time" });
+    const play = el("button", { type: "button", title: "Play / pause", "aria-label": "Play" }, "▶");
+    const speed = el("select", { "aria-label": "Playback speed" }, [1, 2, 4, 8].map(s => el("option", { value: s, selected: s === 2 }, s + "×")));
+    let t = 0, playing = false, raf = 0, last = 0;
+    const setTime = v => {
+      t = Math.max(0, Math.min(end, v));
+      clk.textContent = clock(t * 1000);
+      slider.value = Math.round(t / end * 1000);
+      map.setTime(t);
+    };
+    const tick = now => {
+      if (!playing) return;
+      if (last) setTime(t + (now - last) / 1000 * Number(speed.value));
+      last = now;
+      if (t >= end) { playing = false; play.textContent = "▶"; play.setAttribute("aria-label", "Play"); return; }
+      raf = requestAnimationFrame(tick);
+    };
+    play.addEventListener("click", () => {
+      playing = !playing;
+      play.textContent = playing ? "❚❚" : "▶";
+      play.setAttribute("aria-label", playing ? "Pause" : "Play");
+      if (playing) { if (t >= end) setTime(0); last = 0; raf = requestAnimationFrame(tick); }
+    });
+    slider.addEventListener("input", () => { playing = false; play.textContent = "▶"; setTime(slider.value / 1000 * end); });
+    cleanup = () => { playing = false; cancelAnimationFrame(raf); };
+    map.setRuns([{ color: "#e5c501", path }], true);
+    replay = el("section", null,
+      el("h2", null, "The route"),
+      el("p", { class: "note" }, "Where the runner was each second of the attempt (real time, the same clock as the codes). Drag to pan, scroll to zoom."),
+      el("div", { class: "mapwrap" }, canvas, el("div", { class: "maptools" }, layers),
+        el("div", { class: "scrub" }, play, slider, clk, speed)));
+  }
+
   const recording = a.recording && a.recording.judged === false && a.recording.verdict !== "red"
     ? el("p", { class: "sub" }, "Not judged: " + (cat ? cat.name : "this category") + " does not use the anti-splice codes. A log that contradicts the site would still show here.")
     : a.recording ? lineList(a.recording.why.map(t => [a.recording.verdict, t]))
@@ -162,6 +206,7 @@ async function attemptPage(id) {
       el("p", null, says)),
     el("div", { class: "tablewrap" }, el("table", { class: "facts" }, el("tbody", null,
       facts.map(([k, v]) => el("tr", null, el("th", null, k), el("td", null, v)))))),
+    replay,
     rules,
     moves,
     audit,

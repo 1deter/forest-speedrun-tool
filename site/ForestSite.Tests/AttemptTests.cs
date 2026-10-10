@@ -744,13 +744,13 @@ public sealed class AttemptTests : IDisposable
 
     // --- the official runs (T-0223) ------------------------------------------------
 
-    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished")
+    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null)
     {
         var c = new AttemptChain();
-        c.Header(id, Runner, "Runner", "test", category, "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        c.Header(id, runner, "Runner", "test", category, "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
         for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
         c.End(3100, reason, timerMs);
-        return c.Text;
+        return report == null ? c.Text : c.Text + AttemptChain.ReportMarker + "\n" + report;
     }
 
     private async Task PutCategory(string id, string name, string status)
@@ -761,18 +761,23 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(put)).StatusCode);
     }
 
+    private const string Runner2 = "r-00000000000000bb";
+    private const string Mod = "Other 1.0 (other.dll)";
+
     [Fact]
-    public async Task Official_OnlyPublishedCategories_FinishedRunsFastestFirst_DraftsNeverNamed()
+    public async Task Official_OnlyPublished_EachRunnersBest_RecentAndAverage_RedRunsOnlyOnceAllowed_DraftsNeverNamed()
     {
-        string token = await Register(Runner);
-        async Task Up(int n, string category, long timerMs, string reason = "finished") =>
-            Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts/" + AId(n) + "/log",
-                new StringContent(FinishedLog(AId(n), category, timerMs, reason), Encoding.UTF8, "text/plain"))).StatusCode);
-        await Up(1, "any-normal", 90_000);
-        await Up(2, "any-normal", 60_000);
-        await Up(3, "any-normal", 30_000, "reset");          // a reset is not a run
-        await Up(4, "Any% - Normal", 75_000);                 // a run spot's `run = ` by name
-        await Up(5, "secret-draft", 50_000);
+        string token = await Register(Runner), token2 = await Register(Runner2);
+        async Task Up(string t, int n, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null) =>
+            Assert.Equal(HttpStatusCode.OK, (await Post(t, "/api/attempts/" + AId(n) + "/log",
+                new StringContent(FinishedLog(AId(n), category, timerMs, reason, runner, report), Encoding.UTF8, "text/plain"))).StatusCode);
+        await Up(token, 1, "any-normal", 90_000);
+        await Up(token, 2, "any-normal", 60_000);
+        await Up(token, 3, "any-normal", 30_000, "reset");          // a reset is not a run
+        await Up(token, 4, "Any% - Normal", 80_000);                 // a run spot's `run = ` by name
+        await Up(token, 5, "secret-draft", 50_000);
+        await Up(token, 6, "any-normal", 20_000, report: Report(r => r.OtherPlugins.Add(Mod)));   // problems found: red
+        await Up(token2, 7, "any-normal", 75_000, runner: Runner2);
 
         // Nothing published (the live site today): an empty list, no category named.
         Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
@@ -784,17 +789,59 @@ public sealed class AttemptTests : IDisposable
         string text = await _http.GetStringAsync("/api/official");
         foreach (string hidden in new[] { "secret", "Secret Draft", "manhunt", AId(3), AId(5) })
             Assert.DoesNotContain(hidden, text, StringComparison.OrdinalIgnoreCase);
-        var list = JsonNode.Parse(text)!.AsArray();
-        var cat = Assert.Single(list)!;
-        Assert.Equal(("any-normal", "Any% - Normal", 3), ((string)cat["id"], (string)cat["name"], (int)cat["count"]));
+        Assert.DoesNotContain(AId(6), text);        // the red run is not listed (nor in a runner's recent runs)
+        var cat = Assert.Single(JsonNode.Parse(text)!.AsArray())!;
+        Assert.Equal(("any-normal", "Any% - Normal", 2), ((string)cat["id"], (string)cat["name"], (int)cat["count"]));
         var runs = cat["runs"]!.AsArray();
-        Assert.Equal(new[] { AId(2), AId(4), AId(1) }, runs.Select(r => (string)r!["id"]));
-        Assert.Equal(new long[] { 60_000, 75_000, 90_000 }, runs.Select(r => (long)r!["timerMs"]));
-        Assert.All(runs, r => Assert.Equal(("Runner", Runner), ((string)r!["runnerName"], (string)r["runner"])));
+        // One row per runner: the fastest accepted run.
+        Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
+        Assert.Equal(new long[] { 60_000, 75_000 }, runs.Select(r => (long)r!["timerMs"]));
         Assert.All(runs, r => Assert.EndsWith("Z", (string)r!["at"]));
+        // Recent runs and their average: A's accepted runs (1, 2, 4), B's one.
+        Assert.Equal(new[] { AId(1), AId(2), AId(4) }, runs[0]!["recent"]!.AsArray().Select(r => (string)r!["id"]).OrderBy(x => x));
+        Assert.Equal(76_667, (long)runs[0]!["avgMs"]);
+        Assert.Equal(new[] { AId(7) }, runs[1]!["recent"]!.AsArray().Select(r => (string)r!["id"]));
+        Assert.Equal(75_000, (long)runs[1]!["avgMs"]);
+
+        // The moderators allow the mod: the run is cleared, and tops the board.
+        string q = "/api/admin/allowed?kind=mod&text=" + Uri.EscapeDataString(Mod);
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Post, q));
+        runs = JsonNode.Parse(await _http.GetStringAsync("/api/official"))!.AsArray()[0]!["runs"]!.AsArray();
+        Assert.Equal(new[] { AId(6), AId(7) }, runs.Select(r => (string)r!["id"]));
+        // Taken off the list: gone again.
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Delete, q));
+        runs = JsonNode.Parse(await _http.GetStringAsync("/api/official"))!.AsArray()[0]!["runs"]!.AsArray();
+        Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
 
         // Back to a draft: gone again.
         await PutCategory("any-normal", "Any% - Normal", "draft");
         Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+    }
+
+    [Fact]
+    public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
+    {
+        var c = new AttemptChain();
+        c.Header(AId(1), Runner, "Runner", "test", "Any%", "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        c.Step(1000, 1000, true, 1.5f, 10f, -3f);
+        c.Step(2000, 2000, false, 0, 0, 0);               // a load: no player
+        c.Step(3000, 3000, true, 4.5f, 10f, -3f);
+        var path = Attempts.PathOf(c.Text);
+        Assert.Equal(2, path.Count);
+        Assert.Equal(new[] { 1.0, 1.5, 10.0, -3.0, 0.0 }, path[0]);
+        Assert.Equal(new[] { 3.0, 4.5, 10.0, -3.0, 1.5 }, path[1]);   // 3 m in 2 s
+        Assert.Empty(Attempts.PathOf(""));
+    }
+
+    [Fact]
+    public async Task AttemptView_CarriesThePathForTheMapReplay()
+    {
+        string token = await Register(Runner);
+        Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts/" + AId(1) + "/log",
+            new StringContent(FinishedLog(AId(1), "any-normal", 60_000), Encoding.UTF8, "text/plain"))).StatusCode);
+        var view = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + AId(1));
+        var path = view["path"]!.AsArray();
+        Assert.Equal(3, path.Count);
+        Assert.Equal(new[] { 3.0, 3.0, 0.0, 0.0 }, path[2]!.AsArray().Take(4).Select(v => (double)v!));
     }
 }
