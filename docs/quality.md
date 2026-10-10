@@ -72,7 +72,8 @@ Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/
 - Gaps **C**: native crashes on F7 in the vault door / Megan pickup
   cutscenes (T-0058, blocked on Tom); half-chopped trees regrow (T-0067);
   a wall rope is ended, not put back (T-0065); item drift after restores
-  (T-0066); ~30 Quick loads then a Full load hung once (T-0056).
+  (T-0066); ~30 Quick loads then a Full load hung once (T-0056);
+  stalagmites broken since stay broken / move (T-0273).
 
 ### Timed runs
 
