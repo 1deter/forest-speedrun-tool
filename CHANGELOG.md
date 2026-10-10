@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.271 - 2026-10-10
+
+- Practice: a new Keep loaded switch on a spot's Start state row. The start state loads once, then restarts only put you and the endgame's elevators and doors back and teleport - instant instead of a Quick load. It loads again by itself when the world changes (a scene loads, a death, another load). Made for lab skip practice, works on any spot.
+
 ## v0.24.270 - 2026-10-10
 
 - A timed run now starts on your first input - any key, button or movement - instead of when you start moving. Looking around with the camera and opening the pause menu (Esc) do not start it.
