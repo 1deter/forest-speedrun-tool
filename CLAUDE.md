@@ -194,6 +194,12 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **Next session (author, 2026-10-10): merge the cloud branches** - group 2
+  of the v1.0 scope (decisions.md *What v1.0 is*: 1 redesign, 2 cloud
+  branches, 3 plugin stability, 4 before going public). The branches:
+  `origin/cloud/*` (session-start lists them) for T-0265 + T-0218, T-0217,
+  T-0244, T-0232, T-0223, plus the older `cloud/on-now-wrap`,
+  `cloud/results-escape`; each through forest-checker, then a release.
 - **v0.24.271 (2026-10-10, T-0212):** *Keep loaded* on a spot's Start
   state row - the start state loads once, then restarts put back the
   player + the endgame's elevators / doors and teleport (0.01 s vs a 0.4 s

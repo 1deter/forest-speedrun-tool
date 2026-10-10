@@ -24,6 +24,26 @@ conversation concrete. Once there is a ruling, circle back and enforce it.
 
 Flower/plant coordinate display is **out of scope by the author's own call**.
 
+### What v1.0 is (author, 2026-10-10)
+
+v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
+1. **The redesign released** - T-0025 (QA, merge `ui-redesign`, release)
+   with T-0018..T-0024, T-0226, T-0253, T-0256..T-0258, T-0270..T-0272
+   and the Settings follow-ups T-0254, T-0255, T-0259..T-0264.
+2. **The cloud branches merged** - T-0265 + T-0218, T-0217, T-0244,
+   T-0232, T-0223 (each after forest-checker).
+3. **Plugin correctness and stability** - hangs / crashes (T-0284, T-0246,
+   T-0056, T-0276, T-0058), savestate gaps (T-0029, T-0065, T-0067,
+   T-0269, T-0273), performance (T-0202, T-0072, T-0274, T-0275,
+   T-0277..T-0280).
+4. **Before going public** - T-0084 (site security audit), T-0241 (QA tab
+   out), T-0227 (final exhaustive test), T-0047 (run mode by hand with the
+   author); the moderators publishing the categories is outside our hands.
+
+**After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
+a lighter repo) and the P4 idea list (TAS, route optimiser, 1v1, the exact
+3D world, research cards).
+
 ### The tool first (author, 2026-10-08)
 
 "Focus development on the tool rather than anything external to it, as i want
