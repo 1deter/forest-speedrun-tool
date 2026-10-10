@@ -173,8 +173,6 @@ public sealed class Runs
         res.StartState = "wanted";
     }
 
-    /// A runner's best on a route so far (runs under review included, hidden
-    /// ones not); NaN when they have none.
     /// Where a time stands on the route for the PB post: its rank among the
     /// runners' bests (reviewed and hidden runs left out), how many runners
     /// have a time, and the best of the others (NaN when there are none).
@@ -200,6 +198,8 @@ public sealed class Runs
         return (ahead + 1, runners, other);
     }
 
+    /// A runner's best on a route so far (runs under review included, hidden
+    /// ones not); NaN when they have none.
     private float RunnerBest(string segmentId, string route, string runnerId)
     {
         object best = _store.Scalar("SELECT MIN(duration) FROM runs WHERE segment_id = $s AND route = $r AND runner_id = $rid AND hidden = 0",
