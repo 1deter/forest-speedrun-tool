@@ -38,10 +38,14 @@ v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
    T-0277..T-0280).
 4. **Before going public** - T-0084 (site security audit), T-0241 (QA tab
    out), T-0227 (final exhaustive test), T-0047 (run mode by hand with the
-   author); the moderators publishing the categories is outside our hands.
+   author), T-0292 (hold back: a run kept off the public lists and
+   Discord until the runner releases it - needed before a category is
+   published, when the listing starts); the moderators publishing the
+   categories is outside our hands.
 
 **After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
-a lighter repo) and the P4 idea list (TAS, route optimiser, 1v1, the exact
+a lighter repo), T-0291 (a light build without the practice tools) and
+the P4 idea list (TAS, route optimiser, 1v1, the exact
 3D world, research cards).
 
 ### The tool first (author, 2026-10-08)
@@ -324,7 +328,10 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   the practice tools would still carry it (T-0291, after the main tool is
   stable). Whether runs must use the mod (light or full) so everyone is
   vetted equally, and how vanilla runs are verified, is the moderators'
-  ruling, later. A surprise run's privacy: T-0292 (parked).
+  ruling, later.
+- **Hold back (author, 2026-10-10)**: a runner can hold back their runs
+  and their Discord PB posts - one clear option, easy to find, and it is
+  plain when it is on (T-0292, v1.0 group 4).
 
 ## Site (forest.deter.cloud)
 
