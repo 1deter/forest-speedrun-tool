@@ -5,6 +5,12 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.275 - 2026-10-10
+
+- Restarting the same spot or savestate leaves less garbage behind (measured: 16.9 -> 9.2 MB a restore), so the game's collection pauses come less often.
+- Repeated Quick loads no longer leave one more invisible enemy-path blocker at the plane wreck each time.
+- Each of the two has its own switch under Performance in the Debug views tab (on by default).
+
 ## v0.24.274 - 2026-10-10
 
 - Unity's own error messages (including the graphics ones that come before a crash) now go into the log and the report zip, so a crash's cause is no longer lost.
