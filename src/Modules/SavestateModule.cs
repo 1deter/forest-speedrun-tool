@@ -2230,9 +2230,9 @@ namespace ForestOverlay.Modules
         // of garbage a restore (the text, the line split, the data line's
         // copies). Kept by path, size and write time, so a capture over it
         // (or any write) reads the new file; each caller gets its own Copy()
-        // (no list shared between restores).
-        private string _keptPath;
-        private long _keptLength, _keptTicks;
+        // (no list shared between restores). Data/KeptRead decides; behind
+        // the `[Performance]` switch RestoreKeepLastRead (PerfPatches 17).
+        private readonly KeptRead _kept = new KeptRead();
         private SavestateFile _keptFile;
 
         private SavestateFile ReadState(string path, out string error)
@@ -2241,16 +2241,15 @@ namespace ForestOverlay.Modules
             FileInfo fi = new FileInfo(path);
             long length = fi.Length;   // throws for a missing file, as ReadAllText did
             long ticks = fi.LastWriteTimeUtc.Ticks;
-            if (_keptFile != null && length == _keptLength && ticks == _keptTicks &&
-                string.Equals(path, _keptPath, StringComparison.OrdinalIgnoreCase))
+            bool keep = PerfPatches.RestoreKeepLastRead;
+            if (keep && _keptFile != null && _kept.Matches(path, length, ticks))
                 return _keptFile.Copy();
 
             _keptFile = null;
+            _kept.Forget();
             SavestateFile f = SavestateFile.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
-            if (f == null) return null;
-            _keptPath = path;
-            _keptLength = length;
-            _keptTicks = ticks;
+            if (f == null || !keep) return f;
+            _kept.Remember(path, length, ticks);
             _keptFile = f;
             return f.Copy();
         }

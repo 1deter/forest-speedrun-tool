@@ -57,6 +57,7 @@
     <Compile Include="../../src/Data/StartedSet.cs" Link="Linked/StartedSet.cs" />
     <Compile Include="../../src/Data/StepBytes.cs" Link="Linked/StepBytes.cs" />
     <Compile Include="../../src/Data/PositionKey.cs" Link="Linked/PositionKey.cs" />
+    <Compile Include="../../src/Data/KeptRead.cs" Link="Linked/KeptRead.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../src/Data/SafeFile.cs" Link="Linked/SafeFile.cs" />

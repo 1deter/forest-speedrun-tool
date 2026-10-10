@@ -316,7 +316,8 @@ namespace ForestOverlay.Game
             }
             return shown > 0 ? sb.ToString() : "?";
         }
-            // ------------------------------------------------------------------
+
+        // ------------------------------------------------------------------
         // Dev (bridge, T-0202): a fingerprint of the navmesh in a box -
         // every node whose centre is inside: its position, walkability,
         // penalty, tag and its neighbours' positions. Two equal hashes =

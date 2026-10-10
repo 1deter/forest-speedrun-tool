@@ -1036,8 +1036,16 @@ namespace ForestOverlay.Game
 
         private bool IsRead(string data)
         {
-            return _readData != null && data != null &&
-                   (ReferenceEquals(data, _readData) || (data.Length == _readData.Length && string.Equals(data, _readData, StringComparison.Ordinal)));
+            if (!PerfPatches.RestoreKeepLastRead) { ForgetRead(); return false; }
+            return ForestOverlay.Data.KeptRead.SameText(_readData, data);
+        }
+
+        private void ForgetRead()
+        {
+            _readData = null;
+            _readBytes = null;
+            _readNames = null;
+            _readObjects = null;
         }
 
         /// The decompressed level data of `data` when it was read last, else null.
@@ -1097,10 +1105,13 @@ namespace ForestOverlay.Game
                     o.ClassId = _storedItemClass != null ? _storedItemClass.GetValue(it) as string : null;
                     objects.Add(o);
                 }
-                _readData = data;
-                _readBytes = bytes;
-                _readNames = names;
-                _readObjects = objects;
+                if (PerfPatches.RestoreKeepLastRead)
+                {
+                    _readData = data;
+                    _readBytes = bytes;
+                    _readNames = names;
+                    _readObjects = objects;
+                }
                 return names;
             }
             catch (Exception ex)
@@ -1874,7 +1885,8 @@ namespace ForestOverlay.Game
         /// more navmesh obstacle at the same spot for every Quick load
         /// (bridge, T-0202: 12 after 12 restores, only the live wreck's own
         /// referenced). A load never destroys a wreck; the live one keeps
-        /// its own, so the obstacle stays as a load leaves it.
+        /// its own, so the obstacle stays as a load leaves it. Behind the
+        /// `[Performance]` switch RestoreRemoveWreckCutters (PerfPatches 18).
         public string ClearOldPlaneHulls()
         {
             if (_planeCrash == null || _spawnedHull == null) return "plane: not bound";
@@ -1894,7 +1906,7 @@ namespace ForestOverlay.Game
                     {
                         GameObject go = roots[i];
                         if (go == null || go == current || go.name != current.name) continue;
-                        cutters += DestroyOwnCutters(go);
+                        if (PerfPatches.RestoreRemoveWreckCutters) cutters += DestroyOwnCutters(go);
                         UnityEngine.Object.Destroy(go);
                         removed++;
                     }

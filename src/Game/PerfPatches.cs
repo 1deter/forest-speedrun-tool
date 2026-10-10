@@ -124,12 +124,28 @@ namespace ForestOverlay.Game
     //    switches SunshinePostprocess off and on every frame and each
     //    OnEnable leaks a new Material; a prefix keeps the live one (at the
     //    end of the class).
+    // 17. A restore's last read kept (T-0202): the state file parsed and
+    //    its level data decompressed + deserialized are kept for the next
+    //    restore of the same state, and LoadNow is handed the decompressed
+    //    bytes in place of the text (it decompresses the text into the same
+    //    bytes and only reads them, IL). Data/KeptRead says when it is the
+    //    same state. ~7 MB less garbage a restore.
+    // 18. The old plane wrecks' nav cutters (T-0202): an in-place restore
+    //    re-creates the wreck and the overlay removes the old one; its
+    //    navCubeCutter sat at the scene root and outlived it - one more
+    //    navmesh obstacle at the same spot per restore. Removed with their
+    //    wreck (SavestateBridge.ClearOldPlaneHulls); the navmesh is as a
+    //    load leaves it (bridge: NodeHash the same with and without).
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
         /// Fix 1, read by Plugin.Update: only lay out our OnGUI while a
         /// window of ours is showing.
         public static bool OverlayLayout;
+
+        /// Fixes 17 / 18, read by the savestate restore (T-0202).
+        public static bool RestoreKeepLastRead;
+        public static bool RestoreRemoveWreckCutters;
 
         private sealed class Fix
         {
@@ -246,6 +262,16 @@ namespace ForestOverlay.Game
                 "frame, and each switch-on makes a new material that is only freed when a load takes you out of the area - one a " +
                 "frame, over a million after an hour of restarting a spot in the lab. Keep the material it already has.",
                 ApplySunshineBlit, RemoveSunshineBlit);
+            Add(config, "RestoreKeepLastRead", "Savestates: keep the last state read for the next restore",
+                "Restarting the same spot or savestate read the state file, unpacked it and read the level inside it again every " +
+                "time. Keep the last one read and use it while the file is unchanged (any capture over it reads it anew) - ~7 MB " +
+                "less garbage a restore, so fewer collection pauses.",
+                delegate { RestoreKeepLastRead = true; return ""; }, delegate { RestoreKeepLastRead = false; });
+            Add(config, "RestoreRemoveWreckCutters", "Savestates: remove the old plane wreck's path blocker with it",
+                "An in-place restore brings back a new plane wreck and removes the old one, but the old one's invisible blocker for " +
+                "enemy paths stayed behind - one more on the same spot after every restore. Remove it with its wreck; the live wreck " +
+                "keeps its own, so enemy paths are as after a load.",
+                delegate { RestoreRemoveWreckCutters = true; return ""; }, delegate { RestoreRemoveWreckCutters = false; });
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
