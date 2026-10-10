@@ -1034,7 +1034,7 @@ public sealed class ApiTests : IDisposable
         public List<JsonObject> Contents(string url = null)
         {
             lock (Posts) return Posts.Where(p => url == null || p.url == url)
-                .Select(p => new JsonObject { ["embeds"] = p.body["embeds"].DeepClone() }).ToList();
+                .Select(p => new JsonObject { ["content"] = (string)p.body["content"], ["embeds"] = p.body["embeds"].DeepClone() }).ToList();
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
@@ -1067,6 +1067,7 @@ public sealed class ApiTests : IDisposable
 
     private static JsonObject E(JsonObject post) => post["embeds"][0].AsObject();
     private static string Author(JsonObject post) => (string)E(post)["author"]["name"];
+    private static string Name(JsonObject post) => Author(post).Substring(0, Author(post).IndexOf(" \u00B7 "));
     private static string Desc(JsonObject post) => (string)E(post)["description"];
     private static JsonObject Msg(string text) => new() { ["embeds"] = new JsonArray { new JsonObject { ["description"] = text } } };
     private static string Foot(JsonObject post) => (string)E(post)["footer"]["text"];
@@ -1102,11 +1103,13 @@ public sealed class ApiTests : IDisposable
         Assert.DoesNotContain("runner's spot", Author(hook.Recent[0]));
         Assert.Equal("Plane to \\*cave\\*", (string)E(hook.Recent[0])["title"]);
         Assert.Equal("**10.000**\nTheir first run here", Desc(hook.Recent[0]));
-        Assert.Equal("Main category", Foot(hook.Recent[0]));
-        Assert.Equal(PbNews.MainColour, (int)E(hook.Recent[0])["color"]);
+        Assert.Equal("Community spot", Foot(hook.Recent[0]));
+        Assert.Equal(PbNews.CommunityColour, (int)E(hook.Recent[0])["color"]);
+        Assert.Equal("Plane to \\*cave\\* first run: " + Name(hook.Recent[0]) + " 10.000", (string)hook.Recent[0]["content"]);
         Assert.Matches(@"^https://forest\.deter\.cloud/spot/s-cccccccccccc/[^/?]+\?run=\d+$", (string)E(hook.Recent[0])["url"]);
         Assert.Null(Field(hook.Recent[0], "Rank"));   // alone on the spot: no rank, no gap
-        Assert.Null(Field(hook.Recent[0], "Best on this spot"));
+        Assert.Null(Field(hook.Recent[0], "Next best"));
+        Assert.Null(Field(hook.Recent[0], "Spot record"));
 
         // Slower: nothing. The same attempt again: nothing.
         await Upload(ta, Bundle(seg, RunText(seg, A, 11f, 5f, 2)));
@@ -1118,12 +1121,13 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(2, hook.Recent.Count);
         Assert.Contains("new PB", Author(hook.Recent[1]));
         Assert.Equal("**8.750**\n**1.250** faster than 10.000", Desc(hook.Recent[1]));
+        Assert.Equal("Plane to \\*cave\\* PB: " + Name(hook.Recent[1]) + " 8.750", (string)hook.Recent[1]["content"]);
 
         // The queue delivers them to the webhook, mentions off.
         await Until(() => discord.Contents().Count >= 2);
         SamePosts(hook.Recent, discord.Contents(OfficialHook));
         Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
-        Assert.All(discord.Posts, p => Assert.Null(p.body["content"]));
+        Assert.All(discord.Posts, p => Assert.NotEmpty((string)p.body["content"]));
     }
 
     [Fact]
@@ -1141,11 +1145,15 @@ public sealed class ApiTests : IDisposable
         // B is slower than A: rank 2 of 2, behind A's best.
         await Upload(tb, Bundle(seg, RunText(seg, B, 12f, 5f, 2)));
         Assert.Equal("#2 of 2 runners", Field(hook.Recent[1], "Rank"));
-        Assert.Equal("2.000 behind 10.000", Field(hook.Recent[1], "Best on this spot"));
+        Assert.Equal("10.000 (you: +2.000)", Field(hook.Recent[1], "Spot record"));
+        Assert.Null(Field(hook.Recent[1], "Next best"));
+        Assert.EndsWith(" first run: " + Name(hook.Recent[1]) + " 12.000", (string)hook.Recent[1]["content"]);
         // B beats A: first, ahead of A's best.
         await Upload(tb, Bundle(seg, RunText(seg, B, 9f, 5f, 3)));
         Assert.Equal("#1 of 2 runners", Field(hook.Recent[2], "Rank"));
-        Assert.Equal("1.000 ahead of 10.000", Field(hook.Recent[2], "Best on this spot"));
+        Assert.Equal("10.000 (+1.000)", Field(hook.Recent[2], "Next best"));
+        Assert.Null(Field(hook.Recent[2], "Spot record"));
+        Assert.EndsWith(" WR: " + Name(hook.Recent[2]) + " 9.000", (string)hook.Recent[2]["content"]);
     }
 
     [Fact]
@@ -1197,9 +1205,9 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("0.250", PbNews.Time(0.25));
         Assert.Equal("@everyone \\[x\\]\\(http\\://e\\) \\_a\\_ b", PbNews.Escape("@everyone [x](http://e) _a_\nb"));
         string url = PbNews.RunLink("https://x/", "s-1", "r", 7);
-        var post = PbNews.Embed(new Runs.PbFound("deter", "Cave 5", "s-1", "r", 7, 59f, 60f, true, "Any%", 1, 3, 61.5f), url,
+        var post = PbNews.Embed(new Runs.PbFound("deter", "Cave 5", "s-1", "r", 7, 59f, 60f, true, "Any%", 1, 3, 61.5f, true), url,
                                 new DateTime(2026, 10, 10, 12, 30, 0, DateTimeKind.Utc));
-        const string expected = @"{""embeds"":[{""author"":{""name"":""deter \u00B7 new PB""},""title"":""Cave 5"",""url"":""https://x/spot/s-1/r?run=7"",""description"":""**59.000**\n**1.000** faster than 1:00.000"",""color"":3055195,""footer"":{""text"":""Main category""},""fields"":[{""name"":""Category"",""value"":""Any%"",""inline"":true},{""name"":""Rank"",""value"":""#1 of 3 runners"",""inline"":true},{""name"":""Best on this spot"",""value"":""2.500 ahead of 1:01.500"",""inline"":true}],""timestamp"":""2026-10-10T12:30:00Z""}]}";
+        const string expected = @"{""content"":""Cave 5 WR: deter 59.000"",""embeds"":[{""author"":{""name"":""deter \u00B7 new PB""},""title"":""Cave 5"",""url"":""https://x/spot/s-1/r?run=7"",""description"":""**59.000**\n**1.000** faster than 1:00.000"",""color"":3055195,""footer"":{""text"":""Run category""},""fields"":[{""name"":""Category"",""value"":""Any%"",""inline"":true},{""name"":""Rank"",""value"":""#1 of 3 runners"",""inline"":true},{""name"":""Next best"",""value"":""1:01.500 (+2.500)"",""inline"":true}],""timestamp"":""2026-10-10T12:30:00Z""}]}";
         Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), post), post.ToJsonString());
         // A runner's spot, first run, not first on the spot: marked, no category, no PB line.
         var other = PbNews.Embed(new Runs.PbFound("deter", "Mine", "s-2", "r", 8, 20f, float.NaN, false, "", 2, 2, 19f), url);
@@ -1207,7 +1215,12 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("Runner's spot", Foot(other));
         Assert.Null(E(other)["timestamp"]);
         Assert.Null(Field(other, "Category"));
-        Assert.Equal("1.000 behind 19.000", Field(other, "Best on this spot"));
+        Assert.Equal("19.000 (you: +1.000)", Field(other, "Spot record"));
+        Assert.Equal("Mine first run: deter 20.000", (string)other["content"]);
+        // The plugin's default labels and "Community" are not categories.
+        foreach (string dull in new[] { "", "My spots", "my spots", "Segments", "Spots", "Community", "  " })
+            Assert.False(PbNews.RealCategory(dull), dull);
+        Assert.True(PbNews.RealCategory("Cave 5"));
     }
 
     // --- PB posts from runners' own spots (T-0232) -----------------------------------------
@@ -1258,7 +1271,9 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("Runner's spot", Foot(ownPost));   // marked apart also in their own channel
         Assert.Equal(2, discord.Contents(OfficialHook).Count);
         Assert.Contains("first run", Author(discord.Contents(OfficialHook)[1]));
-        Assert.Equal("Main category", Foot(discord.Contents(OfficialHook)[1]));
+        Assert.Equal("Community spot", Foot(discord.Contents(OfficialHook)[1]));
+        Assert.Equal(PbNews.CommunityColour, (int)E(discord.Contents(OfficialHook)[1])["color"]);
+        Assert.Contains("first run: ", (string)discord.Contents(OfficialHook)[1]["content"]);
         Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
 
         // Off again: nothing more; the webhook is kept for next time.
