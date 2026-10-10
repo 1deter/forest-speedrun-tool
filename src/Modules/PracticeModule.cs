@@ -1782,9 +1782,9 @@ namespace ForestOverlay.Modules
             {
                 if (ReferenceEquals(_current, mine)) _current = null;
                 if (ReferenceEquals(_selected, mine)) _selected = null;
-                if (ReferenceEquals(_shareFor, mine)) _shareFor = null;
                 _library.Remove(mine);
                 _unsaved.Remove(mine);
+                ForgetReplaced(mine);
             }
             incoming.SourceFile = file;
             _library.Add(incoming);
@@ -1792,6 +1792,19 @@ namespace ForestOverlay.Modules
             _selected = incoming;
             RebuildVisible();
             return saved ? null : "writing " + file + " failed - see the log";
+        }
+
+        /// An entry replaced by another object of the same id (website
+        /// take-back, Import's Replace?): what held the old object lets go -
+        /// the share and delete-from-site targets, and the armed run
+        /// (PracticeRunModule drops its segment, so a run finished next
+        /// does not upload the OLD route over the site's copy).
+        private void ForgetReplaced(Segment old)
+        {
+            if (ReferenceEquals(_shareFor, old)) _shareFor = null;
+            if (ReferenceEquals(_deleteSiteFor, old)) { _deleteSiteFor = null; _deleteSiteArmedUntil = 0f; }
+            try { if (OnSpotDeleted != null) OnSpotDeleted(old); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Practice: clearing a replaced spot failed: " + ex.Message); }
         }
 
         /// A community update rewrote community.txt: reload only that file
@@ -2681,6 +2694,7 @@ namespace ForestOverlay.Modules
                     if (ReferenceEquals(_selected, mine)) _selected = null;
                     _library.Remove(mine);
                     _unsaved.Remove(mine);
+                    ForgetReplaced(mine);
                 }
                 incoming.SourceFile = file;
                 _library.Add(incoming);

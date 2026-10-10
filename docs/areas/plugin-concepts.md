@@ -157,7 +157,12 @@ concept before changing its feature. Where the code lives:
   their list: the same says so; a different one is replaced on a second
   click (*Replace?*, 3 s), keeping the runner's start state and attempts
   (T-0218). Each row's answer shows under it. Practice's **Delete** is
-  local only (the site copy stays until *Delete from the website*).
+  local only (the site copy stays until *Delete from the website*); the
+  old retry queue `uploads/deletes.txt` (v0.24.248-267) is removed once at
+  startup, never sent (`Delete: removed the old retry queue ...`). Pending
+  uploads of a locally deleted spot are still sent. A take-back / Replace?
+  / Import's Replace? tells the armed run to let go of the old spot object
+  (`OnSpotDeleted`), so a run finished after it uploads the new route.
   A spot whose creator has not uploaded since keeps restarting as a
   teleport (`Restart '<id>': no start state - teleport only.`); before
   T-0194 that was every website spot ('Elevator Boost', s-9cdb6a6808ad,

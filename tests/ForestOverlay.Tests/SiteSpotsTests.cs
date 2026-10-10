@@ -60,6 +60,14 @@ namespace ForestOverlay.Tests
             Assert.False(SiteSpots.IsOwner(null, "r-00000000000000aa"));
         }
 
+        [Fact]
+        public void SameAsOwn_IgnoresTheStartStateHash()
+        {
+            Segment site = Timed(); site.StartState = "abc";
+            Segment own = Timed(); own.StartState = "xyz";
+            Assert.True(SiteSpots.SameAsOwn(site, own));
+        }
+
         private static Segment Timed()
         {
             Segment s = new Segment { Id = "s-0123456789ab", Name = "Dash", Category = "Mine" };
