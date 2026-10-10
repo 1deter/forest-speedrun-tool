@@ -47,6 +47,7 @@
     <Compile Include="../../src/Data/BusEvents.cs" Link="Linked/BusEvents.cs" />
     <Compile Include="../../src/Data/ZoneDisplay.cs" Link="Linked/ZoneDisplay.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
+    <Compile Include="../../src/Data/KeepLoaded.cs" Link="Linked/KeepLoaded.cs" />
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />
     <Compile Include="../../src/Data/VolumeFilter.cs" Link="Linked/VolumeFilter.cs" />
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />

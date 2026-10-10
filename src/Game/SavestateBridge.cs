@@ -649,6 +649,11 @@ namespace ForestOverlay.Game
             done(r);
         }
 
+        /// Restores and loads started this launch - in place, with a load,
+        /// a slot load (Data/KeepLoaded: a cheap restart only while none ran
+        /// since the restore it keeps, T-0212).
+        public static int Restores { get; private set; }
+
         // ------------------------------------------------------------------
         // RESTORE IN PLACE - no scene load.
         /// `unloadStreaming` must match how the data was captured: true for
@@ -661,6 +666,7 @@ namespace ForestOverlay.Game
 
             if (!Resolve() || _loadNow == null) { r.Message = "LevelSerializer.LoadNow not found"; done(r); yield break; }
             if (IsDeserializing) { r.Message = "the game is already loading"; done(r); yield break; }
+            Restores++;
             EnsurePrefabs("Savestate restore (in place)");
 
             string diffError;
@@ -841,6 +847,7 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _loadSavedLevel == null) return "LevelSerializer.LoadSavedLevel not found";
             if (IsDeserializing) return "the game is already loading";
+            Restores++;
 
             string prep = PrepareContinue(difficulty, baseDifficulty);
 
@@ -873,6 +880,7 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _resume == null) return "LevelSerializer.Resume not found";
             if (IsDeserializing) return "the game is already loading";
+            Restores++;
 
             PrepareContinue(null, null);
             EnsurePrefabs("Savestate slot load");

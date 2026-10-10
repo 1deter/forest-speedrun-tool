@@ -380,6 +380,8 @@ namespace ForestOverlay.Modules
                 bool teleportOnly = _reviveOutcome == DeathOutcome.ReviveAtSpot;
                 if (_practice != null)
                 {
+                    // A death reloads a kept start state (T-0212).
+                    _practice.DropKeptLoaded("a death");
                     if (teleportOnly) _practice.TeleportToCurrent();
                     else _practice.ReturnToSpot();
                 }

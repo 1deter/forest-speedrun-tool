@@ -403,6 +403,13 @@ namespace ForestOverlay.Data
         /// validated method as the alternative).
         public bool StartRestoreWithLoad;
 
+        /// Keep loaded (author, 2026-10-10, T-0212): the start state is
+        /// restored once, then restarts teleport and reset the player and the
+        /// endgame movers while the world is still the one that restore made
+        /// (Data/KeepLoaded decides). Written as `keep = loaded` only when
+        /// set; not part of the route.
+        public bool KeepLoaded;
+
         /// A run category ("Any%"): a Restart here with a start state starts
         /// a run attempt - always a Full load, run mode on, practice locked;
         /// a Restart during it is a reset (author, 2026-10-02: runs start

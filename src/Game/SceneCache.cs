@@ -63,8 +63,12 @@ namespace ForestOverlay.Game
             Cache.Clear();
         }
 
-        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, LoadSceneMode m) { Cache.Clear(); }
-        private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene s) { Cache.Clear(); }
+        /// Scenes loaded or unloaded this launch (Data/KeepLoaded: a cheap
+        /// restart only while none has since the restore, T-0212).
+        public static int SceneEvents { get; private set; }
+
+        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene s, LoadSceneMode m) { SceneEvents++; Cache.Clear(); }
+        private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene s) { SceneEvents++; Cache.Clear(); }
 
         /// UnityEngine.Object.FindObjectOfType(t), kept: null when none.
         public static Component One(Type t)

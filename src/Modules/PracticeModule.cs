@@ -170,6 +170,11 @@ namespace ForestOverlay.Modules
         private float _deleteSiteArmedUntil;
         private Segment _deleteSiteFor;
         private float _captureStartArmedUntil;
+        // Keep loaded (T-0212): which restarts may skip the start state.
+        private readonly KeepLoaded _keep = new KeepLoaded();
+        private static readonly GUIContent KeepLoadedHint =
+            new GUIContent("Keep loaded: the start state loads once; restarts then teleport and reset the player and the lab's " +
+                           "elevators and doors. It loads again when the world changes (a scene loads, a death, another load).");
 
         // --- sharing (Data/SegmentBundle): export / import .foseg files ---
         private sealed class ImportEntry
@@ -226,6 +231,7 @@ namespace ForestOverlay.Modules
             Reload();
 
             _savestates = Host.Find<SavestateModule>();
+            if (_savestates != null) _savestates.OnRestoreSettled += OnRestoreSettled;
             _community = Host.Find<CommunityModule>();
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
@@ -496,6 +502,7 @@ namespace ForestOverlay.Modules
             if (_savestates != null && _savestates.HasStartState(s))
             {
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
+                if (s.KeepLoaded && RestartKept(s, runStart, cause)) return;
 
                 _current = s;
                 PlaceCause.Set(cause ?? "start-state restore");
@@ -504,8 +511,18 @@ namespace ForestOverlay.Modules
                 StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
+                if (s.KeepLoaded) _keep.Restoring(s.Id);
+                else _keep.Drop("another spot was restored");
                 _savestates.RestoreStartState(s, runStart, delegate(string error)
                 {
+                    // Keep loaded: the player as the restore left it, before
+                    // the teleport (T-0212).
+                    if (s.KeepLoaded && error == null)
+                    {
+                        string took = _savestates.TakePlayer();
+                        if (took.Length > 0) { _keep.Drop(took); Ctx.Log.LogWarning("Restart '" + s.Id + "': keep loaded off for now - " + took + "."); }
+                    }
+                    else if (error != null) _keep.Drop("the last restore failed");
                     // A restored state has set the cave state from its file;
                     // the terrain guess below can be wrong at a cave mouth.
                     PlacingRunStart = runStart && error == null;
@@ -530,6 +547,42 @@ namespace ForestOverlay.Modules
             PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
         }
+
+        /// Keep loaded (T-0212): a restart without the restore while the
+        /// world is still the one it made. False = restore as usual (the
+        /// reason is logged).
+        private bool RestartKept(Segment s, bool runStart, string cause)
+        {
+            string why = _keep.Check(s.Id, s.KeepLoaded, runStart, SceneCache.SceneEvents, SavestateBridge.Restores);
+            string note = "";
+            if (why == null) why = _savestates.RestartKept(s, out note);
+            if (why != null)
+            {
+                Ctx.Log.LogInfo("Restart '" + s.Id + "': keep loaded - loading the start state: " + why + ".");
+                return false;
+            }
+
+            _current = s;
+            PlaceCause.Set(cause ?? "keep loaded restart");
+            if (OnRestartStarting != null) OnRestartStarting();
+            // The cave state is the restore's still (no scene since).
+            PlaceAt(s, false);
+            Ctx.Log.LogInfo("Restart '" + s.Id + "': kept loaded - no restore, " + note + ".");
+            StartStatus("Restarted (kept loaded).");
+            return true;
+        }
+
+        private void OnRestoreSettled(bool matches)
+        {
+            Segment s = _current;
+            if (s == null || !s.KeepLoaded) return;
+            _keep.Settled(s.Id, matches, SceneCache.SceneEvents, SavestateBridge.Restores);
+            if (_keep.Segment == s.Id) Ctx.Log.LogInfo("Restart '" + s.Id + "': kept loaded - the next restarts skip the start state while no scene loads.");
+            else if (!matches) Ctx.Log.LogInfo("Restart '" + s.Id + "': keep loaded off for now - the areas after the restore are not the start state's.");
+        }
+
+        /// A death: the next restart restores (author: a death reloads).
+        public void DropKeptLoaded(string why) { _keep.Drop(why); }
 
         /// Go: a teleport and nothing else, start state or not (author,
         /// v0.22.0: one button, one job - restoring is Restart / F7).
@@ -1643,6 +1696,7 @@ namespace ForestOverlay.Modules
             s.SpawnPitch = src.SpawnPitch;
             s.Cave = src.Cave;
             s.StartRestoreWithLoad = src.StartRestoreWithLoad;
+            s.KeepLoaded = src.KeepLoaded;
             s.Start = src.Start;
             s.End = src.End;
             s.Checkpoints.AddRange(src.Checkpoints);
@@ -1964,6 +2018,16 @@ namespace ForestOverlay.Modules
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
             y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
+            bool keep = GUI.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
+            if (keep != s.KeepLoaded)
+            {
+                s.KeepLoaded = keep;
+                if (!keep) _keep.Drop("keep loaded was turned off");
+                Ctx.Log.LogInfo("Practice: '" + s.Id + "' keep loaded " + (keep ? "on" : "off") + ".");
+                Touch();
+            }
+            y += 22f;
+            y += UiText.DrawDim(80, y, cw - 90, KeepLoadedHint);
             y += 6f;
             return y;
         }
@@ -2012,6 +2076,7 @@ namespace ForestOverlay.Modules
             // left another spot current, so F7 teleported there as if no
             // start state existed (author, v0.21.0). Capturing is choosing.
             _current = s;
+            _keep.Drop("a new start state was captured");
             StartStatus("Capturing...");
             _savestates.CaptureStartState(s, delegate(string error)
             {

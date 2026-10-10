@@ -58,7 +58,17 @@ namespace ForestOverlay.Modules
         private NatureKeeper _nature;
         private GreebleKeeper _greebles;
         private EnemyKeeper _enemies;
+        private readonly PlayerKeep _player = new PlayerKeep();
         private string _dir;
+
+        // The start state file the last RestoreStartState read, and whose
+        // segment: a Keep loaded restart reads its keepers' lines (T-0212).
+        private SavestateFile _startFile;
+        private string _startFileFor = "";
+
+        /// An in-place or Full restore's areas settled (LogAreas, 2 s on):
+        /// true when they are the capture's (or the file names none).
+        public Action<bool> OnRestoreSettled;
 
         private bool _busy;
         // EndgameFirst ran for the next RestoreInPlace: never twice.
@@ -1244,9 +1254,10 @@ namespace ForestOverlay.Modules
         {
             yield return new WaitForSecondsRealtime(2f);
             string now = AreaReport.Describe();
-            if (f == null || f.Areas.Length == 0) { Ctx.Log.LogInfo("Savestate areas after the restore: " + now); yield break; }
-            Ctx.Log.LogInfo("Savestate areas after the restore: " +
-                            (now == f.Areas ? "same as at capture (" + now + ")" : now + " || at capture: " + f.Areas));
+            if (f == null || f.Areas.Length == 0) Ctx.Log.LogInfo("Savestate areas after the restore: " + now);
+            else Ctx.Log.LogInfo("Savestate areas after the restore: " +
+                                 (now == f.Areas ? "same as at capture (" + now + ")" : now + " || at capture: " + f.Areas));
+            if (OnRestoreSettled != null) OnRestoreSettled(f == null || f.Areas.Length == 0 || now == f.Areas);
         }
 
         // World pickups there now that the capture did not list (keyed by
@@ -2090,6 +2101,8 @@ namespace ForestOverlay.Modules
                 Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
                                    s.StartState + ") - recapture it to make it so.");
 
+            _startFile = f;
+            _startFileFor = s.Id;
             string what = "start state of '" + s.Name + "'";
             if (runStart) Ctx.Log.LogInfo("Savestate: " + what + " starts a run - a Full load.");
             if (runStart || s.StartRestoreWithLoad || MustLoad(f, what))
@@ -2113,6 +2126,56 @@ namespace ForestOverlay.Modules
                 HashSet<string> present = f.Pickups != null ? new HashSet<string>(f.Pickups) : null;
                 RestoreInPlace(f.Data, f.StreamingUnloaded, present, what, f.InCave ? 1 : 0, f, done);
             }
+        }
+
+        /// Keep loaded (T-0212): right after the segment's start state was
+        /// restored - the player's state as the restore left it. "" or why not.
+        public string TakePlayer() { return _player.Take(); }
+
+        /// A Keep loaded restart without the restore (T-0212; author,
+        /// 2026-10-10: "Player + endgame movers"): the endgame elevators,
+        /// sliding doors and active area from the start state file, the
+        /// player's state as the last restore left it, the held items and
+        /// stored logs from the file. The caller teleports after. Returns
+        /// null and the note, or why it cannot (then the caller restores).
+        public string RestartKept(Segment s, out string note)
+        {
+            note = "";
+            if (_busy) return "a savestate action is still running";
+            if (RefusedInRun("restore", null)) return "run mode";
+            SavestateFile f = _startFileFor == s.Id ? _startFile : null;
+            if (f == null) return "its start state file is not read yet";
+            // A capture inside a cutscene (a red elevator ride, a keycard
+            // door) is replayed by the restore; a teleport cannot.
+            if (f.CutsceneAt >= 0f) return "its start state was captured in a cutscene";
+            if (!_player.Has) return "the player's state was not taken";
+
+            Ctx.Practice.Mark("keep loaded restart");
+            string fall = Ctx.Bridge.EndFall();
+            string menu = BookClose.IfOpen();
+            if (menu.Length > 0) fall += (fall.Length > 0 ? ", " : "") + menu;
+            string anim = AnimReset.Cancel();
+            if (anim.Length > 0) fall += (fall.Length > 0 ? ", " : "") + anim;
+            string ride = RideModes.Leave(true);
+            if (ride.Length > 0) fall += (fall.Length > 0 ? ", " : "") + ride;
+
+            string elevators = _elevators.Restore(f.Elevators, -1f, false, new List<Component>());
+            string doors = _slidingDoors.Restore(f.SlidingDoors);
+            string area = _area.Restore(f.ActiveArea);
+            string player = _player.Restore();
+            LogStore.Apply(f.Logs, "Restart '" + s.Id + "' (kept)");
+            if (f.Held != null && f.Held.Count > 0)
+                Ctx.Runner.StartCoroutine(_bridge.ReEquip(f.Held, NameOfItem, delegate(string held)
+                {
+                    Ctx.Log.LogInfo("Restart '" + s.Id + "' (kept): " + held + ".");
+                }));
+
+            note = player +
+                   (elevators.Length > 0 ? " | " + elevators : "") +
+                   (doors.Length > 0 ? " | " + doors : "") +
+                   (area.Length > 0 ? " | " + area : "") +
+                   (fall.Length > 0 ? " | " + fall : "");
+            return null;
         }
 
         // A Quick load needs a game to restore into, and the game's mode:

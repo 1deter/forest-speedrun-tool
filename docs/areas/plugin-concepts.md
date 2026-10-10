@@ -110,6 +110,19 @@ concept before changing its feature. Where the code lives:
   whose file does not match the hash logs a warning. Each restart logs
   `Restart '<id>': ...`; a refused or failed one still teleports and says
   why under the buttons, or — window closed — in `Ctx.Notice`.
+  **Keep loaded** (*Start state* row toggle, `keep = loaded`, not part of
+  the route; T-0212, author 2026-10-10 - lab skip needs the endgame loaded
+  once, not every restart): the first restart restores; 2 s on, when the
+  areas are the capture's (`OnRestoreSettled`), the world is kept
+  (`Data/KeepLoaded`). Later restarts then skip the restore: the player's
+  stats + item amounts as the restore left them (`Game/PlayerKeep`, taken
+  at its `done`), the elevators / sliding doors / active area / held items
+  / stored logs from the file, then the teleport (`Restart '<id>': kept
+  loaded - no restore, ...`, ~0.01 s against a 0.4 s Quick load). Any
+  scene load or unload since (`SceneCache.SceneEvents`), another restore
+  or load (`SavestateBridge.Restores`), a death, another spot, a new
+  capture or a start state captured in a cutscene makes the restart a real
+  restore again and logs why (`keep loaded - loading the start state: ...`).
 - **Sharing and community packs** (v0.24.71-72): a `.foseg` file is one
   segment: `[segment]` + optional `[startstate]` (.fosave verbatim) +
   `[attempt]`s (.run verbatim) - `Data/SegmentBundle`, tested. Export

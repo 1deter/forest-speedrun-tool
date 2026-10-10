@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 681 log calls.
+218 prefixes from 688 log calls.
 
 ## `Aerial capture`
 
@@ -1141,6 +1141,7 @@ Written by PlayerStateReader.cs; info.
 Meaning: Practice spots: imported, renamed for a duplicate id, or a file not importable.
 Written by PracticeModule.cs; info / warning.
 
+- info `Practice: '<s.Id>' keep loaded <..>.`
 - info `Practice: '<s.Name>' had the id '<old>' of another entry - now '<s.Id>'.`
 - info `Practice: <..> '<incoming.Id>' from <..> (<what>).`
 - warning `Practice: <..> not importable: <error>` (x2)
@@ -1256,11 +1257,17 @@ Written by PracticeRunModule.Camera.cs; info.
 ## `Restart`
 
 Meaning: A spot restarted (F7): which spot and how - start state restored with a load or in place, or teleport only.
-Written by PracticeModule.cs; info.
+Written by PracticeModule.cs, SavestateModule.cs; info / warning.
 
 - info `Restart '<s.Id>': <menu>.`
+- info `Restart '<s.Id>': keep loaded - loading the start state: <why>.`
+- warning `Restart '<s.Id>': keep loaded off for now - <took>.`
+- info `Restart '<s.Id>': keep loaded off for now - the areas after the restore are not the start state's.`
+- info `Restart '<s.Id>': kept loaded - no restore, <note>.`
+- info `Restart '<s.Id>': kept loaded - the next restarts skip the start state while no scene loads.`
 - info `Restart '<s.Id>': no start state - teleport only.`
 - info `Restart '<s.Id>': restoring its start state <..>`
+- info `Restart '<s.Id>' (kept): <held>.`
 
 ## `Results panel`
 

@@ -257,6 +257,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
+- **Keep loaded** (author, 2026-10-08 / 10-10, T-0212): a spot can load
+  its start state once and then restart cheaply (teleport + the player and
+  the endgame movers put back) - a general option, not lab-skip specific;
+  a toggle on the Start state row named *Keep loaded* (a toggle is "kind
+  of annoying, but it works"). The state must reload by itself when the
+  world no longer matches: **any scene load or unload** since the restore
+  (chosen over "the areas line differs"), and a death or another load.
 - **A run starts on the first input** (author, 2026-10-10, T-0282): any
   input but the pause menu (Esc) and the camera starts it - the inventory,
   the book, sprint alone all count ("any other input means intent"); the
