@@ -39,7 +39,7 @@ namespace ForestOverlay.Data
 
         /// What F7 and the Runs tab's Restart act on (author, 2026-10-10):
         /// the selection when it changed since the last placement, else the
-        /// current spot - a Go to a row, then F7, still restarts there.
+        /// current spot (a death's revive and the auto-restart place without selecting).
         /// Ids, not objects: a Reload rebuilds the entries under the same ids.
         public static bool FollowsSelection(string selectedId, bool selectedHasSpawn, string selectedIdAtPlace)
         {

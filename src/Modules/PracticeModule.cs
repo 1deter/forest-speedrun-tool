@@ -650,8 +650,8 @@ namespace ForestOverlay.Modules
 
         /// F7 and the Runs tab's Restart (author, 2026-10-10, T-0256): the
         /// spot selected in the list when the selection changed since the
-        /// last placement, else the current spot - so a Go to a row, then
-        /// F7, still restarts where the Go went.
+        /// last placement, else the current spot (Go on a row selects it,
+        /// T-0271, so the two agree after a Go).
         public void RestartTarget()
         {
             Segment s = TargetSpot;
