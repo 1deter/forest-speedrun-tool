@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS attempts (
   nonce TEXT, issued_ms INTEGER, log_ms INTEGER, end_reason TEXT, end_ms INTEGER, final_timer_ms INTEGER,
   steps INTEGER, verdict TEXT, why TEXT, log_bytes INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_runner ON attempts (runner_id);
+CREATE INDEX IF NOT EXISTS attempts_category ON attempts (category, end_reason);
 CREATE TABLE IF NOT EXISTS checkpoints (
   attempt_id TEXT NOT NULL, step INTEGER NOT NULL, head TEXT NOT NULL, received_ms INTEGER NOT NULL,
   PRIMARY KEY (attempt_id, step));
@@ -247,8 +248,99 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             ended = row.LogMs != null, endReason = row.EndReason, durationMs = row.EndMs, finalTimerMs = row.FinalTimerMs,
             steps = row.Steps, flags = j?.Flags ?? 0, verdict = j?.Verdict ?? "running", why = j?.Why ?? Lines(row.Why),
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
-            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads,
+            events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads, path = j?.Path,
         };
+    }
+
+    // --- official runs (T-0223) --------------------------------------------------------
+
+    /// How many runners a category lists (fastest first); the count says how many there are.
+    public const int OfficialShown = 100;
+    /// How many of a runner's latest runs the "recent runs" view holds.
+    public const int OfficialRecent = 5;
+    /// The most finished runs one category reads per answer (fastest first).
+    private const int OfficialRead = 2000;
+
+    private string _officialStamp;
+    private List<object> _officialList;
+    private long _officialAt;
+
+    /// The official runs, per published category (author, 2026-10-08: only
+    /// once a category is published, in their own section apart from the
+    /// runners' spots; 2026-10-10: each runner's best only, plus their latest
+    /// runs and the average; a run whose check found problems only while
+    /// the moderators' allow-list clears it - "approved by moderation" is
+    /// the verdict not being red). A runner is listed once, with their
+    /// fastest accepted run; `recent` = their newest accepted runs
+    /// (OfficialRecent) and `avgMs` their average. An attempt names its
+    /// category by id, or by a run spot's `run = ` (an id or a name, as
+    /// IsPublished reads it). Drafts are not named, so nothing about them
+    /// leaves the site. Judging a log replays it, so the answer is kept
+    /// until a log arrives, the allow-list changes or two minutes pass.
+    public List<object> Official()
+    {
+        if (_categories == null) return new List<object>();
+        var published = _categories.Published().ToList();
+        if (published.Count == 0) return new List<object>();
+        string stamp;
+        using (var c0 = _store.Open())
+        {
+            using var s = c0.CreateCommand();
+            s.CommandText = "SELECT COUNT(*), COALESCE(MAX(log_ms), 0) FROM attempts WHERE end_reason = 'finished'";
+            using var r = s.ExecuteReader();
+            r.Read();
+            stamp = Volatile.Read(ref _allowedVersion) + "|" + r.GetInt64(0) + "|" + r.GetInt64(1) + "|" +
+                    string.Join(",", published.Select(p => p.Id + "=" + p.Name));
+        }
+        lock (_judged)
+            if (_officialList != null && _officialStamp == stamp && _now() - _officialAt < 120_000) return _officialList;
+
+        var list = new List<object>();
+        using var c = _store.Open();
+        foreach (var cat in published)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = @"SELECT a.id, a.runner_id, COALESCE(r.name, ''), a.final_timer_ms, COALESCE(a.issued_ms, a.log_ms)
+                                FROM attempts a LEFT JOIN runners r ON r.id = a.runner_id
+                                WHERE (a.category = $id OR a.category = $name COLLATE NOCASE)
+                                  AND a.end_reason = 'finished' AND a.log_ms IS NOT NULL AND a.final_timer_ms > 0
+                                ORDER BY a.final_timer_ms, a.id LIMIT $n";
+            cmd.Parameters.AddWithValue("$id", cat.Id);
+            cmd.Parameters.AddWithValue("$name", cat.Name);
+            cmd.Parameters.AddWithValue("$n", OfficialRead);
+            var rows = new List<(string Id, string Runner, string Name, long Timer, long At)>();
+            using (var r = cmd.ExecuteReader())
+                while (r.Read()) rows.Add((r.GetString(0), r.GetString(1), r.GetString(2), r.GetInt64(3), r.GetInt64(4)));
+
+            var accepted = new Dictionary<string, bool>();
+            bool Accepted(string id)
+            {
+                if (accepted.TryGetValue(id, out bool ok)) return ok;
+                var row = Row(id);
+                ok = row?.LogMs != null && JudgedLog(id, row).Verdict != "red";
+                accepted[id] = ok;
+                return ok;
+            }
+
+            var boards = new List<(long Timer, object Entry)>();
+            foreach (var g in rows.GroupBy(x => x.Runner))
+            {
+                var best = g.Where(x => Accepted(x.Id)).Select(x => ((string Id, string Runner, string Name, long Timer, long At)?)x).FirstOrDefault();
+                if (best == null) continue;
+                var recent = g.OrderByDescending(x => x.At).ThenBy(x => x.Id).Where(x => Accepted(x.Id)).Take(OfficialRecent).ToList();
+                var b = best.Value;
+                boards.Add((b.Timer, new
+                {
+                    id = b.Id, runner = b.Runner, runnerName = g.OrderByDescending(x => x.At).First().Name, timerMs = b.Timer, at = Iso(b.At),
+                    avgMs = (long)Math.Round(recent.Average(x => (double)x.Timer)),
+                    recent = recent.Select(x => new { id = x.Id, timerMs = x.Timer, at = Iso(x.At) }).ToList(),
+                }));
+            }
+            var ordered = boards.OrderBy(x => x.Timer).Select(x => x.Entry).ToList();
+            list.Add(new { id = cat.Id, name = cat.Name, count = ordered.Count, runs = ordered.Take(OfficialShown).ToList() });
+        }
+        lock (_judged) { _officialStamp = stamp; _officialList = list; _officialAt = _now(); }
+        return list;
     }
 
     // --- the judged log, cached (security audit, 2026-10-04) --------------------------
@@ -261,7 +353,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report, object Loads);
+                                 object Recording, string Report, object Loads, List<double[]> Path);
 
     /// The logs' size the cache may hold (characters of log text); past it,
     /// it starts again.
@@ -297,8 +389,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
         }).ToList();
         // The audit log (run mode attempts since the audit log; none in
-        // older logs): the rundown first, the timeline behind it.
-        var notes = EventNotes(replay.Events);
+        // older logs): the rundown first, the timeline behind it - both with
+        // the moves the game saw too (T-0244).
+        var notes = EventNotes(replay.Events, replay.Moves);
         var events = notes.Select(e => new
         {
             kind = e.Kind, label = e.Label, group = e.Group, realMs = e.RealMs, timerMs = e.TimerMs, detail = e.Detail,
@@ -309,9 +402,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         var (_, list) = JudgeReport(report, allowed, null, cat);
         var j = new Judged(row.LogMs.Value, allowedVersion, parsed.Category ?? "", parsed.CategoryVersion, cat != null, text.Length,
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
-            RunAudit.Rundown(replay.Events), events, eventGroups, verdict, all.ToArray(),
+            RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
-            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay));
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text));
         lock (_judged)
         {
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
@@ -323,6 +416,34 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             }
         }
         return j;
+    }
+
+    /// The attempt's 1 Hz positions for the page's map replay: [seconds, x, y, z, speed]
+    /// (metres; speed from the step before) from the log's `step|n|realMs|timer|x|y|z`
+    /// lines (centimetres; "-" = a load, no player: skipped). Read from the text
+    /// because AttemptChain.Replay keeps no positions.
+    public static List<double[]> PathOf(string text)
+    {
+        var path = new List<double[]>();
+        if (string.IsNullOrEmpty(text)) return path;
+        foreach (string line in text.Split('\n'))
+        {
+            if (!line.StartsWith("step|", StringComparison.Ordinal)) continue;
+            var p = line.TrimEnd('\r').Split('|');
+            if (p.Length != 7 || !long.TryParse(p[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out long ms) ||
+                !long.TryParse(p[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out long x) ||
+                !long.TryParse(p[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out long y) ||
+                !long.TryParse(p[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out long z)) continue;
+            double t = ms / 1000.0, speed = 0;
+            if (path.Count > 0)
+            {
+                var q = path[^1];
+                double dt = t - q[0], dx = x / 100.0 - q[1], dz = z / 100.0 - q[3];
+                if (dt > 0) speed = Math.Sqrt(dx * dx + dz * dz) / dt;
+            }
+            path.Add(new[] { t, x / 100.0, y / 100.0, z / 100.0, Math.Round(speed, 1) });
+        }
+        return path;
     }
 
     private void Forget(string id)
@@ -338,15 +459,16 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                                   string MaybeBanned);
 
     // Words that name each kind in a category's banned moves (speedrun.com's
-    // rule text: "No bomb boosting", "The explosives glitch").
-    private static readonly Dictionary<string, (string Label, string[] Words)> MoveKinds = new()
+    // rule text: "No bomb boosting", "The explosives glitch"). The labels:
+    // RunAudit.MoveLabel (shared with the plugin's Runs tab).
+    private static readonly Dictionary<string, string[]> MoveWords = new()
     {
-        ["bomb-boost"] = ("Bomb boost", new[] { "bomb", "explosi", "knockback" }),
-        ["huge-speed"] = ("Huge speed", Array.Empty<string>()),
-        ["cave-force-load"] = ("Cave state force load", new[] { "cave" }),
-        ["fall-damage-cancel"] = ("Fall damage cancel", new[] { "fall damage", "fall-damage", "fall cancel", "slide cancel" }),
-        ["lift"] = ("Lift out of a structure", new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" }),
-        ["clip"] = ("Clip through a solid", new[] { "clip" }),
+        ["bomb-boost"] = new[] { "bomb", "explosi", "knockback" },
+        ["huge-speed"] = Array.Empty<string>(),
+        ["cave-force-load"] = new[] { "cave" },
+        ["fall-damage-cancel"] = new[] { "fall damage", "fall-damage", "fall cancel", "slide cancel" },
+        ["lift"] = new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" },
+        ["clip"] = new[] { "clip" },
     };
 
     /// The moves the game saw, in plain words, each with the category's
@@ -359,9 +481,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (moves == null) return list;
         foreach (var m in moves)
         {
-            string label = m.Kind;
-            string[] words = Array.Empty<string>();
-            if (MoveKinds.TryGetValue(m.Kind, out var k)) { label = k.Label; words = k.Words; }
+            string label = RunAudit.MoveLabel(m.Kind);
+            string[] words = MoveWords.TryGetValue(m.Kind, out var w) ? w : Array.Empty<string>();
             string banned = null;
             if (category != null)
                 banned = category.Banned.FirstOrDefault(b => words.Any(w => b.Contains(w, StringComparison.OrdinalIgnoreCase)));
@@ -395,16 +516,28 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         };
     }
 
-    /// The events in plain words with their group, in log order. Never part
-    /// of the verdict: like a move, an event is what the game saw.
-    public static List<EventNote> EventNotes(IEnumerable<AttemptChain.EventInfo> events)
+    /// The events in plain words with their group, in log order, without
+    /// the kinds the report leaves out (RunAudit.InReport: tree cuts). With
+    /// `moves`, the moves the game saw go in by their time (group "moves",
+    /// no timer), so the timeline's All lists everything (T-0244); an
+    /// attempt with moves and no events (a log from before the audit log)
+    /// keeps them in their own section only. Never part of the verdict:
+    /// like a move, an event is what the game saw.
+    public static List<EventNote> EventNotes(IEnumerable<AttemptChain.EventInfo> events, IEnumerable<AttemptChain.MoveInfo> moves = null)
     {
         var list = new List<EventNote>();
         if (events == null) return list;
         foreach (var e in events)
-            list.Add(new EventNote(e.Kind, RunAudit.Label(e.Kind), RunAudit.Group(e.Kind), e.RealMs, e.TimerMs, e.Detail,
-                                   e.HasPos, e.X, e.Y, e.Z));
-        return list;
+            if (RunAudit.InReport(e.Kind))
+                list.Add(new EventNote(e.Kind, RunAudit.Label(e.Kind), RunAudit.Group(e.Kind), e.RealMs, e.TimerMs, e.Detail,
+                                       e.HasPos, e.X, e.Y, e.Z));
+        if (moves == null || list.Count == 0) return list;
+        var all = list.Select((n, i) => (n, i)).ToList();
+        int at = list.Count;
+        foreach (var m in moves)
+            all.Add((new EventNote(m.Kind, RunAudit.MoveLabel(m.Kind), RunAudit.MovesGroup, m.RealMs, -1, m.Detail,
+                                   m.HasPos, m.X, m.Y, m.Z), at++));
+        return all.OrderBy(x => x.n.RealMs).ThenBy(x => x.i).Select(x => x.n).ToList();
     }
 
     /// The groups present, in RunAudit's order (the page's filter chips).

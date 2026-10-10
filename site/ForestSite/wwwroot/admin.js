@@ -1,7 +1,8 @@
 // forest.deter.cloud: the author's page, /admin (not in the nav).
 // Spot submissions (approve / reject), runs flagged as much faster than the
 // route's best, spots (delete an accidental upload), runners (ban, reset a
-// lost token), the activity log, and - the owner only - other admins' tokens.
+// lost token), the activity log, and - the owner only - the knowledge bot, the
+// Discord PB posts and other admins' tokens.
 // Every call carries this admin's token, kept in this browser only.
 // Uses el / time / date / show / loading from app.js.
 "use strict";
@@ -63,13 +64,14 @@ async function adminPage(tab) {
     ["allowed", "Allowed mods", 0],
     ["activity", "Activity", 0],
   ];
-  if (me.owner) tabs.push(["bot", "Bot", 0], ["admins", "Admins", 0]);
+  if (me.owner) tabs.push(["bot", "Bot", 0], ["pbposts", "PB posts", 0], ["admins", "Admins", 0]);
   tab = tabs.some(t => t[0] === tab) ? tab : "submissions";
   let body;
   try {
     body = tab === "flagged" ? flaggedView(flagged) : tab === "runners" ? runnersView(runners)
       : tab === "spots" ? spotsView(spots) : tab === "activity" ? activityView(await adminCall("GET", "/log"))
       : tab === "bot" ? botView(await adminCall("GET", "/bot"))
+      : tab === "pbposts" ? pbPostsView(await adminCall("GET", "/pbposts"))
       : tab === "admins" ? adminsView(await adminCall("GET", "/admins"))
       : tab === "allowed" ? allowedView(await adminCall("GET", "/allowed"))
       : tab === "categories" ? categoriesView(await adminCall("GET", "/categories"), spots) : submissionsView(subs);
@@ -746,6 +748,88 @@ function botView(data) {
     el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
       "A field left empty uses the bot's .env value."),
     el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
+    form,
+    bar.box);
+}
+
+// --- Discord PB posts (the owner only) -------------------------------------------------
+
+/// PBs on runners' own spots (T-0232): on / off, and into the official channel
+/// (FOREST_DISCORD_WEBHOOK) or their own webhook. The webhook URL is a secret: a password
+/// field, sent only to the owner. Held until Save on the unsaved-changes bar, like the Bot tab.
+function pbPostsView(data) {
+  const s = data.settings || {};
+  const on = el("input", { type: "checkbox" });
+  on.checked = !!s.runnerSpots;
+  const radio = (value, text) => {
+    const r = el("input", { type: "radio", name: "pbchannel", value });
+    r.checked = (s.channel || "same") === value;
+    return { r, label: el("label", { class: "check" }, r, " " + text) };
+  };
+  const same = radio("same", "The same channel as community and run spot PBs");
+  const own = radio("own", "Their own channel");
+  const hook = el("input", { class: "search", type: "password", maxlength: 300, autocomplete: "off", spellcheck: "false",
+    placeholder: "https://discord.com/api/webhooks/...", "aria-label": "Webhook URL for runners' spots" });
+  hook.value = s.webhook || "";
+  const showHook = el("button", { class: "chip", type: "button" }, "Show");
+  showHook.addEventListener("click", () => {
+    const hidden = hook.type === "password";
+    hook.type = hidden ? "text" : "password";
+    showHook.textContent = hidden ? "Hide" : "Show";
+  });
+  const hint = el("p", { class: "sub" });
+
+  const channel = () => own.r.checked ? "own" : "same";
+  const state = () => JSON.stringify([on.checked, channel(), hook.value.trim()]);
+  const loaded = state();
+
+  const bar = unsavedBar("Save changes", save, () => { unsaved = null; adminPage("pbposts"); });
+  const dirty = () => !bar.saving() && state() !== loaded;
+  // What the choice does, under it; the channel fields only count while the posts are on.
+  function refresh() {
+    same.r.disabled = own.r.disabled = !on.checked;
+    hook.disabled = !on.checked || channel() !== "own";
+    hint.className = "sub";
+    if (!on.checked) hint.textContent = "Off: a PB on a runner's own spot is not posted.";
+    else if (channel() === "same") {
+      hint.textContent = data.official ? "Posted in the same channel. They have their own limit (30 an hour), so they never crowd out community and run spot PBs."
+        : "Nothing is posted: the server has no FOREST_DISCORD_WEBHOOK, so there is no official channel to share.";
+      if (!data.official) hint.className = "error";
+    } else hint.textContent = hook.value.trim() ? "Posted to that webhook's channel."
+      : "Paste the channel's webhook URL (Discord: Edit Channel > Integrations > Webhooks > Copy Webhook URL).";
+    bar.show(state() !== loaded);
+  }
+  unsaved = { dirty, blocked: bar.blocked };
+  async function save() {
+    bar.busy(true);
+    bar.say("Saving…");
+    try {
+      await adminCall("PUT", "/pbposts", JSON.stringify({ runnerSpots: on.checked, channel: channel(), webhook: hook.value.trim() }));
+      bar.say("Saved. The next PB uses it.");
+      setTimeout(() => { if (unsaved && unsaved.dirty === dirty) { unsaved = null; adminPage("pbposts"); } }, 1500);
+    } catch (e) {
+      bar.busy(false);
+      bar.say("Not saved: " + e.message);
+    }
+  }
+
+  const form = el("div", { class: "catform", oninput: refresh, onchange: refresh },
+    el("h3", null, "Community and run spots"),
+    el("p", { class: data.official ? "sub" : "error" }, data.official
+      ? "On: a new PB is posted to the channel of FOREST_DISCORD_WEBHOOK (set on the server)."
+      : "Off: the server has no FOREST_DISCORD_WEBHOOK (site/deploy/README.md says how to set it)."),
+    el("h3", null, "Runners' spots"),
+    el("label", { class: "check" }, on, " Post PBs on runners' spots"),
+    same.label,
+    own.label,
+    el("label", { class: "field" }, el("span", null, "Webhook URL for their own channel"),
+      el("div", { class: "signin" }, hook, showHook)),
+    hint);
+  refresh();
+
+  return el("section", { class: "hasbar" },
+    el("p", { class: "note" }, "Discord posts when an uploaded run is a runner's new PB. A runner's spot is any spot that is not a community or run spot - anyone can make one, so each runner still posts at most 5 an hour. " +
+      "The webhook URL stays on the server and in this page only."),
     form,
     bar.box);
 }

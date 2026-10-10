@@ -60,5 +60,36 @@ namespace ForestOverlay.Tests
             Trigger t = Event("Game-End");
             Assert.True(TriggerEvaluator.IsSatisfied(t, Vector3.zero, null, "game-end", null));
         }
+
+        // The velocity start is gone (T-0282): a stored `moving` reads as
+        // `first-input`, and the trigger's text (so its route fingerprint)
+        // changes with it - old times retire (author 2026-10-10).
+        [Theory]
+        [InlineData("event moving", "event first-input")]
+        [InlineData("event MOVING", "event first-input")]
+        [InlineData("event hold-interact|moving", "event hold-interact|first-input")]
+        [InlineData("event moving|first-input", "event first-input")]
+        [InlineData("event hold-interact", "event hold-interact")]
+        [InlineData("event moving-platform", "event moving-platform")]
+        public void AStoredMovingStartReadsAsFirstInput(string stored, string read)
+        {
+            Trigger t;
+            Assert.True(TriggerParser.Parse(stored, out t));
+            Assert.Equal(read, TriggerParser.Write(t));
+        }
+
+        [Fact]
+        public void TheMigratedStartRetiresOldTimes()
+        {
+            // Old attempts carry the fingerprint of the `moving` text they
+            // were timed under; the same route read today has another one.
+            Segment old = new Segment(), read = new Segment();
+            old.Start = Event("moving");                          // as it was before T-0282
+            TriggerParser.Parse("event moving", out read.Start);  // the same file, read now
+            TriggerParser.Parse("zone 0 0 0 5", out old.End);
+            TriggerParser.Parse("zone 0 0 0 5", out read.End);
+            Assert.Equal("first-input", read.Start.EventName);
+            Assert.NotEqual(old.RouteFingerprint(), read.RouteFingerprint());
+        }
     }
 }

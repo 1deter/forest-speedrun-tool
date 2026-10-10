@@ -92,7 +92,8 @@ namespace ForestOverlay.Modules
             _windowRect.x = Mathf.Clamp(_windowRect.x, 40f - _windowRect.width, Screen.width - 40f);
             _windowRect.y = Mathf.Clamp(_windowRect.y, 0f, Screen.height - 30f);
 
-            _windowRect = GUI.Window(windowId, _windowRect, DrawContents,
+            if (_contentsFn == null) _contentsFn = DrawContentsWatched;
+            _windowRect = GUI.Window(windowId, _windowRect, _contentsFn,
                                      "ForestOverlay v" + OverlayPlugin.PluginVersion);
         }
 
@@ -105,6 +106,17 @@ namespace ForestOverlay.Modules
 
             _activeTabStyle = new GUIStyle(_tabStyle);
             _activeTabStyle.fontStyle = FontStyle.Bold;
+        }
+
+        // IMGUI calls a window's function after the OnGUI that declared it
+        // has returned: the stall watch's breadcrumb is set here again.
+        private GUI.WindowFunction _contentsFn;
+
+        private void DrawContentsWatched(int id)
+        {
+            StallWatch.At(StallWatch.Hook.Window, Index);
+            try { DrawContents(id); }
+            finally { StallWatch.Leave(); }
         }
 
         private void DrawContents(int id)
@@ -132,6 +144,7 @@ namespace ForestOverlay.Modules
                                  _windowRect.height - 26f - TabStripHeight - 12f);
 
             GUI.BeginGroup(body);
+            StallWatch.Tab(tabs[_active].Index);
             tabs[_active].DrawTab(new Rect(0f, 0f, body.width, body.height));
             GUI.EndGroup();
 

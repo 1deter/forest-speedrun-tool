@@ -66,6 +66,8 @@ namespace ForestOverlay.Data
                     WriteReadme();
                 }
 
+                RecoverWrites();
+
                 string[] files = Directory.GetFiles(_folder, "*.txt");
                 int fileCount = 0;
 
@@ -87,6 +89,32 @@ namespace ForestOverlay.Data
             {
                 Status = "load failed - see log";
                 _log.LogWarning("Segment load failed: " + ex.Message);
+            }
+        }
+
+        /// A crash mid-write (Data/SafeFile) left a .tmp or .bak beside a
+        /// segment file: put the newest whole copy in place before loading.
+        private void RecoverWrites()
+        {
+            string[] files = Directory.GetFiles(_folder);
+            for (int i = 0; i < files.Length; i++)
+            {
+                string target = null;
+                if (files[i].EndsWith(".txt" + SafeFile.TempSuffix, StringComparison.OrdinalIgnoreCase))
+                    target = files[i].Substring(0, files[i].Length - SafeFile.TempSuffix.Length);
+                else if (files[i].EndsWith(".txt" + SafeFile.BackupSuffix, StringComparison.OrdinalIgnoreCase))
+                    target = files[i].Substring(0, files[i].Length - SafeFile.BackupSuffix.Length);
+                if (target == null) continue;
+
+                try
+                {
+                    string done = SafeFile.Recover(target);
+                    if (done.Length > 0) _log.LogWarning("Segments: " + Path.GetFileName(target) + ": " + done + ".");
+                }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Segments: could not tidy after an interrupted write of " + Path.GetFileName(target) + ": " + ex.Message);
+                }
             }
         }
 
@@ -355,7 +383,9 @@ namespace ForestOverlay.Data
                 for (int i = 0; i < mine.Count; i++)
                     SegmentFormat.WriteSegment(sb, mine[i], Environment.NewLine);
 
-                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+                // Rewritten on every editor change (T-0217): a crash
+                // mid-write must not cost the runner the whole file.
+                SafeFile.WriteAllText(path, sb.ToString(), Encoding.UTF8);
                 _log.LogInfo("Wrote " + mine.Count + " segment(s) to " + fileName);
                 return true;
             }

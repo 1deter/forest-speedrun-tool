@@ -11,6 +11,15 @@ concept before changing its feature. Where the code lives:
   checkpoints. There is no separate "anchor". **F7 restarts the *current*
   spot** (the last one teleported to or captured on), not the editor's
   selection.
+- **Editor edits save themselves** (T-0217): an edit marks its entry
+  *(unsaved)* and is written to its local file once the edits pause
+  (1 s quiet, at most 5 s - `Data/EditDebounce`), or at once on selecting
+  another entry, Export / Submit and quitting. The file is replaced
+  through a `.tmp` (`Data/SafeFile`; a crash mid-write is put right at the
+  next load). There is no Save or Reload button. A failed write says
+  "Autosave failed - see log (n unsaved). Retrying." and tries again; an
+  entry that is not valid (no spawn, or no start and end) stays unsaved and
+  is reported once (`Data/HeldReport`). Nothing is uploaded by an edit.
 - **One button, one job** (author, v0.22.0: "buttons shouldn't have
   double-purposes"). **Go only teleports**, start state or not. Restoring
   is **Restart**: F7, the Runs tab's Restart, a death revive, and the
@@ -67,7 +76,9 @@ concept before changing its feature. Where the code lives:
   `cave-enter-<cave>` / `cave-exit-<cave>` (cave01..cave10, hellcave,
   snowcave, underwatercave, underwatercave2/3) and `cave-enter` /
   `cave-exit`, `clothing-<id>`, `passenger-<n>` / `passenger`,
-  `hold-interact` (plane meal start), `moving` (velocity start).
+  `hold-interact` (plane meal start), `first-input` (any input but Esc
+  and the camera - replaces the velocity start `moving`, T-0282; a stored
+  `moving` reads as `first-input` and its old times retire).
 - **Deaths** (Deaths tab), decided in `DeathModule.Decide`:
   1. a current spot **with a start state** → revive and restore it, the
      segment's way, **even with practice mode off** (author: "if the runner
@@ -108,6 +119,19 @@ concept before changing its feature. Where the code lives:
   whose file does not match the hash logs a warning. Each restart logs
   `Restart '<id>': ...`; a refused or failed one still teleports and says
   why under the buttons, or — window closed — in `Ctx.Notice`.
+  **Keep loaded** (*Start state* row toggle, `keep = loaded`, not part of
+  the route; T-0212, author 2026-10-10 - lab skip needs the endgame loaded
+  once, not every restart): the first restart restores; 2 s on, when the
+  areas are the capture's (`OnRestoreSettled`), the world is kept
+  (`Data/KeepLoaded`). Later restarts then skip the restore: the player's
+  stats + item amounts as the restore left them (`Game/PlayerKeep`, taken
+  at its `done`), the elevators / sliding doors / active area / held items
+  / stored logs from the file, then the teleport (`Restart '<id>': kept
+  loaded - no restore, ...`, ~0.01 s against a 0.4 s Quick load). Any
+  scene load or unload since (`SceneCache.SceneEvents`), another restore
+  or load (`SavestateBridge.Restores`), a death, another spot, a new
+  capture or a start state captured in a cutscene makes the restart a real
+  restore again and logs why (`keep loaded - loading the start state: ...`).
 - **Sharing and community packs** (v0.24.71-72): a `.foseg` file is one
   segment: `[segment]` + optional `[startstate]` (.fosave verbatim) +
   `[attempt]`s (.run verbatim) - `Data/SegmentBundle`, tested. Export
@@ -128,6 +152,19 @@ concept before changing its feature. Where the code lives:
   site keeps it per route only from the route's owner (a copy of someone
   else's spot stays teleport-only) and when its data hash matches; Add writes
   it as the segment's own (`Website spots: added '<id>', start state.`).
+  The runner's **own** website spot (the list's `owner` line is their
+  runner id; T-0265) goes into their own list instead - editable, same
+  id, its uploads change the site's copy - with the website's start
+  state (`Website spots: own '<id>' added back, ...`). One already in
+  their list: the same says so; a different one is replaced on a second
+  click (*Replace?*, 3 s), keeping the runner's start state and attempts
+  (T-0218). Each row's answer shows under it. Practice's **Delete** is
+  local only (the site copy stays until *Delete from the website*); the
+  old retry queue `uploads/deletes.txt` (v0.24.248-267) is removed once at
+  startup, never sent (`Delete: removed the old retry queue ...`). Pending
+  uploads of a locally deleted spot are still sent. A take-back / Replace?
+  / Import's Replace? tells the armed run to let go of the old spot object
+  (`OnSpotDeleted`), so a run finished after it uploads the new route.
   A spot whose creator has not uploaded since keeps restarting as a
   teleport (`Restart '<id>': no start state - teleport only.`); before
   T-0194 that was every website spot ('Elevator Boost', s-9cdb6a6808ad,

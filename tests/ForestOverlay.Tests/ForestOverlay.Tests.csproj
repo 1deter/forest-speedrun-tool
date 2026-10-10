@@ -47,6 +47,7 @@
     <Compile Include="../../src/Data/BusEvents.cs" Link="Linked/BusEvents.cs" />
     <Compile Include="../../src/Data/ZoneDisplay.cs" Link="Linked/ZoneDisplay.cs" />
     <Compile Include="../../src/Data/SegmentFormat.cs" Link="Linked/SegmentFormat.cs" />
+    <Compile Include="../../src/Data/KeepLoaded.cs" Link="Linked/KeepLoaded.cs" />
     <Compile Include="../../src/Data/PageGrouping.cs" Link="Linked/PageGrouping.cs" />
     <Compile Include="../../src/Data/VolumeFilter.cs" Link="Linked/VolumeFilter.cs" />
     <Compile Include="../../src/Data/LineBuffer.cs" Link="Linked/LineBuffer.cs" />
@@ -58,6 +59,9 @@
     <Compile Include="../../src/Data/PositionKey.cs" Link="Linked/PositionKey.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
+    <Compile Include="../../src/Data/SafeFile.cs" Link="Linked/SafeFile.cs" />
+    <Compile Include="../../src/Data/EditDebounce.cs" Link="Linked/EditDebounce.cs" />
+    <Compile Include="../../src/Data/HeldReport.cs" Link="Linked/HeldReport.cs" />
     <Compile Include="../../src/Data/UpdateStaging.cs" Link="Linked/UpdateStaging.cs" />
     <Compile Include="../../src/Data/ReleaseJson.cs" Link="Linked/ReleaseJson.cs" />
     <Compile Include="../../src/Data/SavestateFile.cs" Link="Linked/SavestateFile.cs" />
@@ -73,6 +77,8 @@
     <Compile Include="../../src/Data/TasRecording.cs" Link="Linked/TasRecording.cs" />
     <Compile Include="../../src/Data/EnemyRecord.cs" Link="Linked/EnemyRecord.cs" />
     <Compile Include="../../src/Data/LogArchive.cs" Link="Linked/LogArchive.cs" />
+    <Compile Include="../../src/Data/UnityLogFilter.cs" Link="Linked/UnityLogFilter.cs" />
+    <Compile Include="../../src/Data/CrashFolders.cs" Link="Linked/CrashFolders.cs" />
     <Compile Include="../../src/Data/QaList.cs" Link="Linked/QaList.cs" />
     <Compile Include="../../src/Data/ZipWriter.cs" Link="Linked/ZipWriter.cs" />
     <Compile Include="../../src/Data/ProfileTable.cs" Link="Linked/ProfileTable.cs" />

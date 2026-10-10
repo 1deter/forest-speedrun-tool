@@ -14,7 +14,8 @@ namespace ForestOverlay.Game
     // GameEvents covers the endgame cutscenes. The autosplitter
     // (1deter/auto-splitters, The Forest.ASL) also splits on caves (enter /
     // exit, per cave), clothing put on, the found-passenger count, and
-    // starts on a hold-to-interact press (the plane meal) or on moving.
+    // starts on a hold-to-interact press (the plane meal) or on moving -
+    // here the first input instead (T-0282: the ASL could not read input).
     // Each becomes an event, so a segment can split on exactly what a
     // LiveSplit run splits on and the two compare.
     //
@@ -29,12 +30,16 @@ namespace ForestOverlay.Game
     //                                          ._foundPassengersIdsCount rose to n
     //   hold-interact                          Input.DelayedActionIsDown rose
     //                                          (the ASL's plane meal start)
-    //   moving                                 speed > 0.15 m/s after standing
-    //                                          still (the ASL's velocity start)
-    //   first-input                            any button or movement after 0.25 s
-    //                                          with none (the rules' "takes control";
-    //                                          not while a cursor shows - menus, the
-    //                                          overlay window) (v0.24.193)
+    //   first-input                            any input after 0.25 s with none (the
+    //                                          rules' "takes control"): every Rewired
+    //                                          action but Esc (pause) and the camera
+    //                                          (Mouse X / Mouse Y - stick look too),
+    //                                          plus Horizontal / Vertical through
+    //                                          Input.GetAxis; not while a cursor
+    //                                          shows - menus, the overlay window
+    //                                          (v0.24.193; replaces the ASL's velocity
+    //                                          start `moving`, T-0282 - a stored
+    //                                          `moving` reads as this, TriggerParser)
     //   rope-grab / rope-leave                 a rope climb begins / ends (cave
     //                                          and fishing-stand ropes:
     //                                          RopeClimb.IsOnRope, not every
@@ -65,7 +70,7 @@ namespace ForestOverlay.Game
     // can change the cave; a run arms after its spot is placed, so those
     // events are skipped (PracticeRunModule.ArmRun).
     //
-    // moving and hold-interact are not logged (they would fill the log);
+    // first-input and hold-interact are not logged (they would fill the log);
     // the rest log a `Game event:` line like the endgame ones.
     // ------------------------------------------------------------------
     public sealed class WorldEvents
@@ -75,15 +80,18 @@ namespace ForestOverlay.Game
         public const string Clothing = "clothing";
         public const string Passenger = "passenger";
         public const string HoldInteract = "hold-interact";
-        public const string Moving = "moving";
         public const string FirstInput = "first-input";
         public const string RopeGrab = "rope-grab";
         public const string RopeLeave = "rope-leave";
 
-        /// The ASL's velocity start: overall speed above this.
-        public const float MovingSpeed = 0.15f;
-        /// Still for this long before `moving` can fire again.
+        /// No input for this long before `first-input` can fire again.
         private const float StillTime = 0.25f;
+
+        /// Rewired actions that never start a run (author 2026-10-10: any
+        /// input but the pause menu and the camera). Mouse X / Mouse Y are
+        /// the look axes (Input.GetAxis in MouseLook.LookRotation - IL);
+        /// Esc opens the pause menu (PlayerInventory.Update - IL).
+        private static readonly string[] NotAStart = { "Esc", "Mouse X", "Mouse Y" };
 
         /// CaveNames order (Cave01 = 0, NotInCaves = -1), with the ASL's
         /// labels. The enum is read by name, so this is display only.
@@ -132,20 +140,21 @@ namespace ForestOverlay.Game
         private readonly List<int> _lastWorn = new List<int>();
         private int _lastFound = -1;
         private bool _lastDelayed;
-        private float _stillSince = -1f;
-        private bool _movingFired = true;
         private Vector3 _lastPos;
         private bool _hasLastPos;
         private bool _jumped;                             // a placement this frame
 
         private MethodInfo _getAxis;                      // static Input.GetAxis(string)
         private FieldInfo _rewiredPlayer;                 // static Input.player (Rewired.Player)
-        private MethodInfo _anyButton;                    // Player.GetAnyButton()
+        private MethodInfo _button;                       // Player.GetButton(int)
+        private PropertyInfo _mapping;                    // static ReInput.mapping
+        private PropertyInfo _actions;                    // MappingHelper.Actions
+        private int[] _startActions;                      // every action id but NotAStart
         // Bound once (the player object again if it changes): Invoke boxed
         // every frame's answers.
         private Func<string, float> _axis;
-        private Func<bool> _any;
-        private object _anyFor;
+        private Func<int, bool> _held;
+        private object _heldFor;
         private float _idleSince = -1f;
         private bool _inputFired = true;
         private int _rope = -1;                           // -1 unknown, 0 off, 1 on
@@ -211,7 +220,13 @@ namespace ForestOverlay.Game
             {
                 _getAxis = input.GetMethod("GetAxis", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(string) }, null);
                 _rewiredPlayer = input.GetField("player", any);
-                if (_rewiredPlayer != null) _anyButton = _rewiredPlayer.FieldType.GetMethod("GetAnyButton", Type.EmptyTypes);
+                if (_rewiredPlayer != null)
+                {
+                    _button = _rewiredPlayer.FieldType.GetMethod("GetButton", new[] { typeof(int) });
+                    Type reInput = _rewiredPlayer.FieldType.Assembly.GetType("Rewired.ReInput", false);
+                    if (reInput != null) _mapping = reInput.GetProperty("mapping", BindingFlags.Static | BindingFlags.Public);
+                    if (_mapping != null) _actions = _mapping.PropertyType.GetProperty("Actions", BindingFlags.Instance | BindingFlags.Public);
+                }
             }
             if (scene != null) _finishLoad = scene.GetField("FinishGameLoad", any);
             _finishLoadGet = FastField.Static<bool>(_finishLoad);
@@ -224,7 +239,7 @@ namespace ForestOverlay.Game
             if (_clothing == null || _worn == null) missing.Add("clothing");
             if (_manifest == null || _found == null) missing.Add("passengers");
             if (_delayedDown == null) missing.Add(HoldInteract);
-            if (_getAxis == null || _anyButton == null) missing.Add(FirstInput);
+            if (_getAxis == null || _button == null || _actions == null) missing.Add(FirstInput);
             _status = missing.Count == 0 ? "caves, clothing, passengers, starts"
                                          : "missing: " + string.Join(", ", missing.ToArray());
             _log.LogInfo("WorldEvents: " + _status + ".");
@@ -250,7 +265,6 @@ namespace ForestOverlay.Game
             try { PollClothing(); } catch (Exception) { }
             try { PollPassengers(); } catch (Exception) { }
             try { PollHold(); } catch (Exception) { }
-            PollMoving(player);
             try { PollInput(); } catch (Exception) { }
             try { PollRope(); } catch (Exception) { }
             try { PollRide(); } catch (Exception) { }
@@ -263,8 +277,6 @@ namespace ForestOverlay.Game
             _clothingOwner = null;
             _manifestOwner = null;
             _lastDelayed = false;
-            _movingFired = true;
-            _stillSince = -1f;
             _hasLastPos = false;
             _inputFired = true;
             _idleSince = -1f;
@@ -385,47 +397,28 @@ namespace ForestOverlay.Game
             _hasLastPos = true;
         }
 
-        private void PollMoving(PlayerRef player)
-        {
-            if (player == null || !player.Found) return;
-            float now = Time.unscaledTime;
-
-            // A placement settles for a frame or two (bridge: -0.87 m/s
-            // after a restart from a cave) - that is not the runner moving,
-            // and it started a velocity-start run on its own restart. After
-            // a jump the player must stand still again first.
-            if (_jumped) { _movingFired = true; _stillSince = -1f; return; }
-
-            if (player.Speed <= MovingSpeed)
-            {
-                if (_stillSince < 0f) _stillSince = now;
-                if (now - _stillSince >= StillTime) _movingFired = false;
-                return;
-            }
-            _stillSince = -1f;
-            if (_movingFired) return;
-            _movingFired = true;
-            GameEvents.RecordWorld(Moving, null, false);
-        }
-
-        // The first button or movement after a pause: what the rules call
-        // taking control. A cursor on screen (a menu, the overlay window)
-        // means the input is not the game's - and the overlay's clicks
-        // must not start a run.
+        // The first input after a pause: what the rules call taking control.
+        // A cursor on screen (a menu, the overlay window) means the input is
+        // not the game's - and the overlay's clicks must not start a run.
+        // Horizontal / Vertical also go through Input.GetAxis, which the
+        // bridge's injected input reaches (Rewired by id does not).
         private void PollInput()
         {
-            if (_getAxis == null || _anyButton == null) return;
+            if (_getAxis == null || _button == null || _actions == null) return;
             float now = Time.unscaledTime;
             if (_jumped || Cursor.visible) { _inputFired = true; _idleSince = -1f; return; }
 
             if (_axis == null) _axis = (Func<string, float>)Delegate.CreateDelegate(typeof(Func<string, float>), _getAxis);
             object p = _rewiredPlayer.GetValue(null);
-            if (p != null && !ReferenceEquals(p, _anyFor))
+            if (p != null && !ReferenceEquals(p, _heldFor))
             {
-                _anyFor = p;
-                _any = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), p, _anyButton);
+                _heldFor = p;
+                _held = (Func<int, bool>)Delegate.CreateDelegate(typeof(Func<int, bool>), p, _button);
             }
-            bool active = p != null && _any != null && _any();
+            if (_startActions == null && p != null) _startActions = StartActions();
+            bool active = false;
+            if (p != null && _held != null && _startActions != null)
+                for (int i = 0; i < _startActions.Length && !active; i++) active = _held(_startActions[i]);
             if (!active) active = Mathf.Abs(_axis("Horizontal")) > 0.1f || Mathf.Abs(_axis("Vertical")) > 0.1f;
             if (!active)
             {
@@ -437,6 +430,30 @@ namespace ForestOverlay.Game
             if (_inputFired) return;
             _inputFired = true;
             GameEvents.RecordWorld(FirstInput, null, false);
+        }
+
+        // Every Rewired action's id but the camera's and the pause menu's,
+        // read once Rewired has its actions (null until then: tried again).
+        private int[] StartActions()
+        {
+            object mapping = _mapping.GetValue(null, null);
+            System.Collections.IEnumerable list = mapping != null ? _actions.GetValue(mapping, null) as System.Collections.IEnumerable : null;
+            if (list == null) return null;
+            List<int> ids = new List<int>();
+            List<string> skipped = new List<string>();
+            PropertyInfo idProp = null, nameProp = null;
+            foreach (object a in list)
+            {
+                if (a == null) continue;
+                if (idProp == null) { idProp = a.GetType().GetProperty("id"); nameProp = a.GetType().GetProperty("name"); }
+                if (idProp == null || nameProp == null) return null;
+                string name = nameProp.GetValue(a, null) as string;
+                if (Array.IndexOf(NotAStart, name) >= 0) { skipped.Add(name); continue; }
+                ids.Add((int)idProp.GetValue(a, null));
+            }
+            if (ids.Count == 0) return null;
+            _log.LogInfo("WorldEvents: first-input reads " + ids.Count + " input actions (not " + string.Join(", ", skipped.ToArray()) + ").");
+            return ids.ToArray();
         }
 
         private void PollRope()
@@ -557,8 +574,7 @@ namespace ForestOverlay.Game
 
             if (e == "autosplit") return "The next autosplit: whichever event in the segment's Autosplit list comes next (a LiveSplit import)";
             if (e == HoldInteract) return "Hold-to-interact pressed (the autosplitter's plane meal start)";
-            if (e == Moving) return "Started moving (the autosplitter's velocity start)";
-            if (e == FirstInput) return "First input - a button or movement after a moment idle (the rules' \"takes control\")";
+            if (e == FirstInput) return "First input - any key, button or movement, not the camera or Esc (the rules' \"takes control\")";   // author 2026-10-10
             if (e == RopeGrab) return "Grabbed a cave rope";
             if (e == RopeLeave) return "Let go of a cave rope";
             return BusEvents.LabelFor(e);

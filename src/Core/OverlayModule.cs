@@ -71,6 +71,9 @@ namespace ForestOverlay.Core
         /// its own panel from a hotkey without reaching for a global.
         public ModuleHost Host;
 
+        /// The module's place in the host's list (set at registration).
+        public int Index = -1;
+
         protected void TogglePanel()
         {
             if (Host != null) Host.TogglePanel(this);

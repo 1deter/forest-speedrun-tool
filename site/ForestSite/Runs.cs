@@ -47,7 +47,8 @@ public sealed class Runs
         public readonly List<long> Added = new();
         public readonly List<long> Existing = new();
         public readonly List<string> Skipped = new();
-        /// A new PB on an announced spot (community / run spot); null when none.
+        /// A new PB in this upload (any spot; PbFound.Official says whether
+        /// it is a community / run spot's); null when none.
         public PbFound Pb;
         /// The route's start state: "stored" (this upload's was kept),
         /// "wanted" (the route has a startstate line and the site has no
@@ -55,7 +56,12 @@ public sealed class Runs
         public string StartState;
     }
 
-    public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest);
+    /// Official: a community route or a run spot (PbNews.Announces), posted
+    /// whenever the webhook is on; otherwise a runner's own spot, posted only
+    /// when the owner switched those on (PbPosts, T-0232).
+    public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest,
+                                 bool Official = true, string Category = "", int Rank = 0, int Runners = 0,
+                                 float OtherBest = float.NaN, bool RunSpot = false);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
     /// the runner `runnerId` (their token). A [startstate] is kept for the
@@ -106,7 +112,7 @@ public sealed class Runs
             seg.Category = holder.Value.category;
             seg.Notes = ParseBlock(holder.Value.block).Notes;
         }
-        _store.SeeRoute(seg.Id, route, Clip(seg.Name, 80), Clip(seg.Category, 40), BlockOf(seg), false, owner, copy);
+        _store.SeeRoute(seg.Id, route, Clip(seg.Name, SiteSpots.MaxName), Clip(seg.Category, SiteSpots.MaxCategory), BlockOf(seg), false, owner, copy);
         KeepStartState(b, seg, route, runnerId, res);
         string registered = _store.Scalar("SELECT name FROM runners WHERE id = $id", ("$id", runnerId)) as string ?? "";
         float previousBest = RunnerBest(seg.Id, route, runnerId);
@@ -125,15 +131,19 @@ public sealed class Runs
             if (added) fresh.Add((a.Duration, flagged, id, name));
         }
 
-        // A new PB on a community spot or a run spot: Program posts it to
-        // Discord (PbWebhook). Re-uploads of runs already here never count.
+        // A new PB: Program posts it to Discord (PbPosts) - a community spot's
+        // or a run spot's always, a runner's own spot's when the owner
+        // switched those on. Re-uploads of runs already here never count.
         bool community = Convert.ToInt64(_store.Scalar("SELECT community FROM routes WHERE segment_id = $s AND route = $r",
                                                        ("$s", seg.Id), ("$r", route)) ?? 0L) == 1;
         float? pb = PbNews.NewPb(previousBest, fresh.Select(f => (f.duration, f.flagged)));
-        if (pb != null && PbNews.Announces(community, seg.RunCategory, _publishedCategory))
+        if (pb != null)
         {
             var run = fresh.First(f => f.duration == pb.Value);
-            res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest);
+            var (rank, runners, otherBest) = Standing(seg.Id, route, runnerId, pb.Value);
+            res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest,
+                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory), seg.Category, rank, runners, otherBest,
+                                 PbNews.Announces(false, seg.RunCategory, _publishedCategory));
         }
         return res;
     }
@@ -161,6 +171,31 @@ public sealed class Runs
             }
         }
         res.StartState = "wanted";
+    }
+
+    /// Where a time stands on the route for the PB post: its rank among the
+    /// runners' bests (reviewed and hidden runs left out), how many runners
+    /// have a time, and the best of the others (NaN when there are none).
+    private (int rank, int runners, float otherBest) Standing(string segmentId, string route, string runnerId, float time)
+    {
+        using var c = _store.Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT runner_id, MIN(duration) FROM runs
+                            WHERE segment_id = $s AND route = $r AND hidden = 0 AND flagged = 0 GROUP BY runner_id";
+        cmd.Parameters.AddWithValue("$s", segmentId);
+        cmd.Parameters.AddWithValue("$r", route);
+        using var r = cmd.ExecuteReader();
+        int ahead = 0, runners = 1;
+        float other = float.NaN;
+        while (r.Read())
+        {
+            if (r.GetString(0) == runnerId) continue;
+            runners++;
+            float d = (float)r.GetDouble(1);
+            if (d < time) ahead++;
+            if (float.IsNaN(other) || d < other) other = d;
+        }
+        return (ahead + 1, runners, other);
     }
 
     /// A runner's best on a route so far (runs under review included, hidden
@@ -272,7 +307,7 @@ public sealed class Runs
             list.Add(new JsonObject
             {
                 ["id"] = r.Segment, ["name"] = r.Name, ["category"] = r.Category, ["community"] = r.Community,
-                ["by"] = r.Community ? "" : r.By, ["runs"] = r.Runs, ["runners"] = r.Runners, ["best"] = Num(r.Best), ["lastRun"] = r.LastRun,
+                ["by"] = r.Community ? "" : r.By, ["owner"] = r.Community ? "" : r.Owner, ["runs"] = r.Runs, ["runners"] = r.Runners, ["best"] = Num(r.Best), ["lastRun"] = r.LastRun,
                 // A community spot can be a plain teleport (no start / end).
                 ["timed"] = !r.Community || ParseBlock(r.Block).IsTimed,
             });
@@ -342,6 +377,7 @@ public sealed class Runs
             list.Add(new SiteSpot
             {
                 Id = s["id"].GetValue<string>(), Name = s["name"].GetValue<string>(), By = s["by"]?.GetValue<string>() ?? "",
+                Owner = s["owner"]?.GetValue<string>() ?? "",
                 Runs = s["runs"].GetValue<int>(), Best = s["best"] is null ? float.NaN : (float)s["best"].GetValue<double>(),
             });
         }
@@ -489,7 +525,7 @@ public sealed class Runs
 
     private sealed class RouteRow
     {
-        public string Segment, Route, Name, Category, Block, FirstSeen, LastRun, By;
+        public string Segment, Route, Name, Category, Block, FirstSeen, LastRun, By, Owner;
         public bool Community;
         public int Runs, Runners;
         public float Best = float.NaN;
@@ -521,7 +557,7 @@ public sealed class Runs
 SELECT r.segment_id, r.route, r.name, r.category, r.block, r.community, r.first_seen,
        COUNT(x.id), COUNT(DISTINCT x.runner_id), MIN(x.duration), MAX(x.uploaded),
        COALESCE((SELECT o.runner_name FROM runs o WHERE o.runner_id = r.owner ORDER BY o.id DESC LIMIT 1),
-                (SELECT n.name FROM runners n WHERE n.id = r.owner), '')
+                (SELECT n.name FROM runners n WHERE n.id = r.owner), ''), r.owner
 FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.route AND x.hidden = 0
 " + (segmentId != null ? "WHERE r.segment_id = $s " : "") + "GROUP BY r.segment_id, r.route";
         if (segmentId != null) cmd.Parameters.AddWithValue("$s", segmentId);
@@ -535,7 +571,7 @@ FROM routes r LEFT JOIN runs x ON x.segment_id = r.segment_id AND x.route = r.ro
                 Runs = rd.GetInt32(7), Runners = rd.GetInt32(8),
                 Best = rd.IsDBNull(9) ? float.NaN : (float)rd.GetDouble(9),
                 LastRun = rd.IsDBNull(10) ? null : rd.GetString(10),
-                By = rd.GetString(11),
+                By = rd.GetString(11), Owner = rd.IsDBNull(12) ? "" : rd.GetString(12),
             });
         return list;
     }

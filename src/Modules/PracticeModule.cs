@@ -23,10 +23,17 @@ namespace ForestOverlay.Modules
     // via Here buttons, and zones are previewed in the world while
     // editing, because typing a radius and hoping is guesswork.
     //
-    // Edits live in memory until Save, so a half-made entry costs nothing
-    // and a bad edit cannot corrupt a shared file. Selection never waits
-    // on Save: an edit stays on its Segment, the list marks it unsaved and
-    // Save writes every unsaved entry. A guard that refused the click
+    // Every edit is written to the entry's local file by itself (author,
+    // 2026-10-10, T-0217: maks lost a rename, category moves and a timed
+    // spot's end to a restart). An edit marks its entry unsaved and the
+    // write waits until the edits pause (Data/EditDebounce: no write per
+    // frame while a value is dragged); selecting another entry, Export /
+    // Submit and quitting write at once. The file is replaced whole
+    // (Data/SafeFile), so a crash mid-write cannot corrupt it. Nothing goes
+    // to the website by itself: Submit sends the saved entry. No Save or
+    // Reload button (author, 2026-10-10): the file always matches the
+    // editor; the library is read once, at startup.
+    // Selection never waits on a write: a guard that refused the click
     // while anything was unsaved read as a stuck list (runner maks,
     // v0.23.1: "clicking on the others and nothing is happening").
     // ------------------------------------------------------------------
@@ -46,7 +53,13 @@ namespace ForestOverlay.Modules
         private SegmentLibrary _library;
         private Segment _selected;
         private readonly List<Segment> _unsaved = new List<Segment>();
-        private readonly GUIContent _saveLabel = new GUIContent("Save");
+        // 1 s after the last edit, at most 5 s after the first (T-0217).
+        private readonly EditDebounce _autosave = new EditDebounce(1f, 5f);
+        private readonly HeldReport _heldReport = new HeldReport();
+        // Failed writes in a row: the retry stops after MaxAutosaveRetries
+        // (a locked file would warn every second) until the next edit.
+        private int _autosaveFails;
+        private const int MaxAutosaveRetries = 5;
         private string _status = "";
         private string _filter = "";
 
@@ -170,6 +183,11 @@ namespace ForestOverlay.Modules
         private float _deleteSiteArmedUntil;
         private Segment _deleteSiteFor;
         private float _captureStartArmedUntil;
+        // Keep loaded (T-0212): which restarts may skip the start state.
+        private readonly KeepLoaded _keep = new KeepLoaded();
+        private static readonly GUIContent KeepLoadedHint =
+            new GUIContent("Keep loaded: the start state loads once; restarts then teleport and put back the player and the endgame's " +
+                           "elevators and doors. It loads again when the world changes (a scene loads, a death, another load).");
 
         // --- sharing (Data/SegmentBundle): export / import .foseg files ---
         private sealed class ImportEntry
@@ -226,6 +244,7 @@ namespace ForestOverlay.Modules
             Reload();
 
             _savestates = Host.Find<SavestateModule>();
+            if (_savestates != null) _savestates.OnRestoreSettled += OnRestoreSettled;
             _community = Host.Find<CommunityModule>();
             _upload = Host.Find<RunUploadModule>();
             _runMode = Host.Find<RunModeModule>();
@@ -271,9 +290,13 @@ namespace ForestOverlay.Modules
             // already moved. Re-resolve it by id instead.
             string currentId = _current != null ? _current.Id : null;
 
+            // An edit still waiting for its autosave is written, not dropped.
+            FlushAutosave();
             _library.Reload();
             _selected = null;
             _unsaved.Clear();
+            _heldReport.Clear();
+            _autosave.Clear();
 
             _current = currentId != null ? _library.ById(currentId) : null;
 
@@ -291,10 +314,14 @@ namespace ForestOverlay.Modules
                 _regroupAt = -1f;
                 RebuildVisible();
             }
+
+            if (_autosave.Due(Time.realtimeSinceStartup)) Autosave();
         }
 
         public override void Shutdown()
         {
+            // Quitting within a second of an edit still keeps it.
+            FlushAutosave();
             if (_previewHost != null) UnityEngine.Object.Destroy(_previewHost);
         }
 
@@ -372,8 +399,6 @@ namespace ForestOverlay.Modules
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
             }
-
-            _saveLabel.text = _unsaved.Count == 0 ? "Save" : "Save (" + _unsaved.Count + ")";
         }
 
         private int CountIn(string category)
@@ -496,6 +521,7 @@ namespace ForestOverlay.Modules
             if (_savestates != null && _savestates.HasStartState(s))
             {
                 if (_savestates.Busy) { _status = "A savestate action is still running."; return; }
+                if (s.KeepLoaded && RestartKept(s, runStart, cause)) return;
 
                 _current = s;
                 PlaceCause.Set(cause ?? "start-state restore");
@@ -504,8 +530,18 @@ namespace ForestOverlay.Modules
                 StartStatus(runStart ? "Starting a run (Full load)..." : s.StartRestoreWithLoad ? "Full load..." : "Quick load...");
                 Ctx.Log.LogInfo("Restart '" + s.Id + "': restoring its start state " +
                                 (runStart ? "for a " + s.RunCategory + " run, with a load." : s.StartRestoreWithLoad ? "with a load." : "in place."));
+                if (s.KeepLoaded) _keep.Restoring(s.Id);
+                else _keep.Drop("another spot was restored");
                 _savestates.RestoreStartState(s, runStart, delegate(string error)
                 {
+                    // Keep loaded: the player as the restore left it, before
+                    // the teleport (T-0212).
+                    if (s.KeepLoaded && error == null)
+                    {
+                        string took = _savestates.TakePlayer();
+                        if (took.Length > 0) { _keep.Drop(took); Ctx.Log.LogWarning("Restart '" + s.Id + "': keep loaded off for now - " + took + "."); }
+                    }
+                    else if (error != null) _keep.Drop("the last restore failed");
                     // A restored state has set the cave state from its file;
                     // the terrain guess below can be wrong at a cave mouth.
                     PlacingRunStart = runStart && error == null;
@@ -530,6 +566,42 @@ namespace ForestOverlay.Modules
             PlaceCause.Set(cause ?? "F7 restart");
             PlaceAt(s, true);
         }
+
+        /// Keep loaded (T-0212): a restart without the restore while the
+        /// world is still the one it made. False = restore as usual (the
+        /// reason is logged).
+        private bool RestartKept(Segment s, bool runStart, string cause)
+        {
+            string why = _keep.Check(s.Id, s.KeepLoaded, runStart, SceneCache.SceneEvents, SavestateBridge.Restores);
+            string note = "";
+            if (why == null) why = _savestates.RestartKept(s, out note);
+            if (why != null)
+            {
+                Ctx.Log.LogInfo("Restart '" + s.Id + "': keep loaded - loading the start state: " + why + ".");
+                return false;
+            }
+
+            _current = s;
+            PlaceCause.Set(cause ?? "keep loaded restart");
+            if (OnRestartStarting != null) OnRestartStarting();
+            // The cave state is the restore's still (no scene since).
+            PlaceAt(s, false);
+            Ctx.Log.LogInfo("Restart '" + s.Id + "': kept loaded - no restore, " + note + ".");
+            StartStatus("Restarted (kept loaded).");
+            return true;
+        }
+
+        private void OnRestoreSettled(bool matches)
+        {
+            Segment s = _current;
+            if (s == null || !s.KeepLoaded) return;
+            _keep.Settled(s.Id, matches, SceneCache.SceneEvents, SavestateBridge.Restores);
+            if (_keep.Segment == s.Id) Ctx.Log.LogInfo("Restart '" + s.Id + "': kept loaded - the next restarts skip the start state while no scene loads.");
+            else if (!matches) Ctx.Log.LogInfo("Restart '" + s.Id + "': keep loaded off for now - the areas after the restore are not the start state's.");
+        }
+
+        /// A death: the next restart restores (author: a death reloads).
+        public void DropKeptLoaded(string why) { _keep.Drop(why); }
 
         /// Go: a teleport and nothing else, start state or not (author,
         /// v0.22.0: one button, one job - restoring is Restart / F7).
@@ -735,11 +807,6 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
 
-            GUI.enabled = _unsaved.Count > 0;
-            if (GUI.Button(new Rect(w - 160, 0, 70, 24), _saveLabel)) Save();
-            GUI.enabled = true;
-            if (GUI.Button(new Rect(w - 86, 0, 86, 24), "Reload")) Reload();
-
             // --- filter ----------------------------------------------------
             GUI.Label(new Rect(0, 30, 36, 20), "Find");
             string filter = GUI.TextField(new Rect(38, 28, ListWidth - 80, 22), _filter);
@@ -814,7 +881,10 @@ namespace ForestOverlay.Modules
                 bool isSelected = ReferenceEquals(entry, _selected);
 
                 if (GUI.Button(r, _rowLabels[i], isSelected ? _selectedRowStyle : _rowStyle) && !isSelected)
+                {
                     Select(entry);
+                    break;   // its autosave may have rebuilt _rows underneath us
+                }
 
                 GUI.enabled = entry.HasSpawn;
                 if (GUI.Button(new Rect(content.width - 48f, rowY, 44f, RowHeight - 2f), "Go"))
@@ -1154,7 +1224,8 @@ namespace ForestOverlay.Modules
                         if (GUI.Button(new Rect(x0 + 28f, y - 2f, 26f, 22f), ">")) { t.EventName = StepEvent(t.EventName, 1); Touch(); }
 
                         string name = GUI.TextField(new Rect(x0 + 58f, y - 2f, w - x0 - 64f, 22f), t.EventName ?? "");
-                        if (name != t.EventName) { t.EventName = name; Touch(); }
+                        // A typed `moving` is the first input now, as a stored one is (T-0282).
+                        if (name != t.EventName) { t.EventName = TriggerParser.MigrateEventName(name); Touch(); }
                         y += 24f;
 
                         y += UiText.DrawDim(x0, y, w - x0 - 6f, EventLabel(t.EventName)) + 2f;
@@ -1205,7 +1276,7 @@ namespace ForestOverlay.Modules
             bool complete = true;
             switch (g)
             {
-                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving, WorldEvents.FirstInput }; break;
+                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.FirstInput }; break;
                 case GroupCaves: list = WorldEvents.CaveEvents(); break;
                 case GroupClothing: list = WorldEvents.ClothingEvents(); complete = list.Length > 0; break;
                 case GroupPassengers: list = WorldEvents.PassengerEvents(); break;
@@ -1330,7 +1401,7 @@ namespace ForestOverlay.Modules
             return label;
         }
 
-        // "hold-interact|moving": any of them.
+        // "hold-interact|first-input": any of them.
         private static string EitherLabel(string name)
         {
             string[] parts = name.Split('|');
@@ -1642,6 +1713,7 @@ namespace ForestOverlay.Modules
             s.SpawnPitch = src.SpawnPitch;
             s.Cave = src.Cave;
             s.StartRestoreWithLoad = src.StartRestoreWithLoad;
+            s.KeepLoaded = src.KeepLoaded;
             s.Start = src.Start;
             s.End = src.End;
             s.Checkpoints.AddRange(src.Checkpoints);
@@ -1672,7 +1744,7 @@ namespace ForestOverlay.Modules
             _importing = false;
             RebuildVisible();
             Touch();
-            _status = "Copied" + copied + " - Save to keep it.";
+            _status = "Copied" + copied + ".";
         }
 
         /// The ids of every entry that is not a community one - a pack
@@ -1683,6 +1755,55 @@ namespace ForestOverlay.Modules
             for (int i = 0; i < _library.All.Count; i++)
                 if (!SegmentLibrary.IsCommunity(_library.All[i])) ids.Add(_library.All[i].Id);
             return ids;
+        }
+
+        /// The runner's own (not community) entry with this id, or null.
+        public Segment OwnById(string id)
+        {
+            for (int i = 0; i < _library.All.Count; i++)
+            {
+                Segment s = _library.All[i];
+                if (!SegmentLibrary.IsCommunity(s) && string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase)) return s;
+            }
+            return null;
+        }
+
+        /// The runner's own spot from the website (T-0265 / T-0218): into
+        /// their own list under its id - editable; their uploads on it
+        /// change the site's copy - replacing their entry with that id when
+        /// there is one (in its file; its attempts stay, they go by the id).
+        /// Written at once and selected; an error text, or null.
+        public string TakeOwnFromWebsite(Segment incoming)
+        {
+            Segment mine = OwnById(incoming.Id);
+            string file = mine != null && !string.IsNullOrEmpty(mine.SourceFile) ? mine.SourceFile : SegmentLibrary.UserFileName;
+            if (mine != null)
+            {
+                if (ReferenceEquals(_current, mine)) _current = null;
+                if (ReferenceEquals(_selected, mine)) _selected = null;
+                _library.Remove(mine);
+                _unsaved.Remove(mine);
+                ForgetReplaced(mine);
+            }
+            incoming.SourceFile = file;
+            _library.Add(incoming);
+            bool saved = WriteFile(file);
+            _selected = incoming;
+            RebuildVisible();
+            return saved ? null : "writing " + file + " failed - see the log";
+        }
+
+        /// An entry replaced by another object of the same id (website
+        /// take-back, Import's Replace?): what held the old object lets go -
+        /// the share and delete-from-site targets, and the armed run
+        /// (PracticeRunModule drops its segment, so a run finished next
+        /// does not upload the OLD route over the site's copy).
+        private void ForgetReplaced(Segment old)
+        {
+            if (ReferenceEquals(_shareFor, old)) _shareFor = null;
+            if (ReferenceEquals(_deleteSiteFor, old)) { _deleteSiteFor = null; _deleteSiteArmedUntil = 0f; }
+            try { if (OnSpotDeleted != null) OnSpotDeleted(old); }
+            catch (Exception ex) { Ctx.Log.LogWarning("Practice: clearing a replaced spot failed: " + ex.Message); }
         }
 
         /// A community update rewrote community.txt: reload only that file
@@ -1770,61 +1891,101 @@ namespace ForestOverlay.Modules
 
             // Written straight through: a delete that only existed in memory
             // would reappear on reload and look like a bug.
-            _status = WriteFile(file) ? "Deleted." : "Deleted here, but writing the file failed - see log.";
-
-            // Off the website too (the runner's own spot; quiet when it is not there).
-            if (_upload != null && !SegmentLibrary.IsCommunity(gone) && !string.IsNullOrEmpty(gone.Id))
-            {
-                string site = _upload.DeleteSpotQuietly(gone, delegate(string text)
-                {
-                    if (_selected == null) _status = "Deleted. " + text;
-                });
-                if (site != null) _status += " " + site;
-            }
+            bool written = WriteFile(file);
+            _status = written ? "Deleted." : "Deleted here, but writing the file failed - see log.";
+            // Here only (author, 2026-10-09, T-0265): the website copy stays
+            // until Share -> Delete from the website; the owner can add it
+            // back from Import -> Website spots.
+            Ctx.Log.LogInfo("Practice: deleted '" + gone.Id + "' here" + (written ? "" : " (the file was not written)") +
+                            "; any website copy stays.");
         }
 
-        /// Writes every unsaved entry. One that cannot be saved is selected
-        /// and named, and nothing is written, so no file is half-saved.
-        private void Save()
+        /// Why an entry cannot be exported / submitted: spots autosave, so it
+        /// is either held back (invalid) or its write failed.
+        private static string NotSavedWhy(Segment s, string what)
         {
+            return !s.IsValid
+                ? "'" + s.Name + "' needs a spawn, or a start and an end before " + what + "."
+                : "'" + s.Name + "' could not be saved - see the log. " + what.Substring(0, 1).ToUpperInvariant() + what.Substring(1) + " is the saved spot.";
+        }
+
+        /// The autosave (T-0217): the files of every unsaved entry, once the
+        /// edits pause. Quiet when it works - it is not a runner's action,
+        /// the edits were - and only a failure takes the status line. An
+        /// entry that cannot be saved holds back its own file only.
+        private void Autosave()
+        {
+            _autosave.Clear();
             if (_unsaved.Count == 0) return;
 
+            List<string> files = new List<string>();
+            List<string> held = new List<string>();
+            Segment invalid = null;
             for (int i = 0; i < _unsaved.Count; i++)
             {
                 Segment u = _unsaved[i];
-                // Only a hand-edited file can clash now: a fresh key, no
-                // question to the runner (who never sees ids).
                 if (!_library.IsIdAvailable(u.Id, u)) FreshId(u);
-                string why = !u.IsValid ? "needs a spawn, or a start and an end" : null;
-                if (why == null) continue;
-
-                _selected = u;
-                _status = "Cannot save '" + u.Name + "': " + why + ".";
-                return;
+                string f = string.IsNullOrEmpty(u.SourceFile) ? SegmentLibrary.UserFileName : u.SourceFile;
+                if (!u.IsValid) { invalid = u; AddOnce(held, f); }
+                else AddOnce(files, f);
             }
 
-            List<string> files = new List<string>();
+            // Named before the write empties the list: the log says which
+            // entries changed (a rename shows as its new name).
+            System.Text.StringBuilder names = new System.Text.StringBuilder();
             for (int i = 0; i < _unsaved.Count; i++)
-            {
-                string f = string.IsNullOrEmpty(_unsaved[i].SourceFile) ? SegmentLibrary.UserFileName : _unsaved[i].SourceFile;
-                bool seen = false;
-                for (int j = 0; j < files.Count; j++)
-                    if (string.Equals(files[j], f, StringComparison.OrdinalIgnoreCase)) { seen = true; break; }
-                if (!seen) files.Add(f);
-            }
+                if (!ContainsFile(held, _unsaved[i].SourceFile))
+                    names.Append(names.Length > 0 ? ", '" : "'").Append(_unsaved[i].Name).Append('\'');
 
-            int count = _unsaved.Count;
+            List<string> written = new List<string>();
             bool ok = true;
             for (int i = 0; i < files.Count; i++)
-                if (!WriteFile(files[i])) ok = false;
-
-            string names = string.Join(", ", files.ToArray());
-            if (ok)
             {
-                _status = "Saved " + count + (count == 1 ? " entry" : " entries") + " to " + names;
-                Ctx.Log.LogInfo("Practice: saved " + count + " unsaved entr" + (count == 1 ? "y" : "ies") + " to " + names + ".");
+                if (ContainsFile(held, files[i])) continue;
+                if (WriteFile(files[i])) written.Add(files[i]);
+                else ok = false;
             }
-            else _status = "Save failed - see log (" + _unsaved.Count + " still unsaved).";
+
+            if (written.Count > 0)
+                Ctx.Log.LogInfo("Practice: autosaved " + names + " to " + string.Join(", ", written.ToArray()) + ".");
+
+            // Held back: said once per entry, not on every Select / Export / Submit.
+            List<string> heldIds = new List<string>();
+            for (int i = 0; i < _unsaved.Count; i++)
+                if (!_unsaved[i].IsValid) heldIds.Add(_unsaved[i].Id);
+            _heldReport.Keep(heldIds);
+
+            if (ok) _autosaveFails = 0;
+            if (!ok)
+            {
+                _status = "Autosave failed - see log (" + _unsaved.Count + " unsaved). Retrying.";
+                if (++_autosaveFails < MaxAutosaveRetries)
+                    _autosave.Edit(Time.realtimeSinceStartup);   // tries again after the quiet time
+            }
+            else if (invalid != null && _heldReport.First(invalid.Id))
+            {
+                _status = "Not saved: '" + invalid.Name + "' needs a spawn, or a start and an end.";
+                Ctx.Log.LogInfo("Practice: autosave held back " + string.Join(", ", held.ToArray()) + " - '" + invalid.Id + "' needs a spawn, or a start and an end.");
+            }
+        }
+
+        /// Writes now what the autosave is waiting to write.
+        private void FlushAutosave()
+        {
+            if (_autosave.Pending || _unsaved.Count > 0) Autosave();
+        }
+
+        private static bool ContainsFile(List<string> files, string file)
+        {
+            if (string.IsNullOrEmpty(file)) file = SegmentLibrary.UserFileName;
+            for (int i = 0; i < files.Count; i++)
+                if (string.Equals(files[i], file, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        private static void AddOnce(List<string> files, string file)
+        {
+            if (!ContainsFile(files, file)) files.Add(file);
         }
 
         /// A new entry's key (author, 2026-09-26: hidden from runners).
@@ -1874,6 +2035,8 @@ namespace ForestOverlay.Modules
             // Anything holding this segment - a run armed against its
             // start zone - can see that it changed underneath them.
             s.Revision++;
+            _autosaveFails = 0;
+            _autosave.Edit(Time.realtimeSinceStartup);
 
             if (_unsaved.Contains(s)) return;
             _unsaved.Add(s);
@@ -1886,12 +2049,12 @@ namespace ForestOverlay.Modules
         {
             _importing = false;
             Segment left = _selected;
+            // The entry left behind is written now, not a second later.
+            FlushAutosave();
             bool leftUnsaved = left != null && _unsaved.Contains(left);
 
             _selected = entry;
-            _status = leftUnsaved
-                ? "'" + left.Name + "' has unsaved changes - Save keeps them, Reload drops them."
-                : "";
+            _status = "";
 
             // Selection was invisible in the log, so a stuck list could
             // not be told from a click that never arrived.
@@ -1963,6 +2126,20 @@ namespace ForestOverlay.Modules
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
             y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
+            // Only with a start state to keep (it does nothing without one).
+            if (_savestates.HasStartState(s))
+            {
+                bool keep = GUI.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
+                if (keep != s.KeepLoaded)
+                {
+                    s.KeepLoaded = keep;
+                    if (!keep) _keep.Drop("keep loaded was turned off");
+                    Ctx.Log.LogInfo("Practice: '" + s.Id + "' keep loaded " + (keep ? "on" : "off") + ".");
+                    Touch();
+                }
+                y += 22f;
+                y += UiText.DrawDim(80, y, cw - 90, KeepLoadedHint);
+            }
             y += 6f;
             return y;
         }
@@ -2011,6 +2188,7 @@ namespace ForestOverlay.Modules
             // left another spot current, so F7 teleported there as if no
             // start state existed (author, v0.21.0). Capturing is choosing.
             _current = s;
+            _keep.Drop("a new start state was captured");
             StartStatus("Capturing...");
             _savestates.CaptureStartState(s, delegate(string error)
             {
@@ -2099,7 +2277,8 @@ namespace ForestOverlay.Modules
 
         private void Export(Segment s)
         {
-            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - an export is the saved segment."; return; }
+            FlushAutosave();
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "an export"); return; }
 
             try
             {
@@ -2168,7 +2347,8 @@ namespace ForestOverlay.Modules
 
         private void SubmitToCommunity(Segment s)
         {
-            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - a submission is the saved segment."; return; }
+            FlushAutosave();
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "a submission"); return; }
             if (SegmentLibrary.IsCommunity(s)) { _shareStatus.text = "This is a community spot already."; return; }
             string startState = null;
             try { startState = _savestates != null ? _savestates.ReadStartStateText(s) : null; }
@@ -2359,8 +2539,8 @@ namespace ForestOverlay.Modules
             string[] starts = e.Asl.StartEvents();
             string[] splits = e.Asl.SplitEvents();
             string start = starts.Length == 0 ? "starts by hand (F12)"
-                         : starts.Length == 2 ? "starts on a hold-to-interact or on moving"
-                         : starts[0] == LssAutoSplit.Moving ? "starts on moving" : "starts on a hold-to-interact (the plane meal)";
+                         : starts.Length == 2 ? "starts on a hold-to-interact or on your first input"
+                         : starts[0] == LssAutoSplit.FirstInput ? "starts on your first input (instead of LiveSplit's velocity start)" : "starts on a hold-to-interact (the plane meal)";
             string split = splits.Length == 0 ? "splits by hand (F12)"
                          : "splits on the next of " + splits.Length + " autosplitter setting" + (splits.Length == 1 ? "" : "s");
             return "Autosplitter" + (e.AslFrom != null ? " (from the layout " + e.AslFrom + ")" : "") + ": " + start + ", " + split + ".";
@@ -2401,7 +2581,8 @@ namespace ForestOverlay.Modules
                 y += UiText.Draw(0, y, w - 10, _communityStatus) + 4f;
 
                 // Runners' spots on the website: the list on a click, one
-                // click adds one (read-only, "Website").
+                // click adds one (read-only, "Website"; the runner's own
+                // into their own list).
                 GUI.enabled = !_community.WebBusy;
                 if (GUI.Button(new Rect(0, y + 2, 160, 22), "Website spots")) _community.WebRefresh();
                 GUI.enabled = true;
@@ -2428,10 +2609,17 @@ namespace ForestOverlay.Modules
                 {
                     CommunityModule.WebEntry we = _community.WebSpots[i];
                     GUI.enabled = !_community.WebBusy;
-                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Added ? "Update" : "Add")) { _community.WebAdd(we); break; }
+                    if (GUI.Button(new Rect(4f, ry, 70f, 22f), we.Armed ? "Replace?" : we.Added || we.Mine ? "Update" : "Add"))
+                    {
+                        _community.WebAdd(we);
+                        GUI.enabled = true;
+                        break;
+                    }
                     if (we.Added && GUI.Button(new Rect(78f, ry, 66f, 22f), "Remove")) { _community.WebRemove(we); GUI.enabled = true; break; }
                     GUI.enabled = true;
                     ry += Mathf.Max(24f, UiText.Draw(150f, ry + 2f, content.width - 154f, we.Label) + 4f) + 4f;
+                    // The answer to a click on this row, under it.
+                    if (we.Message.text.Length > 0) ry += UiText.Draw(4f, ry, content.width - 8f, we.Message) + 4f;
                 }
             }
             for (int i = 0; i < _imports.Count; i++)
@@ -2480,6 +2668,7 @@ namespace ForestOverlay.Modules
                     if (ReferenceEquals(_selected, mine)) _selected = null;
                     _library.Remove(mine);
                     _unsaved.Remove(mine);
+                    ForgetReplaced(mine);
                 }
                 incoming.SourceFile = file;
                 _library.Add(incoming);

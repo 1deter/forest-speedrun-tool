@@ -12,6 +12,7 @@ The shim implements `Vector3`, `Vector2`, `Mathf` only. **If it ever needs
 should be refactored — not that the shim should grow.** Only pure files can be
 linked; anything touching MonoBehaviour or reflection into the game cannot
 (`Data/DumpText` reflects over plain objects by name - its tests pass
-stand-in types). The one
-filesystem exception is `patcher/PendingSwap.cs`, tested against real temp
-folders because it is the code that can break an install.
+stand-in types). The
+filesystem exceptions are `patcher/PendingSwap.cs` and `Data/SafeFile.cs`,
+tested against real temp folders because they are the code that can break
+an install or a runner's spot file.

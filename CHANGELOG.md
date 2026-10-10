@@ -5,6 +5,31 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.274 - 2026-10-10
+
+- Unity's own error messages (including the graphics ones that come before a crash) now go into the log and the report zip, so a crash's cause is no longer lost.
+- After a crash, the next launch puts that session's log into the crash folder beside TheForest.exe.
+
+## v0.24.273 - 2026-10-10
+
+- If the game freezes for 10 seconds or more, the log now says where it was stuck (also in a stall.log that the QA report zip includes), so a rare freeze can be tracked down.
+
+## v0.24.272 - 2026-10-10
+
+- Spots save themselves: every edit in the Practice editor is written within a second or so, so a restart no longer loses a rename, a category move or a timed spot's end. The Save and Reload buttons are gone.
+- Deleting a spot in Practice only removes it from your list - the website copy stays until you press Delete from the website.
+- Your own spots on the website can be added back to your list, or put back over your local copy with Update, then Replace?. A run finished afterwards uploads the new route.
+- Run report: the summary counts the moves the game saw, All lists them by time beside the events, and tree cuts are left out.
+
+## v0.24.271 - 2026-10-10
+
+- Practice: a new Keep loaded switch on a spot's Start state row. The start state loads once, then restarts only put you and the endgame's elevators and doors back and teleport - instant instead of a Quick load. It loads again by itself when the world changes (a scene loads, a death, another load). Made for lab skip practice, works on any spot.
+
+## v0.24.270 - 2026-10-10
+
+- A timed run now starts on your first input - any key, button or movement - instead of when you start moving. Looking around with the camera and opening the pause menu (Esc) do not start it.
+- Spots and LiveSplit imports that started on moving now start on the first input; their old times count as a different route, since the start moved.
+
 ## v0.24.269 - 2026-10-10
 
 - A Go, F7 on a spot without a start state and an auto-restart no longer hitch for about 24 ms.

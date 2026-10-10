@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 680 log calls.
+221 prefixes from 702 log calls.
 
 ## `Aerial capture`
 
@@ -381,16 +381,13 @@ Written by DeathModule.cs; info.
 
 ## `Delete`
 
-Meaning: Deleting a run or spot on the site: sent, the HTTP answer, or queued for a retry.
+Meaning: Deleting a run or spot on the site (the runner's button - a delete in the Practice tab stays local, T-0265): sent, or the HTTP answer.
 Written by RunUploadModule.cs; info / warning.
 
-- warning `Delete: '<id>' not sent (<..>); queued, retrying in <..> s.`
-- info `Delete: '<id>' on <baseUrl> - HTTP <code><..>.`
 - info `Delete: '<segment.Id>' on <baseUrl> - <..>: <text>`
-- info `Delete: '<segment.Id>' queued to come off <..>.`
 - warning `Delete: could not clear the upload queue of '<segmentId>': <ex.Message>`
-- warning `Delete: could not queue '<segment.Id>' for the website: <ex.Message>`
-- warning `Delete: could not update the queue: <ex.Message>`
+- warning `Delete: could not remove the old uploads/deletes.txt: <ex.Message>`
+- info `Delete: removed the old retry queue uploads/deletes.txt - Practice's Delete no longer deletes from the website.`
 
 ## `Dump failed`
 
@@ -798,10 +795,13 @@ Written by LocationLibrary.cs; info / warning.
 
 ## `Log copies`
 
-Meaning: Keeping the last sessions' LogOutput.log: where this one goes, old copies deleted.
+Meaning: Keeping the last sessions' LogOutput.log: where this one goes, old copies deleted; at startup a Unity crash folder beside TheForest.exe gets its session's copy + logs/unity.log (ForestOverlay-LogOutput.log / ForestOverlay-unity.log, T-0276).
 Written by LogKeeper.cs; info / warning.
 
 - warning `Log copies: could not delete <..>: <ex.Message>`
+- info `Log copies: crash folder <..> - its session's log (<session>)<..> copied beside the crash dump`
+- warning `Log copies: crash folder <..>: <ex.Message>`
+- warning `Log copies: crash folders not looked at: <ex.Message>`
 - info `Log copies: this session -> <_target> (keeping <keepPrevious> previous, <delete.Count> old deleted)`
 
 ## `Log copies off`
@@ -1138,21 +1138,25 @@ Written by PlayerStateReader.cs; info.
 
 ## `Practice`
 
-Meaning: Practice spots: imported, renamed for a duplicate id, or a file not importable.
+Meaning: Practice spots: imported, renamed for a duplicate id, a file not importable, or edits autosaved to the spot file (T-0217; the names are the entries written).
 Written by PracticeModule.cs; info / warning.
 
+- info `Practice: '<s.Id>' keep loaded <..>.`
 - info `Practice: '<s.Name>' had the id '<old>' of another entry - now '<s.Id>'.`
 - info `Practice: <..> '<incoming.Id>' from <..> (<what>).`
 - warning `Practice: <..> not importable: <error>` (x2)
 - info `Practice: LiveSplit file <file> -> '<s.Id>' (<s.Name>): start <..>, <..> splits, autosplit = <..>.`
 - warning `Practice: LiveSplit import of <e.Path> failed: <ex>`
+- info `Practice: autosave held back <..> - '<invalid.Id>' needs a spawn, or a start and an end.`
+- info `Practice: autosaved <names> to <..>.`
 - warning `Practice: clearing a deleted spot failed: <ex.Message>`
+- warning `Practice: clearing a replaced spot failed: <ex.Message>`
 - warning `Practice: could not list <_lssDir> - <ex.Message>`
 - warning `Practice: could not read layouts beside <lssPath> - <ex.Message>`
+- info `Practice: deleted '<gone.Id>' here<..>; any website copy stays.`
 - warning `Practice: export of '<s.Id>' failed: <ex>`
 - info `Practice: exported '<s.Id>' to <path> (<what>).`
 - warning `Practice: import of <e.Path> failed: <ex>`
-- info `Practice: saved <count> unsaved entr<..> to <names>.`
 - info `Practice: selected '<entry.Id>'<..> (<_unsaved.Count> unsaved).`
 
 ## `PracticeRunModule`
@@ -1256,11 +1260,17 @@ Written by PracticeRunModule.Camera.cs; info.
 ## `Restart`
 
 Meaning: A spot restarted (F7): which spot and how - start state restored with a load or in place, or teleport only.
-Written by PracticeModule.cs; info.
+Written by PracticeModule.cs, SavestateModule.cs; info / warning.
 
 - info `Restart '<s.Id>': <menu>.`
+- info `Restart '<s.Id>': keep loaded - loading the start state: <why>.`
+- warning `Restart '<s.Id>': keep loaded off for now - <took>.`
+- info `Restart '<s.Id>': keep loaded off for now - the areas after the restore are not the start state's.`
+- info `Restart '<s.Id>': kept loaded - no restore, <note>.`
+- info `Restart '<s.Id>': kept loaded - the next restarts skip the start state while no scene loads.`
 - info `Restart '<s.Id>': no start state - teleport only.`
 - info `Restart '<s.Id>': restoring its start state <..>`
+- info `Restart '<s.Id>' (kept): <held>.`
 
 ## `Results panel`
 
@@ -1551,13 +1561,15 @@ Written by SegmentLibrary.cs; warning.
 
 ## `Segments`
 
-Meaning: The segments file: how many loaded from where, or a bad / duplicate segment skipped.
+Meaning: The segments file: how many loaded from where, a bad / duplicate segment skipped, or a write a crash interrupted put right at load (Data/SafeFile).
 Written by SegmentLibrary.cs; info / warning.
 
+- warning `Segments: <..>: <done>.`
 - info `Segments: <Status> from <_folder>`
 - warning `Segments: <file>:<line> <message>`
 - warning `Segments: <fileName>: duplicate segment id <s.Id> skipped.`
 - warning `Segments: <fileName>: segment (<..>) skipped - needs id, start and end.`
+- warning `Segments: could not tidy after an interrupted write of <..>: <ex.Message>`
 
 ## `SetupHold`
 
@@ -1658,6 +1670,15 @@ Written by StaleSubscribers.cs; info / warning.
 - warning `StaleSubscribers: OnTreeCutDown prune failed: <ex.Message>`
 - warning `StaleSubscribers: bind failed: <ex>`
 - warning `StaleSubscribers: registry prune failed: <ex.Message>`
+
+## `Stall`
+
+Meaning: The main thread stopped running frames for 10 s or more (T-0284): where it was - which plugin hook, module and tab, or outside the plugin (game code, a coroutine, a Harmony patch) - then how long it took to come back. During a hang the lines are in logs/stall.log; once the game runs again they are also logged here.
+Written by StallWatch.cs; info / warning.
+
+- warning `<..>` *(declared)*
+- warning `Stall: watch not started: <ex.Message>`
+- info `Stall: watching the main thread (a line when it stops for <..> s)`
 
 ## `Start state of`
 
@@ -1803,6 +1824,21 @@ Written by ModuleHost.cs; info.
 
 - info `UI shown again: a window was opened while all UI was hidden.`
 
+## `Unity`
+
+Meaning: An error, assert or exception Unity itself logged (T-0276; BepInEx keeps them out of this log and the game writes no output_log.txt): `[Error]` / `[Assert]` / `[Exception]`, the message (an exception adds its first stack line), "(off the main thread)" for the render thread and other threads (the d3d11 texture lines), how many repeats were not written (same text but digits: one line a minute), and lines held back over 30 a minute. Also in logs/unity.log, written at once, so a crash cannot lose it.
+Written by UnityErrorLog.cs; warning.
+
+- warning `<..>` *(declared)*
+
+## `Unity errors`
+
+Meaning: At startup: Unity's own errors are being logged (the `Unity` lines), or why not.
+Written by UnityErrorLog.cs; info / warning.
+
+- info `Unity errors: logged here and to logs/unity.log (repeats counted, at most <UnityLogFilter.PerMinute> lines a minute)`
+- warning `Unity errors: not logged: <ex.Message>`
+
 ## `Update`
 
 Meaning: The update check's HTTP requests and staging: a request or network error, or the plugin's own file name handled.
@@ -1899,6 +1935,9 @@ Written by CommunityModule.Website.cs; info / warning.
 - info `Website spots: <list.Count> listed.`
 - warning `Website spots: asked for '<entry.Spot.Id>', got '<bundle.Segment.Id>'.`
 - warning `Website spots: list: <why>.`
+- info `Website spots: own '<entry.Spot.Id>' differs from the website's - Replace? offered.`
+- info `Website spots: own '<entry.Spot.Id>' is the same as the website's.`
+- info `Website spots: own '<incoming.Id>' <..>.`
 - info `Website spots: removed '<entry.Spot.Id>'.`
 
 ## `World dump`
@@ -1917,6 +1956,7 @@ Meaning: The autosplitter's other events (caves, clothing ...): hooks installed 
 Written by WorldEvents.cs; info.
 
 - info `WorldEvents: <_status>.`
+- info `WorldEvents: first-input reads <ids.Count> input actions (not <..>).`
 
 ## `WreckClearing`
 

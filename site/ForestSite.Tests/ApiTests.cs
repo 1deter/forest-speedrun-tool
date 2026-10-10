@@ -230,6 +230,33 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task SpotsTextNamesTheOwner_WhoseEditedRouteBecomesTheSpot()
+    {
+        // T-0265: the plugin adds a runner's own spot back as theirs, by the
+        // owner the list names; their upload of an edited copy (same id, their
+        // token) is the spot again, not a copy.
+        Segment seg = TestSegment();
+        string ta = await Register(A), tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9f, 4f, 2)));
+
+        SiteSpot listed = SiteSpots.Parse(await _http.GetStringAsync("/api/spots.txt")).Single(s => s.Id == seg.Id);
+        Assert.Equal(A, listed.Owner);
+
+        seg.End = new Trigger { Kind = TriggerKind.Zone, Position = new Vector3(0, 0, 45), Radius = 3 };
+        seg.Name = "Edited dash";
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 11f, 4f, 3)))).StatusCode);
+
+        SegmentBundle got = SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null);
+        Assert.Equal(seg.RouteFingerprint(), got.Segment.RouteFingerprint());
+        Assert.Equal("Edited dash", got.Segment.Name);
+        Assert.True(SiteSpots.SameAsOwn(got.Segment, seg));
+        listed = SiteSpots.Parse(await _http.GetStringAsync("/api/spots.txt")).Single(s => s.Id == seg.Id);
+        Assert.Equal(A, listed.Owner);
+        Assert.Equal("Edited dash", listed.Name);
+    }
+
+    [Fact]
     public async Task APolygonZoneReachesTheMapAsItsOutline()
     {
         Segment seg = TestSegment();
@@ -993,15 +1020,63 @@ public sealed class ApiTests : IDisposable
 
     // --- PB posts to Discord ---------------------------------------------------------------
 
-    /// The webhook switched on with a fake sender; the messages it was handed.
-    private List<string> FakeWebhook()
+    private const string OfficialHook = "https://discord.invalid/api/webhooks/test";
+    private const string OwnHook = "https://discord.com/api/webhooks/1234567890/run-spot_TOKEN";
+
+    /// A fake Discord behind the site's HttpClient: every POST it got (URL + JSON body); it answers
+    /// with Answer (204 by default). No real Discord call is ever made.
+    private sealed class FakeDiscord : HttpMessageHandler
     {
-        var hook = _factory.Services.GetRequiredService<PbWebhook>();
-        var sent = new List<string>();
-        hook.Url = "https://discord.invalid/api/webhooks/test";
-        hook.SiteUrl = "https://forest.deter.cloud";
-        hook.Send = m => { lock (sent) sent.Add(m); return Task.FromResult((204, 0.0)); };
-        return sent;
+        public readonly List<(string url, JsonObject body)> Posts = new();
+        public Func<HttpRequestMessage, HttpResponseMessage> Answer = _ => new HttpResponseMessage(HttpStatusCode.NoContent);
+
+        /// The embeds each post carried (what PbWebhook.Recent holds), oldest first.
+        public List<JsonObject> Contents(string url = null)
+        {
+            lock (Posts) return Posts.Where(p => url == null || p.url == url)
+                .Select(p => new JsonObject { ["content"] = (string)p.body["content"], ["embeds"] = p.body["embeds"].DeepClone() }).ToList();
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
+        {
+            var body = JsonNode.Parse(await r.Content.ReadAsStringAsync(ct)) as JsonObject;
+            lock (Posts) Posts.Add((r.RequestUri.ToString(), body));
+            return Answer(r);
+        }
+    }
+
+    /// The official webhook switched on, both senders posting to a fake Discord.
+    private FakeDiscord FakeWebhook()
+    {
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        var fake = new FakeDiscord();
+        posts.Official.Url = OfficialHook;
+        foreach (var hook in new[] { posts.Official, posts.RunnerSpots })
+        {
+            hook.SiteUrl = "https://forest.deter.cloud";
+            hook.Http = new HttpClient(fake);
+            hook.Gap = TimeSpan.FromMilliseconds(10);
+        }
+        return fake;
+    }
+
+    private static async Task Until(Func<bool> done)
+    {
+        for (int i = 0; i < 100 && !done(); i++) await Task.Delay(50);
+    }
+
+    private static JsonObject E(JsonObject post) => post["embeds"][0].AsObject();
+    private static string Author(JsonObject post) => (string)E(post)["author"]["name"];
+    private static string Name(JsonObject post) => Author(post).Substring(0, Author(post).IndexOf(" \u00B7 "));
+    private static string Desc(JsonObject post) => (string)E(post)["description"];
+    private static JsonObject Msg(string text) => new() { ["embeds"] = new JsonArray { new JsonObject { ["description"] = text } } };
+    private static string Foot(JsonObject post) => (string)E(post)["footer"]["text"];
+    private static string Field(JsonObject post, string name) =>
+        E(post)["fields"]?.AsArray().Where(f => (string)f["name"] == name).Select(f => (string)f["value"]).FirstOrDefault();
+    private static void SamePosts(List<JsonObject> a, List<JsonObject> b)
+    {
+        Assert.Equal(a.Count, b.Count);
+        for (int i = 0; i < a.Count; i++) Assert.True(JsonNode.DeepEquals(a[i], b[i]), a[i].ToJsonString() + " != " + b[i].ToJsonString());
     }
 
     private void MakeCommunity(Segment seg)
@@ -1014,7 +1089,7 @@ public sealed class ApiTests : IDisposable
     [Fact]
     public async Task Webhook_PostsANewPbOnACommunitySpot()
     {
-        List<string> sent = FakeWebhook();
+        FakeDiscord discord = FakeWebhook();
         var hook = _factory.Services.GetRequiredService<PbWebhook>();
         string ta = await Register(A);
         var seg = TestSegment("s-cccccccccccc");
@@ -1024,8 +1099,17 @@ public sealed class ApiTests : IDisposable
         // The first run: "finished", with the run's link.
         await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f, 1)));
         Assert.Single(hook.Recent);
-        Assert.Contains("finished Plane to \\*cave\\*: 10.000 (their first run)", hook.Recent[0]);
-        Assert.Matches(@"https://forest\.deter\.cloud/spot/s-cccccccccccc/[^/?]+\?run=\d+$", hook.Recent[0]);
+        Assert.Contains("first run", Author(hook.Recent[0]));
+        Assert.DoesNotContain("runner's spot", Author(hook.Recent[0]));
+        Assert.Equal("Plane to \\*cave\\*", (string)E(hook.Recent[0])["title"]);
+        Assert.Equal("**10.000**\nTheir first run here", Desc(hook.Recent[0]));
+        Assert.Equal("Community spot", Foot(hook.Recent[0]));
+        Assert.Equal(PbNews.CommunityColour, (int)E(hook.Recent[0])["color"]);
+        Assert.Equal("Plane to \\*cave\\* first run: " + Name(hook.Recent[0]) + " 10.000", (string)hook.Recent[0]["content"]);
+        Assert.Matches(@"^https://forest\.deter\.cloud/spot/s-cccccccccccc/[^/?]+\?run=\d+$", (string)E(hook.Recent[0])["url"]);
+        Assert.Null(Field(hook.Recent[0], "Rank"));   // alone on the spot: no rank, no gap
+        Assert.Null(Field(hook.Recent[0], "Next best"));
+        Assert.Null(Field(hook.Recent[0], "Spot record"));
 
         // Slower: nothing. The same attempt again: nothing.
         await Upload(ta, Bundle(seg, RunText(seg, A, 11f, 5f, 2)));
@@ -1035,11 +1119,41 @@ public sealed class ApiTests : IDisposable
         // Two new ones, one faster: the fastest, against the old PB.
         await Upload(ta, Bundle(seg, RunText(seg, A, 9.5f, 5f, 3), RunText(seg, A, 8.75f, 4f, 4)));
         Assert.Equal(2, hook.Recent.Count);
-        Assert.Contains("set a new PB on Plane to \\*cave\\*: 8.750 (1.250 faster than 10.000)", hook.Recent[1]);
+        Assert.Contains("new PB", Author(hook.Recent[1]));
+        Assert.Equal("**8.750**\n**1.250** faster than 10.000", Desc(hook.Recent[1]));
+        Assert.Equal("Plane to \\*cave\\* PB: " + Name(hook.Recent[1]) + " 8.750", (string)hook.Recent[1]["content"]);
 
-        // The queue delivers them (one post every couple of seconds).
-        for (int i = 0; i < 100 && sent.Count < 2; i++) await Task.Delay(100);
-        Assert.Equal(hook.Recent, sent);
+        // The queue delivers them to the webhook, mentions off.
+        await Until(() => discord.Contents().Count >= 2);
+        SamePosts(hook.Recent, discord.Contents(OfficialHook));
+        Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
+        Assert.All(discord.Posts, p => Assert.NotEmpty((string)p.body["content"]));
+    }
+
+    [Fact]
+    public async Task Webhook_RankAndGapAgainstOtherRunners()
+    {
+        FakeWebhook();
+        var hook = _factory.Services.GetRequiredService<PbWebhook>();
+        string ta = await Register(A), tb = await Register(B);
+        var seg = TestSegment("s-gggggggggggg");
+        seg.Category = "Cave 5";
+        MakeCommunity(seg);
+
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 5f, 1)));
+        Assert.Equal("Cave 5", Field(hook.Recent[0], "Category"));
+        // B is slower than A: rank 2 of 2, behind A's best.
+        await Upload(tb, Bundle(seg, RunText(seg, B, 12f, 5f, 2)));
+        Assert.Equal("#2 of 2 runners", Field(hook.Recent[1], "Rank"));
+        Assert.Equal("10.000 (you: +2.000)", Field(hook.Recent[1], "Spot record"));
+        Assert.Null(Field(hook.Recent[1], "Next best"));
+        Assert.EndsWith(" first run: " + Name(hook.Recent[1]) + " 12.000", (string)hook.Recent[1]["content"]);
+        // B beats A: first, ahead of A's best.
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9f, 5f, 3)));
+        Assert.Equal("#1 of 2 runners", Field(hook.Recent[2], "Rank"));
+        Assert.Equal("10.000 (+1.000)", Field(hook.Recent[2], "Next best"));
+        Assert.Null(Field(hook.Recent[2], "Spot record"));
+        Assert.EndsWith(" WR: " + Name(hook.Recent[2]) + " 9.000", (string)hook.Recent[2]["content"]);
     }
 
     [Fact]
@@ -1054,8 +1168,8 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f)))).StatusCode);
         Assert.Empty(hook.Recent);
 
-        FakeWebhook();
-        // A runner's own practice spot is never posted.
+        FakeDiscord discord = FakeWebhook();
+        // A runner's own practice spot is not posted (the default; /admin's PB posts tab).
         var own = TestSegment("s-aaaaaaaaaaaa");
         await Upload(ta, Bundle(own, RunText(own, A, 10f, 5f)));
         Assert.Empty(hook.Recent);
@@ -1067,7 +1181,7 @@ public sealed class ApiTests : IDisposable
         Assert.Single(hook.Recent);
 
         // A failing webhook never fails an upload.
-        hook.Send = _ => throw new HttpRequestException("down");
+        discord.Answer = _ => throw new HttpRequestException("down");
         Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(com, RunText(com, A, 9f, 5f, 4)))).StatusCode);
     }
 
@@ -1090,8 +1204,196 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("1:00:00.000", PbNews.Time(3600));
         Assert.Equal("0.250", PbNews.Time(0.25));
         Assert.Equal("@everyone \\[x\\]\\(http\\://e\\) \\_a\\_ b", PbNews.Escape("@everyone [x](http://e) _a_\nb"));
-        Assert.Equal("deter set a new PB on Cave 5: 59.000 (1.000 faster than 1:00.000)\nhttps://x/spot/s-1/r?run=7",
-                     PbNews.Message("deter", "Cave 5", 59f, 60f, PbNews.RunLink("https://x/", "s-1", "r", 7)));
+        string url = PbNews.RunLink("https://x/", "s-1", "r", 7);
+        var post = PbNews.Embed(new Runs.PbFound("deter", "Cave 5", "s-1", "r", 7, 59f, 60f, true, "Any%", 1, 3, 61.5f, true), url,
+                                new DateTime(2026, 10, 10, 12, 30, 0, DateTimeKind.Utc));
+        const string expected = @"{""content"":""Cave 5 WR: deter 59.000"",""embeds"":[{""author"":{""name"":""deter \u00B7 new PB""},""title"":""Cave 5"",""url"":""https://x/spot/s-1/r?run=7"",""description"":""**59.000**\n**1.000** faster than 1:00.000"",""color"":3055195,""footer"":{""text"":""Run category""},""fields"":[{""name"":""Category"",""value"":""Any%"",""inline"":true},{""name"":""Rank"",""value"":""#1 of 3 runners"",""inline"":true},{""name"":""Next best"",""value"":""1:01.500 (+2.500)"",""inline"":true}],""timestamp"":""2026-10-10T12:30:00Z""}]}";
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), post), post.ToJsonString());
+        // A runner's spot, first run, not first on the spot: marked, no category, no PB line.
+        var other = PbNews.Embed(new Runs.PbFound("deter", "Mine", "s-2", "r", 8, 20f, float.NaN, false, "", 2, 2, 19f), url);
+        Assert.Equal("deter \u00B7 first run on a runner's spot", Author(other));
+        Assert.Equal("Runner's spot", Foot(other));
+        Assert.Null(E(other)["timestamp"]);
+        Assert.Null(Field(other, "Category"));
+        Assert.Equal("19.000 (you: +1.000)", Field(other, "Spot record"));
+        Assert.Equal("Mine first run: deter 20.000", (string)other["content"]);
+        // The plugin's default labels and "Community" are not categories.
+        foreach (string dull in new[] { "", "My spots", "my spots", "Segments", "Spots", "Community", "  " })
+            Assert.False(PbNews.RealCategory(dull), dull);
+        Assert.True(PbNews.RealCategory("Cave 5"));
+    }
+
+    // --- PB posts from runners' own spots (T-0232) -----------------------------------------
+
+    private Task<HttpResponseMessage> PutPbPosts(string json, string token = "admin-secret") =>
+        AdminSend(HttpMethod.Put, "/api/admin/pbposts", token, json);
+
+    private static string PbPostsJson(bool runnerSpots, string channel, string webhook) =>
+        new JsonObject { ["runnerSpots"] = runnerSpots, ["channel"] = channel, ["webhook"] = webhook }.ToJsonString();
+
+    [Fact]
+    public async Task Webhook_RunnerSpots_OffThenSameChannelThenOwnChannel()
+    {
+        FakeDiscord discord = FakeWebhook();
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        string ta = await Register(A);
+        var own = TestSegment("s-eeeeeeeeeeee");
+        own.Name = "My *dash*";
+        var com = TestSegment("s-ffffffffffff");
+        MakeCommunity(com);
+
+        // Off until the owner saves it on.
+        await Upload(ta, Bundle(own, RunText(own, A, 10f, 5f, 1)));
+        Assert.Empty(posts.RunnerSpots.Recent);
+
+        // The same channel as community / run spot PBs - through their own sender (own caps).
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "same", ""))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 9f, 5f, 2)));
+        Assert.Single(posts.RunnerSpots.Recent);
+        Assert.Empty(posts.Official.Recent);
+        var marked = posts.RunnerSpots.Recent[0];
+        Assert.Equal("My \\*dash\\*", (string)E(marked)["title"]);
+        Assert.Equal("**9.000**\n**1.000** faster than 10.000", Desc(marked));
+        // Marked apart from a main-category PB: the author line, the footer and the colour.
+        Assert.Contains("new PB on a runner's spot", Author(marked));
+        Assert.Equal("Runner's spot", Foot(marked));
+        Assert.Equal(PbNews.RunnerSpotColour, (int)E(marked)["color"]);
+        await Until(() => discord.Contents().Count >= 1);
+        SamePosts(posts.RunnerSpots.Recent, discord.Contents(OfficialHook));
+
+        // Their own channel: runners' spots there, community spots still in the official one.
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "own", OwnHook))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 8f, 4f, 3)));
+        await Upload(ta, Bundle(com, RunText(com, A, 10f, 5f, 4)));
+        await Until(() => discord.Contents().Count >= 3);
+        var ownPost = Assert.Single(discord.Contents(OwnHook));
+        Assert.StartsWith("**8.000**", Desc(ownPost));
+        Assert.Equal("Runner's spot", Foot(ownPost));   // marked apart also in their own channel
+        Assert.Equal(2, discord.Contents(OfficialHook).Count);
+        Assert.Contains("first run", Author(discord.Contents(OfficialHook)[1]));
+        Assert.Equal("Community spot", Foot(discord.Contents(OfficialHook)[1]));
+        Assert.Equal(PbNews.CommunityColour, (int)E(discord.Contents(OfficialHook)[1])["color"]);
+        Assert.Contains("first run: ", (string)discord.Contents(OfficialHook)[1]["content"]);
+        Assert.All(discord.Posts, p => Assert.Empty(p.body["allowed_mentions"]["parse"].AsArray()));
+
+        // Off again: nothing more; the webhook is kept for next time.
+        Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(false, "own", OwnHook))).StatusCode);
+        await Upload(ta, Bundle(own, RunText(own, A, 7f, 4f, 5)));
+        Assert.Equal(2, posts.RunnerSpots.Recent.Count);
+        var view = (await Admin("/api/admin/pbposts")).AsObject();
+        Assert.False((bool)view["settings"]["runnerSpots"]);
+        Assert.Equal(OwnHook, (string)view["settings"]["webhook"]);
+        Assert.True((bool)view["official"]);
+    }
+
+    [Fact]
+    public async Task PbPostsSettings_OwnerOnly_Validated_SecretKeptOutOfTheLog()
+    {
+        var posts = _factory.Services.GetRequiredService<PbPosts>();
+        var made = await (await AdminSend(HttpMethod.Post, "/api/admin/admins", body: "maks")).Content.ReadFromJsonAsync<JsonObject>();
+        string named = (string)made["token"];
+
+        // The owner only: a named admin neither reads the secret nor changes it.
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/pbposts", named)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await PutPbPosts(PbPostsJson(true, "same", ""), named)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await AdminSend(HttpMethod.Get, "/api/admin/pbposts", "")).StatusCode);
+
+        // Before a save: off, the same channel, no webhook; the official one is off in tests.
+        var view = (await Admin("/api/admin/pbposts")).AsObject();
+        Assert.False((bool)view["settings"]["runnerSpots"]);
+        Assert.Equal("same", (string)view["settings"]["channel"]);
+        Assert.Equal(0, (int)view["rev"]);
+        Assert.False((bool)view["official"]);
+
+        // Refused: nothing saved.
+        foreach (string bad in new[]
+        {
+            "not json", "[]", "{\"runnerSpots\":\"yes\"}", "{\"channel\":\"same\"}", PbPostsJson(true, "elsewhere", ""),
+            PbPostsJson(true, "own", ""),                                                  // their own channel needs one
+            PbPostsJson(true, "own", "https://example.com/api/webhooks/1/x"),              // only Discord (no SSRF)
+            PbPostsJson(true, "own", "http://discord.com/api/webhooks/1/x"),
+            PbPostsJson(true, "own", "https://discord.com.evil.io/api/webhooks/1/x"),
+            PbPostsJson(true, "own", "https://discord.com/api/webhooks/1/x?wait=true"),
+            PbPostsJson(false, "same", "https://discord.com/api/webhooks/1/x/../../../x"),
+            "{\"runnerSpots\":true,\"url\":\"x\"}",
+        })
+            Assert.Equal(HttpStatusCode.BadRequest, (await PutPbPosts(bad)).StatusCode);
+        Assert.Equal(0, (int)(await Admin("/api/admin/pbposts"))["rev"]);
+        Assert.False(posts.Settings.Current.RunnerSpots);
+
+        // Discord's other hosts and a versioned path are webhooks too; spaces around are trimmed.
+        foreach (string good in new[] { "https://canary.discord.com/api/v10/webhooks/1/x", "https://discordapp.com/api/webhooks/1/x", " " + OwnHook + " " })
+            Assert.Equal(HttpStatusCode.OK, (await PutPbPosts(PbPostsJson(true, "own", good))).StatusCode);
+        Assert.Equal(3, (int)(await Admin("/api/admin/pbposts"))["rev"]);
+        Assert.Equal(OwnHook, posts.Settings.Current.RunnerSpotsWebhook);
+
+        // Kept across a restart (read back from the database).
+        var again = new PbSettings(_factory.Services.GetRequiredService<Store>());
+        Assert.Equal(new PbSettings.Values(true, true, OwnHook), again.Current);
+
+        // The activity log names the save, never the URL; the public API has no trace of it.
+        string log = (await Admin("/api/admin/log")).ToJsonString();
+        Assert.Contains("PUT /api/admin/pbposts", log);
+        Assert.DoesNotContain("run-spot_TOKEN", log);
+        Assert.DoesNotContain("run-spot_TOKEN", await _http.GetStringAsync("/api/spots"));
+    }
+
+    [Fact]
+    public async Task Webhook_Sender_RetriesA429_AndLogsNoUrl()
+    {
+        var fake = new FakeDiscord();
+        int calls = 0;
+        fake.Answer = _ =>
+        {
+            if (Interlocked.Increment(ref calls) > 1) return new HttpResponseMessage(HttpStatusCode.NoContent);
+            var limited = new HttpResponseMessage((HttpStatusCode)429);
+            limited.Headers.Add("Retry-After", "1");
+            return limited;
+        };
+        var logged = new List<string>();
+        var hook = new PbWebhook(OwnHook, null, "Discord webhook (runners' spots)")
+        {
+            Http = new HttpClient(fake), Gap = TimeSpan.FromMilliseconds(10), Log = m => { lock (logged) logged.Add(m); },
+        };
+
+        // A 429: one retry after Discord's retry-after, the same post again.
+        Assert.True(hook.Enqueue(Msg("first")));
+        await Until(() => fake.Posts.Count >= 2);
+        Assert.Equal(new[] { "first", "first" }, fake.Contents(OwnHook).Select(Desc));
+        Assert.Empty(logged);
+
+        // A refused post is dropped and logged - by the sender's name, never its URL.
+        fake.Answer = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
+        Assert.True(hook.Enqueue(Msg("second")));
+        await Until(() => logged.Count >= 1);
+        Assert.Equal("Discord webhook (runners' spots): post failed (HTTP 404), dropped.", Assert.Single(logged));
+        fake.Answer = _ => throw new HttpRequestException("Connection refused (discord.com:443)");
+        Assert.True(hook.Enqueue(Msg("third")));
+        await Until(() => logged.Count >= 2);
+        Assert.Equal(2, logged.Count);
+        Assert.All(logged, l => Assert.DoesNotContain("TOKEN", l));
+
+        // No URL: off, nothing queued.
+        Assert.False(new PbWebhook("", null).Enqueue(Msg("nothing")));
+    }
+
+    [Fact]
+    public void PbNews_Target()
+    {
+        var off = PbSettings.Values.Off;
+        var same = new PbSettings.Values(true, false, OwnHook);
+        var own = new PbSettings.Values(true, true, OwnHook);
+        // Community / run spots: the official webhook, whatever runners' spots do.
+        Assert.Equal(OfficialHook, PbNews.Target(true, off, OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(true, own, OfficialHook));
+        Assert.Null(PbNews.Target(true, own, ""));
+        // Runners' spots: off, the same channel, their own.
+        Assert.Null(PbNews.Target(false, off, OfficialHook));
+        Assert.Null(PbNews.Target(false, new PbSettings.Values(false, true, OwnHook), OfficialHook));
+        Assert.Equal(OfficialHook, PbNews.Target(false, same, OfficialHook));
+        Assert.Null(PbNews.Target(false, same, ""));                 // the same channel, and there is none
+        Assert.Equal(OwnHook, PbNews.Target(false, own, ""));        // their own works without the official one
+        Assert.Null(PbNews.Target(false, new PbSettings.Values(true, true, ""), OfficialHook));
     }
 
     // --- security audit (2026-10-04) -------------------------------------------------
@@ -1134,9 +1436,13 @@ public sealed class ApiTests : IDisposable
     [Fact]
     public void PbPost_ClipsLongNames()
     {
-        string m = PbNews.Message(new string('r', 500), new string('s', 100_000), 59f, 60f, "https://x/spot/s-1/r?run=7");
-        Assert.True(m.Length < 400, "post is " + m.Length + " characters");
-        Assert.Contains(new string('s', 80) + ": 59.000", m);
+        var post = PbNews.Embed(new Runs.PbFound(new string('r', 500) + "\n@everyone", new string('s', 100_000), "s-1", "r", 7, 59f, 60f,
+                                                 true, new string('c', 5000), 1, 2, 70f), "https://x/spot/s-1/r?run=7");
+        string m = post.ToJsonString();
+        Assert.True(m.Length < 900, "post is " + m.Length + " characters");
+        Assert.Equal(new string('s', 80), (string)E(post)["title"]);
+        Assert.Equal(PbNews.MaxRunner, Author(post).IndexOf(" \u00B7 "));
+        Assert.Equal(new string('c', 40), Field(post, "Category"));
     }
 
     [Fact]
@@ -1157,7 +1463,7 @@ public sealed class ApiTests : IDisposable
         // Another runner still posts.
         await Upload(tb, Bundle(seg, RunText(seg, B, 30f, 5f, 1)));
         Assert.Equal(PbWebhook.PerRunnerPerHour + 1, hook.Recent.Count);
-        Assert.Contains("Runner 0000", hook.Recent[^1]);
+        Assert.Contains("Runner 0000", Author(hook.Recent[^1]));
         // An hour on, A posts again.
         now = now.AddMinutes(61);
         await Upload(ta, Bundle(seg, RunText(seg, A, 13f, 2f, 20)));

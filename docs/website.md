@@ -27,6 +27,10 @@ go to decisions.md; feature detail goes here.
   `/api/runs/{id}` (path `[t,x,y,z,speed]`), `/api/runs/{id}/file`,
   `/api/spots/{id}/{route}/board.txt` (each runner's best as text for the
   plugin, `Data/SiteBoard`; runs under review left out);
+  `/api/spots.txt` (the plugin's Website spots, `Data/SiteSpots`: a
+  `spot|...` line per runner spot, then `owner|<id>|<runner id>` - the
+  runner who first uploaded on it, so the plugin adds a runner's own spot
+  back into their own list, T-0265; `/api/spots` has `owner` too);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
   (a `.foseg` with `[attempt]`s, Bearer token; answers `startstate:
   "wanted"` when the route has a `startstate` hash and the site no data -
@@ -76,7 +80,9 @@ go to decisions.md; feature detail goes here.
   all its runs - an accidental upload; community spots are refused, and a
   deleted spot returns if its owner uploads on it again), Runners (runs,
   last upload, Ban, Reset token with a second click), Activity (every
-  change: who, what, the answer's status - `admin_log`).
+  change: who, what, the answer's status - `admin_log`); the owner also
+  has Bot, PB posts (Discord PB posts from runners' spots, *Spot
+  categories, owners deleting spots, Discord PB posts*) and Admins.
 - **Admins (author, 2026-09-27: not one shared key):** the env token
   (`FOREST_ADMIN_TOKEN`, in `/opt/forest-site/.env` on the VPS) is the
   **owner**; the owner's Admins tab makes a named `fa_...` token per admin
@@ -629,8 +635,8 @@ plugin change (Practice's Share row).
   none of them has a run (mostly teleports today; a community teleport
   says "teleport", `/api/spots` has `timed`). Every section and category
   folds; the viewer's choice is kept in localStorage `forest.folded`
-  (`{key: true|false}`, keys `runners`, `community`, `runners/<category>`;
-  read / written in try/catch). A search opens every group it finds.
+  (`{key: true|false}`, keys `runners`, `community`, `runners/<category>`,
+  `official`, `official/<category id>`; read / written in try/catch). A search opens every group it finds.
 - **A runner deleting their own spot**: the site has no browser login -
   a runner is their upload token (`/api/register`, kept by the plugin), so
   the delete goes through the game. `DELETE /api/spots/<id>` with
@@ -644,7 +650,10 @@ plugin change (Practice's Share row).
   answer under the buttons - `SiteProtocol.DeleteSpotMessage`;
   `RunUploadModule.DeleteFromSite` drops the spot's queued upload files
   first). The spot returns with the owner's next upload on it (uploads are
-  automatic) - the message says so. The spot page tells a runner where the
+  automatic) - the message says so. Practice's own **Delete** never
+  touches the site (author, 2026-10-09, T-0265): the owner can add the
+  spot back from Import -> Website spots (as their own, same id) and
+  upload changes over it. The spot page tells a runner where the
   button is. A browser-side delete would need a login (e.g. a one-time
   link the game opens) - not built.
 - **Discord PB posts** (`PbWebhook.cs`): `FOREST_DISCORD_WEBHOOK` (env or
@@ -652,12 +661,27 @@ plugin change (Practice's Share row).
   `/opt/forest-site/.env` (site/deploy/README.md *Day to day*). When an
   upload adds a run that is the runner's new best on a **community route**
   or on a **run spot** (`run = ` names a *published* category - none yet),
-  one plain-text line is queued: "<runner> set a new PB on <spot>: 1:02.345
-  (0.512 faster than 1:02.857)" or "<runner> finished <spot>: ... (their
-  first run)", then the link `/spot/<id>/<route>?run=<run id>` (the spot
-  page focuses that run). Not posted: a runner's own practice spot (anyone
-  can make one - a spam path), a run under review (flagged), a re-upload of
-  a run already there, a slower run. Names are markdown-escaped and the
+  one **Discord embed** is queued (`PbNews.Embed`; T-0232, author
+  2026-10-10: "more informative, modern", not a copy of the KSF post):
+  the `content` line (the notification text: "<spot> WR: <runner> <time>"
+  when the time is #1 of 2+ runners, "<spot> first run: ..." for a first
+  run, else "<spot> PB: ..."), then the embed: author line "<runner> ·
+  new PB" (or "· first run"), the title = the spot (linking
+  `/spot/<id>/<route>?run=<run id>`, the viewer focuses that run - the
+  replay a post can reach for now), the time in bold and "**0.512** faster
+  than 1:02.857" (or "Their first run here"), inline fields *Category*
+  (only a real label: not My spots / Segments / Spots / Community / empty),
+  *Rank* ("#2 of 5 runners", only with 2+ runners; flagged and hidden runs
+  left out) and, with other runners, *Next best* ("1:01.500 (+2.500)" for a
+  #1) or *Spot record* ("19.000 (you: +1.000)") - never another runner's
+  name - a timestamp, and a footer naming the kind with its own bar colour
+  (T-0285..T-0288): *Run category* (green, a published run category),
+  *Community spot* (blue) or *Runner's spot* (amber; the author line also
+  says "on a runner's spot"). A first run posts as before (author
+  2026-10-10). No replay inside the post (nice-to-have only). Not posted: a runner's own practice spot (anyone
+  can make one - a spam path; the owner can switch those on, next item),
+  a run under review (flagged), a re-upload of a run already there, a
+  slower run. Names are markdown-escaped (title, fields) and the
   post sets `allowed_mentions: none` (no @everyone). Sending: a queue of
   20, one post at a time 2 s apart, at most 30 an hour, one retry after a
   429's retry-after; any failure is logged (`Discord webhook: ...`) and
@@ -665,6 +689,77 @@ plugin change (Practice's Share row).
   `FOREST_SITE_URL` changes the link's address (default
   https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
   *PbNews_Decisions*.
+- **PB posts from runners' spots** (T-0232; author, 2026-10-08: "site
+  toggles for runner-spot PB posts, plus a choice of whether they go to
+  the same channel as official-run PBs or a separate one"): the owner's
+  **PB posts** tab on /admin (`GET / PUT /api/admin/pbposts`, owner only -
+  the answer holds a secret; `PbSettings.cs`, one JSON in `pb_settings`
+  with a revision, created on startup like `bot_settings`). *Post PBs on
+  runners' spots* (off until saved on), then *The same channel as
+  community and run spot PBs* (FOREST_DISCORD_WEBHOOK's) or *Their own
+  channel* (a webhook URL pasted there: only
+  `https://[ptb.|canary.]discord[app].com/api[/vN]/webhooks/<id>/<token>`
+  is accepted, so the site still posts to no other host; a password field
+  with Show; kept while off or on the same channel). A runner's spot is
+  any route that is neither a community route nor a run spot. The same
+  rules as above (new PB, not flagged, not a re-upload, the same line and
+  link); `PbPosts` routes each PB (`PbNews.Target`) and runners' spots have
+  **their own sender** - their own queue, 30 an hour and 5 a runner an hour
+  - so they never crowd out a community / run spot post, even in one
+  channel. Applies to the next PB, no restart. Saved with the Bot tab's
+  unsaved-changes bar (Reset, leaving refused). The startup line ends
+  `runners' spots off | same channel | own channel`; a failed post logs
+  `Discord webhook (runners' spots): ...` - the sender's name, never its
+  URL. Tests: `ApiTests` *Webhook_RunnerSpots_*, *PbPostsSettings_*,
+  *Webhook_Sender_* (a fake `HttpMessageHandler` as Discord - the senders'
+  `Http` and `Gap` are settable for that), *PbNews_Target*,
+  *Webhook_RankAndGapAgainstOtherRunners*. A runner's-spot PB is marked
+  apart in either channel setup (author 2026-10-10). The wording of the
+  embed is not settled - tasks/notes/T-0232.md *Words for the author*.
+
+## Official runs (2026-10-10, T-0223)
+
+A QA request: runs in the official categories listed on the site so
+anyone can watch them. The author (2026-10-08): **only once a category is
+published** (the moderators publish on /admin; every live category is a
+draft today, so the live site shows nothing yet), and **in their own
+section**, apart from the runners' spots.
+
+- **What counts**: a run mode attempt (`attempts`, docs/run-mode.md) whose
+  category names a *published* category - by id, or by name as a run
+  spot's `run = ` can (`Categories.IsPublished` reads it the same way) -
+  that **finished** (`end_reason = finished`, its log in, a timer above 0)
+  and whose **verdict is not red**. Resets, title-screen exits and attempts
+  still running are not runs. "Approved by moderation" (author, 2026-10-10)
+  is exactly that: the moderators' allow-list (`/admin`, *Allowed code*)
+  is the only moderation step, a red run is out until it clears (no
+  per-run flag). The verdict is the one the attempt page shows
+  (`JudgedLog`, cached).
+- **Each runner once** (author, 2026-10-10): the runner's fastest accepted
+  run is the row; their latest `OfficialRecent` (5) accepted runs and the
+  average of those come with it.
+- **`GET /api/official`** (`Attempts.Official`, rate limit `read`, no
+  sign-in): `[{id, name, count, runs: [{id, runner, runnerName, timerMs,
+  at, avgMs, recent: [{id, timerMs, at}]}]}]` per published category in
+  name order, `count` = runners listed, runs = the first `OfficialShown`
+  (100) fastest; `at` = when the attempt started. While nothing is
+  published the answer is `[]`: drafts and hidden categories are never
+  named. Judging replays a log, so the answer is kept until a log arrives,
+  the allow-list changes or two minutes pass (at most 2000 finished runs
+  read per category). Tested: `AttemptTests.Official_OnlyPublished_...`;
+  the smoke checks the empty answer. Index `attempts_category`.
+- **The home page** (`app.js` `renderOfficial`): *Official runs* above the
+  spots' search (author: placement stays above the spots), one fold per
+  category, each row the runner, the date and the best timer, linking to
+  the attempt; the button **Show recent runs** (per viewer, kept with the
+  folds) adds under each row the latest runs as links and their average.
+- **The attempt page's route replay** (`attempt.js`): `GET
+  /api/attempts/<id>` carries `path` - `[seconds, x, y, z, speed]` per
+  second from the log's `step` lines (`Attempts.PathOf`; "-" = a load,
+  skipped; not in `AttemptChain.Replay`, so no `src/Data` change) - and the
+  page draws it on `RunMap` (the spot page's map: photo / ground / relief
+  layers, line and dot) with play, a scrub bar and 1-8x speed. No map when
+  the log has fewer than two positions.
 
 ## Compare: two YouTube runs side by side (2026-10-04)
 
@@ -932,6 +1027,14 @@ happens.
 like uploads, owner-only, never another runner's runs, logged; the
 Discord webhook's URL is a secret in `.env` and its posts carry no
 mentions (*Spot categories, owners deleting spots, Discord PB posts*).
+
+2026-10-10 (T-0232): `GET / PUT /api/admin/pbposts`, owner only (a named
+admin's token gets 403 - the answer holds the runners'-spots webhook URL,
+a secret). The URL must be a discord.com webhook address (no SSRF through
+the admin page), is never logged (the Activity log keeps the request path,
+not the body; the senders log their name), and reaches no public answer.
+Runners' spots are a spam path the caps bound: their own 30 an hour and 5
+a runner an hour, `allowed_mentions: none`, escaped and clipped names.
 
 2026-10-04: the CSP's one frame, `frame-src https://www.youtube-nocookie.com`
 (/compare's players, driven by postMessage; no YouTube script, no new

@@ -154,6 +154,12 @@ no sideways scroll), plus:
 38. Same words as the plugin and the site (check 16), sources as
     links, not pasted URLs in prose.
 
+### J. Discord posts the site sends (PB posts, embeds)
+
+39. Does the first line say what happened and the time, with the kind of spot told in words as well as the bar colour? Does the embed still work as a phone notification (no `content` line = no preview)?
+40. Does every field label say what its value is, and does a field with a default or empty value stay out (a plugin default like "My spots" is no information)?
+41. Are the kind words the site's own (Community spots, Runners' spots, run spot), and is one word never used for two things ("Category" field vs "Main category" footer)? Judge from the expected JSON in the tests when Discord cannot be rendered, and say so.
+
 ## Severity
 
 [Nielsen's severity scale]: **4** blocks a task or loses work; **3** a
@@ -204,3 +210,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 - 2026-10-09 - smoke run: plugin Settings tab on v0.24.260, Keys and Info box (HUD) views, checks A-F; 6 tasks (T-0259..T-0264, 2 parked), notes on T-0226 and T-0021. First review: the brief's `open_tab` schema listed no `scroll_tour` but it worked.
 - 2026-10-10 - T-0256 design proposal (not a review): Practice + Runs flow read on ui-redesign, toured on v0.24.267; 3 options in tasks/notes/T-0256.md, parked; 0 findings filed. Click baseline for check 6 / 32 added.
 - 2026-10-10 - T-0256 review (dcc4161, code only: PracticeModule strip, StartStrip, Runs Restart; branch not in game): 3 findings (T-0270..T-0272, 2 parked), note on T-0262. First-run counts for check 32 from code: timed start 2 (was 5).
+- 2026-10-10 - T-0232 review (Discord PB embed, code + test JSON only, no render): 4 findings (T-0285..T-0288, all parked for the author), note on T-0232. Section J added (checks 39-41).

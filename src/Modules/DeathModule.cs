@@ -236,6 +236,9 @@ namespace ForestOverlay.Modules
         // game's own load, a QoL saving menuing (author, 2026-10-02).
         private DeathAction Decide(DeathKind kind)
         {
+            // Every death reloads a kept start state (T-0212; author: a
+            // death reloads) - the game's own death and boss wakes included.
+            if (_practice != null) _practice.DropKeptLoaded("a death");
             if (kind == DeathKind.Multiplayer) return DeathAction.Normal;
             try
             {

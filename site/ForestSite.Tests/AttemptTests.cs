@@ -216,6 +216,45 @@ public sealed class AttemptTests : IDisposable
         Assert.NotEqual(r.Step(2).Head, edited.Step(2).Head);
     }
 
+    // T-0244: the timeline's All lists the moves the game saw beside the
+    // events, by time; tree cuts stay in the log but not the report.
+    [Fact]
+    public void EventNotes_TakeTheMovesIn_LeaveTheTreesOut()
+    {
+        var c = new AttemptChain();
+        c.Header(Id, Runner, "Runner", "test", "Any%", "-", "-", "seed", DateTime.UtcNow);
+        c.Step(1000, -1, true, 0, 0, 0);
+        c.Event(1200, -1, "first-input", true, 0, 0, 0, "the runner took control");
+        c.Event(2000, -1, RunAudit.Bomb, true, 1, 2, 3, null);
+        c.Move(2000, "bomb-boost", true, 1, 2, 3, "game time stopped 1.04 s");
+        c.Event(2500, -1, RunAudit.PauseOpen, true, 0, 0, 0, null);
+        c.Event(4000, -1, RunAudit.Tree, true, 0, 0, 0, "3 trees cut down (from 0:02)");
+        c.Move(4100, "brand-new-move", false, 0, 0, 0, "from a newer plugin");
+        c.End(5000, "reset", -1);
+        var r = AttemptChain.Read(c.Text);
+        Assert.Null(r.Error);
+
+        var notes = Attempts.EventNotes(r.Events, r.Moves);
+        Assert.Equal(new[] { "first-input", "bomb", "bomb-boost", "pause-open", "brand-new-move" }, notes.Select(n => n.Kind).ToArray());
+        var boost = notes[2];
+        Assert.Equal("Bomb boost", boost.Label);
+        Assert.Equal(RunAudit.MovesGroup, boost.Group);
+        Assert.Equal(-1, boost.TimerMs);
+        Assert.True(boost.HasPos);
+        Assert.Equal("brand-new-move", notes[4].Label);
+        var groups = Attempts.EventGroups(notes);
+        Assert.Equal(new[] { "fights", "moves", "movement", "menu" }, groups.Select(g => g.Id).ToArray());
+        Assert.Equal("Moves the game saw", groups[1].Label);
+        Assert.Equal(2, groups[1].Count);
+        Assert.DoesNotContain(notes, n => n.Kind == RunAudit.Tree);
+        Assert.DoesNotContain(groups, g => g.Id == "building");
+
+        // Without moves, the events alone (tree cuts still left out).
+        Assert.Equal(3, Attempts.EventNotes(r.Events).Count);
+        // A log from before the audit log: moves stay in their own section.
+        Assert.Empty(Attempts.EventNotes(new List<AttemptChain.EventInfo>(), r.Moves));
+    }
+
     [Fact]
     public void MoveNotes_NameTheBannedMoveTheyMayBe()
     {
@@ -465,14 +504,20 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("Bomb boost", mv["label"].GetValue<string>());
         Assert.Equal(3050, mv["realMs"].GetValue<long>());
         Assert.Equal(772.5, mv["pos"][0].GetValue<double>(), 3);
-        // The audit log: the rundown and the timeline, never judged.
-        var ev = Assert.Single(view["events"].AsArray());
+        // The audit log: the rundown and the timeline, never judged - the
+        // move in both too (T-0244), by its time.
+        var evs = view["events"].AsArray();
+        Assert.Equal(2, evs.Count);
+        Assert.Equal("Bomb boost", evs[0]["label"].GetValue<string>());
+        Assert.Equal("moves", evs[0]["group"].GetValue<string>());
+        var ev = evs[1];
         Assert.Equal("Cave entered", ev["label"].GetValue<string>());
         Assert.Equal("caves", ev["group"].GetValue<string>());
         Assert.Equal(1110, ev["timerMs"].GetValue<long>());
         Assert.Equal(-20, ev["pos"][1].GetValue<double>(), 3);
-        Assert.Equal("1 cave entry: Cave 1 - Dead Cave", Assert.Single(view["rundown"].AsArray()).GetValue<string>());
-        Assert.Equal("caves", Assert.Single(view["eventGroups"].AsArray())["id"].GetValue<string>());
+        Assert.Equal(new[] { "Moves the game saw: Bomb boost (1)", "1 cave entry: Cave 1 - Dead Cave" },
+                     view["rundown"].AsArray().Select(l => l.GetValue<string>()).ToArray());
+        Assert.Equal(new[] { "caves", "moves" }, view["eventGroups"].AsArray().Select(g => g["id"].GetValue<string>()).ToArray());
         Assert.All(view["findings"].AsArray(), f => Assert.Equal("ok", f["level"].GetValue<string>()));
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());
@@ -695,5 +740,108 @@ public sealed class AttemptTests : IDisposable
         msg.Headers.Add("X-Admin-Token", "admin-secret");
         var r = await _http.SendAsync(msg);
         return await r.Content.ReadFromJsonAsync<JsonNode>();
+    }
+
+    // --- the official runs (T-0223) ------------------------------------------------
+
+    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null)
+    {
+        var c = new AttemptChain();
+        c.Header(id, runner, "Runner", "test", category, "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
+        c.End(3100, reason, timerMs);
+        return report == null ? c.Text : c.Text + AttemptChain.ReportMarker + "\n" + report;
+    }
+
+    private async Task PutCategory(string id, string name, string status)
+    {
+        var c = new RunCategory { Id = id, Name = name, Status = status, Difficulty = "normal" };
+        var put = new HttpRequestMessage(HttpMethod.Put, "/api/admin/categories/" + id) { Content = new StringContent(c.Format(), Encoding.UTF8) };
+        put.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(put)).StatusCode);
+    }
+
+    private const string Runner2 = "r-00000000000000bb";
+    private const string Mod = "Other 1.0 (other.dll)";
+
+    [Fact]
+    public async Task Official_OnlyPublished_EachRunnersBest_RecentAndAverage_RedRunsOnlyOnceAllowed_DraftsNeverNamed()
+    {
+        string token = await Register(Runner), token2 = await Register(Runner2);
+        async Task Up(string t, int n, string category, long timerMs, string reason = "finished", string runner = Runner, string report = null) =>
+            Assert.Equal(HttpStatusCode.OK, (await Post(t, "/api/attempts/" + AId(n) + "/log",
+                new StringContent(FinishedLog(AId(n), category, timerMs, reason, runner, report), Encoding.UTF8, "text/plain"))).StatusCode);
+        await Up(token, 1, "any-normal", 90_000);
+        await Up(token, 2, "any-normal", 60_000);
+        await Up(token, 3, "any-normal", 30_000, "reset");          // a reset is not a run
+        await Up(token, 4, "Any% - Normal", 80_000);                 // a run spot's `run = ` by name
+        await Up(token, 5, "secret-draft", 50_000);
+        await Up(token, 6, "any-normal", 20_000, report: Report(r => r.OtherPlugins.Add(Mod)));   // problems found: red
+        await Up(token2, 7, "any-normal", 75_000, runner: Runner2);
+
+        // Nothing published (the live site today): an empty list, no category named.
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+        await PutCategory("secret-draft", "Secret Draft", "draft");
+        await PutCategory("any-normal", "Any% - Normal", "draft");
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+
+        await PutCategory("any-normal", "Any% - Normal", "published");
+        string text = await _http.GetStringAsync("/api/official");
+        foreach (string hidden in new[] { "secret", "Secret Draft", "manhunt", AId(3), AId(5) })
+            Assert.DoesNotContain(hidden, text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(AId(6), text);        // the red run is not listed (nor in a runner's recent runs)
+        var cat = Assert.Single(JsonNode.Parse(text)!.AsArray())!;
+        Assert.Equal(("any-normal", "Any% - Normal", 2), ((string)cat["id"], (string)cat["name"], (int)cat["count"]));
+        var runs = cat["runs"]!.AsArray();
+        // One row per runner: the fastest accepted run.
+        Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
+        Assert.Equal(new long[] { 60_000, 75_000 }, runs.Select(r => (long)r!["timerMs"]));
+        Assert.All(runs, r => Assert.EndsWith("Z", (string)r!["at"]));
+        // Recent runs and their average: A's accepted runs (1, 2, 4), B's one.
+        Assert.Equal(new[] { AId(1), AId(2), AId(4) }, runs[0]!["recent"]!.AsArray().Select(r => (string)r!["id"]).OrderBy(x => x));
+        Assert.Equal(76_667, (long)runs[0]!["avgMs"]);
+        Assert.Equal(new[] { AId(7) }, runs[1]!["recent"]!.AsArray().Select(r => (string)r!["id"]));
+        Assert.Equal(75_000, (long)runs[1]!["avgMs"]);
+
+        // The moderators allow the mod: the run is cleared, and tops the board.
+        string q = "/api/admin/allowed?kind=mod&text=" + Uri.EscapeDataString(Mod);
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Post, q));
+        runs = JsonNode.Parse(await _http.GetStringAsync("/api/official"))!.AsArray()[0]!["runs"]!.AsArray();
+        Assert.Equal(new[] { AId(6), AId(7) }, runs.Select(r => (string)r!["id"]));
+        // Taken off the list: gone again.
+        Assert.Equal(HttpStatusCode.OK, await AdminCall(HttpMethod.Delete, q));
+        runs = JsonNode.Parse(await _http.GetStringAsync("/api/official"))!.AsArray()[0]!["runs"]!.AsArray();
+        Assert.Equal(new[] { AId(2), AId(7) }, runs.Select(r => (string)r!["id"]));
+
+        // Back to a draft: gone again.
+        await PutCategory("any-normal", "Any% - Normal", "draft");
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+    }
+
+    [Fact]
+    public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
+    {
+        var c = new AttemptChain();
+        c.Header(AId(1), Runner, "Runner", "test", "Any%", "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        c.Step(1000, 1000, true, 1.5f, 10f, -3f);
+        c.Step(2000, 2000, false, 0, 0, 0);               // a load: no player
+        c.Step(3000, 3000, true, 4.5f, 10f, -3f);
+        var path = Attempts.PathOf(c.Text);
+        Assert.Equal(2, path.Count);
+        Assert.Equal(new[] { 1.0, 1.5, 10.0, -3.0, 0.0 }, path[0]);
+        Assert.Equal(new[] { 3.0, 4.5, 10.0, -3.0, 1.5 }, path[1]);   // 3 m in 2 s
+        Assert.Empty(Attempts.PathOf(""));
+    }
+
+    [Fact]
+    public async Task AttemptView_CarriesThePathForTheMapReplay()
+    {
+        string token = await Register(Runner);
+        Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts/" + AId(1) + "/log",
+            new StringContent(FinishedLog(AId(1), "any-normal", 60_000), Encoding.UTF8, "text/plain"))).StatusCode);
+        var view = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + AId(1));
+        var path = view["path"]!.AsArray();
+        Assert.Equal(3, path.Count);
+        Assert.Equal(new[] { 3.0, 3.0, 0.0, 0.0 }, path[2]!.AsArray().Take(4).Select(v => (double)v!));
     }
 }

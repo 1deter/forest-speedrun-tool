@@ -319,8 +319,7 @@ polls the same fields once a frame:
 | `clothing-<id>` | `LocalPlayer.Clothing._wornClothingItems` (List<int>) | Names: `ClothingItemDatabase._instance._items[i]._displayName` ("RED BEANIE"), 33 items. |
 | `passenger-<n>`, `passenger` | `LocalPlayer.PassengerManifest._foundPassengersIdsCount` | The ASL splits on the count, not on who. |
 | `hold-interact` | static `TheForest.Utils.Input.DelayedActionIsDown` | Set by `GetButtonAfterDelay` on the button-down frame of any hold action (27 callers: pickups, the plane meal, fires, Timmy / Megan pickups). The ASL's "plane meal start" is this flag rising while `Scene.FinishGameLoad`. A bridge `set` is cleared by the game's `Input.LateUpdate` the same frame - only a real hold shows it. |
-| `moving` | the player's Rigidbody speed > 0.15 m/s | The ASL reads `FirstPersonCharacter` + 0x168 (a velocity Vector3); after 0.25 s still. A placement settles for a frame or two (bridge: -0.87 m/s after a restart from a cave), so since v0.24.188 a move of more than 2 m in one frame resets it - still again first. |
-| `first-input` | Rewired `Input.player.GetAnyButton()` or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). |
+| `first-input` | Rewired `Input.player.GetButton(id)` for every action in `ReInput.mapping.Actions` but `Esc`, `Mouse X`, `Mouse Y`, or `Input.GetAxis("Horizontal" / "Vertical")` | After 0.25 s with none; not while `Cursor.visible` (menus, the overlay window); placement resets it (v0.24.193). The game has **50 other actions** (bridge, 2026-10-10). The camera is `Mouse X` / `Mouse Y` (`MouseLook.LookRotation` reads them through `Input.GetAxis` - IL); `Esc` opens the pause menu (`PlayerInventory.Update` -> `TogglePauseMenu` - IL). Bridge 2026-10-10 (T-0282): mouse look (yaw 90 -> 140) and Esc open / close fired nothing, Space fired it, an injected `axis Vertical` fired it. The bridge's injected `press` reaches `Input.GetButton(string)` only, not Rewired by id. The ASL's velocity start (`moving`: speed > 0.15 m/s, `FirstPersonCharacter` + 0x168) is gone (T-0282): the ASL could not read input. |
 | `rope-grab` / `rope-leave` | `playerAnimatorControl.onRope` **and** `PlayerClimbRopeAction._currentRopeRoot` set (`RopeClimb.IsOnRope`) | v0.24.193; the rope root since T-0242. `onRope` alone is not a rope (IL writers): `enterClimbMode` (rope, cliff and wall climb actions), `playerEnterCaveAction.doCave` (every crawl / climb cave mouth), `playerOpenKeypadDoorAction.openDoorRoutine` (keycard door, red elevator), `playerPlaceArtifactAction`, `PlayerGoodbyeTimmyAction`, `PlayerStats.dragAwayCutScene`, `playerHitReactions.enableExplodeCamera`, `playerEnterRockThrowerAction.exitThrower` - maks's run logged a "climb" at each cave mouth, the vault door and the red elevator. The game's wall climb (`PlayerClimbWallAction`, `activateClimb.climbType == wallClimb`) has no trigger in the main scene: all 21 `activateClimb` are `ropeClimb` (cave ropes + 12 fishing stands; bridge, 2026-10-09). |
 
 ### Segment events from the game's event bus and the rides (IL, not yet seen live)
@@ -3109,7 +3108,16 @@ Threads, the plugin's texture paths and the live checks:
   `DiskLogListener.WriteFromUnityLog` true), the game writes no
   `output_log.txt`, and `Application.CallLogCallback` passes a message from
   another thread (the d3d11 line is the render thread's) only to
-  `logMessageReceivedThreaded`.
+  `logMessageReceivedThreaded`. Since T-0276 (v0.24.274) the plugin
+  subscribes there and writes them as `Unity:` lines + `logs/unity.log`;
+  bridge-proved for managed `Debug.LogError` and a native error
+  (`SceneManager.LoadScene` of a missing scene); not yet seen for another
+  thread.
+- **Unity's crash folder** beside TheForest.exe is named after the
+  **process start**, `yyyy-MM-dd_HHmmss`, not the crash: `2026-10-04_083030`
+  holds a crash at 13:12 of a session from 08:30; `2026-10-07_115524`'s
+  error.log says `Error occurred at 2026-10-07_115544`. It holds
+  `crash.dmp` + `error.log` (registers, stack bytes, no log text).
 
 ## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
 

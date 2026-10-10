@@ -59,7 +59,7 @@ projects (they are each area's evidence) and the root files.
 
 ### Savestates
 
-Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,DeathSequence,ElevatorRides,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,SlotInfoGuard,Stance,SunSync,TitleLoad,WreckClearing}.cs` `src/Data/{BlueprintState,DeathProgress,BookPageState,CapturedAreas,CheckpointStates,LookupCache,StartedSet,WreckSites,EnemyRecord,GreebleRecord,PickupMatch,PositionKey,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
+Paths: `src/Modules/SavestateModule.cs` `src/Game/SavestateBridge.cs` `src/Game/*Keeper.cs` `src/Game/{AnimReset,BookClose,BookPages,BossHold,BuildMode,CutsceneAudio,DeathSequence,ElevatorRides,EndgameLoader,FullCapacityWatch,MenuClose,PathfindingWatch,PlayerHold,PlayerKeep,PrefabList,RideModes,RopeClimb,SceneCache,SetupHold,SlotInfoGuard,Stance,SunSync,TitleLoad,WreckClearing}.cs` `src/Data/{BlueprintState,DeathProgress,BookPageState,CapturedAreas,CheckpointStates,KeepLoaded,LookupCache,StartedSet,WreckSites,EnemyRecord,GreebleRecord,PickupMatch,PositionKey,RideState,SavestateFile,SlotSaveFlags,WeatherState}.cs` `scripts/save-diff.py` `scripts/save-diff-noise.txt` `docs/savestates.md`
 
 - Verification **A**: SavestateFile (33), CheckpointStates (21) and the
   record tests; the e2e `restores` journey (in place, with a load, the
@@ -96,7 +96,7 @@ LiveSplit, uploads.
 
 ### Practice
 
-Paths: `src/Modules/{PracticeModule,DeathModule}.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,ItemCaps,LocationLibrary,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
+Paths: `src/Modules/{PracticeModule,DeathModule}.cs` `src/Modules/CommunityModule*.cs` `src/Core/PracticeState.cs` `src/Game/{AreaReport,DeathHooks,FastBuild,ItemCapPatch,LogStore,ZonePreview}.cs` `src/Data/{CommunityIndex,DeathPlan,EditDebounce,HeldReport,ItemCaps,LocationLibrary,SafeFile,SegmentBundle,SegmentFormat,SegmentLibrary,Segments,ZoneDisplay}.cs` `locations/` `community/` `scripts/community-index.py`
 
 Spots and their editor, teleports, Go / Restart, death reload and revive,
 sharing and community packs, the gameplay mods ("ON NOW").
@@ -154,7 +154,7 @@ builder, notice, settings, the reflection helpers.
 
 ### Performance and loads
 
-Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PerfPatches,RenderProbe,RestoreGarbage,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable,StepBytes}.cs` `scripts/{launch-with-args,native-callers,sample-stacks,symbolize-crash}.py`
+Paths: `src/Core/{PerfMonitor,StallWatch}.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PerfPatches,RenderProbe,RestoreGarbage,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable,StepBytes}.cs` `scripts/{launch-with-args,native-callers,sample-stacks,symbolize-crash}.py`
 
 - Verification **B**: FrameTimeline, ProfileTable, LoadTimes tests; the
   `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the
@@ -205,7 +205,7 @@ exports, the offline IL scanner.
 
 ### Bridge, e2e and QA
 
-Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/LogKeeper.cs` `src/Data/{BridgeCommand,InjectedInputs,LogArchive,QaList,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
+Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectProbe}.cs` `src/Core/{LogKeeper,UnityErrorLog}.cs` `src/Data/{BridgeCommand,CrashFolders,InjectedInputs,LogArchive,QaList,UnityLogFilter,ZipWriter}.cs` `tools/BridgeMcp/` `tests/e2e/` `scripts/{e2e,read-report}.py` `scripts/bridge.sh` `qa/` `docs/bridge.md`
 
 - Verification **A**: BridgeCommand, BridgeMcp, InjectedInputs, QaList,
   ZipWriter, LogArchive tests; the bridge drives every in-game test and the

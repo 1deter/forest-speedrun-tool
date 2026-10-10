@@ -87,7 +87,7 @@ namespace ForestOverlay.Tests
         {
             LssAutoSplit a = ReadReal();
             Assert.Equal("splits file", a.Source);
-            Assert.Equal(new[] { "moving" }, a.StartEvents());
+            Assert.Equal(new[] { "first-input" }, a.StartEvents());   // the velocity start is the first input (T-0282)
             Assert.Equal(new[] { "item-143", "item-210", "cave-enter-cave06", "cave-exit-cave06", "endgame-cutscene" },
                          a.SplitEvents());
         }
@@ -155,7 +155,7 @@ namespace ForestOverlay.Tests
             LssAutoSplit a = LssAutoSplit.Read(layout, out error);
             Assert.NotNull(a);
             Assert.Equal("layout", a.Source);
-            Assert.Equal(new[] { "hold-interact", "moving" }, a.StartEvents());
+            Assert.Equal(new[] { "hold-interact", "first-input" }, a.StartEvents());
             Assert.Equal(new[] { "passenger-3", "endgame-cutscene" }, a.SplitEvents());
         }
 
@@ -191,7 +191,7 @@ namespace ForestOverlay.Tests
             Assert.Equal("my file", LssSegmentBuilder.Build(run, null, "my file").Name);
             Assert.Equal("LiveSplit", s.Category);
             Assert.True(s.IsTimed);
-            Assert.Equal("event moving", TriggerParser.Write(s.Start));
+            Assert.Equal("event first-input", TriggerParser.Write(s.Start));
             Assert.Equal(3, s.Checkpoints.Count);
             for (int i = 0; i < 3; i++) Assert.Equal("event autosplit", TriggerParser.Write(s.Checkpoints[i]));
             Assert.Equal("event autosplit", TriggerParser.Write(s.End));
@@ -213,14 +213,14 @@ namespace ForestOverlay.Tests
             LssAutoSplit a = ReadReal();
             a.Values["mealStart"] = true;
             Segment s = LssSegmentBuilder.Build(run, a, "file");
-            Assert.Equal("event hold-interact|moving", TriggerParser.Write(s.Start));
+            Assert.Equal("event hold-interact|first-input", TriggerParser.Write(s.Start));
 
             TriggerState st = new TriggerState();
             Assert.False(TriggerEvaluator.Crossed(s.Start, ref st, Vector3.zero, null, null, null));
-            Assert.True(TriggerEvaluator.Crossed(s.Start, ref st, Vector3.zero, null, "MOVING", null));
-            Assert.False(TriggerEvaluator.EventMatches("hold-interact|moving", "hold"));
-            Assert.False(TriggerEvaluator.EventMatches("hold-interact|moving", "moving|"));
-            Assert.True(TriggerEvaluator.EventMatches("hold-interact | moving", "hold-interact"));
+            Assert.True(TriggerEvaluator.Crossed(s.Start, ref st, Vector3.zero, null, "FIRST-INPUT", null));
+            Assert.False(TriggerEvaluator.EventMatches("hold-interact|first-input", "hold"));
+            Assert.False(TriggerEvaluator.EventMatches("hold-interact|first-input", "first-input|"));
+            Assert.True(TriggerEvaluator.EventMatches("hold-interact | first-input", "hold-interact"));
         }
 
         [Fact]

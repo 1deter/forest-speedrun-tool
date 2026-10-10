@@ -33,6 +33,11 @@ namespace ForestOverlay.Data
                     if (value == "in-place") { s.StartRestoreWithLoad = false; return null; }
                     return "bad restore (in-place or load): " + value;
 
+                case "keep":
+                    if (value == "loaded") { s.KeepLoaded = true; return null; }
+                    if (value == "no") { s.KeepLoaded = false; return null; }
+                    return "bad keep (loaded or no): " + value;
+
                 case "startstate": s.StartState = value; return null;
                 case "run": s.RunCategory = value; return null;
                 case "cave": s.Cave = value.ToLowerInvariant(); return null;
@@ -139,6 +144,7 @@ namespace ForestOverlay.Data
             }
 
             if (s.StartRestoreWithLoad) sb.Append("restore  = load").Append(nl);
+            if (s.KeepLoaded) sb.Append("keep     = loaded").Append(nl);
             if (!string.IsNullOrEmpty(s.StartState)) sb.Append("startstate = ").Append(s.StartState).Append(nl);
             if (!string.IsNullOrEmpty(s.RunCategory)) sb.Append("run      = ").Append(s.RunCategory).Append(nl);
             if (s.AutoSplit.Count > 0) sb.Append("autosplit = ").Append(AutoSplitText(s)).Append(nl);

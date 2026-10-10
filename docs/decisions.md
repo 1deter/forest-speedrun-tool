@@ -24,6 +24,26 @@ conversation concrete. Once there is a ruling, circle back and enforce it.
 
 Flower/plant coordinate display is **out of scope by the author's own call**.
 
+### What v1.0 is (author, 2026-10-10)
+
+v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
+1. **The redesign released** - T-0025 (QA, merge `ui-redesign`, release)
+   with T-0018..T-0024, T-0226, T-0253, T-0256..T-0258, T-0270..T-0272
+   and the Settings follow-ups T-0254, T-0255, T-0259..T-0264.
+2. **The cloud branches merged** (done, v0.24.272) - T-0265 + T-0218, T-0217, T-0244,
+   T-0232, T-0223 (each after forest-checker).
+3. **Plugin correctness and stability** - hangs / crashes (T-0284, T-0246,
+   T-0056, T-0276, T-0058), savestate gaps (T-0029, T-0065, T-0067,
+   T-0269, T-0273), performance (T-0202, T-0072, T-0274, T-0275,
+   T-0277..T-0280).
+4. **Before going public** - T-0084 (site security audit), T-0241 (QA tab
+   out), T-0227 (final exhaustive test), T-0047 (run mode by hand with the
+   author); the moderators publishing the categories is outside our hands.
+
+**After v1:** the bot and knowledge work (paused), T-0046 (maintainability,
+a lighter repo) and the P4 idea list (TAS, route optimiser, 1v1, the exact
+3D world, research cards).
+
 ### The tool first (author, 2026-10-08)
 
 "Focus development on the tool rather than anything external to it, as i want
@@ -125,6 +145,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   back to a Full load (a savestate / spot restore; the Deaths tab's slot
   reload in place and Go have no file to load and only log it). The death count a load gives (0) applies to every
   restore in place.
+- **Spot edits are saved locally at once; the website only gets what is
+  uploaded** (author, 2026-10-10, T-0217 - maks lost a rename, category
+  moves and a timed spot's end to a restart): every Practice editor edit
+  is written to the runner's own spot file by itself; upload / sharing
+  sends only what the runner explicitly sends, so a shared spot is never a
+  half-edit. The editor has no Save or Reload button (author, 2026-10-10:
+  the file always matches the editor); a write waits 1 s after the last
+  edit, at most 5 s while a value is dragged.
 - **Deleting a spot here never deletes it online** (author, 2026-10-09,
   T-0265): the local Delete and *Delete from the website* are separate;
   the owner can add their spot back from the site, edit it and upload
@@ -257,6 +285,25 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
+- **Keep loaded** (author, 2026-10-08 / 10-10, T-0212): a spot can load
+  its start state once and then restart cheaply (teleport + the player and
+  the endgame movers put back) - a general option, not lab-skip specific;
+  a toggle on the Start state row named *Keep loaded* (a toggle is "kind
+  of annoying, but it works"). The state must reload by itself when the
+  world no longer matches: **any scene load or unload** since the restore
+  (chosen over "the areas line differs"), and a death or another load.
+- **A run starts on the first input** (author, 2026-10-10, T-0282): any
+  input but the pause menu (Esc) and the camera starts it - the inventory,
+  the book, sprint alone all count ("any other input means intent"); the
+  velocity start `moving` goes (it existed only because the LiveSplit
+  autosplitter cannot read input). Stored `moving` starts become
+  `first-input` and their old times **retire** through the route
+  fingerprint (the start moved).
+- **Unity's own errors go into every session log and report zip, and a
+  crashed session's log is kept beside its crash folder** (author,
+  2026-10-10, T-0276: "yes" to both): `Unity:` lines (errors, asserts,
+  exceptions, rate-limited) + `logs/unity.log`; at the next launch a Unity
+  crash folder gets `ForestOverlay-LogOutput.log` + `ForestOverlay-unity.log`.
 
 ## Run mode
 

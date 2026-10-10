@@ -51,7 +51,7 @@ namespace ForestOverlay.Modules
         private readonly List<AttemptChain.EventInfo> _attemptEvents = new List<AttemptChain.EventInfo>();
         private readonly List<string> _auditLast = new List<string>();
         private readonly GUIContent _auditText = new GUIContent("");
-        private int _auditBuiltFor = -1;
+        private int _auditBuiltFor = -1, _auditMovesBuiltFor;
 
         private int _eventsSeen, _deathsSeen, _auditLines, _auditSkipped;
         private bool _firstInputSeen, _paused, _auditLoaded;
@@ -187,7 +187,7 @@ namespace ForestOverlay.Modules
                 if (IsEndgameEvent(name)) { Write(ms, name, detail); continue; }
                 // Everything else is a copy of the above (cave-enter-cave06,
                 // passenger-3, keycard-door-210, vault-door, game-end) or a
-                // run start trigger (moving, hold-interact).
+                // run start trigger (first-input, hold-interact).
             }
             _eventsSeen = count;
         }
@@ -378,6 +378,7 @@ namespace ForestOverlay.Modules
             e.RealMs = ms; e.TimerMs = timer; e.Kind = kind; e.HasPos = hasPos; e.X = x; e.Y = y; e.Z = z;
             e.Detail = AttemptChain.Clean(detail);
             _attemptEvents.Add(e);
+            if (!RunAudit.InReport(kind)) return;   // in the log (and the replay's markers), not the report
             _auditLast.Add(RunAudit.Clock(ms) + "  " + RunAudit.Label(kind) + (e.Detail.Length > 0 ? ": " + e.Detail : ""));
             if (_auditLast.Count > AuditShown) _auditLast.RemoveAt(0);
         }
@@ -418,8 +419,9 @@ namespace ForestOverlay.Modules
         private void RebuildAuditText()
         {
             int key = _attemptEvents.Count * 2 + (AuditOpen ? 1 : 0);
-            if (key == _auditBuiltFor) return;
+            if (key == _auditBuiltFor && _attemptMoveKinds.Count == _auditMovesBuiltFor) return;
             _auditBuiltFor = key;
+            _auditMovesBuiltFor = _attemptMoveKinds.Count;
             if (_attemptEvents.Count == 0)
             {
                 _auditText.text = AuditWatch.Status.StartsWith("watching") && !AuditWatch.Status.Contains("not found") ? ""
@@ -429,7 +431,7 @@ namespace ForestOverlay.Modules
             StringBuilder sb = new StringBuilder(512);
             sb.Append("What happened in attempt ").Append(_report != null ? _report.Attempt.ToString() : "?")
               .Append(AuditOpen ? " so far" : "").Append(" (in its log - the attempt page shows the full timeline):");
-            List<string> rundown = RunAudit.Rundown(_attemptEvents);
+            List<string> rundown = RunAudit.Rundown(_attemptEvents, _attemptMoveKinds);
             for (int i = 0; i < rundown.Count; i++) sb.Append("\n- ").Append(rundown[i]);
             sb.Append("\nLast ").Append(_auditLast.Count == 1 ? "line" : _auditLast.Count + " lines").Append(':');
             for (int i = 0; i < _auditLast.Count; i++) sb.Append("\n  ").Append(_auditLast[i]);

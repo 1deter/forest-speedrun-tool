@@ -20,6 +20,10 @@ namespace ForestOverlay.Core
     // BepInEx holds the log open with read sharing, so it is read with
     // FileShare.ReadWrite. Main thread: only the new bytes are read, and
     // only when the length changed.
+    //
+    // Before the pruning, a crashed session's copy goes into Unity's crash
+    // folder beside TheForest.exe (T-0276, Data/CrashFolders), with
+    // logs/unity.log: the rotation would lose it three launches later.
     // ------------------------------------------------------------------
     public sealed class LogKeeper
     {
@@ -37,7 +41,10 @@ namespace ForestOverlay.Core
         /// The folder holding the kept logs (the report zips it).
         public string Folder { get { return _folder; } }
 
-        public LogKeeper(string bepinexRoot, string configDir, int keepPrevious, ManualLogSource log)
+        /// This session's copy's file name (LogArchive).
+        public string SessionName { get { return Path.GetFileName(_target); } }
+
+        public LogKeeper(string bepinexRoot, string gameRoot, string configDir, int keepPrevious, ManualLogSource log)
         {
             _log = log;
             _source = Path.Combine(bepinexRoot, "LogOutput.log");
@@ -52,6 +59,7 @@ namespace ForestOverlay.Core
                 string[] paths = Directory.GetFiles(_folder);
                 List<string> names = new List<string>(paths.Length);
                 for (int i = 0; i < paths.Length; i++) names.Add(Path.GetFileName(paths[i]));
+                KeepCrashedSessions(gameRoot, names);
                 List<string> delete = LogArchive.ToDelete(names, name, keepPrevious);
                 for (int i = 0; i < delete.Count; i++)
                 {
@@ -67,6 +75,39 @@ namespace ForestOverlay.Core
                 _failed = true;
                 _log.LogWarning("Log copies off: " + ex.Message);
             }
+        }
+
+        // Each crash folder without our copy gets its session's log, if it is
+        // still kept. A folder whose session is gone is looked at again at
+        // every launch: a directory listing, nothing read.
+        private void KeepCrashedSessions(string gameRoot, List<string> names)
+        {
+            if (string.IsNullOrEmpty(gameRoot)) return;
+            try
+            {
+                string[] dirs = Directory.GetDirectories(gameRoot);
+                for (int i = 0; i < dirs.Length; i++)
+                {
+                    string dir = dirs[i];
+                    DateTime unused;
+                    if (!CrashFolders.TryParse(Path.GetFileName(dir), out unused)) continue;
+                    string kept = Path.Combine(dir, CrashFolders.KeptLogName);
+                    if (File.Exists(kept)) continue;
+                    string session = CrashFolders.SessionFor(Path.GetFileName(dir), names);
+                    if (session == null) continue;
+                    try
+                    {
+                        File.Copy(Path.Combine(_folder, session), kept);
+                        string unity = Path.Combine(_folder, UnityErrorLog.FileName);
+                        bool withUnity = File.Exists(unity);
+                        if (withUnity) File.Copy(unity, Path.Combine(dir, CrashFolders.KeptUnityLogName), true);
+                        _log.LogInfo("Log copies: crash folder " + Path.GetFileName(dir) + " - its session's log (" + session + ")" +
+                                     (withUnity ? " and logs/" + UnityErrorLog.FileName : "") + " copied beside the crash dump");
+                    }
+                    catch (Exception ex) { _log.LogWarning("Log copies: crash folder " + Path.GetFileName(dir) + ": " + ex.Message); }
+                }
+            }
+            catch (Exception ex) { _log.LogWarning("Log copies: crash folders not looked at: " + ex.Message); }
         }
 
         /// Called every frame with Time.realtimeSinceStartup.

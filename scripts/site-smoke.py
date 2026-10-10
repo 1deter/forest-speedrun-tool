@@ -127,6 +127,7 @@ def check_api(base, attempt):
     fails = []
     for path, want in (("/api/spots", SPOT), ("/api/spots/" + SPOT, "Test dash"),
                        ("/api/categories.txt", None), ("/api/attempts/" + attempt, attempt),
+                       ("/api/official", "[]"),   # nothing published here: no category named
                        ("/api/nope", None)):
         st, text = http(base, "GET", path)
         expect = 404 if path == "/api/nope" else 200

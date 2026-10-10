@@ -278,6 +278,34 @@ namespace ForestOverlay.Tests
             Assert.False(back[0].StartRestoreWithLoad);
         }
 
+        // Keep loaded (T-0212): written only when on, so other segments save
+        // byte-identical; never part of the route.
+        [Fact]
+        public void KeepLoadedRoundTripsAndIsOmittedWhenOff()
+        {
+            Segment s = Sample();
+            Assert.DoesNotContain("keep", Write(s));
+            Assert.False(Parse(Write(s))[0].KeepLoaded);
+
+            string route = s.RouteFingerprint();
+            s.KeepLoaded = true;
+            string text = Write(s);
+            Assert.Contains("keep     = loaded", text);
+            Assert.True(Parse(text)[0].KeepLoaded);
+            Assert.Equal(route, s.RouteFingerprint());
+        }
+
+        [Fact]
+        public void BadKeepValueWarnsAndKeepsTheSegment()
+        {
+            string text = Write(Sample()).Replace("notes", "keep     = forever" + NL + "notes");
+            int warnings = 0;
+            List<Segment> back = SegmentFormat.ParseAll(text.Split('\n'), delegate(int line, string m) { warnings++; });
+            Assert.Single(back);
+            Assert.Equal(1, warnings);
+            Assert.False(back[0].KeepLoaded);
+        }
+
         // Which start state the segment was timed from. Omitted when there
         // is none, so segments without one save byte-identical.
         [Fact]

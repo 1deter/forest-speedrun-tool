@@ -2,6 +2,68 @@
 
 Pick up here entries replaced at later handoffs, kept for reference (moved out of CLAUDE.md 2026-10-04). Facts in them live in their own homes (game-notes, cards, run-mode.md); this is the narrative.
 
+## Moved out 2026-10-10 (after loop R-0006)
+
+- **v0.24.266 (2026-10-09, T-0248):** a restore in place / Go during the
+  game's own death ends it (`Game/DeathSequence`: the chain's Invokes and
+  coroutines, the drag-away clones, the hanging rope, controls, body,
+  cameras), Full load if it cannot; every restore in place sets
+  `DeadTimes` 0 as a load does (maks: menu after 2 deaths, rope stuck on
+  the hips). Proved over the bridge step by step + a field diff against a
+  Full load (gotcha 103). **Confirmed in game** by forest-tester (drag-
+  away, hanging, death count, real death + restore, plain restore).
+  New: T-0269 (body temperature not in the save).
+- **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
+  title after a return to it (pause-menu exit). There `TitleScreen.Instance`
+  is null and the component disabled (bridge; game-notes *Loading a save
+  from the title screen*), so `TitleLoad.FindTitle` looks it up by path.
+  Also maks's MARK (quick load "shot back to main menu"). Confirmed in
+  game by forest-tester (restart + quick-load through the title).
+- **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
+  (the game publishes EnterEndgame at the box crossing and again after the
+  door's load; a Publish prefix drops an enter while `IsInEndgame` is
+  already true, a leave while already out). Waits for forest-tester: a
+  vault-door entry logs one enter, and a first enter after a restore / Go
+  still logs (the checker: AreaKeeper sets the flag by hand).
+- **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
+  launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
+  recorded live with the author), not the zero-speed lift. Waits for
+  forest-tester in game. T-0243 is `needs: tester` now (the bouncy body
+  slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
+  log, asked in QA). The run in T-0243's QA message is maks's
+  a-58adeca311c01f61.
+- **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
+  (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
+  every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
+  The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
+  branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
+  Desktop: T-0144 merged + checker-accepted (unreleased - needs a release
+  + in-game check), T-0216 / T-0221 closed (author). New: T-0265 (local
+  spot delete stays local; owner re-edits from the site).
+- **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
+  20 loop rounds + ~40 cloud-session tasks; releases v0.24.252..258 (the
+  restart hitches, the endgame material leak, the red-elevator restart,
+  the 100% tab's errors, another segment's red line, the armed log line,
+  the Inventory log cap); bot full eval 285/353 and three record-holder
+  answers fixed; Megan / multi-thrower / body-slide research live.
+  Cloud sessions (one-time routines, `cloud/*` branches, merged after a
+  checker) share the account's 5-hour limit. Task-file writes take a lock
+  (T-0197 / T-0201). While a loop run is open every hook ask is a refusal.
+- **Answered 2026-10-08** (ready to build): T-0194 runner spots keep
+  their start state; T-0207 try the prompt proposal (branch
+  `t-0207-prompt-proposal`); T-0198 / T-0203 perf switches (no sign-off
+  needed - docs/decisions.md *Plugin*); T-0109 / T-0111 / T-0112 (run
+  mode), T-0212 (lab-skip restarts). T-0210 closed (leftover redesign HUD
+  position). Bot review 2026-10-08 (3): the trigger counts uses of the bot,
+  not chat; T-0220 moves it to the answer log (runners `/ask` in the
+  speedrun server's general chat, which the bot can't read - the author
+  asks its admins).
+- **T-0231 live (2026-10-08, built, author-eyes):** the site's Bot tab got
+  a Discord-style unsaved-changes bar + server > category grouping; the
+  author's channel untick had never been saved (rev 1 still ticks The
+  Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
+  the nature guide map - answered, maks's route, registration research).
+
 ## Before that (2026-10-07, before the first loop run)
 
 - **Start:** skill `session-start` (the SessionStart hook's report is

@@ -194,72 +194,94 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
+  is*: plugin correctness and stability - T-0246, T-0056,
+  T-0058, savestate gaps, perf; T-0290 waits for a `Stall:` line); group
+  2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
+  held: the Filter box also lists unheld items, greyed x0 - author's
+  answer recorded). Also
+  waiting: the v0.24.272 smoke + forest-tester pass (below), and the
+  live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.274 (2026-10-10, T-0276):** Unity's own errors / asserts /
+  exceptions (render thread included) are logged as `Unity: [Error] ...`
+  (repeats differing only in digits counted, 30 lines a minute) and
+  written at once to `logs/unity.log`; at the next launch a Unity crash
+  folder (named after the *process start*, game-notes) gets
+  `ForestOverlay-LogOutput.log` + `ForestOverlay-unity.log`. Proved on the
+  branch build (managed + native errors, 50 repeats -> 2 lines, two test
+  crash folders); smoke PASS, and a Slot 1 load logs one real engine line
+  (`Setting mipmap mode of already created render texture`). Not proved:
+  an off-main-thread line (the bridge cannot log from another thread) -
+  the next d3d11 crash's folder should show it. To confirm (not its
+  maker): forest-tester - bridge `call static:UnityEngine.Debug LogError
+  "x id=1"` -> one `Unity:` line; a folder `<process start>` with
+  error.log beside TheForest.exe gets the copies at the next launch.
+- **v0.24.273 (2026-10-10, T-0284):** a main-thread stall watch
+  (`Core/StallWatch`): a freeze of 10 s or more logs `Stall:` with the
+  plugin hook / module / tab it was in, or "outside the plugin", and
+  "back after"; during the hang into `config/ForestOverlay/logs/stall.log`
+  (in the report zip). Proved by a forced 12 s freeze; the Slot 1 title
+  load hang did not come back in 12 loads (10 fresh launches). The cause
+  is **T-0290** (blocked on T-0284 until a hang is caught; if the line
+  says "outside", try with `AllocationTrackerAtStartup` off - it is on in
+  the author's config). Smoke PASS; to confirm (not its maker):
+  forest-tester repeats the forced stall (bridge `call static:System.Threading.Thread
+  Sleep 12000` -> `Stall:` naming `bridge`, then `back after`).
+- **v0.24.272 (2026-10-10, cloud branches merged):** spots autosave, no
+  Save / Reload (T-0217); a local Delete stays local, your own spot comes
+  back from the site, Replace? / take-back disarm the old route (T-0265,
+  T-0218); the run report lists the moves, tree cuts out (T-0244). Site
+  (deployed with the push): official runs - each runner's best, recent 5
+  + average, red runs hidden, a route replay on the attempt page (T-0223);
+  PB posts are embeds from every spot with a WR / PB notification line,
+  three spot kinds in the footer (T-0232, T-0285..T-0288). Every word
+  approved by the author; all checker-accepted. **Waits for in game**
+  (forest-tester): the steps in tasks/notes/T-0217.md and T-0265.md; open
+  minors there (an invalid entry holds back its file's other edits;
+  Replace? over an armed spot says "the spot was deleted").
+  `cloud/on-now-wrap` / `cloud/results-escape` merged (notes only; both
+  tasks wontfix).
+- **v0.24.271 (2026-10-10, T-0212):** *Keep loaded* on a spot's Start
+  state row - the start state loads once, then restarts put back the
+  player + the endgame's elevators / doors and teleport (0.01 s vs a 0.4 s
+  Quick load) until any scene load / unload, a restore or a death
+  (decisions.md *Plugin*; plugin-concepts *Segment start states*). Proved
+  on the branch build (elevator put back, item / health back, a scene and
+  a death reload); the sliding doors have no line of their own yet - check
+  them in the smoke / forest-tester pass. **T-0284** (new, P3): a Slot 1
+  load from the title screen hung once in three (managed OnGUI loop after
+  `Query state`; the author: vanilla never hangs) - its notes hold the
+  stack sample.
+- **v0.24.270 (2026-10-10, T-0282):** a run starts on `first-input` -
+  every Rewired action but Esc / Mouse X / Mouse Y (game-notes *World
+  events*); the velocity start `moving` is gone, a stored one reads as
+  `first-input` and its old times retire (decisions.md *Plugin*). Proved
+  on the branch build (mouse look + Esc silent, Space fires); waits for
+  the smoke + forest-tester on the release. QA's bot-context request
+  filed as T-0283 (bot paused). T-0202's question answered from T-0280
+  (keep the forced GC) - back to its checker's revise points.
+- **Loop R-0006 (2026-10-10 night, author away; `loop.py report`):** 5
+  rounds, 4 progressed. **v0.24.268** (T-0075): a cave spot restarted from
+  the endgame leaves it as walking out does, so the cave's props load
+  (body piles, ropes, planks). **v0.24.269** (T-0184): no ~24 ms hitch on
+  Go / auto-restart (elevator rides tracked, not scanned). Both confirmed
+  by forest-tester on the release. T-0190: the d3d11 texture crash is the
+  engine's (gotcha 104). T-0199: no safe main-camera draw cut.
+  **T-0202 parked** on branch `t-0202-restore-garbage` (not on main):
+  restore garbage -23%, checker block until the author answers T-0280.
+  **Author questions:** T-0277 (in-cave terrain cut), T-0280 (the forced
+  GC per Quick load), T-0276 (Unity's own errors into the session log),
+  T-0273 (stalagmites in normal play). New: T-0274 / T-0275 / T-0278 /
+  T-0279. The loop's context cap is 300k (trial, author 2026-10-10).
+  `AllocationTrackerAtStartup` was found on in the author's config (default
+  off) - left as found.
 - **v0.24.267 (2026-10-10, T-0214):** a savestate capture no longer
   rewrites the loaded slot's `info` file + its Steam Cloud copy
   (`GameStats.OnSerializing` runs on every `SerializeLevel`; game-notes
   *The slot's info file*; `Game/SlotInfoGuard`). Ends the smoke's
   "Slot 1 changed" hygiene problem. **Confirmed** by the v0.24.267 smoke.
-- **v0.24.266 (2026-10-09, T-0248):** a restore in place / Go during the
-  game's own death ends it (`Game/DeathSequence`: the chain's Invokes and
-  coroutines, the drag-away clones, the hanging rope, controls, body,
-  cameras), Full load if it cannot; every restore in place sets
-  `DeadTimes` 0 as a load does (maks: menu after 2 deaths, rope stuck on
-  the hips). Proved over the bridge step by step + a field diff against a
-  Full load (gotcha 103). **Confirmed in game** by forest-tester (drag-
-  away, hanging, death count, real death + restore, plain restore).
-  New: T-0269 (body temperature not in the save).
-- **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
-  title after a return to it (pause-menu exit). There `TitleScreen.Instance`
-  is null and the component disabled (bridge; game-notes *Loading a save
-  from the title screen*), so `TitleLoad.FindTitle` looks it up by path.
-  Also maks's MARK (quick load "shot back to main menu"). Confirmed in
-  game by forest-tester (restart + quick-load through the title).
-- **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
-  (the game publishes EnterEndgame at the box crossing and again after the
-  door's load; a Publish prefix drops an enter while `IsInEndgame` is
-  already true, a leave while already out). Waits for forest-tester: a
-  vault-door entry logs one enter, and a first enter after a restore / Go
-  still logs (the checker: AreaKeeper sets the flag by hand).
-- **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
-  launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
-  recorded live with the author), not the zero-speed lift. Waits for
-  forest-tester in game. T-0243 is `needs: tester` now (the bouncy body
-  slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
-  log, asked in QA). The run in T-0243's QA message is maks's
-  a-58adeca311c01f61.
-- **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
-  (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
-  every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
-  The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
-  branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
-  Desktop: T-0144 merged + checker-accepted (unreleased - needs a release
-  + in-game check), T-0216 / T-0221 closed (author). New: T-0265 (local
-  spot delete stays local; owner re-edits from the site).
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
-- **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
-  20 loop rounds + ~40 cloud-session tasks; releases v0.24.252..258 (the
-  restart hitches, the endgame material leak, the red-elevator restart,
-  the 100% tab's errors, another segment's red line, the armed log line,
-  the Inventory log cap); bot full eval 285/353 and three record-holder
-  answers fixed; Megan / multi-thrower / body-slide research live.
-  Cloud sessions (one-time routines, `cloud/*` branches, merged after a
-  checker) share the account's 5-hour limit. Task-file writes take a lock
-  (T-0197 / T-0201). While a loop run is open every hook ask is a refusal.
-- **Answered 2026-10-08** (ready to build): T-0194 runner spots keep
-  their start state; T-0207 try the prompt proposal (branch
-  `t-0207-prompt-proposal`); T-0198 / T-0203 perf switches (no sign-off
-  needed - docs/decisions.md *Plugin*); T-0109 / T-0111 / T-0112 (run
-  mode), T-0212 (lab-skip restarts). T-0210 closed (leftover redesign HUD
-  position). Bot review 2026-10-08 (3): the trigger counts uses of the bot,
-  not chat; T-0220 moves it to the answer log (runners `/ask` in the
-  speedrun server's general chat, which the bot can't read - the author
-  asks its admins).
-- **T-0231 live (2026-10-08, built, author-eyes):** the site's Bot tab got
-  a Discord-style unsaved-changes bar + server > category grouping; the
-  author's channel untick had never been saved (rev 1 still ticks The
-  Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
-  the nature guide map - answered, maks's route, registration research).
 - **Redesign (2026-10-10):** main (v0.24.267) merged into `ui-redesign`
   (2997114). Built + checker-accepted on the branch: T-0024 (cursor),
   T-0226 (*Developer* tab, Settings as folds; `tasks/notes/T-0226.md`),

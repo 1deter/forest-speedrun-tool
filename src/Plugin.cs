@@ -32,7 +32,7 @@ namespace ForestOverlay
     {
         public const string PluginGuid = "com.deter.forestoverlay";
         public const string PluginName = "ForestOverlay";
-        public const string PluginVersion = "0.24.269";
+        public const string PluginVersion = "0.24.274";
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
@@ -88,7 +88,8 @@ namespace ForestOverlay
                 int keptLogs = Config.Bind("Diagnostics", "KeptLogs", 3,
                     "How many previous sessions' LogOutput.log to keep in config/ForestOverlay/logs " +
                     "(the game replaces LogOutput.log on every launch).").Value;
-                _logs = new LogKeeper(Paths.BepInExRootPath, configDir, keptLogs, Logger);
+                _logs = new LogKeeper(Paths.BepInExRootPath, Paths.GameRootPath, configDir, keptLogs, Logger);
+                UnityErrorLog.Start(Logger, _logs.Folder, _logs.SessionName + " v" + PluginVersion);
 
                 // Before any module loads, so they read the shipped lists.
                 Data.ShippedData.Install(configDir, Logger);
@@ -129,6 +130,7 @@ namespace ForestOverlay
                 _host = new ModuleHost(ctx);
                 BuildModules(_host);
                 _host.InitialiseAll();
+                StallWatch.Start(Logger, _logs != null ? _logs.Folder : null, _host.ModuleNames());
 
                 // Registered through the same table as every module key so
                 // it is rebindable and shows up in the settings panel.
@@ -187,6 +189,9 @@ namespace ForestOverlay
         {
             try
             {
+                StallWatch.Beat(Time.frameCount);
+                StallWatch.At(StallWatch.Hook.Update, -1);
+                UnityErrorLog.Flush();
                 if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
                 if (_host == null) return;
 
@@ -212,6 +217,7 @@ namespace ForestOverlay
                                (_host.UiVisible && (_host.AnyPanelOpen() || _notice.Active));
             }
             catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.Update", ex); }
+            finally { StallWatch.Leave(); }
         }
 
         private void ToggleAllUi()
@@ -224,6 +230,13 @@ namespace ForestOverlay
         private void ToggleInfoBox()
         {
             _host.HudVisible = !_host.HudVisible;
+        }
+
+        // Unfocused with runInBackground off, Unity stops the frames: not a stall.
+        private void OnApplicationFocus(bool focused)
+        {
+            try { StallWatch.SetPaused(!focused && !Application.runInBackground); }
+            catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.OnApplicationFocus", ex); }
         }
 
         private void OnApplicationQuit()
@@ -240,6 +253,7 @@ namespace ForestOverlay
                 catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
 
                 if (_events != null) _events.Uninstall();
+                UnityErrorLog.Stop();
             }
             catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.OnDestroy", ex); }
         }
@@ -251,6 +265,7 @@ namespace ForestOverlay
 
             try
             {
+                StallWatch.At(StallWatch.Hook.OnGui, -1);
                 // Run mode's code stays on screen with the overlay hidden:
                 // a recording needs it (docs/run-mode.md phase 2).
                 if (!_host.UiVisible) { _host.DrawScreensAlways(); return; }
@@ -259,11 +274,19 @@ namespace ForestOverlay
                 bool exact = AllocationTracker.Counting;
                 long bytes0 = exact ? AllocationTracker.MainBytes : 0;
                 EnsureStyles();
-                if (_host.HudVisible) DrawHud();
+                if (_host.HudVisible)
+                {
+                    StallWatch.At(StallWatch.Hook.DrawHud, -1);
+                    DrawHud();
+                }
                 _host.DrawScreens();
                 _host.DrawScreensAlways();
                 _host.DrawPanels();
-                if (_notice.Active) DrawNotice();
+                if (_notice.Active)
+                {
+                    StallWatch.At(StallWatch.Hook.Notice, -1);
+                    DrawNotice();
+                }
                 _host.Perf.EndAlloc(allocStart);
                 if (exact && AllocationTracker.Counting) _host.CountGuiAlloc(AllocationTracker.MainBytes - bytes0);
             }
@@ -274,6 +297,7 @@ namespace ForestOverlay
                 _host.HudVisible = false;
                 Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
             }
+            finally { StallWatch.Leave(); }
         }
 
         private void EnsureStyles()
@@ -324,8 +348,10 @@ namespace ForestOverlay
 
         private void DrawNoticeWindow(int id)
         {
+            StallWatch.At(StallWatch.Hook.Notice, -1);
             GUI.Box(new Rect(0f, 0f, 560f, Mathf.Max(48f, _noticeStyle.CalcHeight(_notice.Content, 560f) + 16f)),
                 _notice.Content, _noticeStyle);
+            StallWatch.Leave();
         }
 
         // Text size from Settings -> HUD; 0 = the skin's own (the old look).
