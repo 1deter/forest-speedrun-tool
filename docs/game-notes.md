@@ -3961,7 +3961,11 @@ the restore: caves yes, endgame yes ... (no Cave_0N_Props_Streaming)`, no
 colliders instead of 20. `AreaReport.LeaveEndgame()` (the LoadEndgame
 box's backward crossing, `ExitEndgame`) by bridge: flag false, Cave 6's
 props loaded and 16 pile colliders there within 4 s. Fixed in the restore
-(docs/savestates.md).
+(docs/savestates.md). Sending ExitEndgame after the cave state does not
+light the cave: its listener switches `TimeAndWeather/R10` (the sun) on,
+but R10 is on in a normal cave visit too - live, a restart from the lab
+and one from inside the cave read the same (R10 active, `caveAmt` 1,
+ambient 1 / 0.206 grey) and looked the same on screen.
 
 **The Cave 6 body piles are deterministic.** Five `GreebleZone`s
 (`C6_Props/C6_secretRoom02/Greeble_BodyPiles*`: Box 5 x 5 x 10, 4-8

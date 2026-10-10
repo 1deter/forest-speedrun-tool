@@ -85,6 +85,10 @@ namespace ForestOverlay.Tests
             Assert.False(CapturedAreas.ShouldLeaveEndgame(InCave6, false));
             Assert.False(CapturedAreas.ShouldLeaveEndgame(InLab, true));
             Assert.False(CapturedAreas.ShouldLeaveEndgame(VaultDoorOpening, true));
+            // The lab loaded at capture with the flag unset (the flag is not
+            // in the save): the restore loads the lab, so it stays.
+            Assert.False(CapturedAreas.ShouldLeaveEndgame(
+                "caves no, endgame no, overlook no | scenes: ForestMain_v08, endgame_animPrefabs, endgame_streaming | streamed: (none)", true));
             // No header (old files, a slot reload) or an unreadable flag.
             Assert.False(CapturedAreas.ShouldLeaveEndgame("", true));
             Assert.False(CapturedAreas.ShouldLeaveEndgame(null, true));
