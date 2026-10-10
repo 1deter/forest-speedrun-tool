@@ -96,12 +96,15 @@ when an update is out), tab strip as pills (active = accent underline), body
 [x] Practice mode        Segment: Cave 5 -> Cave 6        (header, always)
 [ Restart ] [ Split / finish ] [ Abort ]      Compare to: [best v]
 -- Run mode ---------------------------------------- (open)
--- Splits table ------------------------------------ (open)
 -- Attempts ---------------------------------------- (open, fills the rest)
 > Checkpoint states     > Comparison sources (runner / LiveSplit)
 > Run lines             > Ghost and replay            > Upload to the site
-> Splits panel options  > TAS                          > Clear times
+> TAS                   > Clear times
 ```
+T-0257 (2026-10-10): no splits table in the tab - the splits and results
+panels are overlays, switched on, set up, moved and resized in Edit HUD
+mode (its *Panels* group); the runner name is under *Upload to the site*,
+the PB / golds line on top of *Attempts*.
 Collapsed headers show a one-line summary on the right (e.g. "off",
 "3 states"). Descriptions move into tooltips.
 

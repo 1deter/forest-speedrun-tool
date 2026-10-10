@@ -123,6 +123,12 @@ namespace ForestOverlay.Core
         /// what a recording must show (run mode's code).
         public virtual void DrawScreenAlways() { }
 
+        /// The rows this module's on-screen panels add to the Edit HUD list
+        /// (the splits and results panels: author, 2026-10-10 - an overlay
+        /// is set up where it is shown). Draws from (0, y), `w` wide, inside
+        /// the list's scroll view; returns the y after its rows.
+        public virtual float DrawHudEditor(float y, float w) { return y; }
+
         public virtual void OnPanelToggled(bool open) { }
 
         public virtual void Shutdown() { }

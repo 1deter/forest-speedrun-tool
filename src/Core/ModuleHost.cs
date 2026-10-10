@@ -470,6 +470,19 @@ namespace ForestOverlay.Core
             }
         }
 
+        /// Every module's Edit HUD rows (OverlayModule.DrawHudEditor), in order.
+        public float DrawHudEditors(float y, float w)
+        {
+            for (int i = 0; i < _modules.Count; i++)
+            {
+                OverlayModule m = _modules[i];
+                if (!IsLive(m)) continue;
+                try { y = m.DrawHudEditor(y, w); }
+                catch (Exception ex) { Disable(m, "DrawHudEditor", ex); }
+            }
+            return y;
+        }
+
         public void DrawPanels()
         {
             // The overlay skin (Core/UiKit) only around the panels: the HUD,

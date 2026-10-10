@@ -343,39 +343,115 @@ namespace ForestOverlay.Modules
             }
         }
 
-        private void DrawResults()
+        private static readonly GUIContent ResultsPlaceholder = new GUIContent(
+            "Pops up here when a timed run finishes. Drag it to move, its right edge for the width.");
+
+        /// `editing`: Edit HUD mode - the panel shows (a placeholder when no
+        /// run has finished), moves by its body and sizes by its right edge.
+        private void DrawResults(bool editing)
         {
-            if (!ResultsShowing) return;
+            bool real = ResultsShowing;
+            if (!editing && _resResizing) EndResultsResize();
+            if (!real && !(editing && _resultsCfg.Value))
+            {
+                if (_resDragging) EndResultsDrag();   // hidden mid-drag (the edit ended)
+                return;
+            }
             EnsureSplitStyles();
             EnsureResultStyles();
 
-            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
+            float w = Mathf.Clamp(_resResizing ? _resLiveW : _resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
             float inner = w - 16f;
-            float h = ResultsBody(0f, 0f, inner, false, false) + 12f;
-            float px = _resDragging ? _resDragX : _resX.Value;
-            float py = _resDragging ? _resDragY : _resY.Value;
-            float x = px < 0f && !_resDragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            float h = real ? ResultsBody(0f, 0f, inner, false, false) + 12f
+                           : ResRowH + 8f + UiText.Height(inner, ResultsPlaceholder, _placeholderStyle) + 10f;
+            float x, y;
+            if (_resResizing) { x = _resResizeX; y = _resResizeY; }
+            else
+            {
+                float px = _resDragging ? _resDragX : _resX.Value;
+                float py = _resDragging ? _resDragY : _resY.Value;
+                x = px < 0f && !_resDragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
+                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            }
             Rect panel = new Rect(x, y, w, h);
 
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
             Event e = Event.current;
             bool overWindow = main != null && e != null && main.ScreenRect.Contains(e.mousePosition);
-            HandleResultsDrag(new Rect(x, y, w, ResRowH + 6f), overWindow);
+            if (editing) HandleResultsResize(panel, overWindow);
+            // Outside edit mode by the title (the buttons below are live).
+            if (!_resResizing) HandleResultsDrag(editing ? panel : new Rect(x, y, w, ResRowH + 6f), overWindow, editing || _resClickable);
 
             Color before = GUI.color;
             GUI.color = new Color(before.r, before.g, before.b, Mathf.Clamp01(Mathf.Max(Opacity, 0.85f)));
             GUI.Box(panel, GUIContent.none, _panelStyle);
             GUI.color = before;
-            if (_resDragging) GUI.Box(panel, GUIContent.none, UiKit.Outline);
-            ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
+            if (_resDragging || editing) GUI.Box(panel, GUIContent.none, UiKit.Outline);
+            if (real) ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
+            else
+            {
+                GUI.Label(new Rect(x + 8f, y + 6f, inner, ResRowH), ResultsPanelText, _titleStyle);
+                UiText.Draw(x + 8f, y + 8f + ResRowH, inner, ResultsPlaceholder, _placeholderStyle);
+            }
+            // The right edge's grip.
+            if (editing) GUI.Box(new Rect(panel.xMax - 5f, panel.y + panel.height * 0.5f - 12f, 5f, 24f), GUIContent.none, UiKit.Handle);
         }
 
-        private void HandleResultsDrag(Rect title, bool overWindow)
+        // Edit HUD mode: the right edge sets the width, written on release.
+        private bool _resResizing;
+        private float _resResizeX, _resResizeY, _resLiveW, _resResizeStartW, _resResizeStartMouse;
+
+        private void HandleResultsResize(Rect panel, bool overWindow)
         {
             Event e = Event.current;
             if (e == null) return;
-            if (!_resClickable)
+            Vector2 m = e.mousePosition;
+            switch (e.type)
+            {
+                case EventType.MouseDown:
+                    if (e.button != 0 || _resDragging || overWindow) return;
+                    if (m.x < panel.xMax - EdgeGrab || m.x > panel.xMax + EdgeGrab || m.y < panel.y || m.y > panel.yMax) return;
+                    _resResizing = true;
+                    _resResizeX = panel.x;
+                    _resResizeY = panel.y;
+                    _resLiveW = _resResizeStartW = panel.width;
+                    _resResizeStartMouse = m.x;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag:
+                    if (!_resResizing) return;
+                    _resLiveW = Mathf.Clamp(Mathf.Round(_resResizeStartW + m.x - _resResizeStartMouse), 300f,
+                                            Mathf.Max(300f, Screen.width - _resResizeX));
+                    e.Use();
+                    break;
+                case EventType.MouseUp:
+                    if (!_resResizing) return;
+                    EndResultsResize();
+                    e.Use();
+                    break;
+            }
+        }
+
+        // One file write for the three values.
+        private void EndResultsResize()
+        {
+            _resResizing = false;
+            ConfigFile c = Ctx.Config;
+            bool saveEach = c.SaveOnConfigSet;
+            c.SaveOnConfigSet = false;
+            _resX.Value = Mathf.Round(_resResizeX);
+            _resY.Value = Mathf.Round(_resResizeY);
+            _resWidth.Value = _resLiveW;
+            c.SaveOnConfigSet = saveEach;
+            c.Save();
+            Ctx.Log.LogInfo("Results panel resized to " + Mathf.RoundToInt(_resLiveW) + " px wide.");
+        }
+
+        private void HandleResultsDrag(Rect title, bool overWindow, bool allowed)
+        {
+            Event e = Event.current;
+            if (e == null) return;
+            if (!allowed)
             {
                 if (_resDragging) EndResultsDrag();
                 return;

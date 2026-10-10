@@ -46,10 +46,6 @@ label20	src/Modules/PracticeRunModule.Lines.cs	GUI.Label(new Rect(x + 130f + sli
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 312f), 20), _lssPickText);
 label20	src/Modules/PracticeRunModule.LiveSplit.cs	GUI.Label(new Rect(x + 102, y, cw - 102, 20), _lssFileText);
 label20	src/Modules/PracticeRunModule.Site.cs	GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
-label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(0, y, 70, 20), title);
-label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(120f + sliderW, y, 60, 20), _opacityText);
-label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _panelSizeText);
-label20	src/Modules/PracticeRunModule.Splits.cs	GUI.Label(new Rect(262, y, Mathf.Max(60f, w - 262f), 20), _precisionText);
 label20	src/Modules/UpdateModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _notesHeading);
 moveto	src/Game/EndgameLoader.cs	player.MoveTo(_holdAt, _holdRotation);
 moveto	src/Modules/SavestateModule.cs	Ctx.Player.MoveTo(at, Ctx.Player.Transform.rotation);

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-221 prefixes from 683 log calls.
+223 prefixes from 685 log calls.
 
 ## `Aerial capture`
 
@@ -1297,6 +1297,13 @@ Written by PracticeRunModule.Results.cs; info.
 
 - info `Results panel moved to (<..>, <..>).`
 
+## `Results panel resized to`
+
+Meaning: The runner dragged the results panel's right edge in Edit HUD mode; its new width.
+Written by PracticeRunModule.Results.cs; info.
+
+- info `Results panel resized to <..> px wide.`
+
 ## `Run`
 
 Meaning: A spot run's life: armed, splits and checkpoints, finished (time, best), aborted or disarmed and why.
@@ -1663,6 +1670,13 @@ Meaning: The runner dragged the splits panel; its new position.
 Written by PracticeRunModule.Splits.cs; info.
 
 - info `Splits panel moved to (<..>, <..>).`
+
+## `Splits panel resized to`
+
+Meaning: The runner dragged the splits panel's edge or corner in Edit HUD mode; its new width and most rows shown.
+Written by PracticeRunModule.Splits.cs; info.
+
+- info `Splits panel resized to <..> px, <_liveRows> rows.`
 
 ## `Staged update is`
 

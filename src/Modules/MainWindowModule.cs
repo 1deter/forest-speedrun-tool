@@ -110,7 +110,9 @@ namespace ForestOverlay.Modules
                 {
                     _normalRect = _windowRect;
                     float ew = Mathf.Min(430f, Screen.width - 40f);
-                    _windowRect = new Rect(Screen.width - ew - 16f, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
+                    // On the left: the splits panel sits against the right
+                    // edge by default and must stay in sight to be dragged (T-0257).
+                    _windowRect = new Rect(16f, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
                 }
                 else _windowRect = _normalRect;
             }
@@ -163,7 +165,7 @@ namespace ForestOverlay.Modules
                 GUI.Label(new Rect(Pad, 30f, _windowRect.width - Pad * 2f, 22f), EditingTitle, UiKit.Title);
                 Rect editArea = new Rect(Pad, 58f, _windowRect.width - Pad * 2f, _windowRect.height - 58f - 10f);
                 GUI.BeginGroup(editArea);
-                bool done = hudw.DrawEditor(new Rect(0f, 0f, editArea.width, editArea.height), Host.Hud.Settings, _windowRect);
+                bool done = hudw.DrawEditor(new Rect(0f, 0f, editArea.width, editArea.height), Host.Hud.Settings, _windowRect, Host);
                 GUI.EndGroup();
                 UiKit.DrawTip(new Rect(0f, 0f, _windowRect.width, _windowRect.height));
                 if (done) hudw.StopEditing();

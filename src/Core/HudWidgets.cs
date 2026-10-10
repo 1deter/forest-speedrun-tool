@@ -397,7 +397,7 @@ namespace ForestOverlay.Core
         // --- the editor (in the F2 window) ------------------------------------------------------
 
         private static readonly GUIContent EditHint = new GUIContent(
-            "Drag a value out of the info box to make it a widget. Drag a widget to move it, its corner to resize, right-click to put it back.");
+            "Drag a value out of the info box to make it a widget. Drag a widget or panel to move it, its corner or edges to resize; right-click a widget to put it back.");
         private static readonly GUIContent LockedNote = new GUIContent(
             "Always in the info box: ON NOW, the practice marker and run mode's code (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");
@@ -413,9 +413,12 @@ namespace ForestOverlay.Core
         private GUIContent[] _toggleNames;
         private readonly GUIContent[] _scaleTexts = new GUIContent[(int)(HudLayout.MaxScale * 4f) + 1];
         private Vector2 _scroll;
+        private float _panelsH;
+        private static readonly GUIContent PanelsTitle = new GUIContent("Panels");
+        private static readonly GUIContent ValuesTitle = new GUIContent("Info box values");
 
         /// The widget list in the window's body; true when Done was pressed.
-        public bool DrawEditor(Rect area, HudSettings settings, Rect windowRect)
+        public bool DrawEditor(Rect area, HudSettings settings, Rect windowRect, ModuleHost host)
         {
             if (_descriptions == null)
             {
@@ -441,12 +444,24 @@ namespace ForestOverlay.Core
             int rows = 0;
             for (int i = 0; i < HudLines.All.Length; i++) if (HudLines.All[i].Switchable) rows++;
             float noteH = UiText.Height(w - 20f, LockedNote, UiKit.HintStyle);
-            float contentH = rows * rowH + noteH + 8f;
+            // The panels' rows (the modules') are as tall as their open
+            // folds: last pass's height sizes the scroll view.
+            float contentH = _panelsH + rows * rowH + noteH + 8f;
             float viewH = area.height - y;
             bool scrolls = contentH > viewH;
             float cw = scrolls ? w - 18f : w;
             _scroll = GUI.BeginScrollView(new Rect(0f, y, w, viewH), _scroll, new Rect(0f, 0f, cw, contentH));
             float ry = 0f;
+            // The on-screen panels first (author, 2026-10-10: set up where
+            // they are shown, and visible - not under 24 value rows).
+            if (host != null)
+            {
+                GUI.Label(new Rect(0f, ry, cw, 22f), PanelsTitle, UiKit.Title);
+                float after = host.DrawHudEditors(ry + 24f, cw);
+                GUI.Label(new Rect(0f, after + 4f, cw, 22f), ValuesTitle, UiKit.Title);
+                ry = after + 30f;
+                _panelsH = ry;
+            }
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];

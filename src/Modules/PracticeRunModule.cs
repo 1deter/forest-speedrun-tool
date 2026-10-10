@@ -1243,15 +1243,13 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, cw, _diagnoseText);
             y += UiText.Draw(0, y, cw, _eventText);
 
-            if (UiKit.Section(0f, ref y, cw, "runs.splits", TextSplits, null, TipSplitsSection, true))
-            {
-                y = DrawSplitsSection(y, cw);
-                y += UiText.Draw(0, y, cw, _whenSetText);
-            }
+            // No splits table here (author, 2026-10-10, T-0257): the splits
+            // and results panels are overlays, set up in Edit HUD mode.
 
             // Attempts: open, and takes the room the closed sections leave.
             if (UiKit.Section(0f, ref y, cw, "runs.attempts", TextAttempts, null, null, true))
             {
+                y += UiText.Draw(0, y, cw, _whenSetText);
                 // As tall as its rows (no dead space, the page wheel works over it); long lists scroll inside.
                 float room = Mathf.Min(320f, Mathf.Max(24f, _attempts.Count * 20f + 4f));
                 DrawAttemptList(new Rect(0, y, cw, room));
@@ -1291,8 +1289,13 @@ namespace ForestOverlay.Modules
                 y = DrawCameraSection(y, cw);
             }
 
-            if (_upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false))
+            bool uploadOpen = _upload != null && UiKit.Section(0f, ref y, cw, "runs.upload", TextUpload, null, TipUpload, false);
+            if (uploadOpen)
+            {
                 y = _upload.DrawSection(y, cw);
+                y = DrawRunnerName(y, cw);
+            }
+            if (!uploadOpen) _runnerEdit = null;   // re-read the Steam name and the setting on the next open
 
             _pageH = y + 4f;
             GUI.EndScrollView();
@@ -1301,7 +1304,6 @@ namespace ForestOverlay.Modules
         // Section titles, summaries and hover tips of the Runs tab: made
         // once (nothing is built in DrawTab).
         private static readonly GUIContent TextRestart = new GUIContent("Restart");
-        private static readonly GUIContent TextSplits = new GUIContent("Splits");
         private static readonly GUIContent TextAttempts = new GUIContent("Attempts");
         private static readonly GUIContent TextCheckpoints = new GUIContent("Checkpoint states");
         private static readonly GUIContent TextSources = new GUIContent("Compare to another runner or LiveSplit");
@@ -1315,14 +1317,13 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipSplit = new GUIContent("Split by hand, or finish the run (F12).");
         private static readonly GUIContent TipAbort = new GUIContent("Throw the run away without saving a time ([).");
         private static readonly GUIContent TipCompare = new GUIContent("What the delta, the ghost and the lines compare against.");
-        private static readonly GUIContent TipSplitsSection = new GUIContent("The splits of the selected segment against the comparison. Options: columns, panel size and position, runner name.");
         private static readonly GUIContent TipCheckpoints = new GUIContent("Save the game at each checkpoint of a practice run, to restart from there.");
         private static readonly GUIContent TipSources = new GUIContent("Another runner's times from the website, or a LiveSplit .lss file, as the comparison.");
         private static readonly GUIContent TipOptions = new GUIContent("Run lines and their look, auto-restart, clear times.");
         private static readonly GUIContent TipLines = new GUIContent("Draw the path of your run (yellow) and the comparison (blue) in the world.");
         private static readonly GUIContent TipClear = new GUIContent("Clears the attempts from view; the files are kept.");
         private static readonly GUIContent TipReplay = new GUIContent("The ghost and its look, what the replay shows, and watching the comparison run (chase, first person, trajectory).");
-        private static readonly GUIContent TipUpload = new GUIContent("Finished runs go to forest.deter.cloud automatically; the queue and refused files are here.");
+        private static readonly GUIContent TipUpload = new GUIContent("Finished runs go to forest.deter.cloud automatically, under your runner name; the queue and refused files are here.");
 
         // Tab text, rebuilt from Tick a few times a second - never in
         // DrawTab, which runs several times a frame (module rules).
