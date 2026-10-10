@@ -3927,6 +3927,83 @@ The plugin's `Move seen: fall-damage-cancel` caught all 5 clean slides
 were judged at 8.4-9.7 m/s, the rock at 21.4-22.4 m/s (closer to the 28
 threshold - the tighter line); 52-55 damage at the real speed.
 
+### Colliders that change between attempts (IL + bridge, 2026-10-10, T-0075)
+
+The runners' report (2026-09-23): no-fall-damage tech is inconsistent
+because colliders change between attempts (cave drop, rebreather cave
+stalagmite drop, keycard cave body slide, wall climbs). Bridge on v0.24.267,
+Slot 1, a collider census (`Physics.OverlapSphere` + per-collider path,
+bounds, transform, mesh) at the keycard shaft compared across visits.
+
+**What never changes.** The cave walls and floors are static colliders
+`Caves/Cave_0N_Collision /Collision` (MeshCollider, layer 17 Cave or 13
+ReflectBig, tag `UnderfootRock`) plus the ground mesh
+`Caves/Cave_06_Streaming/Cave06_Ground_Collision/...`. The rock models
+the cave LODs spawn into `Pooling/Pool_Caves` (`CaveLedge_*`, `CaveType*`,
+`Cliff_Stone*`, `Rock_Ground_*`, `CaveSpikes*`) carry **no collider** -
+the static `Collision` copy sits at the same transform - so wall climbs
+and ledges do not depend on the LOD. One exception: `HoleFiller`
+(`LOD_Cave`, the same prefab at every LOD, its own MeshCollider) exists
+only while its LOD has a model (Cave ranges live 50 / 100 / 280 m,
+`CaveMode` CaveOnly: none outside caves), refreshed by the WorkScheduler;
+two sit near the Cave 6 rope drop's top ((1270, 13.9, 455), (1246, 22, 433)).
+
+**The cave props scene can be missing.** Each cave's `Cave_0N_Props_Streaming`
+(its greeble zones - body piles, stalagmites, sticks - ropes, planks,
+pickups) is loaded by `CaveOptimizer.Update` only while
+`LocalPlayer.IsInCaves && !LocalPlayer.IsInEndgame` (unless that cave's
+`AllowInEndgame`); with the endgame flag set it unloads them.
+`IsInEndgame` is a static auto-property (`SetInEndGame`), not in the save.
+Live: Slot 1 loaded (in the lab), then the plugin's in-place restart of the
+Cave 6 body slide spot: `IsInEndgame` still true, `Savestate areas after
+the restore: caves yes, endgame yes ... (no Cave_0N_Props_Streaming)`, no
+`DeadBodyPile` and no `C6_Props` rope after 60 s - the landing area had 4
+colliders instead of 20. `AreaReport.LeaveEndgame()` (the LoadEndgame
+box's backward crossing, `ExitEndgame`) by bridge: flag false, Cave 6's
+props loaded and 16 pile colliders there within 4 s. Fixed in the restore
+(docs/savestates.md).
+
+**The Cave 6 body piles are deterministic.** Five `GreebleZone`s
+(`C6_Props/C6_secretRoom02/Greeble_BodyPiles*`: Box 5 x 5 x 10, 4-8
+instances, `DeadBodyPile_01` / `_02`, `AllowRegrowth` false, seed
+`(int)x + (int)y + (int)z + RandomSeed`) cast each pile onto
+`SurfaceMask` 139264 = Cave | ReflectBig only - not Default, where the
+piles' own `Collision` lives, nor the player - so neither the spawn order
+nor the player changes a position. A zone shows while the camera is
+within `ToggleDistance` (75) x `DrawDistanceGreebleRatio` (Ultra 2,
+VeryHigh 1.5, every other draw distance 1; x1.1 once shown) of its edge
+(`|(Size.x, Size.z)|` = 11.2 m), i.e. 86 m at most settings; the drop
+ledge is 55-75 m from the five zones, so the piles are there before the
+drop at any setting; one instance spawns per WorkScheduler one-shot.
+Census: the 45 colliders around the shaft were identical (path, bounds,
+position, rotation, scale) after two separate loads of Slot 1 (a restart
+from the cave floor in one, from the surface in the other) - only the pool
+clone numbers differ; from the surface
+all 20 piles were up within 0.5 s of the restart. So a bouncy body slide
+(T-0267) is not a pile that moved.
+
+**Breakable stalagmites move between visits** (live). Cave 5's swim room
+and secret channel and Cave 6's corridor (two zones beside the rope
+drop's top, (1265, 9.9, 437) and (1270, 8, 447)) spawn `Stalagmite*_low`
+greebles (`_large`, `_small`, 1-4): the pooled root has a child `default`
+with a kinematic Rigidbody, a CapsuleCollider (layer 28 PickUp - collides
+with the player, layer 18) and `BreakCrate` (health 1, so any `Hit`
+breaks it). Breaking instantiates `Stalagmite4Broken` (chunks on layer 30
+SmallDynamic, which the player ignores; `destroyAfter` 30 s) and
+**destroys the `default` child, leaving the pooled root active and
+empty**. `GreebleZone.Despawn` marks an instance destroyed only when it is
+missing or inactive, so the zone never learns. Live: (1) a restart in
+place kept the stalagmite broken (no collider; greebles are not in the
+save); (2) leaving (tp to the surface) and coming back, the broken spot
+came back intact from another pool object, and the empty root was handed
+to another spot - `Stalagmite4_low(Clone)001` moved from (1230.81, -33.94,
+525.16) to (1230.04, -34, 523.86), where the stalagmite was then missing.
+So in one session every broken stalagmite takes one stalagmite away
+somewhere, a different one per visit, until a scene load builds fresh
+pools. Repair, by bridge: the zone's `Despawn()`, then
+`GreeblePlugin.Remove(root)` (`Pool.KillInstance`) on each empty root,
+then the zone's `Spawn()` - both spots had their capsules back.
+
 ## How to extend this file
 
 0. **Decompiled C#** (2026-10-03, the overnight sweep) - for reading whole

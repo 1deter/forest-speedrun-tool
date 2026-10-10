@@ -805,6 +805,16 @@ namespace ForestOverlay.Modules
                 }
 
                 string overlookNote = r.Ok ? AreaReport.LeaveOverlook() : "";
+                // The endgame flag is not in the save either: restored from
+                // the lab, a cave capture kept it, and the game then keeps
+                // every cave's props scene unloaded - Cave 6's body piles,
+                // ropes and planks were missing (T-0075). Left the game's
+                // way, as walking out does. The other way round the lab's
+                // load sets it (EndgameFirst).
+                string endgameNote = r.Ok && file != null && CapturedAreas.ShouldLeaveEndgame(file.Areas, AreaReport.InEndgame())
+                    ? AreaReport.LeaveEndgame() : "";
+                if (endgameNote.Length > 0)
+                    overlookNote += (overlookNote.Length > 0 ? ", " : "") + endgameNote + " (captured outside it)";
                 string bookNote = r.Ok && file != null ? _book.Apply(file.Book) : "";
                 // Blood on the player's body and weapon is not in the save.
                 string washNote = r.Ok ? _bridge.Wash() : "";

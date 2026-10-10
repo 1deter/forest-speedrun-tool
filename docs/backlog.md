@@ -25,8 +25,8 @@ unless critical.
 - **HUD:** more control over the top-left HUD, less clutter (settings persist since v0.24.191).
 - **Debug views:** (real collider shapes and a path / layer / show-only
   filter since v0.24.198-199); colliders that change between
-  attempts and make no-fall-damage tech inconsistent (cave drop, rebreather
-  cave stalagmite drop, keycard cave body slide, wall climbs).
+  attempts: researched in T-0075 (game-notes *Colliders that change
+  between attempts*; broken stalagmites -> T-0273).
 - **maks, QA Discord 2026-09-26:** start a practice savestate from the
   title screen without loading a save first (restores there are refused
   since v0.24.73 - it needs a scene loaded first); failed runs count as

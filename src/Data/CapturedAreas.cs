@@ -74,6 +74,17 @@ namespace ForestOverlay.Data
             return null;
         }
 
+        /// An in-place restore should leave the endgame: the capture says
+        /// "endgame no" and the live flag is set. LocalPlayer.IsInEndgame is
+        /// not in the save, so a Quick load keeps the live value, and with it
+        /// set CaveOptimizer keeps every cave's props scene unloaded (T-0075:
+        /// a cave spot restarted from the lab had no body piles, ropes or
+        /// planks). A missing or unreadable flag (old files) changes nothing.
+        public static bool ShouldLeaveEndgame(string areas, bool liveInEndgame)
+        {
+            return liveInEndgame && Flag(areas, "endgame") == false;
+        }
+
         /// The capture had the endgame lab (loaded, or its load under way).
         public static bool HadEndgame(string areas)
         {
