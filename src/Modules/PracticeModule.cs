@@ -27,11 +27,12 @@ namespace ForestOverlay.Modules
     // 2026-10-10, T-0217: maks lost a rename, category moves and a timed
     // spot's end to a restart). An edit marks its entry unsaved and the
     // write waits until the edits pause (Data/EditDebounce: no write per
-    // frame while a value is dragged); selecting another entry, Reload,
-    // Export / Submit and quitting write at once. The file is replaced
-    // whole (Data/SafeFile), so a crash mid-write cannot corrupt it.
-    // Nothing goes to the website by itself: Submit sends the saved entry.
-    // Save is left as "write now" (and a retry after a failed write).
+    // frame while a value is dragged); selecting another entry, Export /
+    // Submit and quitting write at once. The file is replaced whole
+    // (Data/SafeFile), so a crash mid-write cannot corrupt it. Nothing goes
+    // to the website by itself: Submit sends the saved entry. No Save or
+    // Reload button (author, 2026-10-10): the file always matches the
+    // editor; the library is read once, at startup.
     // Selection never waits on a write: a guard that refused the click
     // while anything was unsaved read as a stuck list (runner maks,
     // v0.23.1: "clicking on the others and nothing is happening").
@@ -55,6 +56,10 @@ namespace ForestOverlay.Modules
         // 1 s after the last edit, at most 5 s after the first (T-0217).
         private readonly EditDebounce _autosave = new EditDebounce(1f, 5f);
         private readonly HeldReport _heldReport = new HeldReport();
+        // Failed writes in a row: the retry stops after MaxAutosaveRetries
+        // (a locked file would warn every second) until the next edit.
+        private int _autosaveFails;
+        private const int MaxAutosaveRetries = 5;
         private string _status = "";
         private string _filter = "";
 
@@ -1950,10 +1955,12 @@ namespace ForestOverlay.Modules
                 if (!_unsaved[i].IsValid) heldIds.Add(_unsaved[i].Id);
             _heldReport.Keep(heldIds);
 
+            if (ok) _autosaveFails = 0;
             if (!ok)
             {
                 _status = "Autosave failed - see log (" + _unsaved.Count + " unsaved). Retrying.";
-                _autosave.Edit(Time.realtimeSinceStartup);   // tries again after the quiet time
+                if (++_autosaveFails < MaxAutosaveRetries)
+                    _autosave.Edit(Time.realtimeSinceStartup);   // tries again after the quiet time
             }
             else if (invalid != null && _heldReport.First(invalid.Id))
             {
@@ -2028,6 +2035,7 @@ namespace ForestOverlay.Modules
             // Anything holding this segment - a run armed against its
             // start zone - can see that it changed underneath them.
             s.Revision++;
+            _autosaveFails = 0;
             _autosave.Edit(Time.realtimeSinceStartup);
 
             if (_unsaved.Contains(s)) return;

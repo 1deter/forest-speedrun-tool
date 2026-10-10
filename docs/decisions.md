@@ -150,7 +150,9 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   moves and a timed spot's end to a restart): every Practice editor edit
   is written to the runner's own spot file by itself; upload / sharing
   sends only what the runner explicitly sends, so a shared spot is never a
-  half-edit.
+  half-edit. The editor has no Save or Reload button (author, 2026-10-10:
+  the file always matches the editor); a write waits 1 s after the last
+  edit, at most 5 s while a value is dragged.
 - **Deleting a spot here never deletes it online** (author, 2026-10-09,
   T-0265): the local Delete and *Delete from the website* are separate;
   the owner can add their spot back from the site, edit it and upload
