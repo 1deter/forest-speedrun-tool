@@ -62,3 +62,5 @@
 {"at": "2026-10-08T12:12:32", "event": "round", "run": "R-0005", "round": 5, "task": "T-0068", "reviews_before": 0}
 {"at": "2026-10-08T12:13:29", "event": "end", "run": "R-0005", "round": 5, "task": "T-0068", "status": "confirmed", "progress": true, "parked": false, "summary": "T-0068 done: the test spot s-splitstest01 is out of the author's Practice list - only its [segment] block removed from my-segments.txt (BOM / line endings kept, backup my-segments.txt.deter-backup), runs/s-splitstest01/ deleted (it had no savestate), Reload lists 0 matches. Tom's two spots split to their own task with a QA question."}
 {"at": "2026-10-08T12:13:40", "event": "stop", "run": "R-0005", "reason": "5 rounds done (the run's limit)"}
+{"at": "2026-10-10T02:00:10", "event": "begin", "run": "R-0006", "max_rounds": 5, "bridge": true, "by": "main"}
+{"at": "2026-10-10T02:00:12", "event": "round", "run": "R-0006", "round": 1, "task": "T-0075", "reviews_before": 0}
