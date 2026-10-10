@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 694 log calls.
+218 prefixes from 693 log calls.
 
 ## `Aerial capture`
 
@@ -1154,7 +1154,6 @@ Written by PracticeModule.cs; info / warning.
 - warning `Practice: export of '<s.Id>' failed: <ex>`
 - info `Practice: exported '<s.Id>' to <path> (<what>).`
 - warning `Practice: import of <e.Path> failed: <ex>`
-- info `Practice: saved <count> unsaved entr<..> to <names>.`
 - info `Practice: selected '<entry.Id>'<..> (<_unsaved.Count> unsaved).`
 
 ## `PracticeRunModule`
