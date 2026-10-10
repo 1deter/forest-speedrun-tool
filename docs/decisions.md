@@ -160,6 +160,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
     Runs tab (practice mode on, Restart to arm) - the author's example of
     what to fix. On-screen panels resize and move by dragging, not +/-
     buttons (the splits panel), as modern apps do.
+    **Decided (author, 2026-10-10, T-0256; options in
+    `tasks/notes/T-0256.md`):** a pinned start strip on top of the
+    Practice tab for the selected spot (Restart, a copy of the Practice
+    mode toggle, the run state); a runner's Restart on a timed segment
+    turns practice mode on and says so; the label stays `Restart` (no new
+    "Start"); F7 and the Runs tab's Restart follow the spot selected in
+    the list.
   - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
     and every feature that adds much UI; the author's rules are a floor,
     not the whole list - it brings in established UX guidance.
