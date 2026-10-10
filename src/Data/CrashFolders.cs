@@ -22,10 +22,12 @@ namespace ForestOverlay.Data
         public const string KeptUnityLogName = "ForestOverlay-unity.log";
         private const string StampFormat = "yyyy-MM-dd_HHmmss";
 
-        /// How far a session log's start may sit from the folder's:
-        /// the plugin starts after the process, never long before.
+        /// How far a session log's start may sit from the folder's: the
+        /// plugin started 7-8 s after the process (2026-10-10, two launches). Kept
+        /// narrow so a crash before the plugin loaded does not take the
+        /// next launch's log as its own.
         public static readonly TimeSpan Before = TimeSpan.FromMinutes(1);
-        public static readonly TimeSpan After = TimeSpan.FromMinutes(10);
+        public static readonly TimeSpan After = TimeSpan.FromMinutes(2);
 
         public static bool TryParse(string folderName, out DateTime start)
         {

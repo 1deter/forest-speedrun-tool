@@ -299,6 +299,11 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   autosplitter cannot read input). Stored `moving` starts become
   `first-input` and their old times **retire** through the route
   fingerprint (the start moved).
+- **Unity's own errors go into every session log and report zip, and a
+  crashed session's log is kept beside its crash folder** (author,
+  2026-10-10, T-0276: "yes" to both): `Unity:` lines (errors, asserts,
+  exceptions, rate-limited) + `logs/unity.log`; at the next launch a Unity
+  crash folder gets `ForestOverlay-LogOutput.log` + `ForestOverlay-unity.log`.
 
 ## Run mode
 
