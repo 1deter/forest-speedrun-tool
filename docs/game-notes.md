@@ -784,6 +784,17 @@ state, not scenes (areas: `same as at capture`).
   `BeginStage`, then the usual fast-forward (`ElevatorKeeper.Replay`,
   the capture's fifth `elevators` field = the start stop, from
   `GameEvents.RedElevatorAt`).
+- **Every ride goes through `GotoRemotePoint`** (IL + bridge, T-0184,
+  2026-10-10). `_moving` is written only by `Goto`'s iterator, and `Goto`
+  is started only by `GotoRemotePoint` (refs: `Update` and nothing else;
+  no `StartCoroutine("Goto")` string). Live: `ElevatorAll.BeginStage(1)`
+  with the player at `playerPos` set `_moving` true and passed through a
+  postfix on `GotoRemotePoint` (`Game/ElevatorRides`), as did a bridge
+  `call ... GotoRemotePoint`. A `FindObjectsOfType(ElevatorSystem)` costs
+  24-26 ms in ForestMain even with none loaded (the surface) - it was the
+  whole of a Go's 23-24 ms. In the endgame a Go still costs ~25 ms:
+  `AreaKeeper.InsideASection` scans the 27 `AreaMembers` (all active, on
+  the `Sections/*` roots).
 - **Keypad doors the same way** (bridge + IL, v0.24.81-82).
   `activateKeypadDoor` (vault `EndgameEntrance/keypadDoor_animate/
   doorTrigger`, gold `Sections/ArtifactRoom/ElevatorCardReader/Trigger`

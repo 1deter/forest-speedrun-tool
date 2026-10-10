@@ -126,7 +126,9 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   `Data/LookupCache`, tested: until a scene loads / unloads or a kept
   object dies or goes inactive; nothing found is never kept). Single
   objects and the trees only; the elevators are still searched every
-  restore (~24 ms - they could appear without a scene event). The second
+  restore (~24 ms - they could appear without a scene event; a teleport's
+  "stop a ride under way" walks only the elevators that started one since
+  T-0184, `Game/ElevatorRides`). The second
   is the plane wreck the Quick load re-creates running the game's crash
   clearing again (~165-195 ms): when a wreck already stands at that spot
   (`Data/WreckSites`, tested) its plant / LOD removal still runs as the

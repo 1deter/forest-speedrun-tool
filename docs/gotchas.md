@@ -68,6 +68,14 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     a hitch is, `get static:UnityEngine.Time realtimeSinceStartup` once a
     frame after a `call` that starts the action (one bridge line a frame);
     to find whose code, the game profiler with `*::Start` hooked.
+    No static handle and objects that can appear without a scene event
+    (the elevators): note them where the game starts what you look for -
+    a postfix on the starter (`Game/ElevatorRides`, T-0184: every Go's
+    24 ms scan for rides under way). A `Slow tick` names the module whose
+    Tick ran the work, not its owner: the same Go logs as `bridge` over
+    the bridge, `practicerun` on an auto-restart, nothing on F7 (the
+    hotkeys run outside module ticks) - split a suspect by `call`ing its
+    parts one by one over the bridge.
 
 12. **`OnRenderObject` runs once per camera**, reflections and UI included.
     GL overlays check `DrawTarget.ShouldDraw()` so a long run line is drawn
