@@ -45,6 +45,7 @@ namespace ForestOverlay.Modules
 
         // Keys or the info box (HUD) below the global toggles.
         private bool _hudView;
+        private bool _paintView;
         private Vector2 _hudScroll;
         private float _hudContentH = 900f;   // measured on the last pass
         private GUIContent[] _hudNames;
@@ -148,11 +149,13 @@ namespace ForestOverlay.Modules
                 y += UiText.DrawDim(12, y, w - 24, bridge.StatusText);
             }
 
-            // Keys | Info box (HUD)
-            bool keysView = GUI.Toggle(new Rect(12, y, 120, 22), !_hudView, "Keys", GUI.skin.button);
+            // Keys | Info box (HUD) | Paint
+            bool keysView = GUI.Toggle(new Rect(12, y, 120, 22), !_hudView && !_paintView, "Keys", GUI.skin.button);
             bool hudView = GUI.Toggle(new Rect(136, y, 160, 22), _hudView, "Info box (HUD)", GUI.skin.button);
-            if (keysView && _hudView) _hudView = false;
-            else if (hudView && !_hudView) { _hudView = true; map.AwaitingRebind = null; }
+            bool paintView = GUI.Toggle(new Rect(300, y, 90, 22), _paintView, "Paint", GUI.skin.button);
+            if (keysView && (_hudView || _paintView)) { _hudView = false; _paintView = false; }
+            else if (hudView && !_hudView) { _hudView = true; _paintView = false; map.AwaitingRebind = null; }
+            else if (paintView && !_paintView) { _paintView = true; _hudView = false; map.AwaitingRebind = null; }
             y += 28f;
 
             if (_hudView)
@@ -161,11 +164,18 @@ namespace ForestOverlay.Modules
                 return;
             }
 
+            if (_paintView)
+            {
+                PaintModule paint = Host.Find<PaintModule>();
+                if (paint != null) paint.DrawSettings(new Rect(8, y, w - 16, _tabH - y - 10f));
+                return;
+            }
+
             bool rebinding = map.AwaitingRebind != null;
             if (rebinding && !ReferenceEquals(_promptFor, map.AwaitingRebind))
             {
                 _promptFor = map.AwaitingRebind;
-                _prompt.text = "Press a key for: " + _promptFor.Description + "      Esc cancels, Backspace unbinds";
+                _prompt.text = "Press a key or mouse button for: " + _promptFor.Description + "      Esc cancels, Backspace unbinds";
             }
             else if (!rebinding)
             {
@@ -310,7 +320,7 @@ namespace ForestOverlay.Modules
                 if (GUI.Button(new Rect(content.width - 44f, y + 2f, 40f, RowHeight - 6f), "def"))
                 {
                     b.Key = b.Default;
-                    _message = b.Description + " reset to " + b.Default + ".";
+                    _message = b.Description + " reset to " + HotkeyMap.KeyName(b.Default) + ".";
                 }
             }
 
@@ -320,16 +330,25 @@ namespace ForestOverlay.Modules
         private GUIContent KeyLabel(KeyCode key)
         {
             GUIContent c;
-            if (!_keyLabels.TryGetValue(key, out c)) _keyLabels[key] = c = new GUIContent(key.ToString());
+            if (!_keyLabels.TryGetValue(key, out c)) _keyLabels[key] = c = new GUIContent(HotkeyMap.KeyName(key));
             return c;
         }
 
         private void CaptureKey(HotkeyMap map)
         {
+            HotkeyMap.Binding target = map.AwaitingRebind;
+
+            // Mouse buttons (middle and the side ones; left / right click the
+            // window) never come as key events: polled.
+            for (KeyCode m = KeyCode.Mouse2; m <= KeyCode.Mouse6; m++)
+            {
+                if (!Input.GetKeyDown(m)) continue;
+                Bind(map, target, m);
+                return;
+            }
+
             Event e = Event.current;
             if (e == null || e.type != EventType.KeyDown) return;
-
-            HotkeyMap.Binding target = map.AwaitingRebind;
 
             if (e.keyCode == KeyCode.Escape)
             {
@@ -351,23 +370,28 @@ namespace ForestOverlay.Modules
 
             if (e.keyCode == KeyCode.None) return;
 
-            HotkeyMap.Binding clash = map.Conflict(e.keyCode, target);
+            Bind(map, target, e.keyCode);
+            e.Use();
+        }
 
-            target.Key = e.keyCode;
+        private void Bind(HotkeyMap map, HotkeyMap.Binding target, KeyCode key)
+        {
+            HotkeyMap.Binding clash = map.Conflict(key, target);
+
+            target.Key = key;
             map.AwaitingRebind = null;
 
             // Stop this same press from also firing the action we just
             // bound it to.
-            map.Swallow(e.keyCode);
+            map.Swallow(key);
 
             // Bind it anyway and say so, rather than refusing. Two actions
             // on one key is occasionally deliberate, and silently dropping
             // the press would be worse than a warning.
+            string name = HotkeyMap.KeyName(key);
             _message = clash == null
-                ? target.Description + " -> " + e.keyCode
-                : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')";
-
-            e.Use();
+                ? target.Description + " -> " + name
+                : target.Description + " -> " + name + "  (also used by '" + clash.Description + "')";
         }
     }
 }

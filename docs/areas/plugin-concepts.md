@@ -187,6 +187,18 @@ concept before changing its feature. Where the code lives:
   (switch `Fixes.PruneDeadSubscribersOnLoad`, on) drops the old world's
   event subscribers the game keeps until the title screen - memory only,
   no gameplay effect, so not practice-only.
+- **Paint** (T-0219): hold Mouse 4 in practice mode and dots go where the
+  crosshair ray hits (300 m, triggers / the player / Ignore Raycast
+  skipped), one per `Spacing` (half the size) - joined by a ribbon to the
+  dot before when within 1.5 m, so a flick across from a near wall to the
+  far ground leaves a gap, not a line through the air. Erase (Mouse 5)
+  removes dots within 30 cm (or the size) of the crosshair and cuts the
+  join after them; undo (X) takes the last stroke. The selected spot's
+  paint is drawn and saved (its own file, rewritten after each stroke /
+  erase / undo / clear, removed when empty); with no spot selected the
+  paint is the session's. Nothing is drawn or painted outside practice
+  mode, in run mode, or while a window / game menu has the mouse. Capped
+  at 30 000 dots (a notice says so).
 - **Tabs know when they are showing**: `OverlayModule.TabShowing` (the main
   window open on this tab). `PanelOpen` is only for a module's OWN window
   and is never set for a tab - the Inventory tab refreshed behind it and

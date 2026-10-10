@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 717 log calls.
+225 prefixes from 725 log calls.
 
 ## `Aerial capture`
 
@@ -1010,6 +1010,20 @@ Meaning: Drawing the overlay threw; the HUD is disabled for the session.
 Written by Plugin.cs; error.
 
 - error `OnGUI() threw, HUD disabled: <ex>`
+
+## `Paint`
+
+Meaning: The paint tool (T-0219): a stroke painted, paint erased / undone / cleared, a spot's paint loaded from or saved to config/ForestOverlay/paint/.
+Written by PaintModule.cs; info / warning.
+
+- info `Paint: <recovered> (<path>)`
+- info `Paint: cleared <n> dot(s) - <..>`
+- warning `Paint: could not read <path>: <ex.Message>`
+- warning `Paint: could not save <path>: <ex.Message>`
+- info `Paint: erased <_erased> dot(s) - <..> (<Current.Count> left)`
+- info `Paint: loaded <set.Count> dot(s) for spot '<id>'<..>`
+- info `Paint: stroke of <dots> dot(s), colour <Colour>, size <..> - <..> (<set.Count> in all)`
+- info `Paint: undid a stroke of <n> dot(s) - <..> (<Current.Count> left)`
 
 ## `PanelKeeper`
 

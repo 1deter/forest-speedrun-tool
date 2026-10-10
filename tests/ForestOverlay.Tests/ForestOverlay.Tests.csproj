@@ -60,6 +60,7 @@
     <Compile Include="../../src/Data/StepBytes.cs" Link="Linked/StepBytes.cs" />
     <Compile Include="../../src/Data/PositionKey.cs" Link="Linked/PositionKey.cs" />
     <Compile Include="../../src/Data/KeptRead.cs" Link="Linked/KeptRead.cs" />
+    <Compile Include="../../src/Data/PaintSet.cs" Link="Linked/PaintSet.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../patcher/DefaultRepair.cs" Link="Linked/DefaultRepair.cs" />
