@@ -337,8 +337,12 @@ namespace ForestOverlay.Modules
             Enabled = true;
             if (_practiceModeCfg != null && !_practiceModeCfg.Value) _practiceModeCfg.Value = true;
             _status = "practice mode turned on by Restart - '" + s.Name + "' is timed";
+            _turnedOnByRestart = true;
             Ctx.Log.LogInfo("Run '" + s.Id + "': practice mode turned on by Restart.");
         }
+
+        // Set by TurnOnForRestart, said and cleared by the arming that follows.
+        private bool _turnedOnByRestart;
 
         /// The run's state for this spot, Idle when the armed run is
         /// another spot's or nothing times it (the start strip).
@@ -445,7 +449,10 @@ namespace ForestOverlay.Modules
             _lssDirty = true;   // re-read the linked file if it changed
             SelectReference();
             ArmSplits();
-            _status = "armed: " + _segment.Name;
+            // Said where a Runs tab Restart was clicked (T-0270): this line
+            // replaces the "turned on" one before anyone reads it.
+            _status = (_turnedOnByRestart ? "practice mode turned on - " : "") + "armed: " + _segment.Name;
+            _turnedOnByRestart = false;
             Ctx.Log.LogInfo("Run '" + _segment.Id + "': armed after " + cause + " (start: " + _segment.Start.Describe() + ").");
         }
 
