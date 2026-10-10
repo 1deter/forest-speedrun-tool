@@ -54,7 +54,7 @@ namespace ForestOverlay.Modules
         private readonly List<Segment> _unsaved = new List<Segment>();
         // 1 s after the last edit, at most 5 s after the first (T-0217).
         private readonly EditDebounce _autosave = new EditDebounce(1f, 5f);
-        private readonly GUIContent _saveLabel = new GUIContent("Save");
+        private readonly HeldReport _heldReport = new HeldReport();
         private string _status = "";
         private string _filter = "";
 
@@ -290,6 +290,7 @@ namespace ForestOverlay.Modules
             _library.Reload();
             _selected = null;
             _unsaved.Clear();
+            _heldReport.Clear();
             _autosave.Clear();
 
             _current = currentId != null ? _library.ById(currentId) : null;
@@ -393,8 +394,6 @@ namespace ForestOverlay.Modules
                 if (i < _rowLabels.Count) _rowLabels[i].text = text;
                 else _rowLabels.Add(new GUIContent(text));
             }
-
-            _saveLabel.text = _unsaved.Count == 0 ? "Save" : "Save (" + _unsaved.Count + ")";
         }
 
         private int CountIn(string category)
@@ -802,11 +801,6 @@ namespace ForestOverlay.Modules
             if (GUI.Button(new Rect(158, 0, 70, 24), "Delete")) Delete();
             GUI.enabled = true;
             if (GUI.Toggle(new Rect(232, 0, 70, 24), _importing, "Import", GUI.skin.button) != _importing) ToggleImport();
-
-            GUI.enabled = _unsaved.Count > 0;
-            if (GUI.Button(new Rect(w - 160, 0, 70, 24), _saveLabel)) Save();
-            GUI.enabled = true;
-            if (GUI.Button(new Rect(w - 86, 0, 86, 24), "Reload")) Reload();
 
             // --- filter ----------------------------------------------------
             GUI.Label(new Rect(0, 30, 36, 20), "Find");
@@ -1888,49 +1882,13 @@ namespace ForestOverlay.Modules
                             "; any website copy stays.");
         }
 
-        /// Writes every unsaved entry. One that cannot be saved is selected
-        /// and named, and nothing is written, so no file is half-saved.
-        private void Save()
+        /// Why an entry cannot be exported / submitted: spots autosave, so it
+        /// is either held back (invalid) or its write failed.
+        private static string NotSavedWhy(Segment s, string what)
         {
-            if (_unsaved.Count == 0) return;
-
-            for (int i = 0; i < _unsaved.Count; i++)
-            {
-                Segment u = _unsaved[i];
-                // Only a hand-edited file can clash now: a fresh key, no
-                // question to the runner (who never sees ids).
-                if (!_library.IsIdAvailable(u.Id, u)) FreshId(u);
-                string why = !u.IsValid ? "needs a spawn, or a start and an end" : null;
-                if (why == null) continue;
-
-                _selected = u;
-                _status = "Cannot save '" + u.Name + "': " + why + ".";
-                return;
-            }
-
-            List<string> files = new List<string>();
-            for (int i = 0; i < _unsaved.Count; i++)
-            {
-                string f = string.IsNullOrEmpty(_unsaved[i].SourceFile) ? SegmentLibrary.UserFileName : _unsaved[i].SourceFile;
-                bool seen = false;
-                for (int j = 0; j < files.Count; j++)
-                    if (string.Equals(files[j], f, StringComparison.OrdinalIgnoreCase)) { seen = true; break; }
-                if (!seen) files.Add(f);
-            }
-
-            _autosave.Clear();
-            int count = _unsaved.Count;
-            bool ok = true;
-            for (int i = 0; i < files.Count; i++)
-                if (!WriteFile(files[i])) ok = false;
-
-            string names = string.Join(", ", files.ToArray());
-            if (ok)
-            {
-                _status = "Saved " + count + (count == 1 ? " entry" : " entries") + " to " + names;
-                Ctx.Log.LogInfo("Practice: saved " + count + " unsaved entr" + (count == 1 ? "y" : "ies") + " to " + names + ".");
-            }
-            else _status = "Save failed - see log (" + _unsaved.Count + " still unsaved).";
+            return !s.IsValid
+                ? "'" + s.Name + "' needs a spawn, or a start and an end before " + what + "."
+                : "'" + s.Name + "' could not be saved - see the log. " + what.Substring(0, 1).ToUpperInvariant() + what.Substring(1) + " is the saved spot.";
         }
 
         /// The autosave (T-0217): the files of every unsaved entry, once the
@@ -1972,9 +1930,19 @@ namespace ForestOverlay.Modules
 
             if (written.Count > 0)
                 Ctx.Log.LogInfo("Practice: autosaved " + names + " to " + string.Join(", ", written.ToArray()) + ".");
+
+            // Held back: said once per entry, not on every Select / Export / Submit.
+            List<string> heldIds = new List<string>();
+            for (int i = 0; i < _unsaved.Count; i++)
+                if (!_unsaved[i].IsValid) heldIds.Add(_unsaved[i].Id);
+            _heldReport.Keep(heldIds);
+
             if (!ok)
-                _status = "Autosave failed - see log (" + _unsaved.Count + " unsaved). Save tries again.";
-            else if (invalid != null)
+            {
+                _status = "Autosave failed - see log (" + _unsaved.Count + " unsaved). Retrying.";
+                _autosave.Edit(Time.realtimeSinceStartup);   // tries again after the quiet time
+            }
+            else if (invalid != null && _heldReport.First(invalid.Id))
             {
                 _status = "Not saved: '" + invalid.Name + "' needs a spawn, or a start and an end.";
                 Ctx.Log.LogInfo("Practice: autosave held back " + string.Join(", ", held.ToArray()) + " - '" + invalid.Id + "' needs a spawn, or a start and an end.");
@@ -2065,9 +2033,7 @@ namespace ForestOverlay.Modules
             bool leftUnsaved = left != null && _unsaved.Contains(left);
 
             _selected = entry;
-            _status = leftUnsaved
-                ? "'" + left.Name + "' has unsaved changes - Save keeps them, Reload drops them."
-                : "";
+            _status = "";
 
             // Selection was invisible in the log, so a stuck list could
             // not be told from a click that never arrived.
@@ -2291,7 +2257,7 @@ namespace ForestOverlay.Modules
         private void Export(Segment s)
         {
             FlushAutosave();
-            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - an export is the saved segment."; return; }
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "an export"); return; }
 
             try
             {
@@ -2361,7 +2327,7 @@ namespace ForestOverlay.Modules
         private void SubmitToCommunity(Segment s)
         {
             FlushAutosave();
-            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = "Save it first - a submission is the saved segment."; return; }
+            if (_unsaved.Contains(s) || !s.IsValid) { _shareStatus.text = NotSavedWhy(s, "a submission"); return; }
             if (SegmentLibrary.IsCommunity(s)) { _shareStatus.text = "This is a community spot already."; return; }
             string startState = null;
             try { startState = _savestates != null ? _savestates.ReadStartStateText(s) : null; }
