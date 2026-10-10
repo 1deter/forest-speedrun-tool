@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.268 - 2026-10-10
+
+- A cave spot restarted while you are in the endgame (lab) now has its body piles, ropes and planks, as when you walk out.
+
 ## v0.24.267 - 2026-10-10
 
 - Making a savestate no longer changes the save slot's stats shown on the load screen (or their Steam Cloud copy).
