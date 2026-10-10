@@ -3048,7 +3048,16 @@ Threads, the plugin's texture paths and the live checks:
   `DiskLogListener.WriteFromUnityLog` true), the game writes no
   `output_log.txt`, and `Application.CallLogCallback` passes a message from
   another thread (the d3d11 line is the render thread's) only to
-  `logMessageReceivedThreaded`.
+  `logMessageReceivedThreaded`. Since T-0276 (v0.24.274) the plugin
+  subscribes there and writes them as `Unity:` lines + `logs/unity.log`;
+  bridge-proved for managed `Debug.LogError` and a native error
+  (`SceneManager.LoadScene` of a missing scene); not yet seen for another
+  thread.
+- **Unity's crash folder** beside TheForest.exe is named after the
+  **process start**, `yyyy-MM-dd_HHmmss`, not the crash: `2026-10-04_083030`
+  holds a crash at 13:12 of a session from 08:30; `2026-10-07_115524`'s
+  error.log says `Error occurred at 2026-10-07_115544`. It holds
+  `crash.dmp` + `error.log` (registers, stack bytes, no log text).
 
 ## Pathfinding (A*) and the reload freeze (IL + bridge + stack walks, 2026-09-27)
 

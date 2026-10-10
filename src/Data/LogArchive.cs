@@ -29,13 +29,21 @@ namespace ForestOverlay.Data
         /// True for a name SessionFileName could have produced.
         public static bool IsSessionFile(string name)
         {
+            DateTime unused;
+            return TryParseStart(name, out unused);
+        }
+
+        /// The session start in a SessionFileName name.
+        public static bool TryParseStart(string name, out DateTime start)
+        {
+            start = DateTime.MinValue;
             if (name == null) return false;
             if (!name.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)) return false;
             if (!name.EndsWith(Suffix, StringComparison.OrdinalIgnoreCase)) return false;
+            if (name.Length < Prefix.Length + Suffix.Length) return false;
             string stamp = name.Substring(Prefix.Length, name.Length - Prefix.Length - Suffix.Length);
-            DateTime unused;
             return DateTime.TryParseExact(stamp, StampFormat, CultureInfo.InvariantCulture,
-                                          DateTimeStyles.None, out unused);
+                                          DateTimeStyles.None, out start);
         }
 
         /// The session files to delete so that at most keepPrevious remain

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-219 prefixes from 696 log calls.
+221 prefixes from 702 log calls.
 
 ## `Aerial capture`
 
@@ -795,10 +795,13 @@ Written by LocationLibrary.cs; info / warning.
 
 ## `Log copies`
 
-Meaning: Keeping the last sessions' LogOutput.log: where this one goes, old copies deleted.
+Meaning: Keeping the last sessions' LogOutput.log: where this one goes, old copies deleted; at startup a Unity crash folder beside TheForest.exe gets its session's copy + logs/unity.log (ForestOverlay-LogOutput.log / ForestOverlay-unity.log, T-0276).
 Written by LogKeeper.cs; info / warning.
 
 - warning `Log copies: could not delete <..>: <ex.Message>`
+- info `Log copies: crash folder <..> - its session's log (<session>)<..> copied beside the crash dump`
+- warning `Log copies: crash folder <..>: <ex.Message>`
+- warning `Log copies: crash folders not looked at: <ex.Message>`
 - info `Log copies: this session -> <_target> (keeping <keepPrevious> previous, <delete.Count> old deleted)`
 
 ## `Log copies off`
@@ -1820,6 +1823,21 @@ Meaning: The UI came back because a window was opened while it was hidden.
 Written by ModuleHost.cs; info.
 
 - info `UI shown again: a window was opened while all UI was hidden.`
+
+## `Unity`
+
+Meaning: An error, assert or exception Unity itself logged (T-0276; BepInEx keeps them out of this log and the game writes no output_log.txt): `[Error]` / `[Assert]` / `[Exception]`, the message (an exception adds its first stack line), "(off the main thread)" for the render thread and other threads (the d3d11 texture lines), how many repeats were not written (same text but digits: one line a minute), and lines held back over 30 a minute. Also in logs/unity.log, written at once, so a crash cannot lose it.
+Written by UnityErrorLog.cs; warning.
+
+- warning `<..>` *(declared)*
+
+## `Unity errors`
+
+Meaning: At startup: Unity's own errors are being logged (the `Unity` lines), or why not.
+Written by UnityErrorLog.cs; info / warning.
+
+- info `Unity errors: logged here and to logs/unity.log (repeats counted, at most <UnityLogFilter.PerMinute> lines a minute)`
+- warning `Unity errors: not logged: <ex.Message>`
 
 ## `Update`
 

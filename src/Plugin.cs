@@ -88,7 +88,8 @@ namespace ForestOverlay
                 int keptLogs = Config.Bind("Diagnostics", "KeptLogs", 3,
                     "How many previous sessions' LogOutput.log to keep in config/ForestOverlay/logs " +
                     "(the game replaces LogOutput.log on every launch).").Value;
-                _logs = new LogKeeper(Paths.BepInExRootPath, configDir, keptLogs, Logger);
+                _logs = new LogKeeper(Paths.BepInExRootPath, Paths.GameRootPath, configDir, keptLogs, Logger);
+                UnityErrorLog.Start(Logger, _logs.Folder, _logs.SessionName + " v" + PluginVersion);
 
                 // Before any module loads, so they read the shipped lists.
                 Data.ShippedData.Install(configDir, Logger);
@@ -190,6 +191,7 @@ namespace ForestOverlay
             {
                 StallWatch.Beat(Time.frameCount);
                 StallWatch.At(StallWatch.Hook.Update, -1);
+                UnityErrorLog.Flush();
                 if (_logs != null) _logs.Tick(Time.realtimeSinceStartup);
                 if (_host == null) return;
 
@@ -251,6 +253,7 @@ namespace ForestOverlay
                 catch (Exception ex) { Logger.LogWarning("OnDestroy: " + ex.Message); }
 
                 if (_events != null) _events.Uninstall();
+                UnityErrorLog.Stop();
             }
             catch (Exception ex) { Lifecycle.Fail("OverlayPlugin.OnDestroy", ex); }
         }
