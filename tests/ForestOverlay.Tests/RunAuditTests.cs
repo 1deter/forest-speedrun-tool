@@ -166,11 +166,48 @@ namespace ForestOverlay.Tests
             Assert.Contains("2 cave entries: Cave 1 - Dead Cave, Cave 6 - Lawyer Cave", rundown);
             Assert.Contains("3 items gained, 1 item used or lost (1 change)", rundown);
             Assert.Contains("1 structure built", rundown);
-            Assert.Contains("4 trees cut down", rundown);
+            Assert.DoesNotContain(rundown, l => l.Contains("tree"));   // T-0244: in the log, not the report
             Assert.Contains("1 ride: zipline", rundown);
             Assert.Contains("1 rope climb", rundown);
             Assert.Contains("Pause menu opened 1 time, 3.5 s in all", rundown);
             Assert.Contains("The audit log was full: 12 later events were not written", rundown);
+        }
+
+        // T-0244: the summary counts the moves the game saw too, on one
+        // line after the deaths, each kind once in the order first seen.
+        [Fact]
+        public void RundownCountsTheMoves()
+        {
+            AttemptChain c = Start();
+            c.Event(1000, -1, "first-input", true, 0, 0, 0, "the runner took control");
+            c.Event(2000, -1, RunAudit.Death, true, 0, 0, 0, "died");
+            c.Event(3000, -1, RunAudit.Bomb, true, 0, 0, 0, null);
+            c.Move(3100, MoveDetector.BombBoost, true, 0, 0, 0, "game time stopped");
+            c.Move(4000, MoveDetector.ClipKind, true, 0, 0, 0, "into a rock");
+            c.Move(5000, MoveDetector.BombBoost, true, 0, 0, 0, "again");
+            c.Event(6000, -1, RunAudit.Tree, true, 0, 0, 0, "3 trees cut down (from 0:03)");
+            c.End(7000, "reset", -1);
+            AttemptChain.Replay r = AttemptChain.Read(c.Text);
+            Assert.Null(r.Error);
+            List<string> kinds = new List<string>();
+            foreach (AttemptChain.MoveInfo m in r.Moves) kinds.Add(m.Kind);
+
+            List<string> rundown = RunAudit.Rundown(r.Events, kinds);
+            Assert.Equal(new[] { "1 death", "Moves the game saw: Bomb boost (2), Clip through a solid (1)", "1 bomb went off" }, rundown.ToArray());
+            Assert.DoesNotContain("Moves", string.Join("|", RunAudit.Rundown(r.Events).ToArray()));   // without moves, as before
+            // moves alone (a log from before the audit log) still count
+            Assert.Equal(new[] { "Moves the game saw: Bomb boost (2), Clip through a solid (1)" }, RunAudit.Rundown(null, kinds).ToArray());
+            Assert.Empty(RunAudit.Rundown(null, new List<string>()));
+        }
+
+        [Fact]
+        public void EveryMoveKindHasPlainWords()
+        {
+            string[] kinds = { MoveDetector.BombBoost, MoveDetector.HugeSpeedKind, MoveDetector.CaveForceLoad,
+                               MoveDetector.FallDamageCancel, MoveDetector.LiftKind, MoveDetector.ClipKind };
+            foreach (string k in kinds) Assert.NotEqual(k, RunAudit.MoveLabel(k));
+            Assert.Equal("Bomb boost", RunAudit.MoveLabel(MoveDetector.BombBoost));
+            Assert.Equal("brand-new", RunAudit.MoveLabel("brand-new"));   // a newer plugin's kind still shows
         }
 
         [Fact]
@@ -187,6 +224,13 @@ namespace ForestOverlay.Tests
             Assert.Equal("Rope climb started", RunAudit.Label("rope-grab"));
             Assert.Equal("Rope climb ended", RunAudit.Label("rope-leave"));
             foreach (string g in RunAudit.Groups) Assert.False(string.IsNullOrEmpty(RunAudit.GroupLabel(g)));
+            Assert.Equal("Moves the game saw", RunAudit.GroupLabel(RunAudit.MovesGroup));
+            // trees keep their group and label (the replays' markers), not the report
+            Assert.Equal("building", RunAudit.Group(RunAudit.Tree));
+            Assert.Equal("Trees cut", RunAudit.Label(RunAudit.Tree));
+            Assert.False(RunAudit.InReport(RunAudit.Tree));
+            Assert.True(RunAudit.InReport(RunAudit.Bomb));
+            Assert.True(RunAudit.InReport("something-new"));
             Assert.Equal("1:01:01", RunAudit.Clock(3661000));
             Assert.Equal(3, RunAudit.LeadingCount("3 trees"));
             Assert.Equal(1, RunAudit.LeadingCount("trees"));

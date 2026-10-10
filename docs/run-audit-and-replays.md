@@ -60,6 +60,18 @@ its last 10 lines. Site: *What happened in the run* on the attempt page
 blueprints *placed* (only finished ones, via the bus), damage amounts,
 falls, climbs / swims.
 
+**The report lists everything but tree cuts (T-0244, author 2026-10-09,
+run a-943153246891dcf2):** the rundown counts the moves the game saw on
+one line after the deaths ("Moves the game saw: Bomb boost (2)", the Runs
+tab too), and the site's timeline puts the `move` lines beside the events
+by their time (group / chip "Moves the game saw"; a log with no events,
+from before the audit log, keeps its moves in their own section only).
+Tree cuts are a bomb boost's aftermath and noise for a verifier: the
+plugin still writes their `event` lines and the replays still show their
+markers (`Data/ReplayMarks`), but `RunAudit.InReport` leaves them out of
+the rundown, the timeline and the Runs tab's last lines. Old uploaded
+logs get the same view (the site works it out from the log on a view).
+
 **Where it would show:** a timeline on the attempt page, each entry with
 its time on the video (real ms from the start - the run code already
 ties the video to the log), filterable by kind; the Runs tab shows the

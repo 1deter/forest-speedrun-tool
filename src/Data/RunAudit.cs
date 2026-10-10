@@ -19,7 +19,11 @@ namespace ForestOverlay.Data
     //     so a run writes a few item lines a minute at most;
     //   - Burst: many of one small thing (trees cut, hits taken) as one line;
     //   - Rundown: the summary first ("2 deaths, 3 caves entered, 41 items
-    //     picked up ..."), the timeline behind it.
+    //     picked up ..."), the timeline behind it - the moves the game saw
+    //     counted in it too (T-0244: "the summary lists everything");
+    //   - InReport: tree cuts stay in the log and on the replays' markers
+    //     but are not listed in the report (T-0244: a bomb boost's
+    //     aftermath, noise for verifiers).
     //
     // Kinds from the game's own events keep their names (Game/GameEvents,
     // Game/WorldEvents): cave-enter, cave-exit, clothing, passenger,
@@ -57,7 +61,11 @@ namespace ForestOverlay.Data
 
         // --- labels and groups ------------------------------------------------
 
-        public static readonly string[] Groups = { "progress", "caves", "items", "building", "fights", "deaths", "movement", "menu", "world" };
+        /// "moves" is the moves the game saw (`move` lines, not events): the
+        /// site's timeline lists them beside the events under it.
+        public const string MovesGroup = "moves";
+
+        public static readonly string[] Groups = { "progress", "caves", "items", "building", "fights", "deaths", MovesGroup, "movement", "menu", "world" };
 
         public static string GroupLabel(string group)
         {
@@ -66,9 +74,10 @@ namespace ForestOverlay.Data
                 case "progress": return "Story and endgame";
                 case "caves": return "Caves";
                 case "items": return "Items and crafting";
-                case "building": return "Building and trees";
+                case "building": return "Building";
                 case "fights": return "Fights";
                 case "deaths": return "Deaths";
+                case MovesGroup: return "Moves the game saw";
                 case "movement": return "Rides, ropes, input";
                 case "menu": return "Pause menu";
                 default: return "World and settings";
@@ -141,17 +150,52 @@ namespace ForestOverlay.Data
             }
         }
 
+        /// Whether the report (the attempt page's rundown and timeline, the
+        /// Runs tab) lists a kind. Tree cuts do not (author, T-0244: they
+        /// come from a bomb boost's aftermath); the log and the replays'
+        /// markers keep them.
+        public static bool InReport(string kind)
+        {
+            return kind != Tree;
+        }
+
+        /// A move's plain words (Data/MoveDetector's kinds, by value: the site
+        /// does not link it; the site's "Moves the game saw", the Runs tab).
+        public static string MoveLabel(string kind)
+        {
+            switch (kind)
+            {
+                case "bomb-boost": return "Bomb boost";
+                case "huge-speed": return "Huge speed";
+                case "cave-force-load": return "Cave state force load";
+                case "fall-damage-cancel": return "Fall damage cancel";
+                case "lift": return "Lift out of a structure";
+                case "clip": return "Clip through a solid";
+                default: return kind ?? "";
+            }
+        }
+
         // --- the rundown ------------------------------------------------------
 
         /// The summary a verifier skims first: one line per kind that
         /// happened, the most telling first. Empty for a log without events.
         public static List<string> Rundown(IList<AttemptChain.EventInfo> events)
         {
+            return Rundown(events, null);
+        }
+
+        /// The same with the moves the game saw (their kinds, in log order)
+        /// counted on one line after the deaths: "Moves the game saw: Bomb
+        /// boost (2), Huge speed (1)". Empty for a log with neither.
+        public static List<string> Rundown(IList<AttemptChain.EventInfo> events, IList<string> moveKinds)
+        {
             List<string> lines = new List<string>();
-            if (events == null || events.Count == 0) return lines;
+            bool noEvents = events == null || events.Count == 0;
+            if (noEvents && (moveKinds == null || moveKinds.Count == 0)) return lines;
+            if (noEvents) events = new AttemptChain.EventInfo[0];
 
             int deaths = 0, reloads = 0, caves = 0, items = 0, gained = 0, lost = 0, crafted = 0, used = 0, built = 0;
-            int trees = 0, kills = 0, animals = 0, hits = 0, bombs = 0, rides = 0, ropes = 0, pauses = 0, sleeps = 0;
+            int kills = 0, animals = 0, hits = 0, bombs = 0, rides = 0, ropes = 0, pauses = 0, sleeps = 0;
             int passengers = 0, clothing = 0, skipped = 0;
             long pausedMs = 0, openAt = -1;
             List<string> settings = new List<string>();
@@ -176,7 +220,6 @@ namespace ForestOverlay.Data
                     case Crafted: crafted++; break;
                     case Used: used++; break;
                     case Built: built++; break;
-                    case Tree: trees += LeadingCount(e.Detail); break;
                     case Kill: kills++; break;
                     case Animal: animals++; break;
                     case Hit: hits += LeadingCount(e.Detail); break;
@@ -199,6 +242,8 @@ namespace ForestOverlay.Data
 
             if (deaths > 0)
                 lines.Add(Count(deaths, "death", "deaths") + (reloads > 0 ? " (" + Count(reloads, "Reload save on death", "Reloads save on death") + ")" : ""));
+            string moves = MovesLine(moveKinds);
+            if (moves.Length > 0) lines.Add(moves);
             if (settings.Count > 0) lines.Add("Game settings changed during the run: " + string.Join("; ", settings.ToArray()));
             if (progress.Count > 0) lines.Add("Progress: " + string.Join(", ", progress.ToArray()));
             if (passengers > 0) lines.Add(Count(passengers, "passenger found", "passengers found"));
@@ -214,7 +259,6 @@ namespace ForestOverlay.Data
             if (used > 0) lines.Add(Count(used, "item eaten or used", "items eaten or used"));
             if (clothing > 0) lines.Add(Count(clothing, "piece of clothing put on", "pieces of clothing put on"));
             if (built > 0) lines.Add(Count(built, "structure built", "structures built"));
-            if (trees > 0) lines.Add(Count(trees, "tree cut down", "trees cut down"));
             if (kills > 0) lines.Add(Count(kills, "enemy killed", "enemies killed"));
             if (animals > 0) lines.Add(Count(animals, "animal killed", "animals killed"));
             if (hits > 0) lines.Add(Count(hits, "hit taken from enemies", "hits taken from enemies"));
@@ -227,6 +271,29 @@ namespace ForestOverlay.Data
             if (sleeps > 0) lines.Add("Slept " + Count(sleeps, "time", "times"));
             if (skipped > 0) lines.Add("The audit log was full: " + Count(skipped, "later event was", "later events were") + " not written");
             return lines;
+        }
+
+        /// "Moves the game saw: Bomb boost (2), Huge speed (1)" - each kind
+        /// once, in the order first seen; "" for none.
+        private static string MovesLine(IList<string> kinds)
+        {
+            if (kinds == null || kinds.Count == 0) return "";
+            List<string> order = new List<string>();
+            Dictionary<string, int> counts = new Dictionary<string, int>();
+            for (int i = 0; i < kinds.Count; i++)
+            {
+                string k = kinds[i] ?? "";
+                int n;
+                if (!counts.TryGetValue(k, out n)) order.Add(k);
+                counts[k] = n + 1;
+            }
+            StringBuilder sb = new StringBuilder("Moves the game saw: ");
+            for (int i = 0; i < order.Count; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                sb.Append(MoveLabel(order[i])).Append(" (").Append(counts[order[i]].ToString(CultureInfo.InvariantCulture)).Append(')');
+            }
+            return sb.ToString();
         }
 
         // --- items ------------------------------------------------------------
