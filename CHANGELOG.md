@@ -5,6 +5,13 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.272 - 2026-10-10
+
+- Spots save themselves: every edit in the Practice editor is written within a second or so, so a restart no longer loses a rename, a category move or a timed spot's end. The Save and Reload buttons are gone.
+- Deleting a spot in Practice only removes it from your list - the website copy stays until you press Delete from the website.
+- Your own spots on the website can be added back to your list, or put back over your local copy with Update, then Replace?. A run finished afterwards uploads the new route.
+- Run report: the summary counts the moves the game saw, All lists them by time beside the events, and tree cuts are left out.
+
 ## v0.24.271 - 2026-10-10
 
 - Practice: a new Keep loaded switch on a spot's Start state row. The start state loads once, then restarts only put you and the endgame's elevators and doors back and teleport - instant instead of a Quick load. It loads again by itself when the world changes (a scene loads, a death, another load). Made for lab skip practice, works on any spot.
