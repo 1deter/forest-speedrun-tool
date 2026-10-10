@@ -173,7 +173,7 @@ namespace ForestOverlay.Modules
         // Keep loaded (T-0212): which restarts may skip the start state.
         private readonly KeepLoaded _keep = new KeepLoaded();
         private static readonly GUIContent KeepLoadedHint =
-            new GUIContent("Keep loaded: the start state loads once; restarts then teleport and reset the player and the lab's " +
+            new GUIContent("Keep loaded: the start state loads once; restarts then teleport and put back the player and the endgame's " +
                            "elevators and doors. It loads again when the world changes (a scene loads, a death, another load).");
 
         // --- sharing (Data/SegmentBundle): export / import .foseg files ---
