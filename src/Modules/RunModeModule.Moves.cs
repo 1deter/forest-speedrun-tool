@@ -20,6 +20,7 @@ namespace ForestOverlay.Modules
     {
         private readonly MoveDetector _moves = new MoveDetector();
         private readonly List<string> _attemptMoves = new List<string>();   // this attempt's, for the Runs tab
+        private readonly List<string> _attemptMoveKinds = new List<string>();   // their kinds, for the audit's rundown
         private bool _movesLoaded;
 
         private void InitMoves(ModuleContext ctx)
@@ -58,7 +59,8 @@ namespace ForestOverlay.Modules
                                 ") - " + m.Detail + (folded ? " - in attempt " + _attemptId + "'s log" : " (no attempt running)") + ".");
                 if (!folded) continue;
                 _chain.Move(_clock.ElapsedMilliseconds, m.Kind, true, p.x, p.y, p.z, m.Detail);
-                _attemptMoves.Add(KindLabel(m.Kind) + " at " + Clock(_clock.ElapsedMilliseconds) + ": " + m.Detail);
+                _attemptMoves.Add(RunAudit.MoveLabel(m.Kind) + " at " + Clock(_clock.ElapsedMilliseconds) + ": " + m.Detail);
+                _attemptMoveKinds.Add(m.Kind);
                 _nextText = 0f;
             }
             _moves.Ready.Clear();
@@ -76,21 +78,8 @@ namespace ForestOverlay.Modules
         {
             _moves.Reset(drop: true);
             _attemptMoves.Clear();
+            _attemptMoveKinds.Clear();
             _moves.TakeDropped();
-        }
-
-        public static string KindLabel(string kind)
-        {
-            switch (kind)
-            {
-                case MoveDetector.BombBoost: return "Bomb boost";
-                case MoveDetector.HugeSpeedKind: return "Huge speed";
-                case MoveDetector.CaveForceLoad: return "Cave state force load";
-                case MoveDetector.FallDamageCancel: return "Fall damage cancel";
-                case MoveDetector.LiftKind: return "Lift out of a structure";
-                case MoveDetector.ClipKind: return "Clip through a solid";
-                default: return kind;
-            }
         }
 
         private static string Clock(long ms)

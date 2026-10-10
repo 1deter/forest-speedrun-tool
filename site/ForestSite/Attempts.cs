@@ -297,8 +297,9 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             pos = m.HasPos ? new[] { m.X, m.Y, m.Z } : null, maybeBanned = m.MaybeBanned,
         }).ToList();
         // The audit log (run mode attempts since the audit log; none in
-        // older logs): the rundown first, the timeline behind it.
-        var notes = EventNotes(replay.Events);
+        // older logs): the rundown first, the timeline behind it - both with
+        // the moves the game saw too (T-0244).
+        var notes = EventNotes(replay.Events, replay.Moves);
         var events = notes.Select(e => new
         {
             kind = e.Kind, label = e.Label, group = e.Group, realMs = e.RealMs, timerMs = e.TimerMs, detail = e.Detail,
@@ -309,7 +310,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         var (_, list) = JudgeReport(report, allowed, null, cat);
         var j = new Judged(row.LogMs.Value, allowedVersion, parsed.Category ?? "", parsed.CategoryVersion, cat != null, text.Length,
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
-            RunAudit.Rundown(replay.Events), events, eventGroups, verdict, all.ToArray(),
+            RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
             new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay));
         lock (_judged)
@@ -338,15 +339,16 @@ CREATE TABLE IF NOT EXISTS allowed_code (
                                   string MaybeBanned);
 
     // Words that name each kind in a category's banned moves (speedrun.com's
-    // rule text: "No bomb boosting", "The explosives glitch").
-    private static readonly Dictionary<string, (string Label, string[] Words)> MoveKinds = new()
+    // rule text: "No bomb boosting", "The explosives glitch"). The labels:
+    // RunAudit.MoveLabel (shared with the plugin's Runs tab).
+    private static readonly Dictionary<string, string[]> MoveWords = new()
     {
-        ["bomb-boost"] = ("Bomb boost", new[] { "bomb", "explosi", "knockback" }),
-        ["huge-speed"] = ("Huge speed", Array.Empty<string>()),
-        ["cave-force-load"] = ("Cave state force load", new[] { "cave" }),
-        ["fall-damage-cancel"] = ("Fall damage cancel", new[] { "fall damage", "fall-damage", "fall cancel", "slide cancel" }),
-        ["lift"] = ("Lift out of a structure", new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" }),
-        ["clip"] = ("Clip through a solid", new[] { "clip" }),
+        ["bomb-boost"] = new[] { "bomb", "explosi", "knockback" },
+        ["huge-speed"] = Array.Empty<string>(),
+        ["cave-force-load"] = new[] { "cave" },
+        ["fall-damage-cancel"] = new[] { "fall damage", "fall-damage", "fall cancel", "slide cancel" },
+        ["lift"] = new[] { "log boost", "logboost", "log-boost", "wall boost", "depenetrat" },
+        ["clip"] = new[] { "clip" },
     };
 
     /// The moves the game saw, in plain words, each with the category's
@@ -359,9 +361,8 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         if (moves == null) return list;
         foreach (var m in moves)
         {
-            string label = m.Kind;
-            string[] words = Array.Empty<string>();
-            if (MoveKinds.TryGetValue(m.Kind, out var k)) { label = k.Label; words = k.Words; }
+            string label = RunAudit.MoveLabel(m.Kind);
+            string[] words = MoveWords.TryGetValue(m.Kind, out var w) ? w : Array.Empty<string>();
             string banned = null;
             if (category != null)
                 banned = category.Banned.FirstOrDefault(b => words.Any(w => b.Contains(w, StringComparison.OrdinalIgnoreCase)));
@@ -395,16 +396,28 @@ CREATE TABLE IF NOT EXISTS allowed_code (
         };
     }
 
-    /// The events in plain words with their group, in log order. Never part
-    /// of the verdict: like a move, an event is what the game saw.
-    public static List<EventNote> EventNotes(IEnumerable<AttemptChain.EventInfo> events)
+    /// The events in plain words with their group, in log order, without
+    /// the kinds the report leaves out (RunAudit.InReport: tree cuts). With
+    /// `moves`, the moves the game saw go in by their time (group "moves",
+    /// no timer), so the timeline's All lists everything (T-0244); an
+    /// attempt with moves and no events (a log from before the audit log)
+    /// keeps them in their own section only. Never part of the verdict:
+    /// like a move, an event is what the game saw.
+    public static List<EventNote> EventNotes(IEnumerable<AttemptChain.EventInfo> events, IEnumerable<AttemptChain.MoveInfo> moves = null)
     {
         var list = new List<EventNote>();
         if (events == null) return list;
         foreach (var e in events)
-            list.Add(new EventNote(e.Kind, RunAudit.Label(e.Kind), RunAudit.Group(e.Kind), e.RealMs, e.TimerMs, e.Detail,
-                                   e.HasPos, e.X, e.Y, e.Z));
-        return list;
+            if (RunAudit.InReport(e.Kind))
+                list.Add(new EventNote(e.Kind, RunAudit.Label(e.Kind), RunAudit.Group(e.Kind), e.RealMs, e.TimerMs, e.Detail,
+                                       e.HasPos, e.X, e.Y, e.Z));
+        if (moves == null || list.Count == 0) return list;
+        var all = list.Select((n, i) => (n, i)).ToList();
+        int at = list.Count;
+        foreach (var m in moves)
+            all.Add((new EventNote(m.Kind, RunAudit.MoveLabel(m.Kind), RunAudit.MovesGroup, m.RealMs, -1, m.Detail,
+                                   m.HasPos, m.X, m.Y, m.Z), at++));
+        return all.OrderBy(x => x.n.RealMs).ThenBy(x => x.i).Select(x => x.n).ToList();
     }
 
     /// The groups present, in RunAudit's order (the page's filter chips).

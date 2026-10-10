@@ -216,6 +216,45 @@ public sealed class AttemptTests : IDisposable
         Assert.NotEqual(r.Step(2).Head, edited.Step(2).Head);
     }
 
+    // T-0244: the timeline's All lists the moves the game saw beside the
+    // events, by time; tree cuts stay in the log but not the report.
+    [Fact]
+    public void EventNotes_TakeTheMovesIn_LeaveTheTreesOut()
+    {
+        var c = new AttemptChain();
+        c.Header(Id, Runner, "Runner", "test", "Any%", "-", "-", "seed", DateTime.UtcNow);
+        c.Step(1000, -1, true, 0, 0, 0);
+        c.Event(1200, -1, "first-input", true, 0, 0, 0, "the runner took control");
+        c.Event(2000, -1, RunAudit.Bomb, true, 1, 2, 3, null);
+        c.Move(2000, "bomb-boost", true, 1, 2, 3, "game time stopped 1.04 s");
+        c.Event(2500, -1, RunAudit.PauseOpen, true, 0, 0, 0, null);
+        c.Event(4000, -1, RunAudit.Tree, true, 0, 0, 0, "3 trees cut down (from 0:02)");
+        c.Move(4100, "brand-new-move", false, 0, 0, 0, "from a newer plugin");
+        c.End(5000, "reset", -1);
+        var r = AttemptChain.Read(c.Text);
+        Assert.Null(r.Error);
+
+        var notes = Attempts.EventNotes(r.Events, r.Moves);
+        Assert.Equal(new[] { "first-input", "bomb", "bomb-boost", "pause-open", "brand-new-move" }, notes.Select(n => n.Kind).ToArray());
+        var boost = notes[2];
+        Assert.Equal("Bomb boost", boost.Label);
+        Assert.Equal(RunAudit.MovesGroup, boost.Group);
+        Assert.Equal(-1, boost.TimerMs);
+        Assert.True(boost.HasPos);
+        Assert.Equal("brand-new-move", notes[4].Label);
+        var groups = Attempts.EventGroups(notes);
+        Assert.Equal(new[] { "fights", "moves", "movement", "menu" }, groups.Select(g => g.Id).ToArray());
+        Assert.Equal("Moves the game saw", groups[1].Label);
+        Assert.Equal(2, groups[1].Count);
+        Assert.DoesNotContain(notes, n => n.Kind == RunAudit.Tree);
+        Assert.DoesNotContain(groups, g => g.Id == "building");
+
+        // Without moves, the events alone (tree cuts still left out).
+        Assert.Equal(3, Attempts.EventNotes(r.Events).Count);
+        // A log from before the audit log: moves stay in their own section.
+        Assert.Empty(Attempts.EventNotes(new List<AttemptChain.EventInfo>(), r.Moves));
+    }
+
     [Fact]
     public void MoveNotes_NameTheBannedMoveTheyMayBe()
     {
@@ -465,14 +504,20 @@ public sealed class AttemptTests : IDisposable
         Assert.Equal("Bomb boost", mv["label"].GetValue<string>());
         Assert.Equal(3050, mv["realMs"].GetValue<long>());
         Assert.Equal(772.5, mv["pos"][0].GetValue<double>(), 3);
-        // The audit log: the rundown and the timeline, never judged.
-        var ev = Assert.Single(view["events"].AsArray());
+        // The audit log: the rundown and the timeline, never judged - the
+        // move in both too (T-0244), by its time.
+        var evs = view["events"].AsArray();
+        Assert.Equal(2, evs.Count);
+        Assert.Equal("Bomb boost", evs[0]["label"].GetValue<string>());
+        Assert.Equal("moves", evs[0]["group"].GetValue<string>());
+        var ev = evs[1];
         Assert.Equal("Cave entered", ev["label"].GetValue<string>());
         Assert.Equal("caves", ev["group"].GetValue<string>());
         Assert.Equal(1110, ev["timerMs"].GetValue<long>());
         Assert.Equal(-20, ev["pos"][1].GetValue<double>(), 3);
-        Assert.Equal("1 cave entry: Cave 1 - Dead Cave", Assert.Single(view["rundown"].AsArray()).GetValue<string>());
-        Assert.Equal("caves", Assert.Single(view["eventGroups"].AsArray())["id"].GetValue<string>());
+        Assert.Equal(new[] { "Moves the game saw: Bomb boost (1)", "1 cave entry: Cave 1 - Dead Cave" },
+                     view["rundown"].AsArray().Select(l => l.GetValue<string>()).ToArray());
+        Assert.Equal(new[] { "caves", "moves" }, view["eventGroups"].AsArray().Select(g => g["id"].GetValue<string>()).ToArray());
         Assert.All(view["findings"].AsArray(), f => Assert.Equal("ok", f["level"].GetValue<string>()));
         Assert.Equal(log, await _http.GetStringAsync("/api/attempts/" + Id + "/log"));
         var found = await _http.GetFromJsonAsync<JsonObject>("/api/attempts/" + Id + "/code/" + c.Code.ToLowerInvariant());
