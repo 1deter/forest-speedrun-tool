@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-222 prefixes from 710 log calls.
+224 prefixes from 716 log calls.
 
 ## `Aerial capture`
 
@@ -884,6 +884,24 @@ Meaning: The memory census threw.
 Written by SavestateModule.cs; warning.
 
 - warning `Memory census failed: <ex>`
+
+## `ModAPI`
+
+Meaning: ModAPI rebuilt Assembly-CSharp but the patcher's repair did not run this launch (it was just installed), so the overlay stays off until a restart (T-0246).
+Written by Plugin.cs; warning.
+
+- warning `ModAPI: its Assembly-CSharp is not repaired this launch (the patcher was just installed) - overlay off until the game is restarted.`
+
+## `ModAPI fix`
+
+Meaning: The preloader's repair of ModAPI's rebuilt Assembly-CSharp: each optional parameter given back its default (or its flag cleared) so Mono does not die when reflection reads it (T-0246).
+Written by ModApiFix.cs; info / error.
+
+- info `ModAPI fix: <line>`
+- info `ModAPI fix: <n> parameter default(s) repaired in Assembly-CSharp.dll.`
+- info `ModAPI fix: Assembly-CSharp.dll was rebuilt by ModAPI - checking its parameter defaults.`
+- error `ModAPI fix: could not read Assembly-CSharp.dll - <ex.Message>`
+- error `ModAPI fix: failed - <ex>`
 
 ## `Module`
 

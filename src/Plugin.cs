@@ -36,6 +36,10 @@ namespace ForestOverlay
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
+        // Wording waits for the author (T-0246).
+        private const string ModApiRestartNotice =
+            "ForestOverlay: ModAPI found. Restart the game once to turn the overlay on.";
+
         private ModuleHost _host;
         private PlayerRef _player;
         private GameBridge _bridge;
@@ -97,6 +101,16 @@ namespace ForestOverlay
                 // Arms the next update: the patcher is what installs it.
                 UpdaterInstaller.Install(Logger);
                 UpdateChecker.TidyPluginFolder(System.Reflection.Assembly.GetExecutingAssembly().Location, Logger);
+
+                // ModAPI's Assembly-CSharp kills Mono under our patches until
+                // the patcher repairs it; the patcher installed just above
+                // runs from the next launch (T-0246).
+                if (ModApi.Unrepaired())
+                {
+                    Logger.LogWarning("ModAPI: its Assembly-CSharp is not repaired this launch (the patcher was just installed) - overlay off until the game is restarted.");
+                    _notice.Show(ModApiRestartNotice, 20f);
+                    return;
+                }
 
                 _bridge = new GameBridge(Logger);
                 LatePass.Log = line => Logger.LogInfo(line);   // log: Late pass
@@ -261,10 +275,13 @@ namespace ForestOverlay
         // ------------------------------------------------------------------
         private void OnGUI()
         {
-            if (_host == null) return;
+            if (_host == null && !_notice.Active) return;
 
             try
             {
+                // Inert: only a notice set before the modules (ModAPI).
+                if (_host == null) { EnsureStyles(); DrawNotice(); return; }
+
                 StallWatch.At(StallWatch.Hook.OnGui, -1);
                 // Run mode's code stays on screen with the overlay hidden:
                 // a recording needs it (docs/run-mode.md phase 2).
@@ -294,7 +311,7 @@ namespace ForestOverlay
             {
                 // Disable rather than throw every frame; an exception here
                 // repeats several times per frame and floods the log.
-                _host.HudVisible = false;
+                if (_host != null) _host.HudVisible = false;
                 Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
             }
             finally { StallWatch.Leave(); }
