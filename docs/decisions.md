@@ -169,7 +169,10 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
     mode toggle, the run state); a runner's Restart on a timed segment
     turns practice mode on and says so; the label stays `Restart` (no new
     "Start"); F7 and the Runs tab's Restart follow the spot selected in
-    the list.
+    the list. Follow-ups (author, 2026-10-10): Go on a list row selects
+    it too (T-0271); the strip says only what helps - why Restart is
+    greyed or refused, nothing beyond the name for a plain spot (T-0272:
+    "if it has nothing useful to display, then don't show it").
   - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
     and every feature that adds much UI; the author's rules are a floor,
     not the whole list - it brings in established UX guidance.
