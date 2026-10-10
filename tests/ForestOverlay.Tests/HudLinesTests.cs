@@ -54,8 +54,10 @@ namespace ForestOverlay.Tests
             HashSet<string> keys = new HashSet<string>();
             foreach (HudLine l in HudLines.All)
             {
-                if (!l.Switchable) continue;
+                if (l.Locked) continue;
+                // Every value has a layout key (T-0018: the 100% totals too).
                 Assert.True(keys.Add(l.ConfigKey), l.ConfigKey);
+                if (!l.Switchable) continue;
                 // Lines added after the HUD settings are opt-in.
                 Assert.Equal(l.ConfigKey != "ShowLoadRemoved" && l.ConfigKey != "ShowTotalSpeed", l.DefaultOn);
                 Assert.False(string.IsNullOrEmpty(l.Description));

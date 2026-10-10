@@ -24,7 +24,9 @@ namespace ForestOverlay.Data
         public readonly string Module;
         /// HudBuilder.Pair label; null = every line of that module.
         public readonly string Label;
-        /// Config key under [HUD]; null for locked / externally switched lines.
+        /// Config key under [HUD] and the HUD layout's key; null for locked
+        /// lines. An externally switched line has one for the layout only
+        /// (placed on its own, text around it - T-0018), no [HUD] entry.
         public readonly string ConfigKey;
         public readonly string Name;
         public readonly string Description;
@@ -91,7 +93,7 @@ namespace ForestOverlay.Data
               "Logs carried / cap, while logs in the inventory is on."),
             L("inventory", "", "ShowPinnedItems", "Pinned items",
               "The items pinned in the Inventory tab, one line each."),
-            new HudLine(CollectiblesModule, null, null, "100% totals",
+            new HudLine(CollectiblesModule, null, "Show100Totals", "100% totals",
               "Items, nature, tasks and passengers found - the same switch as the 100% tab's.",
               false, false, true),
             L("debugview", "Cam", "ShowFreecam", "Freecam",

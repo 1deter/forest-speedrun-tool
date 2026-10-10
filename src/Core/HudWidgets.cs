@@ -563,16 +563,6 @@ namespace ForestOverlay.Core
             {
                 HudLine l = HudLines.All[i];
                 if (l.Locked) continue;
-                if (l.External)
-                {
-                    // 100% totals: its own module's switch; shown in the column only.
-                    Rect r = new Rect(0f, ry, cw - TextW - Gap, RowH - 4f);
-                    bool on = settings.ExternalShows;
-                    if (GUI.Toggle(r, on, _toggleNames[i]) != on) settings.SetExternalShows(!on);
-                    UiKit.Hint(r, _descriptions[i]);
-                    ry += RowH;
-                    continue;
-                }
                 ry = DrawRow(i, ry, cw, settings);
             }
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);
@@ -618,10 +608,16 @@ namespace ForestOverlay.Core
                 if (GUI.Button(new Rect(x, ry, StepW, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
             }
 
-            bool shown = settings.Shows(i);
+            // The 100% totals: its own module's switch (HudLines External).
+            bool external = HudLines.All[i].External;
+            bool shown = external ? settings.ExternalShows : settings.Shows(i);
             Rect nameR = new Rect(0f, ry, x - Gap, h);
             bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
-            if (now != shown) settings.SetShows(i, now);
+            if (now != shown)
+            {
+                if (external) settings.SetExternalShows(now);
+                else settings.SetShows(i, now);
+            }
             UiKit.Hint(nameR, _descriptions[i]);
             ry += RowH;
 
