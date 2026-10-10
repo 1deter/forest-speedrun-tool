@@ -640,6 +640,8 @@ values. The game clears `IsCold` by itself in daylight on the surface, in
 the endgame, and when warm (a fire, sun, a building, the warmsuit) with
 no frost left, so a cold player was seen only with frost on the screen.
 `Game/ColdReset` sets the load's values on every restore in place.
+`ShouldDoWetColdRoll` (the wet-in-the-dark cold roll, set by water) is
+left alone on purpose: its load value is not confirmed.
 
 **The hard landing runs after the fall damage.**
 `FirstPersonCharacter.HandleLanded` (IL) calls `PlayerStats.Hit` for fall
