@@ -2018,16 +2018,20 @@ namespace ForestOverlay.Modules
             else if (full && !s.StartRestoreWithLoad) { s.StartRestoreWithLoad = true; Touch(); }
             y += 26f;
             y += UiText.DrawDim(80, y, cw - 90, s.StartRestoreWithLoad ? FullLoadHint : QuickLoadHint);
-            bool keep = GUI.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
-            if (keep != s.KeepLoaded)
+            // Only with a start state to keep (it does nothing without one).
+            if (_savestates.HasStartState(s))
             {
-                s.KeepLoaded = keep;
-                if (!keep) _keep.Drop("keep loaded was turned off");
-                Ctx.Log.LogInfo("Practice: '" + s.Id + "' keep loaded " + (keep ? "on" : "off") + ".");
-                Touch();
+                bool keep = GUI.Toggle(new Rect(80, y, 200, 20), s.KeepLoaded, "Keep loaded");
+                if (keep != s.KeepLoaded)
+                {
+                    s.KeepLoaded = keep;
+                    if (!keep) _keep.Drop("keep loaded was turned off");
+                    Ctx.Log.LogInfo("Practice: '" + s.Id + "' keep loaded " + (keep ? "on" : "off") + ".");
+                    Touch();
+                }
+                y += 22f;
+                y += UiText.DrawDim(80, y, cw - 90, KeepLoadedHint);
             }
-            y += 22f;
-            y += UiText.DrawDim(80, y, cw - 90, KeepLoadedHint);
             y += 6f;
             return y;
         }
