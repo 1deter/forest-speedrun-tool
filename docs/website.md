@@ -663,15 +663,21 @@ plugin change (Practice's Share row).
   or on a **run spot** (`run = ` names a *published* category - none yet),
   one **Discord embed** is queued (`PbNews.Embed`; T-0232, author
   2026-10-10: "more informative, modern", not a copy of the KSF post):
-  the author line "<runner> · new PB" (or "· first run"), the title = the
-  spot (linking `/spot/<id>/<route>?run=<run id>`, the viewer focuses that
-  run - the replay a post can reach for now), the time in bold and "**0.512**
-  faster than 1:02.857" (or "Their first run here"), inline fields
-  *Category*, *Rank* ("#2 of 5 runners", only with 2+ runners; flagged and
-  hidden runs left out) and *Best on this spot* ("0.420 ahead of 9.000" /
-  "0.420 behind 9.000"), a timestamp, and a footer naming the kind:
-  *Main category* (green bar) or *Runner's spot* (amber bar; the author
-  line also says "on a runner's spot"). A first run posts as before (author
+  the `content` line (the notification text: "<spot> WR: <runner> <time>"
+  when the time is #1 of 2+ runners, "<spot> first run: ..." for a first
+  run, else "<spot> PB: ..."), then the embed: author line "<runner> ·
+  new PB" (or "· first run"), the title = the spot (linking
+  `/spot/<id>/<route>?run=<run id>`, the viewer focuses that run - the
+  replay a post can reach for now), the time in bold and "**0.512** faster
+  than 1:02.857" (or "Their first run here"), inline fields *Category*
+  (only a real label: not My spots / Segments / Spots / Community / empty),
+  *Rank* ("#2 of 5 runners", only with 2+ runners; flagged and hidden runs
+  left out) and, with other runners, *Next best* ("1:01.500 (+2.500)" for a
+  #1) or *Spot record* ("19.000 (you: +1.000)") - never another runner's
+  name - a timestamp, and a footer naming the kind with its own bar colour
+  (T-0285..T-0288): *Run category* (green, a published run category),
+  *Community spot* (blue) or *Runner's spot* (amber; the author line also
+  says "on a runner's spot"). A first run posts as before (author
   2026-10-10). No replay inside the post (nice-to-have only). Not posted: a runner's own practice spot (anyone
   can make one - a spam path; the owner can switch those on, next item),
   a run under review (flagged), a re-upload of a run already there, a

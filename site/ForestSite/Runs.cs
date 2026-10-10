@@ -61,7 +61,7 @@ public sealed class Runs
     /// when the owner switched those on (PbPosts, T-0232).
     public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest,
                                  bool Official = true, string Category = "", int Rank = 0, int Runners = 0,
-                                 float OtherBest = float.NaN);
+                                 float OtherBest = float.NaN, bool RunSpot = false);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
     /// the runner `runnerId` (their token). A [startstate] is kept for the
@@ -142,7 +142,8 @@ public sealed class Runs
             var run = fresh.First(f => f.duration == pb.Value);
             var (rank, runners, otherBest) = Standing(seg.Id, route, runnerId, pb.Value);
             res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest,
-                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory), seg.Category, rank, runners, otherBest);
+                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory), seg.Category, rank, runners, otherBest,
+                                 PbNews.Announces(false, seg.RunCategory, _publishedCategory));
         }
         return res;
     }

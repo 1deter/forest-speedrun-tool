@@ -48,10 +48,30 @@ public static class PbNews
     // clipped before this - so a long one never gets a post refused.
     public const int MaxRunner = 40, MaxSpot = 80, MaxCategory = 40;
 
-    /// The embed colours: main category green, a runner's spot amber (the
-    /// mark is also written in the author line and the footer, so colour is
-    /// never the only cue).
-    public const int MainColour = 0x2E9E5B, RunnerSpotColour = 0xE0A030;
+    /// The embed colours, one per kind of spot: a published run category
+    /// green, a community spot blue, a runner's spot amber (the kind is also
+    /// written in the footer, so colour is never the only cue).
+    public const int RunCategoryColour = 0x2E9E5B, CommunityColour = 0x4A90D9, RunnerSpotColour = 0xE0A030;
+
+    /// The footer's words (T-0285; the site's: /admin, app.js).
+    public const string RunCategoryText = "Run category", CommunityText = "Community spot", RunnerSpotText = "Runner's spot";
+
+    /// The spot's grouping label when it tells the reader something: not
+    /// empty, not the plugin's defaults (My spots, Segments, Spots) and not
+    /// "Community" - the site groups those as "Other" (T-0286).
+    public static bool RealCategory(string category)
+    {
+        string c = (category ?? "").Trim();
+        return c.Length > 0 && !new[] { "My spots", "Segments", "Spots", "Community" }.Contains(c, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// The notification line (the post's `content`, T-0287): the spot, then
+    /// WR (the best time on a spot with 2+ runners), a first run or a PB.
+    public static string Content(Runs.PbFound pb)
+    {
+        string word = pb.Rank == 1 && pb.Runners > 1 ? " WR: " : float.IsNaN(pb.PreviousBest) ? " first run: " : " PB: ";
+        return Escape(Clip(pb.Spot, MaxSpot)) + word + Escape(Clip(pb.Runner, MaxRunner)) + " " + Time(pb.Time);
+    }
 
     /// The post: one Discord embed (T-0232, author 2026-10-10: "more
     /// informative, modern"). Author line = who and what happened (a runner's
@@ -71,12 +91,14 @@ public static class PbNews
         void Field(string name, string value) =>
             fields.Add(new JsonObject { ["name"] = name, ["value"] = value, ["inline"] = true });
         string category = Clip(pb.Category, MaxCategory);
-        if (category.Length > 0) Field("Category", Escape(category));
+        if (RealCategory(category)) Field("Category", Escape(category));
         if (pb.Runners > 1 && pb.Rank > 0) Field("Rank", "#" + pb.Rank + " of " + pb.Runners + " runners");
+        // The other runners' best, never a name: the next best behind a #1, else the record.
         if (!float.IsNaN(pb.OtherBest))
-            Field("Best on this spot", pb.Rank == 1
-                ? Time(pb.OtherBest - pb.Time) + " ahead of " + Time(pb.OtherBest)
-                : Time(pb.Time - pb.OtherBest) + " behind " + Time(pb.OtherBest));
+        {
+            if (pb.Rank == 1) Field("Next best", Time(pb.OtherBest) + " (+" + Time(pb.OtherBest - pb.Time) + ")");
+            else Field("Spot record", Time(pb.OtherBest) + " (you: +" + Time(pb.Time - pb.OtherBest) + ")");
+        }
 
         var embed = new JsonObject
         {
@@ -84,12 +106,12 @@ public static class PbNews
             ["title"] = Escape(Clip(pb.Spot, MaxSpot)),
             ["url"] = url,
             ["description"] = description.ToString(),
-            ["color"] = pb.Official ? MainColour : RunnerSpotColour,
-            ["footer"] = new JsonObject { ["text"] = pb.Official ? "Main category" : "Runner's spot" },
+            ["color"] = !pb.Official ? RunnerSpotColour : pb.RunSpot ? RunCategoryColour : CommunityColour,
+            ["footer"] = new JsonObject { ["text"] = !pb.Official ? RunnerSpotText : pb.RunSpot ? RunCategoryText : CommunityText },
         };
         if (fields.Count > 0) embed["fields"] = fields;
         if (now != null) embed["timestamp"] = now.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        return new JsonObject { ["embeds"] = new JsonArray { embed } };
+        return new JsonObject { ["content"] = Content(pb), ["embeds"] = new JsonArray { embed } };
     }
 
     /// A runner's text where Discord shows no markdown (author, footer):
@@ -268,6 +290,7 @@ public sealed class PbWebhook
     {
         // allowed_mentions: none - a runner named "@everyone" pings nobody.
         var body = new JsonObject { ["embeds"] = message["embeds"].DeepClone(), ["allowed_mentions"] = new JsonObject { ["parse"] = new JsonArray() } };
+        if (message["content"] is JsonValue cv && cv.TryGetValue(out string content)) body["content"] = content;
         try
         {
             using var r = await Http.PostAsJsonAsync(url, body);
