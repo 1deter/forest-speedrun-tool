@@ -19,8 +19,8 @@ begin / round / park / end / intervene / stop.
 
 Stop conditions (author, 2026-10-07): max rounds done (5), nothing left in the
 pool (`tasks.py next`: needs none, + bridge with --bridge), no progress for 3
-rounds in a row; and the orchestrator's own context past 200k (author,
-2026-10-09, T-0249: the night run's main session grew to 541k and was 15 % of
+rounds in a row; and the orchestrator's own context past 300k (author,
+2026-10-09, T-0249, raised from 200k 2026-10-10: the night run's main session grew to 541k and was 15 % of
 four days' usage) - `begin` refuses then too, so the next run starts in a
 fresh session. A task given a third checker revise in its round is parked
 (needs author-decision, the faults as its question) and the loop moves on.
@@ -45,7 +45,7 @@ MAX_ROUNDS = 5          # per run (author, 2026-10-07)
 MAX_REVISES = 2         # checker revises a task may take in its round; the next one parks it
 NO_PROGRESS_STOP = 3    # rounds in a row without progress stop the run (docs/harness.md 12)
 MIN_SUMMARY = 40        # characters; a summary is a paragraph, not "done"
-MAX_CONTEXT = 200000    # tokens in the orchestrator's context; past it the run stops (T-0249)
+MAX_CONTEXT = 300000    # tokens in the orchestrator's context; past it the run stops (T-0249)
 EXIT_STOP = 3
 # A round ends on one of these; progress = the task moved forward for good.
 PROGRESS = ("built", "released", "confirmed", "wontfix")

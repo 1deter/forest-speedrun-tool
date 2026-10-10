@@ -287,13 +287,13 @@ class Context(unittest.TestCase):
     def test_a_big_context_stops_the_run_and_refuses_a_new_one(self):
         ev = []
         run(ev, L.cmd_begin, [task("T-0001")])
-        L.context_tokens = lambda *a, **k: 250000
+        L.context_tokens = lambda *a, **k: 350000
         text, code = run(ev, L.cmd_next, [task("T-0001")])
         self.assertEqual(code, L.EXIT_STOP)
-        self.assertIn("250k", text)
+        self.assertIn("350k", text)
         with self.assertRaises(L.LoopError):
             L.cmd_begin(ev, [task("T-0001")])
-        L.context_tokens = lambda *a, **k: 150000
+        L.context_tokens = lambda *a, **k: 250000
         self.assertEqual(run(ev, L.cmd_begin, [task("T-0001")])[1], 0)
 
 

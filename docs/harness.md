@@ -723,7 +723,7 @@ Asked after the deeper pass; each replaces an "open question" above.
    costly event.
 - **Usage (author, 2026-10-09, T-0249):** of the measured cuts
   (tasks/notes/T-0249.md) only one: the loop stops a run once the
-  orchestrator's context passes 200k and refuses a new run in that
+  orchestrator's context passes 200k (300k from 2026-10-10, author: 200k too harsh, trial) and refuses a new run in that
   session. Researcher model, cloud offload and the cold start stay as
   they are. The bot's full eval runs only after a knowledge / bot change
   and 7 days (docs/decisions.md *Bot review*).
