@@ -15,6 +15,28 @@ namespace ForestOverlay.Game
         /// reference the patcher).
         private const string RepairedKey = "ForestOverlay.ModApiFix";
 
+        /// Same as patcher/ModApiFix.Failed.
+        private const int RepairFailed = -1;
+
+        public enum Repair { NoModApi, Repaired, NeedsRestart, Failed }
+
+        /// What the plugin does this launch: run, or stay off with a notice.
+        public static Repair State()
+        {
+            return Decide(Present(), AppDomain.CurrentDomain.GetData(RepairedKey));
+        }
+
+        /// <paramref name="key"/>: the patcher's DomainKey value - null when
+        /// it did not run this launch (just installed or updated), the
+        /// repaired count, or Failed.
+        public static Repair Decide(bool present, object key)
+        {
+            if (!present) return Repair.NoModApi;
+            if (key == null) return Repair.NeedsRestart;
+            if (key is int && (int)key == RepairFailed) return Repair.Failed;
+            return Repair.Repaired;
+        }
+
         /// The loaded Assembly-CSharp was rebuilt by ModAPI.
         public static bool Present()
         {
@@ -23,19 +45,17 @@ namespace ForestOverlay.Game
                 AssemblyName n;
                 try { n = a.GetName(); } catch (Exception) { continue; }
                 if (n.Name != "Assembly-CSharp") continue;
-                foreach (AssemblyName r in a.GetReferencedAssemblies())
-                    if (r.Name == "BaseModLib") return true;
-                return false;
+                return IsModApiBuild(a.GetReferencedAssemblies());
             }
             return false;
         }
 
-        /// ModAPI is here but the patcher's repair did not run (the patcher
-        /// was installed or updated during this launch): patching the game
-        /// now would kill it.
-        public static bool Unrepaired()
+        /// ModAPI's rebuild references its BaseModLib.
+        public static bool IsModApiBuild(AssemblyName[] references)
         {
-            return Present() && AppDomain.CurrentDomain.GetData(RepairedKey) == null;
+            foreach (AssemblyName r in references)
+                if (r.Name == "BaseModLib") return true;
+            return false;
         }
     }
 }

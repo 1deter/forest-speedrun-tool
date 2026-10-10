@@ -63,6 +63,7 @@
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
     <Compile Include="../../patcher/DefaultRepair.cs" Link="Linked/DefaultRepair.cs" />
+    <Compile Include="../../src/Game/ModApi.cs" Link="Linked/ModApi.cs" />
     <Compile Include="../../src/Data/SafeFile.cs" Link="Linked/SafeFile.cs" />
     <Compile Include="../../src/Data/EditDebounce.cs" Link="Linked/EditDebounce.cs" />
     <Compile Include="../../src/Data/HeldReport.cs" Link="Linked/HeldReport.cs" />

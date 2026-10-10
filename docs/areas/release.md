@@ -90,6 +90,16 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
 - **The patcher updates less reliably than the plugin** — it is loaded while
   the game runs, so `Core/UpdaterInstaller` swaps it by renaming the loaded
   copy aside. Keep `patcher/` small and its behaviour stable.
+- **The patcher DLL holds two patchers.** `Updater` swaps in a staged
+  plugin; `ModApiFix` (T-0246) targets `Assembly-CSharp` only when it
+  references ModAPI's `BaseModLib` (one Cecil read of its references per
+  launch, ~1 ms warm / ~30 ms cold) and repairs ModAPI's dropped
+  parameter defaults (`DefaultRepair`, gotcha 106). It tells the plugin
+  through the AppDomain key `ForestOverlay.ModApiFix` (count repaired, or
+  -1 failed); the plugin (`Game/ModApi`) stays off with a notice when
+  ModAPI is loaded and the key is missing (the patcher was installed or
+  updated this launch: "restart once") or -1 (failed: "send us your
+  log").
 - **Manual test without a release:** save any ForestOverlay.dll as
   `BepInEx/plugins/ForestOverlay.dll.pending` and launch.
 - **Confirmed end to end in game (v0.16.2 -> v0.16.3):** check, Download,
@@ -103,6 +113,9 @@ tag vX.Y.Z -> CI builds + tests -> GitHub Release with ForestOverlay.dll
   once, game closed.
 - **Installs older than v0.16.2 cannot download updates**; older than
   v0.19.2 can hit the post-release 404 (click Download again later).
+- **With ModAPI** (e.g. UltimateCheatmenu), the first launch after
+  installing or updating the plugin shows "ModAPI found. Restart the game
+  once" and keeps the overlay off; from the next launch both run.
 - `gh` is not installed on this machine: release pages cannot be edited
   from here. CI writes every release's notes from `CHANGELOG.md`.
 
@@ -115,3 +128,4 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 44. **Measure before the changelog claims a number.** [check: stop.py changelog number]
 65. **A release chain must stop when a step fails** - join a script edit to the bump with `&&` (v0.24.172 shipped empty). [check: lint.py versions + pre-push]
 92. **The plugin's SDK project compiles every `.cs` under the repo** - a new top-level project folder goes into `ForestOverlay.csproj`'s `Remove` lines in the same commit; build the plugin before pushing. [check: lint.py removes]
+106. **Another mod's rebuilt Assembly-CSharp can kill Mono under our reflection** (ModAPI's dropped parameter defaults) - the patcher repairs it; a silent launch crash with a mod present: bisect, flush the log. [check: test DefaultRepairTests]

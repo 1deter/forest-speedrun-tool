@@ -36,9 +36,11 @@ namespace ForestOverlay
 
         private const KeyCode ToggleHudKeyDefault = KeyCode.F5;
 
-        // Wording waits for the author (T-0246).
+        // Wording: the author (T-0246, 2026-10-10).
         private const string ModApiRestartNotice =
             "ForestOverlay: ModAPI found. Restart the game once to turn the overlay on.";
+        private const string ModApiFailedNotice =
+            "ForestOverlay: could not fix ModAPI's game files, so the overlay is off. Please send us your log.";
 
         private ModuleHost _host;
         private PlayerRef _player;
@@ -105,10 +107,17 @@ namespace ForestOverlay
                 // ModAPI's Assembly-CSharp kills Mono under our patches until
                 // the patcher repairs it; the patcher installed just above
                 // runs from the next launch (T-0246).
-                if (ModApi.Unrepaired())
+                ModApi.Repair modApi = ModApi.State();
+                if (modApi == ModApi.Repair.NeedsRestart)
                 {
                     Logger.LogWarning("ModAPI: its Assembly-CSharp is not repaired this launch (the patcher was just installed) - overlay off until the game is restarted.");
                     _notice.Show(ModApiRestartNotice, 20f);
+                    return;
+                }
+                if (modApi == ModApi.Repair.Failed)
+                {
+                    Logger.LogError("ModAPI: the patcher could not repair its Assembly-CSharp (see the 'ModAPI fix:' line above) - overlay off.");
+                    _notice.Show(ModApiFailedNotice, 20f);
                     return;
                 }
 

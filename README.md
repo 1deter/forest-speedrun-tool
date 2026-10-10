@@ -96,6 +96,12 @@ That one file is the whole install. On first launch it writes the 100%
 checklist and shared spots into `BepInEx/config/ForestOverlay/`, and a small
 update installer into `BepInEx/patchers/`.
 
+### With ModAPI
+
+ForestOverlay runs alongside ModAPI mods (e.g. UltimateCheatmenu). The first
+launch after installing or updating it says *ModAPI found. Restart the game
+once* and keeps the overlay off; restart and both run.
+
 ### Updates
 
 The plugin checks for a new release on startup and opens the **Updates** tab

@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 716 log calls.
+224 prefixes from 717 log calls.
 
 ## `Aerial capture`
 
@@ -888,9 +888,10 @@ Written by SavestateModule.cs; warning.
 ## `ModAPI`
 
 Meaning: ModAPI rebuilt Assembly-CSharp but the patcher's repair did not run this launch (it was just installed), so the overlay stays off until a restart (T-0246).
-Written by Plugin.cs; warning.
+Written by Plugin.cs; warning / error.
 
 - warning `ModAPI: its Assembly-CSharp is not repaired this launch (the patcher was just installed) - overlay off until the game is restarted.`
+- error `ModAPI: the patcher could not repair its Assembly-CSharp (see the 'ModAPI fix:' line above) - overlay off.`
 
 ## `ModAPI fix`
 

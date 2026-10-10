@@ -15,11 +15,14 @@ namespace ForestOverlay.Updater
     // BaseModLib, so a game without ModAPI is never patched or loaded from
     // memory. The plugin reads DomainKey: ModAPI present but the key
     // missing means this patcher did not run this launch (it was just
-    // installed), and the plugin stays off until the next one.
+    // installed), and the plugin stays off until the next one; Failed
+    // means the repair could not be done, and the plugin stays off.
     // ------------------------------------------------------------------
     public static class ModApiFix
     {
         public const string DomainKey = "ForestOverlay.ModApiFix";
+        /// DomainKey's value when the read or the repair failed.
+        public const int Failed = -1;
         private const string Target = "Assembly-CSharp.dll";
 
         private static ManualLogSource _log;
@@ -45,6 +48,7 @@ namespace ForestOverlay.Updater
             catch (Exception ex)
             {
                 // Never let the fix stop the game from starting.
+                AppDomain.CurrentDomain.SetData(DomainKey, Failed);
                 Log().LogError("ModAPI fix: failed - " + ex);
             }
         }
@@ -64,6 +68,8 @@ namespace ForestOverlay.Updater
             }
             catch (Exception ex)
             {
+                // The plugin acts on this only when ModAPI is loaded.
+                AppDomain.CurrentDomain.SetData(DomainKey, Failed);
                 Log().LogError("ModAPI fix: could not read " + Target + " - " + ex.Message);
                 return false;
             }
