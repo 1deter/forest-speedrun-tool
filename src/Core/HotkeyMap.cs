@@ -121,6 +121,23 @@ namespace ForestOverlay.Core
                 _bindings[i].Key = _bindings[i].Default;
         }
 
+        /// A key's name for a runner: the mouse buttons as people call them
+        /// (Unity's Mouse3 is the 4th button, the thumb "back" one).
+        public static string KeyName(KeyCode key)
+        {
+            switch (key)
+            {
+                case KeyCode.Mouse0: return "Left mouse";
+                case KeyCode.Mouse1: return "Right mouse";
+                case KeyCode.Mouse2: return "Middle mouse";
+                case KeyCode.Mouse3: return "Mouse 4";
+                case KeyCode.Mouse4: return "Mouse 5";
+                case KeyCode.Mouse5: return "Mouse 6";
+                case KeyCode.Mouse6: return "Mouse 7";
+                default: return key.ToString();
+            }
+        }
+
         public string Describe()
         {
             string s = "";

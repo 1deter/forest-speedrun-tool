@@ -205,6 +205,7 @@ namespace ForestOverlay
             host.Register(new RunModeModule());      // run mode: a new game = a run, practice locked (drawn in the Runs tab)
             host.Register(new TasModule());          // PRACTICE ONLY, experimental: input record / replay (drawn in the Runs tab; last, so bridge indexes stay)
             host.Register(new MapModule());          // info-only view (its Go is Practice's); after TAS so bridge indexes stay
+            host.Register(new PaintModule());        // practice mode only: paint where the crosshair hits (T-0219); last, so bridge indexes stay
         }
 
         // ------------------------------------------------------------------
