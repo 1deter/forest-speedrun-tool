@@ -36,7 +36,7 @@ Four dimensions, each A-D; **the area's grade is the worst of the four**
 | Run mode | B | A | A | A | B | T-0109, T-0111, T-0112 | 2026-10-08 |
 | Information tabs | B | B | A | A | A | | 2026-10-07 |
 | Plugin core and UI | B | B | A | A | B | T-0024 | 2026-10-07 |
-| Performance and loads | C | B | B | A | C | T-0202, T-0190 | 2026-10-08 |
+| Performance and loads | C | B | B | A | C | T-0202, T-0274, T-0275 | 2026-10-10 |
 | TAS and trajectory | B | B | B | A | B | T-0088 | 2026-10-08 |
 | Dev tools | B | B | B | B | A | | 2026-10-09 |
 | Bridge, e2e and QA | B | A | A | B | A | | 2026-10-08 |
@@ -164,8 +164,11 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
   performance gotchas are judgement.
 - Stability **A**.
 - Gaps **C**: the title-load native crash is the game's (T-0143 closed:
-  LOD_SimpleToggle, 0 in 26 repeats; e2e watch T-0189); a render-thread
-  texture-upload crash not yet placed (T-0190); garbage in play
+  LOD_SimpleToggle, 0 in 26 repeats; e2e watch T-0189); the render-thread
+  texture-upload crash is the engine's too (T-0190: font glyph clear on a
+  texture whose create failed; its cause unlogged - T-0276 parked); the
+  Go / auto-restart hitch fixed (T-0184, v0.24.269), left: a Go inside the
+  endgame (T-0274) and the practice-mode toggle (T-0275); garbage in play
   measured (T-0033: 50-150 KB/s, half Unity's; the small game patches
   wait on the author, T-0203; the restart loop's ~40 MB a Quick load, T-0202, and the
   strings' source open); the old world held after a load (T-0034); the census hitch
