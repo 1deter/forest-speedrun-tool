@@ -80,6 +80,10 @@ namespace ForestOverlay.Modules
             _showFound = _showFoundCfg.Value;
             _showMissing = _showMissingCfg.Value;
             _pinSummary = _pinSummaryCfg.Value;
+            // Settings -> HUD and Edit HUD switch the totals through the HUD's settings.
+            HudSettings hud = Host.Hud.Settings;
+            hud.ExternalGet = delegate { return TotalsOnHud; };
+            hud.ExternalSet = delegate (bool on) { TotalsOnHud = on; };
 
             _book = new SurvivalBookReader(ctx.Log);
             _nature = new NatureGuideReader(ctx.Log, ctx.Inventory.NameForId);

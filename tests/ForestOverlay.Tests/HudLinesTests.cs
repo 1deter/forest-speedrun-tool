@@ -7,6 +7,16 @@ namespace ForestOverlay.Tests
     public class HudLinesTests
     {
         [Fact]
+        public void ShortReasonIsTheToolsName()
+        {
+            Assert.Equal("test bridge", HudLines.ShortReason("test bridge: screenshot"));
+            Assert.Equal("savestate restore", HudLines.ShortReason("savestate restore (load)"));
+            Assert.Equal("teleport", HudLines.ShortReason("teleport: Cave 5 (top)"));
+            Assert.Equal("no blood, no stagger", HudLines.ShortReason("no blood, no stagger"));
+            Assert.Equal("", HudLines.ShortReason(null));
+        }
+
+        [Fact]
         public void FindsLinesByModuleAndLabel()
         {
             Assert.Equal("Speed", HudLines.All[HudLines.Find("runinfo", "Speed")].Name);

@@ -282,10 +282,9 @@ namespace ForestOverlay.Modules
                 }
                 else if (l.External)
                 {
-                    CollectiblesModule totals = Host.Find<CollectiblesModule>();
-                    bool on = totals != null && totals.TotalsOnHud;
+                    bool on = s.ExternalShows;
                     bool now = GUI.Toggle(new Rect(4, y, cw - 8, 22), on, _hudNames[i]);
-                    if (now != on && totals != null) totals.TotalsOnHud = now;
+                    if (now != on) s.SetExternalShows(now);
                 }
                 else
                 {
@@ -302,8 +301,7 @@ namespace ForestOverlay.Modules
             if (GUI.Button(resetR, ResetValuesText))
             {
                 s.ResetValues();
-                CollectiblesModule totals = Host.Find<CollectiblesModule>();
-                if (totals != null) totals.TotalsOnHud = false;
+                s.SetExternalShows(false);
             }
             UiKit.Hint(resetR, ResetValuesTip);
             y += 30f;

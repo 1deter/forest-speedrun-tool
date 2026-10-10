@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -22,7 +23,7 @@ namespace ForestOverlay.Core
 
         // Cached because the HUD draws this every OnGUI pass, and OnGUI
         // runs several times per frame. Rebuilt only when it changes.
-        private readonly GUIContent _label = new GUIContent("clean (info-only)");
+        private readonly GUIContent _label = new GUIContent("");
 
         public bool Used { get { return _reason != null; } }
 
@@ -63,8 +64,8 @@ namespace ForestOverlay.Core
 
         public GUIContent Label { get { return _label; } }
 
-        // Settings -> HUD -> Compact: "clean" for "clean (info-only)". The
-        // PRACTICE and run lines keep every word (honest labelling).
+        // Settings -> HUD -> Compact. The practice flag and the run line
+        // keep every word (honest labelling).
         private bool _compact;
         public bool Compact
         {
@@ -87,16 +88,18 @@ namespace ForestOverlay.Core
             int at = _on.IndexOf(what);
             if (on == (at >= 0)) return;
             if (on) _on.Add(what); else _on.RemoveAt(at);
-            // One feature per line under a heading, like a cheat menu's "enabled" list (author, 2026-10-05).
-            _onLabel.text = _on.Count == 0 ? "" : "ON NOW\n" + string.Join("\n", _on.ToArray());
+            // One feature per line, like a cheat menu's "enabled" list (author,
+            // 2026-10-05); no "ON NOW" heading - the orange flags say it (2026-10-10).
+            _onLabel.text = string.Join("\n", _on.ToArray());
         }
 
         private void Rebuild()
         {
             if (_runText != null) { _label.text = _runText; return; }
-            _label.text = _reason == null
-                ? (_compact ? "clean" : "clean (info-only)")
-                : "PRACTICE - " + _reason + " (x" + _useCount + ")";
+            // The tool's short name, orange; nothing while clean (author,
+            // 2026-10-10: no "PRACTICE" word, no count - the flag says it). Each
+            // tool logs its own action; Reason / UseCount stay for the bridge.
+            _label.text = HudLines.ShortReason(_reason);
         }
     }
 }

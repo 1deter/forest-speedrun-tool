@@ -376,10 +376,18 @@ namespace ForestOverlay
             }
             GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
             float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, wrapW)) : 0f;
-            float markH = Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, wrapW));
+            // Nothing while clean (author, 2026-10-10).
+            bool marked = _practice.Label.text.Length > 0;
+            float markH = marked ? Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, wrapW)) : 0f;
             if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, _warnStyle.CalcSize(_practice.OnLabel).x));
-            colW = Mathf.Max(colW, Mathf.Min(wrapW, practiceStyle.CalcSize(_practice.Label).x));
+            if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, practiceStyle.CalcSize(_practice.Label).x));
             colH += onH + markH;
+            // Nothing to show: still a spot to see and move while the window is open.
+            if (_mainWindow != null && _mainWindow.PanelOpen)
+            {
+                colW = Mathf.Max(colW, 60f);
+                colH = Mathf.Max(colH, lineHeight);
+            }
 
             float x = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, colW, Screen.width);
             float y = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, colH, Screen.height);
@@ -408,6 +416,8 @@ namespace ForestOverlay
             }
             else HandleHudDrag(col, col, s);
 
+            // A placed value dragged over the column: dropping it puts it back.
+            if (editing && widgets.DropOnColumn) GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.WidgetCard);
             if (editing || windowOpen || _hudDragging)
                 GUI.Box(new Rect(col.x - 4f, col.y - 2f, col.width + 8f, col.height + 4f), GUIContent.none, UiKit.Outline);
             if (editing) GUI.Box(grip, GUIContent.none, UiKit.Handle);
@@ -431,10 +441,15 @@ namespace ForestOverlay
             // Sticky and last, so it is the line the eye lands on. A run
             // recording must make it obvious that a practice tool was used.
             // Never switchable either.
-            GUI.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
+            if (marked) GUI.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
 
-            // The values placed on their own (and, in edit mode, their handles).
-            if (widgets != null) widgets.Draw(hud, blocked);
+            // The values placed on their own (and, in edit mode, their handles);
+            // a placed value dropped on the column goes back into it.
+            if (widgets != null)
+            {
+                widgets.ColumnRect = col;
+                widgets.Draw(hud, blocked);
+            }
         }
 
         // `hit`: where a press starts the drag; `col`: the column, whose

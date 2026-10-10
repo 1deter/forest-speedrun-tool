@@ -117,9 +117,9 @@ namespace ForestOverlay.Data
             L("practicerun", "Last", "ShowLastTime", "Last time",
               "Your previous time on the segment."),
             Always("ON NOW",
-              "Always shown: what changes the game right now (god mode, item caps...). A recording must show it."),
+              "Always shown while on: what changes the game right now (god mode, item caps...), one orange name each. A recording must show it."),
             Always("Practice marker",
-              "Always shown: clean, PRACTICE (a practice tool was used) or the run line. A recording must show it."),
+              "Always shown once a practice tool was used: its name, orange (nothing while clean); or the run line. A recording must show it."),
             Always("Run code",
               "Always shown during a run, even with every overlay hidden (run mode's anti-splice code)."),
         };
@@ -178,6 +178,20 @@ namespace ForestOverlay.Data
         {
             string t = total.ToString(CultureInfo.InvariantCulture);
             return compact ? t : t + "   (" + stacks.ToString(CultureInfo.InvariantCulture) + " stacks)";
+        }
+
+        /// The HUD's practice flag: a Mark reason cut to the tool's short
+        /// name (author, 2026-10-10: "test bridge: screenshot" -> "test
+        /// bridge", "savestate restore (load)" -> "savestate restore").
+        public static string ShortReason(string reason)
+        {
+            if (string.IsNullOrEmpty(reason)) return "";
+            int cut = reason.Length;
+            int colon = reason.IndexOf(':');
+            if (colon > 0) cut = colon;
+            int paren = reason.IndexOf(" (", StringComparison.Ordinal);
+            if (paren > 0 && paren < cut) cut = paren;
+            return reason.Substring(0, cut).Trim();
         }
 
         /// The update check's message; compact drops the version an

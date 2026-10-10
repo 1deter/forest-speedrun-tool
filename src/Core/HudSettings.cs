@@ -59,6 +59,21 @@ namespace ForestOverlay.Core
             Version++;
         }
 
+        /// The one value switched by its own module (100% totals, HudLines
+        /// External): the module hands its setting over here, so Settings
+        /// and Edit HUD switch it the same way.
+        public System.Func<bool> ExternalGet;
+        public System.Action<bool> ExternalSet;
+
+        public bool ExternalShows { get { return ExternalGet != null && ExternalGet(); } }
+
+        public void SetExternalShows(bool on)
+        {
+            if (ExternalSet == null || ExternalShows == on) return;
+            ExternalSet(on);
+            Version++;
+        }
+
         public bool Compact
         {
             get { return _compact.Value; }

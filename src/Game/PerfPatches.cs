@@ -142,6 +142,7 @@ namespace ForestOverlay.Game
             public string Status = "off";
             public bool Experimental;     // changes the game: off by default, own section
             public string Note = "";      // what it changes, shown under it
+            public string Flag;           // experimental: its short name on the HUD while on
         }
 
         private readonly ManualLogSource _log;
@@ -180,6 +181,7 @@ namespace ForestOverlay.Game
                 "finished inside that wait, can then still be running for a fraction of a second after you can move. Off = the game's own code.",
                 ApplyHandOver, RemoveHandOver, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "fast save loads";
             _fixes[_fixes.Count - 1].Note = "Changes the game: the nav-mesh update for buildings can finish just after you get control " +
                                             "(enemies' paths around them). Saves about 1 s per save load.";
             Add(config, "EndgameAsyncForRestores", "Savestates: load the endgame area in the background",
@@ -218,6 +220,7 @@ namespace ForestOverlay.Game
                 "machines measured). Off = the game's own setting.",
                 _cameras.ApplySunshine, _cameras.RemoveSunshine, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "half-rate shadows";
             _fixes[_fixes.Count - 1].Note = "Changes the picture: moving shadows update at half the frame rate. Saves ~0.3 ms a frame.";
             Add(config, "GrassBendingOffInCaves", "Caves: no grass bending while inside",
                 "EXPERIMENTAL, changes the picture: while you are in a cave, the game's grass-bending camera (it draws where you " +
@@ -226,6 +229,7 @@ namespace ForestOverlay.Game
                 "frame you leave. Saves ~0.25 ms a frame in caves here (up to ~2 ms measured on a laptop). Off = the game's own code.",
                 _cameras.ApplyCaveGrass, _cameras.RemoveCaveGrass, false);
             _fixes[_fixes.Count - 1].Experimental = true;
+            _fixes[_fixes.Count - 1].Flag = "no cave grass bending";
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
                                             "Saves ~0.25 ms a frame in caves.";
             // 15 was physics at 30 Hz: removed (author, 2026-10-02 - maks found
@@ -273,6 +277,8 @@ namespace ForestOverlay.Game
         public string Status(int i) { return _fixes[i].Status; }
         public bool IsExperimental(int i) { return _fixes[i].Experimental; }
         public string Note(int i) { return _fixes[i].Note; }
+        /// The HUD flag while an experimental switch is on (author, 2026-10-10: short, like "god mode").
+        public string FlagName(int i) { return _fixes[i].Flag ?? _fixes[i].Label.Trim(); }
 
         /// The GUI switch (and the bridge): on / off, saved, applied live.
         public void Toggle(int i)

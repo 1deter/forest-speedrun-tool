@@ -121,7 +121,11 @@ namespace ForestOverlay.Core
                 _before[i] = "";
                 _after[i] = "";
             }
-            if (_widgetLine.Length != _layout.Widgets.Count) _widgetLine = new int[_layout.Widgets.Count];
+            if (_widgetLine.Length != _layout.Widgets.Count)
+            {
+                _widgetLine = new int[_layout.Widgets.Count];
+                _rects = new Rect[_layout.Widgets.Count];
+            }
             for (int i = 0; i < _layout.Widgets.Count; i++)
             {
                 HudWidgetLayout w = _layout.Widgets[i];
@@ -218,6 +222,21 @@ namespace ForestOverlay.Core
         private float _resizeStartScale, _resizeStartW, _resizeStartMouseX;
         private int _pullLine = -1;        // a column value pressed, not yet dragged out
         private Vector2 _pullStart, _pullOffset;
+        private Rect[] _rects = new Rect[0];   // each placed value's rect as last drawn
+
+        /// The column as drawn this pass (the plugin sets it): a placed value
+        /// dropped on it goes back in (author, 2026-10-10: sliding it back in
+        /// is what a runner tries first).
+        public Rect ColumnRect;
+
+        /// A placed value is being dragged over the column (the plugin lights it up).
+        public bool DropOnColumn { get; private set; }
+
+        private bool OverColumn(Vector2 mouse)
+        {
+            Rect c = ColumnRect;
+            return c.width > 0f && new Rect(c.x - 4f, c.y - 2f, c.width + 8f, c.height + 4f).Contains(mouse);
+        }
 
         /// From the column's draw, in edit mode, for each value it shows: a
         /// press on it and a drag of a few pixels places it on its own
@@ -231,6 +250,10 @@ namespace ForestOverlay.Core
             if (_dragWidget >= 0 || _resizeWidget >= 0 || _pullLine >= 0) return;
             if (lineIndex < 0 || HudLines.All[lineIndex].ConfigKey == null) return;
             if (!lineRect.Contains(e.mousePosition) || blocked.Contains(e.mousePosition)) return;
+            // A placed value lying over the column takes the press (author,
+            // 2026-10-10: the value under it popped out instead).
+            for (int i = 0; i < _rects.Length; i++)
+                if (_layout.Widgets[i].Free && _rects[i].Contains(e.mousePosition)) return;
             _pullLine = lineIndex;
             _pullStart = e.mousePosition;
             _pullOffset = e.mousePosition - new Vector2(lineRect.x, lineRect.y);
@@ -280,6 +303,7 @@ namespace ForestOverlay.Core
             for (int j = 0; j < hud.Count; j++) if (hud.LineIndex(j) == line) slots++;
             if (slots == 0 && !Editing) return;
 
+            _rects[i] = new Rect();
             float valueH = st.ValueSize + 7f;
             float width = 0f, height = 0f;
             if (slots == 0)
@@ -303,7 +327,12 @@ namespace ForestOverlay.Core
             float y = Mathf.Clamp(w.Y, 0f, Mathf.Max(0f, Screen.height - height));
             Rect rect = new Rect(x, y, width, height);
 
-            if (Editing && e != null) HandleEditEvents(i, line, rect, width, blocked, e);
+            if (Editing && e != null)
+            {
+                HandleEditEvents(i, line, rect, width, blocked, e);
+                // Put back in the column by the handler: gone from the list.
+                if (i >= _layout.Widgets.Count || _layout.Widgets[i] != w) return;
+            }
             // A drag moved it during the handler: draw where it is now.
             if (_dragWidget == i || _resizeWidget == i)
             {
@@ -311,6 +340,7 @@ namespace ForestOverlay.Core
                 y = Mathf.Clamp(w.Y, 0f, Mathf.Max(0f, Screen.height - height));
                 rect = new Rect(x, y, width, height);
             }
+            _rects[i] = rect;
 
             // No card (author, 2026-10-05: transparent, like Momentum Mod) - a soft
             // shadow keeps the value readable over snow / bright lab walls.
@@ -377,6 +407,7 @@ namespace ForestOverlay.Core
                     {
                         w.X = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, Screen.width - width));
                         w.Y = Mathf.Clamp(e.mousePosition.y - _dragOffset.y, 0f, Mathf.Max(0f, Screen.height - rect.height));
+                        DropOnColumn = OverColumn(e.mousePosition);
                         e.Use();
                     }
                     else if (_resizeWidget == i)
@@ -392,6 +423,13 @@ namespace ForestOverlay.Core
                         bool moved = _dragWidget == i;
                         _dragWidget = -1;
                         _resizeWidget = -1;
+                        DropOnColumn = false;
+                        if (moved && OverColumn(e.mousePosition))
+                        {
+                            Attach(line);   // dropped on the column: back in it
+                            e.Use();
+                            break;
+                        }
                         w.X = Mathf.Round(w.X);
                         w.Y = Mathf.Round(w.Y);
                         Save();   // once per gesture
@@ -412,6 +450,7 @@ namespace ForestOverlay.Core
             _dragWidget = -1;
             _resizeWidget = -1;
             _pullLine = -1;
+            DropOnColumn = false;
         }
 
         // --- the text around a value --------------------------------------------------------
@@ -500,7 +539,7 @@ namespace ForestOverlay.Core
             y += 34f;
 
             int rows = 0;
-            for (int i = 0; i < HudLines.All.Length; i++) if (HudLines.All[i].Switchable) rows++;
+            for (int i = 0; i < HudLines.All.Length; i++) if (!HudLines.All[i].Locked) rows++;
             float noteH = UiText.Height(w - 20f, LockedNote, UiKit.HintStyle);
             // The panels' rows (the modules') are as tall as their open
             // folds: last pass's height sizes the scroll view.
@@ -523,7 +562,17 @@ namespace ForestOverlay.Core
             for (int i = 0; i < HudLines.All.Length; i++)
             {
                 HudLine l = HudLines.All[i];
-                if (!l.Switchable) continue;
+                if (l.Locked) continue;
+                if (l.External)
+                {
+                    // 100% totals: its own module's switch; shown in the column only.
+                    Rect r = new Rect(0f, ry, cw - TextW - Gap, RowH - 4f);
+                    bool on = settings.ExternalShows;
+                    if (GUI.Toggle(r, on, _toggleNames[i]) != on) settings.SetExternalShows(!on);
+                    UiKit.Hint(r, _descriptions[i]);
+                    ry += RowH;
+                    continue;
+                }
                 ry = DrawRow(i, ry, cw, settings);
             }
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);
@@ -531,18 +580,21 @@ namespace ForestOverlay.Core
             return done;
         }
 
-        // name toggle | Text | (placed:) - 1x + To column; then the text fields when open.
+        private const float TextW = 56f, Gap = 6f, StepW = 26f, ScaleW = 40f, ColumnW = 84f;
+        private GUIStyle _centred;
+
+        // name toggle ... (placed:) [-] 1x [+] [To column] [Text] - right-aligned,
+        // Text always in the same place; then the text fields when open.
         private float DrawRow(int i, float ry, float cw, HudSettings settings)
         {
+            if (_centred == null)
+            {
+                _centred = new GUIStyle(GUI.skin.label);
+                _centred.alignment = TextAnchor.MiddleCenter;
+            }
             float h = RowH - 4f;
-            bool shown = settings.Shows(i);
-            Rect nameR = new Rect(0f, ry, cw - 236f, h);
-            bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
-            if (now != shown) settings.SetShows(i, now);
-            UiKit.Hint(nameR, _descriptions[i]);
-
-            float x = cw - 232f;
-            Rect textR = new Rect(x, ry, 48f, h);
+            float x = cw - TextW;
+            Rect textR = new Rect(x, ry, TextW, h);
             bool open = _textLine == i;
             if (GUI.Toggle(textR, open, TextText, GUI.skin.button) != open)
             {
@@ -554,14 +606,23 @@ namespace ForestOverlay.Core
             HudWidgetLayout wl = WidgetOf(i);
             if (wl != null && wl.Free)
             {
-                float xs = x + 52f;
-                if (GUI.Button(new Rect(xs, ry, 24f, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
-                GUI.Label(new Rect(xs + 26f, ry, 40f, h), ScaleText(wl.Scale));
-                if (GUI.Button(new Rect(xs + 66f, ry, 24f, h), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
-                Rect backR = new Rect(xs + 94f, ry, cw - (xs + 94f), h);
+                x -= Gap + ColumnW;
+                Rect backR = new Rect(x, ry, ColumnW, h);
                 if (GUI.Button(backR, ColumnText)) Attach(i);
                 UiKit.Hint(backR, ColumnTip);
+                x -= Gap + StepW;
+                if (GUI.Button(new Rect(x, ry, StepW, h), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
+                x -= ScaleW;
+                GUI.Label(new Rect(x, ry, ScaleW, h), ScaleText(wl.Scale), _centred);
+                x -= StepW;
+                if (GUI.Button(new Rect(x, ry, StepW, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
             }
+
+            bool shown = settings.Shows(i);
+            Rect nameR = new Rect(0f, ry, x - Gap, h);
+            bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
+            if (now != shown) settings.SetShows(i, now);
+            UiKit.Hint(nameR, _descriptions[i]);
             ry += RowH;
 
             if (_textLine == i)

@@ -242,7 +242,7 @@ namespace ForestOverlay.Modules
                 if (_perfNames == null)
                 {
                     _perfNames = new string[_perf.Count];
-                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.Label(i).Trim();
+                    for (int i = 0; i < _perfNames.Length; i++) _perfNames[i] = _perf.FlagName(i);
                 }
                 for (int i = 0; i < _perf.Count && i < _perfNames.Length; i++)
                     if (_perf.IsExperimental(i)) Ctx.Practice.SetOn(_perfNames[i], _perf.IsOn(i) && !_perf.ExperimentalSuspended);
