@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.276 - 2026-10-10
+
+- Savestates put cave stalagmites back as they were at capture: one you broke since is whole again, one broken at capture is broken again (also after a Full load), and the debris of a later break is cleared.
+
 ## v0.24.275 - 2026-10-10
 
 - Restarting the same spot or savestate leaves less garbage behind (measured: 16.9 -> 9.2 MB a restore), so the game's collection pauses come less often.
