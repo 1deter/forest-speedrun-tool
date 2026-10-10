@@ -332,6 +332,12 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   for the session only. **Practice mode only** ("too much if it's allowed
   in runs"). Colour = 8 swatches + a size, in Settings. A small crosshair
   while a paint key is held (author's idea).
+- **A Quick load keeps the game's forced GC** (author, 2026-10-10,
+  T-0280: "whatever has the least visible impact for runners while
+  playing"): the `GC.Collect()` at the end of `LevelLoader.Load` hides
+  inside the restore's hitch; skipping it moved a collection into play
+  4 s later (tasks/notes/T-0202.md). Do not propose skipping it again
+  unless per-restore garbage drops far below the collector's trigger.
 
 ## Run mode
 
