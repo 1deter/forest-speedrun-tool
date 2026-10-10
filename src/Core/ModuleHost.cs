@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx.Logging;
+using ForestOverlay.Data;
 using ForestOverlay.Game;
 using UnityEngine;
 
@@ -31,6 +32,8 @@ namespace ForestOverlay.Core
         private readonly PerfMonitor _perf;
 
         private float _nextHudRefresh;
+        private static readonly string TitleFull = HudLines.Title(OverlayPlugin.PluginVersion, false);
+        private static readonly string TitleCompact = HudLines.Title(OverlayPlugin.PluginVersion, true);
 
         // Stutter watch. A module that takes longer than this in one Tick
         // is logged by name, at most once per interval per module, so a
@@ -46,7 +49,7 @@ namespace ForestOverlay.Core
 
         /// Whether game input is being blocked, for the Settings tab.
         public string InputStatus { get { return _input.Status; } }
-        /// The info box in the corner.
+        /// The HUD values (the column and the placed values; its key).
         public bool HudVisible = true;
 
         /// Master switch: hides EVERYTHING this plugin draws, including
@@ -430,6 +433,9 @@ namespace ForestOverlay.Core
             _nextHudRefresh = Time.unscaledTime + HudRefreshInterval;
 
             _hud.Begin();
+            // The title, first in the column as in the pre-overhaul box (T-0018).
+            _hud.Source = HudLines.PluginModule;
+            _hud.Pair(HudLines.TitleLabel, _hud.Compact ? TitleCompact : TitleFull);
             for (int i = 0; i < _modules.Count; i++)
             {
                 OverlayModule m = _modules[i];

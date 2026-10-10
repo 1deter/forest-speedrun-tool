@@ -4,7 +4,8 @@ using System.Globalization;
 namespace ForestOverlay.Data
 {
     // ------------------------------------------------------------------
-    // Every line the top-left info box can show, for the Settings tab's
+    // Every value the HUD can show (the column at the top left, or placed
+    // on its own - Core/HudWidgets), for the Settings tab's
     // HUD section (runner request, docs/backlog.md *HUD*: "more control
     // over the top-left HUD, less clutter").
     //

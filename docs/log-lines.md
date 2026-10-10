@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-223 prefixes from 685 log calls.
+223 prefixes from 686 log calls.
 
 ## `Aerial capture`
 
@@ -588,42 +588,43 @@ Written by GreebleKeeper.cs; info / warning.
 - info `GreebleKeeper: tree zone at <z.transform.position> spawned with its captured sticks (seed <r.Seed>).`
 - warning `GreebleKeeper: zone at <z.transform.position> failed: <ex.Message>`
 
+## `HUD column moved to`
+
+Meaning: The column of HUD values was dragged to a new place (window open; in Edit HUD by its grip), with its top-left corner.
+Written by Plugin.cs; info.
+
+- info `HUD column moved to (<..>, <..>).`
+
 ## `HUD layout not read`
 
-Meaning: The HUD widget layout file (redesign) could not be read; every widget starts back in the box.
+Meaning: The HUD layout file (hud-layout.txt) could not be read; every value starts in the column with no text of its own.
 Written by HudWidgets.cs; warning.
 
 - warning `HUD layout not read (<_path>): <ex.Message>`
 
 ## `HUD layout not saved`
 
-Meaning: A change to the HUD widget layout (redesign) could not be written to its file; it lasts until the game closes.
+Meaning: A change to the HUD layout (hud-layout.txt) could not be written; it lasts until the game closes.
 Written by HudWidgets.cs; warning.
 
 - warning `HUD layout not saved: <ex.Message>`
 
 ## `HUD layout reset`
 
-Meaning: Every HUD widget put back in the box (redesign), from the reset button.
+Meaning: Edit HUD's Reset layout: every value back in the column, the runner's text around each cleared.
 Written by HudWidgets.cs; info.
 
-- info `HUD layout reset: every widget back in the box.`
+- info `HUD layout reset: every value back in the column, its own text cleared.`
 
 ## `HUD widget`
 
-Meaning: One HUD line as its own widget (redesign): taken out of the box, put back, moved or scaled, with its position / scale.
+Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, or the runner's text before / after it set.
 Written by HudWidgets.cs; info.
 
 - info `HUD widget '<..>' <..>.`
-- info `HUD widget '<..>' put back in the box.`
-- info `HUD widget '<..>' taken out of the box at (<..>, <..>).`
-
-## `Info box moved to`
-
-Meaning: The runner dragged the info box; its new position.
-Written by Plugin.cs; info.
-
-- info `Info box moved to (<..>, <..>).`
+- info `HUD widget '<..>' placed on its own at (<..>, <..>).`
+- info `HUD widget '<..>' put back in the column.`
+- info `HUD widget '<..>' text: before "<..>", after "<..>".`
 
 ## `InputInject`
 

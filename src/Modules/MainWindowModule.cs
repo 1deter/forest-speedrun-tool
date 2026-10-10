@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ForestOverlay.Core;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Modules
@@ -47,7 +48,7 @@ namespace ForestOverlay.Modules
         private Rect _normalRect;
         private static readonly GUIContent EditHudText = new GUIContent("Edit HUD");
         private static readonly GUIContent EditHudTip = new GUIContent(
-            "Move, resize and show / hide each info box value. Drag a value out of the box to make it its own widget.");
+            "Show / hide each HUD value, add your own text around it, drag it out of the column to place it anywhere.");
         private static readonly GUIContent EditingTitle = new GUIContent("HUD layout");
 
         private readonly List<GUIContent> _tabLabels = new List<GUIContent>();
@@ -110,9 +111,14 @@ namespace ForestOverlay.Modules
                 {
                     _normalRect = _windowRect;
                     float ew = Mathf.Min(430f, Screen.width - 40f);
-                    // On the left: the splits panel sits against the right
-                    // edge by default and must stay in sight to be dragged (T-0257).
-                    _windowRect = new Rect(16f, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
+                    // Just right of the HUD column (its values are dragged out
+                    // of it, T-0018), so still on the left: the splits panel
+                    // sits against the right edge by default and must stay in
+                    // sight to be dragged (T-0257).
+                    HudSettings hs = Host.Hud.Settings;
+                    float ex = hs.X + HudLines.Width(hs.TextSize, Screen.width) + 16f;
+                    if (ex + ew > Screen.width - 16f) ex = 16f;
+                    _windowRect = new Rect(ex, 60f, ew, Mathf.Min(560f, Screen.height - 100f));
                 }
                 else _windowRect = _normalRect;
             }

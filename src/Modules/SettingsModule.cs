@@ -52,7 +52,7 @@ namespace ForestOverlay.Modules
             "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
         private static readonly GUIContent TextHud = new GUIContent("HUD");
         private static readonly GUIContent TipHud = new GUIContent(
-            "The values on screen: the HUD layout editor, the whole HUD's look, the info box and which values show.");
+            "The values on screen: the HUD layout editor, the whole HUD's look and which values show.");
         private static readonly GUIContent TextPerf = new GUIContent("Performance");
         private static readonly GUIContent TipPerf = new GUIContent(
             "Patches that make the game do less work each frame without changing what it does. On by default.");
@@ -62,26 +62,23 @@ namespace ForestOverlay.Modules
         private GUIContent[] _hudNames;
         private GUIContent[] _hudDescriptions;
         private static readonly GUIContent HudIntro = new GUIContent(
-            "Tick the values you want, in the info box or as widgets. Hover one for what it shows.");
+            "Tick the values you want on screen. Hover one for what it shows.");
         private static readonly GUIContent HudWideText = new GUIContent("The whole HUD");
         private static readonly GUIContent ValuesText = new GUIContent("Values");
         private static readonly GUIContent SizeTip = new GUIContent(
-            "The info box and the practice / ON NOW warnings. A widget's size is set in Edit HUD layout.");
+            "The column of values and the practice / ON NOW warnings. A value placed on its own is sized in Edit HUD layout.");
         private static readonly GUIContent PlaceTip = new GUIContent(
-            "Where the info box sits, or the practice / ON NOW warnings without it. Drag it while this window is open.");
+            "Where the column of values sits (top left by default). Drag it while this window is open.");
         private static readonly GUIContent ResetValuesText = new GUIContent("Reset the values");
         private static readonly GUIContent ResetValuesTip = new GUIContent(
             "Every value back to its default on / off. Look, position and widgets stay.");
         private static readonly GUIContent EditLayoutText = new GUIContent("Edit HUD layout");
         private static readonly GUIContent EditLayoutTip = new GUIContent(
-            "Move, resize and show / hide each value; drag a value out of the box to make it a widget of its own " +
+            "Show / hide each value, add your own text around it, drag it out of the column to place it anywhere " +
             "(layout file: config/ForestOverlay/hud-layout.txt).");
         private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
-        private static readonly GUIContent InfoBoxText = new GUIContent(" Info box");
-        private static readonly GUIContent InfoBoxTip = new GUIContent(
-            "The old box of values at the top left. Off, values you want on screen are HUD widgets (Edit HUD layout); practice and ON NOW warnings always show.");
         private static readonly GUIContent CompactNote = new GUIContent(
-            "Shorter values (no stack count, no units) in the info box and the widgets, labels without column padding, the box's short title.");
+            "Shorter values (no stack count, no units) and the short title.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
         private readonly GUIContent _sizeText = new GUIContent("");
         private readonly GUIContent _placeText = new GUIContent("");
@@ -220,7 +217,7 @@ namespace ForestOverlay.Modules
             return DrawBindList(y, w, map) + 6f;
         }
 
-        // --- the info box (HUD) -------------------------------------------
+        // --- the HUD values -------------------------------------------
         // Every line with a tick box and what it shows (Data/HudLines);
         // the honest-labelling lines are listed as "always shown". Each
         // click writes the config once (gotcha 60).
@@ -247,7 +244,7 @@ namespace ForestOverlay.Modules
             UiKit.Hint(editR, EditLayoutTip);
             y += 34f;
 
-            // HUD-wide options first, then the box, then the values (T-0253,
+            // HUD-wide options first, then the values (T-0253,
             // decisions.md *Easy to learn*): compact, size and position act
             // with the box off too (widgets, the practice / ON NOW warnings),
             // so none of them sits under the box.
@@ -270,11 +267,6 @@ namespace ForestOverlay.Modules
             UiKit.Hint(new Rect(4, y, cw - 8, placeH), PlaceTip);
             y += placeH;
             if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
-            y += 30f;
-
-            bool box = GUI.Toggle(new Rect(4, y, cw - 8, 22), s.InfoBox, InfoBoxText);
-            if (box != s.InfoBox) s.InfoBox = box;
-            UiKit.Hint(new Rect(4, y, cw - 8, 22), InfoBoxTip);
             y += 30f;
 
             GUI.Label(new Rect(4, y, cw - 8, 22), ValuesText, _labelStyle);

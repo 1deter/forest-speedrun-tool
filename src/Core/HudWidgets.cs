@@ -8,27 +8,30 @@ using UnityEngine;
 namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
-    // The HUD customiser (docs/ui-redesign.md; in the spirit of Momentum
-    // Mod's HUD customiser): every switchable info box line can be taken
-    // out of the box and become a widget of its own - placed anywhere,
-    // resized (font scale), label on / off - with a clean label + value
-    // look. The layout is `config/ForestOverlay/hud-layout.txt`
-    // (Data/HudLayout, tested); a line not in it stays in the box, so
-    // nothing changes until the runner edits.
+    // The HUD customiser (docs/ui-redesign.md, T-0018; in the spirit of
+    // Momentum Mod's HUD customiser). Every ticked HUD value shows: by
+    // default in the COLUMN at the HUD position (drawn by the plugin, the
+    // pre-overhaul order, no backing), or FREE - placed anywhere and sized
+    // on its own. Each value shows its value only, with the runner's own
+    // text before / after it. The changes are
+    // `config/ForestOverlay/hud-layout.txt` (Data/HudLayout, tested); an
+    // empty file is the default look.
     //
-    // EDIT MODE (Editing): the main window turns into a widget list
-    // (DrawEditor) and the screen shows an outline and a corner handle on
-    // every widget. Drag a widget to move it, its corner to resize it,
-    // right-click to put it back in the box; drag a LINE out of the box to
-    // make it a widget.
+    // EDIT MODE (Editing): the main window turns into a value list
+    // (DrawEditor) and the screen shows an outline on every value. Drag a
+    // value out of the column to place it; drag a placed value to move it,
+    // its corner to resize it; right-click (or its "to column" button) puts
+    // it back. The column moves by its grip.
     //
     // - Live changes are in memory; the file is written once per gesture
-    //   (on release) - a drag never writes per event (gotcha 60).
+    //   (on release) or per text edit (when its row closes / Done) - never
+    //   per event or keystroke (gotcha 60).
     // - Positions are clamped live to the screen (gotcha 61).
     // - Nothing allocates in OnGUI after the first pass per scale step:
-    //   styles are cached by scale quarter, contents are kept.
-    // - Honest labelling is not a widget: ON NOW, the practice marker and
-    //   run mode's code stay in the box (HudLines.Locked).
+    //   styles are cached by scale quarter, contents are kept; the text
+    //   around a value is joined on the HUD's 10 Hz tick (HudBuilder).
+    // - Honest labelling is not a value: ON NOW and the practice marker
+    //   always close the column (HudLines.Locked).
     // ------------------------------------------------------------------
     public sealed class HudWidgets
     {
@@ -44,11 +47,16 @@ namespace ForestOverlay.Core
         private readonly string _path;
         private readonly ManualLogSource _log;
         private HudLayout _layout = new HudLayout();
-        private bool[] _detached = new bool[HudLines.All.Length];
+        private readonly bool[] _free = new bool[HudLines.All.Length];
+        private readonly string[] _before = new string[HudLines.All.Length];
+        private readonly string[] _after = new string[HudLines.All.Length];
         private int[] _widgetLine = new int[0];
 
-        /// Edit mode: the window shows the widget list, the screen the handles.
+        /// Edit mode: the window shows the value list, the screen the handles.
         public bool Editing;
+
+        /// Bumped when any value's text changes, so HudBuilder rebuilds the shown text.
+        public int TextVersion { get; private set; }
 
         public HudWidgets(string configDirectory, ManualLogSource log)
         {
@@ -59,16 +67,19 @@ namespace ForestOverlay.Core
 
         public HudLayout Layout { get { return _layout; } }
 
-        /// Whether line `lineIndex` of HudLines.All is its own widget now
-        /// (the box skips it).
-        public bool IsDetached(int lineIndex)
+        /// Whether line `lineIndex` of HudLines.All is placed on its own (the
+        /// column skips it).
+        public bool IsFree(int lineIndex)
         {
-            return lineIndex >= 0 && lineIndex < _detached.Length && _detached[lineIndex];
+            return lineIndex >= 0 && lineIndex < _free.Length && _free[lineIndex];
         }
 
-        public bool AnyDetached
+        /// A value as shown: the runner's text around it. Called on the HUD
+        /// tick when the value changes, never in OnGUI.
+        public string Decorate(int lineIndex, string value)
         {
-            get { return _layout.Widgets.Count > 0; }
+            if (lineIndex < 0 || lineIndex >= _before.Length) return value;
+            return HudLayout.Decorate(_before[lineIndex], value, _after[lineIndex]);
         }
 
         // --- file ---------------------------------------------------------------
@@ -104,14 +115,24 @@ namespace ForestOverlay.Core
 
         private void Rebuild()
         {
-            for (int i = 0; i < _detached.Length; i++) _detached[i] = false;
+            for (int i = 0; i < _free.Length; i++)
+            {
+                _free[i] = false;
+                _before[i] = "";
+                _after[i] = "";
+            }
             if (_widgetLine.Length != _layout.Widgets.Count) _widgetLine = new int[_layout.Widgets.Count];
             for (int i = 0; i < _layout.Widgets.Count; i++)
             {
-                int line = HudLines.IndexOfKey(_layout.Widgets[i].Key);
+                HudWidgetLayout w = _layout.Widgets[i];
+                int line = HudLines.IndexOfKey(w.Key);
                 _widgetLine[i] = line;
-                if (line >= 0) _detached[line] = true;
+                if (line < 0) continue;     // a key from a newer version: kept in the file, not drawn
+                _free[line] = w.Free;
+                _before[line] = w.Before;
+                _after[line] = w.After;
             }
+            TextVersion++;
         }
 
         // --- changes ----------------------------------------------------------------
@@ -122,7 +143,7 @@ namespace ForestOverlay.Core
             _layout.Detach(HudLines.All[lineIndex].ConfigKey, x, y);
             Rebuild();
             Save();
-            if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' taken out of the box at (" + Mathf.RoundToInt(x) + ", " + Mathf.RoundToInt(y) + ").");
+            if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' placed on its own at (" + Mathf.RoundToInt(x) + ", " + Mathf.RoundToInt(y) + ").");
         }
 
         public void Attach(int lineIndex)
@@ -132,16 +153,17 @@ namespace ForestOverlay.Core
             {
                 Rebuild();
                 Save();
-                if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' put back in the box.");
+                if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' put back in the column.");
             }
         }
 
         public void ResetLayout()
         {
+            CloseText();
             _layout = new HudLayout();
             Rebuild();
             Save();
-            if (_log != null) _log.LogInfo("HUD layout reset: every widget back in the box.");
+            if (_log != null) _log.LogInfo("HUD layout reset: every value back in the column, its own text cleared.");
         }
 
         private HudWidgetLayout WidgetOf(int lineIndex)
@@ -186,18 +208,7 @@ namespace ForestOverlay.Core
             return s;
         }
 
-        private GUIContent[] _names;
         private static readonly GUIContent NotShowing = new GUIContent("not showing now");
-
-        private GUIContent NameOf(int lineIndex)
-        {
-            if (_names == null)
-            {
-                _names = new GUIContent[HudLines.All.Length];
-                for (int i = 0; i < _names.Length; i++) _names[i] = new GUIContent(HudLines.All[i].Name);
-            }
-            return _names[lineIndex];
-        }
 
         // --- drawing the widgets ---------------------------------------------------------------
 
@@ -205,47 +216,56 @@ namespace ForestOverlay.Core
         private Vector2 _dragOffset;
         private int _resizeWidget = -1;
         private float _resizeStartScale, _resizeStartW, _resizeStartMouseX;
-        private int _pullLine = -1;        // a box line pressed, not yet dragged out
-        private Vector2 _pullStart;
+        private int _pullLine = -1;        // a column value pressed, not yet dragged out
+        private Vector2 _pullStart, _pullOffset;
 
-        /// From the info box's draw, in edit mode. Pulling a line out by
-        /// dragging is off (author, 2026-10-05: lines popped out while the box
-        /// was dragged - "over-engineering simplicity"); widgets are made with
-        /// the editor list's "own" toggle. Kept as a no-op for the caller.
-        public void BoxLineEvent(Rect lineRect, int lineIndex, Rect blocked)
+        /// From the column's draw, in edit mode, for each value it shows: a
+        /// press on it and a drag of a few pixels places it on its own
+        /// (author, 2026-10-10: "drag a value out to place it anywhere").
+        /// The column itself moves by its grip only, so moving it never
+        /// pulls values out (the first try's fault, 2026-10-05).
+        public void ColumnLineEvent(Rect lineRect, int lineIndex, Rect blocked)
         {
+            Event e = Event.current;
+            if (!Editing || e == null || e.type != EventType.MouseDown || e.button != 0) return;
+            if (_dragWidget >= 0 || _resizeWidget >= 0 || _pullLine >= 0) return;
+            if (lineIndex < 0 || HudLines.All[lineIndex].ConfigKey == null) return;
+            if (!lineRect.Contains(e.mousePosition) || blocked.Contains(e.mousePosition)) return;
+            _pullLine = lineIndex;
+            _pullStart = e.mousePosition;
+            _pullOffset = e.mousePosition - new Vector2(lineRect.x, lineRect.y);
+            e.Use();
         }
 
-        /// Draws every free widget; in edit mode also its outline and handle,
+        /// Draws every placed value; in edit mode also its outline and handle,
         /// and takes the mouse. `blocked`: where the F2 window is (clicks there are its).
         public void Draw(HudBuilder hud, Rect blocked)
         {
-            if (!AnyDetached && !Editing) return;
-            UiKit.Ensure();
             Event e = Event.current;
 
-            // A pulled line becomes a widget once the mouse has moved off it.
+            // A pressed column value is placed on its own once the mouse has moved.
             if (_pullLine >= 0 && e != null)
             {
                 if (!Editing || e.type == EventType.MouseUp) _pullLine = -1;
                 else if (e.type == EventType.MouseDrag && (e.mousePosition - _pullStart).sqrMagnitude > 36f)
                 {
-                    float x = Mathf.Max(0f, e.mousePosition.x - 16f), y = Mathf.Max(0f, e.mousePosition.y - 10f);
                     int line = _pullLine;
                     _pullLine = -1;
-                    Detach(line, x, y);
-                    _dragWidget = _layout.Widgets.Count - 1;
+                    Vector2 at = e.mousePosition - _pullOffset;
+                    Detach(line, Mathf.Max(0f, at.x - CardPad), Mathf.Max(0f, at.y - CardPad));
                     for (int i = 0; i < _layout.Widgets.Count; i++)
                         if (_widgetLine[i] == line) _dragWidget = i;
-                    _dragOffset = new Vector2(16f, 10f);
+                    _dragOffset = _pullOffset + new Vector2(CardPad, CardPad);
                     e.Use();
                 }
             }
 
+            bool any = false;
             for (int i = 0; i < _layout.Widgets.Count; i++)
             {
                 int line = _widgetLine[i];
-                if (line < 0) continue;     // a key from a newer version: kept in the file, not drawn
+                if (line < 0 || !_layout.Widgets[i].Free) continue;
+                if (!any) { UiKit.Ensure(); any = true; }
                 DrawWidget(i, line, hud, blocked, e);
             }
         }
@@ -260,12 +280,11 @@ namespace ForestOverlay.Core
             for (int j = 0; j < hud.Count; j++) if (hud.LineIndex(j) == line) slots++;
             if (slots == 0 && !Editing) return;
 
-            bool single = slots <= 1;
-            float labelH = st.Label.fontSize + 5f, valueH = st.ValueSize + 7f;
+            float valueH = st.ValueSize + 7f;
             float width = 0f, height = 0f;
             if (slots == 0)
             {
-                width = Mathf.Max(st.Label.CalcSize(NameOf(line)).x, st.Value.CalcSize(NotShowing).x * st.ValueScale);
+                width = st.Label.CalcSize(NotShowing).x;
                 height = valueH;
             }
             else
@@ -300,7 +319,6 @@ namespace ForestOverlay.Core
             float cx = rect.x + CardPad;
             if (slots == 0)
             {
-                
                 GUI.Label(new Rect(cx, cy, width, valueH), NotShowing, st.Label);
             }
             else
@@ -385,28 +403,67 @@ namespace ForestOverlay.Core
             }
         }
 
-        /// Ends any gesture in flight (the window closed mid-drag).
+        /// Ends any gesture in flight (the window closed mid-drag) and keeps
+        /// a text being typed.
         public void StopEditing()
         {
+            CloseText();
             Editing = false;
             _dragWidget = -1;
             _resizeWidget = -1;
             _pullLine = -1;
         }
 
+        // --- the text around a value --------------------------------------------------------
+
+        private int _textLine = -1;          // the row whose text fields are open
+        private string _beforeEdit = "", _afterEdit = "";
+        private bool _textDirty;
+
+        private void OpenText(int lineIndex)
+        {
+            CloseText();
+            _textLine = lineIndex;
+            _beforeEdit = _before[lineIndex];
+            _afterEdit = _after[lineIndex];
+        }
+
+        /// Writes the file once for a whole edit (not per keystroke).
+        private void CloseText()
+        {
+            int line = _textLine;
+            _textLine = -1;
+            if (!_textDirty || line < 0) return;
+            _textDirty = false;
+            Save();
+            if (_log != null)
+                _log.LogInfo("HUD widget '" + HudLines.All[line].Name + "' text: before \"" + _before[line] + "\", after \"" + _after[line] + "\".");
+        }
+
+        private void ApplyText()
+        {
+            if (_textLine < 0) return;
+            if (!_layout.SetText(HudLines.All[_textLine].ConfigKey, _beforeEdit, _afterEdit)) return;
+            Rebuild();
+            _textDirty = true;
+        }
+
         // --- the editor (in the F2 window) ------------------------------------------------------
 
         private static readonly GUIContent EditHint = new GUIContent(
-            "Drag a value out of the info box to make it a widget. Drag a widget or panel to move it, its corner or edges to resize; right-click a widget to put it back.");
+            "Drag a value out of the column to place it anywhere; drag the column's grip (the bar beside it) to move the column. " +
+            "Drag a placed value to move it, its corner to resize it; right-click it to put it back.");
         private static readonly GUIContent LockedNote = new GUIContent(
-            "Always in the info box: ON NOW, the practice marker and run mode's code (a recording must show them).");
+            "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");
         private static readonly GUIContent ResetText = new GUIContent("Reset layout");
-        private static readonly GUIContent ResetTip = new GUIContent("Every widget back in the info box.");
-        private static readonly GUIContent OwnText = new GUIContent("own");
-        private static readonly GUIContent OwnTip = new GUIContent("Take this value out of the info box as a widget of its own.");
-        private static readonly GUIContent LabelText = new GUIContent("label");
-        private static readonly GUIContent LabelTip = new GUIContent("Show the name above the value.");
+        private static readonly GUIContent ResetTip = new GUIContent("Every value back in the column, its own text cleared.");
+        private static readonly GUIContent TextText = new GUIContent("Text");
+        private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
+        private static readonly GUIContent BeforeText = new GUIContent("Before");
+        private static readonly GUIContent AfterText = new GUIContent("After");
+        private static readonly GUIContent ColumnText = new GUIContent("To column");
+        private static readonly GUIContent ColumnTip = new GUIContent("Put this value back in the column.");
         private static readonly GUIContent SmallerText = new GUIContent("-");
         private static readonly GUIContent BiggerText = new GUIContent("+");
         private GUIContent[] _descriptions;
@@ -415,9 +472,11 @@ namespace ForestOverlay.Core
         private Vector2 _scroll;
         private float _panelsH;
         private static readonly GUIContent PanelsTitle = new GUIContent("Panels");
-        private static readonly GUIContent ValuesTitle = new GUIContent("Info box values");
+        private static readonly GUIContent ValuesTitle = new GUIContent("Values");
 
-        /// The widget list in the window's body; true when Done was pressed.
+        private const float RowH = 26f, TextRowH = 28f;
+
+        /// The value list in the window's body; true when Done was pressed.
         public bool DrawEditor(Rect area, HudSettings settings, Rect windowRect, ModuleHost host)
         {
             if (_descriptions == null)
@@ -440,13 +499,12 @@ namespace ForestOverlay.Core
             UiKit.Hint(new Rect(106f, y, 120f, 26f), ResetTip);
             y += 34f;
 
-            const float rowH = 26f;
             int rows = 0;
             for (int i = 0; i < HudLines.All.Length; i++) if (HudLines.All[i].Switchable) rows++;
             float noteH = UiText.Height(w - 20f, LockedNote, UiKit.HintStyle);
             // The panels' rows (the modules') are as tall as their open
             // folds: last pass's height sizes the scroll view.
-            float contentH = _panelsH + rows * rowH + noteH + 8f;
+            float contentH = _panelsH + rows * RowH + (_textLine >= 0 ? TextRowH : 0f) + noteH + 8f;
             float viewH = area.height - y;
             bool scrolls = contentH > viewH;
             float cw = scrolls ? w - 18f : w;
@@ -466,46 +524,62 @@ namespace ForestOverlay.Core
             {
                 HudLine l = HudLines.All[i];
                 if (!l.Switchable) continue;
-                bool shown = settings.Shows(i);
-                Rect nameR = new Rect(0f, ry, cw - 236f, rowH - 4f);
-                bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
-                if (now != shown) settings.SetShows(i, now);
-                UiKit.Hint(nameR, _descriptions[i]);
-
-                HudWidgetLayout wl = WidgetOf(i);
-                bool own = wl != null;
-                float x = cw - 232f;
-                bool ownNow = GUI.Toggle(new Rect(x, ry, 52f, rowH - 4f), own, OwnText);
-                if (ownNow != own)
-                {
-                    if (ownNow)
-                    {
-                        // Beside the box, where the eye already is.
-                        Detach(i, Mathf.Min(settings.X + HudLines.Width(settings.TextSize, Screen.width) + 12f, Screen.width - 120f),
-                               settings.Y + 8f + Offset());
-                    }
-                    else Attach(i);
-                    wl = WidgetOf(i);
-                }
-                UiKit.Hint(new Rect(x, ry, 52f, rowH - 4f), OwnTip);
-                if (wl != null)
-                {
-                    float xs = x + 56f;
-                    if (GUI.Button(new Rect(xs, ry, 24f, rowH - 4f), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
-                    GUI.Label(new Rect(xs + 26f, ry, 44f, rowH - 4f), ScaleText(wl.Scale));
-                    if (GUI.Button(new Rect(xs + 70f, ry, 24f, rowH - 4f), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
-                }
-                ry += rowH;
+                ry = DrawRow(i, ry, cw, settings);
             }
             UiText.Draw(0f, ry + 4f, cw - 4f, LockedNote, UiKit.HintStyle);
             GUI.EndScrollView();
             return done;
         }
 
-        // New widgets fan out so they do not land on each other.
-        private float Offset()
+        // name toggle | Text | (placed:) - 1x + To column; then the text fields when open.
+        private float DrawRow(int i, float ry, float cw, HudSettings settings)
         {
-            return (_layout.Widgets.Count % 8) * 30f;
+            float h = RowH - 4f;
+            bool shown = settings.Shows(i);
+            Rect nameR = new Rect(0f, ry, cw - 236f, h);
+            bool now = GUI.Toggle(nameR, shown, _toggleNames[i]);
+            if (now != shown) settings.SetShows(i, now);
+            UiKit.Hint(nameR, _descriptions[i]);
+
+            float x = cw - 232f;
+            Rect textR = new Rect(x, ry, 48f, h);
+            bool open = _textLine == i;
+            if (GUI.Toggle(textR, open, TextText, GUI.skin.button) != open)
+            {
+                if (open) CloseText();
+                else OpenText(i);
+            }
+            UiKit.Hint(textR, TextTip);
+
+            HudWidgetLayout wl = WidgetOf(i);
+            if (wl != null && wl.Free)
+            {
+                float xs = x + 52f;
+                if (GUI.Button(new Rect(xs, ry, 24f, h), SmallerText)) SetScale(wl, wl.Scale - 0.25f);
+                GUI.Label(new Rect(xs + 26f, ry, 40f, h), ScaleText(wl.Scale));
+                if (GUI.Button(new Rect(xs + 66f, ry, 24f, h), BiggerText)) SetScale(wl, wl.Scale + 0.25f);
+                Rect backR = new Rect(xs + 94f, ry, cw - (xs + 94f), h);
+                if (GUI.Button(backR, ColumnText)) Attach(i);
+                UiKit.Hint(backR, ColumnTip);
+            }
+            ry += RowH;
+
+            if (_textLine == i)
+            {
+                float half = (cw - 8f) * 0.5f;
+                GUI.Label(new Rect(8f, ry, 46f, h), BeforeText);
+                string b = GUI.TextField(new Rect(54f, ry, half - 54f, h), _beforeEdit, HudLayout.MaxText);
+                GUI.Label(new Rect(half + 8f, ry, 40f, h), AfterText);
+                string a = GUI.TextField(new Rect(half + 48f, ry, cw - half - 48f, h), _afterEdit, HudLayout.MaxText);
+                if (!string.Equals(b, _beforeEdit) || !string.Equals(a, _afterEdit))
+                {
+                    _beforeEdit = b;
+                    _afterEdit = a;
+                    ApplyText();
+                }
+                ry += TextRowH;
+            }
+            return ry;
         }
 
         private void SetScale(HudWidgetLayout wl, float scale)

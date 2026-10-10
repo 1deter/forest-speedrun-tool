@@ -5,10 +5,9 @@ namespace ForestOverlay.Core
 {
     // ------------------------------------------------------------------
     // The HUD's settings, under [HUD] in the config: a switch per value
-    // (Data/HudLines; the box's lines and the widgets), the box itself, and
-    // the HUD-wide compact, text size and position (the box, or the
-    // practice / ON NOW warnings without it). Defaults are the box as it
-    // always looked.
+    // (Data/HudLines) and the HUD-wide compact, text size and position (the
+    // column of values, T-0018). Defaults are the pre-overhaul info box's
+    // values and place.
     //
     // Every write here is one click (a tick box, a size step) or a drag's
     // release - never per frame or per mouse event: a config write saves
@@ -19,7 +18,7 @@ namespace ForestOverlay.Core
         public const float DefaultX = 10f, DefaultY = 10f;
 
         private readonly ConfigEntry<bool>[] _show = new ConfigEntry<bool>[HudLines.All.Length];
-        private readonly ConfigEntry<bool> _compact, _infoBox;
+        private readonly ConfigEntry<bool> _compact;
         private readonly ConfigEntry<int> _textSize;
         private readonly ConfigEntry<float> _x, _y;
         private readonly ConfigFile _config;
@@ -34,16 +33,14 @@ namespace ForestOverlay.Core
             {
                 HudLine l = HudLines.All[i];
                 if (!l.Switchable) continue;
-                _show[i] = config.Bind("HUD", l.ConfigKey, l.DefaultOn, "Info box: " + l.Name + " - " + l.Description);
+                _show[i] = config.Bind("HUD", l.ConfigKey, l.DefaultOn, "HUD value: " + l.Name + " - " + l.Description);
             }
-            _infoBox = config.Bind("HUD", "InfoBox", false,
-                "The info box (top left). Off: only HUD widgets and the practice / ON NOW markers show (Settings -> Edit HUD layout).");
             _compact = config.Bind("HUD", "Compact", false,
                 "The whole HUD: fewer words (shorter values in the box and the widgets, no column padding, a short title).");
             _textSize = config.Bind("HUD", "TextSize", 0,
-                "Text size in px of the info box and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). Widgets have their own size.");
-            _x = config.Bind("HUD", "X", DefaultX, "Info box position from the left, in pixels (drag it while the window is open).");
-            _y = config.Bind("HUD", "Y", DefaultY, "Info box position from the top, in pixels.");
+                "Text size in px of the column of values and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). A value placed on its own has its own size.");
+            _x = config.Bind("HUD", "X", DefaultX, "The column of values: position from the left, in pixels (drag it while the window is open).");
+            _y = config.Bind("HUD", "Y", DefaultY, "The column of values: position from the top, in pixels.");
         }
 
         /// Whether line i of HudLines.All is shown; locked and externally
@@ -60,12 +57,6 @@ namespace ForestOverlay.Core
             if (index < 0 || index >= _show.Length || _show[index] == null || _show[index].Value == on) return;
             _show[index].Value = on;
             Version++;
-        }
-
-        public bool InfoBox
-        {
-            get { return _infoBox.Value; }
-            set { if (_infoBox.Value != value) { _infoBox.Value = value; Version++; } }
         }
 
         public bool Compact
