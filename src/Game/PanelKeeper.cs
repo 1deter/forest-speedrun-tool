@@ -63,6 +63,7 @@ namespace ForestOverlay.Game
             public Vector3 LocalScale;
             public int Index;
             public string Key;
+            public long Pos;              // Key as Data/PositionKey
             public GameObject[] Pieces;
             public Untouched Look;
         }
@@ -241,6 +242,7 @@ namespace ForestOverlay.Game
                 k.LocalScale = t.localScale;
                 k.Index = IndexOf(wood);
                 k.Key = Key(t.position);
+                k.Pos = PositionKey.Of(t.position.x, t.position.y, t.position.z);
                 Looks.TryGetValue(wood.GetInstanceID(), out k.Look);
                 Looks.Remove(wood.GetInstanceID());
                 k.Pieces = new GameObject[_cuts.Length];
@@ -341,24 +343,25 @@ namespace ForestOverlay.Game
             Array planks = Planks();
             if (planks == null) return "panels: none in this scene";
 
-            Dictionary<string, int> want = new Dictionary<string, int>();
+            // By number, not text (Data/PositionKey, T-0202: the text was
+            // ~0.9 MB of garbage a restore over the 490 panels).
+            Dictionary<long, int> want = new Dictionary<long, int>();
             for (int i = 0; i < captured.Count; i++)
             {
-                string e = captured[i];
-                int at = e.IndexOf('@');
                 int h;
-                if (at <= 0 || !int.TryParse(e.Substring(0, at), NumberStyles.Integer, CultureInfo.InvariantCulture, out h)) continue;
-                want[e.Substring(at + 1)] = h;
+                long pos;
+                if (PositionKey.TryParseEntry(captured[i], out h, out pos)) want[pos] = h;
             }
 
             int healed = 0, rebuilt = 0, straightened = 0, dropped = 0;
-            HashSet<string> seen = new HashSet<string>();
+            HashSet<long> seen = new HashSet<long>();
 
             for (int i = 0; i < planks.Length; i++)
             {
                 Component p = planks.GetValue(i) as Component;
                 if (p == null) continue;
-                string key = Key(p.transform.position);
+                Vector3 at = p.transform.position;
+                long key = PositionKey.Of(at.x, at.y, at.z);
                 seen.Add(key);
 
                 int h;
@@ -378,8 +381,8 @@ namespace ForestOverlay.Game
                     Kept k = KeptList[i];
                     int h;
                     if (k.Spare == null) { KeptList.RemoveAt(i); continue; }
-                    if (!want.TryGetValue(k.Key, out h)) continue;
-                    if (seen.Contains(k.Key) || !HasOwnPieces(k.Spare))
+                    if (!want.TryGetValue(k.Pos, out h)) continue;
+                    if (seen.Contains(k.Pos) || !HasOwnPieces(k.Spare))
                     {
                         // A second copy of a panel already standing, or one
                         // taken after its pieces were gone: never put back.
@@ -412,14 +415,14 @@ namespace ForestOverlay.Game
                         Looks[wood.GetInstanceID()] = k.Look;
                     }
 
-                    seen.Add(k.Key);
+                    seen.Add(k.Pos);
                     KeptList.RemoveAt(i);
                     rebuilt++;
                 }
             }
 
             int missing = 0;
-            foreach (string key in want.Keys)
+            foreach (long key in want.Keys)
                 if (!seen.Contains(key)) missing++;
 
             if (healed == 0 && rebuilt == 0 && missing == 0 && straightened == 0 && dropped == 0) return "";
