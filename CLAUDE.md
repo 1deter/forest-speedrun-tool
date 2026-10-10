@@ -195,7 +195,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 ## Where we are (replaced at each handoff)
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
-  is*: plugin correctness and stability - T-0246, T-0056,
+  is*: plugin correctness and stability - T-0056,
   T-0058, savestate gaps, perf (T-0278 / T-0279: the Quick load's
   biggest garbage left); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
@@ -203,6 +203,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.277 (2026-10-10, T-0246):** ForestOverlay runs with ModAPI
+  mods (UltimateCheatmenu) - the preloader patcher `ModApiFix` repairs
+  ModAPI's dropped parameter defaults (gotcha 106; release.md *How
+  updates work*); the launch that first installs the patcher keeps the
+  overlay off with "ModAPI found. Restart the game once ..." and a failed
+  repair with "could not fix ModAPI's game files ..." (both worded by the
+  author). Proved on the branch build under ModAPI + UCM 2.3.6 (3
+  defaults repaired, overlay up, UCM menu open, Slot 1 loaded) and on
+  vanilla (no patching). UCM's own NREs + "resources.assets is corrupted"
+  also happen without BepInEx. To confirm (not its maker): forest-tester
+  - with ModAPI's `gamefiles/modded` copied in (ModAPI cache in
+  Downloads/modapi-2026_10_08_23_41_06; vanilla Managed + Mods backed up
+  at `G:/SteamLibrary/steamapps/common/TheForest-T0246-launchB-vanilla`),
+  launch -> `ModAPI fix: 3 parameter default(s) repaired`, overlay up;
+  restore the vanilla files after. The failure notice is unit-tested
+  only.
 - **v0.24.276 (2026-10-10, T-0273):** a restore puts cave stalagmites
   back as captured - broken since -> whole, broken at capture -> broken
   again (in place and after a Full load), a later break's debris gone
