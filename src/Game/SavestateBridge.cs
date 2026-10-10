@@ -706,7 +706,7 @@ namespace ForestOverlay.Game
             bool unloaded = false;
             if (unloadStreaming)
             {
-                unloaded = ForceUnloadStreaming(true, true);
+                unloaded = ForceUnloadStreaming(true, true, PerfPatches.RestoreSkipStreamingSweep);
                 // Greeble zones and scene unloads take a few frames.
                 yield return new WaitForSeconds(0.25f);
             }
@@ -820,6 +820,7 @@ namespace ForestOverlay.Game
                 sb.Append(", 'not found' ").Append(_logNotFound);
                 sb.Append(", problems ").Append(_logProblems);
                 sb.Append(", streaming ").Append(unloadStreaming ? (unloaded ? "force-unloaded" : "unload FAILED") : "kept");
+                if (unloaded && _sweepsSkipped > 0) sb.Append(" (its asset clean-up skipped, ").Append(_sweepsSkipped).Append(")");
                 if (stashWait > 0.05f || stashStuck)
                     sb.Append(", hands put away in ").Append((int)(stashWait * 1000f)).Append(" ms").Append(stashStuck ? " (STILL BUSY)" : "");
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
@@ -2077,17 +2078,22 @@ namespace ForestOverlay.Game
 
         /// ForcedUnload(unload) on the greeble zones and every cave scene
         /// loader, as the game's save does. CheckInCave follows only on the
-        /// way in, matching the game.
-        private bool ForceUnloadStreaming(bool unload, bool checkInCave)
+        /// way in, matching the game. skipSweep (a restore, PerfPatches 19):
+        /// each Unload queues Invoke("DelayedCleanUp", 0.1) - a full
+        /// UnloadUnusedAssets - cancelled here when this call queued it.
+        private bool ForceUnloadStreaming(bool unload, bool checkInCave, bool skipSweep = false)
         {
+            if (unload) _sweepsSkipped = 0;
             if (_greebleForcedUnload == null || _caveForcedUnload == null) return false;
             try
             {
                 object greeble = _greebleManager != null ? _greebleManager.GetValue(null) : null;
                 if (greeble != null)
                 {
+                    bool queued = skipSweep && SweepQueued(greeble);
                     _greebleForcedUnload.Invoke(greeble, new object[] { unload });
                     if (checkInCave && _greebleCheckInCave != null) _greebleCheckInCave.Invoke(greeble, null);
+                    if (skipSweep && !queued) CancelSweep(greeble);
                 }
 
                 Array loaders = _sceneLoaders != null ? _sceneLoaders.GetValue(null) as Array : null;
@@ -2098,8 +2104,10 @@ namespace ForestOverlay.Game
                         object l = loaders.GetValue(i);
                         UnityEngine.Object uo = l as UnityEngine.Object;
                         if (l == null || (uo != null && uo == null)) continue;
+                        bool queued = skipSweep && SweepQueued(l);
                         _caveForcedUnload.Invoke(l, new object[] { unload });
                         if (checkInCave && _caveCheckInCave != null) _caveCheckInCave.Invoke(l, null);
+                        if (skipSweep && !queued) CancelSweep(l);
                     }
                 }
                 return true;
@@ -2109,6 +2117,24 @@ namespace ForestOverlay.Game
                 _log.LogWarning("Savestate: ForcedUnload(" + unload + ") failed: " + (ex.InnerException ?? ex).Message);
                 return false;
             }
+        }
+
+        /// The asset sweeps the last ForceUnloadStreaming cancelled.
+        private int _sweepsSkipped;
+        private const string SweepInvoke = "DelayedCleanUp";   // GreebleZonesManager / SceneUnloadInCave (IL)
+
+        private static bool SweepQueued(object o)
+        {
+            MonoBehaviour mb = o as MonoBehaviour;
+            return mb != null && mb.IsInvoking(SweepInvoke);
+        }
+
+        private void CancelSweep(object o)
+        {
+            MonoBehaviour mb = o as MonoBehaviour;
+            if (mb == null || !mb.IsInvoking(SweepInvoke)) return;
+            mb.CancelInvoke(SweepInvoke);
+            _sweepsSkipped++;
         }
 
         /// ReParent (before saving) / UnParent (after) on held items that

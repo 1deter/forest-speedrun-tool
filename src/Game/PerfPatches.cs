@@ -136,6 +136,14 @@ namespace ForestOverlay.Game
     //    navmesh obstacle at the same spot per restore. Removed with their
     //    wreck (SavestateBridge.ClearOldPlaneHulls); the navmesh is as a
     //    load leaves it (bridge: NodeHash the same with and without).
+    // 19. The restore's own asset sweep (T-0279): an in-place restore
+    //    force-unloads the greeble zones and the surface scenes and loads
+    //    them again a moment later; each Unload queues
+    //    Invoke("DelayedCleanUp", 0.1) -> ResourcesHelper.UnloadUnusedAssets,
+    //    a 320-490 ms frame every surface Quick load that only frees memory
+    //    the scenes take back. The restore cancels the invokes its own
+    //    unload queued (SavestateBridge.ForceUnloadStreaming); one already
+    //    queued by the game (entering a cave) is left alone.
     // ------------------------------------------------------------------
     public sealed class PerfPatches
     {
@@ -146,6 +154,8 @@ namespace ForestOverlay.Game
         /// Fixes 17 / 18, read by the savestate restore (T-0202).
         public static bool RestoreKeepLastRead;
         public static bool RestoreRemoveWreckCutters;
+        /// Fix 19, read by the savestate restore (T-0279).
+        public static bool RestoreSkipStreamingSweep;
 
         private sealed class Fix
         {
@@ -272,6 +282,12 @@ namespace ForestOverlay.Game
                 "enemy paths stayed behind - one more on the same spot after every restore. Remove it with its wreck; the live wreck " +
                 "keeps its own, so enemy paths are as after a load.",
                 delegate { RestoreRemoveWreckCutters = true; return ""; }, delegate { RestoreRemoveWreckCutters = false; });
+            Add(config, "RestoreSkipStreamingSweep", "Savestates: skip the asset clean-up a restore sets off",
+                "A savestate restore unloads the nearby world detail and scenes for a moment and loads them straight back; the " +
+                "unload made the game walk every loaded asset to free unused ones - the restore's longest frame (~0.3-0.5 s) - " +
+                "freeing memory the scenes take back a moment later. Skip that walk for the restore's own unload; the game's " +
+                "clean-ups on entering a cave are unchanged.",
+                delegate { RestoreSkipStreamingSweep = true; return ""; }, delegate { RestoreSkipStreamingSweep = false; });
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);

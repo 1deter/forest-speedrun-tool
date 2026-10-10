@@ -2534,7 +2534,13 @@ greeble scene's reload. Off the main thread ~9 MB (not attributed).
   game sweep unused assets 0.1 s later (`SceneUnloadInCave` /
   `GreebleZonesManager.DelayedCleanUp`, merged): **320-490 ms** a surface
   Quick load, the restore's longest frame - though the scenes load again
-  a moment later.
+  a moment later. Both `Unload`s queue it with `Invoke("DelayedCleanUp",
+  0.1f)` (IL; `CheckInCave` calls `Unload` at once, `Load` queues none),
+  so `CancelInvoke` right after the forced unload drops it (T-0279,
+  PerfPatches 19): bridge, 10 warm Quick loads of `axe-held`, hitch
+  459-488 ms -> none, restore 0.83 -> 0.48 s, the two scenes back each
+  time, native memory flat over 10 more (940.8 -> 940.1 MB); a cave's
+  own sweeps still run.
 **The game profiler's hooks stay after it is switched off**: the methods
 it hooked keep running Harmony's copy, whose `foreach` enumerators box
 (`List.Enumerator<CullingGrid.Cell>` 390/s, three `Dictionary.Enumerator`s
