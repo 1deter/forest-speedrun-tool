@@ -73,11 +73,28 @@ namespace ForestOverlay.Modules
             _pendingDir = Path.Combine(root, "pending");
             _refusedDir = Path.Combine(root, "refused");
             _state = _enabled.Value ? "on" : "off";
+            DropOldDeleteQueue(root);
             _nextTry = Time.unscaledTime + 8f;   // not in the startup rush
             InitAttempts(ctx.Config, root);
         }
 
         // --- queueing ---------------------------------------------------------
+        /// v0.24.248-267 queued a failed website delete in uploads/deletes.txt
+        /// when a spot was deleted in Practice. Practice's Delete is local
+        /// only now (T-0265; author 2026-10-10): those are never sent - the
+        /// file goes, once.
+        private void DropOldDeleteQueue(string root)
+        {
+            string path = Path.Combine(root, "deletes.txt");
+            try
+            {
+                if (!File.Exists(path)) return;
+                File.Delete(path);
+                Ctx.Log.LogInfo("Delete: removed the old retry queue uploads/deletes.txt - Practice's Delete no longer deletes from the website.");
+            }
+            catch (Exception ex) { Ctx.Log.LogWarning("Delete: could not remove the old uploads/deletes.txt: " + ex.Message); }
+        }
+
 
         /// A finished attempt of `segment` (its .run text).
         public void Enqueue(Segment segment, string runText, string runnerId, string runnerName)

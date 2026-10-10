@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 691 log calls.
+218 prefixes from 694 log calls.
 
 ## `Aerial capture`
 
@@ -386,6 +386,8 @@ Written by RunUploadModule.cs; info / warning.
 
 - info `Delete: '<segment.Id>' on <baseUrl> - <..>: <text>`
 - warning `Delete: could not clear the upload queue of '<segmentId>': <ex.Message>`
+- warning `Delete: could not remove the old uploads/deletes.txt: <ex.Message>`
+- info `Delete: removed the old retry queue uploads/deletes.txt - Practice's Delete no longer deletes from the website.`
 
 ## `Dump failed`
 
@@ -1145,6 +1147,7 @@ Written by PracticeModule.cs; info / warning.
 - info `Practice: autosave held back <..> - '<invalid.Id>' needs a spawn, or a start and an end.`
 - info `Practice: autosaved <names> to <..>.`
 - warning `Practice: clearing a deleted spot failed: <ex.Message>`
+- warning `Practice: clearing a replaced spot failed: <ex.Message>`
 - warning `Practice: could not list <_lssDir> - <ex.Message>`
 - warning `Practice: could not read layouts beside <lssPath> - <ex.Message>`
 - info `Practice: deleted '<gone.Id>' here<..>; any website copy stays.`
