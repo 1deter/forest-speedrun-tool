@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.281 - 2026-10-10
+
+- A Quick load no longer recalculates enemy paths around the re-created plane wreck twice, when the wreck has not moved: about half the garbage a restore (22 -> 10 MB measured), so fewer collection pauses. Enemy paths stay exactly as before. A switch in Debug views -> Performance (on).
+
 ## v0.24.280 - 2026-10-10
 
 - A comparison run's replay now lasts the run's full time (it stopped about a frame early, e.g. 11.186 for a run of 11.197).
