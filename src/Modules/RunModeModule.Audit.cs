@@ -187,7 +187,7 @@ namespace ForestOverlay.Modules
                 if (IsEndgameEvent(name)) { Write(ms, name, detail); continue; }
                 // Everything else is a copy of the above (cave-enter-cave06,
                 // passenger-3, keycard-door-210, vault-door, game-end) or a
-                // run start trigger (moving, hold-interact).
+                // run start trigger (first-input, hold-interact).
             }
             _eventsSeen = count;
         }

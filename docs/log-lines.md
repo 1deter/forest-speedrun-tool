@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 680 log calls.
+218 prefixes from 681 log calls.
 
 ## `Aerial capture`
 
@@ -1917,6 +1917,7 @@ Meaning: The autosplitter's other events (caves, clothing ...): hooks installed 
 Written by WorldEvents.cs; info.
 
 - info `WorldEvents: <_status>.`
+- info `WorldEvents: first-input reads <ids.Count> input actions (not <..>).`
 
 ## `WreckClearing`
 

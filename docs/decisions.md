@@ -257,6 +257,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
 - **Dropped:** the stats-only start state (author, 2026-09-25:
   "over-engineering what we currently have with quick and full load
   savestates") - do not propose it again.
+- **A run starts on the first input** (author, 2026-10-10, T-0282): any
+  input but the pause menu (Esc) and the camera starts it - the inventory,
+  the book, sprint alone all count ("any other input means intent"); the
+  velocity start `moving` goes (it existed only because the LiveSplit
+  autosplitter cannot read input). Stored `moving` starts become
+  `first-input` and their old times **retire** through the route
+  fingerprint (the start moved).
 
 ## Run mode
 

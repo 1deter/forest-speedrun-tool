@@ -241,7 +241,7 @@ namespace ForestOverlay.Data
         }
 
         /// An event trigger's name is one event or several separated by '|'
-        /// ("hold-interact|moving": either starts it - the autosplitter's two
+        /// ("hold-interact|first-input": either starts it - the autosplitter's two
         /// start settings at once, v0.24.186). Compared without allocating:
         /// this runs once per event per trigger.
         public static bool EventMatches(string name, string fired)
@@ -531,7 +531,7 @@ namespace ForestOverlay.Data
             {
                 if (p.Length < 2) return false;
                 t.Kind = TriggerKind.Event;
-                t.EventName = p[1];
+                t.EventName = MigrateEventName(p[1]);
                 return true;
             }
 
@@ -624,6 +624,32 @@ namespace ForestOverlay.Data
             }
 
             return false;
+        }
+
+        /// The velocity start is gone (T-0282, author 2026-10-10): a stored
+        /// `moving` reads as `first-input`, alone or in a '|' list ("hold-
+        /// interact|moving"), never twice. The trigger's text changes, so
+        /// the route fingerprint does and old times retire - the start moved
+        /// (author's call).
+        public const string LegacyMoving = "moving";
+        public const string FirstInput = "first-input";
+
+        public static string MigrateEventName(string name)
+        {
+            if (string.IsNullOrEmpty(name) || name.IndexOf(LegacyMoving, StringComparison.OrdinalIgnoreCase) < 0) return name;
+            string[] parts = name.Split('|');
+            List<string> kept = new List<string>();
+            bool changed = false;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string e = parts[i].Trim();
+                if (string.Equals(e, LegacyMoving, StringComparison.OrdinalIgnoreCase)) { e = FirstInput; changed = true; }
+                bool dup = false;
+                for (int k = 0; k < kept.Count; k++)
+                    if (string.Equals(kept[k], e, StringComparison.OrdinalIgnoreCase)) dup = true;
+                if (!dup) kept.Add(e);
+            }
+            return changed ? string.Join("|", kept.ToArray()) : name;
         }
 
 

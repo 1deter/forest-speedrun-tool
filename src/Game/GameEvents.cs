@@ -452,7 +452,7 @@ namespace ForestOverlay.Game
 
         /// For WorldEvents and AuditWatch: caves, clothing, passengers,
         /// starts, the game's event bus, rides. `log` false for the
-        /// frequent ones (moving, hold-interact). `companion`: another name
+        /// frequent ones (first-input, hold-interact). `companion`: another name
         /// for the occurrence recorded just before (cave-enter after
         /// cave-enter-cave06).
         internal static void RecordWorld(string evt, string detail, bool log, bool companion = false)

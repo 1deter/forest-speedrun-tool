@@ -1205,7 +1205,7 @@ namespace ForestOverlay.Modules
             bool complete = true;
             switch (g)
             {
-                case 1: list = new[] { WorldEvents.HoldInteract, WorldEvents.Moving, WorldEvents.FirstInput }; break;
+                case 1: list = new[] { WorldEvents.FirstInput, WorldEvents.HoldInteract }; break;
                 case GroupCaves: list = WorldEvents.CaveEvents(); break;
                 case GroupClothing: list = WorldEvents.ClothingEvents(); complete = list.Length > 0; break;
                 case GroupPassengers: list = WorldEvents.PassengerEvents(); break;
@@ -1330,7 +1330,7 @@ namespace ForestOverlay.Modules
             return label;
         }
 
-        // "hold-interact|moving": any of them.
+        // "hold-interact|first-input": any of them.
         private static string EitherLabel(string name)
         {
             string[] parts = name.Split('|');
@@ -2359,8 +2359,8 @@ namespace ForestOverlay.Modules
             string[] starts = e.Asl.StartEvents();
             string[] splits = e.Asl.SplitEvents();
             string start = starts.Length == 0 ? "starts by hand (F12)"
-                         : starts.Length == 2 ? "starts on a hold-to-interact or on moving"
-                         : starts[0] == LssAutoSplit.Moving ? "starts on moving" : "starts on a hold-to-interact (the plane meal)";
+                         : starts.Length == 2 ? "starts on a hold-to-interact or on your first input"
+                         : starts[0] == LssAutoSplit.FirstInput ? "starts on your first input (its velocity start)" : "starts on a hold-to-interact (the plane meal)";
             string split = splits.Length == 0 ? "splits by hand (F12)"
                          : "splits on the next of " + splits.Length + " autosplitter setting" + (splits.Length == 1 ? "" : "s");
             return "Autosplitter" + (e.AslFrom != null ? " (from the layout " + e.AslFrom + ")" : "") + ": " + start + ", " + split + ".";

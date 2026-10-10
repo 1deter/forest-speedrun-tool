@@ -33,7 +33,8 @@ namespace ForestOverlay.Data
     //   Passenger Splits (off) > passengerSplit_<n>
     // as our event names (Game/WorldEvents, Game/GameEvents; the item ones
     // are worked out per run, Data/AutoSplitWatch):
-    //   mealStart -> hold-interact, velocityStart -> moving
+    //   mealStart -> hold-interact, velocityStart -> first-input (the velocity
+    //     start is gone; the run starts on the first input - T-0282)
     //   <cave>EnterSplit -> cave-enter-<cave in lower case>, Exit -> cave-exit-..
     //   itemSplit_<id> -> item-<id> (first pickup in the run)
     //   multiItemSplit_<id> -> item-change-<id> (every later change)
@@ -54,7 +55,7 @@ namespace ForestOverlay.Data
         };
 
         public const string HoldInteract = "hold-interact";
-        public const string Moving = "moving";
+        public const string FirstInput = "first-input";
         public const string EndgameCutscene = "endgame-cutscene";
         public const string ItemFirst = "item-";
         public const string ItemChange = "item-change-";
@@ -166,7 +167,7 @@ namespace ForestOverlay.Data
             List<string> e = new List<string>();
             if (!StartOn) return e.ToArray();
             if (Setting("mealStart")) e.Add(HoldInteract);
-            if (Setting("velocityStart")) e.Add(Moving);
+            if (Setting("velocityStart")) e.Add(FirstInput);
             return e.ToArray();
         }
 

@@ -67,7 +67,9 @@ concept before changing its feature. Where the code lives:
   `cave-enter-<cave>` / `cave-exit-<cave>` (cave01..cave10, hellcave,
   snowcave, underwatercave, underwatercave2/3) and `cave-enter` /
   `cave-exit`, `clothing-<id>`, `passenger-<n>` / `passenger`,
-  `hold-interact` (plane meal start), `moving` (velocity start).
+  `hold-interact` (plane meal start), `first-input` (any input but Esc
+  and the camera - replaces the velocity start `moving`, T-0282; a stored
+  `moving` reads as `first-input` and its old times retire).
 - **Deaths** (Deaths tab), decided in `DeathModule.Decide`:
   1. a current spot **with a start state** → revive and restore it, the
      segment's way, **even with practice mode off** (author: "if the runner

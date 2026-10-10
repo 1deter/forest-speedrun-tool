@@ -117,8 +117,10 @@ The written Glitchless rules name only OOB and clipping through walls.
 ## Timing in practice
 
 - **Start**: the first movement. The LiveSplit autosplitter's "Moving"
-  start fires when the player's speed passes 0.15 m/s; ForestOverlay's
-  `moving` event is the same (`endgame-splits`).
+  start fires when the player's speed passes 0.15 m/s (`endgame-splits`);
+  ForestOverlay starts on the first input instead (`first-input`: any key,
+  button or movement but Esc and the camera), which the autosplitter
+  cannot read.
 - **End**: the "E" prompt disappearing as the end cutscene starts - the
   autosplitter's *Game end* split (`doEndPlaneCrashRoutine` /
   `doShutDownRoutine`), on the frame the shared cutscene flag turns on
