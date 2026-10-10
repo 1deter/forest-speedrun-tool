@@ -289,6 +289,15 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   "Slot 1 changed" hygiene problem. **Confirmed** by the v0.24.267 smoke.
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
+- **T-0018 (2026-10-10, built + checker-accepted, ui-redesign acfe900 /
+  392757a):** the HUD is a column of values (old order, title first,
+  values only + the runner's text before / after), values dragged out /
+  dropped back in Edit HUD, Info box option + `own` gone; ON NOW /
+  PRACTICE are short orange flags, nothing while clean (decisions.md *The
+  HUD is a column of values*, *Flags, not headings*). The author tried it
+  in game over three rounds ("all good"); the author's install runs this
+  branch build. Next in group 1: T-0020 snapping, T-0021, T-0022 (the
+  blurry large text, author's finding), T-0019 profiles; icons = T-0293.
 - **Redesign (2026-10-10):** main (v0.24.267) merged into `ui-redesign`
   (2997114). Built + checker-accepted on the branch: T-0024 (cursor),
   T-0226 (*Developer* tab, Settings as folds; `tasks/notes/T-0226.md`),
