@@ -147,7 +147,12 @@ Every number: game-notes *Frame time: where the main thread goes* and
   `System:` line, Debug views **Frame test** (+1 ms of main-thread work:
   main-thread vs render bound), `Game/RenderProbe` (`CameraContents`,
   `TextureUsers`, `LayerContents`, `TimeRender <mask> <n>`, `TimeCamera`,
-  `ToggleLights`, `ToggleRenderers`, `RenderersByRoot`, `ShadersNear`).
+  `ToggleLights`, `ToggleRenderers`, `RenderersByRoot`, `ShadersNear`;
+  T-0199: `MainCamDraws layer|root|shader|mesh|root=<name> <n>`,
+  `LightsWithShadows`, `ToggleShadowCasting <root>`, `ToggleInstancing
+  <shader>`), `scripts/launch-with-args.py -force-gfx-direct` (the render
+  thread's work timed on the main thread), `Time.timeScale 0` + a pixel
+  diff for "same picture".
 - A camera render costs ~0.2 ms of Unity's overhead whatever it draws -
   the lever is fewer camera renders.
 - On by default: `TerrainGrassCameraOff` (10), `EndgameScreenOnDemand`
@@ -174,9 +179,17 @@ Every number: game-notes *Frame time: where the main thread goes* and
   options, Sunshine has its Experimental switch, ActionIconCamera is
   T-0032.
 
-**Next:** (1) the main camera's draw calls (838 renderers in its frustum
-at (428, 78, -4), 252 in Cave 6) - the one lever left for a render-thread
-bound machine; no task yet. (2) (dropped: 30 Hz physics, removed). (3)
+- **The main camera's draw calls: no safe cut** (T-0199, 2026-10-10,
+  game-notes *The main camera's draw calls*, table in
+  `tasks/notes/T-0199.md`). Measured with `-force-gfx-direct` (the render
+  thread's work on the main thread): every layer / root it draws on the
+  surface is visible; GPU instancing is slower; the held lighter's shadow
+  cube (0.63 ms) is the game's Shadow Level option; billboards out of
+  shadow maps (0.10 ms) would show under the flashlight. Parked for the
+  author: the terrain + tree billboards while in a cave (~0.25 ms of 3.4,
+  invisible deep inside, visible through cave mouths).
+
+**Next:** (1) done (T-0199, above). (2) (dropped: 30 Hz physics, removed). (3)
 Cheesecake's Frame test (`1553493823840321557`). (4) ActionIconCamera by
 hand-`Render()` only with the author's eyes on the picture (T-0032).
 

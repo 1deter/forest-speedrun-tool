@@ -154,7 +154,7 @@ builder, notice, settings, the reflection helpers.
 
 ### Performance and loads
 
-Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PerfPatches,RenderProbe,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable}.cs` `scripts/{native-callers,sample-stacks,symbolize-crash}.py`
+Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTimer,GameLoading,GameProfiler,LeakedThreads,LoadTiming,LoadWatcher,MemoryCensus,PerfPatches,RenderProbe,StaleSubscribers}.cs` `src/Data/{FrameTimeline,ProfileTable}.cs` `scripts/{launch-with-args,native-callers,sample-stacks,symbolize-crash}.py`
 
 - Verification **B**: FrameTimeline, ProfileTable, LoadTimes tests; the
   `Perf` / `Frame` / `Load timing` lines read by hand; idle garbage and the
@@ -172,7 +172,8 @@ Paths: `src/Core/PerfMonitor.cs` `src/Game/{AllocationTracker,CameraTrim,FrameTi
   measured (T-0033: 50-150 KB/s, half Unity's; the small game patches
   wait on the author, T-0203; the restart loop's ~40 MB a Quick load, T-0202, and the
   strings' source open); the old world held after a load (T-0034); the census hitch
-  check (T-0048); raw FPS (T-0030 done: no safe camera cut; T-0031, T-0032, the main camera's draw calls T-0199).
+  check (T-0048); raw FPS (T-0030 done: no safe camera cut; T-0199 done: no safe main-camera
+  draw cut, the in-cave surface parked for the author; T-0031, T-0032).
 
 ### TAS and trajectory
 

@@ -2870,6 +2870,57 @@ lines): both **CPU-bound**, "waiting" ~0.1 ms, GPUs at 20-64 %.
   author's quality level 0 does not (`Sunshine Cascade Camera 0` x0/f).
   Measure at their quality level before judging shadows.
 
+## The main camera's draw calls (bridge + IL, T-0199, 2026-10-10, v0.24.269)
+
+The table, the method and each cut's verdict: `tasks/notes/T-0199.md`.
+- **Measuring the render thread**: `TheForest.exe -force-gfx-direct`
+  turns multithreaded rendering off (`SystemInfo.graphicsMultiThreaded`
+  False), so the D3D11 submission runs inside each camera's render on the
+  main thread and the Frame line times it: MainCamNew 1.45 ms -> 2.70 ms,
+  frame 4.8 -> 5.8 ms at (428, 78, -4). With `Time.timeScale 0` (wind,
+  animation, particles frozen) two shots of the same pose differ only by
+  the image effects' noise - a cut's picture change is a pixel diff.
+- **What it draws** (surface, (428, 78, -4) looking north): 448 renderers,
+  634 draws (one per material slot), 606 of them shadow casters. The
+  pooled trees (layer 11 treeMid, 2 materials each, three meshes) are 316
+  draws and 0.64 ms of its 2.7; cliffs / rocks (13) 0.47; terrain + grass
+  (26) 0.29; the rest 0.04-0.2 per layer. Removing any layer or any scene
+  root that draws changes the picture. Cave 6 spot: 138 renderers, 143
+  draws, MainCamNew 1.24 ms.
+- **The held lighter renders a shadow cube**: its `particleLight` (Point,
+  Soft, range 38, ForcePixel) casts shadows, so every caster within 38 m
+  is drawn into 6 faces inside MainCamNew - 0.63 ms of 2.75 on the surface,
+  0.27 in the cave, measured with Shadow Level Low. `LightFlicker.Update` /
+  `BatteryBasedLight` set the light's shadows every frame through
+  `TheForestQualitySettings.ApplyQualitySetting`: `ShadowLevel` VeryHigh /
+  High / Medium -> Soft (or the given type), Low / Fastest / UltraLow ->
+  None (a `set` of `Light.shadows` is undone the next frame). Lights
+  loaded with shadows (`RenderProbe.LightsWithShadows`): the lighter, the
+  flashlight (Spot, Hard, range 130), `TapedLight`'s torch light (Spot,
+  range 200), the book lamps (range 1), the death camera's light, the Sun, the
+  Moon, the lightning flash; no fire or cave light. The Sun's Unity
+  shadows are off while MainCamNew renders (`SunshineCamera.OnPreCull`
+  sets `None` when `ShadowsActive`, back in `OnPostRender`).
+- **Tree billboards** (`Tree_BillBoards`, 25 `CustomBillboard` meshes, one
+  per species, the whole map each): bounds of 10 km (`BuildMesh`), so
+  they pass every frustum and are drawn every frame, including into the
+  lighter's shadow cube; the shader kills a billboard nearer than
+  `FadeNearDistance` (57.5, 100 or 312 m) via `_StippleRangeSq`. Cost:
+  0.34 ms of MainCamNew on the surface, 0.20 ms in the cave, where they are
+  invisible; 0.10 ms of it is the lighter's shadow cube (light mask
+  without layer 2: picture identical on the surface and in the cave).
+- **The terrain is drawn in caves** (IL: only the debug console's
+  `_terrainRender` writes `drawHeightmap`): 0.13 ms at the
+  Cave 6 spot, invisible there (cave mouths are open from inside, see
+  *black walls* above).
+- **GPU instancing does not help**: `enableInstancing` on the AFS tree
+  bark (8 materials), Standard (Specular setup) (588) or Lux Standard
+  Water Flow (98) made the frame 0.13-0.35 ms slower; the bark also
+  changed the picture (0.19% of pixels).
+- Layer 2 'Ignore Raycast' holds the tree billboards and the sinkhole's
+  `Lower_Sinkhole_Cut` / `sinkholeshadow` (the latter's material uses
+  `Hidden/InternalErrorShader`).
+
 ## The grass-bending cameras and Unity's "current" camera (dump + IL + bridge, v0.24.138-140)
 
 - `AfsSetupAndSkin` carries the one `AfsGrassDisplacementController`

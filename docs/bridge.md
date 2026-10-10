@@ -299,6 +299,15 @@ wrapper type (`UnityEngine.Material` 24 bytes) at that rate, and the
 profiler's `alloc:` row charges those bytes to the hooked method that
 made it (an `enabled = true` runs the target's OnEnable inside the
 caller). Put the config back after.
+**What a draw costs / does a cut show** (T-0199): `game close`, then
+`python scripts/launch-with-args.py -force-gfx-direct` (rendering on the
+main thread, so `FrameTimer Snapshot`'s camera times include the render
+thread's work; `get static:UnityEngine.SystemInfo graphicsMultiThreaded`
+False), load the slot as usual, `set static:UnityEngine.Time timeScale 0`
+(frozen wind / animation: two shots of a pose differ only by the image
+effects' noise), then per cut: 4 s Snapshot windows before / with / after
+and a `shot` each, diffed with PIL. `RenderProbe.MainCamDraws` gives the
+table. Put `timeScale` back to 1.
 **Garbage by scenario** (T-0033): `ToggleAllocations` is a toggle that
 logs a report when it goes off and every 30 s while on - read
 `get static:ForestOverlay.Game.AllocationTracker Counting` first (two
