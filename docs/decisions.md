@@ -145,6 +145,12 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   back to a Full load (a savestate / spot restore; the Deaths tab's slot
   reload in place and Go have no file to load and only log it). The death count a load gives (0) applies to every
   restore in place.
+- **Spot edits are saved locally at once; the website only gets what is
+  uploaded** (author, 2026-10-10, T-0217 - maks lost a rename, category
+  moves and a timed spot's end to a restart): every Practice editor edit
+  is written to the runner's own spot file by itself; upload / sharing
+  sends only what the runner explicitly sends, so a shared spot is never a
+  half-edit.
 - **Deleting a spot here never deletes it online** (author, 2026-10-09,
   T-0265): the local Delete and *Delete from the website* are separate;
   the owner can add their spot back from the site, edit it and upload

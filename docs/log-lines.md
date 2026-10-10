@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 688 log calls.
+218 prefixes from 692 log calls.
 
 ## `Aerial capture`
 
@@ -1138,7 +1138,7 @@ Written by PlayerStateReader.cs; info.
 
 ## `Practice`
 
-Meaning: Practice spots: imported, renamed for a duplicate id, or a file not importable.
+Meaning: Practice spots: imported, renamed for a duplicate id, a file not importable, or edits autosaved to the spot file (T-0217; the names are the entries written).
 Written by PracticeModule.cs; info / warning.
 
 - info `Practice: '<s.Id>' keep loaded <..>.`
@@ -1147,6 +1147,8 @@ Written by PracticeModule.cs; info / warning.
 - warning `Practice: <..> not importable: <error>` (x2)
 - info `Practice: LiveSplit file <file> -> '<s.Id>' (<s.Name>): start <..>, <..> splits, autosplit = <..>.`
 - warning `Practice: LiveSplit import of <e.Path> failed: <ex>`
+- info `Practice: autosave held back <..> - '<invalid.Id>' needs a spawn, or a start and an end.`
+- info `Practice: autosaved <names> to <..>.`
 - warning `Practice: clearing a deleted spot failed: <ex.Message>`
 - warning `Practice: could not list <_lssDir> - <ex.Message>`
 - warning `Practice: could not read layouts beside <lssPath> - <ex.Message>`
@@ -1558,13 +1560,15 @@ Written by SegmentLibrary.cs; warning.
 
 ## `Segments`
 
-Meaning: The segments file: how many loaded from where, or a bad / duplicate segment skipped.
+Meaning: The segments file: how many loaded from where, a bad / duplicate segment skipped, or a write a crash interrupted put right at load (Data/SafeFile).
 Written by SegmentLibrary.cs; info / warning.
 
+- warning `Segments: <..>: <done>.`
 - info `Segments: <Status> from <_folder>`
 - warning `Segments: <file>:<line> <message>`
 - warning `Segments: <fileName>: duplicate segment id <s.Id> skipped.`
 - warning `Segments: <fileName>: segment (<..>) skipped - needs id, start and end.`
+- warning `Segments: could not tidy after an interrupted write of <..>: <ex.Message>`
 
 ## `SetupHold`
 
