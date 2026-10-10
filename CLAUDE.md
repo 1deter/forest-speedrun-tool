@@ -203,6 +203,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.276 (2026-10-10, T-0273):** a restore puts cave stalagmites
+  back as captured - broken since -> whole, broken at capture -> broken
+  again (in place and after a Full load), a later break's debris gone
+  (`Game/BreakableKeeper`, `broken` header; author's rule: "exactly as
+  it was during capture"). Proved on a hand-deployed build (10 restores
+  in a row, no stacking - the author's worry). To confirm (not its
+  maker): forest-tester - Cave 6 swim room (tp 1232 -33.5 527), break
+  one, capture, break another, restore: the second whole, the first
+  broken; the same after `restore <name> load`. The author's
+  `ui-redesign` branch DLL was kept as
+  `BepInEx/ForestOverlay.dll.redesign-keep` (the release replaced it).
 - **v0.24.275 (2026-10-10, T-0202):** a restore of the same state keeps
   its read (state file parsed, level data, LoadNow given the bytes) and
   old plane wrecks' nav cutters go with them - two `[Performance]`
