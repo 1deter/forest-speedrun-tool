@@ -138,6 +138,23 @@ The detail behind docs/areas/plugin-concepts.md *Savestates* (moved out 2026-09-
   `after the load: N ms, S scene search(es), K kept`. Left: LoadNow's own
   frames (150 + 170 ms on the Labskip spot) - the game's deserializer
   (game-notes *The frames of an in-place restore*).
+  **A Quick load's garbage** (T-0202, 2026-10-10, unreleased): a restart
+  loop made ~36 MB of garbage a restore, a quarter of it the plugin's
+  (game-notes *Performance*). The last state file read is kept parsed
+  (by path, size and write time; each restore gets its own `Copy()`), the
+  last level data read for its ids is kept (by content: the decompressed
+  bytes, the id set, the saved objects) and handed to `LoadNow` as bytes,
+  and the cave panels are matched by a number (`Data/PositionKey`), not
+  490 strings: **27.8 MB a restore (19.1 on the main thread), from 35.9
+  (27.2)**; the named savestate 28.9 (19.7) from 37.8 (28.6). Still one
+  collection a restore - the game's loader forces it (left as it is:
+  skipping it moves it into play; T-0202's question). An old wreck's
+  root-level nav cutter now goes with the wreck (`plane: 1 old wreck(s)
+  removed with 1 nav cutter(s)`; 12 had piled up after 12 restores; the
+  navmesh is the same). With the allocation tracker counting (Debug
+  views), the restore line ends `garbage (main thread) 8.6 MB: LoadNow
+  7.6, ..., GC x1` and the line a few seconds later says the total since
+  that restore started (`Game/RestoreGarbage`).
   **A Quick load during the game's own death** (T-0248, 2026-10-09,
   unreleased; runner maks): the death ran on through the restore - the
   capture went ahead, a real death's `GameOver` still loaded the title,

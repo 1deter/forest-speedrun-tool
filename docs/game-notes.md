@@ -2463,6 +2463,66 @@ the streamed scenes reloading, ~40 MB a restore; GC x4-9 per 30 s, i.e.
 author's lab restarts (2026-10-06 report): heap +1.3-2.4 MB/s, GC x1-3
 per 30 s, overlay `practicerun` ~280 KB/s (the restore runs inside that
 module's tick).
+**A Quick load's garbage, step by step** (bridge, T-0202, 2026-10-10,
+v0.24.269 + branch builds, Slot 1, 10-restore loops of the `tent` start
+state and of a named savestate every 6.6 s, tracker at startup, fresh
+launches). Per restore, before: **35.9 MB** allocated (27.2 on the main
+thread; the named one 37.8 / 28.6), and **one collection, forced**. Main
+thread, by step (`Game/RestoreGarbage`'s marks): the plugin reading the
+state file 3.6 MB (`ReadAllText` + the line split + the data line's
+copies of a 0.3 MB file), the plugin decompressing and deserializing
+the level data for its ids 3.6, `LevelSerializer.LoadNow` 8.3 (its own
+decompress, `UnitySerializer.Deserialize<LevelData>` of the **207 KB**
+level data, and the loader's first step - a deserializer's ~35x),
+the loader's later frames 0.7, the cave panels' keys 0.9 (490 panels,
+three number formats each). After the restore line ~13 MB more: the
+navmesh's `RecastMeshGatherer.CollectRecastMeshObjs` ~7.7 MB (it copies
+`sharedMesh.vertices` / `.triangles` of every `RecastMeshObj` in the
+update's box, per graph update - the plane wreck's cutters, 1-2 graph
+updates a Quick load at the wreck, see below), the enemy setup, the
+greeble scene's reload. Off the main thread ~9 MB (not attributed).
+- **The forced collection is `LevelLoader.Load`'s**: `LoadNow` runs
+  `Load(0, Time.timeScale)`, whose coroutine calls `GC.Collect()`
+  unconditionally once every component is deserialized (also every 3000
+  objects; its other two calls need `timeScale` 0, a menu load) - IL
+  `LevelLoader/<Load>c__Iterator1::MoveNext`. Proved live: with that call
+  routed through a budget check (a test build) the restore line read
+  `GC x0` and "done in" fell from ~130 to ~49 ms; with it, `GC x1` every
+  restore, 10 in 10 with no collection from volume.
+- **The collector's own trigger is only ~2 restores away**: skipping the
+  forced one, a collection from volume came at **~63-70 MB** of garbage
+  since the last (once 78 MB passed without one) - Boehm's
+  `min_bytes_allocd`, about a third of the pointer-bearing live heap
+  (~200 MB here). (The earlier "218 MB = one collection" was 40 big
+  `byte[]`s - pointer-free memory counts differently.) So with ~28 MB a
+  restore, skipping the restore's collection moves it into play (one
+  landed 4 s after a restore in the test) - T-0202's question.
+- `UnloadUnusedAssets` still runs no managed collection (`CollectionCount`
+  unchanged, heap unchanged, re-checked 2026-10-10).
+- `LoadNow(object data, ...)` takes the level's bytes as well as the text
+  (`byte[]` or a "NOCOMPRESSION" / `CompressionHelper` string, IL) and
+  only reads them (`UnitySerializer.Deserialize`: a `MemoryStream` over
+  the array; bridge: the plugin's kept bytes equal a fresh decompress
+  after 5 restores).
+- **Every Quick load re-creates the plane wreck** (`PlaneCrashController.
+  OnDeserialized` -> `loadCrashPlane` instantiates a new `Hull(Clone)`;
+  the plugin removes the old one 1.5 s on): the new wreck's nav cut
+  (`sceneTracker.doGlobalStructureBoundsNavRemove`) and, on every second
+  restore here, the old one's removal (`navRemoveRoot.startRemove`) each
+  run a graph update over the same 73 x 44 x 66 m box - ~180-190 ms on
+  the main thread (`AstarPath.PerformBlockingActions`) and the mesh
+  copies above. Its `collision_hull` is a mesh collider, so its
+  `gridObjectBlocker.doNavCut` instantiates `navCubeCutter(Clone)` at the
+  scene root, not under the wreck: it outlived each old wreck (12 after
+  12 restores, only the live wreck's `cutGo` referenced). The navmesh is
+  the same with or without the extra cutters (`PathfindingWatch.NodeHash`
+  over the box: 215 nodes, `12fc3c4f` with 1 or 4 cutters; a 6 m cutter
+  moved into the box changed it to 216 / `7e5f61f8`).
+- The restore's own streaming unload (`ForceUnloadStreaming`) makes the
+  game sweep unused assets 0.1 s later (`SceneUnloadInCave` /
+  `GreebleZonesManager.DelayedCleanUp`, merged): **320-490 ms** a surface
+  Quick load, the restore's longest frame - though the scenes load again
+  a moment later.
 **The game profiler's hooks stay after it is switched off**: the methods
 it hooked keep running Harmony's copy, whose `foreach` enumerators box
 (`List.Enumerator<CullingGrid.Cell>` 390/s, three `Dictionary.Enumerator`s

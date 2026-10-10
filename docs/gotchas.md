@@ -1003,3 +1003,13 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     the engine's own error line first: here it is in no log we keep
     (BepInEx `WriteUnityLog = false`, no `output_log.txt`, render-thread
     messages only reach `logMessageReceivedThreaded`).
+
+105. **A forced collection can be in the right place.** (2026-10-10,
+    T-0202.) Every Quick load paid the game loader's `GC.Collect()`
+    (~80 ms). Routing it through a budget halved the restores' pauses on
+    paper, but Boehm's own trigger here is only ~63-78 MB of garbage -
+    about two restores - so a skipped collection came back by itself, once
+    4 s after a restore, in play. Before removing a forced collection,
+    measure the collector's own trigger (skip it and watch
+    `GC.CollectionCount` against the garbage since the last one) and ask
+    where the pause lands instead; cutting garbage is the safe lever.

@@ -308,6 +308,16 @@ False), load the slot as usual, `set static:UnityEngine.Time timeScale 0`
 effects' noise), then per cut: 4 s Snapshot windows before / with / after
 and a `shot` each, diffed with PIL. `RenderProbe.MainCamDraws` gives the
 table. Put `timeScale` back to 1.
+**A restore's garbage by step** (T-0202): with the tracker counting
+(`call ..._modules[8].ToggleAllocations`), every Quick load's line ends
+`garbage (main thread) N MB: <step> N, ..., GC xN` and the "after
+restoring" line gives the total since that restore began; a 10-restore
+loop is `restart <spot>` + `wait 6` x10 between two `ToggleAllocations`,
+with `call static:System.GC CollectionCount 0` before and after.
+`call static:ForestOverlay.Game.PathfindingWatch NodeHash x y z sx sy sz`
+fingerprints the navmesh in a box (equal hash = the same paths for
+enemies); `call ..._modules[10]._bridge.CheckKeptLevelData` says whether
+the level data kept between restores still equals a fresh decompress.
 **Garbage by scenario** (T-0033): `ToggleAllocations` is a toggle that
 logs a report when it goes off and every 30 s while on - read
 `get static:ForestOverlay.Game.AllocationTracker Counting` first (two
