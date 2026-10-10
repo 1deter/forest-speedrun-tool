@@ -194,72 +194,33 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **Loop R-0006 (2026-10-10 night, author away; `loop.py report`):** 5
+  rounds, 4 progressed. **v0.24.268** (T-0075): a cave spot restarted from
+  the endgame leaves it as walking out does, so the cave's props load
+  (body piles, ropes, planks). **v0.24.269** (T-0184): no ~24 ms hitch on
+  Go / auto-restart (elevator rides tracked, not scanned). Both confirmed
+  by forest-tester on the release. T-0190: the d3d11 texture crash is the
+  engine's (gotcha 104). T-0199: no safe main-camera draw cut.
+  **T-0202 parked** on branch `t-0202-restore-garbage` (not on main):
+  restore garbage -23%, checker block until the author answers T-0280.
+  **Author questions:** T-0277 (in-cave terrain cut), T-0280 (the forced
+  GC per Quick load), T-0276 (Unity's own errors into the session log),
+  T-0273 (stalagmites in normal play). New: T-0274 / T-0275 / T-0278 /
+  T-0279. The loop's context cap is 300k (trial, author 2026-10-10).
+  `AllocationTrackerAtStartup` was found on in the author's config (default
+  off) - left as found.
+- **Cloud (2026-10-10):** T-0265+T-0218, T-0217 (autosave locally,
+  author), T-0244, T-0232, T-0223 sent as prompts (Desktop
+  `cloud-T-*.txt`), parked `blocked` here until their `cloud/*` branches
+  arrive; merge each after forest-checker. Older unmerged:
+  `cloud/on-now-wrap`, `cloud/results-escape`.
 - **v0.24.267 (2026-10-10, T-0214):** a savestate capture no longer
   rewrites the loaded slot's `info` file + its Steam Cloud copy
   (`GameStats.OnSerializing` runs on every `SerializeLevel`; game-notes
   *The slot's info file*; `Game/SlotInfoGuard`). Ends the smoke's
   "Slot 1 changed" hygiene problem. **Confirmed** by the v0.24.267 smoke.
-- **v0.24.266 (2026-10-09, T-0248):** a restore in place / Go during the
-  game's own death ends it (`Game/DeathSequence`: the chain's Invokes and
-  coroutines, the drag-away clones, the hanging rope, controls, body,
-  cameras), Full load if it cannot; every restore in place sets
-  `DeadTimes` 0 as a load does (maks: menu after 2 deaths, rope stuck on
-  the hips). Proved over the bridge step by step + a field diff against a
-  Full load (gotcha 103). **Confirmed in game** by forest-tester (drag-
-  away, hanging, death count, real death + restore, plain restore).
-  New: T-0269 (body temperature not in the save).
-- **v0.24.265 (2026-10-09, T-0247):** spot restart / quick-load from the
-  title after a return to it (pause-menu exit). There `TitleScreen.Instance`
-  is null and the component disabled (bridge; game-notes *Loading a save
-  from the title screen*), so `TitleLoad.FindTitle` looks it up by path.
-  Also maks's MARK (quick load "shot back to main menu"). Confirmed in
-  game by forest-tester (restart + quick-load through the title).
-- **v0.24.264 (2026-10-09, T-0245):** endgame-area-enter once per visit
-  (the game publishes EnterEndgame at the box crossing and again after the
-  door's load; a Publish prefix drops an enter while `IsInEndgame` is
-  already true, a leave while already out). Waits for forest-tester: a
-  vault-door entry logs one enter, and a first enter after a restore / Go
-  still logs (the checker: AreaKeeper sets the flag by hand).
-- **v0.24.263 (2026-10-09, T-0268):** run mode catches the log boost - a
-  launch (55-80 m/s while E adds logs to a custom wall blueprint mid-jump,
-  recorded live with the author), not the zero-speed lift. Waits for
-  forest-tester in game. T-0243 is `needs: tester` now (the bouncy body
-  slide, T-0267; wall climb + panel clip wait on maks's TAS recordings /
-  log, asked in QA). The run in T-0243's QA message is maks's
-  a-58adeca311c01f61.
-- **T-0252 confirmed (2026-10-09):** `forest-ux` reviews what a runner sees
-  (`docs/ux.md`; `open_tab` `scroll_tour`); spawn it with "Review T-n" for
-  every UI task. Its first run filed T-0259..T-0264 (T-0263 / T-0264 parked).
-  The look is yellow on black (decisions.md *Plugin: Look*; T-0258 on the
-  branch). Cloud prompts for T-0216 / T-0144 / T-0221 are on the author's
-  Desktop: T-0144 merged + checker-accepted (unreleased - needs a release
-  + in-game check), T-0216 / T-0221 closed (author). New: T-0265 (local
-  spot delete stays local; owner re-edits from the site).
 - **Start:** skill `session-start`; its report says when `bot-review`,
   `weekly-cleanup` (next 2026-10-14) and `harness-review` are due.
-- **Night run 2026-10-07/08 (author away; `loop.py report` R-0002..R-0005):**
-  20 loop rounds + ~40 cloud-session tasks; releases v0.24.252..258 (the
-  restart hitches, the endgame material leak, the red-elevator restart,
-  the 100% tab's errors, another segment's red line, the armed log line,
-  the Inventory log cap); bot full eval 285/353 and three record-holder
-  answers fixed; Megan / multi-thrower / body-slide research live.
-  Cloud sessions (one-time routines, `cloud/*` branches, merged after a
-  checker) share the account's 5-hour limit. Task-file writes take a lock
-  (T-0197 / T-0201). While a loop run is open every hook ask is a refusal.
-- **Answered 2026-10-08** (ready to build): T-0194 runner spots keep
-  their start state; T-0207 try the prompt proposal (branch
-  `t-0207-prompt-proposal`); T-0198 / T-0203 perf switches (no sign-off
-  needed - docs/decisions.md *Plugin*); T-0109 / T-0111 / T-0112 (run
-  mode), T-0212 (lab-skip restarts). T-0210 closed (leftover redesign HUD
-  position). Bot review 2026-10-08 (3): the trigger counts uses of the bot,
-  not chat; T-0220 moves it to the answer log (runners `/ask` in the
-  speedrun server's general chat, which the bot can't read - the author
-  asks its admins).
-- **T-0231 live (2026-10-08, built, author-eyes):** the site's Bot tab got
-  a Discord-style unsaved-changes bar + server > category grouping; the
-  author's channel untick had never been saved (rev 1 still ticks The
-  Forest / #general). New QA tasks T-0232..T-0235 (PB webhook toggles,
-  the nature guide map - answered, maks's route, registration research).
 - **Redesign (2026-10-10):** main (v0.24.267) merged into `ui-redesign`
   (2997114). Built + checker-accepted on the branch: T-0024 (cursor),
   T-0226 (*Developer* tab, Settings as folds; `tasks/notes/T-0226.md`),
