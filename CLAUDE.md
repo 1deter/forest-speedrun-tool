@@ -268,7 +268,11 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   state; a runner's Restart on a timed segment turns practice mode on; F7 /
   Runs Restart follow the selection; Go on a row selects it - design in
   `tasks/notes/T-0256.md`, decisions.md *One journey, one place*) with
-  follow-ups T-0270..T-0272. **T-0256 / T-0270..T-0272 seen in game** by
+  follow-ups T-0270..T-0272. **T-0257** (2026-10-10, built + checker-accepted,
+  08dbc24): the splits + results panels are set up, moved and resized
+  in Edit HUD mode (decisions.md *Overlays are set up where they are
+  shown*), no table in the Runs tab; waits for forest-ux + forest-tester
+  in game on a hand-deployed branch build (its `qa`). **T-0256 / T-0270..T-0272 seen in game** by
   forest-tester on a hand-deployed branch build (f0e0707; the author's
   install still runs it - the next release replaces it). Hand deploys are
   fine now (rule 2 retired, author 2026-10-10). T-0025 (QA, merge,
