@@ -216,7 +216,10 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   forest-tester - erase, Clear all, a spot's paint back after a relaunch,
   hidden with practice mode off, nothing painted with the window open,
   `Perf (30 s)` while painting. T-0295 (ModAPI flag) waits on the
-  runner-facing word only (where: both - answered).
+  runner-facing word only (where: both - answered). Smoke PASS on vanilla
+  files - the install had been left on ModAPI + UCM (UCM's NREs fail the
+  smoke); vanilla Managed restored (author), the modded one kept at
+  `G:/SteamLibrary/steamapps/common/TheForest-T0278-modapi-kept`.
 - **v0.24.277 (2026-10-10, T-0246):** ForestOverlay runs with ModAPI
   mods (UltimateCheatmenu) - the preloader patcher `ModApiFix` repairs
   ModAPI's dropped parameter defaults (gotcha 106; release.md *How
