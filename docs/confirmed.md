@@ -375,3 +375,5 @@ Confirmed 2026-10-09 (game, bridge, v0.24.265): **spot restart and death quick-l
 Confirmed 2026-10-09 (game, bridge, v0.24.266): **a Quick load during the game's own death ends it (drag-away, hanging in the cave: no rope, upsideDown False, walks; real death restore stays in ForestMain; death count N -> 0 as a load, next death is a Capture again; plain restore logs no "ended" line) (T-0248)**. bridge 2026-10-09.
 
 Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves the save slot's info file alone (smoke hygiene: Slot1 unchanged after the restart journey's start-state capture) (T-0214)**. tests/e2e/reports/20261010-002837.smoke.md.
+
+Confirmed 2026-10-10 (game, bridge, v0.24.268): **a cave spot restarted in place from the endgame leaves it (ExitEndgame sent, IsInEndgame false, cave props/DeadBodyPile loaded); an in-cave restart sends nothing; the red elevator restart keeps the endgame (T-0075)**. bridge 2026-10-10.
