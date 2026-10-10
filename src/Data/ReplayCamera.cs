@@ -149,12 +149,13 @@ namespace ForestOverlay.Data
             return lo;
         }
 
-        /// The run's last time: its duration, else its last sample's.
+        /// The run's last time: its duration, else its last sample's. The
+        /// last sample can sit a frame before the finish (T-0297: 11.186
+        /// vs a run of 11.197); past it the pose holds the last sample.
         public static float EndOf(Attempt a)
         {
             if (a == null || a.Samples.Count == 0) return 0f;
-            float last = a.Samples[a.Samples.Count - 1].T;
-            return a.Duration > 0f ? Math.Min(a.Duration, Math.Max(last, 0f)) : last;
+            return a.Duration > 0f ? a.Duration : a.Samples[a.Samples.Count - 1].T;
         }
 
         /// Position at t, interpolated; t is clamped to the run.

@@ -143,6 +143,22 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ReplayLastsTheRunsTimeNotItsLastSample()
+        {
+            // T-0297: a run of 11.197 whose last sample is at 11.186.
+            Attempt a = Straight(6f, 11.186f, true);
+            a.Duration = 11.197f;
+            Assert.Equal(11.197f, ReplayCamera.EndOf(a), 3);
+
+            GhostPose g;
+            Assert.True(ReplayCamera.PoseAt(a, 11.197f, 0f, out g));
+            Assert.Equal(a.Samples[a.Samples.Count - 1].P.z, g.P.z, 3);   // holds the last sample
+
+            a.Duration = 0f;   // unfinished / old runs: the last sample
+            Assert.Equal(a.Samples[a.Samples.Count - 1].T, ReplayCamera.EndOf(a), 3);
+        }
+
+        [Fact]
         public void WithoutLooksTheGhostFacesWhereItMoves()
         {
             Attempt a = new Attempt();
