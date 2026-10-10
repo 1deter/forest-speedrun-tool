@@ -81,8 +81,8 @@ what a run never needs - test bridge, benchmarks, experimental features,
 TAS, memory census, dumps - each fold drawn by the module that owns it
 (T-0226). Settings is one page of folds: Keys, HUD, Performance,
 Loads and savestates. **One setting, one feature** (T-0253): Settings > HUD
-puts the HUD-wide options (compact, text size, position) above the info box
-and the values; Runs keeps the run lines' options under *Run lines* (shown
+puts the HUD-wide options (compact, text size, position) above the values
+(T-0018: no info box - a column of values, placed values, orange flags); Runs keeps the run lines' options under *Run lines* (shown
 only while on) and the ghost's switch + an opacity for the ghost and replay
 under *Ghost and replay*; the results panel has its own load-time choice. The QA tab goes at the public release. The type explorer keeps its own window (`F10`) — it needs the
 space and is a dev tool, not runner-facing.
@@ -103,7 +103,7 @@ Settings shows *Game input: blocked* when that is working.
 | `F12` | Manual split / finish |
 | `[` | Abort run |
 | `Keypad *` | Freecam |
-| *(unbound)* | info box only; each tab |
+| *(unbound)* | HUD values only; each tab |
 
 `F1` is deliberately free — the game's own dev console uses it.
 All keys are rebindable in **Settings**, or in

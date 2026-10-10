@@ -36,7 +36,7 @@ namespace ForestOverlay.Core
                 _show[i] = config.Bind("HUD", l.ConfigKey, l.DefaultOn, "HUD value: " + l.Name + " - " + l.Description);
             }
             _compact = config.Bind("HUD", "Compact", false,
-                "The whole HUD: fewer words (shorter values in the box and the widgets, no column padding, a short title).");
+                "The whole HUD: fewer words (shorter values, a short title).");
             _textSize = config.Bind("HUD", "TextSize", 0,
                 "Text size in px of the column of values and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). A value placed on its own has its own size.");
             _x = config.Bind("HUD", "X", DefaultX, "The column of values: position from the left, in pixels (drag it while the window is open).");

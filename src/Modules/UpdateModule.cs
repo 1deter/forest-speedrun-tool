@@ -130,7 +130,7 @@ namespace ForestOverlay.Modules
 
             _autoOpened = true;
             OpenMyTab();
-            // The info box (and its update line) is off by default in the redesign.
+            // A toast as well: the update line is one HUD value and can be off.
             if (Ctx.Notice != null) Ctx.Notice.Show("Update v" + _checker.LatestVersion + " is out - F2 -> Updates", 8f);
         }
 
