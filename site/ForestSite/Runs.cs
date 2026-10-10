@@ -60,7 +60,8 @@ public sealed class Runs
     /// whenever the webhook is on; otherwise a runner's own spot, posted only
     /// when the owner switched those on (PbPosts, T-0232).
     public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest,
-                                 bool Official = true);
+                                 bool Official = true, string Category = "", int Rank = 0, int Runners = 0,
+                                 float OtherBest = float.NaN);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
     /// the runner `runnerId` (their token). A [startstate] is kept for the
@@ -139,8 +140,9 @@ public sealed class Runs
         if (pb != null)
         {
             var run = fresh.First(f => f.duration == pb.Value);
+            var (rank, runners, otherBest) = Standing(seg.Id, route, runnerId, pb.Value);
             res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest,
-                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory));
+                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory), seg.Category, rank, runners, otherBest);
         }
         return res;
     }
@@ -172,6 +174,31 @@ public sealed class Runs
 
     /// A runner's best on a route so far (runs under review included, hidden
     /// ones not); NaN when they have none.
+    /// Where a time stands on the route for the PB post: its rank among the
+    /// runners' bests (reviewed and hidden runs left out), how many runners
+    /// have a time, and the best of the others (NaN when there are none).
+    private (int rank, int runners, float otherBest) Standing(string segmentId, string route, string runnerId, float time)
+    {
+        using var c = _store.Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = @"SELECT runner_id, MIN(duration) FROM runs
+                            WHERE segment_id = $s AND route = $r AND hidden = 0 AND flagged = 0 GROUP BY runner_id";
+        cmd.Parameters.AddWithValue("$s", segmentId);
+        cmd.Parameters.AddWithValue("$r", route);
+        using var r = cmd.ExecuteReader();
+        int ahead = 0, runners = 1;
+        float other = float.NaN;
+        while (r.Read())
+        {
+            if (r.GetString(0) == runnerId) continue;
+            runners++;
+            float d = (float)r.GetDouble(1);
+            if (d < time) ahead++;
+            if (float.IsNaN(other) || d < other) other = d;
+        }
+        return (ahead + 1, runners, other);
+    }
+
     private float RunnerBest(string segmentId, string route, string runnerId)
     {
         object best = _store.Scalar("SELECT MIN(duration) FROM runs WHERE segment_id = $s AND route = $r AND runner_id = $rid AND hidden = 0",
