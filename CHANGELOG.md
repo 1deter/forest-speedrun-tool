@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.279 - 2026-10-10
+
+- Quick loads on the surface no longer freeze for about half a second just after the load: the game's asset clean-up that a restore set off is skipped (restore 0.83 -> 0.48 s measured). Its switch is in Settings -> Performance.
+
 ## v0.24.278 - 2026-10-10
 
 - Paint (practice mode): hold Mouse 4 to paint lines where the crosshair points, like KSF paint - for lineups and routes. Hold Mouse 5 to erase, press X to undo the last stroke; a small crosshair shows while you paint.
