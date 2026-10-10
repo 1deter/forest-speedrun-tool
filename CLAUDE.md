@@ -196,13 +196,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
-  T-0058, savestate gaps (T-0029, T-0065, T-0067, T-0269), perf (T-0072,
+  T-0058, savestate gaps (T-0029, T-0065, T-0067; T-0269 done in v0.24.282), perf (T-0072,
   T-0274, T-0275, T-0277, T-0280; T-0278 done in v0.24.281); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.282 (2026-10-10, T-0269):** a Quick load puts back the
+  player's cold as a Full load gives it - body temperature 37, not cold,
+  no screen frost, frost-damage timer 0 (`Game/ColdReset`, words in
+  `Data/ColdNote`; game-notes *The player's cold is not in the save*);
+  the done line says `body temperature 22 -> 37, cold off, frost 0.45 ->
+  0 (as a load)`, nothing for a warm player. Proved on a hand deploy
+  (`axe-held`, `tom-c6`); checker accepted. To confirm (not its maker):
+  forest-tester - a Quick load into a cold place (night rain, the north)
+  goes cold again by the game's own routine.
 - **v0.24.281 (2026-10-10, T-0278):** a Quick load skips the re-created
   plane wreck's two navmesh updates (its cut, the old one's removal) while
   a wreck stands at the same pose (`[Performance] RestoreSkipSameWreckNav`,
