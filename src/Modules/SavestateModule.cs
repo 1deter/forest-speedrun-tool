@@ -852,6 +852,7 @@ namespace ForestOverlay.Modules
                     }
                     catch (Exception) { }
                 }
+                RestoreGarbage.Mark("panels");
 
                 // Megan and her trigger are outside the save (MeganKeeper);
                 // before the fast-forward, which waits for her cutscene.
@@ -864,6 +865,7 @@ namespace ForestOverlay.Modules
                                  : file.Cutscene == MeganKeeper.TransformEvent ? MeganKeeper.Seated : "";
                     meganNote = _megan.Restore(megan, transformRunning, meganSeated);
                 }
+                RestoreGarbage.Mark("Megan");
 
                 // The elevators are outside the save too (ElevatorKeeper).
                 // A ride under way at capture is replayed once the player
@@ -872,16 +874,19 @@ namespace ForestOverlay.Modules
                 List<Component> rides = new List<Component>();
                 string elevatorNote = r.Ok && file != null
                     ? _elevators.Restore(file.Elevators, RideCutsceneAt(file), false, rides) : "";
+                RestoreGarbage.Mark("elevators");
                 // And the endgame's sliding doors (the car door: open after
                 // a ride, it stayed open through the next one).
                 string slidingNote = r.Ok && file != null ? _slidingDoors.Restore(file.SlidingDoors) : "";
+                RestoreGarbage.Mark("sliding doors");
                 // Rain, clouds and fog are not in the save: the live
                 // weather stayed (maks's fog after a Quick load).
                 string weatherNote = r.Ok && file != null ? _weather.Restore(file.Weather) : "";
+                RestoreGarbage.Mark("weather");
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
-                RestoreGarbage.Mark("panels, Megan, elevators, weather, area");
+                RestoreGarbage.Mark("area");
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
