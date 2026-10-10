@@ -651,11 +651,6 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // RESTORE IN PLACE - no scene load.
-
-        /// True while our in-place LoadNow runs (Game/LoaderCollect: its
-        /// forced collection only when due).
-        public static bool InPlaceLoading { get; private set; }
-
         /// `unloadStreaming` must match how the data was captured: true for
         /// savestates since v0.20.1, the header's value for older files, the
         /// game's MemorySafeSaveMode for a slot save. `keepRoot` (the
@@ -742,8 +737,6 @@ namespace ForestOverlay.Game
 
             Stopwatch sw = Stopwatch.StartNew();
             bool started = false;
-            LoaderCollect.TakeNote();   // a note left by a load that did not finish
-            InPlaceLoading = true;
             try
             {
                 Delegate complete = null;
@@ -782,10 +775,8 @@ namespace ForestOverlay.Game
                 }
             }
             sw.Stop();
-            InPlaceLoading = false;
             Application.logMessageReceived -= OnUnityLog;
             RestoreGarbage.Mark("the loader's frames");
-            string gcNote = LoaderCollect.TakeNote();
 
             if (unloaded)
             {
@@ -828,7 +819,6 @@ namespace ForestOverlay.Game
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
                 if (handsNote.Length > 0) sb.Append(", ").Append(handsNote);
                 if (missions.Length > 0) sb.Append(", ").Append(missions);
-                if (gcNote.Length > 0) sb.Append(", ").Append(gcNote);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -862,7 +852,6 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _loadSavedLevel == null) return "LevelSerializer.LoadSavedLevel not found";
             if (IsDeserializing) return "the game is already loading";
-            InPlaceLoading = false;   // a Full load collects as the game does
 
             string prep = PrepareContinue(difficulty, baseDifficulty);
 
@@ -895,7 +884,6 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _resume == null) return "LevelSerializer.Resume not found";
             if (IsDeserializing) return "the game is already loading";
-            InPlaceLoading = false;
 
             PrepareContinue(null, null);
             EnsurePrefabs("Savestate slot load");
@@ -1871,6 +1859,14 @@ namespace ForestOverlay.Game
         /// - a load starts from none, an in-place restore added one more each
         /// time, with every wreck pickup (the growing "Axe Plane xN").
         /// Call a second or so after the restore: removes the other wrecks.
+        /// With each its nav cutters: a gridObjectBlocker on a mesh
+        /// collider (the hull's `collision_hull`) instantiates a
+        /// `navCubeCutter(Clone)` at the scene root, not under the wreck
+        /// (gridObjectBlocker.doNavCut, IL), so it outlived its wreck - one
+        /// more navmesh obstacle at the same spot for every Quick load
+        /// (bridge, T-0202: 12 after 12 restores, only the live wreck's own
+        /// referenced). A load never destroys a wreck; the live one keeps
+        /// its own, so the obstacle stays as a load leaves it.
         public string ClearOldPlaneHulls()
         {
             if (_planeCrash == null || _spawnedHull == null) return "plane: not bound";
@@ -1880,7 +1876,7 @@ namespace ForestOverlay.Game
                 GameObject current = ctrl != null ? _spawnedHull.GetValue(ctrl) as GameObject : null;
                 if (current == null) return "plane: no wreck";
 
-                int removed = 0;
+                int removed = 0, cutters = 0;
                 for (int s = 0; s < SceneManager.sceneCount; s++)
                 {
                     UnityEngine.SceneManagement.Scene scene = SceneManager.GetSceneAt(s);
@@ -1890,13 +1886,44 @@ namespace ForestOverlay.Game
                     {
                         GameObject go = roots[i];
                         if (go == null || go == current || go.name != current.name) continue;
+                        cutters += DestroyOwnCutters(go);
                         UnityEngine.Object.Destroy(go);
                         removed++;
                     }
                 }
-                return "plane: " + (removed > 0 ? removed + " old wreck(s) removed" : "one wreck");
+                return "plane: " + (removed > 0 ? removed + " old wreck(s) removed" + (cutters > 0 ? " with " + cutters + " nav cutter(s)" : "")
+                                                : "one wreck");
             }
             catch (Exception ex) { return "plane: failed (" + (ex.InnerException ?? ex).Message + ")"; }
+        }
+
+        // gridObjectBlocker.cutGo: the navCubeCutter it made (private).
+        private static Type _blockerType;
+        private static FieldInfo _blockerCut;
+        private static bool _blockerBound;
+
+        /// Destroys the root-level nav cutters `hull`'s blockers made (the
+        /// ones under the hull go with it). Returns how many.
+        private static int DestroyOwnCutters(GameObject hull)
+        {
+            if (!_blockerBound)
+            {
+                _blockerBound = true;
+                _blockerType = GameBridge.FindGameType("gridObjectBlocker");
+                if (_blockerType != null)
+                    _blockerCut = _blockerType.GetField("cutGo", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            }
+            if (_blockerType == null || _blockerCut == null || _blockerCut.FieldType != typeof(GameObject)) return 0;
+            int n = 0;
+            Component[] blockers = hull.GetComponentsInChildren(_blockerType, true);
+            for (int i = 0; i < blockers.Length; i++)
+            {
+                GameObject cut = _blockerCut.GetValue(blockers[i]) as GameObject;
+                if (cut == null || cut.transform.IsChildOf(hull.transform)) continue;
+                UnityEngine.Object.Destroy(cut);
+                n++;
+            }
+            return n;
         }
 
         /// The wreck the game keeps (PlaneCrashController.spawnedHullPrefab),

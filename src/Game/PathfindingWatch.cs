@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
@@ -314,6 +315,105 @@ namespace ForestOverlay.Game
                 shown++;
             }
             return shown > 0 ? sb.ToString() : "?";
+        }
+            // ------------------------------------------------------------------
+        // Dev (bridge, T-0202): a fingerprint of the navmesh in a box -
+        // every node whose centre is inside: its position, walkability,
+        // penalty, tag and its neighbours' positions. Two equal hashes =
+        // the same navmesh there for the enemies' paths. Area numbers are
+        // left out (the flood fill renumbers them).
+        private static uint _hash;
+        private static int _nodes;
+        private static Bounds _box;
+        private static FieldInfo _nodePos, _nodeConns;
+        private static PropertyInfo _nodeWalk, _nodePenalty, _nodeTag;
+        private static FieldInfo _int3X, _int3Y, _int3Z;
+
+        public static string NodeHash(float x, float y, float z, float sx, float sy, float sz)
+        {
+            try
+            {
+                if (_active == null) return "not bound";
+                object astar = _active.GetValue(null);
+                if (astar == null) return "no AstarPath";
+                PropertyInfo graphsP = astar.GetType().GetProperty("graphs", BindingFlags.Instance | BindingFlags.Public);
+                IList graphs = graphsP != null ? graphsP.GetValue(astar, null) as IList : null;
+                if (graphs == null) return "no graphs";
+                Type node = GameBridge.FindGameType("Pathfinding.GraphNode");
+                Type del = GameBridge.FindGameType("Pathfinding.GraphNodeDelegateCancelable");
+                if (node == null || del == null) return "node types not found";
+                const BindingFlags inst = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+                _nodePos = node.GetField("position", inst);
+                _nodeWalk = node.GetProperty("Walkable", inst);
+                _nodePenalty = node.GetProperty("Penalty", inst);
+                _nodeTag = node.GetProperty("Tag", inst);
+                _int3X = _nodePos.FieldType.GetField("x");
+                _int3Y = _nodePos.FieldType.GetField("y");
+                _int3Z = _nodePos.FieldType.GetField("z");
+                _box = new Bounds(new Vector3(x, y, z), new Vector3(sx, sy, sz));
+                _hash = 2166136261;
+                _nodes = 0;
+                Delegate d = Delegate.CreateDelegate(del, typeof(PathfindingWatch).GetMethod("HashNode", BindingFlags.Static | BindingFlags.NonPublic));
+                for (int g = 0; g < graphs.Count; g++)
+                {
+                    if (graphs[g] == null) continue;
+                    MethodInfo getNodes = graphs[g].GetType().GetMethod("GetNodes", new[] { del });
+                    if (getNodes != null) getNodes.Invoke(graphs[g], new object[] { d });
+                }
+                return _nodes + " node(s), hash " + _hash.ToString("x8");
+            }
+            catch (Exception ex) { return "failed: " + (ex.InnerException ?? ex).Message; }
+        }
+
+        private static bool HashNode(object n)
+        {
+            if (n == null) return true;
+            Vector3 p = PosOf(n);
+            if (!_box.Contains(p)) return true;
+            _nodes++;
+            Mix(Int3Of(n));
+            Mix((bool)_nodeWalk.GetValue(n, null) ? 1 : 0);
+            Mix((int)(uint)_nodePenalty.GetValue(n, null));
+            Mix((int)(uint)_nodeTag.GetValue(n, null));
+            if (_nodeConns == null || _nodeConns.DeclaringType == null || !_nodeConns.DeclaringType.IsInstanceOfType(n))
+                _nodeConns = n.GetType().GetField("connections", BindingFlags.Instance | BindingFlags.Public);
+            Array conns = _nodeConns != null ? _nodeConns.GetValue(n) as Array : null;
+            if (conns != null)
+            {
+                // Order-free: neighbours summed.
+                long sum = 0;
+                for (int i = 0; i < conns.Length; i++)
+                {
+                    object c = conns.GetValue(i);
+                    if (c != null) sum += Int3Of(c) * 31L + 7;
+                }
+                Mix(conns.Length);
+                Mix((int)sum);
+                Mix((int)(sum >> 32));
+            }
+            return true;
+        }
+
+        private static Vector3 PosOf(object n)
+        {
+            object p = _nodePos.GetValue(n);
+            return new Vector3((int)_int3X.GetValue(p) * 0.001f, (int)_int3Y.GetValue(p) * 0.001f, (int)_int3Z.GetValue(p) * 0.001f);
+        }
+
+        private static long Int3Of(object n)
+        {
+            object p = _nodePos.GetValue(n);
+            return (long)(int)_int3X.GetValue(p) * 73856093L ^ (long)(int)_int3Y.GetValue(p) * 19349663L ^ (long)(int)_int3Z.GetValue(p) * 83492791L;
+        }
+
+        private static void Mix(long v)
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                _hash ^= (uint)(v & 0xff);
+                _hash *= 16777619;
+                v >>= 8;
+            }
         }
     }
 }
