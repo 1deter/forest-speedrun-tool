@@ -47,7 +47,8 @@ public sealed class Runs
         public readonly List<long> Added = new();
         public readonly List<long> Existing = new();
         public readonly List<string> Skipped = new();
-        /// A new PB on an announced spot (community / run spot); null when none.
+        /// A new PB in this upload (any spot; PbFound.Official says whether
+        /// it is a community / run spot's); null when none.
         public PbFound Pb;
         /// The route's start state: "stored" (this upload's was kept),
         /// "wanted" (the route has a startstate line and the site has no
@@ -55,7 +56,11 @@ public sealed class Runs
         public string StartState;
     }
 
-    public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest);
+    /// Official: a community route or a run spot (PbNews.Announces), posted
+    /// whenever the webhook is on; otherwise a runner's own spot, posted only
+    /// when the owner switched those on (PbPosts, T-0232).
+    public sealed record PbFound(string Runner, string Spot, string Segment, string Route, long RunId, float Time, float PreviousBest,
+                                 bool Official = true);
 
     /// A .foseg with the segment and one or more [attempt] sections, from
     /// the runner `runnerId` (their token). A [startstate] is kept for the
@@ -125,15 +130,17 @@ public sealed class Runs
             if (added) fresh.Add((a.Duration, flagged, id, name));
         }
 
-        // A new PB on a community spot or a run spot: Program posts it to
-        // Discord (PbWebhook). Re-uploads of runs already here never count.
+        // A new PB: Program posts it to Discord (PbPosts) - a community spot's
+        // or a run spot's always, a runner's own spot's when the owner
+        // switched those on. Re-uploads of runs already here never count.
         bool community = Convert.ToInt64(_store.Scalar("SELECT community FROM routes WHERE segment_id = $s AND route = $r",
                                                        ("$s", seg.Id), ("$r", route)) ?? 0L) == 1;
         float? pb = PbNews.NewPb(previousBest, fresh.Select(f => (f.duration, f.flagged)));
-        if (pb != null && PbNews.Announces(community, seg.RunCategory, _publishedCategory))
+        if (pb != null)
         {
             var run = fresh.First(f => f.duration == pb.Value);
-            res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest);
+            res.Pb = new PbFound(run.name, seg.Name, seg.Id, route, run.id, pb.Value, previousBest,
+                                 PbNews.Announces(community, seg.RunCategory, _publishedCategory));
         }
         return res;
     }

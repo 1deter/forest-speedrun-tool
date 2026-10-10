@@ -54,7 +54,11 @@ New repository secret, three times:
   `Discord PB posts on`. Remove the line and recreate to switch it off.
   Optional `FOREST_SITE_URL` sets the address the posts link to (default
   `https://forest.deter.cloud`). The webhook URL is a secret: anyone with
-  it can post in that channel.
+  it can post in that channel. PBs on runners' own spots are set on
+  `/admin` -> **PB posts** (the owner's token; off until saved on): the
+  same channel, or their own webhook URL pasted there (kept in the
+  database, no restart). The startup line ends `runners' spots off` /
+  `same channel` / `own channel`.
 - Roll back: `ls /opt/forest-site/app/releases`, then as root
   `ln -sfn releases/<older> /opt/forest-site/app/current && docker restart forest-site`.
 
