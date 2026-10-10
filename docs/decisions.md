@@ -30,7 +30,7 @@ v1.0 = four groups, in this order (agreed from the roadmap of open tasks):
 1. **The redesign released** - T-0025 (QA, merge `ui-redesign`, release)
    with T-0018..T-0024, T-0226, T-0253, T-0256..T-0258, T-0270..T-0272
    and the Settings follow-ups T-0254, T-0255, T-0259..T-0264.
-2. **The cloud branches merged** - T-0265 + T-0218, T-0217, T-0244,
+2. **The cloud branches merged** (done, v0.24.272) - T-0265 + T-0218, T-0217, T-0244,
    T-0232, T-0223 (each after forest-checker).
 3. **Plugin correctness and stability** - hangs / crashes (T-0284, T-0246,
    T-0056, T-0276, T-0058), savestate gaps (T-0029, T-0065, T-0067,

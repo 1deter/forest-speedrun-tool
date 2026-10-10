@@ -194,12 +194,25 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **Next session (author, 2026-10-10): merge the cloud branches** - group 2
-  of the v1.0 scope (decisions.md *What v1.0 is*: 1 redesign, 2 cloud
-  branches, 3 plugin stability, 4 before going public). The branches:
-  `origin/cloud/*` (session-start lists them) for T-0265 + T-0218, T-0217,
-  T-0244, T-0232, T-0223, plus the older `cloud/on-now-wrap`,
-  `cloud/results-escape`; each through forest-checker, then a release.
+- **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
+  is*: plugin correctness and stability - T-0284, T-0246, T-0056, T-0276,
+  T-0058, savestate gaps, perf); group 2 (cloud branches) is done. Also
+  waiting: the v0.24.272 smoke + forest-tester pass (below), and the
+  live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.272 (2026-10-10, cloud branches merged):** spots autosave, no
+  Save / Reload (T-0217); a local Delete stays local, your own spot comes
+  back from the site, Replace? / take-back disarm the old route (T-0265,
+  T-0218); the run report lists the moves, tree cuts out (T-0244). Site
+  (deployed with the push): official runs - each runner's best, recent 5
+  + average, red runs hidden, a route replay on the attempt page (T-0223);
+  PB posts are embeds from every spot with a WR / PB notification line,
+  three spot kinds in the footer (T-0232, T-0285..T-0288). Every word
+  approved by the author; all checker-accepted. **Waits for in game**
+  (forest-tester): the steps in tasks/notes/T-0217.md and T-0265.md; open
+  minors there (an invalid entry holds back its file's other edits;
+  Replace? over an armed spot says "the spot was deleted").
+  `cloud/on-now-wrap` / `cloud/results-escape` merged (notes only; both
+  tasks wontfix).
 - **v0.24.271 (2026-10-10, T-0212):** *Keep loaded* on a spot's Start
   state row - the start state loads once, then restarts put back the
   player + the endgame's elevators / doors and teleport (0.01 s vs a 0.4 s
@@ -234,11 +247,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0279. The loop's context cap is 300k (trial, author 2026-10-10).
   `AllocationTrackerAtStartup` was found on in the author's config (default
   off) - left as found.
-- **Cloud (2026-10-10):** T-0265+T-0218, T-0217 (autosave locally,
-  author), T-0244, T-0232, T-0223 sent as prompts (Desktop
-  `cloud-T-*.txt`), parked `blocked` here until their `cloud/*` branches
-  arrive; merge each after forest-checker. Older unmerged:
-  `cloud/on-now-wrap`, `cloud/results-escape`.
 - **v0.24.267 (2026-10-10, T-0214):** a savestate capture no longer
   rewrites the loaded slot's `info` file + its Steam Cloud copy
   (`GameStats.OnSerializing` runs on every `SerializeLevel`; game-notes
