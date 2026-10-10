@@ -194,6 +194,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.271 (2026-10-10, T-0212):** *Keep loaded* on a spot's Start
+  state row - the start state loads once, then restarts put back the
+  player + the endgame's elevators / doors and teleport (0.01 s vs a 0.4 s
+  Quick load) until any scene load / unload, a restore or a death
+  (decisions.md *Plugin*; plugin-concepts *Segment start states*). Proved
+  on the branch build (elevator put back, item / health back, a scene and
+  a death reload); the sliding doors have no line of their own yet - check
+  them in the smoke / forest-tester pass. **T-0284** (new, P3): a Slot 1
+  load from the title screen hung once in three (managed OnGUI loop after
+  `Query state`; the author: vanilla never hangs) - its notes hold the
+  stack sample.
 - **v0.24.270 (2026-10-10, T-0282):** a run starts on `first-input` -
   every Rewired action but Esc / Mouse X / Mouse Y (game-notes *World
   events*); the velocity start `moving` is gone, a stored one reads as
