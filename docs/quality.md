@@ -218,7 +218,7 @@ Paths: `src/Modules/{BridgeModule,QaModule}.cs` `src/Game/{InputInject,ObjectPro
 
 ### Release and updater
 
-Paths: `src/Core/{UpdateChecker,UpdaterInstaller,WebRequest}.cs` `src/Modules/UpdateModule.cs` `src/Data/{ReleaseJson,ShippedData,UpdateStaging}.cs` `patcher/` `scripts/{bump.py,deploy.ps1}` `.github/workflows/build.yml` `CHANGELOG.md` `docs/areas/release.md`
+Paths: `src/Core/{UpdateChecker,UpdaterInstaller,WebRequest}.cs` `src/Game/ModApi.cs` `src/Modules/UpdateModule.cs` `src/Data/{ReleaseJson,ShippedData,UpdateStaging}.cs` `patcher/` `scripts/{bump.py,deploy.ps1}` `.github/workflows/build.yml` `CHANGELOG.md` `docs/areas/release.md`
 
 - Verification **A**: ReleaseJson (16), UpdateStaging (8), `test_bump.py`;
   `lint.py` versions + the pre-push tag check; CI attaches the DLL; the

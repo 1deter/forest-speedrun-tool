@@ -1013,3 +1013,19 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     measure the collector's own trigger (skip it and watch
     `GC.CollectionCount` against the garbage since the last one) and ask
     where the pause lands instead; cutting garbage is the safe lever.
+
+106. **Another mod's rebuilt Assembly-CSharp can kill Mono under our
+    reflection.** (2026-10-10, T-0246, v0.24.277.) With ModAPI +
+    UltimateCheatmenu the game died silently at launch (KERNELBASE
+    c0000005, LogOutput empty because BepInEx's disk log is buffered).
+    ModAPI's rebuild keeps `HasDefault` on the replacement
+    `PlayerInventory.RemoveItem`'s 3 optional parameters but drops their
+    Constant rows; Mono 2.0 asserts (`mono_class_from_mono_type: implement
+    me 0x00`) as soon as reflection builds those `ParameterInfo`s - Harmony
+    does while patching `PlayerInventory`. Found by bisecting plugins, a
+    flushing log listener and Unity's stdout (the assert is in no log we
+    keep). Fix: the preloader patcher `ModApiFix` copies each default from
+    `__Name__Original` (else clears the flag) when Assembly-CSharp
+    references `BaseModLib`; the plugin stays off on the one launch that
+    first installs that patcher. A silent launch crash with another mod
+    present: bisect, then flush the log before blaming the game.

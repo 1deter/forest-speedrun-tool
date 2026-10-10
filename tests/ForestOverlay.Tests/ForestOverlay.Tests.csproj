@@ -27,6 +27,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- patcher/DefaultRepair (T-0246) works on Cecil assemblies. -->
+    <PackageReference Include="Mono.Cecil" Version="0.11.5" />
   </ItemGroup>
 
   <!-- Logic under test, compiled from the real source. -->
@@ -60,6 +62,8 @@
     <Compile Include="../../src/Data/KeptRead.cs" Link="Linked/KeptRead.cs" />
     <Compile Include="../../src/Data/WreckSites.cs" Link="Linked/WreckSites.cs" />
     <Compile Include="../../patcher/PendingSwap.cs" Link="Linked/PendingSwap.cs" />
+    <Compile Include="../../patcher/DefaultRepair.cs" Link="Linked/DefaultRepair.cs" />
+    <Compile Include="../../src/Game/ModApi.cs" Link="Linked/ModApi.cs" />
     <Compile Include="../../src/Data/SafeFile.cs" Link="Linked/SafeFile.cs" />
     <Compile Include="../../src/Data/EditDebounce.cs" Link="Linked/EditDebounce.cs" />
     <Compile Include="../../src/Data/HeldReport.cs" Link="Linked/HeldReport.cs" />
