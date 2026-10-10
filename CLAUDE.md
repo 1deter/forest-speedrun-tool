@@ -196,13 +196,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
-  T-0058, savestate gaps, perf (T-0278 / T-0279: the Quick load's
-  biggest garbage left); T-0290 waits for a `Stall:` line); group
+  T-0058, savestate gaps, perf (T-0278: the wreck's navmesh updates,
+  the Quick load's biggest garbage left); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.279 (2026-10-10, T-0279):** a surface Quick load cancels the
+  `DelayedCleanUp` asset sweep its own streaming unload queued
+  (`[Performance] RestoreSkipStreamingSweep`, on; game-notes
+  *Performance*): hitch 459-488 ms -> none, restore 0.83 -> 0.48 s,
+  memory flat, a cave's own sweeps kept; e2e launch / restart /
+  restores PASS, checker accepted, smoke PASS. To confirm (not its maker):
+  forest-tester - 5 Quick loads of `axe-held` log `its asset clean-up
+  skipped, 2` and no `Load timing: hitch`. T-0295's word answered
+  ("ModAPI Detected" or "ModAPI") - it is ready to build.
 - **v0.24.278 (2026-10-10, T-0219):** paint, like KSF paint - in
   practice mode hold Mouse 4 to paint where the crosshair hits, Mouse 5
   erases, X undoes the last stroke (Z is the game's RestKey), a small
@@ -215,8 +224,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   ground (theories in its notes). To confirm (not its maker):
   forest-tester - erase, Clear all, a spot's paint back after a relaunch,
   hidden with practice mode off, nothing painted with the window open,
-  `Perf (30 s)` while painting. T-0295 (ModAPI flag) waits on the
-  runner-facing word only (where: both - answered). Smoke PASS on vanilla
+  `Perf (30 s)` while painting. Smoke PASS on vanilla
   files - the install had been left on ModAPI + UCM (UCM's NREs fail the
   smoke); vanilla Managed restored (author), the modded one kept at
   `G:/SteamLibrary/steamapps/common/TheForest-T0278-modapi-kept`.
