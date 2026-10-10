@@ -194,6 +194,14 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **v0.24.270 (2026-10-10, T-0282):** a run starts on `first-input` -
+  every Rewired action but Esc / Mouse X / Mouse Y (game-notes *World
+  events*); the velocity start `moving` is gone, a stored one reads as
+  `first-input` and its old times retire (decisions.md *Plugin*). Proved
+  on the branch build (mouse look + Esc silent, Space fires); waits for
+  the smoke + forest-tester on the release. QA's bot-context request
+  filed as T-0283 (bot paused). T-0202's question answered from T-0280
+  (keep the forced GC) - back to its checker's revise points.
 - **Loop R-0006 (2026-10-10 night, author away; `loop.py report`):** 5
   rounds, 4 progressed. **v0.24.268** (T-0075): a cave spot restarted from
   the endgame leaves it as walking out does, so the cave's props load
