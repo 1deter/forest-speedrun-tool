@@ -216,6 +216,22 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
     left off out of doubt. The runner name goes to the Runs tab's *Upload
     to the website*; the PB / golds "when set" line tops *Attempts*
     (provisional - forest-ux reviews it in game).
+  - **The HUD is a column of values** (author, 2026-10-10, T-0018): every
+    ticked value shows; by default in one column at the top left in the
+    pre-overhaul box's order, title first (on by default), no backing,
+    closing up when a value is not showing. A value is dragged out of the
+    column in Edit HUD to sit anywhere and dropped back on it (or
+    right-click / *To column*) to return. Values only, no labels - the
+    runner adds their own text before / after each value (a line holding
+    several labelled values, the 100% totals, keeps its labels). The
+    *Info box* option and the *own* toggle are gone.
+  - **Flags, not headings** (author, 2026-10-10, T-0018): what changes the
+    game is a list of short orange names (`god mode`, `fast save loads`,
+    `half-rate shadows`...), no "ON NOW" heading; a used practice tool is
+    its short orange name (`test bridge`, `teleport`), no "PRACTICE" word,
+    no count, nothing while clean ("it's already obvious the settings are
+    on the screen as flags"). Icons later (their own task). This narrows
+    the honest labelling above: the flags stay sticky and always drawn.
   - A UX reviewer agent (`forest-ux`, T-0252) checks every redesign task
     and every feature that adds much UI; the author's rules are a floor,
     not the whole list - it brings in established UX guidance.
