@@ -71,9 +71,13 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
 
     public List<RunCategory> All() => Rows().Select(r => Read(r.Text)).Where(c => c != null).ToList();
 
+    /// The published categories, in name order. Drafts and hidden ones are
+    /// the moderators' alone: nothing public names them.
+    public List<RunCategory> Published() =>
+        All().Where(c => c.Status == "published").OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
     /// What the plugin fetches: the published categories, in name order.
-    public string PublishedText() =>
-        RunCategory.Format(All().Where(c => c.Status == "published").OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList());
+    public string PublishedText() => RunCategory.Format(Published());
 
     /// The published list's ETag: a hash of its text (quoted, as HTTP has it).
     public static string ETag(string text) =>

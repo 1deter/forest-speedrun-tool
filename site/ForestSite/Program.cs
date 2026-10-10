@@ -401,6 +401,9 @@ api.MapGet("/attempts/{id}/log", (string id) =>
     ForestOverlay.Data.AttemptChain.IsAttemptId(id) && attempts.LogText(id) is { } t
         ? Results.Text(t, "text/plain; charset=utf-8") : Problem(404, "no log for this attempt")).RequireRateLimiting("read");
 
+// The official runs (T-0223): finished attempts per published category; [] while none is published.
+api.MapGet("/official", () => Results.Json(attempts.Official())).RequireRateLimiting("read");
+
 // Where a code from the video shows in the log.
 api.MapGet("/attempts/{id}/code/{code}", (string id, string code) =>
     attempts.FindCode(id, code) is { } f ? Results.Json(f) : Problem(400, "a code is four characters")).RequireRateLimiting("read");

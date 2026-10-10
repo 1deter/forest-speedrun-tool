@@ -142,9 +142,12 @@ async function homePage() {
   document.title = "Forest Practice Runs";
   loading();
   let spots;
+  // The official runs (T-0223) never keep the spots from showing.
+  const officialAsked = api("/official").catch(() => []);
   try { spots = await api("/spots"); } catch (e) { return failed(e); }
+  const official = await officialAsked;
 
-  const list = el("div");
+  const list = el("div"), officialBox = el("div", { class: "official" });
   const search = el("input", { class: "search", type: "search", placeholder: "Search spots", "aria-label": "Search spots" });
   // Folded groups, per viewer (this browser): { key: true / false }; a key
   // missing = the group's default. Searching opens everything it finds.
@@ -170,12 +173,42 @@ async function homePage() {
     }));
     if (q && !shown.length) list.append(el("p", { class: "empty" }, "Nothing matches “" + search.value + "”."));
   }
+  /// Finished run mode attempts per published category, apart from the
+  /// spots (author, 2026-10-08); not shown at all while none is published.
+  function renderOfficial() {
+    officialBox.hidden = !official.length;
+    if (!official.length) { officialBox.replaceChildren(); return; }
+    const open = isOpen("official", true);
+    const runs = official.reduce((n, c) => n + c.count, 0);
+    officialBox.replaceChildren(el("section", { class: "group" + (open ? "" : " folded") },
+      foldHeading("h2", "official", "Official runs", runs, open, true),
+      !open ? null : [
+        el("p", { class: "note" }, "Finished run mode runs in the published categories, fastest first."),
+        ...official.map(c => {
+          const key = "official/" + c.id, catOpen = isOpen(key, true);
+          return el("div", { class: "subgroup" + (catOpen ? "" : " folded") },
+            foldHeading("h3", key, c.name, c.count, catOpen, true),
+            !catOpen ? null : !c.runs.length ? el("p", { class: "empty" }, "No finished runs yet.") : [
+              officialList(c.runs),
+              c.count > c.runs.length ? el("p", { class: "note" }, "The " + c.runs.length + " fastest of " + c.count + " runs.") : null,
+            ]);
+        }),
+      ]));
+  }
+  function officialList(runs) {
+    return el("ul", { class: "spots" }, runs.map(r => el("li", null,
+      el("a", { href: "/attempt/" + encodeURIComponent(r.id) },
+        el("span", { class: "name" }, r.runnerName || r.runner),
+        el("span", { class: "meta" }, date(r.at)),
+        el("span", { class: "best" }, time(r.timerMs / 1000))))));
+  }
+  function renderAll() { renderOfficial(); render(); }
   function isOpen(key, def) { return key in folded ? !folded[key] : def; }
   function foldHeading(tag, key, title, count, open, foldable) {
     return el(tag, { class: "fold" }, el("button", {
       type: "button", "aria-expanded": String(open), disabled: !foldable,
       title: foldable ? (open ? "Hide" : "Show") + " " + title : null,
-      onclick: () => { folded[key] = open; writeFolded(folded); render(); },
+      onclick: () => { folded[key] = open; writeFolded(folded); renderAll(); },
     }, el("span", { class: "caret", "aria-hidden": "true" }, open ? "▾" : "▸"), title, el("span", { class: "count" }, String(count))));
   }
   /// A section's spots by category (the runner's own, set in the game's
@@ -204,11 +237,11 @@ async function homePage() {
         el("span", { class: "best" }, time(s.best))))));
   }
   search.addEventListener("input", render);
-  render();
+  renderAll();
   view.replaceChildren(
     el("h1", null, "Spots"),
     el("p", { class: "note" }, "Practice segments and everyone's runs of them: lines, ghosts and splits, recorded by ForestOverlay in game."),
-    search, list);
+    officialBox, search, list);
   search.focus({ preventScroll: true });
 }
 

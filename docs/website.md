@@ -629,8 +629,8 @@ plugin change (Practice's Share row).
   none of them has a run (mostly teleports today; a community teleport
   says "teleport", `/api/spots` has `timed`). Every section and category
   folds; the viewer's choice is kept in localStorage `forest.folded`
-  (`{key: true|false}`, keys `runners`, `community`, `runners/<category>`;
-  read / written in try/catch). A search opens every group it finds.
+  (`{key: true|false}`, keys `runners`, `community`, `runners/<category>`,
+  `official`, `official/<category id>`; read / written in try/catch). A search opens every group it finds.
 - **A runner deleting their own spot**: the site has no browser login -
   a runner is their upload token (`/api/register`, kept by the plugin), so
   the delete goes through the game. `DELETE /api/spots/<id>` with
@@ -665,6 +665,40 @@ plugin change (Practice's Share row).
   `FOREST_SITE_URL` changes the link's address (default
   https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
   *PbNews_Decisions*.
+
+## Official runs (2026-10-10, T-0223)
+
+A QA request: runs in the official categories listed on the site so
+anyone can watch them. The author (2026-10-08): **only once a category is
+published** (the moderators publish on /admin; every live category is a
+draft today, so the live site shows nothing yet), and **in their own
+section**, apart from the runners' spots.
+
+- **What counts**: a run mode attempt (`attempts`, docs/run-mode.md) whose
+  category names a *published* category - by id, or by name as a run
+  spot's `run = ` can (`Categories.IsPublished` reads it the same way) -
+  that **finished** (`end_reason = finished`, its log in, a timer above 0).
+  Resets, title-screen exits and attempts still running are not runs.
+- **`GET /api/official`** (`Attempts.Official`, rate limit `read`, no
+  sign-in): `[{id, name, count, runs: [{id, runner, runnerName, timerMs,
+  at}]}]` per published category in name order (`Categories.Published`),
+  a category with no runs included (`runs: []`); runs fastest timer first,
+  the first `Attempts.OfficialShown` (100), `count` all of them; `at` =
+  when the attempt started (the site's start, else when its log arrived);
+  the runner's newest name. While nothing is published the answer is `[]`:
+  drafts and hidden categories are never named (tested:
+  `AttemptTests.Official_OnlyPublishedCategories_FinishedRunsFastestFirst_DraftsNeverNamed`;
+  the smoke checks the empty answer). Index `attempts_category`
+  (`CREATE INDEX IF NOT EXISTS`, so an existing database takes it at start).
+- **The home page** (`app.js` `renderOfficial`): *Official runs* above the
+  spots' search, one fold per category (its name and count), each row the
+  runner, the date and the timer, linking to the attempt's page
+  (`/attempt/<id>`: its verdict, moves, timeline and log); "No finished
+  runs yet." for an empty category, "The 100 fastest of N runs." past the
+  cap. Hidden entirely while `/api/official` is empty; a failed request
+  never keeps the spots from showing.
+- **Open (tasks/notes/T-0223.md)**: whether each runner's best only, the
+  verdict on the row, and leaving out runs whose check found problems.
 
 ## Compare: two YouTube runs side by side (2026-10-04)
 

@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS attempts (
   nonce TEXT, issued_ms INTEGER, log_ms INTEGER, end_reason TEXT, end_ms INTEGER, final_timer_ms INTEGER,
   steps INTEGER, verdict TEXT, why TEXT, log_bytes INTEGER);
 CREATE INDEX IF NOT EXISTS attempts_runner ON attempts (runner_id);
+CREATE INDEX IF NOT EXISTS attempts_category ON attempts (category, end_reason);
 CREATE TABLE IF NOT EXISTS checkpoints (
   attempt_id TEXT NOT NULL, step INTEGER NOT NULL, head TEXT NOT NULL, received_ms INTEGER NOT NULL,
   PRIMARY KEY (attempt_id, step));
@@ -249,6 +250,48 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             recording = j?.Recording, findings = j?.Findings, rules = j?.Category, moves = j?.Moves, rundown = j?.Rundown,
             events = j?.Events, eventGroups = j?.EventGroups, report = j?.Report, loads = j?.Loads,
         };
+    }
+
+    // --- official runs (T-0223) --------------------------------------------------------
+
+    /// How many runs a category lists (fastest first); the count says how many there are.
+    public const int OfficialShown = 100;
+
+    /// The official runs, per published category (author, 2026-10-08: only
+    /// once a category is published, in their own section apart from the
+    /// runners' spots): its finished attempts, fastest timer first - runner,
+    /// timer, date, the attempt page's id. An attempt names its category by
+    /// id, or by a run spot's `run = ` (an id or a name, as IsPublished
+    /// reads it). Drafts are not named, so nothing about them leaves the site.
+    public List<object> Official()
+    {
+        var list = new List<object>();
+        if (_categories == null) return list;
+        using var c = _store.Open();
+        foreach (var cat in _categories.Published())
+        {
+            const string finished = @"WHERE (a.category = $id OR a.category = $name COLLATE NOCASE)
+                                      AND a.end_reason = 'finished' AND a.log_ms IS NOT NULL AND a.final_timer_ms > 0";
+            using var count = c.CreateCommand();
+            count.CommandText = "SELECT COUNT(*) FROM attempts a " + finished;
+            count.Parameters.AddWithValue("$id", cat.Id);
+            count.Parameters.AddWithValue("$name", cat.Name);
+            long total = (long)count.ExecuteScalar();
+
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = @"SELECT a.id, a.runner_id, COALESCE(r.name, ''), a.final_timer_ms, COALESCE(a.issued_ms, a.log_ms)
+                                FROM attempts a LEFT JOIN runners r ON r.id = a.runner_id " + finished + @"
+                                ORDER BY a.final_timer_ms, a.id LIMIT $n";
+            cmd.Parameters.AddWithValue("$id", cat.Id);
+            cmd.Parameters.AddWithValue("$name", cat.Name);
+            cmd.Parameters.AddWithValue("$n", OfficialShown);
+            var runs = new List<object>();
+            using (var r = cmd.ExecuteReader())
+                while (r.Read())
+                    runs.Add(new { id = r.GetString(0), runner = r.GetString(1), runnerName = r.GetString(2), timerMs = r.GetInt64(3), at = Iso(r.GetInt64(4)) });
+            list.Add(new { id = cat.Id, name = cat.Name, count = total, runs });
+        }
+        return list;
     }
 
     // --- the judged log, cached (security audit, 2026-10-04) --------------------------
