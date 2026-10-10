@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.274 - 2026-10-10
+
+- Unity's own error messages (including the graphics ones that come before a crash) now go into the log and the report zip, so a crash's cause is no longer lost.
+- After a crash, the next launch puts that session's log into the crash folder beside TheForest.exe.
+
 ## v0.24.273 - 2026-10-10
 
 - If the game freezes for 10 seconds or more, the log now says where it was stuck (also in a stall.log that the QA report zip includes), so a rare freeze can be tracked down.
