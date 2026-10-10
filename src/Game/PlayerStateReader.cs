@@ -52,6 +52,8 @@ namespace ForestOverlay.Game
 
         private const float RetryInterval = 1f;
         private float _nextResolve;
+        private int _staticExists = -1;   // LocalPlayer.Stats: -1 not looked up yet
+        private Type _boundType;          // the type the getters were bound for
 
         public bool Available { get { return _stats != null && _fields != null; } }
         public string[] Channels { get { return _channels; } }
@@ -80,11 +82,12 @@ namespace ForestOverlay.Game
             // The static LocalPlayer.Stats, as the inventory reads its own:
             // FindObjectOfType walked every loaded object, 20-25 ms on the
             // frame practice mode came on and after every load (T-0275).
-            Component found = GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Stats") as Component;
+            bool hasStatic = StaticExists();
+            Component found = hasStatic ? GameBridge.ReadStaticField("TheForest.Utils.LocalPlayer", "Stats") as Component : null;
             if (found == null)
             {
                 // Empty static: no save loaded, or mid-load.
-                if (StaticExists()) return;
+                if (hasStatic) return;
 
                 // Fallback for a build without the static. A miss here is a
                 // full scene walk, so the retry is rate-limited.
@@ -105,9 +108,6 @@ namespace ForestOverlay.Game
             if (_fields != null && t == _boundType) return;
             Bind(t);
         }
-
-        private int _staticExists = -1;
-        private Type _boundType;
 
         private bool StaticExists()
         {
