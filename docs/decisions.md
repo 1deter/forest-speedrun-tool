@@ -318,6 +318,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   defined by the moderators on /admin, seeded from speedrun.com's rules.
   Nothing relies on secrecy (open source). Full list and phases:
   [`docs/run-mode.md`](run-mode.md).
+- **Anti-cheat comes with the mod, in every build (author, 2026-10-10,
+  answering bunt's concerns via maks)**: using the mod = anti-cheat, not
+  using it = none, and that is visible on the run. A light build without
+  the practice tools would still carry it (T-0291, after the main tool is
+  stable). Whether runs must use the mod (light or full) so everyone is
+  vetted equally, and how vanilla runs are verified, is the moderators'
+  ruling, later. A surprise run's privacy: T-0292 (parked).
 
 ## Site (forest.deter.cloud)
 
