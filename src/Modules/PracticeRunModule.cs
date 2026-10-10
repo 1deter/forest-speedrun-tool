@@ -295,6 +295,7 @@ namespace ForestOverlay.Modules
         // ------------------------------------------------------------------
         private void ToggleMode()
         {
+            _turnedOnByRestart = false;   // F9 since: the Restart's words no longer apply
             Enabled = !Enabled;
             if (_practiceModeCfg != null && _practiceModeCfg.Value != Enabled) _practiceModeCfg.Value = Enabled;
 
