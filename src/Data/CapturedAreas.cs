@@ -79,10 +79,13 @@ namespace ForestOverlay.Data
         /// not in the save, so a Quick load keeps the live value, and with it
         /// set CaveOptimizer keeps every cave's props scene unloaded (T-0075:
         /// a cave spot restarted from the lab had no body piles, ropes or
-        /// planks). A missing or unreadable flag (old files) changes nothing.
+        /// planks). A missing or unreadable flag (old files) changes nothing,
+        /// and neither does a capture that had the lab (endgame_streaming
+        /// listed with the flag unset): the restore loads the lab for it,
+        /// and leaving would turn the sun on inside it.
         public static bool ShouldLeaveEndgame(string areas, bool liveInEndgame)
         {
-            return liveInEndgame && Flag(areas, "endgame") == false;
+            return liveInEndgame && Flag(areas, "endgame") == false && !HadEndgame(areas);
         }
 
         /// The capture had the endgame lab (loaded, or its load under way).
