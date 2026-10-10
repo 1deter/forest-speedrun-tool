@@ -375,3 +375,5 @@ Confirmed 2026-10-09 (game, bridge, v0.24.265): **spot restart and death quick-l
 Confirmed 2026-10-09 (game, bridge, v0.24.266): **a Quick load during the game's own death ends it (drag-away, hanging in the cave: no rope, upsideDown False, walks; real death restore stays in ForestMain; death count N -> 0 as a load, next death is a Capture again; plain restore logs no "ended" line) (T-0248)**. bridge 2026-10-09.
 
 Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves the save slot's info file alone (smoke hygiene: Slot1 unchanged after the restart journey's start-state capture) (T-0214)**. tests/e2e/reports/20261010-002837.smoke.md.
+
+Confirmed 2026-10-10 (game, bridge, ui-redesign f0e0707, banner v0.24.267): **the Practice start strip: Restart with practice mode off restores, logs "practice mode turned on by Restart" then armed, strip + Runs status say so, toggles agree (T-0256); the Runs tab Restart says "practice mode turned on - armed: <name>" (T-0270); Go on a row selects it, F7/RestartTarget/strip/SpotLabel agree (T-0271); a plain spot shows its name alone, no clipping (T-0272)**. bridge 2026-10-10.
