@@ -696,4 +696,60 @@ public sealed class AttemptTests : IDisposable
         var r = await _http.SendAsync(msg);
         return await r.Content.ReadFromJsonAsync<JsonNode>();
     }
+
+    // --- the official runs (T-0223) ------------------------------------------------
+
+    private static string FinishedLog(string id, string category, long timerMs, string reason = "finished")
+    {
+        var c = new AttemptChain();
+        c.Header(id, Runner, "Runner", "test", category, "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+        for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
+        c.End(3100, reason, timerMs);
+        return c.Text;
+    }
+
+    private async Task PutCategory(string id, string name, string status)
+    {
+        var c = new RunCategory { Id = id, Name = name, Status = status, Difficulty = "normal" };
+        var put = new HttpRequestMessage(HttpMethod.Put, "/api/admin/categories/" + id) { Content = new StringContent(c.Format(), Encoding.UTF8) };
+        put.Headers.Add("X-Admin-Token", "admin-secret");
+        Assert.Equal(HttpStatusCode.OK, (await _http.SendAsync(put)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Official_OnlyPublishedCategories_FinishedRunsFastestFirst_DraftsNeverNamed()
+    {
+        string token = await Register(Runner);
+        async Task Up(int n, string category, long timerMs, string reason = "finished") =>
+            Assert.Equal(HttpStatusCode.OK, (await Post(token, "/api/attempts/" + AId(n) + "/log",
+                new StringContent(FinishedLog(AId(n), category, timerMs, reason), Encoding.UTF8, "text/plain"))).StatusCode);
+        await Up(1, "any-normal", 90_000);
+        await Up(2, "any-normal", 60_000);
+        await Up(3, "any-normal", 30_000, "reset");          // a reset is not a run
+        await Up(4, "Any% - Normal", 75_000);                 // a run spot's `run = ` by name
+        await Up(5, "secret-draft", 50_000);
+
+        // Nothing published (the live site today): an empty list, no category named.
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+        await PutCategory("secret-draft", "Secret Draft", "draft");
+        await PutCategory("any-normal", "Any% - Normal", "draft");
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+
+        await PutCategory("any-normal", "Any% - Normal", "published");
+        string text = await _http.GetStringAsync("/api/official");
+        foreach (string hidden in new[] { "secret", "Secret Draft", "manhunt", AId(3), AId(5) })
+            Assert.DoesNotContain(hidden, text, StringComparison.OrdinalIgnoreCase);
+        var list = JsonNode.Parse(text)!.AsArray();
+        var cat = Assert.Single(list)!;
+        Assert.Equal(("any-normal", "Any% - Normal", 3), ((string)cat["id"], (string)cat["name"], (int)cat["count"]));
+        var runs = cat["runs"]!.AsArray();
+        Assert.Equal(new[] { AId(2), AId(4), AId(1) }, runs.Select(r => (string)r!["id"]));
+        Assert.Equal(new long[] { 60_000, 75_000, 90_000 }, runs.Select(r => (long)r!["timerMs"]));
+        Assert.All(runs, r => Assert.Equal(("Runner", Runner), ((string)r!["runnerName"], (string)r["runner"])));
+        Assert.All(runs, r => Assert.EndsWith("Z", (string)r!["at"]));
+
+        // Back to a draft: gone again.
+        await PutCategory("any-normal", "Any% - Normal", "draft");
+        Assert.Equal("[]", await _http.GetStringAsync("/api/official"));
+    }
 }
