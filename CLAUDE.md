@@ -195,10 +195,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 ## Where we are (replaced at each handoff)
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
-  is*: plugin correctness and stability - T-0284, T-0246, T-0056, T-0276,
-  T-0058, savestate gaps, perf); group 2 (cloud branches) is done. Also
+  is*: plugin correctness and stability - T-0246, T-0056, T-0276,
+  T-0058, savestate gaps, perf; T-0290 waits for a `Stall:` line); group
+  2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
+  held: the Filter box also lists unheld items, greyed x0 - author's
+  answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.273 (2026-10-10, T-0284):** a main-thread stall watch
+  (`Core/StallWatch`): a freeze of 10 s or more logs `Stall:` with the
+  plugin hook / module / tab it was in, or "outside the plugin", and
+  "back after"; during the hang into `config/ForestOverlay/logs/stall.log`
+  (in the report zip). Proved by a forced 12 s freeze; the Slot 1 title
+  load hang did not come back in 12 loads (10 fresh launches). The cause
+  is **T-0290** (blocked on T-0284 until a hang is caught; if the line
+  says "outside", try with `AllocationTrackerAtStartup` off - it is on in
+  the author's config). Waits for the smoke.
 - **v0.24.272 (2026-10-10, cloud branches merged):** spots autosave, no
   Save / Reload (T-0217); a local Delete stays local, your own spot comes
   back from the site, Replace? / take-back disarm the old route (T-0265,
