@@ -48,7 +48,7 @@ A "no" is a finding. The source is in brackets.
 6. Does a task that spans tabs (start a timed segment: spot, state,
    practice mode, arm) finish in one place? Count the tabs and clicks.
    Baseline 2026-10-10 (T-0256): 5 clicks, 2 tabs, practice mode off
-   (the default). [author: one journey, one place]
+   (the default); with the start strip (dcc4161, code only): 2 clicks, 1 tab. [author: one journey, one place]
 
 ### B. Say it once, short, where it is used
 
@@ -96,7 +96,9 @@ A "no" is a finding. The source is in brackets.
 ### E. Recognition over recall
 
 21. Can a runner use the tab without remembering anything from another
-    tab (an id, a key, which spot is armed)? [Nielsen 6]
+    tab (an id, a key, which spot is armed)? When two controls share a
+    word (Restart in the strip, F7, the Runs tab), do they act on the same
+    thing? [Nielsen 6]
 22. Are hotkeys shown next to the action they trigger? [Nielsen 6, 7]
 23. Fewer, clearer choices: does any single view offer more than ~7
     peer choices without grouping? [Hick's law; Miller as a rough
@@ -201,3 +203,4 @@ and becomes the task's priority: 4 -> P1, 3 -> P2, 2 -> P3, 1 -> P4.
 - 2026-10-09 - written (T-0252); no review run yet.
 - 2026-10-09 - smoke run: plugin Settings tab on v0.24.260, Keys and Info box (HUD) views, checks A-F; 6 tasks (T-0259..T-0264, 2 parked), notes on T-0226 and T-0021. First review: the brief's `open_tab` schema listed no `scroll_tour` but it worked.
 - 2026-10-10 - T-0256 design proposal (not a review): Practice + Runs flow read on ui-redesign, toured on v0.24.267; 3 options in tasks/notes/T-0256.md, parked; 0 findings filed. Click baseline for check 6 / 32 added.
+- 2026-10-10 - T-0256 review (dcc4161, code only: PracticeModule strip, StartStrip, Runs Restart; branch not in game): 3 findings (T-0270..T-0272, 2 parked), note on T-0262. First-run counts for check 32 from code: timed start 2 (was 5).
