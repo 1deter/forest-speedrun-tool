@@ -27,6 +27,10 @@ go to decisions.md; feature detail goes here.
   `/api/runs/{id}` (path `[t,x,y,z,speed]`), `/api/runs/{id}/file`,
   `/api/spots/{id}/{route}/board.txt` (each runner's best as text for the
   plugin, `Data/SiteBoard`; runs under review left out);
+  `/api/spots.txt` (the plugin's Website spots, `Data/SiteSpots`: a
+  `spot|...` line per runner spot, then `owner|<id>|<runner id>` - the
+  runner who first uploaded on it, so the plugin adds a runner's own spot
+  back into their own list, T-0265; `/api/spots` has `owner` too);
   `POST /api/register` `{runner, name}` -> `{token}`, `POST /api/runs`
   (a `.foseg` with `[attempt]`s, Bearer token; answers `startstate:
   "wanted"` when the route has a `startstate` hash and the site no data -
@@ -644,7 +648,10 @@ plugin change (Practice's Share row).
   answer under the buttons - `SiteProtocol.DeleteSpotMessage`;
   `RunUploadModule.DeleteFromSite` drops the spot's queued upload files
   first). The spot returns with the owner's next upload on it (uploads are
-  automatic) - the message says so. The spot page tells a runner where the
+  automatic) - the message says so. Practice's own **Delete** never
+  touches the site (author, 2026-10-09, T-0265): the owner can add the
+  spot back from Import -> Website spots (as their own, same id) and
+  upload changes over it. The spot page tells a runner where the
   button is. A browser-side delete would need a login (e.g. a one-time
   link the game opens) - not built.
 - **Discord PB posts** (`PbWebhook.cs`): `FOREST_DISCORD_WEBHOOK` (env or

@@ -128,6 +128,14 @@ concept before changing its feature. Where the code lives:
   site keeps it per route only from the route's owner (a copy of someone
   else's spot stays teleport-only) and when its data hash matches; Add writes
   it as the segment's own (`Website spots: added '<id>', start state.`).
+  The runner's **own** website spot (the list's `owner` line is their
+  runner id; T-0265) goes into their own list instead - editable, same
+  id, its uploads change the site's copy - with the website's start
+  state (`Website spots: own '<id>' added back, ...`). One already in
+  their list: the same says so; a different one is replaced on a second
+  click (*Replace?*, 3 s), keeping the runner's start state and attempts
+  (T-0218). Each row's answer shows under it. Practice's **Delete** is
+  local only (the site copy stays until *Delete from the website*).
   A spot whose creator has not uploaded since keeps restarting as a
   teleport (`Restart '<id>': no start state - teleport only.`); before
   T-0194 that was every website spot ('Elevator Boost', s-9cdb6a6808ad,

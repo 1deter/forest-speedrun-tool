@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-217 prefixes from 676 log calls.
+217 prefixes from 675 log calls.
 
 ## `Aerial capture`
 
@@ -381,16 +381,11 @@ Written by DeathModule.cs; info.
 
 ## `Delete`
 
-Meaning: Deleting a run or spot on the site: sent, the HTTP answer, or queued for a retry.
+Meaning: Deleting a run or spot on the site (the runner's button - a delete in the Practice tab stays local, T-0265): sent, or the HTTP answer.
 Written by RunUploadModule.cs; info / warning.
 
-- warning `Delete: '<id>' not sent (<..>); queued, retrying in <..> s.`
-- info `Delete: '<id>' on <baseUrl> - HTTP <code><..>.`
 - info `Delete: '<segment.Id>' on <baseUrl> - <..>: <text>`
-- info `Delete: '<segment.Id>' queued to come off <..>.`
 - warning `Delete: could not clear the upload queue of '<segmentId>': <ex.Message>`
-- warning `Delete: could not queue '<segment.Id>' for the website: <ex.Message>`
-- warning `Delete: could not update the queue: <ex.Message>`
 
 ## `Dump failed`
 
@@ -1141,6 +1136,7 @@ Written by PracticeModule.cs; info / warning.
 - warning `Practice: clearing a deleted spot failed: <ex.Message>`
 - warning `Practice: could not list <_lssDir> - <ex.Message>`
 - warning `Practice: could not read layouts beside <lssPath> - <ex.Message>`
+- info `Practice: deleted '<gone.Id>' here<..>; any website copy stays.`
 - warning `Practice: export of '<s.Id>' failed: <ex>`
 - info `Practice: exported '<s.Id>' to <path> (<what>).`
 - warning `Practice: import of <e.Path> failed: <ex>`
@@ -1890,6 +1886,9 @@ Written by CommunityModule.Website.cs; info / warning.
 - info `Website spots: <list.Count> listed.`
 - warning `Website spots: asked for '<entry.Spot.Id>', got '<bundle.Segment.Id>'.`
 - warning `Website spots: list: <why>.`
+- info `Website spots: own '<entry.Spot.Id>' differs from the website's - Replace? offered.`
+- info `Website spots: own '<entry.Spot.Id>' is the same as the website's.`
+- info `Website spots: own '<incoming.Id>' <..>.`
 - info `Website spots: removed '<entry.Spot.Id>'.`
 
 ## `World dump`

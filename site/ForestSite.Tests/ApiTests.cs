@@ -230,6 +230,33 @@ public sealed class ApiTests : IDisposable
     }
 
     [Fact]
+    public async Task SpotsTextNamesTheOwner_WhoseEditedRouteBecomesTheSpot()
+    {
+        // T-0265: the plugin adds a runner's own spot back as theirs, by the
+        // owner the list names; their upload of an edited copy (same id, their
+        // token) is the spot again, not a copy.
+        Segment seg = TestSegment();
+        string ta = await Register(A), tb = await Register(B);
+        await Upload(ta, Bundle(seg, RunText(seg, A, 10f, 4f, 1)));
+        await Upload(tb, Bundle(seg, RunText(seg, B, 9f, 4f, 2)));
+
+        SiteSpot listed = SiteSpots.Parse(await _http.GetStringAsync("/api/spots.txt")).Single(s => s.Id == seg.Id);
+        Assert.Equal(A, listed.Owner);
+
+        seg.End = new Trigger { Kind = TriggerKind.Zone, Position = new Vector3(0, 0, 45), Radius = 3 };
+        seg.Name = "Edited dash";
+        Assert.Equal(HttpStatusCode.OK, (await Upload(ta, Bundle(seg, RunText(seg, A, 11f, 4f, 3)))).StatusCode);
+
+        SegmentBundle got = SegmentBundle.Parse(await _http.GetStringAsync(SiteSpots.FileUrl("", seg.Id)), out _, null);
+        Assert.Equal(seg.RouteFingerprint(), got.Segment.RouteFingerprint());
+        Assert.Equal("Edited dash", got.Segment.Name);
+        Assert.True(SiteSpots.SameAsOwn(got.Segment, seg));
+        listed = SiteSpots.Parse(await _http.GetStringAsync("/api/spots.txt")).Single(s => s.Id == seg.Id);
+        Assert.Equal(A, listed.Owner);
+        Assert.Equal("Edited dash", listed.Name);
+    }
+
+    [Fact]
     public async Task APolygonZoneReachesTheMapAsItsOutline()
     {
         Segment seg = TestSegment();
