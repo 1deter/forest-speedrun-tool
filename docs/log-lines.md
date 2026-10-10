@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-218 prefixes from 680 log calls.
+218 prefixes from 681 log calls.
 
 ## `Aerial capture`
 
@@ -1029,7 +1029,7 @@ Written by PerfMonitor.cs; info.
 ## `Performance`
 
 Meaning: Performance trims at work: camera trims, the endgame screen camera, skipped grass updates, merged asset clean-ups, the sun post-process material kept in the endgame (first time a session).
-Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
+Written by CameraTrim.cs, EndgameLoader.cs, LoaderCollect.cs, PerfPatches.cs; info / warning.
 
 - warning `Performance: camera trim scan failed: <ex.Message>`
 - info `Performance: endgame screen camera (<..>) renders only when its screen is drawn (<shows.Count> screen(s): <..>).`
@@ -1052,6 +1052,7 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs; info / warning.
 - info `Performance: endgame load in play outside a cutscene (a crossing of the load trigger, not the vault door) - the game's own load, no background load, no hold.`
 - info `Performance: endgame loaded in the background for the restore - <took><gaveUp>.`
 - info `Performance: endgame loaded in the background in play - <took>, <_cutsceneFrames> of the frames in a cutscene, <held><gaveUp>.`
+- info `Performance: a Quick load's forced garbage collection runs only once <..> MB of garbage built up (<_found> call(s) in the game's loader).`
 - info `Performance: asset clean-up merged into the one running<..>.`
 - info `Performance: building removal - <n> earlier removal area(s) dropped from the game's list (already recalculated); this one covers its own place.`
 - info `Performance: building removals - <_navWaveRemovals> at once recalculated in <_navWaveBatches> places instead of one area of <..> x <..> m.`
@@ -1416,7 +1417,7 @@ Meaning: What an in-place restore checked or rebuilt afterwards (plane, structur
 Written by SavestateModule.cs; info.
 
 - info `Savestate after restoring <what> in place: <plane> | <check><..>.`
-- info `Savestate after restoring <what> in place: <plane> | <rebuilt>.`
+- info `Savestate after restoring <what> in place: <plane> | <rebuilt><..>.`
 - info `Savestate after restoring <what> in place: <plane><..>.`
 
 ## `Savestate after the load`

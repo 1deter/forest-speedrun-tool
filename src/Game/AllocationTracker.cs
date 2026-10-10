@@ -95,6 +95,11 @@ namespace ForestOverlay.Game
         /// Bytes allocated on the main thread since counting started.
         public static long MainBytes;
 
+        /// The same, never reset by a new window (the Debug views report
+        /// starts one every 30 s) - for a span that can cross one
+        /// (Game/RestoreGarbage).
+        public static long MainBytesEver;
+
         public static bool Installed { get; private set; }
         /// Installed at startup: plain objects are counted too.
         public static bool Early { get; private set; }
@@ -289,6 +294,7 @@ namespace ForestOverlay.Game
             if (GetCurrentThreadId() == _mainThread)
             {
                 MainBytes += size;
+                MainBytesEver += size;
                 _mainCount++;
             }
         }

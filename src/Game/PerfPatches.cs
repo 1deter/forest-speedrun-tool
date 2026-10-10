@@ -246,6 +246,13 @@ namespace ForestOverlay.Game
                 "frame, and each switch-on makes a new material that is only freed when a load takes you out of the area - one a " +
                 "frame, over a million after an hour of restarting a spot in the lab. Keep the material it already has.",
                 ApplySunshineBlit, RemoveSunshineBlit);
+            Add(config, "RestoreCollectWhenDue", "Quick loads: a forced garbage collection only every few restores",
+                "The game's loader forces a full garbage collection at the end of every Quick load (~0.1 s, more on a big heap) for " +
+                "~30 MB of garbage. Run it only once " + ForestOverlay.Data.StepBytes.Mb(ForestOverlay.Data.GarbageBudget.Bytes) +
+                " MB has built up since the last collection - still inside a restore, so restarting a spot pays it every few " +
+                "restores instead of every one, and play is not left with a collection due. Full loads and the game's own loads " +
+                "collect as before.",
+                delegate { return LoaderCollect.Apply(_harmony, _log); }, delegate { LoaderCollect.Remove(_harmony); });
 
             for (int i = 0; i < _fixes.Count; i++)
                 if (_fixes[i].Cfg.Value) Set(_fixes[i], true);
@@ -329,6 +336,7 @@ namespace ForestOverlay.Game
         /// Once a frame (Debug views module).
         public void Tick(PlayerRef player, GameEvents events)
         {
+            LoaderCollect.Tick();
             EndgameLoader.Tick(player, events);
             _cameras.Tick();
             if (!_unloadTrailing || _unloadRunning == null) return;

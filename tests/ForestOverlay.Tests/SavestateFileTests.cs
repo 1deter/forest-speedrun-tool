@@ -28,6 +28,43 @@ namespace ForestOverlay.Tests
             return s;
         }
 
+        // T-0202: a parsed file is kept between restores and each restore
+        // gets a copy - no list may be shared, the text must be the same.
+        [Fact]
+        public void Copy_SharesNoList_WritesTheSame()
+        {
+            SavestateFile s = Sample();
+            s.Held = new List<int> { 48, 80 };
+            s.HeldBefore = new List<string> { "0:80" };
+            s.Panels = new List<string> { "p1" };
+            s.Enemies = new List<string> { "e1" };
+            s.Families = new List<string> { "f1" };
+            s.CutBushes = new List<string> { "b1" };
+            s.Greebles = new List<string> { "g1" };
+            SavestateFile c = s.Copy();
+            Assert.Equal(s.Write(), c.Write());
+            int lists = 0;
+            foreach (System.Reflection.FieldInfo fi in typeof(SavestateFile).GetFields())
+            {
+                if (!fi.FieldType.IsGenericType || fi.FieldType.GetGenericTypeDefinition() != typeof(List<>)) continue;
+                lists++;
+                Assert.NotNull(fi.GetValue(s));
+                Assert.False(ReferenceEquals(fi.GetValue(s), fi.GetValue(c)), fi.Name + " is shared");
+            }
+            Assert.Equal(8, lists);
+            c.Pickups.Clear();
+            Assert.Equal(2, s.Pickups.Count);
+        }
+
+        [Fact]
+        public void Copy_KeepsNullLists()
+        {
+            SavestateFile c = new SavestateFile().Copy();
+            Assert.Null(c.Pickups);
+            Assert.Null(c.Held);
+            Assert.Null(c.Greebles);
+        }
+
         [Fact]
         public void EnemiesRoundTripAndAreAbsentFromOldFiles()
         {

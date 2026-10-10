@@ -600,6 +600,7 @@ namespace ForestOverlay.Modules
         /// By file name without the extension, case-insensitive.
         public void RestoreNamed(string name, bool load, Action<string> done)
         {
+            RestoreGarbage.Begin();
             RefreshFiles();
             int found = -1;
             for (int i = 0; i < _files.Count; i++)
@@ -625,6 +626,7 @@ namespace ForestOverlay.Modules
         /// failed), else why it cannot be done in place.
         public string ReloadSlotInPlace(int slot, Action<string> done)
         {
+            RestoreGarbage.Begin();
             InPlaceCheck c = new InPlaceCheck();
             c.RunActive = Ctx.Run.Active;
             c.AtTitle = PlayerRef.AtTitleScreen;
@@ -759,6 +761,7 @@ namespace ForestOverlay.Modules
             // Outside a cutscene replay (its hands are the replay's).
             _bridge.KeepHandsIfHeld = file != null && file.CutsceneAt < 0f ? file.Held : null;
             _bridge.BlueprintsAtCapture = file != null ? file.Blueprints : null;
+            RestoreGarbage.Mark("before the restore");
             Ctx.Runner.StartCoroutine(_bridge.RestoreInPlace(data, unloadStreaming, keep, delegate(SavestateBridge.Result r)
             {
                 // The steps below share one frame (T-0148: theirs was the
@@ -788,6 +791,7 @@ namespace ForestOverlay.Modules
                     try { pickups = _keeper.Restore(presentPickups); }
                     catch (Exception ex) { Ctx.Log.LogWarning("Savestate: pickup restore failed: " + ex.Message); }
                 }
+                RestoreGarbage.Mark("pickups");
 
                 // The serializer restores the IsInCaves flag but not what
                 // the cave doors did (terrain collision, lighting,
@@ -808,6 +812,7 @@ namespace ForestOverlay.Modules
                     catch (Exception) { }
                 }
 
+                RestoreGarbage.Mark("cave state");
                 string overlookNote = r.Ok ? AreaReport.LeaveOverlook() : "";
                 // The endgame flag is not in the save either: restored from
                 // the lab, a cave capture kept it, and the game then keeps
@@ -833,6 +838,7 @@ namespace ForestOverlay.Modules
                                  : caveFamilies ? "enemies: cave capture - the live ones kept"
                                  : _bridge.RespawnEnemies(surfaceSent);
                 if (r.Ok && _respawnEnemies.Value) enemyNote += " | " + _bridge.ClearCorpses();
+                RestoreGarbage.Mark("enemies");
 
                 string panelNote = "";
                 if (r.Ok && file != null)
@@ -875,9 +881,11 @@ namespace ForestOverlay.Modules
                 // So is the endgame's active area, which switches the
                 // sections' renderers (AreaKeeper).
                 string areaNote = r.Ok && file != null ? _area.Restore(file.ActiveArea) : "";
+                RestoreGarbage.Mark("panels, Megan, elevators, weather, area");
                 // Trees chopped and bushes cut since are outside what an
                 // in-place LoadNow puts back (NatureKeeper); a slot's too.
                 string natureNote = r.Ok ? _nature.Restore(file != null ? file.Bushes : "", file != null ? file.CutBushes : null) : "";
+                RestoreGarbage.Mark("nature");
                 // The nature guide's ticks: the save's list is back, the
                 // entries are not (NatureGuideKeeper).
                 string guideNote = "";
@@ -890,6 +898,7 @@ namespace ForestOverlay.Modules
                     catch (Exception ex) { todo = "to-do list: failed (" + ex.Message + ")"; }
                     if (todo.Length > 0) guideNote += (guideNote.Length > 0 ? " | " : "") + todo;
                 }
+                RestoreGarbage.Mark("guide + to-do list");
                 // The sticks / rocks around trees come from pool objects
                 // that carry their own seed (GreebleKeeper).
                 string greebleNote = "";
@@ -898,6 +907,7 @@ namespace ForestOverlay.Modules
                     try { greebleNote = _greebles.Restore(file.Greebles, true); }
                     catch (Exception ex) { greebleNote = "greebles: failed (" + ex.Message + ")"; }
                 }
+                RestoreGarbage.Mark("greebles");
 
                 // Saved relative to a parent (a keycard cutscene holds the
                 // player under the card reader): the restore put the
@@ -959,6 +969,9 @@ namespace ForestOverlay.Modules
                               (enemyNote.Length == 0 ? "" : " | " + enemyNote) +
                               " | after the load: " + steps.ElapsedMilliseconds + " ms, " +
                               (SceneCache.Searches - searchesBefore) + " scene search(es), " + (SceneCache.Hits - keptBefore) + " kept";
+                RestoreGarbage.Mark("the rest");
+                string garbage = RestoreGarbage.Describe();
+                if (garbage.Length > 0) line += " | " + garbage;
                 if (r.Ok) Ctx.Log.LogInfo("Savestate " + line);
                 else Ctx.Log.LogWarning("Savestate " + line);
                 if (r.Ok) Ctx.Runner.StartCoroutine(LogAreas(file));
@@ -1191,7 +1204,7 @@ namespace ForestOverlay.Modules
             _planeClears++;
             if (!enemies || cave != null)
             {
-                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + ".");
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + (cave != null ? " | " + cave : "") + Since() + ".");
                 yield break;
             }
 
@@ -1204,7 +1217,7 @@ namespace ForestOverlay.Modules
                 string rebuilt = null;
                 yield return Ctx.Runner.StartCoroutine(_enemies.Rebuild(file.Families, file.Enemies ?? new List<string>(),
                                                                         delegate(string note) { rebuilt = note; }));
-                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + rebuilt + ".");
+                Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + rebuilt + Since() + ".");
                 yield break;
             }
 
@@ -1222,7 +1235,13 @@ namespace ForestOverlay.Modules
             // (fix list 2 - author: "ideally in the same position").
             string positions = file != null && file.Enemies != null ? _enemies.RestoreByType(file.Enemies) : "";
             Ctx.Log.LogInfo("Savestate after restoring " + what + " in place: " + plane + " | " + check +
-                            (positions.Length > 0 ? " | " + positions : "") + ".");
+                            (positions.Length > 0 ? " | " + positions : "") + Since() + ".");
+        }
+
+        private static string Since()
+        {
+            string g = RestoreGarbage.Since();
+            return g.Length > 0 ? " | " + g : "";
         }
 
         private static string DescribeWeather(string value)
@@ -1969,7 +1988,7 @@ namespace ForestOverlay.Modules
             try
             {
                 string error;
-                f = SavestateFile.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
+                f = ReadState(path, out error);
                 if (f == null) { done("checkpoint state unreadable: " + error); return; }
             }
             catch (Exception ex) { done("checkpoint state unreadable: " + ex.Message); return; }
@@ -2074,14 +2093,16 @@ namespace ForestOverlay.Modules
             if (Busy) { done("a savestate action is still running"); return; }
             if (!runStart && RefusedInRun("restore", done)) return;
 
+            RestoreGarbage.Begin();
             SavestateFile f;
             try
             {
                 string error;
-                f = SavestateFile.Parse(File.ReadAllText(StartStatePath(s), Encoding.UTF8), out error);
+                f = ReadState(StartStatePath(s), out error);
                 if (f == null) { done("start state unreadable: " + error); return; }
             }
             catch (Exception ex) { done("start state unreadable: " + ex.Message); return; }
+            RestoreGarbage.Mark("file read");
 
             // A shared segment names the state it was timed from; a file
             // that is not that state still restores, but its times will not
@@ -2089,6 +2110,7 @@ namespace ForestOverlay.Modules
             if (s.StartState.Length > 0 && Segment.HashText(f.Data) != s.StartState)
                 Ctx.Log.LogWarning("Savestate: the start state file of '" + s.Id + "' is not the one the segment expects (" +
                                    s.StartState + ") - recapture it to make it so.");
+            RestoreGarbage.Mark("start state hash");
 
             string what = "start state of '" + s.Name + "'";
             if (runStart) Ctx.Log.LogInfo("Savestate: " + what + " starts a run - a Full load.");
@@ -2134,12 +2156,42 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
+        // The last state file read, kept parsed (T-0202): a restart loop on
+        // one spot read and parsed the same ~0.3 MB file every time - ~3.6 MB
+        // of garbage a restore (the text, the line split, the data line's
+        // copies). Kept by path, size and write time, so a capture over it
+        // (or any write) reads the new file; each caller gets its own Copy()
+        // (no list shared between restores).
+        private string _keptPath;
+        private long _keptLength, _keptTicks;
+        private SavestateFile _keptFile;
+
+        private SavestateFile ReadState(string path, out string error)
+        {
+            error = null;
+            FileInfo fi = new FileInfo(path);
+            long length = fi.Length;   // throws for a missing file, as ReadAllText did
+            long ticks = fi.LastWriteTimeUtc.Ticks;
+            if (_keptFile != null && length == _keptLength && ticks == _keptTicks &&
+                string.Equals(path, _keptPath, StringComparison.OrdinalIgnoreCase))
+                return _keptFile.Copy();
+
+            _keptFile = null;
+            SavestateFile f = SavestateFile.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
+            if (f == null) return null;
+            _keptPath = path;
+            _keptLength = length;
+            _keptTicks = ticks;
+            _keptFile = f;
+            return f.Copy();
+        }
+
         private SavestateFile LoadFile(string path)
         {
             try
             {
                 string error;
-                SavestateFile f = SavestateFile.Parse(File.ReadAllText(path, Encoding.UTF8), out error);
+                SavestateFile f = ReadState(path, out error);
                 if (f == null)
                 {
                     SetStatus(Path.GetFileName(path) + ": " + error);

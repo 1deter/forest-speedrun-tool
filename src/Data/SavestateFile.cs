@@ -235,6 +235,24 @@ namespace ForestOverlay.Data
                 : "captured in a " + Difficulty + " game, this one is " + hereBase + " - the load sets the difficulty";
         }
 
+        /// A copy that shares nothing a caller can change: every list is
+        /// its own (strings are immutable, so the ~0.5 MB data line is
+        /// shared). Lets a parsed file be kept between restores (T-0202)
+        /// while each restore gets lists of its own.
+        public SavestateFile Copy()
+        {
+            SavestateFile c = (SavestateFile)MemberwiseClone();
+            c.Pickups = Pickups != null ? new List<string>(Pickups) : null;
+            c.Held = Held != null ? new List<int>(Held) : null;
+            c.HeldBefore = HeldBefore != null ? new List<string>(HeldBefore) : null;
+            c.Panels = Panels != null ? new List<string>(Panels) : null;
+            c.Enemies = Enemies != null ? new List<string>(Enemies) : null;
+            c.Families = Families != null ? new List<string>(Families) : null;
+            c.CutBushes = CutBushes != null ? new List<string>(CutBushes) : null;
+            c.Greebles = Greebles != null ? new List<string>(Greebles) : null;
+            return c;
+        }
+
         public string Write()
         {
             StringBuilder sb = new StringBuilder(Data.Length + 256);

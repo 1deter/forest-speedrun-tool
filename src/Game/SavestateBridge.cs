@@ -489,7 +489,7 @@ namespace ForestOverlay.Game
             inCaves = false;
             try
             {
-                byte[] bytes = LevelBytes(data);
+                byte[] bytes = ReadBytesOf(data) ?? LevelBytes(data);
                 return bytes != null && ForestOverlay.Data.SlotSaveFlags.TryRead(bytes, out inEndgame, out inCaves);
             }
             catch (Exception) { return false; }
@@ -651,6 +651,11 @@ namespace ForestOverlay.Game
 
         // ------------------------------------------------------------------
         // RESTORE IN PLACE - no scene load.
+
+        /// True while our in-place LoadNow runs (Game/LoaderCollect: its
+        /// forced collection only when due).
+        public static bool InPlaceLoading { get; private set; }
+
         /// `unloadStreaming` must match how the data was captured: true for
         /// savestates since v0.20.1, the header's value for older files, the
         /// game's MemorySafeSaveMode for a slot save. `keepRoot` (the
@@ -666,10 +671,12 @@ namespace ForestOverlay.Game
             string diffError;
             List<SavedObject> saved;
             HashSet<string> stored = StoredNames(data, out diffError, out saved);
+            RestoreGarbage.Mark("the save's ids read");
 
             string adoptNote = null;
             string foreign = stored != null ? AdoptPlayer(stored, saved, keepRoot, out adoptNote) : null;
             if (foreign != null) { r.Message = foreign; done(r); yield break; }
+            RestoreGarbage.Mark("adopt");
 
             // The hands already hold what the capture held: keep them (the
             // lighter stays lit - author, QA 2026-09-27). No stash here, and
@@ -692,6 +699,7 @@ namespace ForestOverlay.Game
             // what held the hands next time.
             if (stashStuck) _log.LogInfo("Savestate restore (in place): hands still busy after 2 s - " + HandsBusyWhy() +
                                          " | " + PlayerHold.Describe() + ".");
+            RestoreGarbage.Mark("hands");
 
             int before = IdentifierCount;
             bool unloaded = false;
@@ -701,6 +709,7 @@ namespace ForestOverlay.Game
                 // Greeble zones and scene unloads take a few frames.
                 yield return new WaitForSeconds(0.25f);
             }
+            RestoreGarbage.Mark("streaming unload");
 
             // LoadNow never deletes for a full-level save; do it here.
             List<string> deletedNames = new List<string>();
@@ -723,6 +732,7 @@ namespace ForestOverlay.Game
                 }
             }
             if (deleted + rebuilt > 0) yield return null;   // let Destroy land before the loader looks
+            RestoreGarbage.Mark("delete step");
 
             _loadDone = false;
             _logNotFound = 0;
@@ -732,6 +742,8 @@ namespace ForestOverlay.Game
 
             Stopwatch sw = Stopwatch.StartNew();
             bool started = false;
+            LoaderCollect.TakeNote();   // a note left by a load that did not finish
+            InPlaceLoading = true;
             try
             {
                 Delegate complete = null;
@@ -742,8 +754,12 @@ namespace ForestOverlay.Game
                 }
                 catch (Exception) { complete = null; }
 
-                _loadNow.Invoke(null, new object[] { data, false, false, complete });
+                // The bytes already read for the ids (StoredNames), else the
+                // text as before - LoadNow takes either.
+                byte[] bytes = ReadBytesOf(data);
+                _loadNow.Invoke(null, new object[] { bytes != null ? (object)bytes : data, false, false, complete });
                 started = true;
+                RestoreGarbage.Mark("LoadNow");
             }
             catch (Exception ex)
             {
@@ -766,7 +782,10 @@ namespace ForestOverlay.Game
                 }
             }
             sw.Stop();
+            InPlaceLoading = false;
             Application.logMessageReceived -= OnUnityLog;
+            RestoreGarbage.Mark("the loader's frames");
+            string gcNote = LoaderCollect.TakeNote();
 
             if (unloaded)
             {
@@ -781,6 +800,7 @@ namespace ForestOverlay.Game
             string handsNote = keepHands && _loadDone ? SkipGameReEquip() : "";
             // The build HUD's tally from the blueprints now standing.
             string missions = _loadDone ? BlueprintKeeper.RecountMissions() : "";
+            RestoreGarbage.Mark("streaming back + hands");
 
             if (started)
             {
@@ -808,6 +828,7 @@ namespace ForestOverlay.Game
                 if (adoptNote != null) sb.Append(", ").Append(adoptNote);
                 if (handsNote.Length > 0) sb.Append(", ").Append(handsNote);
                 if (missions.Length > 0) sb.Append(", ").Append(missions);
+                if (gcNote.Length > 0) sb.Append(", ").Append(gcNote);
                 for (int i = 0; i < _logSamples.Count; i++) sb.Append(" | ").Append(_logSamples[i]);
                 r.Message = sb.ToString();
             }
@@ -841,6 +862,7 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _loadSavedLevel == null) return "LevelSerializer.LoadSavedLevel not found";
             if (IsDeserializing) return "the game is already loading";
+            InPlaceLoading = false;   // a Full load collects as the game does
 
             string prep = PrepareContinue(difficulty, baseDifficulty);
 
@@ -873,6 +895,7 @@ namespace ForestOverlay.Game
         {
             if (!Resolve() || _resume == null) return "LevelSerializer.Resume not found";
             if (IsDeserializing) return "the game is already loading";
+            InPlaceLoading = false;
 
             PrepareContinue(null, null);
             EnsurePrefabs("Savestate slot load");
@@ -1001,9 +1024,52 @@ namespace ForestOverlay.Game
             return StoredNames(data, out error, out unused);
         }
 
+        // The last save's level data, read (T-0202): a restart loop handed
+        // the same data in every time, and each restore decompressed and
+        // deserialized it twice - here for its ids, then in LoadNow - ~3.6 MB
+        // of garbage each. Kept by content (strings are immutable; the same
+        // file gives the same string, a slot's save an equal one). Callers
+        // only read the set and the list. The decompressed bytes go to
+        // LoadNow in place of the text: it decompresses the text into the
+        // same bytes (LevelSerializer.LoadNow, IL) and only reads them
+        // (UnitySerializer.Deserialize: a MemoryStream over the array).
+        private string _readData;
+        private byte[] _readBytes;
+        private HashSet<string> _readNames;
+        private List<SavedObject> _readObjects;
+
+        private bool IsRead(string data)
+        {
+            return _readData != null && data != null &&
+                   (ReferenceEquals(data, _readData) || (data.Length == _readData.Length && string.Equals(data, _readData, StringComparison.Ordinal)));
+        }
+
+        /// The decompressed level data of `data` when it was read last, else null.
+        private byte[] ReadBytesOf(string data)
+        {
+            return IsRead(data) ? _readBytes : null;
+        }
+
+        /// Dev (bridge, T-0202): the kept bytes still equal a fresh
+        /// decompress of the kept data - the game did not change them.
+        public string CheckKeptLevelData()
+        {
+            if (_readData == null || _readBytes == null) return "nothing kept";
+            byte[] fresh = LevelBytes(_readData);
+            if (fresh == null || fresh.Length != _readBytes.Length) return "DIFFERENT length";
+            for (int i = 0; i < fresh.Length; i++)
+                if (fresh[i] != _readBytes[i]) return "DIFFERENT at byte " + i;
+            return "same (" + fresh.Length + " bytes)";
+        }
+
         private HashSet<string> StoredNames(string data, out string error, out List<SavedObject> objects)
         {
             error = null;
+            if (IsRead(data) && _readNames != null)
+            {
+                objects = _readObjects;
+                return _readNames;
+            }
             objects = new List<SavedObject>();
             if (_deserializeLevelData == null || _storedObjectNames == null || _storedItemName == null)
             {
@@ -1035,6 +1101,10 @@ namespace ForestOverlay.Game
                     o.ClassId = _storedItemClass != null ? _storedItemClass.GetValue(it) as string : null;
                     objects.Add(o);
                 }
+                _readData = data;
+                _readBytes = bytes;
+                _readNames = names;
+                _readObjects = objects;
                 return names;
             }
             catch (Exception ex)
