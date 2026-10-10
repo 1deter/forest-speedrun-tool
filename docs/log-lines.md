@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-217 prefixes from 676 log calls.
+218 prefixes from 678 log calls.
 
 ## `Aerial capture`
 
@@ -407,6 +407,14 @@ Written by ElevatorKeeper.cs; warning.
 - warning `ElevatorKeeper: ElevatorSystem fields not found - elevators are not kept.`
 - warning `ElevatorKeeper: capture failed: <ex.Message>`
 - warning `ElevatorKeeper: ride replay failed: <ex.Message>`
+
+## `ElevatorRides`
+
+Meaning: The hook that notes endgame elevator rides as they start could not be installed; a teleport then finds rides with a scene search (~25 ms per Go, T-0184).
+Written by ElevatorRides.cs; warning.
+
+- warning `ElevatorRides: <ex.Message>`
+- warning `ElevatorRides: ElevatorSystem.GotoRemotePoint not found - a teleport searches the scene for elevator rides.`
 
 ## `Ending the fall failed`
 

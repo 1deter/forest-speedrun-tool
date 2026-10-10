@@ -136,6 +136,9 @@ namespace ForestOverlay.Modules
             // re-created plane wreck's crash clearing skipped (T-0148).
             SceneCache.Install();
             WreckClearing.Install(ctx.Log, OverlayPlugin.PluginGuid);
+            // The elevators that started a ride, so a teleport stops them
+            // without a scene search (T-0184).
+            ElevatorRides.Install(ctx.Log, OverlayPlugin.PluginGuid);
             _dir = Path.Combine(ctx.ConfigDirectory, "savestates");
             RefreshFiles();
 
@@ -186,6 +189,7 @@ namespace ForestOverlay.Modules
             SlotInfoGuard.Uninstall();
             PathfindingWatch.Uninstall();
             WreckClearing.Uninstall();
+            ElevatorRides.Uninstall();
             SceneCache.Uninstall();
             if (_threads != null) _threads.Uninstall();
         }

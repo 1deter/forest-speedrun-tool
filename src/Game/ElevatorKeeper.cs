@@ -202,20 +202,41 @@ namespace ForestOverlay.Game
             {
                 if (!Bind() || _moving == null) return "";
                 int stopped = 0;
-                UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
-                for (int i = 0; i < all.Length; i++)
+                // The elevators that started a ride (Game/ElevatorRides),
+                // not a scene search: 24-26 ms on every Go (T-0184).
+                _rides.Clear();
+                if (ElevatorRides.Installed)
                 {
-                    Component c = all[i] as Component;
-                    if (c == null || !(bool)_moving.GetValue(c)) continue;
+                    if (_isMoving == null) _isMoving = IsMoving;
+                    ElevatorRides.Moving(_isMoving, _rides);
+                }
+                else
+                {
+                    UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(_type);
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        Component c = all[i] as Component;
+                        if (c != null && IsMoving(c)) _rides.Add(c);
+                    }
+                }
+                for (int i = 0; i < _rides.Count; i++)
+                {
+                    Component c = _rides[i];
                     Rigidbody rb = _rb.GetValue(c) as Rigidbody;
                     if (rb == null) continue;
                     StopRide(c, rb);
                     stopped++;
                 }
+                _rides.Clear();
                 return stopped > 0 ? "elevator ride stopped" + (stopped > 1 ? " (" + stopped + ")" : "") : "";
             }
             catch (Exception ex) { return "elevator: stopping the ride failed (" + ex.Message + ")"; }
         }
+
+        private readonly List<Component> _rides = new List<Component>();
+        private Func<Component, bool> _isMoving;
+
+        private bool IsMoving(Component c) { return (bool)_moving.GetValue(c); }
 
         /// Starts each ride as the elevator's own button does (Update on
         /// "Take"); the cutscene fast-forward takes it from there.
