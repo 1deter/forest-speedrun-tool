@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.280 - 2026-10-10
+
+- A comparison run's replay now lasts the run's full time (it stopped about a frame early, e.g. 11.186 for a run of 11.197).
+
 ## v0.24.279 - 2026-10-10
 
 - Quick loads on the surface no longer freeze for about half a second just after the load: the game's asset clean-up that a restore set off is skipped (restore 0.83 -> 0.48 s measured). Its switch is under Performance in the Debug views tab (on by default).
