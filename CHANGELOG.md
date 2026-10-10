@@ -5,6 +5,11 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.277 - 2026-10-10
+
+- ForestOverlay now runs alongside ModAPI mods such as UltimateCheatmenu - the game no longer crashes at launch with both installed.
+- With ModAPI, the first launch after installing or updating ForestOverlay asks you to restart the game once; from the next launch both run.
+
 ## v0.24.276 - 2026-10-10
 
 - Savestates put cave stalagmites back as they were at capture: one you broke since is whole again, one broken at capture is broken again (also after a Full load), and the debris of a later break is cleared.
