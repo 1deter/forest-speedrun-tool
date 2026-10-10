@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.273 - 2026-10-10
+
+- If the game freezes for 10 seconds or more, the log now says where it was stuck (also in a stall.log that the QA report zip includes), so a rare freeze can be tracked down.
+
 ## v0.24.272 - 2026-10-10
 
 - Spots save themselves: every edit in the Practice editor is written within a second or so, so a restart no longer loses a rename, a category move or a timed spot's end. The Save and Reload buttons are gone.
