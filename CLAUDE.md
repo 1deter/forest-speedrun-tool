@@ -196,12 +196,22 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0246, T-0056,
-  T-0058, savestate gaps, perf; T-0290 waits for a `Stall:` line); group
+  T-0058, savestate gaps, perf (T-0278 / T-0279: the Quick load's
+  biggest garbage left); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.275 (2026-10-10, T-0202):** a restore of the same state keeps
+  its read (state file parsed, level data, LoadNow given the bytes) and
+  old plane wrecks' nav cutters go with them - two `[Performance]`
+  switches, on (`RestoreKeepLastRead`, `RestoreRemoveWreckCutters`;
+  `Data/KeptRead`). Measured live: 16.9 -> 9.2 MB a warm Quick load of
+  `axe-held` (main thread); the forced GC stays (T-0280). Smoke PASS.
+  To confirm (not its maker): forest-tester flips each switch in the
+  Debug views tab once (the off numbers came from the statics) and
+  repeats a 10-restore loop (tasks/notes/T-0202.md).
 - **v0.24.274 (2026-10-10, T-0276):** Unity's own errors / asserts /
   exceptions (render thread included) are logged as `Unity: [Error] ...`
   (repeats differing only in digits counted, 30 lines a minute) and
@@ -258,8 +268,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   `first-input` and its old times retire (decisions.md *Plugin*). Proved
   on the branch build (mouse look + Esc silent, Space fires); waits for
   the smoke + forest-tester on the release. QA's bot-context request
-  filed as T-0283 (bot paused). T-0202's question answered from T-0280
-  (keep the forced GC) - back to its checker's revise points.
+  filed as T-0283 (bot paused).
 - **Loop R-0006 (2026-10-10 night, author away; `loop.py report`):** 5
   rounds, 4 progressed. **v0.24.268** (T-0075): a cave spot restarted from
   the endgame leaves it as walking out does, so the cave's props load
@@ -267,8 +276,6 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   Go / auto-restart (elevator rides tracked, not scanned). Both confirmed
   by forest-tester on the release. T-0190: the d3d11 texture crash is the
   engine's (gotcha 104). T-0199: no safe main-camera draw cut.
-  **T-0202 parked** on branch `t-0202-restore-garbage` (not on main):
-  restore garbage -23%, checker block until the author answers T-0280.
   **Author questions:** T-0277 (in-cave terrain cut), T-0280 (the forced
   GC per Quick load), T-0276 (Unity's own errors into the session log),
   T-0273 (stalagmites in normal play). New: T-0274 / T-0275 / T-0278 /
@@ -313,8 +320,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   (docs/quality.md *Simplification log*); session-start counts them, then
   skill `harness-review` compares. **Order (author, 2026-10-07):** harness
   first, the redesign after.
-- **Next loop run** would take `tasks.py next --bridge` (T-0202 the
-  restore's ~40 MB, T-0199 main camera draw calls, T-0190, T-0184, ...).
+- **Next loop run** would take `tasks.py next --bridge` (T-0199 main camera draw calls, T-0190, T-0184, ...).
   Built and waiting on a re-eval: T-0158, T-0163 (T-0209 has the misses).
 - **Worktrees:** `ui-redesign` (`.claude/worktrees/agent-a9faea5bc9e1d1cb4`,
   pushed; T-0018..T-0025; T-0036 waits on it) plus merged agent worktrees
