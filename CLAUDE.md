@@ -196,13 +196,27 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 - **Next session:** group 3 of the v1.0 scope (decisions.md *What v1.0
   is*: plugin correctness and stability - T-0056,
-  T-0058, savestate gaps, perf (T-0278: the wreck's navmesh updates,
-  the Quick load's biggest garbage left); T-0290 waits for a `Stall:` line); group
+  T-0058, savestate gaps (T-0029, T-0065, T-0067, T-0269), perf (T-0072,
+  T-0274, T-0275, T-0277, T-0280; T-0278 done in v0.24.281); T-0290 waits for a `Stall:` line); group
   2 (cloud branches) is done. New QA task T-0289 (pin an item not yet
   held: the Filter box also lists unheld items, greyed x0 - author's
   answer recorded). Also
   waiting: the v0.24.272 smoke + forest-tester pass (below), and the
   live Discord look at a PB post once a PB lands (T-0232).
+- **v0.24.281 (2026-10-10, T-0278):** a Quick load skips the re-created
+  plane wreck's two navmesh updates (its cut, the old one's removal) while
+  a wreck stands at the same pose (`[Performance] RestoreSkipSameWreckNav`,
+  on; `Game/WreckNav`, `Data/WreckCuts`; game-notes *Performance*):
+  `axe-held` 0 graph updates in 9 warm restores (off: 5 in 3), garbage
+  22 -> 10 MB a restore, NodeHash the same on / off / after a Full load;
+  the first Quick load after a load still runs the game's (Slot 1's load
+  cuts by the other route). Checker accepted; e2e launch / restart /
+  restores PASS. To confirm (not its maker): forest-tester - 5 Quick
+  loads of `axe-held` log `plane wreck - the restore's new wreck skipped`
+  + `the old wreck's removal skipped` from the 2nd on, no `Pathfinding:
+  graph update queued` at (806.5, 96.1, 627.4). `tasks.py next` names
+  T-0241 (QA tab removal) - it is group 4 (public release), not now.
+
 - **v0.24.280 (2026-10-10, T-0297, QA):** a comparison run's replay
   lasts the run's time (`ReplayCamera.EndOf` had capped it at the last
   position sample: 11.186 vs the site's 11.197); checker accepted. To
