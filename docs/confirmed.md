@@ -379,3 +379,5 @@ Confirmed 2026-10-10 (game, e2e smoke, v0.24.267): **a savestate capture leaves 
 Confirmed 2026-10-10 (game, bridge, v0.24.268): **a cave spot restarted in place from the endgame leaves it (ExitEndgame sent, IsInEndgame false, cave props/DeadBodyPile loaded); an in-cave restart sends nothing; the red elevator restart keeps the endgame (T-0075)**. bridge 2026-10-10.
 
 Confirmed 2026-10-10 (game, bridge, v0.24.269): **a Go / auto-restart arm costs 0-1 ms (was 23-24 ms) with no practicerun slow tick; a Go from an elevator ride still logs "elevator ride stopped" (T-0184)**. bridge 2026-10-10.
+
+Confirmed 2026-10-10 (game, bridge, v0.24.272): **spots autosave in ~1 s (rename, category, timed end kept across a close and a kill 3 s later, no .tmp/.bak, a radius drag writes sparsely, an invalid entry reported once) (T-0217); a local Delete leaves the site copy, the owner's Add puts it back editable, Update -> Replace? takes the website's and keeps the start state, a run after it uploads the new route under the same id, the old deletes.txt is removed once (T-0265 / T-0218)**. bridge 2026-10-10.
