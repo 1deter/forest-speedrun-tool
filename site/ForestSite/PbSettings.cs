@@ -10,9 +10,14 @@ namespace ForestSite;
 // same channel as official-run PBs or a separate one"). The owner sets them
 // on /admin's PB posts tab (GET / PUT /api/admin/pbposts, owner only); one
 // JSON in `pb_settings`, a revision per save, like BotSettings. Off until
-// saved on. The official channel stays FOREST_DISCORD_WEBHOOK (.env).
+// saved on.
 //
-// The own channel's webhook URL is a secret: it is shown to the owner's
+// Community spots and run spots have a webhook each, set on the same tab
+// (T-0294, QA 2026-10-10: separate, and in the web panel rather than the
+// server config). An empty one falls back to FOREST_DISCORD_WEBHOOK (.env),
+// so a site that had only the env var keeps posting after the deploy.
+//
+// Every webhook URL here is a secret: it is shown to the owner's
 // page only, never logged (the Activity log names the request path, not
 // its body), and only a discord.com webhook address is accepted - the site
 // posts to no other host (no SSRF through the admin page).
@@ -27,8 +32,11 @@ public sealed class PbSettings
         RegexOptions.Compiled);
 
     /// What the owner chose. RunnerSpots: post PBs on runners' own spots;
-    /// OwnChannel: to RunnerSpotsWebhook instead of the official channel.
-    public sealed record Values(bool RunnerSpots, bool OwnChannel, string RunnerSpotsWebhook)
+    /// OwnChannel: to RunnerSpotsWebhook instead of the community spots'
+    /// channel. CommunityWebhook / RunSpotsWebhook: those spots' channels,
+    /// empty = FOREST_DISCORD_WEBHOOK.
+    public sealed record Values(bool RunnerSpots, bool OwnChannel, string RunnerSpotsWebhook,
+                                string CommunityWebhook = "", string RunSpotsWebhook = "")
     {
         public static readonly Values Off = new(false, false, "");
     }
@@ -64,27 +72,32 @@ public sealed class PbSettings
         JsonObject o = null;
         try { o = Get("settings") is { } text ? JsonNode.Parse(text) as JsonObject : null; } catch { }
         if (o == null) return Values.Off;
-        return new Values(Bool(o["runnerSpots"]), Str(o["channel"]) == "own", Str(o["webhook"]) ?? "");
+        return new Values(Bool(o["runnerSpots"]), Str(o["channel"]) == "own", Str(o["webhook"]) ?? "",
+                          Str(o["communityWebhook"]) ?? "", Str(o["runSpotsWebhook"]) ?? "");
     }
 
-    /// The page's JSON: { runnerSpots, channel: "same" | "own", webhook }.
-    /// Only for the owner (it holds the secret).
+    /// The page's JSON: { runnerSpots, channel: "same" | "own", webhook,
+    /// communityWebhook, runSpotsWebhook }. Only for the owner (it holds secrets).
     public static JsonObject ToJson(Values v) => new()
     {
         ["runnerSpots"] = v.RunnerSpots, ["channel"] = v.OwnChannel ? "own" : "same", ["webhook"] = v.RunnerSpotsWebhook,
+        ["communityWebhook"] = v.CommunityWebhook, ["runSpotsWebhook"] = v.RunSpotsWebhook,
     };
 
-    /// Validates and saves { runnerSpots, channel, webhook }; returns the new
-    /// revision, or an error message (nothing saved). A webhook is kept while
-    /// the posts are off or go to the same channel, so switching back does
-    /// not mean pasting it again; their own channel needs one.
+    /// Validates and saves { runnerSpots, channel, webhook, communityWebhook,
+    /// runSpotsWebhook }; returns the new revision, or an error message
+    /// (nothing saved). A webhook is kept while the posts are off or go to
+    /// the same channel, so switching back does not mean pasting it again;
+    /// their own channel needs one. communityWebhook / runSpotsWebhook left
+    /// out = kept as saved (a page from before T-0294 does not clear them);
+    /// "" = FOREST_DISCORD_WEBHOOK.
     public (long rev, string error) Save(string body)
     {
         JsonObject input;
         try { input = JsonNode.Parse(body ?? "") as JsonObject; } catch { input = null; }
         if (input == null) return (0, "expected a JSON object");
         foreach (var kv in input)
-            if (kv.Key is not ("runnerSpots" or "channel" or "webhook"))
+            if (kv.Key is not ("runnerSpots" or "channel" or "webhook" or "communityWebhook" or "runSpotsWebhook"))
                 return (0, "unknown setting: " + (kv.Key.Length > 30 ? kv.Key.Substring(0, 30) : kv.Key));
 
         if (input["runnerSpots"] is not JsonValue rv || !rv.TryGetValue(out bool on)) return (0, "runnerSpots: true or false");
@@ -94,8 +107,18 @@ public sealed class PbSettings
         if (webhook.Length > 0 && !DiscordWebhook.IsMatch(webhook))
             return (0, "webhook: a Discord webhook URL (https://discord.com/api/webhooks/...)");
         if (on && channel == "own" && webhook.Length == 0) return (0, "webhook: their own channel needs a webhook URL");
+        string community = _current.CommunityWebhook, runSpots = _current.RunSpotsWebhook;
+        foreach (var (key, set) in new (string, Action<string>)[] { ("communityWebhook", u => community = u), ("runSpotsWebhook", u => runSpots = u) })
+        {
+            if (!input.ContainsKey(key)) continue;
+            if (input[key] != null && Str(input[key]) == null) return (0, key + ": a webhook URL, or empty");
+            string url = (Str(input[key]) ?? "").Trim();
+            if (url.Length > 0 && !DiscordWebhook.IsMatch(url))
+                return (0, key + ": a Discord webhook URL (https://discord.com/api/webhooks/...)");
+            set(url);
+        }
 
-        var v = new Values(on, channel == "own", webhook);
+        var v = new Values(on, channel == "own", webhook, community, runSpots);
         Put("settings", ToJson(v).ToJsonString());
         long rev = Rev + 1;
         Put("rev", rev.ToString(CultureInfo.InvariantCulture));
@@ -127,7 +150,7 @@ public sealed class PbPosts
     /// not posted (off, capped, queue full).
     public bool Post(Runs.PbFound pb, string runnerId)
     {
-        string url = PbNews.Target(pb.Official, Settings.Current, Official.Url);
+        string url = PbNews.Target(pb.Official, pb.RunSpot, Settings.Current, Official.Url);
         if (url == null) return false;
         PbWebhook sender = pb.Official ? Official : RunnerSpots;
         var message = PbNews.Embed(pb, PbNews.RunLink(sender.SiteUrl, pb.Segment, pb.Route, pb.RunId), DateTime.UtcNow);
@@ -139,5 +162,14 @@ public sealed class PbPosts
     {
         var s = Settings.Current;
         return !s.RunnerSpots ? "off" : s.OwnChannel ? "own channel" : "same channel";
+    }
+
+    /// The startup line's word for community / run spots: where their posts
+    /// go - the admin page's webhook, FOREST_DISCORD_WEBHOOK, or off.
+    public string KindState(bool runSpot)
+    {
+        var s = Settings.Current;
+        string saved = runSpot ? s.RunSpotsWebhook : s.CommunityWebhook;
+        return !string.IsNullOrWhiteSpace(saved) ? "admin webhook" : Official.On ? "env webhook" : "off";
     }
 }

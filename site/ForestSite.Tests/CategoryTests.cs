@@ -109,6 +109,39 @@ public sealed class CategoryTests : IDisposable
     }
 
     [Fact]
+    public void Delete_TakesEveryVersion_RefusedWithRuns_SpeedrunOnesStayDeleted()
+    {
+        var cats = New();
+        var c = new RunCategory { Id = "test-cat", Name = "Test" };
+        cats.Save("test-cat", c.Format(), "a");
+        cats.Save("test-cat", c.Format(), "a");
+        // No attempts table yet (Attempts makes it): no runs.
+        Assert.Equal(0, cats.Runs("test-cat", "Test"));
+        Assert.Null(cats.Delete("test-cat").error);
+        Assert.Null(cats.Current("test-cat"));
+        Assert.Null(cats.Version("test-cat", 1));
+        Assert.True(cats.Delete("test-cat").notFound);
+
+        // An attempt naming it, by id or by name (a run spot's `run = `): refused, nothing deleted.
+        new Attempts(_store, _data, () => _now, cats);
+        cats.Save("test-cat", c.Format(), "a");
+        _store.Update("INSERT INTO attempts (id, runner_id, category, spot_id) VALUES ('a1', 'r', 'test', '')");
+        var (error, notFound) = cats.Delete("test-cat");
+        Assert.False(notFound);
+        Assert.Equal("Test has 1 run - a category with runs is not deleted", error);
+        Assert.NotNull(cats.Version("test-cat", 1));
+
+        // A speedrun.com category, deleted: the next check does not bring it back.
+        var seeds = RealSeeds();
+        cats.Apply(seeds);
+        string robeId = RunCategory.Slug("Bathrobe%");
+        Assert.Null(cats.Delete(robeId).error);
+        Assert.DoesNotContain(cats.Apply(seeds), d => d.Contains("Bathrobe"));
+        Assert.DoesNotContain(cats.Apply(seeds.Select(s => s with { Rules = s.Rules + "\n-New rule" }).ToList()), d => d.Contains("Bathrobe"));
+        Assert.Null(cats.Current(robeId));
+    }
+
+    [Fact]
     public void Save_BumpsTheVersion_RefusesAnotherId()
     {
         var cats = New();
@@ -244,6 +277,19 @@ public sealed class CategoryTests : IDisposable
         var view = await http.GetFromJsonAsync<JsonObject>("/api/categories/any-normal/2");
         Assert.Equal(10, (int)view["logcap"]);
         Assert.Equal("Rock", (string)view["caps"][0]["name"]);
+
+        // Delete (T-0250): any admin; gone from the game's list; a second delete is a 404.
+        HttpRequestMessage Delete(string token)
+        {
+            var d = new HttpRequestMessage(HttpMethod.Delete, "/api/admin/categories/any-normal");
+            if (token != null) d.Headers.Add("X-Admin-Token", token);
+            return d;
+        }
+        Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(Delete(null))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await http.SendAsync(Delete("admin-secret"))).StatusCode);
+        Assert.Equal("", await http.GetStringAsync("/api/categories.txt"));
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/api/categories/any-normal/2")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await http.SendAsync(Delete("admin-secret"))).StatusCode);
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
     }
 }

@@ -45,7 +45,8 @@ page goes into its `PAGES` list.
 - Env (`/opt/forest-site/.env`): `FOREST_ADMIN_TOKEN` (the owner),
   `FOREST_BOT_TOKEN` (the knowledge bot's token for its live settings, the
   same value in the bot's `.env`; unset = those endpoints answer 403),
-  `FOREST_ORIGIN_SECRET`, `FOREST_DISCORD_WEBHOOK`, `FOREST_SITE_URL`.
+  `FOREST_ORIGIN_SECRET`, `FOREST_DISCORD_WEBHOOK` (only the fallback for a
+  PB webhook left empty on /admin -> PB posts, T-0294), `FOREST_SITE_URL`.
 - Deploy: every push to `main` touching `site/`, `src/Data/`,
   `community/` deploys (`.github/workflows/site.yml` -> `site/deploy/deploy.sh`;
   one-time setup [`site/deploy/README.md`](../../site/deploy/README.md)).

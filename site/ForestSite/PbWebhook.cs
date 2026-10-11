@@ -9,9 +9,10 @@ namespace ForestSite;
 // ------------------------------------------------------------------
 // A Discord post when an uploaded run sets a runner's new PB on a
 // community spot or a run spot (backlog: author, QA #general 2026-10-02).
-// FOREST_DISCORD_WEBHOOK (env / appsettings) is the webhook's URL; unset =
-// off. PBs on runners' own spots too when the owner switches them on in
-// /admin's PB posts tab, in that channel or their own (PbSettings, T-0232).
+// Each kind's webhook is set in /admin's PB posts tab (PbSettings, T-0294);
+// one left empty falls back to FOREST_DISCORD_WEBHOOK (env / appsettings),
+// unset = off. PBs on runners' own spots too when the owner switches them
+// on there, in the community spots' channel or their own (T-0232).
 // Uploads only queue a line here: a slow, failing or rate-limited
 // webhook never fails or holds up an upload (docs/website.md *Discord*).
 // A post is one Discord embed (PbNews.Embed).
@@ -155,13 +156,17 @@ public static class PbNews
 
     public static string SiteUrl(string url) => string.IsNullOrWhiteSpace(url) ? "https://forest.deter.cloud" : url.Trim().TrimEnd('/');
 
-    /// Where a PB goes: the webhook URL, or null for no post. A community /
-    /// run spot's goes to the official webhook (empty = off); a runner's own
-    /// spot's only when the owner switched those on - to the same webhook,
-    /// or to their own one.
-    public static string Target(bool official, PbSettings.Values s, string officialUrl)
+    /// Where a PB goes: the webhook URL, or null for no post. A community
+    /// spot's and a run spot's each go to their own webhook from the admin
+    /// page, or to `envUrl` (FOREST_DISCORD_WEBHOOK) when that is empty
+    /// (both empty = off); a runner's own spot's only when the owner
+    /// switched those on - to the community spots' channel, or to their own.
+    public static string Target(bool official, bool runSpot, PbSettings.Values s, string envUrl)
     {
-        string url = official ? officialUrl : !s.RunnerSpots ? null : s.OwnChannel ? s.RunnerSpotsWebhook : officialUrl;
+        static string Or(string url, string fallback) => string.IsNullOrWhiteSpace(url) ? fallback : url;
+        string community = Or(s.CommunityWebhook, envUrl);
+        string url = official ? (runSpot ? Or(s.RunSpotsWebhook, envUrl) : community)
+                   : !s.RunnerSpots ? null : s.OwnChannel ? s.RunnerSpotsWebhook : community;
         return string.IsNullOrWhiteSpace(url) ? null : url.Trim();
     }
 }
