@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.286 - 2026-10-11
+
+- Capture at checkpoints now spreads its work over a few frames by default: the worst frame of a capture is about 50 ms instead of about 150 ms (the state is taken a few frames after the checkpoint). Already on 0.24.285? Your config kept it off - turn it on under Performance: 'Checkpoint states: note the capture's extras over several frames'.
+
 ## v0.24.285 - 2026-10-11
 
 - Capture at checkpoints no longer freezes a run for half a second: the worst frame of a capture went from about 600 ms to about 150 ms (the game's memory clean-up is skipped; the saved state is the same).
