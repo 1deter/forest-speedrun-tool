@@ -308,9 +308,13 @@ How it works:
   `category_versions` (every save); `GET /api/categories.txt` (published,
   the plugin's), `GET /api/categories/<id>/<version>`; admin `GET
   /api/admin/categories`, `PUT .../<id>` (one block; the site sets the
-  version), `POST .../<id>/accept|dismiss`, `POST .../sync`. The sync
-  runs a minute after start, then daily (`FOREST_SRC_SYNC=off` in tests).
-  /admin's *Categories* tab edits them.
+  version), `POST .../<id>/accept|dismiss`, `POST .../sync`, `DELETE
+  .../<id>` (T-0250: the category and every version; 409 while any
+  attempt names it by id or name; a speedrun.com one is remembered in
+  `category_sync` as `deleted:<src>` so the sync does not re-add it). The
+  sync runs a minute after start, then daily (`FOREST_SRC_SYNC=off` in
+  tests). /admin's *Categories* tab edits them (*Delete category* in the
+  open form, a second click within 4 s).
 - **Judging** (`Attempts.Overall`, `Categories.Judge`): the report's
   `category = <id> v<n>` picks the version; the game must match
   (difficulty / Creative / multiplayer: red); features used are listed

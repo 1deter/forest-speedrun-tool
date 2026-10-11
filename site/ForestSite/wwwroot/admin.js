@@ -466,6 +466,10 @@ function categoryEditor(x, features, spots, onChange) {
       a.box);
   }
 
+  // Delete (T-0250): a second click within 4 s; the server refuses a category with runs.
+  const del = actions(confirmButton("Delete category", "Click again: delete it and its versions",
+    () => { if (!leaveRefused()) act(del.say, "DELETE", "/categories/" + x.id, () => adminPage("categories")); }));
+
   const node = el("div", { class: "catform", onclick: stop },
     changed,
     field("Name", name),
@@ -487,7 +491,8 @@ function categoryEditor(x, features, spots, onChange) {
     field("Banned moves (one per line)", banned, "Shown on every attempt's page. Detecting them automatically comes later."),
     field("Rules (one per line)", rules),
     c.src ? el("p", { class: "sub" }, "From speedrun.com (" + c.src + "). Last saved by " + x.by + ", " + date(x.at) + ".") : el("p", { class: "sub" }, "Last saved by " + x.by + ", " + date(x.at) + "."),
-    msg);
+    msg,
+    del.box);
   let loaded = state();
   // The caps picker adds and removes by click / Enter, the rest by input / change.
   for (const ev of ["input", "change", "click", "keyup"]) node.addEventListener(ev, () => onChange());

@@ -614,7 +614,13 @@ admin.MapPut("/categories/{id}", async (HttpContext c, string id) =>
     var (saved, error) = categories.Save(id, await Body(c.Request), c.Items["admin"] as string ?? "?");
     return error != null ? Problem(400, error) : Results.Json(new { id = saved.Id, version = saved.Version });
 });
-admin.MapPost("/categories/{id}/accept", (HttpContext c, string id) =>
+// T-0250: refused (409) while any attempt names the category.
+admin.MapDelete("/categories/{id}", (string id) =>
+{
+    var (error, notFound) = categories.Delete(id);
+    return error == null ? Results.Ok() : Problem(notFound ? 404 : 409, error);
+});
+admin.MapPost("/categories/{id}/accept",(HttpContext c, string id) =>
     categories.AcceptSource(id, c.Items["admin"] as string ?? "?") is { } s ? Results.Json(new { id = s.Id, version = s.Version }) : Problem(404, "no change from speedrun.com waiting"));
 admin.MapPost("/categories/{id}/dismiss", (string id) =>
     categories.DismissSource(id) ? Results.Ok() : Problem(404, "no change from speedrun.com waiting"));

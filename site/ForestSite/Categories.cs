@@ -188,6 +188,39 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
         return Put(c, by, row.PendingName, row.PendingRules, true);
     }
 
+    /// How many attempts name the category (by id or by name, as Official
+    /// reads them) - started, abandoned and finished alike.
+    public long Runs(string id, string name)
+    {
+        // The attempts table is Attempts' (a store without it has none).
+        if (!_store.Exists("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'attempts'")) return 0;
+        return _store.Scalar("SELECT COUNT(*) FROM attempts WHERE category = $id OR category = $name COLLATE NOCASE",
+            ("$id", id ?? ""), ("$name", name ?? "")) is long n ? n : 0;
+    }
+
+    /// A moderator's delete (T-0250): the category and all its versions go.
+    /// Refused while any attempt names it - its page judges against the
+    /// version it ran under (what to do with those runs is the author's call,
+    /// tasks/notes/T-0250.md). A speedrun.com category is remembered as
+    /// deleted, so the daily check does not bring it back as a new draft.
+    /// Returns null, or why not (`notFound` for a 404).
+    public (string error, bool notFound) Delete(string id)
+    {
+        var row = Rows("WHERE id = $id", ("$id", id ?? "")).FirstOrDefault();
+        if (row == null) return ("no such category", true);
+        string name = Read(row.Text)?.Name ?? row.Id;
+        long runs = Runs(row.Id, name);
+        if (runs > 0) return (name + " has " + runs + (runs == 1 ? " run" : " runs") + " - a category with runs is not deleted", false);
+        _store.Update("DELETE FROM category_versions WHERE id = $id", ("$id", row.Id));
+        _store.Update("DELETE FROM categories WHERE id = $id", ("$id", row.Id));
+        if (row.Src.Length > 0)
+            _store.Update("INSERT INTO category_sync (k, v) VALUES ($k, $v) ON CONFLICT (k) DO UPDATE SET v = $v",
+                ("$k", DeletedKey + row.Src), ("$v", row.Id));
+        return (null, false);
+    }
+
+    private const string DeletedKey = "deleted:";
+
     /// speedrun.com's change set aside: the category stays as it is.
     public bool DismissSource(string id) =>
         _store.Update(@"UPDATE categories SET src_name = COALESCE(pending_name, src_name), src_rules = COALESCE(pending_rules, src_rules),
@@ -295,6 +328,8 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
         {
             if (!bySrc.TryGetValue(s.Src, out var row))
             {
+                // A moderator deleted it (Delete): it stays deleted.
+                if (_store.Exists("SELECT 1 FROM category_sync WHERE k = $k", ("$k", DeletedKey + s.Src))) continue;
                 var c = Draft(s);
                 if (!RunCategory.ValidId(c.Id)) continue;
                 string baseId = c.Id;
