@@ -530,7 +530,13 @@ namespace ForestOverlay.Modules
                     if (s.SetTrendText(state, typed)) _trendFrom[r] = s.TrendText(state);   // keep the text as typed
                 }
                 if (GUI.Button(new Rect(210, y, 70, 22), "default"))
+                {
+                    // The field follows even when the stored colour already is the
+                    // default (bad text typed over it changes nothing stored).
                     s.SetTrendText(state, HudTrend.Format(HudSettings.TrendDefaults[(int)state]));
+                    _trendFrom[r] = s.TrendText(state);
+                    _trendEdit[r] = _trendFrom[r] ?? "";
+                }
                 y += 24f;
                 uint parsed;
                 if (!HudTrend.TryParse(_trendEdit[r], out parsed))
