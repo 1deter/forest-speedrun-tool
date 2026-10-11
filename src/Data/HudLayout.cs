@@ -13,10 +13,12 @@ namespace ForestOverlay.Data
     // here are only the values with a change:
     //
     //   - FREE: dragged out of the column, placed anywhere, sized by scale;
-    //   - text BEFORE / AFTER the value, the runner's own ("Speed ", " u/s").
+    //   - text BEFORE / AFTER the value, the runner's own ("Speed ", " u/s");
+    //   - TREND: the value coloured by whether it is gaining / losing /
+    //     steady (Data/HudTrend, T-0023), on a value that offers it.
     //
     //   # ForestOverlay HUD layout
-    //   ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s"
+    //   ShowSpeed: free, x=24, y=80, scale=2.5, after=" u/s", trend
     //   ShowPosition: before="Pos "
     //
     // An empty layout is the default look. Pure and forgiving: unknown keys /
@@ -32,9 +34,11 @@ namespace ForestOverlay.Data
         public float Scale = 1f;
         /// The runner's text around the value; never null.
         public string Before = "", After = "";
+        /// Coloured by its trend (T-0023).
+        public bool Trend;
 
-        /// Nothing left to keep: in the column, no text.
-        public bool IsDefault { get { return !Free && Before.Length == 0 && After.Length == 0; } }
+        /// Nothing left to keep: in the column, no text, no trend colour.
+        public bool IsDefault { get { return !Free && Before.Length == 0 && After.Length == 0 && !Trend; } }
     }
 
     public sealed class HudLayout
@@ -111,6 +115,28 @@ namespace ForestOverlay.Data
             return true;
         }
 
+        /// The trend colour on or off for a value. False when nothing changed.
+        public bool SetTrend(string key, bool on)
+        {
+            if (key == null) return false;
+            HudWidgetLayout w = Find(key);
+            if (w == null)
+            {
+                if (!on) return false;
+                w = Get(key);
+            }
+            if (w.Trend == on) return false;
+            w.Trend = on;
+            if (w.IsDefault) Widgets.Remove(w);
+            return true;
+        }
+
+        public bool HasTrend(string key)
+        {
+            HudWidgetLayout w = Find(key);
+            return w != null && w.Trend;
+        }
+
         /// One line, at most MaxText characters (a line break or tab would
         /// break the file and the column's line height).
         public static string CleanText(string s)
@@ -173,6 +199,7 @@ namespace ForestOverlay.Data
                     string tok = tokens[t].Trim();
                     if (tok.Length == 0) continue;
                     if (string.Equals(tok, "free", StringComparison.OrdinalIgnoreCase)) { w.Free = true; continue; }
+                    if (string.Equals(tok, "trend", StringComparison.OrdinalIgnoreCase)) { w.Trend = true; continue; }
                     int eq = tok.IndexOf('=');
                     if (eq <= 0) continue;
                     string name = tok.Substring(0, eq).Trim().ToLowerInvariant();
@@ -252,7 +279,8 @@ namespace ForestOverlay.Data
                     sep = ", ";
                 }
                 if (w.Before.Length > 0) { sb.Append(sep).Append("before=").Append(Quote(w.Before)); sep = ", "; }
-                if (w.After.Length > 0) sb.Append(sep).Append("after=").Append(Quote(w.After));
+                if (w.After.Length > 0) { sb.Append(sep).Append("after=").Append(Quote(w.After)); sep = ", "; }
+                if (w.Trend) sb.Append(sep).Append("trend");
                 sb.Append('\n');
             }
             return sb.ToString();

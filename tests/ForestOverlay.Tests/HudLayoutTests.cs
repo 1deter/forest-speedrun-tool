@@ -113,6 +113,52 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void TrendRoundTripsAndIsKeptAlone()
+        {
+            HudLayout a = new HudLayout();
+            Assert.True(a.SetTrend("ShowSpeed", true));
+            Assert.False(a.SetTrend("ShowSpeed", true));
+            a.Detach("ShowTotalSpeed", 10f, 20f);
+            a.SetText("ShowTotalSpeed", "", " u/s");
+            a.SetTrend("ShowTotalSpeed", true);
+
+            string text = a.Format();
+            Assert.Contains("ShowSpeed: trend\n", text);
+            Assert.Contains("after=\" u/s\", trend", text);
+            HudLayout b = HudLayout.Parse(text);
+            Assert.True(b.HasTrend("ShowSpeed"));
+            Assert.False(b.IsFree("ShowSpeed"));
+            Assert.True(b.HasTrend("ShowTotalSpeed"));
+            Assert.True(b.IsFree("ShowTotalSpeed"));
+            Assert.Equal(" u/s", b.Find("ShowTotalSpeed").After);
+            Assert.False(b.HasTrend("ShowPosition"));
+        }
+
+        [Fact]
+        public void TrendOffLeavesNothingToKeep()
+        {
+            HudLayout l = new HudLayout();
+            Assert.False(l.SetTrend("ShowSpeed", false));
+            Assert.Null(l.Find("ShowSpeed"));
+            l.SetTrend("ShowSpeed", true);
+            l.Detach("ShowSpeed", 1f, 2f);
+            Assert.True(l.Attach("ShowSpeed"));
+            Assert.True(l.HasTrend("ShowSpeed"));          // back in the column, still coloured
+            Assert.True(l.SetTrend("ShowSpeed", false));
+            Assert.Null(l.Find("ShowSpeed"));
+            Assert.False(l.SetTrend(null, true));
+        }
+
+        [Fact]
+        public void TrendTokenIsCaseBlindAndAnOldFileHasNone()
+        {
+            Assert.True(HudLayout.Parse("ShowSpeed: TREND").HasTrend("ShowSpeed"));
+            HudLayout old = HudLayout.Parse("ShowSpeed: free, x=1, y=2, scale=2");
+            Assert.False(old.HasTrend("ShowSpeed"));
+            Assert.True(old.IsFree("ShowSpeed"));
+        }
+
+        [Fact]
         public void DecorateWrapsTheValue()
         {
             Assert.Equal("12.3", HudLayout.Decorate("", "12.3", ""));

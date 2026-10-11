@@ -35,9 +35,12 @@ namespace ForestOverlay.Data
         public readonly bool Locked;
         /// Switched by its own module's setting (the 100% tab's), not by [HUD].
         public readonly bool External;
+        /// A single number that rises and falls: offers the trend colour
+        /// (Data/HudTrend, T-0023), switched on per value in Edit HUD.
+        public readonly bool Trend;
 
         public HudLine(string module, string label, string configKey, string name, string description,
-                       bool defaultOn, bool locked, bool external)
+                       bool defaultOn, bool locked, bool external, bool trend = false)
         {
             Module = module;
             Label = label;
@@ -47,6 +50,7 @@ namespace ForestOverlay.Data
             DefaultOn = defaultOn;
             Locked = locked;
             External = external;
+            Trend = trend;
         }
 
         /// Has a [HUD] config switch of its own.
@@ -76,11 +80,11 @@ namespace ForestOverlay.Data
               "The box's title: Forest Overlay and its version."),
             L("update", "Update", "ShowUpdate", "Update check",
               "Whether a newer version is out (or that the check worked)."),
-            L("runinfo", "Speed", "ShowSpeed", "Speed",
-              "Horizontal speed (u/s)."),
+            new HudLine("runinfo", "Speed", "ShowSpeed", "Speed",
+              "Horizontal speed (u/s).", true, false, false, trend: true),
             // One value per line (author, 2026-10-05: no "(tot x)" inside the speed).
             new HudLine("runinfo", "Total", "ShowTotalSpeed", "Total speed",
-              "Speed including falling and jumping (u/s).", false, false, false),
+              "Speed including falling and jumping (u/s).", false, false, false, trend: true),
             L("runinfo", "Vel", "ShowVelocity", "Velocity",
               "Velocity along x, y and z."),
             L("runinfo", "Pos", "ShowPosition", "Position",
