@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-227 prefixes from 709 log calls.
+229 prefixes from 711 log calls.
 
 ## `Aerial capture`
 
@@ -621,6 +621,20 @@ Written by HudWidgets.Profiles.cs, ModuleHost.cs; info / warning / error.
 - info `HUD profile: switched to <name>.`
 - warning `HUD profile: the old layout file not read (<ex.Message>) - Default starts with every value in the column.`
 - error `HUD profile: not loaded - <ex>`
+
+## `HUD scale`
+
+Meaning: The screen the placed HUD pieces are drawn for, logged once at the first draw and again when the resolution (or the sizes-follow option) changes: screen, the reference screen the saved places were made at, and the GUI scale.
+Written by HudSettings.cs; info.
+
+- info `HUD scale: <..>.`
+
+## `HUD sizes`
+
+Meaning: The runner flipped Settings -> HUD -> "Sizes follow the screen": the pieces now follow the screen size, or stay in pixels.
+Written by SettingsModule.cs; info.
+
+- info `HUD sizes <..>`
 
 ## `HUD widget`
 

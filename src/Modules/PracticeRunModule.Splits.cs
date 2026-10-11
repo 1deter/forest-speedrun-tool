@@ -621,9 +621,20 @@ namespace ForestOverlay.Modules
             _panelStyle = UiKit.Style(UiKit.WidgetCard);
         }
 
+        // The panels are drawn in the scaled screen (T-0318); the replay labels
+        // sit at world positions in real screen pixels, so they stay outside.
+        private UiScale HudUi { get { return Host.Hud.Settings.Scale(); } }
+
         public override void DrawScreen()
         {
             DrawReplayLabels();
+            Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
+            try { DrawPanels(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawPanels()
+        {
             bool editing = HudEditing;
             DrawResults(editing);
             if (!editing && _resizeMode != 0) EndResize();   // the edit ended mid-gesture
@@ -642,7 +653,7 @@ namespace ForestOverlay.Modules
             }
             EnsureSplitStyles();
 
-            float w = Mathf.Clamp(PanelWidthNow, MinPanelW, Screen.width);
+            float w = Mathf.Clamp(PanelWidthNow, MinPanelW, HudUi.VW);
             int rows = PanelRowsNow;
             // In edit mode the outline is the most rows it will show, so the
             // bottom edge visibly moves while it is dragged.
@@ -651,13 +662,13 @@ namespace ForestOverlay.Modules
             if (_resizeMode != 0) { x = _resizeX; y = _resizeY; }
             else
             {
-                float px = _dragging ? _dragX : _panelX.Value;
-                float py = _dragging ? _dragY : _panelY.Value;
+                float px = _dragging ? _dragX : HudUi.PosX(_panelX.Value);
+                float py = _dragging ? _dragY : HudUi.PosY(_panelY.Value);
                 // PanelX < 0 means "against the right edge" - but only as a
                 // saved setting: a drag past the left edge must stop at 0, not
                 // read as that and jump right (author, v0.24.151, windowed).
-                x = px < 0f && !_dragging ? Screen.width - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+                x = px < 0f && !_dragging ? HudUi.VW - w - 8f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
             }
             Rect panel = new Rect(x, y, w, h);
             if (editing) Host.Hud.Widgets.ReportPiece(SplitsPiece, panel);   // the others snap to it (T-0020)
@@ -702,7 +713,7 @@ namespace ForestOverlay.Modules
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !panel.Contains(e.mousePosition) || main.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !panel.Contains(e.mousePosition) || Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition)) return;
                     _dragging = true;
                     _dragOffset = e.mousePosition - new Vector2(panel.x, panel.y);
                     _dragX = panel.x;
@@ -733,9 +744,9 @@ namespace ForestOverlay.Modules
         {
             _dragging = false;
             if (HudEditing) Host.Hud.Widgets.EndSnap();
-            float w = Mathf.Clamp(_panelWidth.Value, MinPanelW, Screen.width);
-            _panelX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _panelY.Value = Mathf.Max(0f, _dragY);
+            float w = Mathf.Clamp(_panelWidth.Value, MinPanelW, HudUi.VW);
+            _panelX.Value = HudUi.ToRefX(Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, HudUi.VW - w)));   // saved in reference pixels
+            _panelY.Value = HudUi.ToRefY(Mathf.Max(0f, _dragY));
             Ctx.Log.LogInfo("Splits panel moved to (" + Mathf.RoundToInt(_panelX.Value) + ", " + Mathf.RoundToInt(_panelY.Value) + ").");
         }
 
@@ -752,7 +763,7 @@ namespace ForestOverlay.Modules
                 case EventType.MouseDown:
                     if (e.button != 0 || _resizeMode != 0 || _dragging) return;
                     MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
-                    if (main != null && main.ScreenRect.Contains(m)) return;
+                    if (main != null && Host.Hud.Settings.Virtual(main.ScreenRect).Contains(m)) return;
                     bool corner = m.x >= panel.xMax - CornerSize && m.x <= panel.xMax + EdgeGrab &&
                                   m.y >= panel.yMax - CornerSize && m.y <= panel.yMax + EdgeGrab;
                     bool right = m.x >= panel.xMax - EdgeGrab && m.x <= panel.xMax + EdgeGrab && m.y >= panel.y && m.y <= panel.yMax;
@@ -776,7 +787,7 @@ namespace ForestOverlay.Modules
                     if (_resizeMode == 0) return;
                     if ((_resizeMode & 1) != 0)
                         _liveW = Mathf.Clamp(Mathf.Round(_resizeStartW + m.x - _resizeStart.x), MinPanelW,
-                                             Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, Screen.width - _resizeX)));
+                                             Mathf.Max(MinPanelW, Mathf.Min(MaxPanelW, HudUi.VW - _resizeX)));
                     if ((_resizeMode & 4) != 0)
                     {
                         // The right edge stays put.
@@ -807,8 +818,8 @@ namespace ForestOverlay.Modules
             c.SaveOnConfigSet = false;
             // A panel against the right edge stays there unless its right
             // edge was the one dragged.
-            _panelX.Value = _resizeDocked && (_resizeMode & 1) == 0 ? -1f : Mathf.Round(_resizeX);
-            _panelY.Value = Mathf.Round(_resizeY);
+            _panelX.Value = _resizeDocked && (_resizeMode & 1) == 0 ? -1f : Mathf.Round(HudUi.ToRefX(_resizeX));
+            _panelY.Value = Mathf.Round(HudUi.ToRefY(_resizeY));
             _panelWidth.Value = _liveW;
             _panelRows.Value = _liveRows;
             c.SaveOnConfigSet = saveEach;

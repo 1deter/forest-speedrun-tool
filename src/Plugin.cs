@@ -360,11 +360,20 @@ namespace ForestOverlay
 
         private void DrawHud()
         {
+            // Drawn in the scaled screen (T-0318): same look at every resolution.
+            Matrix4x4 outer = _host.Hud.Settings.BeginScaled();
+            try { DrawHudScaled(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawHudScaled()
+        {
             HudSettings s = _host.Hud.Settings;
+            UiScale ui = s.Ui;
             if (_hudStyleVersion != s.Version) ApplyHudStyle(s);
 
             int px = s.TextSize;
-            float wrapW = HudLines.Width(px, Screen.width) - 24f;
+            float wrapW = HudLines.Width(px, ui.VW) - 24f;
             float lineHeight = HudLines.LineHeight(px);
             HudBuilder hud = _host.Hud;
             HudWidgets widgets = hud.Widgets;
@@ -401,18 +410,18 @@ namespace ForestOverlay
                 colH = Mathf.Max(colH, lineHeight);
             }
 
-            float x = HudLines.Clamp(_hudDragging ? _hudDragX : s.X, colW, Screen.width);
-            float y = HudLines.Clamp(_hudDragging ? _hudDragY : s.Y, colH, Screen.height);
+            float x = HudLines.Clamp(_hudDragging ? _hudDragX : ui.PosX(s.X), colW, ui.VW);
+            float y = HudLines.Clamp(_hudDragging ? _hudDragY : ui.PosY(s.Y), colH, ui.VH);
             Rect col = new Rect(x, y, colW, colH);
 
             if (_mainWindow == null) _mainWindow = _host.Find<MainWindowModule>();
-            Rect blocked = _mainWindow != null ? _mainWindow.ScreenRect : new Rect();
+            Rect blocked = _mainWindow != null ? s.Virtual(_mainWindow.ScreenRect) : new Rect();
 
             // Edit mode: a press on a value places it on its own (HudWidgets);
             // the column moves by its grip only. Not editing, nothing moves:
             // the F2 window alone is not a drag mode (author, 2026-10-11, T-0317).
             Rect grip = new Rect(col.xMax + 6f, y, GripW, colH);
-            if (grip.xMax > Screen.width) grip.x = col.x - 6f - GripW;
+            if (grip.xMax > ui.VW) grip.x = col.x - 6f - GripW;
             if (editing)
             {
                 float ly = y;
@@ -490,7 +499,7 @@ namespace ForestOverlay
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !hit.Contains(e.mousePosition) || _mainWindow.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !hit.Contains(e.mousePosition) || s.Virtual(_mainWindow.ScreenRect).Contains(e.mousePosition)) return;
                     _hudDragging = true;
                     _hudDragOffset = e.mousePosition - new Vector2(col.x, col.y);
                     _hudDragX = col.x;
@@ -499,8 +508,8 @@ namespace ForestOverlay
                     break;
                 case EventType.MouseDrag:
                     if (!_hudDragging) return;
-                    _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, col.width, Screen.width);
-                    _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, col.height, Screen.height);
+                    _hudDragX = HudLines.Clamp(e.mousePosition.x - _hudDragOffset.x, col.width, s.Ui.VW);
+                    _hudDragY = HudLines.Clamp(e.mousePosition.y - _hudDragOffset.y, col.height, s.Ui.VH);
                     // Edit HUD mode: snaps to the screen and the other pieces (T-0020).
                     HudWidgets widgets = _host.Hud.Widgets;
                     if (widgets != null)
@@ -523,8 +532,9 @@ namespace ForestOverlay
         {
             _hudDragging = false;
             if (_host.Hud.Widgets != null) _host.Hud.Widgets.EndSnap();
-            s.SetPosition(Mathf.Round(HudLines.Clamp(_hudDragX, col.width, Screen.width)),
-                          Mathf.Round(HudLines.Clamp(_hudDragY, col.height, Screen.height)));
+            // Saved in reference pixels (Data/UiScale).
+            s.SetPosition(Mathf.Round(s.Ui.ToRefX(HudLines.Clamp(_hudDragX, col.width, s.Ui.VW))),
+                          Mathf.Round(s.Ui.ToRefY(HudLines.Clamp(_hudDragY, col.height, s.Ui.VH))));
             Logger.LogInfo("HUD column moved to (" + Mathf.RoundToInt(s.X) + ", " + Mathf.RoundToInt(s.Y) + ").");
         }
     }

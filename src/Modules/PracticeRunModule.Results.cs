@@ -369,16 +369,16 @@ namespace ForestOverlay.Modules
             EnsureSplitStyles();
             EnsureResultStyles();
 
-            float w = Mathf.Clamp(_resResizing ? _resLiveW : _resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
+            float w = Mathf.Clamp(_resResizing ? _resLiveW : _resWidth.Value, 300f, Mathf.Max(300f, HudUi.VW - 16f));
             float inner = w - 16f;
             float h;
             if (real)
             {
                 _resRowCap = int.MaxValue;
                 h = ResultsBody(0f, 0f, inner, false, false) + 12f;
-                if (h > Screen.height && _resRows > 3)
+                if (h > HudUi.VH && _resRows > 3)
                 {
-                    _resRowCap = Mathf.Max(3, _resRows - Mathf.CeilToInt((h - Screen.height) / ResRowH) - 1);
+                    _resRowCap = Mathf.Max(3, _resRows - Mathf.CeilToInt((h - HudUi.VH) / ResRowH) - 1);
                     h = ResultsBody(0f, 0f, inner, false, false) + 12f;
                 }
                 int hidden = _resRows - Mathf.Min(_resRows, _resRowCap);
@@ -393,17 +393,17 @@ namespace ForestOverlay.Modules
             if (_resResizing) { x = _resResizeX; y = _resResizeY; }
             else
             {
-                float px = _resDragging ? _resDragX : _resX.Value;
-                float py = _resDragging ? _resDragY : _resY.Value;
-                x = px < 0f && !_resDragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+                float px = _resDragging ? _resDragX : HudUi.PosX(_resX.Value);
+                float py = _resDragging ? _resDragY : HudUi.PosY(_resY.Value);
+                x = px < 0f && !_resDragging ? (HudUi.VW - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+                y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
             }
             Rect panel = new Rect(x, y, w, h);
             if (editing) Host.Hud.Widgets.ReportPiece(ResultsPiece, panel);   // the others snap to it (T-0020)
 
             MainWindowModule main = Host != null ? Host.Find<MainWindowModule>() : null;
             Event e = Event.current;
-            bool overWindow = main != null && e != null && main.ScreenRect.Contains(e.mousePosition);
+            bool overWindow = main != null && e != null && Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition);
             if (editing) HandleResultsResize(panel, overWindow);
             // Edit HUD only: the F2 window or the pause menu alone is not a
             // drag mode (author, 2026-10-11, T-0317); the buttons stay live.
@@ -448,7 +448,7 @@ namespace ForestOverlay.Modules
                 case EventType.MouseDrag:
                     if (!_resResizing) return;
                     _resLiveW = Mathf.Clamp(Mathf.Round(_resResizeStartW + m.x - _resResizeStartMouse), 300f,
-                                            Mathf.Max(300f, Screen.width - _resResizeX));
+                                            Mathf.Max(300f, HudUi.VW - _resResizeX));
                     e.Use();
                     break;
                 case EventType.MouseUp:
@@ -466,8 +466,8 @@ namespace ForestOverlay.Modules
             ConfigFile c = Ctx.Config;
             bool saveEach = c.SaveOnConfigSet;
             c.SaveOnConfigSet = false;
-            _resX.Value = Mathf.Round(_resResizeX);
-            _resY.Value = Mathf.Round(_resResizeY);
+            _resX.Value = Mathf.Round(HudUi.ToRefX(_resResizeX));   // saved in reference pixels (T-0318)
+            _resY.Value = Mathf.Round(HudUi.ToRefY(_resResizeY));
             _resWidth.Value = _resLiveW;
             c.SaveOnConfigSet = saveEach;
             c.Save();
@@ -518,9 +518,9 @@ namespace ForestOverlay.Modules
         {
             _resDragging = false;
             if (HudEditing) Host.Hud.Widgets.EndSnap();
-            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, Screen.width - 16f));
-            _resX.Value = Mathf.Clamp(_resDragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _resY.Value = Mathf.Max(0f, _resDragY);
+            float w = Mathf.Clamp(_resWidth.Value, 300f, Mathf.Max(300f, HudUi.VW - 16f));
+            _resX.Value = HudUi.ToRefX(Mathf.Clamp(_resDragX, 0f, Mathf.Max(0f, HudUi.VW - w)));
+            _resY.Value = HudUi.ToRefY(Mathf.Max(0f, _resDragY));
             Ctx.Log.LogInfo("Results panel moved to (" + Mathf.RoundToInt(_resX.Value) + ", " + Mathf.RoundToInt(_resY.Value) + ").");
         }
     }

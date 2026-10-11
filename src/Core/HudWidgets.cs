@@ -319,7 +319,7 @@ namespace ForestOverlay.Core
                     int line = _pullLine;
                     _pullLine = -1;
                     Vector2 at = e.mousePosition - _pullOffset;
-                    Detach(line, Mathf.Max(0f, at.x - CardPad), Mathf.Max(0f, at.y - CardPad));
+                    Detach(line, _settings.Ui.ToRefX(Mathf.Max(0f, at.x - CardPad)), _settings.Ui.ToRefY(Mathf.Max(0f, at.y - CardPad)));   // saved in reference pixels (T-0318)
                     for (int i = 0; i < _layout.Widgets.Count; i++)
                         if (_widgetLine[i] == line) _dragWidget = i;
                     _dragOffset = _pullOffset + new Vector2(CardPad, CardPad);
@@ -370,8 +370,9 @@ namespace ForestOverlay.Core
             width += CardPad * 2f;
             height += CardPad * 2f - 2f;
 
-            float x = Mathf.Clamp(w.X, 0f, Mathf.Max(0f, Screen.width - width));
-            float y = Mathf.Clamp(w.Y, 0f, Mathf.Max(0f, Screen.height - height));
+            UiScale ui = _settings.Ui;
+            float x = Mathf.Clamp(ui.PosX(w.X), 0f, Mathf.Max(0f, ui.VW - width));
+            float y = Mathf.Clamp(ui.PosY(w.Y), 0f, Mathf.Max(0f, ui.VH - height));
             Rect rect = new Rect(x, y, width, height);
 
             if (Editing && e != null)
@@ -383,8 +384,8 @@ namespace ForestOverlay.Core
             // A drag moved it during the handler: draw where it is now.
             if (_dragWidget == i || _resizeWidget == i)
             {
-                x = Mathf.Clamp(w.X, 0f, Mathf.Max(0f, Screen.width - width));
-                y = Mathf.Clamp(w.Y, 0f, Mathf.Max(0f, Screen.height - height));
+                x = Mathf.Clamp(ui.PosX(w.X), 0f, Mathf.Max(0f, ui.VW - width));
+                y = Mathf.Clamp(ui.PosY(w.Y), 0f, Mathf.Max(0f, ui.VH - height));
                 rect = new Rect(x, y, width, height);
             }
             _rects[i] = rect;
@@ -460,11 +461,12 @@ namespace ForestOverlay.Core
                 case EventType.MouseDrag:
                     if (_dragWidget == i)
                     {
-                        float dx = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, Screen.width - width));
-                        float dy = Mathf.Clamp(e.mousePosition.y - _dragOffset.y, 0f, Mathf.Max(0f, Screen.height - rect.height));
+                        UiScale ui = _settings.Ui;
+                        float dx = Mathf.Clamp(e.mousePosition.x - _dragOffset.x, 0f, Mathf.Max(0f, ui.VW - width));
+                        float dy = Mathf.Clamp(e.mousePosition.y - _dragOffset.y, 0f, Mathf.Max(0f, ui.VH - rect.height));
                         Vector2 at = Snap(new Rect(dx, dy, width, rect.height), null, i);
-                        w.X = at.x;
-                        w.Y = at.y;
+                        w.X = ui.ToRefX(at.x);
+                        w.Y = ui.ToRefY(at.y);
                         DropOnColumn = OverColumn(e.mousePosition);
                         e.Use();
                     }

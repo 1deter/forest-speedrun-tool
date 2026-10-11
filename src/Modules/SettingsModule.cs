@@ -115,6 +115,11 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent CompactText = new GUIContent(" Compact: fewer words");
         private static readonly GUIContent CompactNote = new GUIContent(
             "Shorter values (no stack count, no units) and the short title.");
+        // T-0318. Words proposed, not yet approved by the author.
+        private static readonly GUIContent SizesFollowText = new GUIContent(" Sizes follow the screen");
+        private static readonly GUIContent SizesFollowNote = new GUIContent(
+            "On: the HUD, splits, results and run code keep the same look at every resolution. " +
+            "Off: their sizes stay in pixels. Their places always stay put relative to the screen.");
         private static readonly GUIContent LockedNote = new GUIContent("always shown");
         // The trend colours (T-0023). Words proposed, not yet approved by the author.
         private static readonly GUIContent TrendTitle = new GUIContent("Trend colours");
@@ -440,6 +445,16 @@ namespace ForestOverlay.Modules
             y += placeH;
             if (GUI.Button(new Rect(4, y, 130, 22), "Reset position")) s.SetPosition(HudSettings.DefaultX, HudSettings.DefaultY);
             y += 30f;
+
+            Rect followR = new Rect(4, y, cw - 8, 22);
+            bool follow = UiKit.Toggle(followR, s.SizesFollow, SizesFollowText);
+            if (follow != s.SizesFollow)
+            {
+                s.SizesFollow = follow;
+                Ctx.Log.LogInfo("HUD sizes " + (follow ? "follow the screen." : "stay in pixels."));
+            }
+            UiKit.Hint(followR, SizesFollowNote);
+            y += 28f;
 
             y = DrawTrendColours(y, cw, s);
 

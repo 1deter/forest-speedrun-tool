@@ -310,7 +310,19 @@ namespace ForestOverlay.Modules
             }
         }
 
+        // Drawn in the scaled screen (T-0318), like the other HUD pieces.
+        private UiScale HudUi { get { return Host.Hud.Settings.Scale(); } }
+
         public override void DrawScreenAlways()
+        {
+            if (!Ctx.Run.Active) return;
+            if (Ctx.Run.Category != null && !Ctx.Run.Category.AntiSplice) return;
+            Matrix4x4 outer = Host.Hud.Settings.BeginScaled();
+            try { DrawCodeBox(); }
+            finally { GUI.matrix = outer; }
+        }
+
+        private void DrawCodeBox()
         {
             if (!Ctx.Run.Active) return;
             // A category without the anti-splice codes: none on screen
@@ -320,10 +332,10 @@ namespace ForestOverlay.Modules
             float size = _styleSize;
             float w = Mathf.Max(size * 3.4f + 24f, _subStyle.CalcSize(_codeSub).x + 16f);
             float h = size * 1.25f + _subStyle.fontSize * 1.6f + 8f;
-            float px = _dragging ? _dragX : _codeX.Value;
-            float py = _dragging ? _dragY : _codeY.Value;
-            float x = px < 0f && !_dragging ? (Screen.width - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, Screen.width - w));
-            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, Screen.height - h));
+            float px = _dragging ? _dragX : HudUi.PosX(_codeX.Value);
+            float py = _dragging ? _dragY : HudUi.PosY(_codeY.Value);
+            float x = px < 0f && !_dragging ? (HudUi.VW - w) * 0.5f : Mathf.Clamp(px, 0f, Mathf.Max(0f, HudUi.VW - w));
+            float y = Mathf.Clamp(py, 0f, Mathf.Max(0f, HudUi.VH - h));
             Rect box = new Rect(x, y, w, h);
             HandleCodeDrag(box, w);
 
@@ -354,7 +366,7 @@ namespace ForestOverlay.Modules
             switch (e.type)
             {
                 case EventType.MouseDown:
-                    if (e.button != 0 || !box.Contains(e.mousePosition) || main.ScreenRect.Contains(e.mousePosition)) return;
+                    if (e.button != 0 || !box.Contains(e.mousePosition) || Host.Hud.Settings.Virtual(main.ScreenRect).Contains(e.mousePosition)) return;
                     _dragging = true;
                     _dragOffset = e.mousePosition - new Vector2(box.x, box.y);
                     _dragX = box.x;
@@ -378,8 +390,8 @@ namespace ForestOverlay.Modules
         private void EndCodeDrag(float w)
         {
             _dragging = false;
-            _codeX.Value = Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, Screen.width - w));
-            _codeY.Value = Mathf.Max(0f, _dragY);
+            _codeX.Value = HudUi.ToRefX(Mathf.Clamp(_dragX, 0f, Mathf.Max(0f, HudUi.VW - w)));   // saved in reference pixels (T-0318)
+            _codeY.Value = HudUi.ToRefY(Mathf.Max(0f, _dragY));
             Ctx.Log.LogInfo("Run code moved to (" + Mathf.RoundToInt(_codeX.Value) + ", " + Mathf.RoundToInt(_codeY.Value) + ").");
         }
     }

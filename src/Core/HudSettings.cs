@@ -24,6 +24,8 @@ namespace ForestOverlay.Core
         private readonly ConfigEntry<float> _x, _y;
         private readonly ConfigEntry<string>[] _trend = new ConfigEntry<string>[3];   // by TrendState
         private readonly ConfigFile _config;
+        private readonly ConfigEntry<int> _refW, _refH;
+        private readonly ConfigEntry<bool> _sizesFollow;
 
         /// Bumped on every change, so a cached look (styles) knows to rebuild.
         public int Version { get; private set; }
@@ -43,10 +45,81 @@ namespace ForestOverlay.Core
                 "Text size in px of the column of values and the practice / ON NOW warnings (0 = the game's default; offered: 10, 11, 12, 14, 16, 18, 20, 24). A value placed on its own has its own size.");
             _x = config.Bind("HUD", "X", DefaultX, "The column of values: position from the left, in pixels (drag it with Edit HUD on).");
             _y = config.Bind("HUD", "Y", DefaultY, "The column of values: position from the top, in pixels.");
+            // The screen the saved positions and sizes were made at (T-0318). Set
+            // once, on the first draw, to the screen then; never changed after.
+            _refW = config.Bind("HUD", "ReferenceWidth", 0, "Screen width the saved HUD positions and sizes were made at (set once, 0 = not yet; leave it).");
+            _refH = config.Bind("HUD", "ReferenceHeight", 0, "Screen height the saved HUD positions and sizes were made at (set once, 0 = not yet; leave it).");
+            _sizesFollow = config.Bind("HUD", "SizesFollowScreen", true,
+                "True: the HUD pieces keep their size relative to the screen (same look at every resolution). False: sizes stay in pixels. Positions always keep their place relative to the screen.");
+            Ui.SizesFollow = _sizesFollow.Value;
+            if (_refW.Value > 0 && _refH.Value > 0) Ui.SetReference(_refW.Value, _refH.Value);
             _trend[(int)TrendState.Gaining] = config.Bind("HUD", "TrendGaining", HudTrend.Format(HudTrend.DefaultGain),
                 "Trend colour (#RRGGBB) of a value with Trend on (Edit HUD layout) while it rises.");
             _trend[(int)TrendState.Losing] = config.Bind("HUD", "TrendLosing", HudTrend.Format(HudTrend.DefaultLoss),
                 "Trend colour (#RRGGBB) of a value with Trend on while it falls.");
+        }
+
+        // --- resolution (T-0318) ----------------------------------------------
+
+        /// How the placed pieces follow the screen; positions and sizes in
+        /// the config are in its reference pixels (Data/UiScale).
+        public readonly UiScale Ui = new UiScale();
+
+        /// Logs the resolution line (one per change); set by the host.
+        public BepInEx.Logging.ManualLogSource Log;
+
+        /// Call at the top of any piece's draw: brings the scale up to the
+        /// screen. The first call records the screen as the reference - an
+        /// old config's pixel numbers were made at the screen it runs on,
+        /// so they mean the same and nothing jumps (author, 2026-10-11).
+        /// Cheap when nothing changed; allocates only when the screen does.
+        public UiScale Scale()
+        {
+            if (!Ui.HasReference && Screen.width > 0 && Screen.height > 0)
+            {
+                Ui.SetReference(Screen.width, Screen.height);
+                bool saveEach = _config.SaveOnConfigSet;
+                _config.SaveOnConfigSet = false;
+                _refW.Value = Screen.width;
+                _refH.Value = Screen.height;
+                _config.SaveOnConfigSet = saveEach;
+                _config.Save();
+            }
+            Ui.SizesFollow = _sizesFollow.Value;   // a Reset-all changed the entry
+            if (Ui.Update(Screen.width, Screen.height) && Log != null)
+                Log.LogInfo("HUD scale: " + Ui.Describe() + ".");
+            return Ui;
+        }
+
+        /// Starts drawing in the scaled (virtual) screen; the caller puts the
+        /// returned matrix back (GUI.matrix = it) when done. Mouse events
+        /// inside are in the virtual screen too (Rect through Virtual()).
+        public Matrix4x4 BeginScaled()
+        {
+            UiScale u = Scale();
+            Matrix4x4 m = GUI.matrix;
+            if (u.F != 1f) GUI.matrix = m * Matrix4x4.Scale(new Vector3(u.F, u.F, 1f));
+            return m;
+        }
+
+        /// A rect in screen pixels (the F2 window) as the scaled drawing sees it.
+        public Rect Virtual(Rect screenRect)
+        {
+            float f = Ui.F;
+            return f == 1f ? screenRect : new Rect(screenRect.x / f, screenRect.y / f, screenRect.width / f, screenRect.height / f);
+        }
+
+        /// Settings: sizes follow the screen (true, default) or stay pixels.
+        public bool SizesFollow
+        {
+            get { return _sizesFollow.Value; }
+            set
+            {
+                if (_sizesFollow.Value == value) return;
+                _sizesFollow.Value = value;
+                Ui.SizesFollow = value;
+                Version++;
+            }
         }
 
         // --- trend colours (T-0023) -------------------------------------------

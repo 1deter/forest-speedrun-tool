@@ -76,6 +76,7 @@ namespace ForestOverlay.Core
             _perf.Breakdown = this;
             _hotkeys = new HotkeyMap(ctx.Config);
             _hud.Settings = new HudSettings(ctx.Config);
+            _hud.Settings.Log = ctx.Log;
             _hud.Widgets = new HudWidgets(ctx.Config, _hud.Settings, ctx.ConfigDirectory, ctx.Log);
         }
 

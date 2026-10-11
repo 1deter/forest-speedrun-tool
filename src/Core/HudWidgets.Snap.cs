@@ -84,7 +84,7 @@ namespace ForestOverlay.Core
             }
 
             SnapResult r = HudSnap.Snap(new SnapBox(at.x, at.y, at.width, at.height),
-                                        Screen.width, Screen.height, _snapOthers, HudSnap.Threshold);
+                                        _settings.Ui.VW, _settings.Ui.VH, _snapOthers, HudSnap.Threshold);
             _guideX = r.SnappedX;
             _guideY = r.SnappedY;
             _guideAtX = r.GuideX;
@@ -102,8 +102,9 @@ namespace ForestOverlay.Core
         {
             if (!Editing || (!_guideX && !_guideY) || e == null || e.type != EventType.Repaint) return;
             Texture2D t = UiKit.AccentTexture;
-            if (_guideX) GUI.DrawTexture(new Rect(Mathf.Min(Mathf.Round(_guideAtX), Screen.width - 1f), 0f, 1f, Screen.height), t);
-            if (_guideY) GUI.DrawTexture(new Rect(0f, Mathf.Min(Mathf.Round(_guideAtY), Screen.height - 1f), Screen.width, 1f), t);
+            UiScale ui = _settings.Ui;
+            if (_guideX) GUI.DrawTexture(new Rect(Mathf.Min(Mathf.Round(_guideAtX), ui.VW - 1f), 0f, 1f, ui.VH), t);
+            if (_guideY) GUI.DrawTexture(new Rect(0f, Mathf.Min(Mathf.Round(_guideAtY), ui.VH - 1f), ui.VW, 1f), t);
         }
     }
 }
