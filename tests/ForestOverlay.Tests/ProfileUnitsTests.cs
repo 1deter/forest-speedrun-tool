@@ -24,6 +24,27 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void A1440pProfileOnA1080pReference()
+        {
+            Assert.Equal(960f, ProfileUnits.Convert(1280f, ProfileUnit.X, 2560, 1440, 1920, 1080));
+            Assert.Equal(540f, ProfileUnits.Convert(720f, ProfileUnit.Y, 2560, 1440, 1920, 1080));
+            Assert.Equal(300f, ProfileUnits.Convert(400f, ProfileUnit.Size, 2560, 1440, 1920, 1080));
+            Assert.Equal(-1f, ProfileUnits.Convert(-1f, ProfileUnit.Y, 2560, 1440, 1920, 1080));
+        }
+
+        [Fact]
+        public void ReferenceKeysRoundTripThroughAProfile()
+        {
+            HudProfile p = new HudProfile();
+            p.Set(ProfileUnits.WidthKey, "2560");
+            p.Set(ProfileUnits.HeightKey, "1440");
+            HudProfile back = HudProfile.Parse(p.Format());
+            Assert.Equal(2560, ProfileUnits.ParseDim(back.Get(ProfileUnits.WidthKey)));
+            Assert.Equal(1440, ProfileUnits.ParseDim(back.Get(ProfileUnits.HeightKey)));
+            Assert.Equal(0, ProfileUnits.ParseDim(HudProfile.Parse("").Get(ProfileUnits.WidthKey)));
+        }
+
+        [Fact]
         public void ParseDimIsForgiving()
         {
             Assert.Equal(1920, ProfileUnits.ParseDim(" 1920 "));
