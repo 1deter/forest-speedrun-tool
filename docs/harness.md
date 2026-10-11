@@ -664,15 +664,17 @@ tangible impact").** `python scripts/agent-cost.py --weeks --tail
 
 | | Share | Note |
 |---|---|---|
-| Main sessions | 85% (4.6G, 186 sessions) | 24.5M reads / 111 calls / 82k start each; 37% of main input is sent at > 300k context |
+| Main sessions | 85% (4.6G, 186 sessions) | 24.5M reads / 111 calls / 82k start each |
 | forest-researcher | 7.5% (405M, 16 runs) | 46% of it from the first `src/` edit on (T-0311's target) |
 | general-purpose (old Opus runs) | 8% | retired by T-0113 |
 | All Sonnet agents | 3% | checker 132 runs at 0.35M each |
 
-Per week, main input per session: W39 34.0M, W40 31.9M, **W41 14.3M** (the
+Per week, main input per session and the share of it sent at > 300k
+context: W39 34.0M / 46%, W40 31.9M / 44%, **W41 14.3M / 12%** (the
 router trim, one task per session and the loop's 300k cap landed in
-W41). So the levers in order: the main session's context (length and
-start), then researcher Opus time; Sonnet agents are not worth trimming.
+W41 - the first harness changes with a measured effect). So the levers
+in order: the main session's context (start and per-call growth), then
+researcher Opus time; Sonnet agents are not worth trimming.
 Each harness task names the number it should move and is re-measured
 after it lands: T-0311 researcher tail 46% (and Opus tokens per research
 task, `--tasks`) after the next 3 researcher runs; T-0312 checker input

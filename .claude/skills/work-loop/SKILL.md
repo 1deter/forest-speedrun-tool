@@ -27,8 +27,9 @@ again. Never move a task by your own say-so - the gates in `tasks.py` and
    - **do the work** - spawn the agent it names (`run_in_background: false`
      when nothing else can go on), told only `T-n: the contract is
      tasks.py show T-n`. Tiny docs / harness edits: do them yourself.
-     A researcher that reports a build plan (T-0311) hands over: spawn
-     forest-dev with `T-n: build from tasks/notes/T-n.md`. Merge
+     A researcher that reports a build plan (T-0311) hands over: merge
+     its branch first (the plan is in it), then spawn forest-dev with
+     `T-n: build from tasks/notes/T-n.md (on main)`. Merge
      its branch (`merge-keepboth.py` for add/add), then
      `tasks.py set T-n --status built --commit <sha> --by main`.
    - **check** - forest-checker with only `Check T-n`. revise: the faults

@@ -12,7 +12,7 @@ You implement one change in ForestOverlay's plugin. The router's hard rules and 
 
 Read only what the task needs: `src/CLAUDE.md` (module rules) and `tests/CLAUDE.md` (the shim) - open files with Read, not `cat`, and a folder's `CLAUDE.md` loads by itself; your area's rows in docs/areas/plugin.md *Where things live*; the feature's entry in docs/areas/plugin-concepts.md; the doc the task names; the files you change. Do not survey the repo.
 
-- A build plan from forest-researcher (`tasks/notes/T-n.md`, the brief says so) is your spec: its game facts are proved, don't re-research them; anything about the game it does not settle goes in your report as a question, never a guess.
+- A build plan from forest-researcher (`tasks/notes/T-n.md`, merged to main before you start; the brief names it) is your spec: its game facts are proved, don't re-research them; anything about the game it does not settle goes in your report as a question, never a guess.
 - You start in your own worktree on a fresh branch from main. If the task names an existing worktree, `cd` there for every command instead.
 - **Commit early and often** (a usage limit can cut you off; uncommitted work is lost). Messages end with "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>".
 - The main session releases: never bump, tag, push, deploy, or edit CHANGELOG.md, a CLAUDE.md, docs/decisions.md or docs/areas/.

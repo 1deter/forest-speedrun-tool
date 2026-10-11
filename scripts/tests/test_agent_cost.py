@@ -91,6 +91,15 @@ class Tail(unittest.TestCase):
         (row,) = A.tail_share([r])
         self.assertEqual(row[:3], ("forest-researcher", 1, 1))
 
+    def test_script_tests_are_not_plugin_code(self):
+        lines = [edit("m1", "2026-10-07T04:00:00.000Z", U2, "C:/repo/scripts/tests/test_x.py")]
+        self.assertEqual(A.parse_run(lines)["tail"], 0)
+
+    def test_big_counts_calls_over_300k(self):
+        big = {"input_tokens": 1, "cache_read_input_tokens": 300000, "cache_creation_input_tokens": 0}
+        r = A.parse_run(LINES + [reply("m9", "2026-10-07T05:02:00.000Z", big)])
+        self.assertEqual(r["big"], 300001)
+
     def test_no_code_edit_no_tail(self):
         self.assertEqual(A.parse_run(LINES)["tail"], 0)
 
@@ -113,7 +122,7 @@ class Grouping(unittest.TestCase):
                           self.run_("forest-researcher", "claude-opus-5-5", "2026-10-06", inp=7),
                           self.run_("forest-checker", "claude-sonnet-5-5", "2026-10-06", inp=3)],
                          ["2026-10-06", "2026-10-07", "2026-01-01"])
-        self.assertEqual(rows, [("2026-W40", 1, 100, 0, 0, 0), ("2026-W41", 1, 50, 7, 3, 2)])
+        self.assertEqual(rows, [("2026-W40", 1, 100, 0, 0, 0, 0), ("2026-W41", 1, 50, 7, 3, 2, 0)])
 
 
 class Folders(unittest.TestCase):

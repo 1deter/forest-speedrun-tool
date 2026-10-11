@@ -28,7 +28,8 @@ import sys
 from datetime import datetime
 
 GAP_CAP = 300  # seconds; a longer gap is the agent waiting, not working
-CODE_DIRS = re.compile(r"[/\\](src|tests|patcher)[/\\]")
+CODE_DIRS = re.compile(r"(?<!scripts)[/\\](src|tests|patcher)[/\\]")  # plugin code, not scripts/tests
+BIG_CONTEXT = 300000  # a call sent with more context than this counts as "big" (T-0319)
 TASK_ID = re.compile(r"\bT-\d{4}\b")
 
 
@@ -90,6 +91,7 @@ def parse_run(lines, meta=None):
         "start": whole(first),
         "input": sum(whole(u) for u in calls),
         "tail": sum(whole(u) for u in calls[tail_from:]),
+        "big": sum(whole(u) for u in calls if whole(u) > BIG_CONTEXT),
         "cache_read": sum(u.get("cache_read_input_tokens", 0) for u in calls),
         "cache_write": sum(u.get("cache_creation_input_tokens", 0) for u in calls),
         "output": sum(u.get("output_tokens", 0) for u in calls),
@@ -184,15 +186,17 @@ def week(day):
 
 
 def by_week(runs, finished_days=()):
-    """Rows of (week, main sessions, main input, agent opus input, agent other input, tasks finished)."""
+    """Rows of (week, main sessions, main input, agent opus input, agent other input, tasks finished,
+    main input sent at > BIG_CONTEXT)."""
     rows = {}
     for r in runs:
         if not r["date"]:
             continue
-        row = rows.setdefault(week(r["date"]), [0, 0, 0, 0, 0])
+        row = rows.setdefault(week(r["date"]), [0, 0, 0, 0, 0, 0])
         if r["agent"] == "main":
             row[0] += 1
             row[1] += r["input"]
+            row[5] += r.get("big", 0)
         elif family(r["model"]) == "opus":
             row[2] += r["input"]
         else:
@@ -256,11 +260,13 @@ def main(argv=None):
         "%s %s (%.0f%%)" % (f, _k(n), 100 * n / total)
         for f, n in sorted(fams.items(), key=lambda kv: -kv[1])))
     if args.weeks:
-        out.write("\nPer week: main sessions, input (main / Opus agents / other agents), tasks first built\n"
-                  "(the task file starts 2026-10-07; that week's count includes the migration):\n")
-        for wk, n, m, o, s, done in by_week(runs, finished_days(args.repo)):
-            out.write("%s %4d sessions  main %7s (%5s/session)  opus agents %7s  other agents %7s  tasks %3d\n"
-                      % (wk, n, _k(m), _k(m / float(n or 1)), _k(o), _k(s), done))
+        out.write("\nPer week: main sessions, input (main / Opus agents / other agents), the share of main\n"
+                  "input sent at > 300k context, tasks first built (the task file starts 2026-10-07;\n"
+                  "that week's count includes the migration):\n")
+        for wk, n, m, o, s, done, big in by_week(runs, finished_days(args.repo)):
+            out.write("%s %4d sessions  main %7s (%5s/session, >300k %3.0f%%)  opus agents %7s"
+                      "  other agents %7s  tasks %3d\n"
+                      % (wk, n, _k(m), _k(m / float(n or 1)), 100.0 * big / (m or 1), _k(o), _k(s), done))
     if args.tail:
         out.write("\nInput from the first src / tests / patcher edit on (the build tail):\n")
         for a, n, edited, inp, share in tail_share(runs):
