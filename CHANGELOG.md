@@ -5,6 +5,10 @@ the section for a tag into its GitHub release, and the in-game **Updates**
 tab shows it: what an update brings, and what the installed version
 changed. A tag without a section here fails the release build.
 
+## v0.24.289 - 2026-10-11
+
+- HUD text (the info column, the splits panel and the results panel) is sharp again at high resolutions - it was blurry when the screen was larger than the one the layout was made at.
+
 ## v0.24.288 - 2026-10-11
 
 - The redesign: the F2 window, its buttons, checkboxes and tips have a new look, with 8 preset themes in Settings -> Theme. Checkboxes are true squares - an outline when off, solid yellow when on.
