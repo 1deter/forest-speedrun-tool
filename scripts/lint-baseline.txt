@@ -32,6 +32,7 @@ label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _h
 label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(12, y, w - 24, 20), _radiusLabel);
 label20	src/Modules/DebugViewModule.cs	GUI.Label(new Rect(74, y, w - 86, 20), _largestLabels[i]);
 label20	src/Modules/MapModule.cs	GUI.Label(new Rect(x + 14f, y - 2f, tw, 20f), _legend[i]);
+label20	src/Modules/MapModule.cs	GUI.Label(new Rect(x + 20f, y + r * 18f - 2f, labelW, 20f), _key[i]);
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(0, y, 74, 20), label);
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(0, y, labelW, 20), label);
 label20	src/Modules/PracticeModule.cs	GUI.Label(new Rect(x0, y, 110f, 20), DegreesLabel(slot, 6, "turn", t.Yaw));

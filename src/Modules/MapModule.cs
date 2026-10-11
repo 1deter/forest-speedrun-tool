@@ -25,7 +25,11 @@ namespace ForestOverlay.Modules
     //     and the player with their facing;
     //   - wheel / buttons zoom at the pointer, drag pans, hover names a
     //     spot, a click selects it in Practice; Go is Practice's Go (run
-    //     mode refuses it the same way).
+    //     mode refuses it the same way);
+    //   - no instructions to read (author, 2026-10-09: pictures over
+    //     instructions): category colours top left, a key of the marks
+    //     on the map now top right, how to zoom / pan while the pointer
+    //     is over the map.
     //
     // Allocation-free per frame: spot positions, colours and texts are
     // cached when the library changes (checked twice a second while the
@@ -61,6 +65,7 @@ namespace ForestOverlay.Modules
         private static readonly Color Outline = new Color(0.05f, 0.05f, 0.05f, 0.9f);
         private static readonly Color SelectRing = new Color(1f, 1f, 1f, 1f);
         private static readonly Color MapBackground = new Color(0.07f, 0.16f, 0.24f, 1f);
+        private static readonly Color KeyMark = new Color(0.85f, 0.85f, 0.85f, 1f);
 
         private MapView _view;
         private MapRelief _relief;
@@ -105,9 +110,19 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _selectedInfo = new GUIContent("");
         private readonly GUIContent _status = new GUIContent("");
         private readonly GUIContent _goStatus = new GUIContent("");
-        private readonly GUIContent _shapes = new GUIContent(
-            "Square = a spot, hollow = community, triangle = underground. Zones: green start, yellow checkpoints, red end. " +
-            "Cyan = the comparison run, purple = its ghost, white arrow = you. Wheel / + - zoom, drag to pan, click a spot to select it.");
+        // The key (top right of the map): one row per kind of mark, shown
+        // only while that mark is on the map (KeyShown, set in Tick).
+        private const int KeySpot = 0, KeyCommunity = 1, KeyUnder = 2, KeyStart = 3, KeyCheck = 4,
+                          KeyEnd = 5, KeyLine = 6, KeyGhost = 7, KeyYou = 8, KeyRows = 9;
+        private readonly GUIContent[] _key =
+        {
+            new GUIContent("Spot"), new GUIContent("Community spot"), new GUIContent("Underground"),
+            new GUIContent("Start zone"), new GUIContent("Checkpoint"), new GUIContent("End zone"),
+            new GUIContent("Comparison run"), new GUIContent("Its ghost"), new GUIContent("You"),
+        };
+        private readonly bool[] _keyShown = new bool[KeyRows];
+        private int _keyCount;
+        private readonly GUIContent _hint = new GUIContent("Wheel or + / - to zoom, drag to pan, click a spot to select it");
         private readonly GUIContent _onlyCavesLabel = new GUIContent("Only cave spots");
         private readonly GUIContent _allZonesLabel = new GUIContent("Every segment's zones");
         private readonly GUIContent _lineLabel = new GUIContent("Comparison line + ghost");
@@ -118,7 +133,8 @@ namespace ForestOverlay.Modules
         private int _statusVersion = -1;
         private int _statusSpots = -1, _statusUnder = -1;
         private float _statusProgressAt = -1f;
-        private GUIStyle _labelBox;
+        private GUIStyle _labelBox, _hintBox;
+        private float _legendBottom;
 
         // GL scratch (no allocation in Repaint).
         private readonly float[] _cx = new float[4], _cz = new float[4];
@@ -191,6 +207,37 @@ namespace ForestOverlay.Modules
             UpdateLine();
             UpdateSelected();
             UpdateStatus(now);
+            UpdateKey();
+        }
+
+        /// Which key rows the map shows now: a mark's row only while it can be drawn.
+        private void UpdateKey()
+        {
+            bool spot = false, community = false, under = false, zones = false, checks = false;
+            for (int i = 0; i < _spots.Length; i++)
+            {
+                if (!SpotShown(i)) continue;
+                if (_community[i]) community = true; else spot = true;
+                if (_under[i]) under = true;
+                if (_allZones && _spots[i].IsTimed) { zones = true; checks |= _spots[i].Checkpoints.Count > 0; }
+            }
+            Segment sel = _practice != null ? _practice.SelectedSegment : null;
+            Segment timed = _runs != null ? _runs.TimedSegment : null;
+            if (sel != null && sel.IsTimed) { zones = true; checks |= sel.Checkpoints.Count > 0; }
+            if (timed != null && timed.IsTimed) { zones = true; checks |= timed.Checkpoints.Count > 0; }
+            Vector3 ghost;
+
+            _keyShown[KeySpot] = spot;
+            _keyShown[KeyCommunity] = community;
+            _keyShown[KeyUnder] = under;
+            _keyShown[KeyStart] = zones;
+            _keyShown[KeyCheck] = checks;
+            _keyShown[KeyEnd] = zones;
+            _keyShown[KeyLine] = _showLine && _lineCount > 1;
+            _keyShown[KeyGhost] = _showLine && _runs != null && _runs.GhostOnMap(out ghost);
+            _keyShown[KeyYou] = Ctx.Player.Found;
+            _keyCount = 0;
+            for (int i = 0; i < KeyRows; i++) if (_keyShown[i]) _keyCount++;
         }
 
         private bool LibraryChanged()
@@ -358,8 +405,7 @@ namespace ForestOverlay.Modules
             // The bottom panel's height, measured before the map takes the rest.
             float infoH = UiText.Height(w, _selectedInfo, UiText.Plain) + 26f +
                           UiText.Height(w, _goStatus, UiText.Plain) +
-                          UiText.Height(w, _status, UiText.Dim) +
-                          UiText.Height(w, _shapes, UiText.Dim);
+                          UiText.Height(w, _status, UiText.Dim);
             float mapH = Mathf.Max(140f, area.height - y - infoH - 6f);
             Rect map = new Rect(0f, y, w, mapH);
             DrawMap(map);
@@ -383,8 +429,7 @@ namespace ForestOverlay.Modules
             GUI.enabled = true;
             y += 26f;
             y += UiText.Draw(0f, y, w, _goStatus);
-            y += UiText.DrawDim(0f, y, w, _status);
-            UiText.DrawDim(0f, y, w, _shapes);
+            UiText.DrawDim(0f, y, w, _status);
         }
 
         private static bool FlowToggle(ref float x, ref float y, float width, bool value, GUIContent label)
@@ -425,8 +470,10 @@ namespace ForestOverlay.Modules
             ProjectSpots();
             _hover = inside && !_dragging ? PickSpot(mx, my) : -1;
             DrawOverlay(map);
-            DrawLegend(map);
+            float legendW = DrawLegend(map);
+            DrawKey(map, legendW);
             if (_hover >= 0) DrawHoverLabel(map, mx, my);
+            else if (inside && !_dragging) DrawHint(map);
         }
 
         private void HandleInput(Event e, bool inside, float mx, float my)
@@ -511,6 +558,8 @@ namespace ForestOverlay.Modules
                 _labelBox = UiKit.Style(GUI.skin.box);
                 _labelBox.alignment = TextAnchor.MiddleLeft;
                 _labelBox.wordWrap = false;
+                _hintBox = UiKit.Style(_labelBox);
+                _hintBox.wordWrap = true;
             }
             if (_material != null) return;
             Shader shader = Shader.Find("Hidden/Internal-Colored");
@@ -526,7 +575,17 @@ namespace ForestOverlay.Modules
 
         private void DrawOverlay(Rect map)
         {
-            if (_material == null) return;
+            if (!BeginGL(map)) return;
+            DrawZones();
+            DrawRunLine();
+            DrawSpots();
+            DrawPlayer();
+            EndGL();
+        }
+
+        private bool BeginGL(Rect map)
+        {
+            if (_material == null) return false;
             Vector2 o = GUIUtility.GUIToScreenPoint(new Vector2(map.x, map.y));
             _ox = o.x; _oy = o.y; _screenH = Screen.height;
             _clipW = map.width; _clipH = map.height;
@@ -535,12 +594,11 @@ namespace ForestOverlay.Modules
             _material.SetPass(0);
             GL.LoadPixelMatrix();
             GL.Begin(GL.TRIANGLES);
+            return true;
+        }
 
-            DrawZones();
-            DrawRunLine();
-            DrawSpots();
-            DrawPlayer();
-
+        private static void EndGL()
+        {
             GL.End();
             GL.PopMatrix();
         }
@@ -600,9 +658,7 @@ namespace ForestOverlay.Modules
 
             float r = t.Radius * s;
             if (r < 3f) { Dot(centre.x, centre.y, 3f, c); return; }
-            for (int i = 0; i < 32; i++)
-                Line(centre.x + CircleCos[i] * r, centre.y + CircleSin[i] * r,
-                     centre.x + CircleCos[i + 1] * r, centre.y + CircleSin[i + 1] * r, 2f, c);
+            Ring(centre.x, centre.y, r, c);
         }
 
         private void DrawRunLine()
@@ -716,15 +772,21 @@ namespace ForestOverlay.Modules
         }
 
         // ------------------------------------------------------------------
-        private void DrawLegend(Rect map)
+        /// The category colours, top left; returns the width it took (0 for none)
+        /// and leaves its bottom in _legendBottom.
+        private float DrawLegend(Rect map)
         {
-            if (_legend.Length == 0) return;
+            _legendBottom = map.y;
+            if (_legend.Length == 0) return 0f;
             float x = map.x + 6f, y = map.y + 6f;
+            float width = 0f;
             Color old = GUI.color;
             for (int i = 0; i < _legend.Length; i++)
             {
                 if (y + 18f > map.yMax) break;
                 float tw = Mathf.Min(map.width - 30f, GUI.skin.label.CalcSize(_legend[i]).x + 4f);
+                width = Mathf.Max(width, tw + 22f);
+                _legendBottom = y + 18f;
                 GUI.color = new Color(0f, 0f, 0f, 0.55f);
                 GUI.DrawTexture(new Rect(x - 2f, y - 1f, tw + 18f, 18f), _white);
                 if (_legendColour[i] >= 0)
@@ -737,6 +799,85 @@ namespace ForestOverlay.Modules
                 y += 18f;
             }
             GUI.color = old;
+            return width;
+        }
+
+        /// What each mark means, drawn with the marks themselves: top right, or
+        /// under the category colours when the map is too narrow for both.
+        private void DrawKey(Rect map, float legendW)
+        {
+            if (_keyCount == 0) return;
+            float labelW = 0f;
+            for (int i = 0; i < KeyRows; i++)
+                if (_keyShown[i]) labelW = Mathf.Max(labelW, GUI.skin.label.CalcSize(_key[i]).x + 4f);
+            float boxW = Mathf.Min(map.width - 12f, 22f + labelW + 4f);
+            float x = map.xMax - 6f - boxW, y = map.y + 6f;
+            if (legendW > 0f && x < map.x + 6f + legendW + 8f) { x = map.x + 6f; y = _legendBottom + 6f; }
+            int rows = Mathf.Min(_keyCount, Mathf.FloorToInt((map.yMax - y - 2f) / 18f));
+            if (rows <= 0) return;
+
+            Color old = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.55f);
+            GUI.DrawTexture(new Rect(x - 2f, y - 1f, boxW + 4f, rows * 18f + 2f), _white);
+            GUI.color = old;
+
+            if (BeginGL(map))
+            {
+                float sx = x - map.x + 9f, sy = y - map.y + 9f;
+                for (int i = 0, r = 0; i < KeyRows && r < rows; i++)
+                {
+                    if (!_keyShown[i]) continue;
+                    KeySymbol(i, sx, sy + r * 18f);
+                    r++;
+                }
+                EndGL();
+            }
+
+            for (int i = 0, r = 0; i < KeyRows && r < rows; i++)
+            {
+                if (!_keyShown[i]) continue;
+                GUI.Label(new Rect(x + 20f, y + r * 18f - 2f, labelW, 20f), _key[i]);
+                r++;
+            }
+        }
+
+        /// A key row's symbol at (x, y), map-local, drawn as the map draws it.
+        private void KeySymbol(int row, float x, float y)
+        {
+            Color plain = KeyMark;
+            switch (row)
+            {
+                case KeySpot:
+                    Shape(x, y, DotSize + 1.2f, false, Outline); Shape(x, y, DotSize, false, plain); break;
+                case KeyCommunity:
+                    Shape(x, y, DotSize + 1.2f, false, Outline); Shape(x, y, DotSize, false, plain);
+                    Shape(x, y, DotSize - 2f, false, Outline); break;
+                case KeyUnder:
+                    Shape(x, y - 1f, DotSize + 1.2f, true, Outline); Shape(x, y - 1f, DotSize, true, plain); break;
+                case KeyStart: Ring(x, y, 5f, StartColour); break;
+                case KeyCheck: Ring(x, y, 5f, CheckColour); break;
+                case KeyEnd: Ring(x, y, 5f, EndColour); break;
+                case KeyLine: Line(x - 7f, y + 3f, x + 7f, y - 3f, 2f, LineColour); break;
+                case KeyGhost: Dot(x, y, 6f, Outline); Dot(x, y, 4.5f, GhostColour); break;
+                case KeyYou:
+                    Arrow(new Vector2(x, y + 1f), 0f, -1f, 1f, 0f, 8f, Outline);
+                    Arrow(new Vector2(x, y + 1f), 0f, -1f, 1f, 0f, 6f, Color.white); break;
+            }
+        }
+
+        private void Ring(float x, float y, float r, Color c)
+        {
+            for (int i = 0; i < 32; i++)
+                Line(x + CircleCos[i] * r, y + CircleSin[i] * r, x + CircleCos[i + 1] * r, y + CircleSin[i + 1] * r, 2f, c);
+        }
+
+        /// How to use the map, while the pointer is over it: bottom left, wrapped
+        /// to the map's width.
+        private void DrawHint(Rect map)
+        {
+            float w = Mathf.Min(map.width - 8f, _hintBox.CalcSize(_hint).x + 4f);
+            float h = _hintBox.CalcHeight(_hint, w);
+            GUI.Box(new Rect(map.x + 4f, map.yMax - 4f - h, w, h), _hint, _hintBox);
         }
 
         private void DrawHoverLabel(Rect map, float mx, float my)
