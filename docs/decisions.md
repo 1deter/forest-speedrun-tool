@@ -173,7 +173,7 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   window's colours are preset themes in Settings -> Theme, all kept - the
   site's colours, pure black, warm near-black, translucent black, the
   first redesign's blue-grey and Catppuccin Mocha / Macchiato / Frappé
-  (`Data/UiPalette`). The author's favourite is warm near-black ("a bias
+  (`Data/UiPalette`). Warm near-black is the default - the author's favourite ("a bias
   towards the soft-mocha style themes"). Customisable colours: after
   v1.0, if this theming stays.
 - **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
