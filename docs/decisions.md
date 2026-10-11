@@ -282,6 +282,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   there is room (the run flag, the attempt page). Detection is the
   patcher's own (Assembly-CSharp references BaseModLib, `Game/ModApi`);
   UltimateCheatmenu's red tabs are its own UI, not ours.
+- **Any other external code is flagged like ModAPI, never refused**
+  (author, 2026-10-11, T-0308): "it should be marked for any external DLL
+  or anything that is detected during practice" - another BepInEx plugin,
+  a patcher other than ours, a DLL from outside Managed / BepInEx core, a
+  Harmony patch owned by anyone else; no whitelist. Sticky for the
+  session: the HUD's `Mods: A, B`, and `Mods Detected: A, B` on run mode
+  attempts, uploaded runs and the site's tags.
 
 ## Site (forest.deter.cloud)
 
