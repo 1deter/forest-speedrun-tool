@@ -338,6 +338,14 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   inside the restore's hitch; skipping it moved a collection into play
   4 s later (tasks/notes/T-0202.md). Do not propose skipping it again
   unless per-restore garbage drops far below the collector's trigger.
+- **Picture-only perf cuts can ship on** (author, 2026-10-10 / 10-11,
+  T-0277): "visual-only changes are fine as long as performance improves;
+  it must be ONLY visual (no collision / AI / mechanics change)". The
+  surface world off in caves ships as a `[Performance]` switch **on by
+  default**, though from a cave mouth the outside ground and distant trees
+  are missing (chosen over off-by-default and over a distance-to-mouth
+  test). Not in the endgame (Claude's narrowing: the lab's exits and
+  endings show the outside).
 
 ## Run mode
 

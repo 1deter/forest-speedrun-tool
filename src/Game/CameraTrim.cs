@@ -97,6 +97,21 @@ namespace ForestOverlay.Game
     //    name the controller gives it (CreateComponents), among the enabled
     //    cameras - FindObjectOfType for the controller was a 22 ms hitch at
     //    the cave entry (v0.24.127).
+    //
+    // 5. Changes the picture, ON by default (author, 2026-10-11, T-0277):
+    //    the surface world off on the main camera in caves. MainCamNew kept
+    //    drawing the terrain (layer 26, nothing else is on it) and the 25
+    //    whole-map tree billboards (`Tree_BillBoards`, CustomBillboard
+    //    meshes with 10 km bounds - they pass every frustum) under the
+    //    ground: ~0.25 ms of 3.4 at the Cave 6 spot, no pixel different
+    //    there (tasks/notes/T-0199.md). Looking out of a cave mouth or up a
+    //    sinkhole, the ground and distant trees are missing. Layer 26 comes
+    //    off the camera's culling mask (nothing in the game writes
+    //    MainCamNew's mask - IL) and the billboards' renderers off (nothing
+    //    in the game writes them); colliders, AI and state are untouched.
+    //    Not in the endgame (IsInCaves is true in the lab, whose exits and
+    //    endings show the outside). The billboards are found once per load
+    //    (GameObject.Find, ~4 ms), not per entry.
     // ------------------------------------------------------------------
     public sealed class CameraTrim
     {
@@ -104,6 +119,8 @@ namespace ForestOverlay.Game
         private const string GrassCameraName = "AFSGrassDisplacementCamera";
         private const string BendCameraName = "AFSGrassDisplacementCameraTest";
         private const string ScreenTextureName = "EndPLane";
+        private const string BillboardRoot = "Tree_BillBoards";
+        private const int TerrainLayerBit = 1 << 26;
 
         private readonly ManualLogSource _log;
         private readonly Harmony _harmony;
@@ -115,6 +132,7 @@ namespace ForestOverlay.Game
         public bool ScreenOn { get; private set; }
         public bool SunOn { get; private set; }
         public bool CaveGrassOn { get; private set; }
+        public bool CaveSurfaceOn { get; private set; }
 
         private Camera _grassOff;
         private Camera _grassBend;      // the controller's camera, when _grassOff was switched off
@@ -133,6 +151,15 @@ namespace ForestOverlay.Game
         private Func<bool> _inCaves;
         private float _nextBendScan;
         private Camera _caveGrassOff;
+        private Func<bool> _inEndgame;
+        private Type _billboardType;
+        private Renderer[] _billboards;             // Tree_BillBoards' renderers, found once per load
+        private readonly List<Renderer> _billboardsOff = new List<Renderer>();
+        private Camera _surfaceCam;                 // the camera whose mask lost the terrain
+        private Camera _cutMain;                    // the main camera when cut (another one = a load)
+        private Camera _cutMainLast;                // the main camera of the last search (none found stays none until a new one)
+        private bool _surfaceCut;
+        private float _nextSurfaceScan;
 
         public CameraTrim(ManualLogSource log, Harmony harmony)
         {
@@ -288,10 +315,111 @@ namespace ForestOverlay.Game
             _log.LogInfo("Performance: grass-bending camera off in the cave (" + cam.name + ").");
         }
 
+        public string ApplyCaveSurface()
+        {
+            Type lp = GameBridge.FindGameType("TheForest.Utils.LocalPlayer");
+            MethodInfo caves = StaticBoolGetter(lp, "IsInCaves"), endgame = StaticBoolGetter(lp, "IsInEndgame");
+            if (caves == null || endgame == null) return "LocalPlayer.IsInCaves / IsInEndgame not found";
+            _billboardType = GameBridge.FindGameType("CustomBillboard");
+            if (_billboardType == null) return "CustomBillboard not found";
+            _inCaves = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), caves);
+            _inEndgame = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), endgame);
+            _nextSurfaceScan = 0f;
+            CaveSurfaceOn = true;
+            return "";
+        }
+
+        public void RemoveCaveSurface()
+        {
+            CaveSurfaceOn = false;
+            ReleaseCaveSurface("switch off");
+        }
+
+        private static MethodInfo StaticBoolGetter(Type t, string name)
+        {
+            PropertyInfo p = t != null ? t.GetProperty(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic) : null;
+            MethodInfo get = p != null ? p.GetGetMethod(true) : null;
+            return get != null && get.ReturnType == typeof(bool) ? get : null;
+        }
+
+        private void ReleaseCaveSurface(string why)
+        {
+            if (!_surfaceCut) return;
+            _surfaceCut = false;
+            if (_surfaceCam != null) _surfaceCam.cullingMask |= TerrainLayerBit;
+            int back = 0;
+            for (int i = 0; i < _billboardsOff.Count; i++)
+                if (_billboardsOff[i] != null) { _billboardsOff[i].enabled = true; back++; }
+            _billboardsOff.Clear();
+            _surfaceCam = null;
+            _cutMain = null;
+            _log.LogInfo("Performance: surface world back on the main camera (" + why + "; terrain, " + back + " tree billboards).");
+        }
+
+        // Every frame, before the cameras render: the surface off in a cave
+        // (not the endgame), back in the frame you leave.
+        private void TickCaveSurface()
+        {
+            bool inCave;
+            try { inCave = _inCaves() && !_inEndgame(); }
+            catch (Exception) { inCave = false; }
+            if (!inCave)
+            {
+                if (_surfaceCut) ReleaseCaveSurface("left the cave");
+                return;
+            }
+            float now = Time.unscaledTime;
+            if (now < _nextSurfaceScan) return;
+            _nextSurfaceScan = now + ScanInterval;
+            Camera main = Camera.main;
+            if (_surfaceCut)
+            {
+                // A load in the cave: a new camera or new billboards get the cut again.
+                if (main == _cutMain && main != null && (_billboards.Length == 0 || _billboards[0] != null)) return;
+                ReleaseCaveSurface("a load in the cave");
+            }
+            if (main == null) return;   // none yet: look again in 2 s
+            if (_billboards == null || main != _cutMainLast || (_billboards.Length > 0 && _billboards[0] == null))
+            {
+                GameObject root = GameObject.Find(BillboardRoot);
+                Component[] cs = root != null ? root.GetComponentsInChildren(_billboardType, false) : new Component[0];
+                List<Renderer> rs = new List<Renderer>(cs.Length);
+                for (int i = 0; i < cs.Length; i++)
+                {
+                    Renderer r = cs[i].GetComponent<Renderer>();
+                    if (r != null) rs.Add(r);
+                }
+                _billboards = rs.ToArray();
+            }
+            _cutMainLast = main;
+            _surfaceCut = true;
+            _cutMain = main;
+            _surfaceCam = null;
+            if ((main.cullingMask & TerrainLayerBit) != 0)
+            {
+                main.cullingMask &= ~TerrainLayerBit;
+                _surfaceCam = main;
+            }
+            for (int i = 0; i < _billboards.Length; i++)
+                if (_billboards[i] != null && _billboards[i].enabled) { _billboards[i].enabled = false; _billboardsOff.Add(_billboards[i]); }
+            _log.LogInfo("Performance: surface world off on the main camera in the cave (" + (_surfaceCam != null ? "terrain" : "terrain already off") +
+                         ", " + _billboardsOff.Count + " tree billboards).");
+        }
+
         /// Once a frame; looks for the cameras every 2 s (a load brings
         /// new ones).
         public void Tick()
         {
+            if (CaveSurfaceOn)
+            {
+                try { TickCaveSurface(); }
+                catch (Exception ex)
+                {
+                    _log.LogWarning("Performance: surface world off in caves failed: " + ex.Message);
+                    ReleaseCaveSurface("error");
+                    CaveSurfaceOn = false;
+                }
+            }
             if (CaveGrassOn)
             {
                 try { TickCaveGrass(); }

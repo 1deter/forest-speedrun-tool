@@ -3027,6 +3027,16 @@ The table, the method and each cut's verdict: `tasks/notes/T-0199.md`.
   `_terrainRender` writes `drawHeightmap`): 0.13 ms at the
   Cave 6 spot, invisible there (cave mouths are open from inside, see
   *black walls* above).
+- **Both off in caves** (`[Performance] CaveSurfaceOff`, on, T-0277,
+  2026-10-11): layer 26 off MainCamNew's culling mask (nothing in the game
+  writes that camera's mask: the IL writers are its shadow / particle /
+  reflection / mask cameras) and the 25 `Tree_BillBoards` renderers off
+  (CustomBillboard never writes `Renderer.enabled`), while `IsInCaves &&
+  !IsInEndgame` (the lab is `IsInCaves` true). Layer 26 holds no renderer
+  on the surface or in Cave 6 (`RenderProbe.LayerContents 26`). Measured
+  at the Cave 6 spot, `-force-gfx-direct`, `timeScale 0`, 4 s windows:
+  MainCamNew 1.47-1.52 ms on vs 1.77-1.79 off, frame 4.03-4.30 vs
+  4.46-4.53; on-vs-off pixel diff 0.014% (on-vs-on 0.012%).
 - **GPU instancing does not help**: `enableInstancing` on the AFS tree
   bark (8 materials), Standard (Specular setup) (588) or Lux Standard
   Water Flow (98) made the frame 0.13-0.35 ms slower; the bark also

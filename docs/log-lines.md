@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 728 log calls.
+225 prefixes from 731 log calls.
 
 ## `Aerial capture`
 
@@ -1087,6 +1087,9 @@ Written by CameraTrim.cs, EndgameLoader.cs, PerfPatches.cs, WreckNav.cs; info / 
 - info `Performance: sun shadows (Sunshine) rendered every second frame.`
 - info `Performance: sun shadows back to every frame (switch off).`
 - info `Performance: sun shadows left alone - their update interval is already <interval>.`
+- info `Performance: surface world back on the main camera (<why>; terrain, <back> tree billboards).`
+- warning `Performance: surface world off in caves failed: <ex.Message>`
+- info `Performance: surface world off on the main camera in the cave (<..>, <_billboardsOff.Count> tree billboards).`
 - info `Performance: terrain grass camera back on (switch off).`
 - info `Performance: terrain grass camera back on - <why>; off again once the game draws after them.`
 - warning `Performance: terrain grass camera guard failed: <ex.Message>`

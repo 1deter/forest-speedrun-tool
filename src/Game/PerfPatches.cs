@@ -259,6 +259,15 @@ namespace ForestOverlay.Game
             _fixes[_fixes.Count - 1].Experimental = true;
             _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, grass outside the mouth does not bend around enemies. " +
                                             "Saves ~0.25 ms a frame in caves.";
+            Add(config, "CaveSurfaceOff", "Caves: don't draw the ground and distant trees above you",
+                "Changes the picture: while you are in a cave (not the endgame), the game's camera stops drawing the surface's " +
+                "ground and its distant-tree pictures, which it kept drawing under the rock where you cannot see them. The one " +
+                "difference: looking out of a cave mouth or up a sinkhole, the ground and distant trees outside are missing until " +
+                "you leave the cave. Picture only - nothing you can touch or that enemies use changes. Back in the frame you leave. " +
+                "Saves ~0.25 ms a frame in caves here. Off = the game's own drawing.",
+                _cameras.ApplyCaveSurface, _cameras.RemoveCaveSurface, true);
+            _fixes[_fixes.Count - 1].Note = "Changes the picture: from inside a cave, the ground and distant trees outside the mouth " +
+                                            "are not drawn. Saves ~0.25 ms a frame in caves.";
             // 15 was physics at 30 Hz: removed (author, 2026-10-02 - maks found
             // it changes the game's physics noticeably). ClearPhysics30 undoes
             // it once for anyone who had it on.
