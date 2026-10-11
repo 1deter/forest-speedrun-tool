@@ -23,6 +23,19 @@ namespace ForestOverlay.Data
             "3fcb3958d5c6a04c16b010a056bc0798ec4e1a4705cdc1e974d70ba2fb5c1c59",
         };
 
+        /// Run mode's flag on every attempt of a session with ModAPI loaded
+        /// (T-0295; the author's words, 2026-10-10). The site marks the
+        /// attempt by it.
+        public const string ModApiFlag = "ModAPI Detected";
+
+        public static bool HasModApi(IList<string> flags)
+        {
+            if (flags == null) return false;
+            for (int i = 0; i < flags.Count; i++)
+                if (flags[i] == ModApiFlag) return true;
+            return false;
+        }
+
         public int Attempt;
         public string Started = "";       // "Normal", "Hard, multiplayer", ...
         public string StartedAt = "";     // local time, "2026-10-02 14:03:11"
@@ -50,6 +63,7 @@ namespace ForestOverlay.Data
         public int OwnPatchedMethods;
         public readonly List<string> Cheats = new List<string>();         // the game's cheat switches seen on
         public readonly List<string> Flags = new List<string>();          // run mode's flags
+        public bool ModApi { get { return HasModApi(Flags); } }
         /// Only when the game's file hash is not a known build: "<top-level
         /// type> <16 hex>" per type of the loaded game code (Game/RunIntegrity.HashTypes),
         /// so the site can name what changed (phase 3). Not a finding here.

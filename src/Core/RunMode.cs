@@ -100,6 +100,8 @@ namespace ForestOverlay.Core
             EndedWhy = "";
             _flags.Clear();
             _refusedAt.Clear();
+            // Every attempt of a ModAPI session (T-0295): flagged, not refused.
+            if (_practice.ModApi) Flag(RunReport.ModApiFlag);
             Rebuild();
         }
 

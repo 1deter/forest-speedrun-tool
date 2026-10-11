@@ -29,7 +29,7 @@ namespace ForestOverlay.Core
 
         /// Draw the HUD line as a warning: practice used outside a run, or
         /// a run that is not valid.
-        public bool Warn { get { return _runText != null ? _runInvalid : _reason != null; } }
+        public bool Warn { get { return _runText != null ? _runInvalid : _reason != null || _modApi; } }
 
         /// Core/RunMode: told of every Mark (a Mark during a run flags it).
         public System.Action<string> MarkedDuringRun;
@@ -53,6 +53,17 @@ namespace ForestOverlay.Core
             _reason = reason;
             Rebuild();
             if (MarkedDuringRun != null) MarkedDuringRun(reason);
+        }
+
+        // ModAPI loaded this session (T-0295): flagged for the whole session,
+        // so an attempt start's Reset keeps it. A label, never a lock.
+        private bool _modApi;
+        public bool ModApi { get { return _modApi; } }
+
+        public void SetModApi(bool on)
+        {
+            _modApi = on;
+            Rebuild();
         }
 
         public void Reset()
@@ -95,11 +106,11 @@ namespace ForestOverlay.Core
 
         private void Rebuild()
         {
-            if (_runText != null) { _label.text = _runText; return; }
-            // The tool's short name, orange; nothing while clean (author,
-            // 2026-10-10: no "PRACTICE" word, no count - the flag says it). Each
-            // tool logs its own action; Reason / UseCount stay for the bridge.
-            _label.text = HudLines.ShortReason(_reason);
+            // Run mode's line, else the tool's short name, orange; nothing
+            // while clean (author, 2026-10-10: no "PRACTICE" word, no count -
+            // the flag says it). Each tool logs its own action; Reason /
+            // UseCount stay for the bridge. A ModAPI session's flag sits above.
+            _label.text = HudLines.Marker(_modApi, _runText, _reason);
         }
     }
 }

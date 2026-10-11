@@ -95,6 +95,13 @@ namespace ForestOverlay
                 _inventory = new InventoryReader(Logger);
                 _playerState = new PlayerStateReader(Logger);
                 _practice = new PracticeState();
+                // ModAPI's rebuilt game code (UltimateCheatmenu...): the
+                // session is flagged, nothing refused (T-0295; rule 12).
+                if (ModApi.Present())
+                {
+                    Logger.LogWarning("ModAPI: loaded - this session is flagged (the HUD's ModAPI flag, every run mode attempt).");
+                    _practice.SetModApi(true);
+                }
 
                 // Read-only postfixes on the endgame cutscene methods.
                 // Installed before modules so none can miss an event.
