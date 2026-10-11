@@ -191,7 +191,10 @@ In the author's words where it matters; do these before anything else.
 7. **One function per display**: speed's "(tot x)" is two things in one -
    make them separate widgets / modes (Momentum Mod's speedometer: one
    mode per widget). Same rule everywhere (author's design doc).
-8. **Toggles: a filled box, no check mark inside.**
+8. **Toggles: a filled box, no check mark inside.** Since T-0021 (author,
+   2026-10-11): a true 16x16 square centred on its row (`UiKit.Toggle`
+   draws it - the toggle style had stretched it to the row height), an
+   outline when off, a solid yellow square when on.
 9. **Feature = name + toggle; the rest on hover** (brief description). No
    paragraphs on the page (the Runs tab's run mode text is the example).
 10. **Notifications as toasts**: slide in / out smoothly, a thin progress bar
@@ -223,6 +226,10 @@ as Unity's shared dynamic-font texture thrashing: widgets drew values at a
 font size per scale (up to 96 px bold). Fix: values render at one size
 (32 px) scaled by `GUI.matrix`. Two shots after the fix: text intact. If it
 comes back, count the font sizes everything draws at (UiKit: 11-13, 26).
+*Replaced by T-0022 (2026-10-11):* values render at the smallest of 32 /
+64 / 96 px at or above their size and scale *down* (one 32 px render
+scaled up to 4.5x looked choppy), drawn with their own Arial font instance
+so their glyphs never share the UI's font texture.
 Cursor bug steps from the author: Settings tab, F2 to close - "seems to be
 fixed now though?"
 
@@ -244,7 +251,8 @@ check; snapping; saved section state.
 menu "enabled" list); the markers drag like the box did; speed shows the
 number only; the results panel uses one precision everywhere (the finer of
 the time / delta decimal settings - an 11.331 PB said "by 0.03 (was 11.37)").
-**Then:** widgets transparent with a 2 px shadow (card only in edit mode);
+**Then:** widgets transparent with a 2 px shadow (card only in edit mode;
+the shadow dropped by T-0022, author 2026-10-11: plain text);
 splits panel / run code box / drag outlines on UiKit; results gold = the
 accent; a toast when an update is out; `UiText.Note` turns an explanation
 under a control into that row's tooltip (13 notes in Settings, Practice,
