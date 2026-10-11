@@ -53,7 +53,9 @@ go to decisions.md; feature detail goes here.
   `queueChannel`; a missing field = the bot's .env default) and `POST
   /api/bot/report` `{version, rev, channels:[{id,name,guild,category}]}`,
   channels in Discord's sidebar order (`SeenChannel.InDiscordOrder`; the
-  page groups them server > category > channel and shows "applied rev N").
+  page groups them server > category > channel and shows "applied rev N";
+  a report older than 5 minutes - the bot reports each minute - turns the
+  line red: "Bot silent since <time> - its last report: ...", T-0155).
   No secrets pass through. Edits are held until **Save changes** on a
   Discord-style unsaved-changes bar (Reset beside it); while it shows, tab
   links, Back and Sign out are refused (the bar turns red and shakes) and

@@ -636,6 +636,9 @@ function adminsView(list) {
 
 // --- the knowledge bot (the owner only) -------------------------------------------------
 
+/// The bot reports about once a minute; silent this long = down (T-0155).
+const BOT_SILENT_MS = 5 * 60 * 1000;
+
 /// Channels the bot answers in (by name, from what it reports seeing, grouped server > category
 /// in Discord's order), DMs, limits, models, thinking, the research-queue channel. A field left
 /// empty = the bot's .env default. Edits are held until Save on Discord's unsaved-changes bar;
@@ -727,13 +730,18 @@ function botView(data) {
 
   const field = (label, input, hint) => el("label", { class: "field" }, el("span", null, label), input, hint ? el("span", { class: "sub" }, hint) : null);
 
+  // The bot reports every minute while it is up: a report older than BOT_SILENT_MS means it is not (T-0155).
+  const stale = !!report && !(Date.now() - new Date(report.at).getTime() <= BOT_SILENT_MS);
   let status;
   if (!data.botToken) status = "The site has no FOREST_BOT_TOKEN, so the bot cannot read these settings (set it in /opt/forest-site/.env and the bot's .env, then restart both).";
   else if (!report) status = "The bot has not reported yet.";
   else {
     const hhmm = t => t ? new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : null;
     const runs = "bot " + (report.version || "?");
-    if (data.rev === 0 && report.rev === 0) status = "No settings saved yet - the bot runs its .env values (" + runs + ", last reported " + date(report.at) + ").";
+    const today = new Date(report.at).toDateString() === new Date().toDateString();
+    if (stale) status = "Bot silent since " + (today ? "" : date(report.at) + " ") + (hhmm(report.at) || "(time unknown)") +
+      " - its last report: " + runs + ", rev " + report.rev + (report.rev === data.rev ? "" : " (saved rev " + data.rev + ")") + ". Saved changes apply once it is back.";
+    else if (data.rev === 0 && report.rev === 0) status = "No settings saved yet - the bot runs its .env values (" + runs + ", last reported " + date(report.at) + ").";
     else if (report.rev === data.rev) status = "Applied " + (hhmm(report.appliedAt) || "(time unknown)") + ", " + runs + " - saved rev " + data.rev + " is running.";
     else status = "Saved rev " + data.rev + ", bot runs rev " + report.rev + " (" + (report.appliedAt ? "applied " + hhmm(report.appliedAt) + ", " : "") + runs + ", last reported " + date(report.at) + ") - not applied yet.";
   }
@@ -752,7 +760,7 @@ function botView(data) {
   return el("section", { class: "hasbar" },
     el("p", { class: "note" }, "The knowledge bot's settings. It reads them about once a minute, no restart. Secrets (the Discord token, model keys) stay in the bot's .env and never pass through here. " +
       "A field left empty uses the bot's .env value."),
-    el("p", { class: report && report.rev === data.rev ? "sub" : "error" }, status),
+    el("p", { class: report && report.rev === data.rev && !stale ? "sub" : "error" }, status),
     form,
     bar.box);
 }
