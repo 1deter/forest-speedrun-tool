@@ -86,6 +86,19 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TextLoads = new GUIContent("Loads and savestates");
         private static readonly GUIContent TipLoads = new GUIContent(
             "What a restore puts back, and two fixes for what the game leaves behind after a load.");
+        // Settings > Network (T-0326, author 2026-10-11: one switch for
+        // startup, one for every automatic refresh).
+        private static readonly GUIContent TextNetwork = new GUIContent("Network");
+        private static readonly GUIContent TipNetwork = new GUIContent(
+            "When the overlay asks the internet by itself. Uploads have their own switches in the Runs tab.");
+        private static readonly GUIContent AtStartupText = new GUIContent(" Check online at startup");
+        private static readonly GUIContent AtStartupNote = new GUIContent(
+            "Updates, community spots and run categories, a few seconds after the game starts. " +
+            "Off: nothing is asked at startup. Takes effect at the next start.");
+        private static readonly GUIContent RefreshText = new GUIContent(" Refresh lists automatically");
+        private static readonly GUIContent RefreshNote = new GUIContent(
+            "The Import view's community and website spots, the Runs tab's other runners, categories and sent attempts. " +
+            "Off: they are asked for only when you click their Check now.");
         private GUIContent[] _hudNames;
         private static readonly GUIContent HudIntro = new GUIContent(
             "Tick the values you want on screen. Hover one for what it shows.");
@@ -286,12 +299,38 @@ namespace ForestOverlay.Modules
             if (_savestates != null && UiKit.Section(0f, ref y, w, "settings.loads", TextLoads, null, TipLoads, false))
                 y = _savestates.DrawOptions(12f, y, w - 24f) + 6f;
 
+            if (UiKit.Section(0f, ref y, w, "settings.network", TextNetwork, null, TipNetwork, false))
+                y = DrawNetwork(y, w);
+
             _pageH = y + 4f;
             GUI.EndScrollView();
 
             // Capture has to run before DragWindow, or dragging swallows
             // the key event we are waiting for.
             if (map.AwaitingRebind != null) CaptureKey(map, false);
+        }
+
+        private float DrawNetwork(float y, float w)
+        {
+            NetworkSwitches net = Ctx.Network;
+            bool start = UiKit.Toggle(new Rect(12, y, w - 24, 22), net.AtStartup.Value, AtStartupText);
+            if (start != net.AtStartup.Value)
+            {
+                net.AtStartup.Value = start;
+                Ctx.Log.LogInfo("Settings: check online at startup " + (start ? "on" : "off") + ".");
+            }
+            y += 24f;
+            y += UiText.Note(30, y, w - 42, AtStartupNote) + 6f;
+
+            bool refresh = UiKit.Toggle(new Rect(12, y, w - 24, 22), net.Refresh.Value, RefreshText);
+            if (refresh != net.Refresh.Value)
+            {
+                net.Refresh.Value = refresh;
+                Ctx.Log.LogInfo("Settings: refresh lists automatically " + (refresh ? "on" : "off") + ".");
+            }
+            y += 24f;
+            y += UiText.Note(30, y, w - 42, RefreshNote) + 6f;
+            return y;
         }
 
         private float DrawKeys(float y, float w, HotkeyMap map)

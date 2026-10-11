@@ -42,7 +42,6 @@ namespace ForestOverlay.Modules
         public override string Id { get { return "community"; } }
         public override string DisplayName { get { return "Community spots"; } }
 
-        private ConfigEntry<bool> _auto;
         private ConfigEntry<string> _url;
         private string _cache;
         private string _segmentsDir;
@@ -55,20 +54,18 @@ namespace ForestOverlay.Modules
         public override void Initialise(ModuleContext ctx)
         {
             base.Initialise(ctx);
-            _auto = ctx.Config.Bind("Community", "UpdateOnStartup", true,
-                                    "Fetch the community spots / segments a few seconds after the game starts, and again when the Import view opens. Off = no automatic community check.");
             _url = ctx.Config.Bind("Community", "Url", DefaultUrl,
                                    "Folder holding the community index.txt and .foseg files (ends with /).");
             _cache = Path.Combine(ctx.ConfigDirectory, "community");
             _segmentsDir = Path.Combine(ctx.ConfigDirectory, "segments");
-            Status = _auto.Value ? "checking shortly after startup" : "not checked (UpdateOnStartup is off)";
+            Status = ctx.Network.AtStartup.Value ? "checking shortly after startup" : "not checked at startup (Settings > Network)";
         }
 
         public override void Tick()
         {
             if (_startupDone || Time.unscaledTime < StartupDelay) return;
             _startupDone = true;
-            if (_auto.Value && _checkedAt < 0f) CheckNow();
+            if (Ctx.Network.AtStartup.Value && _checkedAt < 0f) CheckNow();
         }
 
         /// The Practice tab's Import view came into view (T-0254): the
@@ -76,10 +73,20 @@ namespace ForestOverlay.Modules
         /// when their last answer is old enough.
         public void ImportViewOpened()
         {
-            // UpdateOnStartup off stops this check too (author, 2026-10-11); the Import
-            // view's own button-less list still follows the website's spots.
-            if (_auto.Value && !Busy && (_checkedAt < 0f || Time.unscaledTime >= _checkedAt + RecheckAfter)) CheckNow();
+            // Settings > Network's refresh switch covers both (T-0326); off,
+            // the view offers CheckAllNow instead.
+            if (!Ctx.Network.Refresh.Value) return;
+            if (!Busy && (_checkedAt < 0f || Time.unscaledTime >= _checkedAt + RecheckAfter)) CheckNow();
             WebOpened();
+        }
+
+        /// The Import view's Check now (automatic refresh off, T-0326): the
+        /// community packs and the website's spots, asked at once.
+        public void CheckAllNow()
+        {
+            Ctx.Log.LogInfo("Community: Check now.");
+            CheckNow();
+            WebRefresh();
         }
 
         public void CheckNow()

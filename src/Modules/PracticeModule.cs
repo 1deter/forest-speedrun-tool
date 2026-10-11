@@ -214,6 +214,9 @@ namespace ForestOverlay.Modules
             "Community spot (read-only) - it updates with the community packs. Duplicate makes your own copy " +
             "to edit, start state included.");
         private readonly GUIContent _communityStatus = new GUIContent("");
+        private static readonly GUIContent CheckNowText = new GUIContent("Check now");
+        private static readonly GUIContent CheckNowTip = new GUIContent(
+            "Ask for the community spots and the website's spots now. Settings > Network can refresh them by itself.");
         private string _communityStatusFor;
         private CommunityModule _community;
         private readonly GUIContent _webStatus = new GUIContent("");
@@ -2596,6 +2599,16 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(0, y, w - 10, _importHeader);
             if (GUI.Button(new Rect(0, y + 2, 96, 22), "Open folder")) OpenSharedFolder();
             if (GUI.Button(new Rect(100, y + 2, 60, 22), "Close")) _importing = false;
+            // Automatic refresh off (Settings > Network, T-0326): the lists
+            // below are asked for only on this click; the answer shows under it.
+            if (_community != null && !Ctx.Network.Refresh.Value)
+            {
+                GUI.enabled = !_community.Busy && !_community.WebBusy;
+                Rect checkR = new Rect(164, y + 2, 90, 22);
+                if (GUI.Button(checkR, CheckNowText)) _community.CheckAllNow();
+                UiKit.Hint(checkR, CheckNowTip);
+                GUI.enabled = true;
+            }
             y += 28f;
             if (_community != null)
             {

@@ -41,6 +41,11 @@ namespace ForestOverlay.Modules
         private readonly GUIContent _boardText = new GUIContent("");
         private readonly GUIContent _runnerPickText = new GUIContent("");
 
+        private const string BoardNotAsked = "Other runners: not asked (automatic refresh is off in Settings > Network).";
+        private static readonly GUIContent BoardCheckText = new GUIContent("Check now");
+        private static readonly GUIContent BoardCheckTip = new GUIContent(
+            "Ask the website for other runners' times on this segment now. Settings > Network can refresh them by itself.");
+
         private string SiteUrl { get { return _upload != null ? _upload.SiteUrl : null; } }
 
         /// The Runs tab came into view (T-0254: no Refresh button): the board
@@ -50,7 +55,7 @@ namespace ForestOverlay.Modules
         private void RunsTabOpened()
         {
             if (_runMode != null) _runMode.RunsTabOpened();
-            if (_recorder.State == RunRecorder.RunState.Running) return;
+            if (_recorder.State == RunRecorder.RunState.Running || !Ctx.Network.Refresh.Value) return;
             if (_boardFailed) FetchBoard();
             else MaybeFetchBoard();
         }
@@ -64,6 +69,13 @@ namespace ForestOverlay.Modules
             string key = _segment.Id + "|" + _armedRoute;
             if (key != _boardKey) ClearBoard(key);
             else if (Time.unscaledTime < _boardFetchedAt + BoardMaxAge) return;
+            // Automatic refresh off (Settings > Network, T-0326): the Runs
+            // tab's Check now asks instead.
+            if (!Ctx.Network.Refresh.Value)
+            {
+                if (_siteOthers.Count == 0) _boardState = BoardNotAsked;
+                return;
+            }
             FetchBoard();
         }
 
@@ -219,6 +231,19 @@ namespace ForestOverlay.Modules
                 if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
                 if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
                 GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
+                y += 24f;
+            }
+            if (!Ctx.Network.Refresh.Value)
+            {
+                GUI.enabled = _boardFetching != _boardKey;
+                Rect checkR = new Rect(0, y, 90, 20);
+                if (GUI.Button(checkR, BoardCheckText))
+                {
+                    Ctx.Log.LogInfo("Site board '" + _boardKey + "': Check now.");
+                    FetchBoard();
+                }
+                UiKit.Hint(checkR, BoardCheckTip);
+                GUI.enabled = true;
                 y += 24f;
             }
             if (_boardState.Length > 0) y += UiText.Draw(0, y, w, _boardText);

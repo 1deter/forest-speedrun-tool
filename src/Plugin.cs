@@ -124,6 +124,7 @@ namespace ForestOverlay
                 ctx.Run = new RunMode(Logger, _notice, _practice);
                 ctx.Notice = _notice;
                 ctx.Events = _events;
+                ctx.Network = new NetworkSwitches(Config, Logger);
                 ctx.ConfigDirectory = configDir;
                 ctx.Logs = _logs;
                 ctx.Runner = this;

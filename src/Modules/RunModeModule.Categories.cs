@@ -71,7 +71,8 @@ namespace ForestOverlay.Modules
                 }
             }
             catch (Exception ex) { _catStatus = "The saved categories could not be read: " + ex.Message; }
-            _fetchAt = Time.unscaledTime + FetchDelay;
+            // Settings > Network (T-0326): off, no request at startup.
+            _fetchAt = ctx.Network.AtStartup.Value ? Time.unscaledTime + FetchDelay : -1f;
         }
 
         private void TickCategories()
@@ -81,7 +82,7 @@ namespace ForestOverlay.Modules
                 _fetchAt = -1f;
                 FetchCategories();
             }
-            else if (_refreshAt >= 0f && Time.unscaledTime >= _refreshAt && !_fetching)
+            else if (_refreshAt >= 0f && Time.unscaledTime >= _refreshAt && !_fetching && Ctx.Network.Refresh.Value)
             {
                 _refreshAt = -1f;
                 FetchCategories();
@@ -92,7 +93,7 @@ namespace ForestOverlay.Modules
         /// starting one): a 304 when nothing changed.
         private void CheckCategoriesSoon()
         {
-            if (!_fetching) _fetchAt = Time.unscaledTime;
+            if (!_fetching && Ctx.Network.Refresh.Value) _fetchAt = Time.unscaledTime;
         }
 
         /// The Runs tab came into view (PracticeRunModule).
@@ -248,12 +249,29 @@ namespace ForestOverlay.Modules
         }
 
         /// The Runs tab's category rows; returns the new y.
+        private static readonly GUIContent CheckNowText = new GUIContent("Check now");
+        private static readonly GUIContent CheckNowTip = new GUIContent(
+            "Ask the website for the run categories now. Settings > Network can refresh them by itself.");
+
         private float DrawCategories(float y, float w)
         {
             if (!Ctx.Run.Active)
             {
                 if (GUI.Button(new Rect(0, y + 2, 28, 22), "<")) Pick(-1);
                 if (GUI.Button(new Rect(32, y + 2, 28, 22), ">")) Pick(1);
+                // Automatic refresh off (Settings > Network, T-0326).
+                if (!Ctx.Network.Refresh.Value)
+                {
+                    GUI.enabled = !_fetching;
+                    Rect checkR = new Rect(64, y + 2, 90, 22);
+                    if (GUI.Button(checkR, CheckNowText))
+                    {
+                        Ctx.Log.LogInfo("Run mode: categories Check now.");
+                        FetchCategories();
+                    }
+                    UiKit.Hint(checkR, CheckNowTip);
+                    GUI.enabled = true;
+                }
                 y += 28f;
             }
             y += UiText.Draw(0, y, w, _catText) + 2f;

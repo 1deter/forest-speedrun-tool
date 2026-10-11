@@ -215,7 +215,9 @@ namespace ForestOverlay.Modules
         private void TickAttempts()
         {
             if (_recentDirty) RebuildRecent();
-            if (_recentCheckDue && !_recentCheckBusy && Time.frameCount <= _recentDrawnFrame + 2) CheckRecent();
+            // Settings > Network's automatic refresh (T-0326); off, DrawAttempts' Check now.
+            if (_recentCheckDue && !_recentCheckBusy && Time.frameCount <= _recentDrawnFrame + 2 && Ctx.Network.Refresh.Value)
+                CheckRecent();
             if (_attemptBusy || !AttemptsOn || Time.unscaledTime < _nextAttemptTry) return;
             _nextAttemptTry = Time.unscaledTime + 5f;
             string next = OldestAttempt();
@@ -388,6 +390,20 @@ namespace ForestOverlay.Modules
                 if (_attemptStateText.text != _attemptState) _attemptStateText.text = _attemptState;
                 y += UiText.Draw(0, y, w, _attemptStateText);
             }
+            if (_recentIds.Count > 0 && !Ctx.Network.Refresh.Value)
+            {
+                GUI.enabled = !_recentCheckBusy;
+                Rect checkR = new Rect(0, y + 1, 90, 20);
+                if (GUI.Button(checkR, RecentCheckText))
+                {
+                    Ctx.Log.LogInfo("Attempts: Check now - asking the website about the listed attempts.");
+                    _askedThisOpen.Clear();
+                    CheckRecent();
+                }
+                UiKit.Hint(checkR, RecentCheckTip);
+                GUI.enabled = true;
+                y += 24f;
+            }
             for (int i = 0; i < _recentIds.Count && i < _recentText.Count; i++)
             {
                 if (GUI.Button(new Rect(0, y + 1, 80, 20), "Copy link"))
@@ -401,6 +417,9 @@ namespace ForestOverlay.Modules
         }
 
         private readonly GUIContent _attemptStateText = new GUIContent("");
+        private static readonly GUIContent RecentCheckText = new GUIContent("Check now");
+        private static readonly GUIContent RecentCheckTip = new GUIContent(
+            "Ask the website whether the attempts below are still there. Settings > Network can do it by itself.");
 
         // --- attempts deleted on the site (T-0144) ---------------------------------------
 

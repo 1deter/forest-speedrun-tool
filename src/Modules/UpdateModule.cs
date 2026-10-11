@@ -38,6 +38,10 @@ namespace ForestOverlay.Modules
         private Vector2 _notesScroll;
         private float _notesHeight;
         private string _autoInstallLabel = "";
+        // T-0326: Settings > Network's startup switch was off.
+        private bool _startupSkipped;
+        private static readonly GUIContent StartupOffText = new GUIContent(
+            "Not checked at startup (Settings > Network). Check again asks now.");
 
         public override void Initialise(ModuleContext ctx)
         {
@@ -48,7 +52,12 @@ namespace ForestOverlay.Modules
             // Fixed for the session: the installer ran before any module.
             _autoInstallLabel = "Auto-install: " + UpdaterInstaller.Status;
 
-            if (ctx.Runner != null)
+            if (!ctx.Network.AtStartup.Value)
+            {
+                _startupSkipped = true;
+                ctx.Log.LogInfo("Update check: skipped at startup (Network.CheckAtStartup is off).");
+            }
+            else if (ctx.Runner != null)
                 ctx.Runner.StartCoroutine(_checker.Check());
             else
                 ctx.Log.LogWarning("No coroutine runner - update check skipped.");
@@ -158,6 +167,8 @@ namespace ForestOverlay.Modules
             y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
             y += UiText.Draw(12, y, w - 24, _statusText);
             y += UiText.Draw(12, y, w - 24, _autoInstallLabel) + 6f;
+            if (_startupSkipped && _checker.State == UpdateChecker.Status.Idle)
+                y += UiText.Draw(12, y, w - 24, StartupOffText) + 6f;
 
             bool canDownload = _checker.State == UpdateChecker.Status.UpdateAvailable ||
                                _checker.State == UpdateChecker.Status.DownloadRetry;

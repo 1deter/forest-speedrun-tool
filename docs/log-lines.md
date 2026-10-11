@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-229 prefixes from 711 log calls.
+230 prefixes from 720 log calls.
 
 ## `Aerial capture`
 
@@ -62,6 +62,7 @@ Written by RunUploadModule.Attempts.cs; info / warning.
 - info `Attempts: <id> log sent - <verdict><..>.`
 - info `Attempts: <id> never ended (the game closed during it) - its log is <..>`
 - info `Attempts: <id> was deleted on the site (404) - taken off the Runs tab's list (sent.txt).`
+- info `Attempts: Check now - asking the website about the listed attempts.`
 - warning `Attempts: cannot read <..>: <ex.Message>`
 - warning `Attempts: checkpoint <attemptId> step <step> not taken: <..>.`
 - info `Attempts: checkpoint <attemptId> step <step> sent.`
@@ -203,6 +204,7 @@ Written by CommunityModule.cs; info / warning.
 - warning `Community: <e.File> not written: <ex.Message>`
 - warning `Community: <status>.`
 - info `Community: <status>.`
+- info `Community: Check now.`
 - info `Community: skipped (you have that id): <..>.`
 - warning `Community: start state of '<s.Id>' failed: <ex.Message>`
 - warning `Community: start state of '<s.Id>' not written: <err>`
@@ -1010,6 +1012,14 @@ Written by NatureKeeper.cs; info / warning.
 - info `NatureKeeper: <Status><..>.`
 - warning `NatureKeeper: keeping a bush failed: <ex.Message>`
 
+## `Network`
+
+Meaning: The two Settings > Network switches at startup (check online at startup, refresh lists automatically) and the old Community.UpdateOnStartup carried over (T-0326).
+Written by NetworkSwitches.cs; info.
+
+- info `Network: Community.UpdateOnStartup was off - Network.CheckAtStartup is off too.`
+- info `Network: check at startup <..>, refresh automatically <..>.`
+
 ## `No coroutine runner`
 
 Meaning: The update check was skipped: no coroutine runner.
@@ -1418,6 +1428,7 @@ Written by RunMode.cs, RunIntegrity.cs, RunModeModule.Categories.cs, RunModeModu
 - info `Run mode: game code <..> (Assembly-CSharp <..>).`
 - info `Run mode: hashed <_typeHashes.Count> types of the game's code for the site to compare (<sw.ElapsedMilliseconds> ms).`
 - info `Run mode: <list.Count> categories from the site<..>.`
+- info `Run mode: categories Check now.`
 - warning `Run mode: categories not fetched from <url>: <..>.`
 - warning `Run mode: categories not saved: <ex.Message>`
 - info `Run mode: <_attemptId> ended (<reason>) after <_chain.Steps> step(s), <..>; last code <_chain.Code>.`
@@ -1638,10 +1649,12 @@ Written by SettingsModule.cs; info.
 
 - info `Settings: HUD values reset to their defaults.`
 - info `Settings: all keys reset to their defaults.`
+- info `Settings: check online at startup <..>.`
 - info `Settings: key '<b.Description>' reset to <b.Default>.`
 - info `Settings: key '<target.Description>' rebound to <e.keyCode><..>`
 - info `Settings: key '<target.Description>' unbound.`
 - info `Settings: rebind of '<target.Description>' cancelled.`
+- info `Settings: refresh lists automatically <..>.`
 
 ## `SetupHold`
 
@@ -1678,6 +1691,7 @@ Written by GameBridge.cs; info.
 Meaning: A spot's leaderboard from the site: runners to compare with, or why not.
 Written by PracticeRunModule.Site.cs; info / warning.
 
+- info `Site board '<_boardKey>': Check now.`
 - info `Site board '<key>': <board.Count> runner(s), <_siteOthers.Count> to compare with.`
 - warning `Site board '<key>': <why>.`
 
@@ -1914,10 +1928,11 @@ Written by UpdateChecker.cs; info / warning.
 ## `Update check`
 
 Meaning: The update check against the release asset: up to date, an update available or still publishing, or an error.
-Written by UpdateChecker.cs; info / warning.
+Written by UpdateChecker.cs, UpdateModule.cs; info / warning.
 
 - warning `Update check: <Message>`
 - info `Update check: <Message>`
+- info `Update check: skipped at startup (Network.CheckAtStartup is off).`
 
 ## `Update check in preloader failed`
 

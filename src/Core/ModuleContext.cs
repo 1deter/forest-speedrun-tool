@@ -27,6 +27,9 @@ namespace ForestOverlay.Core
         /// Named game events (endgame cutscenes etc.) seen by Harmony
         /// postfixes. Read-only log; consumers keep their own position.
         public GameEvents Events;
+        /// Whether the plugin asks the internet by itself: at startup, and
+        /// to refresh its online lists (T-0326).
+        public NetworkSwitches Network;
         public string ConfigDirectory;
 
         /// This session's log copy and the kept previous ones.
