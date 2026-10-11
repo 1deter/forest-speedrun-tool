@@ -698,6 +698,22 @@ File reads are long-tailed (the top file, this one, is 0.5%), so there is
 no fat target there. Each 10k cut from the start saves ~0.8M a session
 (6%); each call saved saves at least 73k.
 
+**Tried first (author, 2026-10-11: "try whatever you think is best ...
+measure impact, then adjust").** A tool the model is denied is left out of
+its context (proved with `claude -p --disallowedTools` and a project
+`permissions.deny`: 33.5k -> 32.1k for three small tools), so
+`.claude/settings.json` denies every tool and connector main sessions and
+agents never called since 2026-09-20: `Artifact`, `ReportFindings`,
+`SearchPlugins`, `SuggestPluginInstall`, `SuggestSkills`, `ScheduleWakeup`,
+the Claude Docs and visualize connectors, and the deferred `claude-in-chrome`,
+`scheduled-tasks`, `mcp-registry`, `potassium`, `roblox-explorer`. Undo a
+line when one is needed. Re-measure: the `start` column of
+`agent-cost.py --agent main --since 2026-10-12 --runs` against ~73k.
+Not built, measured too small: moving CLAUDE.md's *Where we are* out
+(~0.7k) or shortening MEMORY.md (~1.5k) - under 1% a session each. The
+big one left is session length: 41% of main input is sent at > 200k
+context (68% at > 150k, 12% at > 300k), which only a handoff cap can cut.
+
 ---
 
 ## Decisions (author, 2026-10-07)
