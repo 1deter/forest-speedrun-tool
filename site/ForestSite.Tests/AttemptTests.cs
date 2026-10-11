@@ -819,6 +819,114 @@ public sealed class AttemptTests : IDisposable
     }
 
     [Fact]
+    public void Official_KeepsEachVerdict_EvenWhenTheViewsCacheHoldsNothing()
+    {
+        // Security audit (2026-10-11): with the views' cache full, every new
+        // log made the next /api/official replay every finished log again.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new Store(dir);
+            var categories = new Categories(store, () => Issued);
+            var cat = new RunCategory { Id = "any-normal", Name = "Any% - Normal", Status = "published", Difficulty = "normal" };
+            Assert.Null(categories.Save("any-normal", cat.Format(), "admin").error);
+            var a = new Attempts(store, dir, () => Issued, categories) { MaxCachedLog = 1 };   // no view is kept
+            string red = Report(r => r.OtherPlugins.Add(Mod));
+            for (int n = 1; n <= 3; n++)
+                Assert.Equal(200, a.Log(Runner, AId(n), FinishedLog(AId(n), "any-normal", 60_000 + n, report: red)).Status);
+            int Listed() => System.Text.Json.JsonSerializer.SerializeToNode(a.Official())!.AsArray().Single()!["count"]!.GetValue<int>();
+
+            Assert.Equal(0, Listed());
+            Assert.Equal(3, a.LogsJudged);
+            // A new log changes the list: only that one is judged.
+            Assert.Equal(200, a.Log(Runner2, AId(4), FinishedLog(AId(4), "any-normal", 70_000, runner: Runner2)).Status);
+            Assert.Equal(1, Listed());
+            Assert.Equal(4, a.LogsJudged);
+            // The allow-list changes every verdict: judged again, once.
+            a.Allow("mod", Mod, "admin");
+            Assert.Equal(2, Listed());
+            Assert.Equal(8, a.LogsJudged);
+            // A view still replays (nothing kept) and agrees.
+            Assert.NotEqual("red", System.Text.Json.JsonSerializer.SerializeToNode(a.View(AId(1)))!["verdict"]!.GetValue<string>());
+            Assert.Equal(9, a.LogsJudged);
+            // A deleted attempt's verdict goes with it.
+            Assert.True(a.Delete(AId(4)));
+            Assert.Equal(1, Listed());
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void FindCode_ReadsTheJudgedLog_NotAReplayPerLookUp()
+    {
+        // Security audit (2026-10-11): each look-up replayed the whole log.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            var c = new AttemptChain();
+            c.Header(AId(1), Runner, "Runner", "test", "Any%", "", "h", "seed", new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc));
+            for (int s = 1; s <= 3; s++) c.Step(s * 1000L, s * 1000L, true, s, 0, 0);
+            string code = c.Code;
+            c.End(3100, "reset", -1);
+            Assert.Equal(200, a.Log(Runner, AId(1), c.Text).Status);
+
+            JsonNode Find(string typed) => System.Text.Json.JsonSerializer.SerializeToNode(a.FindCode(AId(1), typed));
+            for (int i = 0; i < 5; i++)
+            {
+                var found = Find(code.ToLowerInvariant());
+                Assert.Equal(code, found!["code"]!.GetValue<string>());
+                Assert.Contains(found["matches"]!.AsArray(), m => m!["step"]!.GetValue<int>() == 3 && m["realMs"]!.GetValue<long>() == 3000);
+            }
+            Assert.Equal(1, a.LogsJudged);
+            Assert.Null(a.FindCode(AId(1), "toolong"));
+            // An attempt with no log yet: nothing to judge.
+            Assert.Equal(200, a.Start(Runner, AId(2), "Any%", "").Status);
+            Assert.Empty(System.Text.Json.JsonSerializer.SerializeToNode(a.FindCode(AId(2), code))!["matches"]!.AsArray());
+            Assert.Equal(1, a.LogsJudged);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void Log_TwoFirstUploadsAtOnce_OneIsKept_TheOtherRefused()
+    {
+        // Security audit (2026-10-11): both found no log in, both were
+        // written - the file of one, the verdict of the other.
+        string dir = Path.Combine(Path.GetTempPath(), "forest-site-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new Attempts(new Store(dir), dir, () => Issued);
+            for (int round = 1; round <= 5; round++)
+            {
+                string id = AId(round);
+                var logs = Enumerable.Range(0, 8).Select(i => FinishedLog(id, "Any%", 60_000 + i)).ToArray();
+                var start = new Barrier(logs.Length);
+                var answers = new (string l, int Status)[logs.Length];
+                var threads = logs.Select((l, i) => new Thread(() => { start.SignalAndWait(); answers[i] = (l, a.Log(Runner, id, l).Status); })).ToList();
+                threads.ForEach(t => t.Start());
+                threads.ForEach(t => t.Join());
+                var kept = Assert.Single(answers, x => x.Status == 200);
+                Assert.All(answers.Where(x => x.Status != 200), x => Assert.Equal(409, x.Status));
+                Assert.Equal(kept.l, a.LogText(id));
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
     public void PathOf_ReadsTheStepPositions_InMetres_SkippingLoads()
     {
         var c = new AttemptChain();

@@ -1142,6 +1142,22 @@ Re-check after admin features: new endpoints go under the `admin` group
 (its filter checks the token), owner-only ones check `IsOwner`, and any
 new page text goes through `el()`.
 
+### Audit 2026-10-11 (T-0084, the pre-1.0 audit)
+
+The whole site again, with what came since 2026-10-04 (official runs, PB
+embeds, `/api/admin/pbposts`, the attempt page's replay): the report with
+every finding, its exploit sketch and fix is
+[`docs/security-audit-2026-10.md`](security-audit-2026-10.md). Fixed (site
+only): `/api/official` no longer replays every finished log when the
+judged-log cache is full; the code look-up reads the judged log; one log
+upload of an attempt at a time; draft categories are not readable through
+`/api/categories/<id>/<v>`; a refused map upload clears nothing; admin
+answers `no-store`, no `Server` header; runner ids lower case only. Open,
+for the author (tasks/notes/T-0084.md): a copy of another runner's spot
+becomes the spot's current route; attempt views replay on a cache miss;
+draft rules through an attempt; format characters in names; no cap on
+attempts per upload.
+
 ## Useful from the game later
 
 - Terrain heightmap for 3D: readable live over the bridge

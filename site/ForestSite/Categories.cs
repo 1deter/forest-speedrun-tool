@@ -103,6 +103,11 @@ CREATE TABLE IF NOT EXISTS category_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);"
         return text is string t ? Read(t) : null;
     }
 
+    /// A version for anyone to read: only of a category published now - a
+    /// draft or hidden one never leaves the site (security audit, 2026-10-11).
+    public RunCategory PublishedVersion(string id, int version) =>
+        Current(id)?.Status == "published" ? Version(id, version) : null;
+
     public RunCategory Current(string id) => Rows("WHERE id = $id", ("$id", id ?? "")).Select(r => Read(r.Text)).FirstOrDefault();
 
     /// Whether a run spot's `run = ` (a category id or name) names a

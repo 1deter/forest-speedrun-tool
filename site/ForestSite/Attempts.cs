@@ -137,6 +137,17 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     public Answer Log(string runner, string id, string text)
     {
         if (!AttemptChain.IsAttemptId(id)) return Fail(400, "not an attempt id");
+        // One log of an attempt at a time: two first uploads at once both
+        // found none in and both were written - the last file and the first
+        // verdict (security audit, 2026-10-11).
+        lock (_logGates[Convert.ToInt32(id.Substring(14), 16) % _logGates.Length])
+            return LogOnce(runner, id, text);
+    }
+
+    private readonly object[] _logGates = Enumerable.Range(0, 64).Select(_ => new object()).ToArray();
+
+    private Answer LogOnce(string runner, string id, string text)
+    {
         var row = Row(id);
         if (row != null && row.Runner != runner) return Fail(409, "this attempt id is someone else's");
         if (row?.LogMs != null)
@@ -317,7 +328,7 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             {
                 if (accepted.TryGetValue(id, out bool ok)) return ok;
                 var row = Row(id);
-                ok = row?.LogMs != null && JudgedLog(id, row).Verdict != "red";
+                ok = row?.LogMs != null && VerdictOf(id, row) != "red";
                 accepted[id] = ok;
                 return ok;
             }
@@ -353,25 +364,49 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private sealed record Judged(long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, long Weight,
                                  string Plugin, string Started, string StartedAt, string Mode, int Flags, object Category, object Moves,
                                  List<string> Rundown, object Events, object EventGroups, string Verdict, string[] Why, object Findings,
-                                 object Recording, string Report, object Loads, List<double[]> Path);
+                                 object Recording, string Report, object Loads, List<double[]> Path,
+                                 ILookup<string, (int N, long RealMs, long TimerMs)> Codes);
 
     /// The logs' size the cache may hold (characters of log text); past it,
-    /// it starts again.
-    public const long MaxCachedLog = 64L * 1024 * 1024;
+    /// it starts again. Settable for the tests.
+    public long MaxCachedLog { get; set; } = 64L * 1024 * 1024;
 
     private readonly Dictionary<string, Judged> _judged = new();
+    /// The verdict alone, per attempt: a few bytes each, so it outlives the
+    /// views' cache - the official list asks every finished attempt's
+    /// verdict, and with the views' cache full each new log made it replay
+    /// all of them again (security audit, 2026-10-11: a runner's 500 red
+    /// 4 MB logs were 2 GB of replay per /api/official). Valid as a view is.
+    private readonly Dictionary<string, (long LogMs, int AllowedVersion, string CategoryId, int CategoryVersion, bool CategoryFound, string Verdict)> _verdicts = new();
     private long _judgedWeight;
     private int _allowedVersion;
 
     /// How many times a view replayed and judged a log (tests).
     public int LogsJudged;
 
+    /// Whether a judgement made under these still holds: the same log, the
+    /// same allow-list, and the category version it named was there then or
+    /// is still missing now. Under the lock.
+    private bool Holds(AttemptRow row, long logMs, int allowedVersion, string categoryId, int categoryVersion, bool categoryFound) =>
+        logMs == row.LogMs && allowedVersion == _allowedVersion &&
+        (categoryFound || categoryId.Length == 0 || _categories?.Version(categoryId, categoryVersion) == null);
+
+    /// An ended attempt's verdict, from either cache before a replay.
+    private string VerdictOf(string id, AttemptRow row)
+    {
+        lock (_judged)
+        {
+            if (_verdicts.TryGetValue(id, out var v) && Holds(row, v.LogMs, v.AllowedVersion, v.CategoryId, v.CategoryVersion, v.CategoryFound))
+                return v.Verdict;
+        }
+        return JudgedLog(id, row).Verdict;
+    }
+
     private Judged JudgedLog(string id, AttemptRow row)
     {
         lock (_judged)
         {
-            if (_judged.TryGetValue(id, out var hit) && hit.LogMs == row.LogMs && hit.AllowedVersion == _allowedVersion &&
-                (hit.CategoryFound || hit.CategoryId.Length == 0 || _categories?.Version(hit.CategoryId, hit.CategoryVersion) == null))
+            if (_judged.TryGetValue(id, out var hit) && Holds(row, hit.LogMs, hit.AllowedVersion, hit.CategoryId, hit.CategoryVersion, hit.CategoryFound))
                 return hit;
         }
         int allowedVersion = Volatile.Read(ref _allowedVersion);
@@ -404,9 +439,11 @@ CREATE TABLE IF NOT EXISTS allowed_code (
             replay.Plugin, replay.Started, parsed.StartedAt, parsed.Started, replay.Flags.Count, Categories.View(cat), moves,
             RunAudit.Rundown(replay.Events, replay.Moves.Select(m => m.Kind).ToList()), events, eventGroups, verdict, all.ToArray(),
             list.Select(f => new { level = f.Level, text = f.Text, details = f.Details }).ToList(),
-            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text));
+            new { verdict = row.Verdict, why, judged = cat == null || cat.AntiSplice }, ShownReport(report), LoadsView(replay), PathOf(text),
+            replay.Steps.ToLookup(st => st.Code ?? "", st => (st.N, st.RealMs, st.TimerMs)));
         lock (_judged)
         {
+            _verdicts[id] = (j.LogMs, j.AllowedVersion, j.CategoryId, j.CategoryVersion, j.CategoryFound, j.Verdict);
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
             if (j.Weight <= MaxCachedLog)
             {
@@ -449,7 +486,10 @@ CREATE TABLE IF NOT EXISTS allowed_code (
     private void Forget(string id)
     {
         lock (_judged)
+        {
+            _verdicts.Remove(id);
             if (_judged.Remove(id, out var old)) _judgedWeight -= old.Weight;
+        }
     }
 
     // --- moves the game saw (pure, tested) -----------------------------------------
@@ -731,8 +771,9 @@ GROUP BY kind, text ORDER BY MAX(allowed) DESC, SUM(n) DESC, kind, text";
         if (code == null) return null;
         var row = Row(id);
         if (row?.LogMs == null) return new { code, matches = Array.Empty<object>() };
-        var r = AttemptChain.Read(LogText(id));
-        var hits = r.Steps.Where(s => s.Code == code)
+        // From the judged log, kept (security audit, 2026-10-11: each look-up
+        // replayed the whole log, up to 4 MB, at the read limit's 600 a minute).
+        var hits = JudgedLog(id, row).Codes[code]
                           .Select(s => (object)new { step = s.N, realMs = s.RealMs, timerMs = s.TimerMs }).Take(50).ToList();
         return new { code, matches = hits };
     }
