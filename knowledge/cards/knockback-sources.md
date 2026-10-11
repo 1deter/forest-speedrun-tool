@@ -89,6 +89,9 @@ knockback - 25 damage, turned to face the rock, pushed straight away from
 it - exactly like a bomb. By the code it can be pause-stacked the same way
 (`bomb-boost`) [code - not tried after a rock hit]. A slower rock does nothing, even if it bounces off you.
 
+**Runners do not boost off it** (the author, 2026-10-11): a bomb is faster
+to build, goes almost anywhere (the thrower needs trees) and boosts at once.
+
 Why 7.2 m/s: the game's check is `checkVel >= 12`, where `checkVel` is
 the distance the rock moved in the last physics step x 100. The physics
 step is 1/60 s, so `checkVel` = speed x 1.667, and 12 means 7.2 m/s.
@@ -145,8 +148,5 @@ and a real timed bomb. The fat creepy is code only.
 
 ## Open questions
 
-- How runners use the multi-thrower for a boost (if they do): where they
-  stand, which ammo, and how they time the pause - not described in the
-  guides we have.
 - Whether a rock older than 8 s can still knock you back (its speed check
   stops updating then) [code: not tested].
