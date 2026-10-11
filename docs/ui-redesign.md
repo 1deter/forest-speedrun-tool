@@ -164,8 +164,8 @@ aside while the results panel shows, both in the card style.
 
 Left: other tabs (Practice, Deaths, Debug views, Inventory, 100%, QA,
 Updates) still use the old layouts under the new skin; onboarding card;
-section open / closed state is not persisted; widgets are not snapped / no
-stack groups; the run timer widget has no delta colouring yet; verify
+section open / closed state is not persisted; no stack groups (snapping:
+T-0020, 2026-10-11); the run timer widget has no delta colouring yet; verify
 checkbox / window textures and tooltip placement in game.
 
 T-0226 (2026-10-08): a **Developer** tab (last: bridge, benchmarks,
