@@ -157,44 +157,20 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
-- **2026-10-11 (loop R-0007 + a 12-session cloud batch, author away):**
-  **v0.24.285** - checkpoint captures without the half-second freeze
-  (T-0072, `CheckpointCaptureLean` on; `CheckpointCaptureSpread` on by default from
-  v0.24.286 - author 2026-10-11, T-0305; ~48 ms worst frame, state ~7 frames late)
-  and the light deleted-attempt check (T-0266); smoke PASS, both
-  confirmed by forest-tester. Cloud batch (prompts were
-  `Desktop/cloud-T-*.txt`, branches `cloud/*`): **on ui-redesign**
-  (42fab3e+) T-0020 snapping, T-0303 Reset = whole profile, T-0023 trend
-  colours, T-0259..T-0264 Settings sweep, T-0289 pin unheld items,
-  T-0254 auto-refresh, T-0295 ModAPI flag - all checker-accepted except
-  T-0020 / T-0023 (words + design Qs parked); every new word is
-  *proposed*, collected with the CHANGELOG lines in
-  `tasks/notes/T-0025.md` - **T-0025 waits for the author's OK**, then QA
-  in game and the merge. **On main, deployed:** T-0084 security fixes
-  (report `docs/security-audit-2026-10.md`; its open Qs + recs: T-0304). **Held off main** on `pending/site-held` (pushed, not
-  deployed): T-0250 / T-0294 / T-0155 (accepted; admin words + T-0294's
-  same-channel routing wait for the author) and T-0281 first-person replay
-  (checker block: the attempt page has no look track - parked Q). Designs
-  parked for the author: T-0292 surprise runs, T-0302 input overlay
-  (their notes). T-0241 / T-0251 held (T-0314: `--hold`, next skips). The
-  author's install: the ui-redesign DLL put back after the smoke (copy
-  `plugins/ForestOverlay.dll.redesign-keep`). **Next loop run** would take
-  T-0255 (Map legend, redesign), T-0267, **T-0274** (group 3 perf), T-0290
-  (needs a `Stall:` line first).
-- **2026-10-11 (T-0311, author present):** usage measured before any
-  more harness work: `agent-cost.py --weeks --tail --tasks` (now main
-  sessions too); baseline in docs/harness.md *Measuring the harness* -
-  main sessions 85% of input, W41 14.3M/session (was ~33M). T-0311
-  (researcher stops at the cause, forest-dev builds its plan) accepted,
-  stays built until 3 researcher runs re-measure. Author: main-session
-  cost first - **T-0319** (main context) ahead of T-0312 / T-0315 (P3).
-  T-0319 (250k cap) and **T-0313** (tier easy / normal / hard + route
-  override; `loop.py` names agent / model / effort; `agent-cost.py
-  --tiers` measures it) confirmed - tiers get set at contract time from
-  now on. T-0314, T-0312 (`Check T-a T-b ...`), T-0315 (`forest-integrator`: a batch merge costs main one report; replay matched 924aa22) done. T-0306 (redesign follow-ups) built + checker-accepted, ui-redesign at acd6249 (the install runs it; `plugins/ForestOverlay.dll.redesign-keep`); forest-ux findings T-0320..T-0324 parked. T-0307 (Import view closes on an import / any row click) built + checker-accepted, ui-redesign at 9ead2f6, deployed to the install; in-game click check rides T-0025's QA. T-0308 (any external plugin / patcher / DLL / foreign Harmony patch flagged like ModAPI: HUD `Mods: ...`, `Mods Detected: ...` on attempts, uploads, site tags) built + checker-accepted after one revise, ui-redesign at e759029 (pushed, not on the install); in game rides T-0025 - a vanilla install must show no `Mods:` line (BepInEx-owned game patches would false-flag). T-0317 (F2 alone moves only itself: column, splits, results, run code box drag only in Edit HUD - author: every piece) built + checker-accepted, ui-redesign at 0586a6c (pushed, not on the install); wording minors noted on T-0025. T-0318 (every placed piece keeps its place across a resolution change; sizes follow the screen by default, Settings > HUD 'Sizes follow the screen' off keeps pixels - author) built + checker-accepted, ui-redesign at 2b0d2ac (pushed, not on the install); in game rides T-0025; profile reference resolution -> T-0327. T-0326 (Settings > Network: 'Check online at startup' off = no request at startup, update check included; 'Refresh lists automatically' off = no automatic refresh, each list gets Check now - author's answers) built + checker-accepted after one revise, ui-redesign at 7235263 (pushed, not on the install); in game rides T-0025; open Q in its note: queued uploads still send at startup. T-0255 (Map tab: key of the marks on the map + hover hint, no instruction paragraph) built + checker-accepted (minor fixed), forest-ux saw the hint live, author answered: T-0332 (Map slate look A, line / ghost and Only cave spots removed, Runner spot, short hint; T-0328 / T-0329 / T-0331 folded in; decisions.md *The Map tab is a minor view*); ui-redesign at a42affe (pushed; the install runs 9dd92ef); narrow-map key rides T-0025. T-0267 closed wontfix (author 2026-10-11: no repro in 34 driven slides, a one-off PhysX quirk). T-0274 (endgame Go: the 27 AreaMembers kept between scene events, ~25 ms -> 2 ms) checker-accepted, **released v0.24.287**, smoke PASS; the install runs the redesign DLL again. T-0290 held (`next real Stall: line`). T-0327 (profiles record `@Reference.Width/Height`, one from another resolution converts its places / widths) checker-accepted, ui-redesign at 0bc7cd22 (pushed, not on the install); in game rides T-0025. **Next:** T-0296 (needs the game, high effort) or the author's T-0023 Qs + T-0025 QA.
+- **2026-10-11 (T-0025 merge + release, author present):** ui-redesign
+  merged onto main by forest-integrator (b579bf71; 20 conflicts, Paint
+  settings got their own Settings fold - author to confirm the home) and
+  **released v0.24.288** (35 tasks, smoke PASS; the install runs it).
+  T-0250 / T-0294 / T-0155 were already on main and deployed (a61a68d7);
+  pending/site-held + cloud/fp-replay kept only for T-0281 (checker
+  block). Merged cloud/* branches, ui-redesign and its worktree deleted.
+  **Next:** T-0025's in-game QA (the "In its QA" items in
+  tasks/notes/T-0025.md), then forest-ux findings T-0320..T-0324, T-0332
+  (Map slate), group 3's last savestate / hang tasks.
+
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
-  redesign (T-0025, worktree `ui-redesign`) waits on the author's OK; bot
+  redesign (T-0025) released in v0.24.288, its in-game QA next; bot
   paused (decisions.md *Knowledge bot*); harness: docs/harness.md *Status
   log* (T-0016 Stage B blocked until 2026-10-14); nothing is published yet
   (all categories drafts, no community run spot). Older: docs/session-log.md.
