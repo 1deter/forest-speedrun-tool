@@ -759,11 +759,29 @@ function botView(data) {
 
 // --- Discord PB posts (the owner only) -------------------------------------------------
 
-/// PBs on runners' own spots (T-0232): on / off, and into the official channel
-/// (FOREST_DISCORD_WEBHOOK) or their own webhook. The webhook URL is a secret: a password
-/// field, sent only to the owner. Held until Save on the unsaved-changes bar, like the Bot tab.
+/// A webhook URL field: a password field with Show (the URL is a secret).
+function webhookField(value, label) {
+  const input = el("input", { class: "search", type: "password", maxlength: 300, autocomplete: "off", spellcheck: "false",
+    placeholder: "https://discord.com/api/webhooks/...", "aria-label": label });
+  input.value = value || "";
+  const show = el("button", { class: "chip", type: "button" }, "Show");
+  show.addEventListener("click", () => {
+    const hidden = input.type === "password";
+    input.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  return { input, box: el("div", { class: "signin" }, input, show) };
+}
+
+/// Where each kind of spot's PBs go (T-0294): community spots and run spots each their own
+/// webhook, empty = the server's FOREST_DISCORD_WEBHOOK; runners' own spots (T-0232) on / off,
+/// into the community spots' channel or their own. The URLs are secrets: password fields, sent
+/// only to the owner. Held until Save on the unsaved-changes bar, like the Bot tab.
 function pbPostsView(data) {
   const s = data.settings || {};
+  const community = webhookField(s.communityWebhook, "Webhook URL for community spots");
+  const runSpots = webhookField(s.runSpotsWebhook, "Webhook URL for run spots");
+  const communityHint = el("p", { class: "sub" }), runSpotsHint = el("p", { class: "sub" });
   const on = el("input", { type: "checkbox" });
   on.checked = !!s.runnerSpots;
   const radio = (value, text) => {
@@ -771,36 +789,38 @@ function pbPostsView(data) {
     r.checked = (s.channel || "same") === value;
     return { r, label: el("label", { class: "check" }, r, " " + text) };
   };
-  const same = radio("same", "The same channel as community and run spot PBs");
+  const same = radio("same", "The same channel as community spot PBs");
   const own = radio("own", "Their own channel");
-  const hook = el("input", { class: "search", type: "password", maxlength: 300, autocomplete: "off", spellcheck: "false",
-    placeholder: "https://discord.com/api/webhooks/...", "aria-label": "Webhook URL for runners' spots" });
-  hook.value = s.webhook || "";
-  const showHook = el("button", { class: "chip", type: "button" }, "Show");
-  showHook.addEventListener("click", () => {
-    const hidden = hook.type === "password";
-    hook.type = hidden ? "text" : "password";
-    showHook.textContent = hidden ? "Hide" : "Show";
-  });
+  const hook = webhookField(s.webhook, "Webhook URL for runners' spots");
   const hint = el("p", { class: "sub" });
 
   const channel = () => own.r.checked ? "own" : "same";
-  const state = () => JSON.stringify([on.checked, channel(), hook.value.trim()]);
+  const state = () => JSON.stringify([community.input.value.trim(), runSpots.input.value.trim(), on.checked, channel(), hook.input.value.trim()]);
   const loaded = state();
 
   const bar = unsavedBar("Save changes", save, () => { unsaved = null; adminPage("pbposts"); });
   const dirty = () => !bar.saving() && state() !== loaded;
+  // A kind's line: its own webhook, the server's, or nothing.
+  function kindHint(p, url) {
+    p.className = url || data.official ? "sub" : "error";
+    p.textContent = url ? "Posted to this webhook's channel."
+      : data.official ? "Empty: posted to the channel of FOREST_DISCORD_WEBHOOK (set on the server)."
+      : "Off: no webhook here and none on the server (FOREST_DISCORD_WEBHOOK).";
+  }
   // What the choice does, under it; the channel fields only count while the posts are on.
   function refresh() {
+    kindHint(communityHint, community.input.value.trim());
+    kindHint(runSpotsHint, runSpots.input.value.trim());
     same.r.disabled = own.r.disabled = !on.checked;
-    hook.disabled = !on.checked || channel() !== "own";
+    hook.input.disabled = !on.checked || channel() !== "own";
     hint.className = "sub";
     if (!on.checked) hint.textContent = "Off: a PB on a runner's own spot is not posted.";
     else if (channel() === "same") {
-      hint.textContent = data.official ? "Posted in the same channel. They have their own limit (30 an hour), so they never crowd out community and run spot PBs."
-        : "Nothing is posted: the server has no FOREST_DISCORD_WEBHOOK, so there is no official channel to share.";
-      if (!data.official) hint.className = "error";
-    } else hint.textContent = hook.value.trim() ? "Posted to that webhook's channel."
+      const shared = community.input.value.trim() || data.official;
+      hint.textContent = shared ? "Posted in the community spots' channel. They have their own limit (30 an hour), so they never crowd out community and run spot PBs."
+        : "Nothing is posted: community spots have no channel to share (no webhook above, none on the server).";
+      if (!shared) hint.className = "error";
+    } else hint.textContent = hook.input.value.trim() ? "Posted to that webhook's channel."
       : "Paste the channel's webhook URL (Discord: Edit Channel > Integrations > Webhooks > Copy Webhook URL).";
     bar.show(state() !== loaded);
   }
@@ -809,7 +829,8 @@ function pbPostsView(data) {
     bar.busy(true);
     bar.say("Saving…");
     try {
-      await adminCall("PUT", "/pbposts", JSON.stringify({ runnerSpots: on.checked, channel: channel(), webhook: hook.value.trim() }));
+      await adminCall("PUT", "/pbposts", JSON.stringify({ communityWebhook: community.input.value.trim(), runSpotsWebhook: runSpots.input.value.trim(),
+        runnerSpots: on.checked, channel: channel(), webhook: hook.input.value.trim() }));
       bar.say("Saved. The next PB uses it.");
       setTimeout(() => { if (unsaved && unsaved.dirty === dirty) { unsaved = null; adminPage("pbposts"); } }, 1500);
     } catch (e) {
@@ -819,22 +840,24 @@ function pbPostsView(data) {
   }
 
   const form = el("div", { class: "catform", oninput: refresh, onchange: refresh },
-    el("h3", null, "Community and run spots"),
-    el("p", { class: data.official ? "sub" : "error" }, data.official
-      ? "On: a new PB is posted to the channel of FOREST_DISCORD_WEBHOOK (set on the server)."
-      : "Off: the server has no FOREST_DISCORD_WEBHOOK (site/deploy/README.md says how to set it)."),
+    el("h3", null, "Community spots"),
+    el("label", { class: "field" }, el("span", null, "Webhook URL"), community.box),
+    communityHint,
+    el("h3", null, "Run spots"),
+    el("p", { class: "sub" }, "Spots whose runs are a published run category."),
+    el("label", { class: "field" }, el("span", null, "Webhook URL"), runSpots.box),
+    runSpotsHint,
     el("h3", null, "Runners' spots"),
     el("label", { class: "check" }, on, " Post PBs on runners' spots"),
     same.label,
     own.label,
-    el("label", { class: "field" }, el("span", null, "Webhook URL for their own channel"),
-      el("div", { class: "signin" }, hook, showHook)),
+    el("label", { class: "field" }, el("span", null, "Webhook URL for their own channel"), hook.box),
     hint);
   refresh();
 
   return el("section", { class: "hasbar" },
     el("p", { class: "note" }, "Discord posts when an uploaded run is a runner's new PB. A runner's spot is any spot that is not a community or run spot - anyone can make one, so each runner still posts at most 5 an hour. " +
-      "The webhook URL stays on the server and in this page only."),
+      "The webhook URLs stay on the server and in this page only."),
     form,
     bar.box);
 }

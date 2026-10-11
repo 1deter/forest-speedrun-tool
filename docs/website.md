@@ -81,8 +81,9 @@ go to decisions.md; feature detail goes here.
   deleted spot returns if its owner uploads on it again), Runners (runs,
   last upload, Ban, Reset token with a second click), Activity (every
   change: who, what, the answer's status - `admin_log`); the owner also
-  has Bot, PB posts (Discord PB posts from runners' spots, *Spot
-  categories, owners deleting spots, Discord PB posts*) and Admins.
+  has Bot, PB posts (where community, run and runners' spot PBs are
+  posted in Discord, *Spot categories, owners deleting spots, Discord PB
+  posts*) and Admins.
 - **Admins (author, 2026-09-27: not one shared key):** the env token
   (`FOREST_ADMIN_TOKEN`, in `/opt/forest-site/.env` on the VPS) is the
   **owner**; the owner's Admins tab makes a named `fa_...` token per admin
@@ -656,10 +657,12 @@ plugin change (Practice's Share row).
   upload changes over it. The spot page tells a runner where the
   button is. A browser-side delete would need a login (e.g. a one-time
   link the game opens) - not built.
-- **Discord PB posts** (`PbWebhook.cs`): `FOREST_DISCORD_WEBHOOK` (env or
-  appsettings; unset = off, nothing logged per upload) - on the VPS in
-  `/opt/forest-site/.env` (site/deploy/README.md *Day to day*). When an
-  upload adds a run that is the runner's new best on a **community route**
+- **Discord PB posts** (`PbWebhook.cs`): each kind's webhook is set on
+  /admin's **PB posts** tab (next items; T-0294) - community spots and
+  run spots apart; one left empty falls back to `FOREST_DISCORD_WEBHOOK`
+  (env or appsettings, on the VPS in `/opt/forest-site/.env`,
+  site/deploy/README.md *Day to day*); both empty = off, nothing logged
+  per upload. When an upload adds a run that is the runner's new best on a **community route**
   or on a **run spot** (`run = ` names a *published* category - none yet),
   one **Discord embed** is queued (`PbNews.Embed`; T-0232, author
   2026-10-10: "more informative, modern", not a copy of the KSF post):
@@ -685,10 +688,27 @@ plugin change (Practice's Share row).
   post sets `allowed_mentions: none` (no @everyone). Sending: a queue of
   20, one post at a time 2 s apart, at most 30 an hour, one retry after a
   429's retry-after; any failure is logged (`Discord webhook: ...`) and
-  dropped - an upload never waits for or fails on it.
-  `FOREST_SITE_URL` changes the link's address (default
+  dropped - an upload never waits for or fails on it (one sender, so one
+  queue and one cap, for community and run spots whatever their
+  channels). `FOREST_SITE_URL` changes the link's address (default
   https://forest.deter.cloud). Tests: `ApiTests` *Owner_*, *Webhook_*,
   *PbNews_Decisions*.
+- **Community and run spot webhooks** (T-0294; QA 2026-10-10: "separate
+  and set in the web panel, not in the server config - like the runner's
+  own spot webhook"): the top of the **PB posts** tab has *Community
+  spots* and *Run spots*, a webhook URL each (password field with Show,
+  the same Discord-only check as below; `communityWebhook` /
+  `runSpotsWebhook` in `pb_settings`). A run spot's PB (a spot whose `run
+  = ` names a published category - the *Run category* footer) goes to the
+  run spots' webhook, a community spot's to the community one; an empty
+  one says under it where its posts go instead (FOREST_DISCORD_WEBHOOK's
+  channel, or off when that is unset too). The env var stays as that
+  fallback so the live site kept posting across the deploy - drop it once
+  both are set. A PUT that leaves the two keys out keeps them (a page
+  open from before the deploy does not clear them); `""` / `null` clears
+  one. The startup line says `community spots admin webhook | env
+  webhook | off, run spots ...`. Tests: `ApiTests`
+  *Webhook_CommunityAndRunSpots_*, *PbNews_Target*.
 - **PB posts from runners' spots** (T-0232; author, 2026-10-08: "site
   toggles for runner-spot PB posts, plus a choice of whether they go to
   the same channel as official-run PBs or a separate one"): the owner's
@@ -696,7 +716,8 @@ plugin change (Practice's Share row).
   the answer holds a secret; `PbSettings.cs`, one JSON in `pb_settings`
   with a revision, created on startup like `bot_settings`). *Post PBs on
   runners' spots* (off until saved on), then *The same channel as
-  community and run spot PBs* (FOREST_DISCORD_WEBHOOK's) or *Their own
+  community spot PBs* (the community spots' webhook, or
+  FOREST_DISCORD_WEBHOOK's when that is empty; T-0294) or *Their own
   channel* (a webhook URL pasted there: only
   `https://[ptb.|canary.]discord[app].com/api[/vN]/webhooks/<id>/<token>`
   is accepted, so the site still posts to no other host; a password field
@@ -1035,6 +1056,8 @@ the admin page), is never logged (the Activity log keeps the request path,
 not the body; the senders log their name), and reaches no public answer.
 Runners' spots are a spam path the caps bound: their own 30 an hour and 5
 a runner an hour, `allowed_mentions: none`, escaped and clipped names.
+T-0294 adds two more such URLs to the same owner-only answer (community
+and run spot webhooks), under the same Discord-only check and logging.
 
 2026-10-04: the CSP's one frame, `frame-src https://www.youtube-nocookie.com`
 (/compare's players, driven by postMessage; no YouTube script, no new
