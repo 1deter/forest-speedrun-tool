@@ -95,6 +95,7 @@ namespace ForestOverlay.Modules
             // before, so it starts from that.
             _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
                 "Results panel: show the load-removed time after a run with no loads too (a run with loads always shows it).");
+            profiles.RegisterProfileEntry(_resLoadAlways, null);
             for (int i = 0; i < ResLineLabels.Length; i++)
             {
                 _resLineLabels[i] = new GUIContent(ResLineLabels[i]);

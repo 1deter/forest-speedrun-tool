@@ -149,13 +149,6 @@ namespace ForestOverlay.Modules
             _panelY = c.Bind("Splits", "PanelY", 140f, "Panel position from the top, in pixels.");
             _panelWidth = c.Bind("Splits", "PanelWidth", 300f, "Panel width in pixels.");
             _panelRows = c.Bind("Splits", "PanelRows", 12, "Most split rows the panel shows at once (the end is always shown).");
-            // The panel's place, size and switch belong to the HUD profile (T-0019).
-            HudWidgets profiles = Host.Hud.Widgets;
-            profiles.RegisterProfileEntry(_splitsPanel, null);
-            profiles.RegisterProfileEntry(_panelX, null);
-            profiles.RegisterProfileEntry(_panelY, null);
-            profiles.RegisterProfileEntry(_panelWidth, null);
-            profiles.RegisterProfileEntry(_panelRows, null);
             _timeDecimals = c.Bind("Splits", "TimeDecimals", 2, "Decimal places for split times (0-3). Attempts always save milliseconds.");
             _deltaDecimals = c.Bind("Splits", "DeltaDecimals", 2, "Decimal places for deltas (0-3).");
             _panelOpacity = c.Bind("Splits", "PanelOpacity", 0.82f, "Opacity of the panel's background, 0 (none) to 1 (solid). The text stays solid.");
@@ -176,8 +169,43 @@ namespace ForestOverlay.Modules
                 _lineValues[i] = new GUIContent("");
                 _lineOptionText[i] = new GUIContent(" " + LineOptions[i]);
             }
+            RegisterSplitsProfile();
             _runnerName = c.Bind("Runs", "RunnerName", "", "Your name on recorded attempts. Empty = your Steam name.");
             _localRunnerId = c.Bind("Runs", "LocalRunnerId", "", "Runner id used when Steam is not available (made once).");
+        }
+
+        // Everything Edit HUD sets up for the panel belongs to the HUD profile
+        // (T-0019, author 2026-10-11): its switch, place, size, columns, lines,
+        // decimals and background. The cached ones rebuild when a profile
+        // switches them.
+        private void RegisterSplitsProfile()
+        {
+            HudWidgets profiles = Host.Hud.Widgets;
+            profiles.RegisterProfileEntry(_splitsPanel, null);
+            profiles.RegisterProfileEntry(_panelX, null);
+            profiles.RegisterProfileEntry(_panelY, null);
+            profiles.RegisterProfileEntry(_panelWidth, null);
+            profiles.RegisterProfileEntry(_panelRows, null);
+            for (int i = 0; i < ColCount; i++) profiles.RegisterProfileEntry(_cols[i], SplitsOptionApplier(_cols[i]));
+            for (int i = 0; i < LineCount; i++) profiles.RegisterProfileEntry(_lines2[i], SplitsOptionApplier(_lines2[i]));
+            profiles.RegisterProfileEntry(_timeDecimals, SplitsOptionApplier(_timeDecimals));
+            profiles.RegisterProfileEntry(_deltaDecimals, SplitsOptionApplier(_deltaDecimals));
+            profiles.RegisterProfileEntry(_panelOpacity, delegate (object v)
+            {
+                _opacityPending = false;
+                _opacityNow = -1f;
+                _panelOpacity.Value = (float)v;
+            });
+        }
+
+        private System.Action<object> SplitsOptionApplier(ConfigEntryBase entry)
+        {
+            return delegate (object v)
+            {
+                entry.BoxedValue = v;
+                _splitsDirty = true;
+                _playtimeShown = -1;
+            };
         }
 
         // --- identity ---------------------------------------------------------
