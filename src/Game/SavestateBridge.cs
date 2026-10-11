@@ -74,19 +74,17 @@ namespace ForestOverlay.Game
             public string SerializeParts = "";
         }
 
-        /// The level text a savestate holds, from the level's bytes - what
-        /// LevelSerializer.SerializeLevel(bool) returns around the same
-        /// bytes (source): "NOCOMPRESSION" + base64. Thread-safe.
+        /// The level text a savestate holds, from the level's bytes
+        /// (Data/LevelText: the game wrapper's form). Thread-safe.
         public static string DataText(byte[] bytes)
         {
-            return "NOCOMPRESSION" + Convert.ToBase64String(bytes);
+            return Data.LevelText.FromBytes(bytes);
         }
 
         /// The data's length in characters, built or not.
         public static int DataChars(Result r)
         {
-            if (r.Data != null) return r.Data.Length;
-            return r.Bytes != null ? 13 + (r.Bytes.Length + 2) / 3 * 4 : 0;
+            return Data.LevelText.Chars(r.Data, r.Bytes);
         }
 
         private const float LoadTimeout = 120f;
