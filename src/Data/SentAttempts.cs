@@ -21,6 +21,12 @@ namespace ForestOverlay.Data
     // site/ForestSite/Program.cs, pinned by AttemptTests): a wrong Url or a
     // proxy answering 404 to every path would empty the list one by one.
     //
+    // T-0266: the site answers the whole question at once -
+    //   GET /api/attempts/exists?ids=<id>,<id>  ->  {"there":[..],"gone":[..]}
+    // (no attempt data). A site from before it answers that path's 404
+    // (it reads "exists" as an attempt id): then each one is asked with
+    // GET /api/attempts/<id> as above, for the rest of the session.
+    //
     // sent.txt is one line per sent attempt: id|verdict|when.
     // ------------------------------------------------------------------
     public enum SentCheck
@@ -41,6 +47,61 @@ namespace ForestOverlay.Data
             if (code == 200) return SentCheck.There;
             if (code == 404 && SiteProtocol.Field(body, "error") == GoneError) return SentCheck.Gone;
             return SentCheck.Unknown;
+        }
+
+        /// GET here asks the site which of `ids` it still has (T-0266).
+        public static string ExistsUrl(string baseUrl, IList<string> ids)
+        {
+            StringBuilder sb = new StringBuilder(SiteProtocol.TrimUrl(baseUrl)).Append("/api/attempts/exists?ids=");
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append(Uri.EscapeDataString(ids[i] ?? ""));
+            }
+            return sb.ToString();
+        }
+
+        /// What the exists answer says of each of `asked` (same order). An id
+        /// in neither list, or any answer but the site's own (offline, rate
+        /// limited, a proxy's page), is Unknown. `oldSite` = a 404: the site
+        /// predates the question - ask each id the old way (Meaning).
+        public static SentCheck[] ExistsMeaning(long code, string body, IList<string> asked, out bool oldSite)
+        {
+            oldSite = code == 404;
+            SentCheck[] meanings = new SentCheck[asked == null ? 0 : asked.Count];
+            for (int i = 0; i < meanings.Length; i++) meanings[i] = SentCheck.Unknown;
+            if (code != 200) return meanings;
+            List<string> there = Strings(body, "there"), gone = Strings(body, "gone");
+            if (there == null || gone == null) return meanings;
+            for (int i = 0; i < meanings.Length; i++)
+            {
+                if (there.Contains(asked[i])) meanings[i] = SentCheck.There;
+                else if (gone.Contains(asked[i])) meanings[i] = SentCheck.Gone;
+            }
+            return meanings;
+        }
+
+        /// The strings of a JSON array field ("there": ["a-..", "a-.."]);
+        /// null when the field is missing. Attempt ids need no unescaping.
+        private static List<string> Strings(string json, string name)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            string key = "\"" + name + "\"";
+            int k = json.IndexOf(key, StringComparison.Ordinal);
+            if (k < 0) return null;
+            int q = k + key.Length;
+            while (q < json.Length && (json[q] == ' ' || json[q] == ':')) q++;
+            if (q >= json.Length || json[q] != '[') return null;
+            int close = json.IndexOf(']', q);
+            if (close < 0) return null;
+            List<string> list = new List<string>();
+            string[] parts = json.Substring(q + 1, close - q - 1).Split(',');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string p = parts[i].Trim();
+                if (p.Length >= 2 && p[0] == '"' && p[p.Length - 1] == '"') list.Add(p.Substring(1, p.Length - 2));
+            }
+            return list;
         }
 
         /// The listed ids to ask the site about now: those past the first

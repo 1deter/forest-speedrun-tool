@@ -402,6 +402,19 @@ api.MapPost("/attempts/{id}/log", async (HttpRequest req, string id) =>
     return Answer(attempts.Log(runner, id, await Body(req)));
 }).RequireRateLimiting("attempt");
 
+// Which of a few attempts still exist (the plugin's Runs tab, T-0266):
+// ?ids=<id>,<id> (at most Attempts.MaxExistIds) -> { there, gone }, no
+// attempt data. Its own route wins over /attempts/{id}; a site from before
+// it answers that route's 404, which the plugin takes as "ask each one".
+api.MapGet("/attempts/exists", (HttpRequest req) =>
+{
+    string[] ids = (req.Query["ids"].FirstOrDefault() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (ids.Length == 0) return Problem(400, "expected ?ids=<id>,<id>");
+    if (ids.Length > Attempts.MaxExistIds) return Problem(400, "at most " + Attempts.MaxExistIds + " ids");
+    var (there, gone) = attempts.Exist(ids);
+    return Results.Json(new { there, gone });
+}).RequireRateLimiting("read");
+
 api.MapGet("/attempts/{id}", (string id) =>
     attempts.View(id) is { } a ? Results.Json(a) : Problem(404, "no such attempt")).RequireRateLimiting("read");
 

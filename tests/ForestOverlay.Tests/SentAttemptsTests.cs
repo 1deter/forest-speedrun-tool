@@ -30,6 +30,54 @@ namespace ForestOverlay.Tests
         }
 
         [Fact]
+        public void ExistsUrl_NamesEachId_Escaped()
+        {
+            Assert.Equal("https://x.y/api/attempts/exists?ids=a-1,a-2",
+                         SentAttempts.ExistsUrl("https://x.y/ ", new List<string> { "a-1", "a-2" }));
+            // A broken sent.txt line cannot split into two ids or another query.
+            Assert.Equal("https://x.y/api/attempts/exists?ids=a%2Cb%26c%3D1",
+                         SentAttempts.ExistsUrl("https://x.y", new List<string> { "a,b&c=1" }));
+        }
+
+        [Fact]
+        public void ExistsMeaning_ReadsTheSitesLists_A404_IsAnOldSite()
+        {
+            // T-0266: the site's light answer (site/ForestSite/Program.cs, pinned by AttemptTests).
+            var asked = new List<string> { "a-1", "a-2", "a-3" };
+            bool old;
+            Assert.Equal(new[] { SentCheck.There, SentCheck.Gone, SentCheck.Unknown },
+                         SentAttempts.ExistsMeaning(200, "{\"there\":[\"a-1\"],\"gone\":[\"a-2\"]}", asked, out old));
+            Assert.False(old);
+            Assert.Equal(new[] { SentCheck.Gone, SentCheck.There, SentCheck.Gone },
+                         SentAttempts.ExistsMeaning(200, "{ \"there\" : [ \"a-2\" ], \"gone\": [\"a-1\", \"a-3\"] }", asked, out old));
+            Assert.Equal(new[] { SentCheck.There, SentCheck.There, SentCheck.There },
+                         SentAttempts.ExistsMeaning(200, "{\"there\":[\"a-1\",\"a-2\",\"a-3\"],\"gone\":[]}", asked, out old));
+            // A prefix is not the id.
+            Assert.Equal(SentCheck.Unknown,
+                         SentAttempts.ExistsMeaning(200, "{\"there\":[\"a-12\"],\"gone\":[]}", new List<string> { "a-1" }, out old)[0]);
+
+            // A site from before the check: its /attempts/{id} route answers.
+            Assert.Equal(new[] { SentCheck.Unknown, SentCheck.Unknown, SentCheck.Unknown },
+                         SentAttempts.ExistsMeaning(404, "{\"error\":\"no such attempt\"}", asked, out old));
+            Assert.True(old);
+
+            // Anything else - not the site's lists - leaves every one listed.
+            foreach (string body in new[] { null, "", "<html>ok</html>", "{\"there\":[\"a-1\"]}", "{\"gone\":[\"a-2\"]}",
+                                            "{\"there\":\"a-1\",\"gone\":\"a-2\"}" })
+            {
+                Assert.All(SentAttempts.ExistsMeaning(200, body, asked, out old), m => Assert.Equal(SentCheck.Unknown, m));
+                Assert.False(old);
+            }
+            foreach (long code in new long[] { 0, 400, 401, 403, 429, 500, 502, 503 })
+            {
+                Assert.All(SentAttempts.ExistsMeaning(code, "{\"there\":[],\"gone\":[\"a-1\"]}", asked, out old),
+                           m => Assert.Equal(SentCheck.Unknown, m));
+                Assert.False(old);
+            }
+            Assert.Empty(SentAttempts.ExistsMeaning(200, "{\"there\":[],\"gone\":[]}", null, out old));
+        }
+
+        [Fact]
         public void ToCheck_SkipsWaiting_There_AndAskedSinceTheTabOpened()
         {
             var listed = new List<string> { "a-w1", "a-1", "a-2", "a-3", "a-4" };
