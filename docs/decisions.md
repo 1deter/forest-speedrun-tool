@@ -258,6 +258,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   defined by the moderators on /admin, seeded from speedrun.com's rules.
   Nothing relies on secrecy (open source). Full list and phases:
   [`docs/run-mode.md`](run-mode.md).
+- **ModAPI sessions are flagged, never refused** (author, 2026-10-10,
+  T-0295): "you can flag sessions that detect modapi too" - both the
+  sticky marker in game and a mark on attempts uploaded to the site. The
+  word is `ModAPI` on the short in-game flag, `ModAPI Detected` where
+  there is room (the run flag, the attempt page). Detection is the
+  patcher's own (Assembly-CSharp references BaseModLib, `Game/ModApi`);
+  UltimateCheatmenu's red tabs are its own UI, not ours.
 
 ## Site (forest.deter.cloud)
 
