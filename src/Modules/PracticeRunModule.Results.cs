@@ -239,9 +239,9 @@ namespace ForestOverlay.Modules
         private float ResultsBody(float x, float y, float w, bool draw, bool overWindow)
         {
             float y0 = y;
-            if (draw) GUI.Label(new Rect(x, y, w, ResRowH), _resTitle, _titleStyle);
+            if (draw) CrispText.Label(new Rect(x, y, w, ResRowH), _resTitle, _titleStyle);
             y += ResRowH + 2f;
-            if (draw) GUI.Label(new Rect(x, y, w, 34f), _resHeadline, _result.NewPb ? _resHeadGold : _resHeadStyle);
+            if (draw) CrispText.Label(new Rect(x, y, w, 34f), _resHeadline, _result.NewPb ? _resHeadGold : _resHeadStyle);
             y += 36f;
 
             GUIStyle verdictStyle = _result.NewPb ? _resGoldWrap : UiText.Plain;
@@ -257,12 +257,12 @@ namespace ForestOverlay.Modules
             float nameW = Mathf.Max(60f, w - 3f * colW - saveW);
             if (draw)
             {
-                GUI.Label(new Rect(x, y, nameW, ResRowH), ResColTitles[0], _titleStyle);
+                CrispText.Label(new Rect(x, y, nameW, ResRowH), ResColTitles[0], _titleStyle);
                 float cx = x + nameW;
                 for (int c = 1; c < ResCols; c++)
                 {
                     float cw = c == 4 ? saveW : colW;
-                    GUI.Label(new Rect(cx, y, cw, ResRowH), ResColTitles[c], _cellStyle);
+                    CrispText.Label(new Rect(cx, y, cw, ResRowH), ResColTitles[c], _cellStyle);
                     cx += cw;
                 }
             }
@@ -274,7 +274,7 @@ namespace ForestOverlay.Modules
                 int r = _resRows > _resRowCap && k == visible - 1 ? _resRows - 1 : k;
                 if (draw)
                 {
-                    GUI.Label(new Rect(x, y, nameW, ResRowH), _resCells[r * ResCols], _resGold[r] ? GoldName : _nameStyle);
+                    CrispText.Label(new Rect(x, y, nameW, ResRowH), _resCells[r * ResCols], _resGold[r] ? GoldName : _nameStyle);
                     float cx = x + nameW;
                     for (int c = 1; c < ResCols; c++)
                     {
@@ -284,7 +284,7 @@ namespace ForestOverlay.Modules
                         else if (c == 3 && _resGold[r]) st = _colourStyles[(int)SplitColour.Gold];
                         else if (c == 4 && _resSavedLost[r] != 0)
                             st = _colourStyles[_resSavedLost[r] < 0 ? (int)SplitColour.AheadGaining : (int)SplitColour.BehindLosing];
-                        GUI.Label(new Rect(cx, y, cw, ResRowH), _resCells[r * ResCols + c], st);
+                        CrispText.Label(new Rect(cx, y, cw, ResRowH), _resCells[r * ResCols + c], st);
                         cx += cw;
                     }
                 }
@@ -297,10 +297,10 @@ namespace ForestOverlay.Modules
             {
                 if (draw)
                 {
-                    GUI.Label(new Rect(x, y, w - 90f, ResRowH), _resLineLabels[i], _nameStyle);
+                    CrispText.Label(new Rect(x, y, w - 90f, ResRowH), _resLineLabels[i], _nameStyle);
                     // The whole row, right-aligned: a long value is cut only
                     // where it meets its label.
-                    GUI.Label(new Rect(x, y, w, ResRowH), _resLineValues[i], _cellStyle);
+                    CrispText.Label(new Rect(x, y, w, ResRowH), _resLineValues[i], _cellStyle);
                 }
                 y += ResRowH;
             }
@@ -418,7 +418,7 @@ namespace ForestOverlay.Modules
             if (real) ResultsBody(x + 8f, y + 6f, inner, true, overWindow);
             else
             {
-                GUI.Label(new Rect(x + 8f, y + 6f, inner, ResRowH), ResultsPanelText, _titleStyle);
+                CrispText.Label(new Rect(x + 8f, y + 6f, inner, ResRowH), ResultsPanelText, _titleStyle);
                 UiText.Draw(x + 8f, y + 8f + ResRowH, inner, ResultsPlaceholder, _placeholderStyle);
             }
             // The right edge's grip.

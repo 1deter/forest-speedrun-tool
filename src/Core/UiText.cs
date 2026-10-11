@@ -70,8 +70,8 @@ namespace ForestOverlay.Core
         public static float Draw(float x, float y, float width, GUIContent content, GUIStyle wrapping)
         {
             if (content == null || string.IsNullOrEmpty(content.text) || width <= 0f) return 0f;
-            float h = Mathf.Max(LineHeight, wrapping.CalcHeight(content, width));
-            GUI.Label(new Rect(x, y, width, h), content, wrapping);
+            float h = Mathf.Max(LineHeight, CrispText.CalcHeight(wrapping, content, width));
+            CrispText.Label(new Rect(x, y, width, h), content, wrapping);
             return h + Gap;
         }
 
@@ -80,7 +80,7 @@ namespace ForestOverlay.Core
         public static float Height(float width, GUIContent content, GUIStyle wrapping)
         {
             if (content == null || string.IsNullOrEmpty(content.text) || width <= 0f) return 0f;
-            return Mathf.Max(LineHeight, wrapping.CalcHeight(content, width)) + Gap;
+            return Mathf.Max(LineHeight, CrispText.CalcHeight(wrapping, content, width)) + Gap;
         }
 
         /// Height a wrapped text box needs for this text at this width (one line at least).

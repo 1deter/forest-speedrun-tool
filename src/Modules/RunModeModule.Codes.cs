@@ -330,7 +330,7 @@ namespace ForestOverlay.Modules
             if (Ctx.Run.Category != null && !Ctx.Run.Category.AntiSplice) return;
             EnsureCodeStyles();
             float size = _styleSize;
-            float w = Mathf.Max(size * 3.4f + 24f, _subStyle.CalcSize(_codeSub).x + 16f);
+            float w = Mathf.Max(size * 3.4f + 24f, CrispText.CalcSize(_subStyle, _codeSub).x + 16f);
             float h = size * 1.25f + _subStyle.fontSize * 1.6f + 8f;
             float px = _dragging ? _dragX : HudUi.PosX(_codeX.Value);
             float py = _dragging ? _dragY : HudUi.PosY(_codeY.Value);
@@ -341,8 +341,8 @@ namespace ForestOverlay.Modules
 
             GUI.Box(box, GUIContent.none, _boxStyle);
             if (_dragging || HudEditing) GUI.Box(box, GUIContent.none, UiKit.Outline);
-            GUI.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
-            GUI.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
+            CrispText.Label(new Rect(x, y + 2f, w, size * 1.25f), _codeText, _codeStyle);
+            CrispText.Label(new Rect(x, y + size * 1.25f + 2f, w, _subStyle.fontSize * 1.6f), _codeSub, _subStyle);
         }
 
         // Moved like every HUD piece: only in Edit HUD (author, 2026-10-11,

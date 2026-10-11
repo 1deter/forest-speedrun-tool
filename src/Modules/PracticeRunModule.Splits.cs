@@ -684,7 +684,7 @@ namespace ForestOverlay.Modules
             if (real) DrawSplitsTable(x + 6f, y + 4f, w - 12f, rows, true);
             else
             {
-                GUI.Label(new Rect(x + 6f, y + 4f, w - 12f, RowH), SplitsPanelText, _titleStyle);
+                CrispText.Label(new Rect(x + 6f, y + 4f, w - 12f, RowH), SplitsPanelText, _titleStyle);
                 UiText.Draw(x + 6f, y + 4f + RowH, w - 12f, SplitsPlaceholder, _placeholderStyle);
             }
 
@@ -693,7 +693,7 @@ namespace ForestOverlay.Modules
             {
                 GUI.Box(new Rect(panel.xMax - CornerSize, panel.yMax - CornerSize, CornerSize, CornerSize), GUIContent.none, UiKit.Handle);
                 // The size while it changes, under the panel.
-                if (_resizeMode != 0) GUI.Label(new Rect(x, panel.yMax + 2f, w, RowH), _panelSizeText, _titleStyle);
+                if (_resizeMode != 0) CrispText.Label(new Rect(x, panel.yMax + 2f, w, RowH), _panelSizeText, _titleStyle);
             }
         }
 
@@ -856,7 +856,7 @@ namespace ForestOverlay.Modules
             for (int c = 0; c < ColCount; c++) if (_cols[c].Value) cols++;
             float nameW = Mathf.Max(60f, w - cols * colW);
 
-            GUI.Label(new Rect(x, y, w, RowH), _compareTitle, _titleStyle);
+            CrispText.Label(new Rect(x, y, w, RowH), _compareTitle, _titleStyle);
             y += RowH;
 
             if (header && cols > 0)
@@ -865,7 +865,7 @@ namespace ForestOverlay.Modules
                 for (int c = 0; c < ColCount; c++)
                 {
                     if (!_cols[c].Value) continue;
-                    GUI.Label(new Rect(cx, y, colW, RowH), _colTitles[c], _cellStyle);
+                    CrispText.Label(new Rect(cx, y, colW, RowH), _colTitles[c], _cellStyle);
                     cx += colW;
                 }
                 y += RowH;
@@ -887,14 +887,14 @@ namespace ForestOverlay.Modules
                 int r = start + k;
                 if (visible < _shownRows && k == visible - 1) r = _shownRows - 1;
                 GUIStyle nameStyle = _rowCurrent[r] ? _titleStyle : _nameStyle;
-                GUI.Label(new Rect(x, y, nameW, RowH), _rowNames[r], nameStyle);
+                CrispText.Label(new Rect(x, y, nameW, RowH), _rowNames[r], nameStyle);
                 float cx = x + nameW;
                 for (int c = 0; c < ColCount; c++)
                 {
                     if (!_cols[c].Value) continue;
                     GUIStyle st = _cellStyle;
                     if (c == (int)Col.Delta || c == (int)Col.SegmentDelta) st = _colourStyles[(int)_rowColours[r]];
-                    GUI.Label(new Rect(cx, y, colW, RowH), _cells[r * ColCount + c], st);
+                    CrispText.Label(new Rect(cx, y, colW, RowH), _cells[r * ColCount + c], st);
                     cx += colW;
                 }
                 y += RowH;
@@ -908,11 +908,11 @@ namespace ForestOverlay.Modules
             {
                 if (!_lines2[i].Value) continue;
                 if (!any) { y += 4f; any = true; }
-                GUI.Label(new Rect(x, y, w - 90f, RowH), _lineLabels[i], _nameStyle);
+                CrispText.Label(new Rect(x, y, w - 90f, RowH), _lineLabels[i], _nameStyle);
                 GUIStyle st = i == (int)Line.Previous ? _colourStyles[(int)SplitTable.ColourOf(_summary.PreviousSegment, _summary.PreviousSegment, float.NaN, float.NaN)] : _cellStyle;
                 // The whole row, right-aligned: a long value ("100% (Congrats!)")
                 // is cut only when it meets its label, not at a fixed column.
-                GUI.Label(new Rect(x, y, w, RowH), _lineValues[i], st);
+                CrispText.Label(new Rect(x, y, w, RowH), _lineValues[i], st);
                 y += RowH;
             }
             return y - y0;

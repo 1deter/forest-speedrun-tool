@@ -442,20 +442,20 @@ namespace ForestOverlay
             {
                 if (widgets != null && widgets.IsFree(hud.LineIndex(i))) continue;
                 GUIContent c = hud.ValueAt(i);
-                float cw = Mathf.Min(wrapW, _hudLabelStyle.CalcSize(c).x);
-                float ch = Mathf.Max(lineHeight, _hudLabelStyle.CalcHeight(c, wrapW));
+                float cw = Mathf.Min(wrapW, CrispText.CalcSize(_hudLabelStyle, c).x);
+                float ch = Mathf.Max(lineHeight, CrispText.CalcHeight(_hudLabelStyle, c, wrapW));
                 _colW[i] = cw;
                 _colH[i] = ch;
                 colW = Mathf.Max(colW, cw);
                 colH += ch;
             }
             GUIStyle practiceStyle = _practice.Warn ? _warnStyle : _hudLabelStyle;
-            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, _warnStyle.CalcHeight(_practice.OnLabel, wrapW)) : 0f;
+            float onH = _practice.AnyOn ? Mathf.Max(lineHeight, CrispText.CalcHeight(_warnStyle, _practice.OnLabel, wrapW)) : 0f;
             // Nothing while clean (author, 2026-10-10).
             bool marked = _practice.Label.text.Length > 0;
-            float markH = marked ? Mathf.Max(lineHeight, practiceStyle.CalcHeight(_practice.Label, wrapW)) : 0f;
-            if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, _warnStyle.CalcSize(_practice.OnLabel).x));
-            if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, practiceStyle.CalcSize(_practice.Label).x));
+            float markH = marked ? Mathf.Max(lineHeight, CrispText.CalcHeight(practiceStyle, _practice.Label, wrapW)) : 0f;
+            if (onH > 0f) colW = Mathf.Max(colW, Mathf.Min(wrapW, CrispText.CalcSize(_warnStyle, _practice.OnLabel).x));
+            if (marked) colW = Mathf.Max(colW, Mathf.Min(wrapW, CrispText.CalcSize(practiceStyle, _practice.Label).x));
             colH += onH + markH;
             // Nothing to show: still a spot to see and move while editing.
             if (editing)
@@ -506,10 +506,10 @@ namespace ForestOverlay
                     // A value with Trend on (T-0023): its colour only, for this draw.
                     Color normal = _hudLabelStyle.normal.textColor;
                     _hudLabelStyle.normal.textColor = s.TrendColour((TrendState)trend);
-                    GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                    CrispText.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
                     _hudLabelStyle.normal.textColor = normal;
                 }
-                else GUI.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
+                else CrispText.Label(new Rect(x, yy, wrapW, _colH[i]), hud.ValueAt(i), _hudLabelStyle);
                 yy += _colH[i];
             }
 
@@ -517,14 +517,14 @@ namespace ForestOverlay
             // above the marker. Never switchable (honest labelling).
             if (onH > 0f)
             {
-                GUI.Label(new Rect(x, yy, wrapW, onH), _practice.OnLabel, _warnStyle);
+                CrispText.Label(new Rect(x, yy, wrapW, onH), _practice.OnLabel, _warnStyle);
                 yy += onH;
             }
 
             // Sticky and last, so it is the line the eye lands on. A run
             // recording must make it obvious that a practice tool was used.
             // Never switchable either.
-            if (marked) GUI.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
+            if (marked) CrispText.Label(new Rect(x, yy, wrapW, markH), _practice.Label, practiceStyle);
 
             // The values placed on their own (and, in edit mode, their handles);
             // a placed value dropped on the column goes back into it.
