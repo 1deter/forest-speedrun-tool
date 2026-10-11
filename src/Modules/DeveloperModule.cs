@@ -6,7 +6,8 @@ namespace ForestOverlay.Modules
     // ------------------------------------------------------------------
     // The Developer tab: what a runner never needs - the test bridge,
     // benchmarks, experimental features they would not risk a run on, the
-    // memory census and the dumps (T-0226; author, 2026-10-08). Last in the
+    // memory census, the dumps (T-0226; author, 2026-10-08) and the
+    // developer-only keys (T-0263; author, 2026-10-09). Last in the
     // tab strip, so the runner's tabs show only runner features.
     //
     // It owns no feature: each fold is drawn by the module that owns it
@@ -39,7 +40,13 @@ namespace ForestOverlay.Modules
         private static readonly GUIContent TipDumps = new GUIContent(
             "Every item id and name the game knows (and the nature guide in a loaded save), written to files for checklists.");
 
+        private static readonly GUIContent TextKeys = new GUIContent("Keys");
+        private static readonly GUIContent TipKeys = new GUIContent(
+            "The developer tools' keys: dumps, type explorer, TAS and QA. " +
+            "Click a key to rebind it (Esc cancels, Backspace unbinds); def puts the default back.");
+
         private BridgeModule _bridge;
+        private SettingsModule _settings;
         private DebugViewModule _views;
         private TasModule _tas;
         private SavestateModule _savestates;
@@ -63,6 +70,7 @@ namespace ForestOverlay.Modules
                 _tas = Host.Find<TasModule>();
                 _savestates = Host.Find<SavestateModule>();
                 _collectibles = Host.Find<CollectiblesModule>();
+                _settings = Host.Find<SettingsModule>();
                 _found = true;
             }
 
@@ -96,6 +104,11 @@ namespace ForestOverlay.Modules
 
             if (_collectibles != null && UiKit.Section(0f, ref y, w, "dev.dumps", TextDumps, null, TipDumps, false))
                 y = _collectibles.DrawDumps(12f, y, w - 24f) + 6f;
+
+            // The developer-only keys, out of Settings' runner list (T-0263;
+            // drawn and rebound by Settings).
+            if (_settings != null && UiKit.Section(0f, ref y, w, "dev.keys", TextKeys, null, TipKeys, false))
+                y = _settings.DrawDeveloperKeys(y, w);
 
             _pageH = y + 4f;
             GUI.EndScrollView();

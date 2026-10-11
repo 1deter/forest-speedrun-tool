@@ -91,6 +91,8 @@
     <Compile Include="../../src/Data/Trajectory.cs" Link="Linked/Trajectory.cs" />
     <Compile Include="../../src/Data/MoveDetector.cs" Link="Linked/MoveDetector.cs" />
     <Compile Include="../../src/Data/HudLines.cs" Link="Linked/HudLines.cs" />
+    <Compile Include="../../src/Data/KeyText.cs" Link="Linked/KeyText.cs" />
+    <Compile Include="../../src/Data/KeyGroups.cs" Link="Linked/KeyGroups.cs" />
     <Compile Include="../../src/Data/HudLayout.cs" Link="Linked/HudLayout.cs" />
     <Compile Include="../../src/Data/HudProfile.cs" Link="Linked/HudProfile.cs" />
     <Compile Include="../../src/Data/HudSnap.cs" Link="Linked/HudSnap.cs" />
