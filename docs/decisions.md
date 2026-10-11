@@ -169,6 +169,13 @@ first" - `next` takes harness tasks ahead of the tool (`FIRST_AREAS`).
   `rgb(229, 197, 1)` on black). This replaces the redesign draft's
   blue-grey panels and its green accent (`docs/ui-redesign.md`); T-0258
   moves the branch over.
+- **Preset themes, the runner picks** (author, 2026-10-11, T-0258): the
+  window's colours are preset themes in Settings -> Theme, all kept - the
+  site's colours, pure black, warm near-black, translucent black, the
+  first redesign's blue-grey and Catppuccin Mocha / Macchiato / Frappé
+  (`Data/UiPalette`). The author's favourite is warm near-black ("a bias
+  towards the soft-mocha style themes"). Customisable colours: after
+  v1.0, if this theming stays.
 - **Easy to learn, little at once** (author, 2026-10-09, after T-0240):
   the goal is a tool that looks good and is easy to learn without
   flooding a new runner. Less on screen, fewer things to click, is faster
