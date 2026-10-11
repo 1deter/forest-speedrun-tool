@@ -34,7 +34,9 @@ using Microsoft.AspNetCore.RateLimiting;
 const int MaxBody = 4 * 1024 * 1024;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.ConfigureKestrel(k => k.Limits.MaxRequestBodySize = MaxBody);
+// No `Server: Kestrel` header: nothing to gain from naming the server
+// (security audit, 2026-10-11).
+builder.WebHost.ConfigureKestrel(k => { k.Limits.MaxRequestBodySize = MaxBody; k.AddServerHeader = false; });
 
 string dataDir = Environment.GetEnvironmentVariable("FOREST_DATA") ?? Path.Combine(AppContext.BaseDirectory, "data");
 string adminToken = Environment.GetEnvironmentVariable("FOREST_ADMIN_TOKEN") ?? "";
@@ -460,6 +462,10 @@ static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGet
 var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
 {
     var http = ctx.HttpContext;
+    // Admin answers hold tokens (a new admin's), the runners' spots' webhook
+    // URL and the runner list: never kept by a browser or a proxy (security
+    // audit, 2026-10-11).
+    http.Response.Headers.CacheControl = "no-store";
     string given = http.Request.Headers["X-Admin-Token"].FirstOrDefault() ?? "";
     bool owner = adminToken.Length > 0 && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
         Encoding.UTF8.GetBytes(given), Encoding.UTF8.GetBytes(adminToken));

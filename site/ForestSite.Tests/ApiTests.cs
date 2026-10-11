@@ -842,6 +842,15 @@ public sealed class ApiTests : IDisposable
             Assert.Equal("nosniff", r.Headers.GetValues("X-Content-Type-Options").Single());
             Assert.Equal("DENY", r.Headers.GetValues("X-Frame-Options").Single());
         }
+        // Admin answers are never cached (security audit, 2026-10-11): a
+        // refused one too.
+        foreach (string token in new[] { "admin-secret", "wrong" })
+        {
+            var get = new HttpRequestMessage(HttpMethod.Get, "/api/admin/check");
+            get.Headers.Add("X-Admin-Token", token);
+            var r = await _http.SendAsync(get);
+            Assert.True(r.Headers.CacheControl?.NoStore, token);
+        }
         // No script from anywhere but the site: the CSP would block it.
         string root = AppContext.BaseDirectory;
         while (!Directory.Exists(Path.Combine(root, "ForestSite", "wwwroot"))) root = Path.GetDirectoryName(root);
