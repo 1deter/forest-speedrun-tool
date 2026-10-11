@@ -36,6 +36,9 @@ namespace ForestOverlay.Modules
     public sealed class CollectiblesModule : OverlayModule
     {
         private const float RefreshInterval = 1f;
+        // How often the list's files are looked at while the tab shows
+        // (T-0254: an edited list reads itself, no Reload list button).
+        private const float ListCheckInterval = 2f;
         private const float RowHeight = 19f;
 
         public override string Id { get { return "collectibles"; } }
@@ -48,6 +51,7 @@ namespace ForestOverlay.Modules
         private NatureGuideReader _nature;
         private PassengerReader _passengers;
         private CollectionList _list;
+        private FolderStamp _listFiles;
         private float _nextRefresh;
         private bool _resolved;
 
@@ -91,6 +95,8 @@ namespace ForestOverlay.Modules
             _passengers = new PassengerReader(ctx.Log);
             _list = new CollectionList(ctx.Log, ctx.ConfigDirectory);
             _list.WriteReadmeIfMissing();
+            _listFiles = new FolderStamp(_list.Folder, ListCheckInterval, "*.txt");
+            _listFiles.Take(Time.unscaledTime);
             _list.Reload();
         }
 
@@ -104,10 +110,18 @@ namespace ForestOverlay.Modules
             // The rows (a few hundred strings) are only built while the tab
             // shows - every second behind a closed window they were the
             // overlay's biggest idle garbage. The first frame on the tab
-            // refreshes at once.
+            // refreshes at once - and looks at the list's files, read again
+            // when one was added, removed or edited (T-0254).
             bool showing = TabShowing;
-            if (showing && !_wasShowing) _nextRefresh = 0f;
+            if (showing && !_wasShowing) { _nextRefresh = 0f; _listFiles.CheckNow(); }
             _wasShowing = showing;
+
+            if (showing && _listFiles.Changed(Time.unscaledTime))
+            {
+                _list.Reload();   // keeps what was collected (CollectionList)
+                _resolved = false;
+                _nextRefresh = 0f;
+            }
 
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + RefreshInterval;
@@ -380,22 +394,12 @@ namespace ForestOverlay.Modules
             bool pin = UiKit.Toggle(new Rect(w - 190, 2, 190, 20), _pinSummary, " show totals on the HUD");
             if (pin != _pinSummary) { _pinSummary = pin; _pinSummaryCfg.Value = pin; }
 
-            if (GUI.Button(new Rect(w - 190, 26, 90, 22), "Reload list"))
-            {
-                _list.Reload();
-                _resolved = false;
-            }
-
-            if (GUI.Button(new Rect(w - 90, 26, 90, 22), "Refresh"))
-            {
-                _book.Refresh();
-                UpdateSeen();
-                RebuildRows();
-            }
+            // No Refresh / Reload list (T-0254): Tick refreshes every second
+            // while the tab shows and reads the list again when its files change.
 
             // Where the list and the book came from.
             RefreshTabText();
-            float y = 52f;
+            float y = 26f;
             y += UiText.DrawDim(0, y, w, _sourceText);
 
             DrawList(new Rect(0, y + 2f, w, _tabH - y - 6f));
