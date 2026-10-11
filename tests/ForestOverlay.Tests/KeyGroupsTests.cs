@@ -74,15 +74,15 @@ namespace ForestOverlay.Tests
             {
                 string h = HudLines.HeadingAt(i);
                 if (h != null) headings++;
-                // The always-shown values form their own last group.
-                if (HudLines.All[i].Locked && !lockedGroupStarted)
+                // The always-shown values come last and have no heading (author, 2026-10-11).
+                if (HudLines.All[i].Locked)
                 {
-                    Assert.NotNull(h);
+                    Assert.Null(h);
                     lockedGroupStarted = true;
                 }
                 if (lockedGroupStarted) Assert.True(HudLines.All[i].Locked, HudLines.All[i].Name);
             }
-            Assert.Equal(7, headings);   // every group's first line is still in the list
+            Assert.Equal(6, headings);   // every group's first line is still in the list
             Assert.Null(HudLines.HeadingAt(-1));
             Assert.Null(HudLines.HeadingAt(HudLines.All.Length));
         }
