@@ -50,8 +50,8 @@ namespace ForestOverlay.Data
             Practice, Practice,
             Window,
         };
-        private static readonly string[] Prefixes = { "tas.", "qa.", "practice.", "debug.", "run.", "timer.", "tab." };
-        private static readonly int[] PrefixGroups = { Developer, Developer, Practice, Practice, Runs, Runs, Window };
+        private static readonly string[] Prefixes = { "tas.", "qa.", "practice.", "debug.", "run.", "timer.", "tab.", "ui." };
+        private static readonly int[] PrefixGroups = { Developer, Developer, Practice, Practice, Runs, Runs, Window, Window };
 
         public static int Of(string id)
         {

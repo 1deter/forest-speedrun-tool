@@ -34,6 +34,8 @@ namespace ForestOverlay.Tests
         [InlineData("tab.practice", KeyGroups.Window)]
         [InlineData("tab.runs", KeyGroups.Window)]
         [InlineData("tab.developer", KeyGroups.Window)]
+        [InlineData("ui.toggleAll", KeyGroups.Window)]
+        [InlineData("ui.toggleInfo", KeyGroups.Window)]
         public void EveryKnownKeyHasItsGroup(string id, int group)
         {
             Assert.Equal(group, KeyGroups.Of(id));
