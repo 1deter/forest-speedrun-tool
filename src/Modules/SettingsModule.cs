@@ -302,6 +302,7 @@ namespace ForestOverlay.Modules
                     _resetKeysArmedUntil = -1f;
                     map.ResetToDefaults();
                     Say("Keys reset to defaults.");
+                    Ctx.Log.LogInfo("Settings: all keys reset to their defaults.");
                 }
             }
             UiKit.Hint(resetR, ResetKeysTip);
@@ -487,6 +488,7 @@ namespace ForestOverlay.Modules
                     _resetValuesArmedUntil = -1f;
                     s.ResetValues();
                     s.SetExternalShows(false);
+                    Ctx.Log.LogInfo("Settings: HUD values reset to their defaults.");
                     _valuesResetUntil = Time.unscaledTime + MessageSeconds;
                 }
             }
@@ -624,6 +626,7 @@ namespace ForestOverlay.Modules
                 {
                     b.Key = b.Default;
                     Say(b.Description + " reset to " + b.Default + ".", dev);
+                    Ctx.Log.LogInfo("Settings: key '" + b.Description + "' reset to " + b.Default + ".");
                 }
                 y += RowHeight;
             }
@@ -651,6 +654,7 @@ namespace ForestOverlay.Modules
             {
                 map.AwaitingRebind = null;
                 Say("Rebind cancelled.", dev);
+                Ctx.Log.LogInfo("Settings: rebind of '" + target.Description + "' cancelled.");
                 e.Use();
                 return;
             }
@@ -661,6 +665,7 @@ namespace ForestOverlay.Modules
                 map.AwaitingRebind = null;
                 map.Swallow(KeyCode.Backspace);
                 Say(target.Description + " unbound.", dev);
+                Ctx.Log.LogInfo("Settings: key '" + target.Description + "' unbound.");
                 e.Use();
                 return;
             }
@@ -679,6 +684,8 @@ namespace ForestOverlay.Modules
             // Bind it anyway and say so, rather than refusing. Two actions
             // on one key is occasionally deliberate, and silently dropping
             // the press would be worse than a warning.
+            Ctx.Log.LogInfo("Settings: key '" + target.Description + "' rebound to " + e.keyCode
+                + (clash == null ? "." : " (also used by '" + clash.Description + "')."));
             Say(clash == null
                 ? target.Description + " -> " + e.keyCode
                 : target.Description + " -> " + e.keyCode + "  (also used by '" + clash.Description + "')", dev);

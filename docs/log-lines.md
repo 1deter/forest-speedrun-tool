@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-225 prefixes from 702 log calls.
+226 prefixes from 708 log calls.
 
 ## `Aerial capture`
 
@@ -1609,6 +1609,18 @@ Written by SegmentLibrary.cs; info / warning.
 - warning `Segments: <file>:<line> <message>`
 - warning `Segments: <fileName>: duplicate segment id <s.Id> skipped.`
 - warning `Segments: <fileName>: segment (<..>) skipped - needs id, start and end.`
+
+## `Settings`
+
+Meaning: The runner reset the keys or the HUD values in Settings (after its Sure?), reset or unbound one key, rebound a key (with the key it also clashes with) or cancelled a rebind (T-0260).
+Written by SettingsModule.cs; info.
+
+- info `Settings: HUD values reset to their defaults.`
+- info `Settings: all keys reset to their defaults.`
+- info `Settings: key '<b.Description>' reset to <b.Default>.`
+- info `Settings: key '<target.Description>' rebound to <e.keyCode><..>`
+- info `Settings: key '<target.Description>' unbound.`
+- info `Settings: rebind of '<target.Description>' cancelled.`
 
 ## `SetupHold`
 
