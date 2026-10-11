@@ -106,7 +106,7 @@ namespace ForestOverlay.Core
             {
                 if (_box == null)
                 {
-                    _box = new GUIStyle(GUI.skin.textArea);
+                    _box = UiKit.Style(GUI.skin.textArea);
                     _box.wordWrap = true;
                 }
                 return _box;
@@ -120,7 +120,7 @@ namespace ForestOverlay.Core
             {
                 if (_plain == null)
                 {
-                    _plain = new GUIStyle(GUI.skin.label);
+                    _plain = UiKit.Style(GUI.skin.label);
                     _plain.wordWrap = true;
                     _plain.alignment = TextAnchor.UpperLeft;
                 }
@@ -134,8 +134,8 @@ namespace ForestOverlay.Core
             {
                 if (_dim == null)
                 {
-                    _dim = new GUIStyle(Plain);
-                    _dim.normal.textColor = new Color(0.78f, 0.78f, 0.78f);
+                    _dim = UiKit.Style(Plain);
+                    _dim.normal.textColor = UiKit.SoftColour;
                 }
                 return _dim;
             }

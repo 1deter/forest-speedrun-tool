@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 687 log calls.
+225 prefixes from 688 log calls.
 
 ## `Aerial capture`
 
@@ -191,6 +191,13 @@ Meaning: Reading the 100% collection checklist failed.
 Written by CollectionList.cs; warning.
 
 - warning `Collection list failed: <ex.Message>`
+
+## `Colours`
+
+Meaning: The window's colour variant was switched in Developer -> Colours (T-0258).
+Written by DeveloperModule.cs; info.
+
+- info `<..>` *(declared)*
 
 ## `Community`
 

@@ -224,12 +224,12 @@ namespace ForestOverlay.Core
             if (_styles.TryGetValue(key, out s)) return s;
             float sc = key / 4f;
             s = new ScaleStyles();
-            s.Label = new GUIStyle(GUI.skin.label);
+            s.Label = UiKit.Style(GUI.skin.label);
             s.Label.fontSize = Mathf.RoundToInt(LabelBase);
             s.Label.normal.textColor = UiKit.DimColour;
             s.Label.padding = new RectOffset(0, 0, 0, 0);
             s.Label.wordWrap = false;
-            s.Value = new GUIStyle(GUI.skin.label);
+            s.Value = UiKit.Style(GUI.skin.label);
             s.ValueSize = Mathf.Max(9f, ValueBase * sc);
             int render = ValueRenderFor(s.ValueSize);
             s.ValueScale = s.ValueSize / render;
@@ -610,7 +610,7 @@ namespace ForestOverlay.Core
         {
             if (_centred == null)
             {
-                _centred = new GUIStyle(GUI.skin.label);
+                _centred = UiKit.Style(GUI.skin.label);
                 _centred.alignment = TextAnchor.MiddleCenter;
             }
             float h = RowH - 4f;

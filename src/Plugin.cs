@@ -275,16 +275,16 @@ namespace ForestOverlay
 
             // Wraps: a long line (an update message, a spot name in the
             // practice marker) was cut off at the box edge.
-            _hudLabelStyle = new GUIStyle(GUI.skin.label);
+            _hudLabelStyle = UiKit.Style(GUI.skin.label);
             _hudLabelStyle.padding = new RectOffset(0, 0, 0, 0);
             _hudLabelStyle.wordWrap = true;
 
-            _warnStyle = new GUIStyle(_hudLabelStyle);
+            _warnStyle = UiKit.Style(_hudLabelStyle);
             _warnStyle.fontStyle = FontStyle.Bold;
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
 
             // The toast's text; its card is UiKit's (opaque, rounded).
-            _noticeStyle = new GUIStyle(GUI.skin.label);
+            _noticeStyle = UiKit.Style(GUI.skin.label);
             _noticeStyle.fontSize = 14;
             _noticeStyle.wordWrap = true;
             _noticeStyle.alignment = TextAnchor.MiddleLeft;

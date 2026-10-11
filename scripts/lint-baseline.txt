@@ -3,7 +3,6 @@
 alloc	src/Modules/MapModule.cs	_goStatus.text = r.Length > 0 ? r : "Moved to '" + sel.Name + "'.";
 alloc	src/Modules/PracticeModule.cs	if (mode != _zoneMode) { _zoneMode = mode; _zoneModeCfg.Value = mode.ToString(); }   // one write per click
 alloc	src/Modules/PracticeRunModule.cs	_compareCfg.Value = kind.ToString();   // one write per click
-alloc	src/Modules/PracticeRunModule.cs	_rowStyle = new GUIStyle(GUI.skin.label);
 alloc	src/Modules/UpdateModule.cs	y += UiText.Draw(12, y, w - 24, "Installed: v" + OverlayPlugin.PluginVersion);
 alloc	src/Plugin.cs	Logger.LogError("OnGUI() threw, HUD disabled: " + ex);
 cfgwrite	src/Modules/PracticeModule.cs	f.Value = p3;

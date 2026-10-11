@@ -928,17 +928,17 @@ namespace ForestOverlay.Modules
         {
             if (_rowStyle != null) return;
 
-            _rowStyle = new GUIStyle(GUI.skin.button);
+            _rowStyle = UiKit.Style(GUI.skin.button);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
             _rowStyle.padding = new RectOffset(6, 4, 0, 0);
 
-            _selectedRowStyle = new GUIStyle(_rowStyle);
+            _selectedRowStyle = UiKit.Style(_rowStyle);
             _selectedRowStyle.fontStyle = FontStyle.Bold;
 
-            _dimStyle = new GUIStyle(GUI.skin.label);
+            _dimStyle = UiKit.Style(GUI.skin.label);
             _dimStyle.alignment = TextAnchor.MiddleLeft;
 
-            _headerStyle = new GUIStyle(GUI.skin.box);
+            _headerStyle = UiKit.Style(GUI.skin.box);
             _headerStyle.alignment = TextAnchor.MiddleLeft;
             _headerStyle.padding = new RectOffset(6, 4, 0, 0);
             _headerStyle.fontStyle = FontStyle.Bold;

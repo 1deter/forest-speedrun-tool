@@ -43,14 +43,26 @@ going to be overwhelming when runners first interact with it."
 
 ## Visual language
 
-| Token | Value |
-|---|---|
-| Window / panel | `#17191F` @ 96 % |
-| Card / section header | `#20232B` |
-| Hairline border | `#2E323C` |
-| Text / dim text | `#E6E8EB` / `#9AA0AA` |
-| **Accent** (forest green) | `#4CC790` |
-| Warn (changes the game) | `#FF8C33` (unchanged) |
+Yellow on black, as the game's loading screen and the site (decisions.md
+*Look: yellow on black*; T-0258). The colours live in `Data/UiPalette`, one
+full set per variant; the author picks one in game (Developer -> Colours,
+config `Window/Colours`, switched live), the site's is the default until then.
+
+| Token | site (default) | black | warm | translucent |
+|---|---|---|---|---|
+| Window / panel | `#000000` | `#000000` | `#0E0E09` | `#000000` @ 78 % |
+| Card / section header | `#0D0D0D` | `#121212` | `#18170F` | `#1A1A1A` @ 71 % |
+| Hairline border | `#222222` | `#2A2A2A` | `#2C291D` | `#333333` @ 90 % |
+| Text | `#E5C501` (yellow) | `#EAEAEA` | `#ECE6D4` | `#EAEAEA` |
+| Dim / descriptions | `#8A7A1C` / `#8B7B1D` | `#8C8C8C` / `#C2C2C2` | `#9A927A` / `#C8C0A8` | `#9A9A9A` / `#C8C8C8` |
+| **Accent** (every variant) | `#E5C501` = rgb(229, 197, 1) | | | |
+| Warn (changes the game) | `#FF8C33` (unchanged) | | | |
+
+A switch repaints UiKit's textures in place and recolours every style made
+with `UiKit.Style(src)` (modules use it instead of `new GUIStyle(src)`), so a
+text colour in a variant must differ from its other text colours - a unit
+test holds it. Semantic colours (split deltas, map markers, QA pass / fail)
+are a module's own and stay.
 | Radius | 6 px (panels), 4 px (controls) |
 | Spacing | 4 / 8 / 12 px; 8 px window padding |
 | Type scale | 12 body, 11 dim / hints, 13 section title, 26 headline (results), widget value 16-48 by scale |

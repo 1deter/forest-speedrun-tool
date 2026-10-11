@@ -138,7 +138,7 @@ the Map tab.
 
 ### Plugin core and UI
 
-Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CursorController,HotkeyMap,HudBuilder,HudSettings,HudWidgets,Lifecycle,ModuleContext,ModuleHost,Notice,OverlayModule,UiKit,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{HudLayout,PageGrouping,TextMemo}.cs` `ForestOverlay.csproj`
+Paths: `src/Plugin.cs` `src/CLAUDE.md` `tests/CLAUDE.md` `src/Core/{CursorController,HotkeyMap,HudBuilder,HudSettings,HudWidgets,Lifecycle,ModuleContext,ModuleHost,Notice,OverlayModule,UiKit,UiText}.cs` `src/Modules/{MainWindowModule,SettingsModule}.cs` `src/Game/{FastField,GameBridge,GameInput,PlayerRef}.cs` `src/Data/{HudLayout,PageGrouping,TextMemo,UiPalette}.cs` `ForestOverlay.csproj`
 
 The module host, window and tabs, hotkeys, cursor, input block, HUD
 builder, notice, settings, the reflection helpers.

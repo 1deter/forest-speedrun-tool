@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ForestOverlay.Data;
 using UnityEngine;
 
 namespace ForestOverlay.Core
@@ -23,18 +24,94 @@ namespace ForestOverlay.Core
     public static class UiKit
     {
         // --- palette ---------------------------------------------------------
-        public static readonly Color PanelBg = new Color(0.090f, 0.098f, 0.122f, 1f);   // opaque: HUD text read through it
-        public static readonly Color CardBg = new Color(0.125f, 0.137f, 0.169f, 1f);
-        public static readonly Color CardHover = new Color(0.165f, 0.180f, 0.220f, 1f);
-        public static readonly Color Border = new Color(0.180f, 0.196f, 0.235f, 1f);
-        public static readonly Color TextColour = new Color(0.90f, 0.91f, 0.92f, 1f);
-        public static readonly Color DimColour = new Color(0.60f, 0.63f, 0.67f, 1f);
-        /// The one accent: The Forest's logo yellow (author, 2026-10-05: black on yellow).
-        public static readonly Color Accent = new Color(0.96f, 0.77f, 0.09f, 1f);   // #F5C518
-        public static readonly Color AccentDark = new Color(0.42f, 0.33f, 0.05f, 1f);
-        public static readonly Color AccentHover = new Color(1f, 0.84f, 0.30f, 1f);
-        public static readonly Color OnAccent = new Color(0.05f, 0.05f, 0.04f, 1f);
-        public static readonly Color Warn = new Color(1f, 0.55f, 0.2f, 1f);
+        // Yellow on black (decisions.md *Look: yellow on black*): the colours
+        // of one Data/UiPalette variant, set by Apply. A switch repaints the
+        // same textures in place (styles copied from the skin keep pointing at
+        // them) and recolours every style made with Style(), so it shows at
+        // once in every tab.
+        public static Color PanelBg { get; private set; }
+        public static Color CardBg { get; private set; }
+        public static Color CardHover { get; private set; }
+        public static Color Border { get; private set; }
+        public static Color TextColour { get; private set; }
+        public static Color DimColour { get; private set; }
+        /// Descriptions (UiText.Dim): between TextColour and DimColour.
+        public static Color SoftColour { get; private set; }
+        /// The one accent: the loading screen's yellow, rgb(229, 197, 1).
+        public static Color Accent { get; private set; }
+        public static Color AccentDark { get; private set; }
+        public static Color AccentHover { get; private set; }
+        public static Color OnAccent { get; private set; }
+        public static Color Warn { get; private set; }
+        private static Color _buttonBorder, _buttonHoverBorder, _field, _widget, _widgetBorder, _tipBg, _tipBorder;
+
+        public static UiPalette Palette { get; private set; }
+
+        /// Every style copied through Style(): recoloured by a palette switch.
+        private static readonly List<GUIStyle> Tracked = new List<GUIStyle>();
+
+        static UiKit() { SetColours(UiPalette.Default); }
+
+        private static Color Col(uint c) { return new Color(UiPalette.R(c), UiPalette.G(c), UiPalette.B(c), UiPalette.A(c)); }
+
+        private static void SetColours(UiPalette p)
+        {
+            Palette = p;
+            PanelBg = Col(p.Panel); CardBg = Col(p.Card); CardHover = Col(p.CardHover); Border = Col(p.Border);
+            TextColour = Col(p.Text); DimColour = Col(p.Dim); SoftColour = Col(p.Soft);
+            Accent = Col(p.Accent); AccentDark = Col(p.AccentDark); AccentHover = Col(p.AccentHover);
+            OnAccent = Col(p.OnAccent); Warn = Col(p.Warn);
+            _buttonBorder = Col(p.ButtonBorder); _buttonHoverBorder = Col(p.ButtonHoverBorder); _field = Col(p.Field);
+            _widget = Col(p.Widget); _widgetBorder = Col(p.WidgetBorder); _tipBg = Col(p.Tip); _tipBorder = Col(p.TipBorder);
+        }
+
+        /// Switches the palette: before the first build it only sets the
+        /// colours; after it, the textures are repainted in place and every
+        /// style's text colour that was one of the old palette's text colours
+        /// becomes the new one (UiPalette keeps them distinct, so the match is
+        /// exact; a module's own colours - deltas, warnings - are left alone).
+        public static void Apply(UiPalette p)
+        {
+            if (p == null || p == Palette) return;
+            if (!_built || _skin == null) { SetColours(p); return; }
+            Color[] from = TextTokens();
+            SetColours(p);
+            Color[] to = TextTokens();
+            BuildTextures();
+            GUIStyle[] own = { _skin.window, _skin.button, _skin.toggle, _skin.textField, _skin.textArea, _skin.label, _skin.box,
+                               _tab, _tabActive, _header, _headerSummary, _card, _widgetCard, _outline, _handle, _tip,
+                               _primary, _hint, _title };
+            for (int i = 0; i < own.Length; i++) Recolour(own[i], from, to);
+            for (int i = 0; i < Tracked.Count; i++) Recolour(Tracked[i], from, to);
+        }
+
+        /// A copy of `src` that follows a palette switch: use it for every
+        /// style a module builds (instead of new GUIStyle(src)).
+        public static GUIStyle Style(GUIStyle src)
+        {
+            GUIStyle s = new GUIStyle(src);
+            Tracked.Add(s);
+            return s;
+        }
+
+        private static Color[] TextTokens()
+        {
+            return new[] { TextColour, DimColour, SoftColour, Accent, AccentHover, OnAccent, Warn };
+        }
+
+        private static void Recolour(GUIStyle s, Color[] from, Color[] to)
+        {
+            if (s == null) return;
+            Recolour(s.normal, from, to); Recolour(s.hover, from, to); Recolour(s.active, from, to); Recolour(s.focused, from, to);
+            Recolour(s.onNormal, from, to); Recolour(s.onHover, from, to); Recolour(s.onActive, from, to); Recolour(s.onFocused, from, to);
+        }
+
+        private static void Recolour(GUIStyleState st, Color[] from, Color[] to)
+        {
+            Color c = st.textColor;
+            for (int i = 0; i < from.Length; i++)
+                if (c == from[i]) { st.textColor = to[i]; return; }
+        }
 
         public const float Pad = 8f;
         private const int CheckSize = 16;
@@ -54,12 +131,9 @@ namespace ForestOverlay.Core
 
         /// A rounded rectangle with an optional border, anti-aliased, for a
         /// 9-slice style (border = radius + 1). size: the texture's side.
-        private static Texture2D Rounded(int size, int radius, Color fill, Color border, int borderPx)
+        private static Texture2D Rounded(Texture2D reuse, int size, int radius, Color fill, Color border, int borderPx)
         {
-            Texture2D t = new Texture2D(size, size, TextureFormat.ARGB32, false, true);   // linear: as sRGB the game darkened them (yellow came out orange, #E28903)
-            t.hideFlags = HideFlags.HideAndDontSave;
-            t.wrapMode = TextureWrapMode.Clamp;
-            t.filterMode = FilterMode.Bilinear;
+            Texture2D t = Tex(reuse, size);
             float half = size * 0.5f;
             float inner = half - radius;
             Color[] px = new Color[size * size];
@@ -83,10 +157,21 @@ namespace ForestOverlay.Core
             return t;
         }
 
-        private static Texture2D Flat(Color c)
+        /// `reuse` when it is already this size (a palette switch repaints it,
+        /// so styles holding it follow), else a new texture.
+        private static Texture2D Tex(Texture2D reuse, int size)
         {
-            Texture2D t = new Texture2D(1, 1, TextureFormat.ARGB32, false, true);
+            if (reuse != null && reuse.width == size) return reuse;
+            Texture2D t = new Texture2D(size, size, TextureFormat.ARGB32, false, true);   // linear: as sRGB the game darkened them (yellow came out orange, #E28903)
             t.hideFlags = HideFlags.HideAndDontSave;
+            t.wrapMode = TextureWrapMode.Clamp;
+            t.filterMode = FilterMode.Bilinear;
+            return t;
+        }
+
+        private static Texture2D Flat(Texture2D reuse, Color c)
+        {
+            Texture2D t = Tex(reuse, 1);
             t.SetPixel(0, 0, c);
             t.Apply(false, true);
             return t;
@@ -96,13 +181,10 @@ namespace ForestOverlay.Core
         /// its row by Toggle (T-0021: drawn by the toggle style it was stretched
         /// to the row's 20 / 22 px, so boxes came out wider than tall). An
         /// outline when off, a solid yellow square when on (author, 2026-10-11).
-        private static Texture2D Check(bool on, bool hover)
+        private static Texture2D Check(Texture2D reuse, bool on, bool hover)
         {
             const int w = CheckSize, r = 3;
-            Texture2D t = new Texture2D(w, w, TextureFormat.ARGB32, false, true);
-            t.hideFlags = HideFlags.HideAndDontSave;
-            t.wrapMode = TextureWrapMode.Clamp;
-            t.filterMode = FilterMode.Bilinear;
+            Texture2D t = Tex(reuse, w);
             Color fill = on ? (hover ? AccentHover : Accent) : (hover ? new Color(1f, 1f, 1f, 0.06f) : new Color(0f, 0f, 0f, 0f));
             Color edge = on ? (hover ? AccentHover : Accent) : (hover ? TextColour : DimColour);
             float inner = w * 0.5f - r;
@@ -129,6 +211,32 @@ namespace ForestOverlay.Core
 
         // --- build ---------------------------------------------------------------
 
+        /// Paints every texture in the current colours, reusing the ones
+        /// already made (Apply calls it again on a switch).
+        private static void BuildTextures()
+        {
+            _tPanel = Rounded(_tPanel, 32, 8, PanelBg, Border, 1);
+            _tCard = Rounded(_tCard, 24, 5, CardBg, CardBg, 0);
+            _tCardHover = Rounded(_tCardHover, 24, 5, CardHover, CardHover, 0);
+            _tWidget = Rounded(_tWidget, 24, 6, _widget, _widgetBorder, 1);
+            _tButton = Rounded(_tButton, 24, 5, CardBg, _buttonBorder, 1);
+            _tButtonHover = Rounded(_tButtonHover, 24, 5, CardHover, _buttonHoverBorder, 1);
+            _tButtonOn = Rounded(_tButtonOn, 24, 5, AccentDark, Accent, 1);
+            _tPrimary = Rounded(_tPrimary, 24, 5, Accent, Accent, 0);
+            _tPrimaryHover = Rounded(_tPrimaryHover, 24, 5, AccentHover, Accent, 0);
+            _tField = Rounded(_tField, 24, 4, _field, _buttonBorder, 1);
+            _tCheckOff = Check(_tCheckOff, false, false);
+            _tCheckOffHover = Check(_tCheckOffHover, false, true);
+            _tCheckOn = Check(_tCheckOn, true, false);
+            _tCheckOnHover = Check(_tCheckOnHover, true, true);
+            _tOutline = Rounded(_tOutline, 24, 4, new Color(0f, 0f, 0f, 0f), Accent, 2);
+            _tHandle = Rounded(_tHandle, 16, 4, Accent, Accent, 0);
+            _tTip = Rounded(_tTip, 24, 5, _tipBg, _tipBorder, 1);
+            _tTab = Flat(_tTab, new Color(0f, 0f, 0f, 0f));
+            _tAccentFlat = Flat(_tAccentFlat, Accent);
+            _tTabActive = Rounded(_tTabActive, 24, 5, CardBg, Accent, 1);
+        }
+
         private static void StyleState(GUIStyleState s, Texture2D bg, Color text)
         {
             s.background = bg;
@@ -141,26 +249,7 @@ namespace ForestOverlay.Core
             if (_built) return;
             _built = true;   // set first: a throw below must not rebuild (and leak) every pass
 
-            _tPanel = Rounded(32, 8, PanelBg, Border, 1);
-            _tCard = Rounded(24, 5, CardBg, CardBg, 0);
-            _tCardHover = Rounded(24, 5, CardHover, CardHover, 0);
-            _tWidget = Rounded(24, 6, new Color(0.07f, 0.075f, 0.09f, 0.84f), new Color(0.2f, 0.22f, 0.26f, 0.9f), 1);
-            _tButton = Rounded(24, 5, CardBg, new Color(0.24f, 0.26f, 0.31f, 1f), 1);
-            _tButtonHover = Rounded(24, 5, CardHover, new Color(0.34f, 0.37f, 0.43f, 1f), 1);
-            _tButtonOn = Rounded(24, 5, AccentDark, Accent, 1);
-            _tPrimary = Rounded(24, 5, Accent, Accent, 0);
-            _tPrimaryHover = Rounded(24, 5, AccentHover, Accent, 0);
-            _tField = Rounded(24, 4, new Color(0.065f, 0.07f, 0.09f, 1f), new Color(0.24f, 0.26f, 0.31f, 1f), 1);
-            _tCheckOff = Check(false, false);
-            _tCheckOffHover = Check(false, true);
-            _tCheckOn = Check(true, false);
-            _tCheckOnHover = Check(true, true);
-            _tOutline = Rounded(24, 4, new Color(0f, 0f, 0f, 0f), Accent, 2);
-            _tHandle = Rounded(16, 4, Accent, Accent, 0);
-            _tTip = Rounded(24, 5, new Color(0.04f, 0.045f, 0.055f, 0.98f), new Color(0.3f, 0.33f, 0.39f, 1f), 1);
-            _tTab = Flat(new Color(0f, 0f, 0f, 0f));
-            _tAccentFlat = Flat(Accent);
-            _tTabActive = Rounded(24, 5, CardBg, Accent, 1);
+            BuildTextures();
 
             GUISkin src = GUI.skin;
             _skin = UnityEngine.Object.Instantiate(src) as GUISkin;

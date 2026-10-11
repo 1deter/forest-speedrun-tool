@@ -1,3 +1,4 @@
+using ForestOverlay.Core;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -261,22 +262,22 @@ namespace ForestOverlay
         {
             if (_rowStyle != null) return;
 
-            _rowStyle = new GUIStyle(GUI.skin.button);
+            _rowStyle = UiKit.Style(GUI.skin.button);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
             _rowStyle.fontSize = 12;
             _rowStyle.padding = new RectOffset(6, 4, 2, 2);
             _rowStyle.clipping = TextClipping.Clip;
 
-            _rowStyleSelected = new GUIStyle(_rowStyle);
+            _rowStyleSelected = UiKit.Style(_rowStyle);
             _rowStyleSelected.fontStyle = FontStyle.Bold;
 
-            _lineStyle = new GUIStyle(GUI.skin.label);
+            _lineStyle = UiKit.Style(GUI.skin.label);
             _lineStyle.fontSize = 12;
             _lineStyle.padding = new RectOffset(2, 2, 0, 0);
             _lineStyle.clipping = TextClipping.Clip;
             _lineStyle.wordWrap = false;
 
-            _headerStyle = new GUIStyle(GUI.skin.label);
+            _headerStyle = UiKit.Style(GUI.skin.label);
             _headerStyle.fontSize = 12;
             _headerStyle.fontStyle = FontStyle.Bold;
             _headerStyle.clipping = TextClipping.Clip;

@@ -213,15 +213,15 @@ namespace ForestOverlay.Modules
         private void EnsureResultStyles()
         {
             if (_resHeadStyle != null) return;
-            _resHeadStyle = new GUIStyle(GUI.skin.label);
+            _resHeadStyle = UiKit.Style(GUI.skin.label);
             _resHeadStyle.fontSize = 26;
             _resHeadStyle.fontStyle = FontStyle.Bold;
             _resHeadStyle.alignment = TextAnchor.MiddleLeft;
             _resHeadStyle.wordWrap = false;
             _resHeadStyle.clipping = TextClipping.Clip;
-            _resHeadGold = new GUIStyle(_resHeadStyle);
+            _resHeadGold = UiKit.Style(_resHeadStyle);
             _resHeadGold.normal.textColor = UiKit.Accent;
-            _resGoldWrap = new GUIStyle(UiText.Plain);
+            _resGoldWrap = UiKit.Style(UiText.Plain);
             _resGoldWrap.normal.textColor = UiKit.Accent;
         }
 
@@ -339,7 +339,7 @@ namespace ForestOverlay.Modules
             {
                 if (_goldName == null)
                 {
-                    _goldName = new GUIStyle(_nameStyle);
+                    _goldName = UiKit.Style(_nameStyle);
                     _goldName.normal.textColor = UiKit.Accent;
                 }
                 return _goldName;

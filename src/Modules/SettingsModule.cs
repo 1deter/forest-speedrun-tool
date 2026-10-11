@@ -130,15 +130,15 @@ namespace ForestOverlay.Modules
         {
             if (_labelStyle != null) return;
 
-            _labelStyle = new GUIStyle(GUI.skin.label);
+            _labelStyle = UiKit.Style(GUI.skin.label);
             _labelStyle.alignment = TextAnchor.MiddleLeft;
 
-            _warnStyle = new GUIStyle(_labelStyle);
+            _warnStyle = UiKit.Style(_labelStyle);
             _warnStyle.normal.textColor = new Color(1f, 0.55f, 0.2f);
 
             // The prompt is long and was clipping to one line. Wrapping it
             // and measuring the height keeps it readable at any width.
-            _promptStyle = new GUIStyle(_warnStyle);
+            _promptStyle = UiKit.Style(_warnStyle);
             _promptStyle.wordWrap = true;
             _promptStyle.alignment = TextAnchor.UpperLeft;
         }

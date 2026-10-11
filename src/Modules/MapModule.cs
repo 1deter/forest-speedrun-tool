@@ -508,7 +508,7 @@ namespace ForestOverlay.Modules
             }
             if (_labelBox == null)
             {
-                _labelBox = new GUIStyle(GUI.skin.box);
+                _labelBox = UiKit.Style(GUI.skin.box);
                 _labelBox.alignment = TextAnchor.MiddleLeft;
                 _labelBox.wordWrap = false;
             }

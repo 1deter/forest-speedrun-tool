@@ -247,14 +247,14 @@ namespace ForestOverlay.Modules
             if (cam == null) return;
             if (_labelStyle == null)
             {
-                _labelStyle = new GUIStyle(GUI.skin.label);
+                _labelStyle = UiKit.Style(GUI.skin.label);
                 _labelStyle.alignment = TextAnchor.LowerCenter;
                 _labelStyle.fontSize = 13;
                 _labelStyle.wordWrap = false;
                 _labelStyle.clipping = TextClipping.Overflow;
                 _labelStyle.padding = new RectOffset(0, 0, 0, 0);
                 _labelStyle.normal.textColor = Color.white;
-                _labelShadow = new GUIStyle(_labelStyle);
+                _labelShadow = UiKit.Style(_labelStyle);
                 _labelShadow.normal.textColor = new Color(0f, 0f, 0f, 0.85f);
             }
             // Each label's box sits on its marker; one that would cover a

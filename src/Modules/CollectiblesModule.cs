@@ -470,22 +470,22 @@ namespace ForestOverlay.Modules
         {
             if (_rowStyle != null) return;
 
-            _rowStyle = new GUIStyle(GUI.skin.label);
+            _rowStyle = UiKit.Style(GUI.skin.label);
             _rowStyle.alignment = TextAnchor.MiddleLeft;
             _rowStyle.padding = new RectOffset(2, 2, 0, 0);
 
-            _headerStyle = new GUIStyle(_rowStyle);
+            _headerStyle = UiKit.Style(_rowStyle);
             _headerStyle.fontStyle = FontStyle.Bold;
 
             // Muted rather than saturated, for the same reason the zone
             // colours were toned down.
-            _doneStyle = new GUIStyle(_rowStyle);
+            _doneStyle = UiKit.Style(_rowStyle);
             _doneStyle.normal.textColor = new Color(0.45f, 0.82f, 0.50f);
 
-            _missingStyle = new GUIStyle(_rowStyle);
+            _missingStyle = UiKit.Style(_rowStyle);
             _missingStyle.normal.textColor = new Color(0.92f, 0.72f, 0.32f);
 
-            _warnStyle = new GUIStyle(_rowStyle);
+            _warnStyle = UiKit.Style(_rowStyle);
             _warnStyle.normal.textColor = new Color(0.90f, 0.45f, 0.45f);
         }
 

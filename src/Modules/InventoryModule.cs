@@ -581,7 +581,7 @@ namespace ForestOverlay.Modules
         {
             if (_rowStyle == null)
             {
-                _rowStyle = new GUIStyle(GUI.skin.label);
+                _rowStyle = UiKit.Style(GUI.skin.label);
                 _rowStyle.alignment = TextAnchor.MiddleLeft;
                 _rowStyle.padding = new RectOffset(4, 4, 0, 0);
             }

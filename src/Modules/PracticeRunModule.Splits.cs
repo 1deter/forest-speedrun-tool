@@ -547,16 +547,16 @@ namespace ForestOverlay.Modules
         private void EnsureSplitStyles()
         {
             if (_cellStyle != null) return;
-            _cellStyle = new GUIStyle(GUI.skin.label);
+            _cellStyle = UiKit.Style(GUI.skin.label);
             _cellStyle.alignment = TextAnchor.MiddleRight;
             _cellStyle.padding = new RectOffset(0, 2, 0, 0);
             _cellStyle.wordWrap = false;
             _cellStyle.clipping = TextClipping.Clip;
-            _nameStyle = new GUIStyle(_cellStyle);
+            _nameStyle = UiKit.Style(_cellStyle);
             _nameStyle.alignment = TextAnchor.MiddleLeft;
-            _titleStyle = new GUIStyle(_nameStyle);
+            _titleStyle = UiKit.Style(_nameStyle);
             _titleStyle.fontStyle = FontStyle.Bold;
-            _placeholderStyle = new GUIStyle(GUI.skin.label);
+            _placeholderStyle = UiKit.Style(GUI.skin.label);
             _placeholderStyle.wordWrap = true;
             _placeholderStyle.normal.textColor = UiKit.DimColour;
 
@@ -572,13 +572,13 @@ namespace ForestOverlay.Modules
             _colourStyles = new GUIStyle[colours.Length];
             for (int i = 0; i < colours.Length; i++)
             {
-                _colourStyles[i] = new GUIStyle(_cellStyle);
+                _colourStyles[i] = UiKit.Style(_cellStyle);
                 _colourStyles[i].normal.textColor = colours[i];
             }
 
             // The kit's rounded dark card: the same look as the results panel
             // and the HUD widgets (docs/ui-redesign.md).
-            _panelStyle = new GUIStyle(UiKit.WidgetCard);
+            _panelStyle = UiKit.Style(UiKit.WidgetCard);
         }
 
         public override void DrawScreen()
