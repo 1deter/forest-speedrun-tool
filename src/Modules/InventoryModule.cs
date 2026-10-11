@@ -182,7 +182,8 @@ namespace ForestOverlay.Modules
         public override void Tick()
         {
             // The first frame on the tab refreshes at once: it opened empty
-            // until Refresh was clicked (author, v0.22.6) - rows were only
+            // until Refresh was clicked (author, v0.22.6; the button went in
+            // T-0254) - rows were only
             // rebuilt behind PanelOpen, which a tab never sets.
             bool showing = TabShowing;
             if (showing && !_wasShowing) _nextRefresh = 0f;
@@ -646,11 +647,7 @@ namespace ForestOverlay.Modules
 
             if (GUI.Button(new Rect(266, top, 56, 22), "Clear")) _filter = "";
             if (!ReferenceEquals(_filter, _shownFilter)) RebuildShown();
-            if (GUI.Button(new Rect(326, top, 64, 22), "Refresh"))
-            {
-                Ctx.Inventory.Refresh();
-                RebuildRowLabels();
-            }
+            // No Refresh (T-0254): Tick rebuilds the rows 4 times a second while the tab shows.
 
             // Exploration toggles: the filter hides ids the autosplitter
             // proved are not real inventory contents (dev id 302 and

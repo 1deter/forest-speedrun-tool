@@ -15,8 +15,9 @@ namespace ForestOverlay.Modules
     // segments every runner gets, so a new runner starts with good spots
     // and practice ready (author, 2026-09-25).
     //
-    // A few seconds after startup (and on "Check community now" in the
-    // Practice tab's Import view) it fetches the repo's community/index.txt
+    // A few seconds after startup (and when the Practice tab's Import view
+    // opens, once RecheckAfter has passed - T-0254, no button) it fetches
+    // the repo's community/index.txt
     // from raw.githubusercontent.com - plain downloads, not the GitHub API,
     // so the 60-an-hour limit the update check shares is never touched -
     // downloads the .foseg files whose hash changed into
@@ -34,6 +35,8 @@ namespace ForestOverlay.Modules
     {
         public const string DefaultUrl = "https://raw.githubusercontent.com/1deter/forest-speedrun-tool/main/community/";
         private const float StartupDelay = 5f;
+        // The Import view opening checks again after this (T-0254).
+        private const float RecheckAfter = 600f;
         private const int MaxBytes = 20 * 1024 * 1024;
 
         public override string Id { get { return "community"; } }
@@ -44,6 +47,7 @@ namespace ForestOverlay.Modules
         private string _cache;
         private string _segmentsDir;
         private bool _startupDone;
+        private float _checkedAt = -1f;
 
         public string Status { get; private set; }
         public bool Busy { get; private set; }
@@ -57,19 +61,29 @@ namespace ForestOverlay.Modules
                                    "Folder holding the community index.txt and .foseg files (ends with /).");
             _cache = Path.Combine(ctx.ConfigDirectory, "community");
             _segmentsDir = Path.Combine(ctx.ConfigDirectory, "segments");
-            Status = _auto.Value ? "checking shortly after startup" : "not checked (UpdateOnStartup is off) - Check community now";
+            Status = _auto.Value ? "checking shortly after startup" : "not checked (UpdateOnStartup is off)";
         }
 
         public override void Tick()
         {
             if (_startupDone || Time.unscaledTime < StartupDelay) return;
             _startupDone = true;
-            if (_auto.Value) CheckNow();
+            if (_auto.Value && _checkedAt < 0f) CheckNow();
+        }
+
+        /// The Practice tab's Import view came into view (T-0254): the
+        /// community packs and the website's spots are asked for again
+        /// when their last answer is old enough.
+        public void ImportViewOpened()
+        {
+            if (!Busy && (_checkedAt < 0f || Time.unscaledTime >= _checkedAt + RecheckAfter)) CheckNow();
+            WebOpened();
         }
 
         public void CheckNow()
         {
             if (Busy) return;
+            _checkedAt = Time.unscaledTime;
             Busy = true;
             Status = "checking...";
             Ctx.Runner.StartCoroutine(Check());
@@ -243,6 +257,7 @@ namespace ForestOverlay.Modules
         {
             Status = status + " (" + DateTime.Now.ToString("HH:mm") + ")";
             Busy = false;
+            if (warn) _checkedAt = -1f;   // a failed check: the next Import view asks again
             if (warn) Ctx.Log.LogWarning("Community: " + status + ".");
             else Ctx.Log.LogInfo("Community: " + status + ".");
         }

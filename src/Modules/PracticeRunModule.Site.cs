@@ -31,6 +31,7 @@ namespace ForestOverlay.Modules
         private string _boardFetching;            // key of the request in flight
         private float _boardFetchedAt = -999f;
         private string _boardState = "";
+        private bool _boardFailed;                // the last read failed
 
         private int _runnerPick = -1;              // index into _others
         private string _runnerPickId;              // kept across a re-read
@@ -42,8 +43,21 @@ namespace ForestOverlay.Modules
 
         private string SiteUrl { get { return _upload != null ? _upload.SiteUrl : null; } }
 
-        /// On every arm: a new segment / route reads the board at once, the
-        /// same one again after BoardMaxAge (new PBs by others).
+        /// The Runs tab came into view (T-0254: no Refresh button): the board
+        /// is read again once BoardMaxAge has passed - never during a run,
+        /// whose comparison must not change under it - and the run
+        /// categories are checked.
+        private void RunsTabOpened()
+        {
+            if (_runMode != null) _runMode.RunsTabOpened();
+            if (_recorder.State == RunRecorder.RunState.Running) return;
+            if (_boardFailed) FetchBoard();
+            else MaybeFetchBoard();
+        }
+
+        /// On every arm and when the Runs tab opens: a new segment / route
+        /// reads the board at once, the same one again after BoardMaxAge
+        /// (new PBs by others).
         private void MaybeFetchBoard()
         {
             if (_segment == null) return;
@@ -78,10 +92,12 @@ namespace ForestOverlay.Modules
                 string why = code == 0 ? (error ?? "no answer") : "answer " + code;
                 _boardState = "Other runners: could not read the website (" + why + ")" +
                               (_others.Count > 0 ? " - showing the last list." : ".");
+                _boardFailed = true;   // the next Runs tab asks again (no Refresh, T-0254); an arm waits BoardMaxAge
                 Ctx.Log.LogWarning("Site board '" + key + "': " + why + ".");
                 yield break;
             }
 
+            _boardFailed = false;
             _siteOthers.Clear();
             _siteOthers.AddRange(SiteBoard.Others(board, RunnerIdNow(), rows));
             Ctx.Log.LogInfo("Site board '" + key + "': " + board.Count + " runner(s), " + _siteOthers.Count + " to compare with.");
@@ -119,6 +135,7 @@ namespace ForestOverlay.Modules
         private void ClearBoard(string key)
         {
             _boardKey = key;
+            _boardFailed = false;
             _siteOthers.Clear();
             _runnerRuns.Clear();
             _boardState = "";
@@ -202,14 +219,7 @@ namespace ForestOverlay.Modules
                 if (GUI.Button(new Rect(134, y, 24, 20), "<")) PickRunner(_runnerPick < 0 ? _others.Count - 1 : _runnerPick - 1);
                 if (GUI.Button(new Rect(162, y, 24, 20), ">")) PickRunner(_runnerPick < 0 ? 0 : _runnerPick + 1);
                 GUI.Label(new Rect(192, y, Mathf.Max(40f, w - 282f), 20), _runnerPickText);
-                if (GUI.Button(new Rect(w - 80, y, 80, 20), "Refresh")) FetchBoard();
                 y += 24f;
-            }
-            else if (_boardFetching == null && !string.IsNullOrEmpty(_boardState))
-            {
-                if (GUI.Button(new Rect(w - 80, y, 80, 20), "Refresh")) FetchBoard();
-                y += UiText.Draw(0, y, w - 86f, _boardText);
-                return y;
             }
             if (_boardState.Length > 0) y += UiText.Draw(0, y, w, _boardText);
             return y;

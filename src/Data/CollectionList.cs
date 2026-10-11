@@ -99,8 +99,16 @@ namespace ForestOverlay.Data
             return n;
         }
 
+        /// Reads the list files again. What was already collected stays
+        /// ticked (same category + name): the 100% tab reads the list again
+        /// by itself when a file changes (T-0254), and an edit must not
+        /// un-tick a latched item that is no longer held.
         public void Reload()
         {
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < _entries.Count; i++)
+                if (_entries[i].Seen) seen.Add(LatchKey(_entries[i]));
+
             _entries.Clear();
             _categories.Clear();
             Unresolved = 0;
@@ -119,6 +127,10 @@ namespace ForestOverlay.Data
                     if (LoadFile(files[i])) loaded++;
                 }
 
+                if (seen.Count > 0)
+                    for (int i = 0; i < _entries.Count; i++)
+                        if (seen.Contains(LatchKey(_entries[i]))) _entries[i].Seen = true;
+
                 RebuildCategories();
                 Status = _entries.Count + " entries / " + loaded + " file(s)";
                 _log.LogInfo("Collection list: " + Status);
@@ -128,6 +140,11 @@ namespace ForestOverlay.Data
                 Status = "load failed - see log";
                 _log.LogWarning("Collection list failed: " + ex.Message);
             }
+        }
+
+        private static string LatchKey(CollectionEntry e)
+        {
+            return e.Category + "\n" + e.Name;
         }
 
         private bool LoadFile(string path)

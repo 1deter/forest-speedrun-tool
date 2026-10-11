@@ -1329,6 +1329,7 @@ namespace ForestOverlay.Modules
         // DrawTab, which runs several times a frame (module rules).
         private const float TabTextInterval = 0.25f;
         private float _nextTabText;
+        private bool _runsTabWasShowing;
         private readonly GUIContent _segmentText = new GUIContent("");
         private readonly GUIContent _statusText = new GUIContent("");
         private readonly GUIContent _diagnoseText = new GUIContent("");
@@ -1348,6 +1349,8 @@ namespace ForestOverlay.Modules
             // closed window (the upload line listed a folder twice a
             // second), and at once when the tab opens.
             bool showing = TabShowing;
+            if (showing && !_runsTabWasShowing) RunsTabOpened();
+            _runsTabWasShowing = showing;
             if (_upload != null && showing) _upload.RefreshText();
             // At once: it answers a click.
             if (!ReferenceEquals(_statusText.text, _status)) _statusText.text = _status;
