@@ -629,6 +629,13 @@ public sealed class ApiTests : IDisposable
         Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));
         Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/aerial/aerial.json")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/aerial/canopy/6/9_9.jpg")).StatusCode);
+        // A refused upload clears and writes nothing, ?clear=1 or not
+        // (security audit, 2026-10-11): not a zip, a bad name after good ones.
+        Assert.Equal(HttpStatusCode.BadRequest, (await Post(Encoding.UTF8.GetBytes("not a zip"), "admin-secret")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Post(Zip("canopy/6/3_4.jpg", "../evil.jpg"), "admin-secret")).StatusCode);
+        Assert.Equal("jpg bytes", await _http.GetStringAsync("/aerial/canopy/6/1_2.jpg"));
+        Assert.Equal(HttpStatusCode.OK, (await _http.GetAsync("/aerial/aerial.json")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _http.GetAsync("/aerial/canopy/6/3_4.jpg")).StatusCode);
 
         // The 3D world: its own folder and names; .bin served as bytes.
         Assert.Equal(HttpStatusCode.NoContent, (await _http.GetAsync("/world/world.json")).StatusCode);

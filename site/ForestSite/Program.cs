@@ -565,17 +565,21 @@ async Task<IResult> Upload(HttpContext c, string dir, Func<string, bool> allowed
     if (size != null && !size.IsReadOnly) size.MaxRequestBodySize = 100L * 1024 * 1024;
     using var buffer = new MemoryStream();
     await c.Request.Body.CopyToAsync(buffer);
-    if (c.Request.Query["clear"] == "1")
-        foreach (string d in Directory.GetFileSystemEntries(dir))
-            if (Directory.Exists(d)) Directory.Delete(d, true); else File.Delete(d);
     int files = 0;
     try
     {
         using var zip = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Read);
-        foreach (var entry in zip.Entries)
+        // Every name is checked before anything is cleared or written: a
+        // refused upload leaves the map as it was (security audit,
+        // 2026-10-11: ?clear=1 emptied the folder first, a bad name half-way
+        // left the files before it).
+        var entries = zip.Entries.Where(e => !e.FullName.EndsWith("/")).ToList();
+        if (entries.FirstOrDefault(e => !allowed(e.FullName)) is { } bad) return Problem(400, "not a map file: " + bad.FullName);
+        if (c.Request.Query["clear"] == "1")
+            foreach (string d in Directory.GetFileSystemEntries(dir))
+                if (Directory.Exists(d)) Directory.Delete(d, true); else File.Delete(d);
+        foreach (var entry in entries)
         {
-            if (entry.FullName.EndsWith("/")) continue;
-            if (!allowed(entry.FullName)) return Problem(400, "not a map file: " + entry.FullName);
             string to = Path.Combine(dir, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
             using (var from = entry.Open())
