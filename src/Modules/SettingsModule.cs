@@ -40,6 +40,8 @@ namespace ForestOverlay.Modules
         private GUIStyle _labelStyle;
         private GUIStyle _warnStyle;
         private GUIStyle _promptStyle;
+        private GUIStyle _lockedNameStyle;
+        private GUIStyle _lockedStyle;
         private readonly GUIContent _prompt = new GUIContent();
         // A rebind / reset result, shown in place of the Game input status
         // for a few seconds, then the status comes back (T-0261).
@@ -199,6 +201,14 @@ namespace ForestOverlay.Modules
             _promptStyle = UiKit.Style(_warnStyle);
             _promptStyle.wordWrap = true;
             _promptStyle.alignment = TextAnchor.UpperLeft;
+
+            // The HUD's always-shown values (T-0264): the name where a tick
+            // box's label starts (the toggle style, which draws no box), and
+            // "always shown" dim - locked, not a warning (author: dim grey,
+            // tentative).
+            _lockedNameStyle = UiKit.Style(GUI.skin.toggle);
+            _lockedStyle = UiKit.Style(_labelStyle);
+            _lockedStyle.normal.textColor = UiKit.DimColour;
         }
 
         private void DrawContents()
@@ -347,8 +357,8 @@ namespace ForestOverlay.Modules
                 HudLine l = HudLines.All[i];
                 if (l.Locked)
                 {
-                    GUI.Label(new Rect(8, y, 200, 22), _hudNames[i], _labelStyle);
-                    GUI.Label(new Rect(212, y, cw - 216, 22), LockedNote, _warnStyle);
+                    GUI.Label(new Rect(4, y, 208, 22), _hudNames[i], _lockedNameStyle);
+                    GUI.Label(new Rect(212, y, cw - 216, 22), LockedNote, _lockedStyle);
                 }
                 else if (l.External)
                 {
