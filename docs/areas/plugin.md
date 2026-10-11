@@ -222,6 +222,7 @@ One line each, numbered as in [`docs/gotchas.md`](../gotchas.md) (full story, ve
 31. **UiText covers the HUD and fixed labels too** - after UI work, sweep tabs with `shot` and push a long value through. [check: lint.py label20, e2e tabs (shots, for eyes)]
 60. **A config write saves the whole file** (86 ms) - sliders / text fields keep the value and write once it settles; drags write on release. [check: lint.py cfgwrite baseline]
 61. **A sentinel inside the value's range is reachable** - `PanelX = -1` ("right edge") was hit by a drag past the left edge; clamp live input, apply the sentinel only to the saved setting. [judgement]
+107. **A dynamic font forgets glyphs not asked for lately** - a large font size whose characters change (Speed 0.00 <-> digits) rebuilt its texture, ~20 ms a time; keep the glyph set requested every repaint (`HudWidgets.KeptGlyphs`). [judgement]
 
 ### Run mode and detectors
 

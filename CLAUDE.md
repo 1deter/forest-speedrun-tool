@@ -194,6 +194,17 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
 
 ## Where we are (replaced at each handoff)
 
+- **2026-10-11 (T-0301, author present):** the stutter on every WASD /
+  Space press was the HUD's placed Speed value (scale 6 = 96 px bold, its
+  own font from T-0022) rebuilding its font texture (~20 ms) on each start
+  / stop of walking - not the first-input watch (switched off live: no
+  change). Fix on ui-redesign bdc83dd (`HudWidgets.KeptGlyphs`, gotcha
+  107); proved on a hand deploy (16 injected W presses, no spike; old DLL
+  kept as `plugins/ForestOverlay.dll.pre-T0301`); checker accepted; its
+  CHANGELOG line is in T-0025's notes. The author's install runs this
+  build. Seen on the way: right after a Slot 1 load, the bridge's one
+  command a frame gives a ~85 ms GC every ~1.75 s (test-induced, not
+  filed). **Next: T-0020** (snapping).
 - **2026-10-11 (T-0019, author present):** HUD profiles on ui-redesign
   (559b2dd, 03d7186, 1f18a8f) - the whole HUD (values, column, Compact, Text
   size, placed values, splits + results panels - all Edit HUD sets

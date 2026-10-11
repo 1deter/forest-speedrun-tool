@@ -1029,3 +1029,15 @@ The full story behind each lesson; the one-line index is split by area (`docs/ar
     references `BaseModLib`; the plugin stays off on the one launch that
     first installs that patcher. A silent launch crash with another mod
     present: bisect, then flush the log before blaming the game.
+
+107. **A dynamic font forgets glyphs it was not asked for lately.**
+    (2026-10-11, T-0301, ui-redesign bdc83dd.) A small spike on every
+    WASD press (author, RivaTuner) was the HUD's placed Speed value: its
+    own dynamic Arial (T-0022) at 96 px bold rebuilt its whole texture
+    (~20 ms) each time the value went 0.00 -> moving digits -> 0.00,
+    because a rebuild keeps only recently asked glyphs. Found by A/B over
+    the bridge (frame times one a frame + `axis Vertical`): UI off, HUD
+    off, then one widget's `Free` off; GameProfiler showed nothing (the
+    cost is native, in our OnGUI). Fix: ask `RequestCharactersInTexture`
+    for every printable ASCII glyph at each size in use, every repaint.
+    A spike tied to a value changing: suspect the font texture first.
