@@ -176,7 +176,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   same-channel routing wait for the author) and T-0281 first-person replay
   (checker block: the attempt page has no look track - parked Q). Designs
   parked for the author: T-0292 surprise runs, T-0302 input overlay
-  (their notes). T-0241 / T-0251 blocked (group 4; bot paused). The
+  (their notes). T-0241 / T-0251 held (T-0314: `--hold`, next skips). The
   author's install: the ui-redesign DLL put back after the smoke (copy
   `plugins/ForestOverlay.dll.redesign-keep`). **Next loop run** would take
   T-0255 (Map legend, redesign), T-0267, **T-0274** (group 3 perf), T-0290
@@ -191,7 +191,7 @@ Folder `CLAUDE.md` files load by themselves when work touches the folder:
   T-0319 (250k cap) and **T-0313** (tier easy / normal / hard + route
   override; `loop.py` names agent / model / effort; `agent-cost.py
   --tiers` measures it) confirmed - tiers get set at contract time from
-  now on. **Next:** T-0314, then T-0312 / T-0315 (`tasks.py next`).
+  now on. T-0314 done (holds). **Next:** T-0312 / T-0315.
 - **Standing:** v1.0 scope in decisions.md *What v1.0 is* - group 3
   (plugin correctness, savestate gaps, perf; `tasks.py next`) is next; the
   redesign (T-0025, worktree `ui-redesign`) waits on the author's OK; bot
