@@ -465,6 +465,15 @@ public sealed class Runs
                                          R(e.P.x), R(e.P.y), R(e.P.z), RunAudit.Group(e.Kind)));
         o["events"] = events;
         o["buildings"] = a != null ? BuildingsJson(a.Buildings) : new JsonArray();
+        // Where the runner looked (plugin v0.24.243+, the `l|` track, 30 Hz):
+        // [t, yaw, pitch, eye] - Unity's angles (yaw 0 = north, pitch + =
+        // down), eye = metres above the path's point. The 3D view's first
+        // person; empty for older runs.
+        var look = new JsonArray();
+        if (a != null)
+            foreach (LookSample l in a.Looks)
+                look.Add(new JsonArray(R(l.T), R(l.Yaw), R(l.Pitch), R(l.Eye)));
+        o["look"] = look;
         // Load-removed time (plugin load tracking): the time without the
         // game's loads, and how many; null for runs from before it.
         o["lrt"] = a != null && a.HasLoads ? Num(LoadClock.LrtOf(a)) : null;

@@ -61,6 +61,8 @@ public sealed class ApiTests : IDisposable
         a.Channels = new[] { "HeartRate", "Stamina", "Health", "explodeHash", "item:Soda" };
         for (int i = 0; i <= 4; i++)
             a.States.Add(new StateSample { T = duration * i / 4, Values = new float[] { 70, 100 - 10 * i, 100, 12345, i / 2 } });
+        for (int i = 0; i <= 10; i++)
+            a.Looks.Add(new LookSample { T = duration * i / 10, Yaw = 170 + 2 * i, Pitch = -5 + i, Eye = 1.62f });
         a.Items.Add(new ItemChange { T = 0, Name = "Soda", Count = 3 });
         a.Items.Add(new ItemChange { T = duration / 2, Name = "Soda", Count = 2 });
         a.Events.Add(new RunEvent { T = 1, Kind = RunAudit.Crafted, Detail = "Bomb", P = new Vector3(0, 0, 4) });
@@ -334,6 +336,9 @@ public sealed class ApiTests : IDisposable
         Assert.Equal(2.5, run["buildings"][1][11].GetValue<double>());
         Assert.Equal(0.5, run["buildings"][1][12].GetValue<double>());
         Assert.Equal(2.0, run["buildings"][1][13].GetValue<double>());
+        // The look track for the 3D view's first person: [t, yaw, pitch, eye].
+        Assert.Equal(11, run["look"].AsArray().Count);
+        Assert.Equal(new[] { 9.0, 190, 5, 1.62 }, run["look"][10].AsArray().Select(n => n.GetValue<double>()));
         // A run from before load-removed time: no LRT to show.
         Assert.Null(run["lrt"]);
         Assert.Null(run["loads"]);
