@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-224 prefixes from 700 log calls.
+224 prefixes from 701 log calls.
 
 ## `Aerial capture`
 
@@ -597,10 +597,10 @@ Written by Plugin.cs; info.
 
 ## `HUD layout reset`
 
-Meaning: Edit HUD's Reset layout: every value back in the column, the runner's text around each cleared.
+Meaning: Edit HUD's Reset layout: every value back in the column, the runner's text around each and its trend colour cleared.
 Written by HudWidgets.cs; info.
 
-- info `HUD layout reset: every value back in the column, its own text cleared.`
+- info `HUD layout reset: every value back in the column, its own text and trend colour cleared.`
 
 ## `HUD profile`
 
@@ -624,13 +624,14 @@ Written by HudWidgets.Profiles.cs, ModuleHost.cs; info / warning / error.
 
 ## `HUD widget`
 
-Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, or the runner's text before / after it set.
+Meaning: One HUD value changed in Edit HUD: placed on its own (dragged out of the column), put back in the column, moved or scaled, the runner's text before / after it set, or its trend colour (T-0023) switched on / off.
 Written by HudWidgets.cs; info.
 
 - info `HUD widget '<..>' <..>.`
 - info `HUD widget '<..>' placed on its own at (<..>, <..>).`
 - info `HUD widget '<..>' put back in the column.`
 - info `HUD widget '<..>' text: before "<..>", after "<..>".`
+- info `HUD widget '<..>' trend colour <..>.`
 
 ## `HUD widgets`
 

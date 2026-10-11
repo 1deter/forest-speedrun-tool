@@ -46,7 +46,7 @@ namespace ForestOverlay.Modules
                     _speedCompact = compact;
                     _speedText = HudLines.Speed(h, compact);
                 }
-                hud.Pair("Speed", _speedText);
+                hud.Pair("Speed", _speedText, h);   // with its number: the trend colour (T-0023)
             }
             if (hud.Shows("Total"))
             {
@@ -57,7 +57,7 @@ namespace ForestOverlay.Modules
                     _totalCompact = compact;
                     _totalText = HudLines.Speed(t, compact);
                 }
-                hud.Pair("Total", _totalText);
+                hud.Pair("Total", _totalText, t);
             }
 
             if (hud.Shows("Vel"))

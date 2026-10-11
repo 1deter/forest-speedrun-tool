@@ -169,18 +169,30 @@ namespace ForestOverlay.Tests
             Assert.Equal(0x33DD55FFu, c);
             Assert.True(HudTrend.TryParse(" 33dd55 ", out c));
             Assert.Equal(0x33DD55FFu, c);
-            Assert.True(HudTrend.TryParse("#FF444480", out c));
-            Assert.Equal(0xFF444480u, c);
             Assert.Equal("#33DD55", HudTrend.Format(0x33DD55FFu));
-            Assert.Equal("#FF444480", HudTrend.Format(0xFF444480u));
+            Assert.Equal("#FF4444", HudTrend.Format(0xFF444480u));
+        }
+
+        [Fact]
+        public void LowerCaseAndSpacesAreColoursToo()
+        {
+            uint c;
+            Assert.True(HudTrend.TryParse("#a0B1c2", out c));
+            Assert.Equal(0xA0B1C2FFu, c);
+            Assert.True(HudTrend.TryParse("  #000000\t", out c));
+            Assert.Equal(0x000000FFu, c);
         }
 
         [Theory]
         [InlineData(null)]
+        [InlineData("##123456")]
+        [InlineData("# 123456")]
+        [InlineData("12 3456")]
         [InlineData("")]
         [InlineData("#")]
         [InlineData("#12345")]
         [InlineData("#1234567")]
+        [InlineData("#FF444480")]
         [InlineData("#GG0000")]
         [InlineData("+12345")]
         [InlineData("green")]

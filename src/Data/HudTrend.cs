@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 
 namespace ForestOverlay.Data
@@ -100,20 +99,35 @@ namespace ForestOverlay.Data
         public const uint DefaultLoss = 0xFF4444FF;
         public const uint DefaultSteady = 0xFFFFFFFF;
 
-        /// "#RRGGBB" or "#RRGGBBAA" (the # optional) as 0xRRGGBBAA; false for anything else.
+        /// "#RRGGBB" (the # optional) as an opaque 0xRRGGBBAA; false for anything
+        /// else. No alpha: a see-through value would be one that seems gone.
         public static bool TryParse(string text, out uint colour)
         {
+            // By hand, no Trim / Substring: the Settings field asks every draw.
             colour = 0;
             if (text == null) return false;
-            string s = text.Trim();
-            if (s.Length > 0 && s[0] == '#') s = s.Substring(1);
-            if (s.Length != 6 && s.Length != 8) return false;
-            for (int i = 0; i < s.Length; i++)
-                if (!Uri.IsHexDigit(s[i])) return false;
-            uint v;
-            if (!uint.TryParse(s, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out v)) return false;
-            colour = s.Length == 6 ? (v << 8) | 0xFFu : v;
+            int start = 0, end = text.Length;
+            while (start < end && char.IsWhiteSpace(text[start])) start++;
+            while (end > start && char.IsWhiteSpace(text[end - 1])) end--;
+            if (start < end && text[start] == '#') start++;
+            if (end - start != 6) return false;
+            uint v = 0;
+            for (int i = start; i < end; i++)
+            {
+                int d = Hex(text[i]);
+                if (d < 0) return false;
+                v = (v << 4) | (uint)d;
+            }
+            colour = (v << 8) | 0xFFu;
             return true;
+        }
+
+        private static int Hex(char c)
+        {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            return -1;
         }
 
         /// The stored colour, or the fallback for an unreadable one.
@@ -123,12 +137,10 @@ namespace ForestOverlay.Data
             return TryParse(text, out c) ? c : fallback;
         }
 
-        /// "#RRGGBB", with the alpha only when it is not opaque.
+        /// "#RRGGBB" (the alpha is not kept).
         public static string Format(uint colour)
         {
-            if ((colour & 0xFFu) == 0xFFu)
-                return "#" + (colour >> 8).ToString("X6", CultureInfo.InvariantCulture);
-            return "#" + colour.ToString("X8", CultureInfo.InvariantCulture);
+            return "#" + (colour >> 8).ToString("X6", CultureInfo.InvariantCulture);
         }
     }
 }

@@ -33,6 +33,10 @@ namespace ForestOverlay.Core
     //   around a value is joined on the HUD's 10 Hz tick (HudBuilder).
     // - Honest labelling is not a value: ON NOW and the practice marker
     //   always close the column (HudLines.Locked).
+    // - A value that offers it can be coloured by its trend (T-0023; its
+    //   Trend switch here, colours in Settings -> HUD): only the style's
+    //   text colour changes around the draw, so the values' own font never
+    //   rebuilds for it (gotcha 107).
     // ------------------------------------------------------------------
     public sealed partial class HudWidgets
     {
@@ -97,6 +101,7 @@ namespace ForestOverlay.Core
         private readonly bool[] _free = new bool[HudLines.All.Length];
         private readonly string[] _before = new string[HudLines.All.Length];
         private readonly string[] _after = new string[HudLines.All.Length];
+        private readonly bool[] _trendOn = new bool[HudLines.All.Length];
         private int[] _widgetLine = new int[0];
 
         /// Edit mode: the window shows the value list, the screen the handles.
@@ -128,6 +133,12 @@ namespace ForestOverlay.Core
             return lineIndex >= 0 && lineIndex < _free.Length && _free[lineIndex];
         }
 
+        /// Whether line `lineIndex` is coloured by its trend (T-0023).
+        public bool TrendOn(int lineIndex)
+        {
+            return lineIndex >= 0 && lineIndex < _trendOn.Length && _trendOn[lineIndex];
+        }
+
         /// A value as shown: the runner's text around it. Called on the HUD
         /// tick when the value changes, never in OnGUI.
         public string Decorate(int lineIndex, string value)
@@ -151,6 +162,7 @@ namespace ForestOverlay.Core
                 _free[i] = false;
                 _before[i] = "";
                 _after[i] = "";
+                _trendOn[i] = false;
             }
             if (_widgetLine.Length != _layout.Widgets.Count)
             {
@@ -166,6 +178,7 @@ namespace ForestOverlay.Core
                 _free[line] = w.Free;
                 _before[line] = w.Before;
                 _after[line] = w.After;
+                _trendOn[line] = w.Trend && HudLines.All[line].Trend;
             }
             TextVersion++;
         }
@@ -192,13 +205,22 @@ namespace ForestOverlay.Core
             }
         }
 
+        public void SetTrend(int lineIndex, bool on)
+        {
+            if (lineIndex < 0 || lineIndex >= HudLines.All.Length || !HudLines.All[lineIndex].Trend) return;
+            if (!_layout.SetTrend(HudLines.All[lineIndex].ConfigKey, on)) return;
+            Rebuild();
+            Save();
+            if (_log != null) _log.LogInfo("HUD widget '" + HudLines.All[lineIndex].Name + "' trend colour " + (on ? "on" : "off") + ".");
+        }
+
         public void ResetLayout()
         {
             CloseText();
             _layout = new HudLayout();
             Rebuild();
             Save();
-            if (_log != null) _log.LogInfo("HUD layout reset: every value back in the column, its own text cleared.");
+            if (_log != null) _log.LogInfo("HUD layout reset: every value back in the column, its own text and trend colour cleared.");
         }
 
         private HudWidgetLayout WidgetOf(int lineIndex)
@@ -392,7 +414,16 @@ namespace ForestOverlay.Core
                     Matrix4x4 m = GUI.matrix;
                     GUIUtility.ScaleAroundPivot(new Vector2(st.ValueScale, st.ValueScale), new Vector2(cx, cy));
                     Rect vr = new Rect(cx, cy, width / st.ValueScale, valueH / st.ValueScale);
-                    GUI.Label(vr, hud.ValueAt(j), st.Value);
+                    int trend = hud.TrendAt(j);
+                    if (trend >= 0 && _settings != null)
+                    {
+                        // The colour only: the glyphs (and the font's texture) stay.
+                        Color normal = st.Value.normal.textColor;
+                        st.Value.normal.textColor = _settings.TrendColour((TrendState)trend);
+                        GUI.Label(vr, hud.ValueAt(j), st.Value);
+                        st.Value.normal.textColor = normal;
+                    }
+                    else GUI.Label(vr, hud.ValueAt(j), st.Value);
                     GUI.matrix = m;
                     cy += valueH;
                 }
@@ -530,11 +561,15 @@ namespace ForestOverlay.Core
             "Always shown under the column: ON NOW and the practice marker (a recording must show them).");
         private static readonly GUIContent DoneText = new GUIContent("Done");
         private static readonly GUIContent ResetText = new GUIContent("Reset layout");
-        private static readonly GUIContent ResetTip = new GUIContent("Every value back in the column, its own text cleared.");
+        private static readonly GUIContent ResetTip = new GUIContent("Every value back in the column, its own text and trend colour cleared.");
         private static readonly GUIContent TextText = new GUIContent("Text");
         private static readonly GUIContent TextTip = new GUIContent("Your own text before and after the value, e.g. \"Speed \" or \" u/s\".");
         private static readonly GUIContent BeforeText = new GUIContent("Before");
         private static readonly GUIContent AfterText = new GUIContent("After");
+        // Words proposed (T-0023), not yet approved by the author.
+        private static readonly GUIContent TrendText = new GUIContent("Trend");
+        private static readonly GUIContent TrendTip = new GUIContent(
+            "Colour the value by its trend: gaining, losing or steady. The colours are in Settings -> HUD.");
         private static readonly GUIContent ColumnText = new GUIContent("To column");
         private static readonly GUIContent ColumnTip = new GUIContent("Put this value back in the column.");
         private static readonly GUIContent SmallerText = new GUIContent("-");
@@ -604,11 +639,12 @@ namespace ForestOverlay.Core
             return done;
         }
 
-        private const float TextW = 56f, Gap = 6f, StepW = 26f, ScaleW = 40f, ColumnW = 84f;
+        private const float TextW = 56f, TrendW = 54f, Gap = 6f, StepW = 26f, ScaleW = 40f, ColumnW = 84f;
         private GUIStyle _centred;
 
-        // name toggle ... (placed:) [-] 1x [+] [To column] [Text] - right-aligned,
-        // Text always in the same place; then the text fields when open.
+        // name toggle ... (placed:) [-] 1x [+] [To column] [Trend] [Text] -
+        // right-aligned, Text always in the same place, Trend on the values
+        // that offer it; then the text fields when open.
         private float DrawRow(int i, float ry, float cw, HudSettings settings)
         {
             if (_centred == null)
@@ -626,6 +662,15 @@ namespace ForestOverlay.Core
                 else OpenText(i);
             }
             UiKit.Hint(textR, TextTip);
+
+            if (HudLines.All[i].Trend)
+            {
+                x -= Gap + TrendW;
+                Rect trendR = new Rect(x, ry, TrendW, h);
+                bool on = _trendOn[i];
+                if (UiKit.Toggle(trendR, on, TrendText, GUI.skin.button) != on) SetTrend(i, !on);
+                UiKit.Hint(trendR, TrendTip);
+            }
 
             HudWidgetLayout wl = WidgetOf(i);
             if (wl != null && wl.Free)
