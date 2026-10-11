@@ -702,8 +702,9 @@ no fat target there. Each 10k cut from the start saves ~0.8M a session
 measure impact, then adjust").** A tool the model is denied is left out of
 its context (proved with `claude -p --disallowedTools` and a project
 `permissions.deny`: 33.5k -> 32.1k for three small tools), so
-`.claude/settings.json` denies every tool and connector main sessions and
-agents never called since 2026-09-20: `Artifact`, `ReportFindings`,
+`.claude/settings.json` denies the tools and connectors main sessions and
+agents did not call since 2026-09-20 (`claude-in-chrome`: 2 calls on 10-07;
+the built-in browser does that job): `Artifact`, `ReportFindings`,
 `SearchPlugins`, `SuggestPluginInstall`, `SuggestSkills`, `ScheduleWakeup`,
 the Claude Docs and visualize connectors, and the deferred `claude-in-chrome`,
 `scheduled-tasks`, `mcp-registry`, `potassium`, `roblox-explorer`. Undo a
