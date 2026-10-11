@@ -206,8 +206,8 @@ namespace ForestOverlay.Core
                 if (_show[i] != null) widgets.RegisterProfileEntry(_show[i], null);
             widgets.RegisterProfileEntry(_compact, null);
             widgets.RegisterProfileEntry(_textSize, null);
-            widgets.RegisterProfileEntry(_x, null);
-            widgets.RegisterProfileEntry(_y, null);
+            widgets.RegisterProfileEntry(_x, null, ProfileUnit.X);
+            widgets.RegisterProfileEntry(_y, null, ProfileUnit.Y);
             for (int i = 0; i < _trend.Length; i++) if (_trend[i] != null) widgets.RegisterProfileEntry(_trend[i], null);
         }
 

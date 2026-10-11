@@ -98,6 +98,7 @@
     <Compile Include="../../src/Data/KeyGroups.cs" Link="Linked/KeyGroups.cs" />
     <Compile Include="../../src/Data/HudLayout.cs" Link="Linked/HudLayout.cs" />
     <Compile Include="../../src/Data/UiScale.cs" Link="Linked/UiScale.cs" />
+    <Compile Include="../../src/Data/ProfileUnits.cs" Link="Linked/ProfileUnits.cs" />
     <Compile Include="../../src/Data/HudProfile.cs" Link="Linked/HudProfile.cs" />
     <Compile Include="../../src/Data/HudSnap.cs" Link="Linked/HudSnap.cs" />
     <Compile Include="../../src/Data/HudTrend.cs" Link="Linked/HudTrend.cs" />

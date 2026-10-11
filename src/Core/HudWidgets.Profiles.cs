@@ -33,6 +33,7 @@ namespace ForestOverlay.Core
         private readonly ConfigEntry<string> _activeCfg;
         private readonly List<ConfigEntryBase> _entries = new List<ConfigEntryBase>();
         private readonly List<Action<object>> _appliers = new List<Action<object>>();
+        private readonly List<ProfileUnit> _units = new List<ProfileUnit>();
         private readonly List<string> _names = new List<string>();
         private GUIContent[] _nameTexts = new GUIContent[0];
         private bool _loaded, _applying, _dirty;
@@ -44,9 +45,18 @@ namespace ForestOverlay.Core
         /// its value; otherwise the entry is set directly.
         public void RegisterProfileEntry(ConfigEntryBase entry, Action<object> apply)
         {
+            RegisterProfileEntry(entry, apply, ProfileUnit.None);
+        }
+
+        /// As above; `unit` says what a float entry measures (X / Y position,
+        /// Size) so a profile saved at another reference screen is converted
+        /// when it is put in (T-0327, Data/ProfileUnits).
+        public void RegisterProfileEntry(ConfigEntryBase entry, Action<object> apply, ProfileUnit unit)
+        {
             if (entry == null || _entries.Contains(entry)) return;
             _entries.Add(entry);
             _appliers.Add(apply);
+            _units.Add(unit);
         }
 
         private static string KeyOf(ConfigEntryBase e)
@@ -98,6 +108,7 @@ namespace ForestOverlay.Core
 
         private void MigrateToDefault()
         {
+            if (_settings != null) _settings.Scale();   // the reference exists before Capture writes it
             HudProfile p = Capture();
             string old = Path.Combine(_configDir, OldLayoutFile);
             try
@@ -163,6 +174,11 @@ namespace ForestOverlay.Core
             for (int i = 0; i < _entries.Count; i++)
                 p.Set(KeyOf(_entries[i]), _entries[i].GetSerializedValue());
             p.Layout = _layout;
+            if (_settings != null && _settings.Ui.HasReference)
+            {
+                p.Set(ProfileUnits.WidthKey, _settings.Ui.RefW.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                p.Set(ProfileUnits.HeightKey, _settings.Ui.RefH.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
             return p;
         }
 
@@ -211,7 +227,15 @@ namespace ForestOverlay.Core
             _applying = true;
             bool saveEach = _config.SaveOnConfigSet;
             _config.SaveOnConfigSet = false;
-            bool changed = false;
+            bool changed = false, converted = false;
+            int fw = ProfileUnits.ParseDim(p.Get(ProfileUnits.WidthKey)), fh = ProfileUnits.ParseDim(p.Get(ProfileUnits.HeightKey));
+            int tw = 0, th = 0;
+            if (_settings != null && fw > 0 && fh > 0)
+            {
+                _settings.Scale();
+                if (_settings.Ui.HasReference) { tw = _settings.Ui.RefW; th = _settings.Ui.RefH; }
+            }
+            bool convert = ProfileUnits.Differs(fw, fh, tw, th);
             try
             {
                 for (int i = 0; i < _entries.Count; i++)
@@ -223,6 +247,11 @@ namespace ForestOverlay.Core
                     {
                         try { want = TomlTypeConverter.ConvertToValue(stored, e.SettingType); }
                         catch (Exception) { want = e.DefaultValue; }
+                        if (convert && _units[i] != ProfileUnit.None && want is float)
+                        {
+                            float cv = ProfileUnits.Convert((float)want, _units[i], fw, fh, tw, th);
+                            if (cv != (float)want) { want = cv; converted = true; }
+                        }
                     }
                     if (Equals(want, e.BoxedValue)) continue;
                     if (_appliers[i] != null) _appliers[i](want);
@@ -238,6 +267,20 @@ namespace ForestOverlay.Core
             if (changed) _config.Save();
 
             _layout = p.Layout;
+            if (convert)
+            {
+                for (int i = 0; i < _layout.Widgets.Count; i++)
+                {
+                    HudWidgetLayout w = _layout.Widgets[i];
+                    if (!w.Free) continue;
+                    w.X = ProfileUnits.Convert(w.X, ProfileUnit.X, fw, fh, tw, th);
+                    w.Y = ProfileUnits.Convert(w.Y, ProfileUnit.Y, fw, fh, tw, th);
+                    converted = true;
+                }
+                // Saved again in this install's reference (the next Tick).
+                _dirty = true;
+                if (_log != null) _log.LogInfo("HUD profile: " + name + " was made at " + fw + "x" + fh + " - positions and sizes converted to " + tw + "x" + th + (converted ? "." : " (nothing to move)."));
+            }
             Rebuild();
             if (_activeCfg.Value != name) _activeCfg.Value = name;
             _activeText.text = name;

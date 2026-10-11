@@ -10,7 +10,7 @@ rows of a report are not listed. `python scripts/log-catalogue.py --check`
 (run by `scripts/lint.py`) fails on a stale file, an empty meaning or a log
 call with no prefix.
 
-230 prefixes from 720 log calls.
+230 prefixes from 721 log calls.
 
 ## `Aerial capture`
 
@@ -616,6 +616,7 @@ Written by HudWidgets.Profiles.cs, ModuleHost.cs; info / warning / error.
 - info `HUD profile: <from> renamed to <to>.`
 - info `HUD profile: <name> (<_names.Count> in <_dir>).`
 - info `HUD profile: <name> deleted - now <..>.`
+- info `HUD profile: <name> was made at <fw>x<fh> - positions and sizes converted to <tw>x<th><..>`
 - info `HUD profile: Default made from the current HUD settings and layout.`
 - warning `HUD profile: folder not read (<_dir>): <ex.Message>`
 - warning `HUD profile: hud-layout.txt left in place (<ex.Message>); it is no longer read.`

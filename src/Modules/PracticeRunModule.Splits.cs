@@ -182,9 +182,9 @@ namespace ForestOverlay.Modules
         {
             HudWidgets profiles = Host.Hud.Widgets;
             profiles.RegisterProfileEntry(_splitsPanel, null);
-            profiles.RegisterProfileEntry(_panelX, null);
-            profiles.RegisterProfileEntry(_panelY, null);
-            profiles.RegisterProfileEntry(_panelWidth, null);
+            profiles.RegisterProfileEntry(_panelX, null, ProfileUnit.X);
+            profiles.RegisterProfileEntry(_panelY, null, ProfileUnit.Y);
+            profiles.RegisterProfileEntry(_panelWidth, null, ProfileUnit.Size);
             profiles.RegisterProfileEntry(_panelRows, null);
             for (int i = 0; i < ColCount; i++) profiles.RegisterProfileEntry(_cols[i], SplitsOptionApplier(_cols[i]));
             for (int i = 0; i < LineCount; i++) profiles.RegisterProfileEntry(_lines2[i], SplitsOptionApplier(_lines2[i]));

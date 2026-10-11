@@ -88,9 +88,9 @@ namespace ForestOverlay.Modules
             _resWidth = c.Bind("Splits", "ResultsWidth", 480f, "Results panel width in pixels.");
             HudWidgets profiles = Host.Hud.Widgets;   // the HUD profile (T-0019)
             profiles.RegisterProfileEntry(_resultsCfg, null);
-            profiles.RegisterProfileEntry(_resX, null);
-            profiles.RegisterProfileEntry(_resY, null);
-            profiles.RegisterProfileEntry(_resWidth, null);
+            profiles.RegisterProfileEntry(_resX, null, ProfileUnit.X);
+            profiles.RegisterProfileEntry(_resY, null, ProfileUnit.Y);
+            profiles.RegisterProfileEntry(_resWidth, null, ProfileUnit.Size);
             // Its own choice (T-0253); it followed the splits' LRT column
             // before, so it starts from that.
             _resLoadAlways = c.Bind("Splits", "ResultsLoadTimeAlways", _cols[(int)Col.Lrt].Value,
